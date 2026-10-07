@@ -44,15 +44,13 @@ type readerSet struct {
 
 // Enricher derives non-identifying client dimensions and rejects known bots.
 type Enricher struct {
-	ua         *uaCache
-	geo        atomic.Pointer[readerSet]
-	geoLife    sync.RWMutex
-	closed     bool
-	crawler    crawlerMatcher
-	datacenter prefixSet
-	hosting    []string
-	spam       map[string]struct{}
-	source     *SourceClassifier
+	ua      *uaCache
+	geo     atomic.Pointer[readerSet]
+	geoLife sync.RWMutex
+	closed  bool
+	crawler crawlerMatcher
+	spam    map[string]struct{}
+	source  *SourceClassifier
 }
 
 // New loads an Enricher. An empty geoPath uses the bundled DB-IP Lite country
@@ -70,7 +68,7 @@ func NewWithGeo(paths GeoPaths) (*Enricher, error) {
 		return nil, err
 	}
 
-	crawler, datacenter, spam, hosting, err := loadBotData()
+	crawler, spam, err := loadBotData()
 	if err != nil {
 		_ = readers.close()
 		return nil, err
@@ -82,12 +80,10 @@ func NewWithGeo(paths GeoPaths) (*Enricher, error) {
 	}
 
 	e := &Enricher{
-		ua:         newUACache(uaCacheSize),
-		crawler:    crawler,
-		datacenter: datacenter,
-		hosting:    hosting,
-		spam:       spam,
-		source:     source,
+		ua:      newUACache(uaCacheSize),
+		crawler: crawler,
+		spam:    spam,
+		source:  source,
 	}
 	e.geo.Store(readers)
 	return e, nil

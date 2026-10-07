@@ -9,28 +9,28 @@ import (
 	"panel/internal/enrich"
 )
 
-func TestBotHostingOrganization(t *testing.T) {
+func TestBotHostingOrganizationIsNotABot(t *testing.T) {
 	tests := []struct {
 		name         string
 		organization string
 		want         enrich.BotReason
 	}{
-		{name: "AWS name", organization: "Amazon Web Services", want: enrich.BotDatacenter},
-		{name: "Amazon legal name", organization: "Amazon.com, Inc.", want: enrich.BotDatacenter},
-		{name: "Google Cloud", organization: "GOOGLE-CLOUD-PLATFORM", want: enrich.BotDatacenter},
-		{name: "Microsoft Azure", organization: "MICROSOFT-CORP-MSN-AS-BLOCK", want: enrich.BotDatacenter},
-		{name: "DigitalOcean", organization: "DIGITALOCEAN-ASN", want: enrich.BotDatacenter},
-		{name: "Hetzner", organization: "Hetzner Online GmbH", want: enrich.BotDatacenter},
-		{name: "OVH", organization: "OVH SAS", want: enrich.BotDatacenter},
-		{name: "Linode", organization: "Linode, LLC", want: enrich.BotDatacenter},
-		{name: "Akamai", organization: "Akamai Connected Cloud", want: enrich.BotDatacenter},
-		{name: "Vultr", organization: "The Constant Company, LLC", want: enrich.BotDatacenter},
-		{name: "Oracle Cloud", organization: "Oracle Corporation", want: enrich.BotDatacenter},
-		{name: "Alibaba", organization: "Alibaba (US) Technology Co., Ltd.", want: enrich.BotDatacenter},
-		{name: "Tencent", organization: "Tencent Building, Kejizhongyi Avenue", want: enrich.BotDatacenter},
-		{name: "Cloudflare", organization: "Cloudflare, Inc.", want: enrich.BotDatacenter},
-		{name: "Scaleway", organization: "Scaleway S.a.s.", want: enrich.BotDatacenter},
-		{name: "Contabo", organization: "Contabo GmbH", want: enrich.BotDatacenter},
+		{name: "AWS name", organization: "Amazon Web Services", want: enrich.BotNone},
+		{name: "Amazon legal name", organization: "Amazon.com, Inc.", want: enrich.BotNone},
+		{name: "Google Cloud", organization: "GOOGLE-CLOUD-PLATFORM", want: enrich.BotNone},
+		{name: "Microsoft Azure", organization: "MICROSOFT-CORP-MSN-AS-BLOCK", want: enrich.BotNone},
+		{name: "DigitalOcean", organization: "DIGITALOCEAN-ASN", want: enrich.BotNone},
+		{name: "Hetzner", organization: "Hetzner Online GmbH", want: enrich.BotNone},
+		{name: "OVH", organization: "OVH SAS", want: enrich.BotNone},
+		{name: "Linode", organization: "Linode, LLC", want: enrich.BotNone},
+		{name: "Akamai", organization: "Akamai Connected Cloud", want: enrich.BotNone},
+		{name: "Vultr", organization: "The Constant Company, LLC", want: enrich.BotNone},
+		{name: "Oracle Cloud", organization: "Oracle Corporation", want: enrich.BotNone},
+		{name: "Alibaba", organization: "Alibaba (US) Technology Co., Ltd.", want: enrich.BotNone},
+		{name: "Tencent", organization: "Tencent Building, Kejizhongyi Avenue", want: enrich.BotNone},
+		{name: "Cloudflare", organization: "Cloudflare, Inc.", want: enrich.BotNone},
+		{name: "Scaleway", organization: "Scaleway S.a.s.", want: enrich.BotNone},
+		{name: "Contabo", organization: "Contabo GmbH", want: enrich.BotNone},
 		{name: "benign ISP", organization: "Example Regional Broadband Cooperative", want: enrich.BotNone},
 	}
 
@@ -53,7 +53,7 @@ func TestBotHostingOrganization(t *testing.T) {
 	}
 }
 
-func TestBotPrecedenceWithHostingOrganization(t *testing.T) {
+func TestBotPrecedenceIgnoresHostingOrganization(t *testing.T) {
 	asnPath := writeMMDB(t, "GeoLite2-ASN", mmdbtype.Map{
 		"autonomous_system_number":       mmdbtype.Uint32(64500),
 		"autonomous_system_organization": mmdbtype.String("AMAZON-02"),
@@ -82,10 +82,15 @@ func TestBotPrecedenceWithHostingOrganization(t *testing.T) {
 			want: enrich.BotUserAgent,
 		},
 		{
-			name: "ASN before spam referrer",
+			name: "hosting ASN does not hide a spam referrer verdict",
 			ua:   desktopUserAgent(),
 			ref:  "https://best-seo-offer.com/",
-			want: enrich.BotDatacenter,
+			want: enrich.BotSpamReferrer,
+		},
+		{
+			name: "VPN or hosting ASN with a normal browser is a visitor",
+			ua:   desktopUserAgent(),
+			want: enrich.BotNone,
 		},
 	}
 	for _, tt := range tests {

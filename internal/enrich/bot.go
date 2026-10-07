@@ -9,7 +9,6 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -20,7 +19,7 @@ const (
 	BotNone BotReason = iota
 	BotUserAgent
 	BotHeadless
-	BotDatacenter
+	BotDatacenter // retired: VPN, proxy and hosting traffic counts as real visitors
 	BotSpamReferrer
 )
 
@@ -31,12 +30,6 @@ var crawlerUserAgentsJSON []byte
 
 //go:embed lists/referrer-spam.txt
 var referrerSpam []byte
-
-//go:embed lists/datacenter-cidrs.txt
-var datacenterCIDRs []byte
-
-//go:embed lists/hosting-organizations.txt
-var hostingOrganizations []byte
 
 type crawlerMatcher struct {
 	pattern *regexp.Regexp
@@ -50,19 +43,6 @@ func (m crawlerMatcher) match(ua string) bool {
 	return ua == "" || m.pattern.MatchString(ua)
 }
 
-type prefixSet []netip.Prefix
-
-func (s prefixSet) contains(addr netip.Addr) bool {
-	if !addr.IsValid() {
-		return false
-	}
-	addr = addr.Unmap()
-	i := sort.Search(len(s), func(i int) bool {
-		return s[i].Addr().Compare(addr) > 0
-	})
-	return i > 0 && s[i-1].Contains(addr)
-}
-
 // Bot returns the first matching filter reason in precedence order.
 func (e *Enricher) Bot(ua string, ip netip.Addr, referrer string) BotReason {
 	switch {
@@ -70,28 +50,11 @@ func (e *Enricher) Bot(ua string, ip netip.Addr, referrer string) BotReason {
 		return BotHeadless
 	case e.crawler.match(ua):
 		return BotUserAgent
-	case e.datacenter.contains(ip):
-		return BotDatacenter
-	case e.isHostingOrganization(e.ASN(ip).Organization):
-		return BotDatacenter
 	case e.isSpamReferrer(referrer):
 		return BotSpamReferrer
 	default:
 		return BotNone
 	}
-}
-
-func (e *Enricher) isHostingOrganization(organization string) bool {
-	organization = strings.ToLower(strings.TrimSpace(organization))
-	if organization == "" {
-		return false
-	}
-	for _, pattern := range e.hosting {
-		if strings.Contains(organization, pattern) {
-			return true
-		}
-	}
-	return false
 }
 
 func (e *Enricher) isSpamReferrer(referrer string) bool {
@@ -112,10 +75,10 @@ func (e *Enricher) isSpamReferrer(referrer string) bool {
 	}
 }
 
-func loadBotData() (crawlerMatcher, prefixSet, map[string]struct{}, []string, error) {
+func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 	var crawlers []crawlerEntry
 	if err := json.Unmarshal(crawlerUserAgentsJSON, &crawlers); err != nil {
-		return crawlerMatcher{}, nil, nil, nil, fmt.Errorf("parse crawler list: %w", err)
+		return crawlerMatcher{}, nil, fmt.Errorf("parse crawler list: %w", err)
 	}
 	patterns := make([]string, 0, len(crawlers))
 	for _, crawler := range crawlers {
@@ -125,12 +88,7 @@ func loadBotData() (crawlerMatcher, prefixSet, map[string]struct{}, []string, er
 	}
 	pattern, err := regexp.Compile(`(?i)(?:` + strings.Join(patterns, "|") + `)`)
 	if err != nil {
-		return crawlerMatcher{}, nil, nil, nil, fmt.Errorf("compile crawler list: %w", err)
-	}
-
-	prefixes, err := parsePrefixes(datacenterCIDRs)
-	if err != nil {
-		return crawlerMatcher{}, nil, nil, nil, err
+		return crawlerMatcher{}, nil, fmt.Errorf("compile crawler list: %w", err)
 	}
 
 	spam := make(map[string]struct{})
@@ -142,57 +100,8 @@ func loadBotData() (crawlerMatcher, prefixSet, map[string]struct{}, []string, er
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return crawlerMatcher{}, nil, nil, nil, fmt.Errorf("parse spam list: %w", err)
+		return crawlerMatcher{}, nil, fmt.Errorf("parse spam list: %w", err)
 	}
 
-	hosting := parseLines(hostingOrganizations)
-	return crawlerMatcher{pattern: pattern}, prefixes, spam, hosting, nil
-}
-
-func parseLines(data []byte) []string {
-	var lines []string
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	for scanner.Scan() {
-		line := strings.ToLower(strings.TrimSpace(scanner.Text()))
-		if line != "" && !strings.HasPrefix(line, "#") {
-			lines = append(lines, line)
-		}
-	}
-	return lines
-}
-
-func parsePrefixes(data []byte) (prefixSet, error) {
-	var prefixes prefixSet
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		prefix, err := netip.ParsePrefix(line)
-		if err != nil {
-			return nil, fmt.Errorf("parse datacenter prefix: %w", err)
-		}
-		prefixes = append(prefixes, prefix.Masked())
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("parse datacenter prefixes: %w", err)
-	}
-	sort.Slice(prefixes, func(i, j int) bool {
-		if cmp := prefixes[i].Addr().Compare(prefixes[j].Addr()); cmp != 0 {
-			return cmp < 0
-		}
-		return prefixes[i].Bits() < prefixes[j].Bits()
-	})
-
-	// CIDR overlap implies containment. Removing contained ranges makes the
-	// greatest start address at or below an IP the only candidate to inspect.
-	normalized := prefixes[:0]
-	for _, prefix := range prefixes {
-		if len(normalized) > 0 && normalized[len(normalized)-1].Contains(prefix.Addr()) {
-			continue
-		}
-		normalized = append(normalized, prefix)
-	}
-	return normalized, nil
+	return crawlerMatcher{pattern: pattern}, spam, nil
 }

@@ -145,7 +145,3 @@ when configured and is not bundled with Panel.
 ## Public-domain and public data
 
 - `matomo-org/referrer-spam-list` is dedicated to the public domain.
-- Datacenter CIDRs are generated from the providers' published public IP range
-  files: AWS `ip-ranges.json`, Google Cloud `cloud.json`, Microsoft Azure
-  `ServiceTags_Public`, Oracle Cloud `public_ip_ranges.json`, and Cloudflare's
-  IPv4 and IPv6 lists.

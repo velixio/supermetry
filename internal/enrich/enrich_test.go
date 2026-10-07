@@ -33,10 +33,10 @@ func TestBotFilter(t *testing.T) {
 			want: enrich.BotReason(2),
 		},
 		{
-			name: "datacenter address",
+			name: "cloud or VPN address is a visitor",
 			ua:   desktopUserAgent(),
 			ip:   [4]byte{3, 5, 140, 2},
-			want: enrich.BotReason(3),
+			want: 0,
 		},
 		{
 			name: "spam referrer",
