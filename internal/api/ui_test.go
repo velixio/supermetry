@@ -41,7 +41,9 @@ func TestTrackerUsesConfiguredPathAndHeaders(t *testing.T) {
 		wantStatus int
 	}{
 		{name: "configured path", path: "/custom/tracker.js", wantStatus: http.StatusOK},
+		{name: "configured full path", path: "/custom/tracker.full.js", wantStatus: http.StatusOK},
 		{name: "default path is not mounted", path: "/js/script.js", wantStatus: http.StatusNotFound},
+		{name: "default full path is not mounted", path: "/js/script.full.js", wantStatus: http.StatusNotFound},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
