@@ -49,6 +49,10 @@ type MutationService interface {
 }
 
 type Deps struct {
+	// SecureCookies forces the Secure flag on every cookie. Set it when
+	// PANEL_BASE_URL is https so production never downgrades, even behind a
+	// proxy that omits X-Forwarded-Proto.
+	SecureCookies bool
 	Authenticator Authenticator
 	Sites         coresites.Registry
 	Mutations     MutationService

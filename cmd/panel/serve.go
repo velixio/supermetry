@@ -12,6 +12,7 @@ import (
 	"panel/web"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -160,6 +161,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry)
 	platformHandler := platformhttp.New(platformhttp.Deps{
+		SecureCookies: strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://"),
 		Authenticator: serviceAuthenticator,
 		Sites:         registry,
 		Mutations: platformhttp.Services{
