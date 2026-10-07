@@ -1,0 +1,579 @@
+openapi: 3.1.0
+info:
+  title: Panel Analytics API
+  version: 1.0.0
+  description: The versioned API for querying Panel analytics and operational health.
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/query:
+    post:
+      operationId: query
+      summary: Run an analytics query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Query results
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/stats/summary:
+    get:
+      operationId: statsSummary
+      summary: Get summary metrics
+      parameters:
+        - $ref: '#/components/parameters/SiteID'
+        - $ref: '#/components/parameters/Period'
+      responses:
+        '200':
+          $ref: '#/components/responses/QueryResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/stats/timeseries:
+    get:
+      operationId: statsTimeseries
+      summary: Get a metrics time series
+      parameters:
+        - $ref: '#/components/parameters/SiteID'
+        - $ref: '#/components/parameters/Period'
+        - name: interval
+          in: query
+          schema:
+            type: string
+            enum: [day]
+            default: day
+      responses:
+        '200':
+          $ref: '#/components/responses/QueryResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/stats/breakdown:
+    get:
+      operationId: statsBreakdown
+      summary: Get a dimension breakdown
+      parameters:
+        - $ref: '#/components/parameters/SiteID'
+        - $ref: '#/components/parameters/Period'
+        - name: dimension
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: filter
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          $ref: '#/components/responses/QueryResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/funnels/query:
+    post:
+      operationId: funnelQuery
+      summary: Run a funnel query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunnelRequest'
+      responses:
+        '200':
+          description: Funnel results
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunnelResponse'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/realtime:
+    get:
+      operationId: realtime
+      summary: Get active visitors and top pages
+      parameters:
+        - $ref: '#/components/parameters/SiteID'
+      responses:
+        '200':
+          description: Realtime analytics
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/health:
+    get:
+      operationId: dataHealth
+      summary: Get analytics data-health counters
+      responses:
+        '200':
+          description: Data-health counters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataHealthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /healthz:
+    get:
+      operationId: healthz
+      security: []
+      summary: Check process health
+      responses:
+        '200':
+          $ref: '#/components/responses/HealthCheck'
+  /readyz:
+    get:
+      operationId: readyz
+      security: []
+      summary: Check service readiness
+      responses:
+        '200':
+          $ref: '#/components/responses/HealthCheck'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /metrics:
+    get:
+      operationId: metrics
+      security: []
+      summary: Get Prometheus metrics
+      responses:
+        '200':
+          description: Prometheus text exposition
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    SiteID:
+      name: site_id
+      in: query
+      required: true
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+    Period:
+      name: period
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/Period'
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+  headers:
+    RateLimitLimit:
+      description: Maximum requests allowed in the current window.
+      schema:
+        type: integer
+        format: int64
+    RateLimitRemaining:
+      description: Requests remaining in the current window.
+      schema:
+        type: integer
+        format: int64
+    RateLimitReset:
+      description: RFC 3339 time when the current window resets.
+      schema:
+        type: string
+        format: date-time
+    RetryAfter:
+      description: Seconds until another request may be attempted.
+      schema:
+        type: integer
+        format: int64
+  responses:
+    QueryResult:
+      description: Query results
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/QueryResponse'
+        text/csv:
+          schema:
+            type: string
+    BadRequest:
+      description: The request is invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Authentication is required or invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    RateLimited:
+      description: The rate limit was exceeded.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    HealthCheck:
+      description: The check succeeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/HealthResponse'
+    ServiceUnavailable:
+      description: The service is not ready.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Period:
+      type: string
+      enum: [today, yesterday, 7d, 30d, month, last_month, 12mo, year, custom]
+    DateRange:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+    Metric:
+      type: string
+      enum:
+        - visitors
+        - visits
+        - pageviews
+        - views_per_visit
+        - bounce_rate
+        - visit_duration
+        - engagement_time
+        - scroll_depth
+        - events
+        - conversions
+        - conversion_rate
+    Filter:
+      type: object
+      additionalProperties: false
+      required: [dimension, operator, values]
+      properties:
+        dimension:
+          type: string
+        operator:
+          type: string
+          enum: [is, is_not, contains, starts_with]
+        values:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    OrderBy:
+      type: object
+      additionalProperties: false
+      required: [column]
+      properties:
+        column:
+          type: string
+        direction:
+          type: string
+          enum: [asc, desc]
+          default: desc
+    QueryRequest:
+      type: object
+      additionalProperties: false
+      required: [site_id, metrics]
+      properties:
+        site_id:
+          type: integer
+          format: int32
+          minimum: 1
+        date_range:
+          $ref: '#/components/schemas/DateRange'
+        period:
+          $ref: '#/components/schemas/Period'
+        timezone:
+          type: string
+        metrics:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Metric'
+        dimensions:
+          type: array
+          items:
+            type: string
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/Filter'
+        order_by:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderBy'
+        limit:
+          type: integer
+          minimum: 1
+        cursor:
+          type: string
+        compare:
+          type: string
+          enum: [previous_period, previous_year]
+    QueryMeta:
+      type: object
+      additionalProperties: false
+      required: [sources_used, cached]
+      properties:
+        sources_used:
+          type: array
+          items:
+            type: string
+        cached:
+          type: boolean
+    QueryResponse:
+      type: object
+      additionalProperties: false
+      required: [columns, rows, totals, meta]
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        totals:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        next_cursor:
+          type: string
+        meta:
+          $ref: '#/components/schemas/QueryMeta'
+    FunnelStep:
+      type: object
+      additionalProperties: false
+      required: [type, match, value]
+      properties:
+        type:
+          type: string
+          enum: [page, event]
+        match:
+          type: string
+        value:
+          type: string
+    FunnelRequest:
+      type: object
+      additionalProperties: false
+      required: [site_id, date_range, steps]
+      properties:
+        site_id:
+          type: integer
+          format: int32
+          minimum: 1
+        date_range:
+          $ref: '#/components/schemas/DateRange'
+        steps:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/FunnelStep'
+    FunnelStepResult:
+      type: object
+      additionalProperties: false
+      required: [step, visitors, conversion]
+      properties:
+        step:
+          type: integer
+          minimum: 1
+        visitors:
+          type: integer
+          format: int64
+        conversion:
+          type: number
+          format: double
+    FunnelResponse:
+      type: object
+      additionalProperties: false
+      required: [steps]
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/FunnelStepResult'
+    TopPage:
+      type: object
+      additionalProperties: false
+      required: [page, visitors]
+      properties:
+        page:
+          type: string
+        visitors:
+          type: integer
+          format: int64
+    RealtimeResponse:
+      type: object
+      additionalProperties: false
+      required: [active_visitors, top_pages]
+      properties:
+        active_visitors:
+          type: integer
+          format: int64
+        top_pages:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopPage'
+    DataHealthResponse:
+      type: object
+      additionalProperties: false
+      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds]
+      properties:
+        ingest_rate:
+          type: number
+          format: double
+        drops_503:
+          type: integer
+          format: int64
+        bots_filtered:
+          type: integer
+          format: int64
+        queue_depth:
+          type: integer
+          format: int64
+        close_lag_seconds:
+          type: number
+          format: double
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+    ValidationError:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
