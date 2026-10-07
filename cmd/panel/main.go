@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"panel/internal/config"
 	"panel/internal/db"
@@ -25,9 +27,22 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-	case "serve", "close-days":
-		fmt.Fprintln(os.Stderr, "not implemented")
-		os.Exit(2)
+	case "serve":
+		cfg, err := config.Load(os.Getenv)
+		if err == nil {
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			err = serve(ctx, cfg)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "close-days":
+		if err := closeDays(context.Background(), os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	default:
 		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|close-days|version}")
 		os.Exit(2)
