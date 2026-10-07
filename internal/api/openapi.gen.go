@@ -14,6 +14,33 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for CreateSiteRequestRetentionDays.
+const (
+	CreateSiteRequestRetentionDaysN0   CreateSiteRequestRetentionDays = 0
+	CreateSiteRequestRetentionDaysN30  CreateSiteRequestRetentionDays = 30
+	CreateSiteRequestRetentionDaysN365 CreateSiteRequestRetentionDays = 365
+	CreateSiteRequestRetentionDaysN7   CreateSiteRequestRetentionDays = 7
+	CreateSiteRequestRetentionDaysN90  CreateSiteRequestRetentionDays = 90
+)
+
+// Valid indicates whether the value is a known member of the CreateSiteRequestRetentionDays enum.
+func (e CreateSiteRequestRetentionDays) Valid() bool {
+	switch e {
+	case CreateSiteRequestRetentionDaysN0:
+		return true
+	case CreateSiteRequestRetentionDaysN30:
+		return true
+	case CreateSiteRequestRetentionDaysN365:
+		return true
+	case CreateSiteRequestRetentionDaysN7:
+		return true
+	case CreateSiteRequestRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterOperator.
 const (
 	Contains   FilterOperator = "contains"
@@ -50,6 +77,45 @@ func (e FunnelStepType) Valid() bool {
 	case Event:
 		return true
 	case Page:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalInputKind.
+const (
+	GoalInputEvent GoalInputKind = "event"
+	GoalInputPage  GoalInputKind = "page"
+)
+
+// Valid indicates whether the value is a known member of the GoalInputKind enum.
+func (e GoalInputKind) Valid() bool {
+	switch e {
+	case GoalInputEvent:
+		return true
+	case GoalInputPage:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalInputMatch.
+const (
+	Exact    GoalInputMatch = "exact"
+	Prefix   GoalInputMatch = "prefix"
+	Wildcard GoalInputMatch = "wildcard"
+)
+
+// Valid indicates whether the value is a known member of the GoalInputMatch enum.
+func (e GoalInputMatch) Valid() bool {
+	switch e {
+	case Exact:
+		return true
+	case Prefix:
+		return true
+	case Wildcard:
 		return true
 	default:
 		return false
@@ -176,6 +242,33 @@ func (e QueryRequestCompare) Valid() bool {
 	}
 }
 
+// Defines values for UpdateSiteRequestRetentionDays.
+const (
+	UpdateSiteRequestRetentionDaysN0   UpdateSiteRequestRetentionDays = 0
+	UpdateSiteRequestRetentionDaysN30  UpdateSiteRequestRetentionDays = 30
+	UpdateSiteRequestRetentionDaysN365 UpdateSiteRequestRetentionDays = 365
+	UpdateSiteRequestRetentionDaysN7   UpdateSiteRequestRetentionDays = 7
+	UpdateSiteRequestRetentionDaysN90  UpdateSiteRequestRetentionDays = 90
+)
+
+// Valid indicates whether the value is a known member of the UpdateSiteRequestRetentionDays enum.
+func (e UpdateSiteRequestRetentionDays) Valid() bool {
+	switch e {
+	case UpdateSiteRequestRetentionDaysN0:
+		return true
+	case UpdateSiteRequestRetentionDaysN30:
+		return true
+	case UpdateSiteRequestRetentionDaysN365:
+		return true
+	case UpdateSiteRequestRetentionDaysN7:
+		return true
+	case UpdateSiteRequestRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StatsTimeseriesParamsInterval.
 const (
 	Day StatsTimeseriesParamsInterval = "day"
@@ -190,6 +283,17 @@ func (e StatsTimeseriesParamsInterval) Valid() bool {
 		return false
 	}
 }
+
+// CreateSiteRequest defines model for CreateSiteRequest.
+type CreateSiteRequest struct {
+	Hosts         []string                       `json:"hosts"`
+	Name          string                         `json:"name"`
+	RetentionDays CreateSiteRequestRetentionDays `json:"retention_days"`
+	Timezone      string                         `json:"timezone"`
+}
+
+// CreateSiteRequestRetentionDays defines model for CreateSiteRequest.RetentionDays.
+type CreateSiteRequestRetentionDays int
 
 // DateRange defines model for DateRange.
 type DateRange struct {
@@ -221,9 +325,11 @@ type FunnelResponse struct {
 
 // FunnelStep defines model for FunnelStep.
 type FunnelStep struct {
-	Match string         `json:"match"`
-	Type  FunnelStepType `json:"type"`
-	Value string         `json:"value"`
+	Match     string         `json:"match"`
+	PropKey   *string        `json:"prop_key,omitempty"`
+	PropValue *string        `json:"prop_value,omitempty"`
+	Type      FunnelStepType `json:"type"`
+	Value     string         `json:"value"`
 }
 
 // FunnelStepType defines model for FunnelStep.Type.
@@ -235,6 +341,34 @@ type FunnelStepResult struct {
 	Step       int     `json:"step"`
 	Visitors   int64   `json:"visitors"`
 }
+
+// Goal defines model for Goal.
+type Goal struct {
+	Id        int64   `json:"id"`
+	Kind      string  `json:"kind"`
+	Match     string  `json:"match"`
+	Name      string  `json:"name"`
+	PropKey   *string `json:"prop_key,omitempty"`
+	PropValue *string `json:"prop_value,omitempty"`
+	SiteId    int32   `json:"site_id"`
+	Value     string  `json:"value"`
+}
+
+// GoalInput defines model for GoalInput.
+type GoalInput struct {
+	Kind      GoalInputKind  `json:"kind"`
+	Match     GoalInputMatch `json:"match"`
+	Name      string         `json:"name"`
+	PropKey   *string        `json:"prop_key,omitempty"`
+	PropValue *string        `json:"prop_value,omitempty"`
+	Value     string         `json:"value"`
+}
+
+// GoalInputKind defines model for GoalInput.Kind.
+type GoalInputKind string
+
+// GoalInputMatch defines model for GoalInput.Match.
+type GoalInputMatch string
 
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
@@ -305,11 +439,53 @@ type RealtimeResponse struct {
 	TopPages       []TopPage `json:"top_pages"`
 }
 
+// SavedFunnel defines model for SavedFunnel.
+type SavedFunnel struct {
+	Id     int64        `json:"id"`
+	Name   string       `json:"name"`
+	SiteId int32        `json:"site_id"`
+	Steps  []FunnelStep `json:"steps"`
+}
+
+// SavedFunnelInput defines model for SavedFunnelInput.
+type SavedFunnelInput struct {
+	Name  string       `json:"name"`
+	Steps []FunnelStep `json:"steps"`
+}
+
+// Site defines model for Site.
+type Site struct {
+	AllowedHosts  []string `json:"allowed_hosts"`
+	Id            int32    `json:"id"`
+	Name          string   `json:"name"`
+	OrgId         int64    `json:"org_id"`
+	PublicId      string   `json:"public_id"`
+	RetentionDays int      `json:"retention_days"`
+	Timezone      string   `json:"timezone"`
+}
+
+// SiteList defines model for SiteList.
+type SiteList struct {
+	Data       []Site  `json:"data"`
+	NextCursor *string `json:"next_cursor,omitempty"`
+}
+
 // TopPage defines model for TopPage.
 type TopPage struct {
 	Page     string `json:"page"`
 	Visitors int64  `json:"visitors"`
 }
+
+// UpdateSiteRequest defines model for UpdateSiteRequest.
+type UpdateSiteRequest struct {
+	Hosts         *[]string                       `json:"hosts,omitempty"`
+	Name          *string                         `json:"name,omitempty"`
+	RetentionDays *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
+	Timezone      *string                         `json:"timezone,omitempty"`
+}
+
+// UpdateSiteRequestRetentionDays defines model for UpdateSiteRequest.RetentionDays.
+type UpdateSiteRequestRetentionDays int
 
 // ValidationError defines model for ValidationError.
 type ValidationError struct {
@@ -320,17 +496,32 @@ type ValidationError struct {
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// FunnelPathID defines model for FunnelPathID.
+type FunnelPathID = int64
+
+// GoalPathID defines model for GoalPathID.
+type GoalPathID = int64
+
 // Limit defines model for Limit.
 type Limit = int
 
 // SiteID defines model for SiteID.
 type SiteID = int32
 
+// SitePathID defines model for SitePathID.
+type SitePathID = int32
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Problem
 
+// Forbidden defines model for Forbidden.
+type Forbidden = Problem
+
 // HealthCheck defines model for HealthCheck.
 type HealthCheck = HealthResponse
+
+// NotFound defines model for NotFound.
+type NotFound = Problem
 
 // QueryResult defines model for QueryResult.
 type QueryResult = QueryResponse
@@ -347,6 +538,12 @@ type Unauthorized = Problem
 // RealtimeParams defines parameters for Realtime.
 type RealtimeParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
+}
+
+// ListSitesParams defines parameters for ListSites.
+type ListSitesParams struct {
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // StatsBreakdownParams defines parameters for StatsBreakdown.
@@ -378,20 +575,77 @@ type StatsTimeseriesParamsInterval string
 // FunnelQueryJSONRequestBody defines body for FunnelQuery for application/json ContentType.
 type FunnelQueryJSONRequestBody = FunnelRequest
 
+// UpdateFunnelJSONRequestBody defines body for UpdateFunnel for application/json ContentType.
+type UpdateFunnelJSONRequestBody = SavedFunnelInput
+
+// UpdateGoalJSONRequestBody defines body for UpdateGoal for application/json ContentType.
+type UpdateGoalJSONRequestBody = GoalInput
+
 // QueryJSONRequestBody defines body for Query for application/json ContentType.
 type QueryJSONRequestBody = QueryRequest
+
+// CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
+type CreateSiteJSONRequestBody = CreateSiteRequest
+
+// UpdateSiteJSONRequestBody defines body for UpdateSite for application/json ContentType.
+type UpdateSiteJSONRequestBody = UpdateSiteRequest
+
+// CreateFunnelJSONRequestBody defines body for CreateFunnel for application/json ContentType.
+type CreateFunnelJSONRequestBody = SavedFunnelInput
+
+// CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
+type CreateGoalJSONRequestBody = GoalInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// FunnelQuery Run a funnel query
 	// (POST /api/public/v1/funnels/query)
 	FunnelQuery(w http.ResponseWriter, r *http.Request)
+	// DeleteFunnel Delete a saved funnel
+	// (DELETE /api/public/v1/funnels/{funnel_id})
+	DeleteFunnel(w http.ResponseWriter, r *http.Request, funnelId FunnelPathID)
+	// UpdateFunnel Update a saved funnel
+	// (PATCH /api/public/v1/funnels/{funnel_id})
+	UpdateFunnel(w http.ResponseWriter, r *http.Request, funnelId FunnelPathID)
+	// DeleteGoal Delete a goal
+	// (DELETE /api/public/v1/goals/{goal_id})
+	DeleteGoal(w http.ResponseWriter, r *http.Request, goalId GoalPathID)
+	// UpdateGoal Update a goal
+	// (PATCH /api/public/v1/goals/{goal_id})
+	UpdateGoal(w http.ResponseWriter, r *http.Request, goalId GoalPathID)
 	// Query Run an analytics query
 	// (POST /api/public/v1/query)
 	Query(w http.ResponseWriter, r *http.Request)
 	// Realtime Get active visitors and top pages
 	// (GET /api/public/v1/realtime)
 	Realtime(w http.ResponseWriter, r *http.Request, params RealtimeParams)
+	// ListSites List accessible sites
+	// (GET /api/public/v1/sites)
+	ListSites(w http.ResponseWriter, r *http.Request, params ListSitesParams)
+	// CreateSite Create a site
+	// (POST /api/public/v1/sites)
+	CreateSite(w http.ResponseWriter, r *http.Request)
+	// DeleteSite Delete a site
+	// (DELETE /api/public/v1/sites/{site_id})
+	DeleteSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// GetSite Get a site
+	// (GET /api/public/v1/sites/{site_id})
+	GetSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// UpdateSite Update a site
+	// (PATCH /api/public/v1/sites/{site_id})
+	UpdateSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListFunnels List saved funnels
+	// (GET /api/public/v1/sites/{site_id}/funnels)
+	ListFunnels(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// CreateFunnel Create a saved funnel
+	// (POST /api/public/v1/sites/{site_id}/funnels)
+	CreateFunnel(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListGoals List goals
+	// (GET /api/public/v1/sites/{site_id}/goals)
+	ListGoals(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// CreateGoal Create a goal
+	// (POST /api/public/v1/sites/{site_id}/goals)
+	CreateGoal(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// StatsBreakdown Get a dimension breakdown
 	// (GET /api/public/v1/stats/breakdown)
 	StatsBreakdown(w http.ResponseWriter, r *http.Request, params StatsBreakdownParams)
@@ -426,6 +680,110 @@ func (siw *ServerInterfaceWrapper) FunnelQuery(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.FunnelQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteFunnel operation middleware
+func (siw *ServerInterfaceWrapper) DeleteFunnel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "funnel_id" -------------
+	var funnelId FunnelPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "funnel_id", r.PathValue("funnel_id"), &funnelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "funnel_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteFunnel(w, r, funnelId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateFunnel operation middleware
+func (siw *ServerInterfaceWrapper) UpdateFunnel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "funnel_id" -------------
+	var funnelId FunnelPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "funnel_id", r.PathValue("funnel_id"), &funnelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "funnel_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateFunnel(w, r, funnelId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGoal operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGoal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goal_id" -------------
+	var goalId GoalPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goal_id", r.PathValue("goal_id"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goal_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGoal(w, r, goalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateGoal operation middleware
+func (siw *ServerInterfaceWrapper) UpdateGoal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goal_id" -------------
+	var goalId GoalPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goal_id", r.PathValue("goal_id"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goal_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateGoal(w, r, goalId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -473,6 +831,248 @@ func (siw *ServerInterfaceWrapper) Realtime(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Realtime(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSites operation middleware
+func (siw *ServerInterfaceWrapper) ListSites(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSitesParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSites(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSite operation middleware
+func (siw *ServerInterfaceWrapper) CreateSite(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSite(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSite operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSite(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSite operation middleware
+func (siw *ServerInterfaceWrapper) GetSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSite(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSite operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSite(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListFunnels operation middleware
+func (siw *ServerInterfaceWrapper) ListFunnels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListFunnels(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateFunnel operation middleware
+func (siw *ServerInterfaceWrapper) CreateFunnel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateFunnel(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListGoals operation middleware
+func (siw *ServerInterfaceWrapper) ListGoals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGoals(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateGoal operation middleware
+func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateGoal(w, r, siteId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -853,6 +1453,19 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/breakdown", wrapper.StatsBreakdown)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/funnels/query", wrapper.FunnelQuery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/realtime", wrapper.Realtime)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites", wrapper.ListSites)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites", wrapper.CreateSite)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.DeleteSite)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.GetSite)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.UpdateSite)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.ListGoals)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.CreateGoal)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.DeleteGoal)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.UpdateGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.ListFunnels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.CreateFunnel)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.DeleteFunnel)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.UpdateFunnel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

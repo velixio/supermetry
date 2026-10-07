@@ -165,6 +165,265 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /api/public/v1/sites:
+    get:
+      operationId: listSites
+      summary: List accessible sites
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Sites page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    post:
+      operationId: createSite
+      summary: Create a site
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSiteRequest'
+      responses:
+        '201':
+          description: Site created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Site'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/public/v1/sites/{site_id}:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: getSite
+      summary: Get a site
+      responses:
+        '200':
+          description: Site
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Site'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateSite
+      summary: Update a site
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSiteRequest'
+      responses:
+        '200':
+          description: Updated site
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Site'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteSite
+      summary: Delete a site
+      responses:
+        '204':
+          description: Site deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/goals:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listGoals
+      summary: List goals
+      responses:
+        '200':
+          description: Goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Goal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createGoal
+      summary: Create a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalInput'
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/public/v1/goals/{goal_id}:
+    parameters:
+      - $ref: '#/components/parameters/GoalPathID'
+    patch:
+      operationId: updateGoal
+      summary: Update a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalInput'
+      responses:
+        '200':
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Goal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteGoal
+      summary: Delete a goal
+      responses:
+        '204':
+          description: Goal deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/funnels:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listFunnels
+      summary: List saved funnels
+      responses:
+        '200':
+          description: Funnels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SavedFunnel'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createFunnel
+      summary: Create a saved funnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFunnelInput'
+      responses:
+        '201':
+          description: Funnel created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFunnel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/public/v1/funnels/{funnel_id}:
+    parameters:
+      - $ref: '#/components/parameters/FunnelPathID'
+    patch:
+      operationId: updateFunnel
+      summary: Update a saved funnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFunnelInput'
+      responses:
+        '200':
+          description: Updated funnel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFunnel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteFunnel
+      summary: Delete a saved funnel
+      responses:
+        '204':
+          description: Funnel deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /healthz:
     get:
       operationId: healthz
@@ -208,6 +467,30 @@ components:
       schema:
         type: integer
         format: int32
+        minimum: 1
+    SitePathID:
+      name: site_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+    GoalPathID:
+      name: goal_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    FunnelPathID:
+      name: funnel_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
         minimum: 1
     Period:
       name: period
@@ -276,6 +559,18 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: The authenticated principal lacks permission.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: The resource does not exist or is outside the principal's scope.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
     RateLimited:
       description: The rate limit was exceeded.
       headers:
@@ -304,6 +599,101 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    Site:
+      type: object
+      additionalProperties: false
+      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts]
+      properties:
+        id: { type: integer, format: int32 }
+        org_id: { type: integer, format: int64 }
+        public_id: { type: string }
+        name: { type: string }
+        timezone: { type: string }
+        retention_days: { type: integer }
+        allowed_hosts:
+          type: array
+          items: { type: string }
+    SiteList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Site'
+        next_cursor:
+          type: [string, 'null']
+    CreateSiteRequest:
+      type: object
+      additionalProperties: false
+      required: [name, hosts, timezone, retention_days]
+      properties:
+        name: { type: string }
+        hosts:
+          type: array
+          minItems: 1
+          items: { type: string }
+        timezone: { type: string }
+        retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
+    UpdateSiteRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string }
+        hosts:
+          type: array
+          minItems: 1
+          items: { type: string }
+        timezone: { type: string }
+        retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
+    GoalInput:
+      type: object
+      additionalProperties: false
+      required: [kind, match, value, name]
+      properties:
+        kind:
+          type: string
+          enum: [page, event]
+          x-enum-varnames: [GoalInputPage, GoalInputEvent]
+        match: { type: string, enum: [exact, prefix, wildcard] }
+        value: { type: string }
+        prop_key: { type: string }
+        prop_value: { type: string }
+        name: { type: string }
+    Goal:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, kind, match, value, name]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        kind: { type: string }
+        match: { type: string }
+        value: { type: string }
+        prop_key: { type: string }
+        prop_value: { type: string }
+        name: { type: string }
+    SavedFunnelInput:
+      type: object
+      additionalProperties: false
+      required: [name, steps]
+      properties:
+        name: { type: string }
+        steps:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/FunnelStep'
+    SavedFunnel:
+      allOf:
+        - $ref: '#/components/schemas/SavedFunnelInput'
+        - type: object
+          required: [id, site_id]
+          properties:
+            id: { type: integer, format: int64 }
+            site_id: { type: integer, format: int32 }
     Period:
       type: string
       enum: [today, yesterday, 7d, 30d, month, last_month, 12mo, year, custom]
@@ -443,6 +833,10 @@ components:
         match:
           type: string
         value:
+          type: string
+        prop_key:
+          type: string
+        prop_value:
           type: string
     FunnelRequest:
       type: object
