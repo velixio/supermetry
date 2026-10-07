@@ -33,3 +33,5 @@ bench/results/final/artifacts/**/generator-truth.json
 bench/results/final/artifacts/**/*.jsonl
 bench/results/final/artifacts/**/*inspect*.json
 .worktrees/
+bench/load/bin
+bench/proto/data

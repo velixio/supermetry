@@ -34,7 +34,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) (resultErr error) {
 	}
 	defer conn.Release()
 
-	if _, err := conn.Exec(ctx, `select pg_advisory_lock(hashtext('panel:migrate'))`); err != nil {
+	if _, err := conn.Exec(ctx, `select pg_advisory_lock(hashtext('panel:migrate:' || current_schema()))`); err != nil {
 		return fmt.Errorf("lock migrations: %w", err)
 	}
 	defer func() {
@@ -42,7 +42,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) (resultErr error) {
 		defer cancel()
 
 		var unlocked bool
-		unlockErr := conn.QueryRow(cleanupCtx, `select pg_advisory_unlock(hashtext('panel:migrate'))`).Scan(&unlocked)
+		unlockErr := conn.QueryRow(cleanupCtx, `select pg_advisory_unlock(hashtext('panel:migrate:' || current_schema()))`).Scan(&unlocked)
 		if unlockErr == nil && unlocked {
 			return
 		}
