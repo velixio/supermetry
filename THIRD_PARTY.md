@@ -2,6 +2,19 @@
 
 ## MIT-licensed dependencies
 
+- React and React DOM v19.3.0
+- TanStack React Query v5.104.1, React Router v1.170.41, React Table v8.21.3,
+  Router CLI v1.167.40, and Router Plugin v1.168.42
+- Vite v8.3.3, `@vitejs/plugin-react` v6.1.2, and Vitest v5.0.3
+- Tailwind CSS and `@tailwindcss/vite` v4.3.3
+- shadcn v4.21.4, Radix UI v1.7.0, `clsx` v2.1.1,
+  `tailwind-merge` v3.7.0, and `tw-animate-css` v1.4.0
+- Recharts v3.10.1
+- Zod v4.6.5
+- `openapi-fetch` v0.17.0 and `openapi-typescript` v7.13.0
+- Testing Library React v16.3.3 and jest-dom v7.0.1
+- jsdom v27.4.0
+- Type definitions for Node v24.19.1, React v19.3.0, and React DOM v19.3.0
 - `github.com/jackc/pgx/v5` v5.11.0 — Copyright (c) 2013-2021 Jack Christensen
 - `github.com/jackc/pgpassfile` v1.0.0 — Copyright (c) 2019 Jack Christensen
 - `github.com/jackc/pgservicefile` — Copyright (c) 2020 Jack Christensen
@@ -73,6 +86,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## ISC-licensed dependencies
 
+- Lucide React v0.552.0 — Copyright (c) Lucide Contributors
 - `github.com/oschwald/maxminddb-golang/v2` v2.7.0 — Copyright (c) 2015,
   Gregory J. Oschwald
 
@@ -90,6 +104,8 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ## Apache-2.0 dependencies
 
+- `class-variance-authority` v0.7.1 — Copyright (c) Joe Bell
+- TypeScript v5.9.3 — Copyright (c) Microsoft Corporation
 - `github.com/pquerna/otp` v1.5.0 — Copyright 2014 Paul Querna
 - `github.com/go-openapi/jsonpointer` v0.23.1
 - `github.com/go-openapi/swag/jsonname` v0.26.0
