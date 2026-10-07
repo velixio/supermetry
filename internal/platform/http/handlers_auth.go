@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	platformauth "panel/internal/platform/auth"
@@ -47,8 +48,8 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "invalid email, password, or verification code")
 		return
 	}
-	setCookie(w, platformauth.CookieName, token, 90*24*time.Hour)
-	http.SetCookie(w, &http.Cookie{Name: "panel_csrf", Value: csrfToken, Path: "/", Secure: true, SameSite: http.SameSiteLaxMode})
+	setCookie(w, r, platformauth.CookieName, token, 90*24*time.Hour)
+	http.SetCookie(w, &http.Cookie{Name: "panel_csrf", Value: csrfToken, Path: "/", Secure: secureRequest(r), SameSite: http.SameSiteLaxMode})
 	writeJSON(w, http.StatusOK, map[string]bool{"authenticated": true})
 }
 
@@ -66,8 +67,8 @@ func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	clearCookie(w, platformauth.CookieName, true)
-	clearCookie(w, "panel_csrf", false)
+	clearCookie(w, r, platformauth.CookieName, true)
+	clearCookie(w, r, "panel_csrf", false)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -131,17 +132,25 @@ func (h *handler) setup(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]int64{"user_id": userID, "org_id": orgID})
 }
 
-func setCookie(w http.ResponseWriter, name, value string, maxAge time.Duration) {
+// secureRequest reports whether the client reached us over HTTPS, directly or
+// through a TLS-terminating proxy. Cookies are marked Secure only then, so plain
+// http (LAN, development) still works; a spoofed header can only make a cookie
+// stricter, never expose it.
+func secureRequest(r *http.Request) bool {
+	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
+func setCookie(w http.ResponseWriter, r *http.Request, name, value string, maxAge time.Duration) {
 	http.SetCookie(w, &http.Cookie{
 		Name: name, Value: value, Path: "/", MaxAge: int(maxAge.Seconds()),
-		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: secureRequest(r), SameSite: http.SameSiteLaxMode,
 	})
 }
 
-func clearCookie(w http.ResponseWriter, name string, httpOnly bool) {
+func clearCookie(w http.ResponseWriter, r *http.Request, name string, httpOnly bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name: name, Path: "/", MaxAge: -1, Expires: time.Unix(1, 0),
-		HttpOnly: httpOnly, Secure: true, SameSite: http.SameSiteLaxMode,
+		HttpOnly: httpOnly, Secure: secureRequest(r), SameSite: http.SameSiteLaxMode,
 	})
 }
 

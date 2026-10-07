@@ -97,7 +97,7 @@ func (h *handler) openShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if cookieValue != "" {
-		setCookie(w, authn.ShareCookieName, cookieValue, 12*time.Hour)
+		setCookie(w, r, authn.ShareCookieName, cookieValue, 12*time.Hour)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
