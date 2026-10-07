@@ -6,6 +6,7 @@ import { TrackingSnippet } from './TrackingSnippet'
 const settingsTabs = [
   ['general', 'General', '/$org/$site/settings/general'],
   ['installation', 'Installation', '/$org/$site/settings/installation'],
+  ['tracking', 'Exclusions', '/$org/$site/settings/tracking'],
   ['goals', 'Goals', '/$org/$site/settings/goals'],
   ['funnels', 'Funnels', '/$org/$site/settings/funnels'],
   ['shares', 'Shares', '/$org/$site/settings/shares'],

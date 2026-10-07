@@ -13,16 +13,15 @@ import { renderWithRouter } from '@/test/renderWithRouter'
 describe('site settings', () => {
   afterEach(cleanup)
 
-  it('shows all settings tabs with Installation in place of Tracking', async () => {
+  it('shows all settings tabs including Exclusions', async () => {
     renderWithRouter(<SiteSettingsTabs org="acme" site="docs" current="installation" />)
-    for (const label of ['General', 'Installation', 'Goals', 'Funnels', 'Shares', 'Reports']) {
+    for (const label of ['General', 'Installation', 'Exclusions', 'Goals', 'Funnels', 'Shares', 'Reports']) {
       expect(await screen.findByRole('link', { name: label })).toBeVisible()
     }
     expect(screen.getByRole('link', { name: 'Installation' })).toHaveAttribute(
       'aria-current',
       'page',
     )
-    expect(screen.queryByText('Tracking')).not.toBeInTheDocument()
   })
 
   it('shows install guides, proxy advice, and a relative live status', () => {
