@@ -35,3 +35,8 @@ bench/results/final/artifacts/**/*inspect*.json
 .worktrees/
 bench/load/bin
 bench/proto/data
+web/node_modules/
+web/dist/
+web/e2e/screenshots/
+web/test-results/
+web/playwright-report/
