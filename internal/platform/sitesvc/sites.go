@@ -276,7 +276,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 		return coresites.Site{}, fmt.Errorf("site %d has invalid retention class %d", row.ID, row.RetentionClass)
 	}
 	return coresites.Site{
-		ID: row.ID, PublicID: row.PublicID, TZ: location, Retention: retention,
+		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...),
 	}, nil
 }

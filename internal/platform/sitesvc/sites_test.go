@@ -27,6 +27,14 @@ func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 	if !ok || got.TZ.String() != "Asia/Kolkata" {
 		t.Fatalf("registry lookup = (%+v, %t)", got, ok)
 	}
+	// API site checks compare the site's org with the caller's, so the registry
+	// must always carry the owning org.
+	if got.OrgID != principal.OrgID || got.OrgID == 0 {
+		t.Fatalf("registry site OrgID = %d, want %d", got.OrgID, principal.OrgID)
+	}
+	if byID, ok := registry.Site(site.ID); !ok || byID.OrgID != principal.OrgID {
+		t.Fatalf("registry Site(id) OrgID = %d, want %d", byID.OrgID, principal.OrgID)
+	}
 	if err := service.Delete(ctx, principal, site.ID); err != nil {
 		t.Fatal(err)
 	}
