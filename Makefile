@@ -18,10 +18,10 @@ lint:
 	gofmt -l cmd internal web | (! grep .)
 
 web:
-	cd web && npm ci --no-audit --no-fund && npm run build
+	cd web && bun install --frozen-lockfile && bun run build
 
 web-test:
-	cd web && npm ci --no-audit --no-fund && npm run typecheck && npm test -- --run
+	cd web && bun install --frozen-lockfile && bun run typecheck && bun run test --run
 
 release: build
 

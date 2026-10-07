@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "gen:api": "openapi-typescript ../internal/api/openapi.yaml -o src/lib/api.gen.ts",
-    "gen:routes": "node node_modules/@tanstack/router-cli/dist/esm/index.js generate",
-    "typecheck": "npm run gen:routes && tsc --noEmit",
+    "gen:routes": "bun node_modules/@tanstack/router-cli/dist/esm/index.js generate",
+    "typecheck": "bun run gen:routes && tsc --noEmit",
     "test": "vitest --exclude=e2e/**",
-    "build": "npm run gen:routes && tsc --noEmit && vite build && node scripts/size-check.mjs",
+    "build": "bun run gen:routes && tsc --noEmit && vite build && bun scripts/size-check.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
