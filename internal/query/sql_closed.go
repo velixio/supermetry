@@ -46,6 +46,8 @@ var dimensionDefs = map[string]dimensionDef{
 	"utm_campaign": {kind: dictionaryKind(dict.Campaign)},
 	"event":        {kind: dictionaryKind(dict.EventName)},
 	"goal":         {kind: dictionaryKind(dict.EventName)},
+	"region":       {kind: dictionaryKind(dict.Region)},
+	"city":         {kind: dictionaryKind(dict.City)},
 	"country":      {},
 	"device":       {},
 	"time":         {},
@@ -167,6 +169,10 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 			return "s.campaign_id", dictionaryKind(dict.Campaign), nil
 		case "country":
 			return "s.country", nil, nil
+		case "region":
+			return "s.region_id", dictionaryKind(dict.Region), nil
+		case "city":
+			return "s.city_id", dictionaryKind(dict.City), nil
 		case "device":
 			return "s.device", nil, nil
 		case "time":
@@ -183,6 +189,11 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	presentConditions, err := presentDimensionConditions(req.Dimensions, resolver)
+	if err != nil {
+		return "", nil, err
+	}
+	conditions = append(conditions, presentConditions...)
 	specialConditions, err := closedSpecialConditions(builder, specialFilters)
 	if err != nil {
 		return "", nil, err
@@ -230,6 +241,11 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	presentConditions, err := presentDimensionConditions(req.Dimensions, resolver)
+	if err != nil {
+		return "", nil, err
+	}
+	conditions = append(conditions, presentConditions...)
 	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date" + andSQL(conditions)
 	visitors := "count(distinct (c.day,c.visitor_id))::int8"
 	sums := []string{visitors, "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "count(*)::int8", visitors}
@@ -260,6 +276,10 @@ func customResolver(alias string) dimensionResolver {
 			return prefix + "entry_path", dictionaryKind(dict.Path), nil
 		case dimension == "exit":
 			return prefix + "exit_path", dictionaryKind(dict.Path), nil
+		case dimension == "region":
+			return prefix + "region_id", dictionaryKind(dict.Region), nil
+		case dimension == "city":
+			return prefix + "city_id", dictionaryKind(dict.City), nil
 		case dimension == "country" || dimension == "device" || dimension == "time":
 			column := dimension
 			if dimension == "time" {
@@ -328,6 +348,21 @@ func filterConditions(builder *sqlBuilder, filters []api.Filter, resolver dimens
 			match = column + " in (select fd.id from dict fd where fd.kind=" + strconv.Itoa(int(*kind)) + " and " + match + ")"
 		}
 		conditions = append(conditions, match)
+	}
+	return conditions, nil
+}
+
+func presentDimensionConditions(dimensions []string, resolver dimensionResolver) ([]string, error) {
+	conditions := make([]string, 0, len(dimensions))
+	for _, dimension := range dimensions {
+		if dimension != "region" && dimension != "city" {
+			continue
+		}
+		column, _, err := resolver(dimension)
+		if err != nil {
+			return nil, err
+		}
+		conditions = append(conditions, column+"<>0")
 	}
 	return conditions, nil
 }

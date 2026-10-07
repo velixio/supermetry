@@ -41,7 +41,8 @@ var (
 	cubeDimensions    = map[string]bool{"source": true, "country": true, "browser": true, "os": true, "device": true, "time": true}
 	rollupDimensions  = map[string]bool{
 		"page": true, "path": true, "source": true, "country": true, "browser": true,
-		"os": true, "device": true, "entry": true, "exit": true, "time": true,
+		"os": true, "device": true, "entry": true, "exit": true, "region": true,
+		"city": true, "time": true,
 	}
 	globalQuerySlots = semaphore.NewWeighted(16)
 )

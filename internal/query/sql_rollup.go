@@ -15,7 +15,7 @@ import (
 
 var rollupDimensionCodes = map[string]int16{
 	"page": 1, "path": 1, "source": 2, "country": 3, "browser": 4,
-	"os": 5, "device": 6, "entry": 7, "exit": 8,
+	"os": 5, "device": 6, "entry": 7, "exit": 8, "region": 9, "city": 10,
 }
 
 func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {
@@ -78,7 +78,11 @@ where r.site_id=`+siteArg+` and r.dim=`+dimArg)
 		inputs = append(inputs, "select "+columns+" from rollup_day_dim where false")
 	}
 	dimension := rollupValueText("value_id", req.Dimensions[0])
-	querySQL := aggregateSQL([]string{dimension}, baseSums, "("+strings.Join(inputs, " union all ")+") r", "true")
+	where := "true"
+	if req.Dimensions[0] == "region" || req.Dimensions[0] == "city" {
+		where = "value_id<>0"
+	}
+	querySQL := aggregateSQL([]string{dimension}, baseSums, "("+strings.Join(inputs, " union all ")+") r", where)
 	return e.executeAggregate(ctx, querySQL, builder.args, req.Dimensions)
 }
 
@@ -97,6 +101,10 @@ func rollupValueText(column, dimension string) string {
 			kind = dict.Browser
 		case "os":
 			kind = dict.OS
+		case "region":
+			kind = dict.Region
+		case "city":
+			kind = dict.City
 		}
 		return "coalesce((select value from dict where kind=" + strconv.Itoa(int(kind)) + " and id=" + column + "), '')"
 	}

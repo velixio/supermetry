@@ -3,6 +3,7 @@ package query_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -116,6 +117,20 @@ func TestNormalizeAcceptsMaximumRangeAndLimit(t *testing.T) {
 	}
 	if normalized.Limit != 1000 {
 		t.Fatalf("Limit = %d, want 1000", normalized.Limit)
+	}
+}
+
+func TestNormalizeAcceptsRegionAndCityDimensionsAndFilters(t *testing.T) {
+	t.Parallel()
+
+	req := withDimensions(requestPeriod(api.N7d), "region", "city")
+	req = withFilters(req, api.Filter{Dimension: "region", Operator: api.Is, Values: []string{"California"}})
+	normalized, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC}, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC))
+	if problem != nil {
+		t.Fatalf("Normalize() problem = %+v", problem)
+	}
+	if !reflect.DeepEqual(normalized.Dimensions, []string{"region", "city"}) || len(normalized.Filters) != 1 {
+		t.Fatalf("Normalize() = dimensions %v filters %v", normalized.Dimensions, normalized.Filters)
 	}
 }
 
