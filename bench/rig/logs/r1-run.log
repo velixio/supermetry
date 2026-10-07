@@ -1,0 +1,12 @@
+21:51:40 [rig] idle 300s before measuring ...
+| component | docker stats MiB | process RSS MiB | PSS MiB | n |
+|---|---|---|---|---|
+| bench-umami | 69.3 | 121.2 | 120.9 | 2 |
+| plausible-plausible-1 | 279.3 | 288.7 | 273.5 | 6 |
+| plausible-plausible_db-1 | 63.1 | 286.8 | 65.8 | 17 |
+| plausible-plausible_events_db-1 | 325.7 | 540.7 | 540.7 | 1 |
+| goatcounter (host process) | n/a | 50.1 | 50.1 | 1 |
+| local pg:umami | n/a | 0.0 | 0.0 | 0 |
+| local pg:goatcounter | n/a | 31.7 | 3.2 | 2 |
+| local pg:server | n/a | 533.0 | 69.0 | 9 |
+{"plausible": {"docker_stats": 668.1, "proc_rss": 1116.2}, "umami": {"app_docker_stats": 69.3, "app_proc_rss": 121.2, "pg_backends_rss": 0.0, "pg_backends_pss": 0.0}, "goatcounter": {"app_proc_rss": 50.1, "pg_backends_rss": 31.7, "pg_backends_pss": 3.2}, "local_pg_server_shared": {"rss": 533.0, "pss": 69.0}}
