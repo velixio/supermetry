@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -18,7 +19,18 @@ const (
 	defaultFlushEvery   = time.Second
 	defaultSessionFlush = 10 * time.Second
 	defaultQueryTimeout = 10 * time.Second
+	defaultSignup       = "invite"
+	defaultSMTPPort     = 587
 )
+
+type SMTP struct {
+	Host     string
+	Port     int
+	User     string
+	Pass     string
+	From     string
+	StartTLS bool
+}
 
 type Config struct {
 	DatabaseURL    string
@@ -34,6 +46,9 @@ type Config struct {
 	QueryTimeout   time.Duration
 	AdminAPIKey    string
 	TrustedProxies []netip.Prefix
+	SecretKey      []byte
+	Signup         string
+	SMTP           SMTP
 }
 
 func Load(getenv func(string) string) (Config, error) {
@@ -50,6 +65,15 @@ func Load(getenv func(string) string) (Config, error) {
 		SessionFlush: defaultSessionFlush,
 		QueryTimeout: defaultQueryTimeout,
 		AdminAPIKey:  getenv("PANEL_ADMIN_API_KEY"),
+		Signup:       valueOrDefault(getenv("PANEL_SIGNUP"), defaultSignup),
+		SMTP: SMTP{
+			Host:     getenv("PANEL_SMTP_HOST"),
+			Port:     defaultSMTPPort,
+			User:     getenv("PANEL_SMTP_USER"),
+			Pass:     getenv("PANEL_SMTP_PASS"),
+			From:     getenv("PANEL_SMTP_FROM"),
+			StartTLS: true,
+		},
 	}
 
 	var errs []error
@@ -62,6 +86,17 @@ func Load(getenv func(string) string) (Config, error) {
 		errs = append(errs, errors.New("PANEL_BASE_URL is required"))
 	} else if err := validateURL(c.BaseURL, "PANEL_BASE_URL", map[string]bool{"http": true, "https": true}); err != nil {
 		errs = append(errs, err)
+	}
+	secretKey, err := base64.StdEncoding.Strict().DecodeString(getenv("PANEL_SECRET_KEY"))
+	if err != nil {
+		errs = append(errs, errors.New("PANEL_SECRET_KEY must be valid base64"))
+	} else if len(secretKey) < 32 {
+		errs = append(errs, errors.New("PANEL_SECRET_KEY must decode to at least 32 bytes"))
+	} else {
+		c.SecretKey = secretKey
+	}
+	if c.Signup != "invite" && c.Signup != "open" {
+		errs = append(errs, errors.New("PANEL_SIGNUP must be invite or open"))
 	}
 
 	for name, path := range map[string]string{
@@ -80,6 +115,25 @@ func Load(getenv func(string) string) (Config, error) {
 		} else {
 			c.QueueSize = value
 		}
+	}
+	if raw := getenv("PANEL_SMTP_PORT"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 1 || value > 65535 {
+			errs = append(errs, errors.New("PANEL_SMTP_PORT must be an integer from 1 to 65535"))
+		} else {
+			c.SMTP.Port = value
+		}
+	}
+	if raw := getenv("PANEL_SMTP_STARTTLS"); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			errs = append(errs, errors.New("PANEL_SMTP_STARTTLS must be a boolean"))
+		} else {
+			c.SMTP.StartTLS = value
+		}
+	}
+	if c.SMTP.Host != "" && c.SMTP.From == "" {
+		errs = append(errs, errors.New("PANEL_SMTP_FROM is required when PANEL_SMTP_HOST is set"))
 	}
 
 	parsePositiveDuration(getenv("PANEL_FLUSH_EVERY"), "PANEL_FLUSH_EVERY", &c.FlushEvery, &errs)

@@ -31,6 +31,32 @@ func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
 	}
 }
 
+func TestPlatformMigrationTables(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{
+		"orgs", "users", "memberships", "user_sessions", "password_resets",
+		"invitations", "sites", "goals", "funnels", "api_keys", "shared_links",
+		"report_subscriptions", "audit_log", "setup_state",
+	} {
+		var exists bool
+		if err := pool.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Errorf("missing %s", table)
+		}
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into users(email, name, password_hash)
+		values ('A@x.io', 'a', 'h'), ('a@X.io', 'b', 'h')`); err == nil {
+		t.Fatal("email must be case-insensitive unique")
+	}
+}
+
 func TestMigrateConcurrentRunnersSerialize(t *testing.T) {
 	pool, _ := testpg.New(t)
 	errs := make(chan error, 4)

@@ -8,6 +8,7 @@
 - `github.com/jackc/puddle/v2` v2.2.2 — Copyright (c) 2018 Jack Christensen
 - `github.com/mileusna/useragent` v1.3.5 — Copyright (c) 2017 Miloš Mileusnić
 - `github.com/apapsch/go-jsonmerge/v2` v2.0.0 — Copyright (c) 2016-2019 Artur Kraev
+- `github.com/boombuler/barcode` — Copyright (c) 2013 Boombuler
 - `github.com/dprotaso/go-yit` — Copyright (c) 2019 David Protasowski
 - `github.com/getkin/kin-openapi` v0.142.0 — Copyright (c) 2017-2018 the project authors
 - `github.com/oasdiff/yaml` v0.1.1 — Copyright (c) 2014 Sam Ghods
@@ -37,9 +38,10 @@ SOFTWARE.
 
 ## BSD-3-Clause dependencies
 
+- `golang.org/x/crypto` v0.57.0 — Copyright 2009 The Go Authors
 - `golang.org/x/sync` v0.23.0
 - `golang.org/x/sys` v0.48.0
-- `golang.org/x/text` v0.40.0
+- `golang.org/x/text` v0.42.0
 - `github.com/google/uuid` v1.6.0 — Copyright (c) 2009, 2014 Google Inc.
 - `golang.org/x/mod` v0.41.0
 - `golang.org/x/tools` v0.50.0
@@ -88,6 +90,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ## Apache-2.0 dependencies
 
+- `github.com/pquerna/otp` v1.5.0 — Copyright 2014 Paul Querna
 - `github.com/go-openapi/jsonpointer` v0.23.1
 - `github.com/go-openapi/swag/jsonname` v0.26.0
 - `github.com/oapi-codegen/oapi-codegen/v2` v2.8.0 (build-time only)
