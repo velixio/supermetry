@@ -121,7 +121,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
-		Config: cfg, Query: engine, Ingest: intake, Sessions: sessions,
+		Config: cfg, Query: engine, Ingest: intake, Sessions: sessions, Sites: registry,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})
 	listener, err := net.Listen("tcp", cfg.Listen)
