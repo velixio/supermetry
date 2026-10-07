@@ -1,0 +1,255 @@
+package platformhttp
+
+import (
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"panel/internal/platform/authz"
+	"panel/internal/platform/orgs"
+)
+
+func (h *handler) me(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Store == nil || principal.UserID == 0 {
+		unavailable(w, "user")
+		return
+	}
+	user, err := h.deps.Store.UserByID(r.Context(), principal.UserID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		ID          int64      `json:"id"`
+		Email       string     `json:"email"`
+		Name        string     `json:"name"`
+		TOTPEnabled bool       `json:"totp_enabled"`
+		CreatedAt   time.Time  `json:"created_at"`
+		LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt})
+}
+
+func (h *handler) listSessions(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Auth == nil || principal.UserID == 0 {
+		unavailable(w, "authentication")
+		return
+	}
+	sessions, err := h.deps.Auth.Sessions(r.Context(), principal.UserID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": sessions})
+}
+
+func (h *handler) revokeSession(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Auth == nil || principal.UserID == 0 {
+		unavailable(w, "authentication")
+		return
+	}
+	if err := h.deps.Auth.Revoke(r.Context(), principal.UserID, r.PathValue("session")); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "session is invalid")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) enrollTOTP(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Auth == nil || principal.UserID == 0 {
+		unavailable(w, "authentication")
+		return
+	}
+	url, recovery, err := h.deps.Auth.EnrollTOTP(r.Context(), principal.UserID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"url": url, "recovery_codes": recovery})
+}
+
+func (h *handler) confirmTOTP(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		Code string `json:"code"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if h.deps.Auth == nil || principal.UserID == 0 {
+		unavailable(w, "authentication")
+		return
+	}
+	if err := h.deps.Auth.ConfirmTOTP(r.Context(), principal.UserID, request.Code); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "verification code is invalid")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) listOrgs(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Orgs == nil || principal.UserID == 0 {
+		unavailable(w, "organization")
+		return
+	}
+	memberships, err := h.deps.Orgs.MembershipsFor(r.Context(), principal.UserID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": memberships})
+}
+
+func (h *handler) getOrg(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	orgID, ok := orgIDFromPath(w, r, principal)
+	if !ok {
+		return
+	}
+	if h.deps.Store == nil {
+		unavailable(w, "organization")
+		return
+	}
+	var response struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+	}
+	if err := h.deps.Store.Pool.QueryRow(r.Context(), `select id,name,slug from orgs where id=$1 and deleted_at is null`, orgID).Scan(&response.ID, &response.Name, &response.Slug); errors.Is(err, pgx.ErrNoRows) {
+		writeProblem(w, http.StatusNotFound, "Not found", "organization not found")
+		return
+	} else if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *handler) listMembers(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	orgID, ok := orgIDFromPath(w, r, principal)
+	if !ok {
+		return
+	}
+	if !authz.Can(principal, authz.ActionMembersManage, 0) || h.deps.Store == nil {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot manage members")
+		return
+	}
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `select u.id,u.email,u.name,m.role,m.site_ids,m.created_at from memberships m join users u on u.id=m.user_id where m.org_id=$1 order by m.created_at,u.id`, orgID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	defer rows.Close()
+	type member struct {
+		UserID    int64      `json:"user_id"`
+		Email     string     `json:"email"`
+		Name      string     `json:"name"`
+		Role      authz.Role `json:"role"`
+		SiteIDs   []int32    `json:"site_ids,omitempty"`
+		CreatedAt time.Time  `json:"created_at"`
+	}
+	members := make([]member, 0)
+	for rows.Next() {
+		var item member
+		if err := rows.Scan(&item.UserID, &item.Email, &item.Name, &item.Role, &item.SiteIDs, &item.CreatedAt); err != nil {
+			serviceError(w, err)
+			return
+		}
+		members = append(members, item)
+	}
+	if err := rows.Err(); err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": members})
+}
+
+func (h *handler) updateMember(w http.ResponseWriter, r *http.Request) {
+	principal, userID, ok := h.memberMutation(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		Role    authz.Role `json:"role"`
+		SiteIDs []int32    `json:"site_ids,omitempty"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if h.deps.Orgs == nil {
+		unavailable(w, "organization")
+		return
+	}
+	if err := h.deps.Orgs.SetRole(r.Context(), principal, userID, orgs.Role(request.Role), request.SiteIDs); err != nil {
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) deleteMember(w http.ResponseWriter, r *http.Request) {
+	principal, userID, ok := h.memberMutation(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Orgs == nil {
+		unavailable(w, "organization")
+		return
+	}
+	if err := h.deps.Orgs.Remove(r.Context(), principal, userID); err != nil {
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) memberMutation(w http.ResponseWriter, r *http.Request) (authz.Principal, int64, bool) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return authz.Principal{}, 0, false
+	}
+	if _, ok := orgIDFromPath(w, r, principal); !ok {
+		return authz.Principal{}, 0, false
+	}
+	if !authz.Can(principal, authz.ActionMembersManage, 0) {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot manage members")
+		return authz.Principal{}, 0, false
+	}
+	userID, err := parseInt64(r.PathValue("user"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "member not found")
+		return authz.Principal{}, 0, false
+	}
+	return principal, userID, true
+}

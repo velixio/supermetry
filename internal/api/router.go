@@ -41,8 +41,12 @@ type Deps struct {
 	Sites       sites.Registry // resolves site ownership for every site-scoped request
 	RateLimiter ingest.RateLimiter
 	Sessions    session.Store
-	Now         func() time.Time
-	Ready       func() bool
+	// Platform serves the application routes implemented under
+	// internal/platform/http. Those handlers resolve the complete platform
+	// principal required by authz.Can and transactional audit records.
+	Platform http.Handler
+	Now      func() time.Time
+	Ready    func() bool
 }
 
 // NewRouter mounts the public integration API, private dashboard API and
@@ -72,6 +76,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler)
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))
+	registerPlatformRoutes(mux, deps.Platform, deps.RateLimiter)
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
 		mux.Handle("POST "+deps.Config.EventPath, deps.Ingest)
@@ -96,6 +101,79 @@ func NewRouter(deps Deps) http.Handler {
 	})
 
 	return requestID(recoverProblems(mux))
+}
+
+func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter ingest.RateLimiter) {
+	if platform == nil {
+		return
+	}
+	public := rateLimit(limiter, platform)
+	for _, pattern := range []string{
+		"GET " + publicPrefix + "/sites",
+		"POST " + publicPrefix + "/sites",
+		"GET " + publicPrefix + "/sites/{site}",
+		"PATCH " + publicPrefix + "/sites/{site}",
+		"DELETE " + publicPrefix + "/sites/{site}",
+		"GET " + publicPrefix + "/sites/{site}/goals",
+		"POST " + publicPrefix + "/sites/{site}/goals",
+		"PATCH " + publicPrefix + "/goals/{goal}",
+		"DELETE " + publicPrefix + "/goals/{goal}",
+		"GET " + publicPrefix + "/sites/{site}/funnels",
+		"POST " + publicPrefix + "/sites/{site}/funnels",
+		"PATCH " + publicPrefix + "/funnels/{funnel}",
+		"DELETE " + publicPrefix + "/funnels/{funnel}",
+	} {
+		mux.Handle(pattern, public)
+	}
+	for _, pattern := range []string{
+		"POST " + privatePrefix + "/auth/login",
+		"POST " + privatePrefix + "/auth/logout",
+		"POST " + privatePrefix + "/auth/password-reset",
+		"POST " + privatePrefix + "/auth/password-reset/confirm",
+		"POST " + privatePrefix + "/setup",
+		"GET " + privatePrefix + "/me",
+		"GET " + privatePrefix + "/me/sessions",
+		"DELETE " + privatePrefix + "/me/sessions/{session}",
+		"POST " + privatePrefix + "/me/totp",
+		"PATCH " + privatePrefix + "/me/totp",
+		"GET " + privatePrefix + "/orgs",
+		"GET " + privatePrefix + "/orgs/{org}",
+		"GET " + privatePrefix + "/orgs/{org}/members",
+		"PATCH " + privatePrefix + "/orgs/{org}/members/{user}",
+		"DELETE " + privatePrefix + "/orgs/{org}/members/{user}",
+		"POST " + privatePrefix + "/orgs/{org}/invitations",
+		"GET " + privatePrefix + "/orgs/{org}/invitations",
+		"DELETE " + privatePrefix + "/orgs/{org}/invitations/{invitation}",
+		"GET " + privatePrefix + "/orgs/{org}/api-keys",
+		"DELETE " + privatePrefix + "/orgs/{org}/api-keys/{key}",
+		"POST " + privatePrefix + "/sites/{site}/shares",
+		"GET " + privatePrefix + "/sites/{site}/shares",
+		"DELETE " + privatePrefix + "/sites/{site}/shares/{share}",
+		"POST " + privatePrefix + "/sites/{site}/reports",
+		"GET " + privatePrefix + "/sites/{site}/reports",
+		"DELETE " + privatePrefix + "/sites/{site}/reports/{report}",
+		"POST " + privatePrefix + "/invitations/{token}/accept",
+		"POST " + privatePrefix + "/share/{slug}/open",
+		"GET " + privatePrefix + "/sites",
+		"POST " + privatePrefix + "/sites",
+		"GET " + privatePrefix + "/sites/{site}",
+		"PATCH " + privatePrefix + "/sites/{site}",
+		"DELETE " + privatePrefix + "/sites/{site}",
+		"POST " + privatePrefix + "/orgs/{org}/api-keys",
+		"GET " + privatePrefix + "/orgs/{org}/audit",
+		"DELETE " + privatePrefix + "/orgs/{org}",
+		"GET " + privatePrefix + "/share/{slug}/stats/summary",
+		"GET " + privatePrefix + "/sites/{site}/goals",
+		"POST " + privatePrefix + "/sites/{site}/goals",
+		"PATCH " + privatePrefix + "/goals/{goal}",
+		"DELETE " + privatePrefix + "/goals/{goal}",
+		"GET " + privatePrefix + "/sites/{site}/funnels",
+		"POST " + privatePrefix + "/sites/{site}/funnels",
+		"PATCH " + privatePrefix + "/funnels/{funnel}",
+		"DELETE " + privatePrefix + "/funnels/{funnel}",
+	} {
+		mux.Handle(pattern, platform)
+	}
 }
 
 func registerStats(mux *http.ServeMux, prefix string, h *handlers) {
