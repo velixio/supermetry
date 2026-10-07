@@ -227,7 +227,7 @@ func TestRouterOperationalAndConfiguredRoutes(t *testing.T) {
 		want   int
 	}{
 		{name: "event path", method: http.MethodPost, path: "/api/public/v1/events", want: http.StatusAccepted},
-		{name: "tracker placeholder", method: http.MethodGet, path: "/js/script.js", want: http.StatusNotFound},
+		{name: "tracker", method: http.MethodGet, path: "/js/script.js", want: http.StatusOK},
 		{name: "health", method: http.MethodGet, path: "/healthz", want: http.StatusOK},
 		{name: "ready", method: http.MethodGet, path: "/readyz", want: http.StatusOK},
 		{name: "metrics", method: http.MethodGet, path: "/metrics", want: http.StatusOK},

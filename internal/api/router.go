@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"panel/internal/sites"
+	"panel/internal/tracker"
 	"strconv"
 	"time"
 
@@ -83,7 +84,7 @@ func NewRouter(deps Deps) http.Handler {
 		mux.Handle("POST "+deps.Config.EventPath, deps.Ingest)
 	}
 	if deps.Config.TrackerPath != "" {
-		mux.HandleFunc("GET "+deps.Config.TrackerPath, http.NotFound)
+		mux.Handle("GET "+deps.Config.TrackerPath, tracker.Handler())
 	}
 	mux.HandleFunc("GET /api/public/openapi.json", serveOpenAPI)
 	if deps.UI != nil {

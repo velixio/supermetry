@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-func Snippet(baseURL, trackerPath, publicID string) string {
+func Snippet(baseURL, trackerPath, eventPath, publicID string) string {
 	source := strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(trackerPath, "/")
-	return `<script defer data-site="` + html.EscapeString(publicID) + `" src="` + html.EscapeString(source) + `"></script>`
+	endpoint := strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(eventPath, "/")
+	return `<script defer data-site="` + html.EscapeString(publicID) + `" data-api="` + html.EscapeString(endpoint) + `" src="` + html.EscapeString(source) + `"></script>`
 }

@@ -26,3 +26,37 @@ func TestUIServesNonAPIPathsOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestTrackerUsesConfiguredPathAndHeaders(t *testing.T) {
+	t.Parallel()
+
+	router := api.NewRouter(api.Deps{
+		Config:      config.Config{TrackerPath: "/custom/tracker.js"},
+		RateLimiter: ingest.NewTokenBuckets(0, 30),
+	})
+
+	for _, test := range []struct {
+		name       string
+		path       string
+		wantStatus int
+	}{
+		{name: "configured path", path: "/custom/tracker.js", wantStatus: http.StatusOK},
+		{name: "default path is not mounted", path: "/js/script.js", wantStatus: http.StatusNotFound},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
+			if recorder.Code != test.wantStatus {
+				t.Fatalf("GET %s status = %d, want %d", test.path, recorder.Code, test.wantStatus)
+			}
+			if test.wantStatus == http.StatusOK {
+				if got := recorder.Header().Get("Content-Type"); got != "application/javascript" {
+					t.Errorf("Content-Type = %q, want application/javascript", got)
+				}
+				if got := recorder.Header().Get("Cache-Control"); got != "public, max-age=3600" {
+					t.Errorf("Cache-Control = %q, want public, max-age=3600", got)
+				}
+			}
+		})
+	}
+}

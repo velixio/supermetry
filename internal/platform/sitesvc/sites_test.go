@@ -140,8 +140,13 @@ func TestCrossOrgAndForbiddenWritesAreHiddenOrDenied(t *testing.T) {
 }
 
 func TestSnippet(t *testing.T) {
-	got := Snippet("https://stats.example.com/", "/js/p.js", `abc123"unsafe`)
-	for _, want := range []string{`data-site="abc123&#34;unsafe"`, `src="https://stats.example.com/js/p.js"`, " defer"} {
+	got := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", `abc123"unsafe`)
+	for _, want := range []string{
+		`data-site="abc123&#34;unsafe"`,
+		`data-api="https://stats.example.com/api/public/v1/events"`,
+		`src="https://stats.example.com/js/p.js"`,
+		" defer",
+	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("Snippet() = %q, missing %q", got, want)
 		}

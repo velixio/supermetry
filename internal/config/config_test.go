@@ -62,7 +62,7 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.QueueSize != 65536 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" {
+	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" {
 		t.Fatalf("bad defaults: %+v", c)
 	}
 }
