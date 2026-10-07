@@ -109,6 +109,6 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 - Docker image, release binaries, systemd unit, install docs
 - Server-side events API docs; landing page and docs (Astro + Starlight)
 - Security review
-- Optimisation: startup time (9.8 s now, target <1 s), idle RAM (104 MB now, target <50 MB), product benchmark (D25)
+- Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
 
 Deferred: session replay, heatmaps, profiles and `identify`, AI insights, mobile SDKs, SSO/OIDC.
