@@ -32,3 +32,4 @@ bench/results/final/artifacts/**/schema.sql
 bench/results/final/artifacts/**/generator-truth.json
 bench/results/final/artifacts/**/*.jsonl
 bench/results/final/artifacts/**/*inspect*.json
+.worktrees/
