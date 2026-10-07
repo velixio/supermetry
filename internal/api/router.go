@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"panel/internal/sites"
 	"strconv"
 	"time"
 
@@ -36,6 +38,7 @@ type Deps struct {
 	Ingest      http.Handler
 	PublicAuth  Authenticator
 	PrivateAuth Authenticator
+	Sites       sites.Registry // resolves site ownership for every site-scoped request
 	RateLimiter ingest.RateLimiter
 	Sessions    session.Store
 	Now         func() time.Time
@@ -60,7 +63,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
 	public.HandleFunc("POST "+publicPrefix+"/funnels/query", h.funnelRequest)
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
-	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, rateLimit(deps.RateLimiter, public)))
+	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, public)))
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
@@ -68,7 +71,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("POST "+privatePrefix+"/funnels/query", h.funnelRequest)
 	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler)
-	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, requireCSRF(private)))
+	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
 		mux.Handle("POST "+deps.Config.EventPath, deps.Ingest)
@@ -123,7 +126,7 @@ func recoverProblems(next http.Handler) http.Handler {
 	})
 }
 
-func authenticate(auth Authenticator, next http.Handler) http.Handler {
+func authenticate(auth Authenticator, registry sites.Registry, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if auth == nil {
 			writeProblem(w, unauthorized())
@@ -135,6 +138,7 @@ func authenticate(auth Authenticator, next http.Handler) http.Handler {
 			return
 		}
 		ctx := context.WithValue(r.Context(), principalContextKey{}, principal)
+		ctx = context.WithValue(ctx, registryContextKey{}, registry)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -158,7 +162,7 @@ func rateLimit(limiter ingest.RateLimiter, next http.Handler) http.Handler {
 
 func requireCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && r.Header.Get("X-CSRF-Token") == "" {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !validCSRF(r) {
 			writeProblem(w, forbidden("a CSRF token is required"))
 			return
 		}
@@ -176,9 +180,21 @@ func authorizeRequest(w http.ResponseWriter, r *http.Request, siteID int32, scop
 		writeProblem(w, forbidden("the credential does not grant the required scope"))
 		return false
 	}
-	if siteID != 0 && !principal.allowsSite(siteID) {
-		writeProblem(w, forbidden("the credential does not grant access to this site"))
-		return false
+	if siteID != 0 {
+		// Fail closed: without a registry, or for unknown or foreign sites, answer 404
+		// so the existence of other organizations' sites is not revealed.
+		registry, _ := r.Context().Value(registryContextKey{}).(sites.Registry)
+		if registry == nil && !principal.AllSites {
+			writeProblem(w, notFound("site not found"))
+			return false
+		}
+		if registry != nil {
+			site, found := registry.Site(siteID)
+			if !found || !principal.allowsSite(site) {
+				writeProblem(w, notFound("site not found"))
+				return false
+			}
+		}
 	}
 	return true
 }
@@ -196,4 +212,17 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(document)
+}
+
+type registryContextKey struct{}
+
+// validCSRF implements the double-submit check: the X-CSRF-Token header must
+// equal the panel_csrf cookie, compared in constant time.
+func validCSRF(r *http.Request) bool {
+	header := r.Header.Get("X-CSRF-Token")
+	cookie, err := r.Cookie("panel_csrf")
+	if header == "" || err != nil || cookie.Value == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(header), []byte(cookie.Value)) == 1
 }

@@ -39,3 +39,7 @@ func rateLimited() Problem {
 func internalProblem() Problem {
 	return newProblem(http.StatusInternalServerError, "https://panel.dev/problems/internal", "Internal server error", "the request could not be completed")
 }
+
+func notFound(detail string) Problem {
+	return newProblem(http.StatusNotFound, "https://panel.dev/problems/not-found", "Not found", detail)
+}

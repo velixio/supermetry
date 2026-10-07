@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"panel/internal/sites"
 	"strings"
 	"testing"
 
@@ -130,13 +131,22 @@ func TestAPIConventions(t *testing.T) {
 	})
 }
 
+type orgSites map[int32]sites.Site
+
+func (o orgSites) ByPublicID(string) (sites.Site, bool) { return sites.Site{}, false }
+func (o orgSites) Site(id int32) (sites.Site, bool)     { s, ok := o[id]; return s, ok }
+func (o orgSites) All() []sites.Site                    { return nil }
+
 func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
-	private := principalAuth{principal: api.Principal{Scopes: []string{"stats:read"}}}
+	// Sites 1 and 2 belong to org 7; principals are scoped to org 7.
+	registry := orgSites{1: {ID: 1, OrgID: 7}, 2: {ID: 2, OrgID: 7}}
+	private := principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}}
 	router := api.NewRouter(api.Deps{
 		Config:      config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"},
 		Query:       queryStub{},
-		PublicAuth:  principalAuth{principal: api.Principal{Scopes: []string{"stats:read"}, SiteIDs: []int32{2}}},
+		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{2}}},
 		PrivateAuth: private,
+		Sites:       registry,
 		RateLimiter: ingest.NewTokenBuckets(0, 30),
 	})
 
@@ -144,7 +154,8 @@ func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
-		assertRecorderProblem(t, response, http.StatusForbidden)
+		// Foreign or unknown sites answer 404 so their existence is not revealed.
+		assertRecorderProblem(t, response, http.StatusNotFound)
 	})
 
 	t.Run("public principal needs stats scope", func(t *testing.T) {
@@ -172,6 +183,7 @@ func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 		request := httptest.NewRequest(http.MethodPost, "/api/private/query", strings.NewReader(`{"site_id":1,"period":"30d","metrics":["visitors"]}`))
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("X-CSRF-Token", "present")
+		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "present"})
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
 		if response.Code != http.StatusOK {

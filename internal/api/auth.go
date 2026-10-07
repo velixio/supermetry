@@ -4,14 +4,19 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"net/http"
+	"panel/internal/sites"
 	"strings"
 )
 
 // Principal describes the sites and operations available to an authenticated
-// caller. A nil SiteIDs slice grants access to all sites.
+// caller. Access is always scoped to OrgID: a nil SiteIDs slice means every
+// site of that organization, never sites of other organizations. Only the
+// static administrator key sets AllSites.
 type Principal struct {
-	Scopes  []string
-	SiteIDs []int32
+	OrgID    int64
+	AllSites bool
+	Scopes   []string
+	SiteIDs  []int32
 }
 
 // Authenticator resolves an HTTP request to its authenticated principal.
@@ -37,7 +42,7 @@ func (key staticKey) Authenticate(r *http.Request) (Principal, bool) {
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		return Principal{}, false
 	}
-	return Principal{Scopes: []string{"*"}}, true
+	return Principal{AllSites: true, Scopes: []string{"*"}}, true
 }
 
 func (p Principal) hasScope(scope string) bool {
@@ -49,12 +54,18 @@ func (p Principal) hasScope(scope string) bool {
 	return false
 }
 
-func (p Principal) allowsSite(siteID int32) bool {
+func (p Principal) allowsSite(site sites.Site) bool {
+	if p.AllSites {
+		return true
+	}
+	if p.OrgID == 0 || site.OrgID != p.OrgID {
+		return false
+	}
 	if p.SiteIDs == nil {
 		return true
 	}
 	for _, allowed := range p.SiteIDs {
-		if allowed == siteID {
+		if allowed == site.ID {
 			return true
 		}
 	}

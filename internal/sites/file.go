@@ -19,6 +19,7 @@ type FileRegistry struct {
 
 type fileSite struct {
 	ID            int32    `json:"id"`
+	OrgID         int64    `json:"org_id"`
 	PublicID      string   `json:"public_id"`
 	Timezone      string   `json:"timezone"`
 	RetentionDays int16    `json:"retention_days"`
@@ -55,6 +56,7 @@ func LoadFile(path string) (*FileRegistry, error) {
 			allowedHosts[j] = strings.ToLower(host)
 		}
 		site := Site{
+			OrgID:        record.OrgID,
 			ID:           record.ID,
 			PublicID:     record.PublicID,
 			TZ:           location,

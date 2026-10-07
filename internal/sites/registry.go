@@ -11,6 +11,7 @@ import (
 // Site is the analytics-core view of a tracked website.
 type Site struct {
 	ID           int32
+	OrgID        int64 // owning organization; site checks compare it with the caller's org
 	PublicID     string
 	TZ           *time.Location
 	Retention    db.RetentionClass
