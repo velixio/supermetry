@@ -4,7 +4,9 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -286,7 +288,7 @@ func openGeoFile(path, kind string, editions map[string]struct{}) (*maxminddb.Re
 	if err != nil {
 		return nil, fmt.Errorf("open %s database: %w", kind, err)
 	}
-	return validateReader(reader, kind, editions)
+	return validateReader(reader, fileReadAt(path), kind, editions)
 }
 
 func openGeoBytes(data []byte, kind string, editions map[string]struct{}) (*maxminddb.Reader, error) {
@@ -294,11 +296,11 @@ func openGeoBytes(data []byte, kind string, editions map[string]struct{}) (*maxm
 	if err != nil {
 		return nil, fmt.Errorf("open %s database: %w", kind, err)
 	}
-	return validateReader(reader, kind, editions)
+	return validateReader(reader, bytesReadAt(data), kind, editions)
 }
 
-func validateReader(reader *maxminddb.Reader, kind string, editions map[string]struct{}) (*maxminddb.Reader, error) {
-	if err := reader.Verify(); err != nil {
+func validateReader(reader *maxminddb.Reader, readAt readAtFunc, kind string, editions map[string]struct{}) (*maxminddb.Reader, error) {
+	if err := quickVerify(reader, readAt); err != nil {
 		_ = reader.Close()
 		return nil, fmt.Errorf("verify %s database: %w", kind, err)
 	}
@@ -308,6 +310,74 @@ func validateReader(reader *maxminddb.Reader, kind string, editions map[string]s
 		return nil, fmt.Errorf("invalid %s database edition %q", kind, edition)
 	}
 	return reader, nil
+}
+
+// readAtFunc reads len(p) bytes of the raw database at off.
+type readAtFunc func(p []byte, off int64) error
+
+func fileReadAt(path string) readAtFunc {
+	return func(p []byte, off int64) error {
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = file.ReadAt(p, off)
+		return err
+	}
+}
+
+func bytesReadAt(data []byte) readAtFunc {
+	return func(p []byte, off int64) error {
+		if off < 0 || off+int64(len(p)) > int64(len(data)) {
+			return io.ErrUnexpectedEOF
+		}
+		copy(p, data[off:])
+		return nil
+	}
+}
+
+// quickVerify is a constant-cost integrity check run on every open. A full
+// Verify walks every search-tree node, which takes seconds for GeoLite2-City
+// and used to dominate startup; geoupdate runs it once on each download. This
+// still catches truncated and corrupted files: the metadata must parse (Open),
+// the 16-byte zero separator must sit right after the search tree, and a
+// sample lookup must decode.
+func quickVerify(reader *maxminddb.Reader, readAt readAtFunc) error {
+	metadata := reader.Metadata
+	if metadata.NodeCount == 0 || metadata.RecordSize == 0 {
+		return errors.New("empty search tree")
+	}
+	treeSize := int64(metadata.NodeCount) * int64(metadata.RecordSize) / 4
+	separator := make([]byte, 16)
+	if err := readAt(separator, treeSize); err != nil {
+		return fmt.Errorf("read data section separator: %w", err)
+	}
+	for _, b := range separator {
+		if b != 0 {
+			return errors.New("unexpected data section separator")
+		}
+	}
+	var record any
+	if err := reader.Lookup(netip.MustParseAddr("1.1.1.1")).Decode(&record); err != nil {
+		return fmt.Errorf("sample lookup: %w", err)
+	}
+	return nil
+}
+
+// CheckFile opens path, runs the constant-cost integrity check and returns the
+// database edition (metadata database_type).
+func CheckFile(path string) (string, error) {
+	reader, err := maxminddb.Open(path)
+	if err != nil {
+		return "", err
+	}
+	edition := reader.Metadata.DatabaseType
+	checkErr := quickVerify(reader, fileReadAt(path))
+	if closeErr := reader.Close(); checkErr == nil {
+		checkErr = closeErr
+	}
+	return edition, checkErr
 }
 
 func (r *readerSet) close() error {

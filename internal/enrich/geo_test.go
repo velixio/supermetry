@@ -326,3 +326,34 @@ func writeMMDB(t *testing.T, edition string, record mmdbtype.Map) string {
 	}
 	return path
 }
+
+func TestCheckFileRejectsCorruptSeparator(t *testing.T) {
+	path := writeMMDB(t, "GeoLite2-ASN", mmdbtype.Map{
+		"autonomous_system_number": mmdbtype.Uint32(64500),
+	})
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := maxminddb.OpenBytes(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	separator := int(reader.Metadata.NodeCount * (reader.Metadata.RecordSize / 4))
+	_ = reader.Close()
+
+	if edition, err := enrich.CheckFile(path); err != nil || edition != "GeoLite2-ASN" {
+		t.Fatalf("CheckFile(valid) = %q, %v; want GeoLite2-ASN, nil", edition, err)
+	}
+	data[separator+3] = 7
+	corruptPath := filepath.Join(t.TempDir(), "corrupt.mmdb")
+	if err := os.WriteFile(corruptPath, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := enrich.CheckFile(corruptPath); err == nil {
+		t.Fatal("CheckFile(corrupt separator) = nil error, want failure")
+	}
+	if _, err := enrich.CheckFile(filepath.Join(t.TempDir(), "missing.mmdb")); err == nil {
+		t.Fatal("CheckFile(missing) = nil error, want failure")
+	}
+}

@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oschwald/maxminddb-golang/v2"
-
 	"panel/internal/config"
 	"panel/internal/enrich"
 	"panel/internal/geoupdate"
@@ -104,15 +102,9 @@ func prepareGeoIP(ctx context.Context, cfg config.Config, update geoUpdateFunc) 
 }
 
 func validateConfiguredEdition(path, edition string) error {
-	reader, err := maxminddb.Open(path)
+	databaseType, err := enrich.CheckFile(path)
 	if err != nil {
-		return fmt.Errorf("open configured %s database: %w", edition, err)
-	}
-	databaseType := reader.Metadata.DatabaseType
-	verifyErr := reader.Verify()
-	closeErr := reader.Close()
-	if verifyErr != nil || closeErr != nil {
-		return fmt.Errorf("verify configured %s database: %w", edition, errors.Join(verifyErr, closeErr))
+		return fmt.Errorf("verify configured %s database: %w", edition, err)
 	}
 	if databaseType != edition {
 		return fmt.Errorf("configured %s database has unexpected edition %q", edition, databaseType)
