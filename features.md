@@ -20,11 +20,11 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |
-| Revenue goals | ✓ (paid) | ✓ | ✓ | ❌ |
-| Saved segments | ✓ | ✓ | ✓ | ❌ |
-| Annotations on the chart | – | ✓ | – | ❌ |
-| Retention (cohort) report | – | ✓ | ✓ | ❌ |
-| User journeys / path flow | ✓ (paid) | ✓ | ✓ | ❌ |
+| Revenue goals | ✓ (paid) | ✓ | ✓ || ⏳ |
+| Saved segments | ✓ | ✓ | ✓ || ⏳ |
+| Annotations on the chart | – | ✓ | – || ⏳ |
+| Retention (cohort) report | – | ✓ | ✓ || ⏳ |
+| User journeys / path flow | ✓ (paid) | ✓ | ✓ || ⏳ |
 | Web Vitals | – | ✓ | ? | ❌ |
 | Session replay | – | ✓ | ✓ | ⏸ |
 | Heatmaps | – | ✓ | – | ⏸ |
@@ -55,14 +55,14 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Audit log | ? | – | – | ✅ |
 | Public share links | ✓ | ✓ | ✓ | ✅ |
 | Email reports | ✓ | – | ? | ✅ |
-| Alerts: traffic spike or drop, goal hit | ✓ (email, traffic spike) | – | ✓ | ❌ |
-| Webhooks, Slack, Discord | – | – | ✓ | ❌ |
+| Alerts: traffic spike or drop, goal hit | ✓ (email, traffic spike) | – | ✓ || ⏳ |
+| Webhooks, Slack, Discord | – | – | ✓ || ⏳ |
 | CSV export | ✓ | ✓ | ? | ⏳ (per card only) |
 | Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ❌ |
 | Stats API: summary | ✓ | ✓ | ✓ | ✅ |
-| Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ | ❌ |
+| Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ || ⏳ |
 | Sites / goals / funnels API | ✓ (not in CE) | ✓ | ✓ | ✅ |
-| MCP server for AI assistants | ? | ✓ | ✓ | ❌ |
+| MCP server for AI assistants | ? | ✓ | ✓ || ⏳ |
 | SSO / OIDC | ✓ (enterprise) | ? | ? | ⏸ |
 
 ## Self-hosting
@@ -90,17 +90,17 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 3. ~~Automatic outbound-link, file-download and 404 tracking~~ ✅
 4. ~~Click tracking from HTML attributes~~ ✅
 5. ~~Site exclusion rules: IP ranges, paths~~ ✅
-6. Saved segments
-7. Revenue goals
-8. Stats API: timeseries, breakdowns, realtime
-9. Full CSV export of every report
-10. User journeys / path flow
-11. Retention (cohort) report
-12. Alerts: traffic spike or drop, goal hit (email)
-13. Annotations on the chart
+6. Saved segments ⏳
+7. Revenue goals ⏳
+8. Stats API: timeseries, breakdowns, realtime ⏳
+9. Full CSV export of every report ⏳
+10. User journeys / path flow ⏳
+11. Retention (cohort) report ⏳
+12. Alerts: traffic spike or drop, goal hit (email) ⏳
+13. Annotations on the chart ⏳
 14. Importers from Plausible, Umami and GA4
-15. Webhooks, Slack and Discord
-16. MCP server for AI assistants
+15. Webhooks, Slack and Discord ⏳
+16. MCP server for AI assistants ⏳
 17. Web Vitals
 
 ### Later
