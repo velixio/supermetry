@@ -28,6 +28,15 @@ type Gauge struct {
 	bits atomic.Uint64
 }
 
+// ExclusionReason is a bounded label value for intentionally filtered traffic.
+type ExclusionReason uint8
+
+const (
+	ExclusionNone ExclusionReason = iota
+	ExclusionIP
+	ExclusionPath
+)
+
 // Store replaces the current gauge value.
 func (g *Gauge) Store(value float64) { g.bits.Store(math.Float64bits(value)) }
 
@@ -45,6 +54,8 @@ var (
 	// BotsFiltered is indexed by enrich.BotReason. Index zero is the
 	// unfiltered case and is intentionally not exported as a metric.
 	BotsFiltered [5]Counter
+	// ExclusionsFiltered is indexed by ExclusionReason. Index zero is unused.
+	ExclusionsFiltered [3]Counter
 
 	WriterQueueDepth           Gauge
 	CopySeconds                Gauge
@@ -67,6 +78,7 @@ const (
 )
 
 var botReasons = [...]string{"", "ua", "headless", "datacenter", "spam_referrer"}
+var exclusionReasons = [...]string{"", "ip", "path"}
 
 var querySecondBuckets = [...]float64{
 	0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25,
@@ -168,6 +180,9 @@ func Snapshot() map[string]float64 {
 	for reason := 1; reason < len(BotsFiltered); reason++ {
 		snapshot[fmt.Sprintf(`bots_filtered_total{reason=%q}`, botReasons[reason])] = float64(BotsFiltered[reason].Load())
 	}
+	for reason := 1; reason < len(ExclusionsFiltered); reason++ {
+		snapshot[fmt.Sprintf(`ingest_excluded_total{reason=%q}`, exclusionReasons[reason])] = float64(ExclusionsFiltered[reason].Load())
+	}
 	for route, p95 := range QuerySeconds.snapshot() {
 		snapshot[fmt.Sprintf(`query_seconds{route=%q}`, escapeLabel(route))] = p95
 	}
@@ -190,6 +205,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_dropped_total", "counter")
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")
+	writeFamily(w, snapshot, "ingest_excluded_total", "counter")
 	writeFamily(w, snapshot, "writer_queue_depth", "gauge")
 	writeFamily(w, snapshot, "copy_seconds", "gauge")
 	writeFamily(w, snapshot, "close_lag_seconds", "gauge")

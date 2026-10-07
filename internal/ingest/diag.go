@@ -10,6 +10,28 @@ import (
 	"panel/internal/enrich"
 )
 
+func parseRemoteAddr(remote string) (netip.Addr, bool) {
+	host, _, err := net.SplitHostPort(remote)
+	if err != nil {
+		host = remote
+	}
+	addr, err := netip.ParseAddr(host)
+	return addr, err == nil
+}
+
+func isPublicIP(addr netip.Addr) bool {
+	return addr.IsGlobalUnicast() && !addr.IsPrivate() && !addr.IsLoopback() && !addr.IsLinkLocalUnicast()
+}
+
+func (h *Handler) proxyTrusted(addr netip.Addr) bool {
+	for _, prefix := range h.TrustedProxies {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+	return false
+}
+
 // logDiag records how a client address was resolved. It never writes a public
 // address: private addresses print as-is, public ones as <public>, and
 // anything unparseable as <unparsed>. Enabled with PANEL_INGEST_DIAG=1.

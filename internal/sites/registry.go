@@ -16,6 +16,7 @@ type Site struct {
 	TZ           *time.Location
 	Retention    db.RetentionClass
 	AllowedHosts []string
+	Exclusions   Exclusions
 }
 
 // Registry provides in-memory site lookups for the analytics core.

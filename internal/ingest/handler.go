@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -15,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"panel/internal/clientip"
 	"panel/internal/dict"
 	"panel/internal/enrich"
 	"panel/internal/health"
@@ -91,6 +91,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip, ok := h.clientIP(r)
 	if !ok {
 		h.invalid(w)
+		return
+	}
+	if site.Exclusions.ExcludesIP(ip) {
+		health.ExclusionsFiltered[health.ExclusionIP].Add(1)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	path := pageURL.Path
+	if path == "" {
+		path = "/"
+	}
+	if site.Exclusions.ExcludesPath(path) {
+		health.ExclusionsFiltered[health.ExclusionPath].Add(1)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 	if h.Diag {
@@ -251,55 +265,7 @@ func parsePageURL(raw string) (*url.URL, error) {
 var errInvalidURL = errors.New("invalid page URL")
 
 func (h *Handler) clientIP(r *http.Request) (netip.Addr, bool) {
-	peer, ok := parseRemoteAddr(r.RemoteAddr)
-	if !ok {
-		return netip.Addr{}, false
-	}
-	// A dual-stack listener reports IPv4 peers as IPv4-mapped IPv6
-	// (::ffff:192.168.0.1); unmap before matching IPv4 proxy prefixes.
-	peer = peer.Unmap()
-	if h.proxyTrusted(peer) {
-		// Walk the chain from the nearest hop outward and take the first
-		// public address, so private hops and spoofed left-hand entries lose
-		// to what our own proxy appended. A chain with no public address
-		// (LAN or local testing) falls back to the peer.
-		hops := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
-		for i := len(hops) - 1; i >= 0; i-- {
-			hop, err := netip.ParseAddr(strings.TrimSpace(hops[i]))
-			if err != nil {
-				continue
-			}
-			hop = hop.Unmap()
-			if isPublicIP(hop) && !h.proxyTrusted(hop) {
-				return hop, true
-			}
-		}
-	}
-	return peer.Unmap(), true
-}
-
-// isPublicIP reports whether addr is a globally routable unicast address;
-// private, loopback, link-local and unique-local ranges are not.
-func isPublicIP(addr netip.Addr) bool {
-	return addr.IsGlobalUnicast() && !addr.IsPrivate() && !addr.IsLoopback() && !addr.IsLinkLocalUnicast()
-}
-
-func parseRemoteAddr(remote string) (netip.Addr, bool) {
-	host, _, err := net.SplitHostPort(remote)
-	if err != nil {
-		host = remote
-	}
-	addr, err := netip.ParseAddr(host)
-	return addr, err == nil
-}
-
-func (h *Handler) proxyTrusted(addr netip.Addr) bool {
-	for _, prefix := range h.TrustedProxies {
-		if prefix.Contains(addr) {
-			return true
-		}
-	}
-	return false
+	return clientip.Resolve(r, h.TrustedProxies)
 }
 
 func ipRateKey(ip netip.Addr) string {
