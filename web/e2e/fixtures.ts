@@ -1,0 +1,159 @@
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
+
+import {
+  expect,
+  request as playwrightRequest,
+  test as base,
+  type FullConfig,
+  type Page,
+} from '@playwright/test'
+
+const email = 'owner@panel.test'
+const password = 'panel-e2e-password'
+
+export type Owner = {
+  email: string
+  password: string
+  orgId: number
+  orgSlug: string
+  siteId: number
+  siteSlug: string
+  shareSlug: string
+  apiHeaders: Record<string, string>
+  login(page: Page, next?: string): Promise<void>
+}
+
+type SerializedOwner = Omit<Owner, 'login'>
+
+function required(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`${name} is required for the e2e suite`)
+  return value
+}
+
+function value<T>(record: Record<string, unknown>, snake: string, title: string): T {
+  const result = record[snake] ?? record[title]
+  if (result === undefined) throw new Error(`missing ${snake} in e2e API response`)
+  return result as T
+}
+
+export function fmtCompact(input: number): string {
+  return Math.abs(input) >= 10_000
+    ? new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }).format(input)
+    : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(input)
+}
+
+export default async function globalSetup(config: FullConfig) {
+  const baseURL = String(config.projects[0]?.use.baseURL)
+  const resetURL = readFileSync(required('PANEL_E2E_RESET_FILE'), 'utf8').trim()
+  const token = new URL(resetURL).searchParams.get('token')
+  if (!token) throw new Error('panel user create did not return a reset token')
+
+  const api = await playwrightRequest.newContext({ baseURL })
+  const reset = await api.post('/api/private/auth/password-reset/confirm', {
+    data: { token, password },
+  })
+  expect(reset.ok(), await reset.text()).toBe(true)
+
+  const login = await api.post('/api/private/auth/login', {
+    data: { email, password, device_label: 'Playwright setup' },
+  })
+  expect(login.ok(), await login.text()).toBe(true)
+
+  const state = await api.storageState()
+  const csrf = state.cookies.find((cookie) => cookie.name === 'panel_csrf')?.value
+  if (!csrf) throw new Error('login did not set the CSRF cookie')
+  const cookie = state.cookies.map((item) => `${item.name}=${item.value}`).join('; ')
+  const authHeaders = { Cookie: cookie, 'X-CSRF-Token': csrf }
+
+  const organizations = await api.get('/api/private/orgs', { headers: authHeaders })
+  expect(organizations.ok(), await organizations.text()).toBe(true)
+  const organizationBody = (await organizations.json()) as {
+    data: Array<Record<string, unknown>>
+  }
+  const membership = organizationBody.data[0]
+  if (!membership) throw new Error('owner has no organization')
+  const orgId = value<number>(membership, 'org_id', 'OrgID')
+  const orgSlug = value<string>(membership, 'org_slug', 'OrgSlug')
+  const apiHeaders = { ...authHeaders, 'X-Panel-Org': String(orgId) }
+
+  const createdSite = await api.post('/api/private/sites', {
+    headers: apiHeaders,
+    data: {
+      name: 'Site 1',
+      hosts: ['site1.test'],
+      timezone: 'America/New_York',
+      retention_days: 30,
+    },
+  })
+  expect(createdSite.ok(), await createdSite.text()).toBe(true)
+  const site = (await createdSite.json()) as Record<string, unknown>
+  const siteId = value<number>(site, 'id', 'ID')
+  const siteSlug = value<string>(site, 'public_id', 'PublicID')
+
+  const createdShare = await api.post(`/api/private/sites/${siteId}/shares`, {
+    headers: apiHeaders,
+    data: { password: '' },
+  })
+  expect(createdShare.ok(), await createdShare.text()).toBe(true)
+  const share = (await createdShare.json()) as Record<string, unknown>
+  const shareSlug = value<string>(share, 'slug', 'Slug')
+
+  const owner: SerializedOwner = {
+    email,
+    password,
+    orgId,
+    orgSlug,
+    siteId,
+    siteSlug,
+    shareSlug,
+    apiHeaders,
+  }
+  process.env.PANEL_E2E_OWNER = JSON.stringify(owner)
+  mkdirSync('e2e/screenshots', { recursive: true })
+  await api.dispose()
+
+  return () => {
+    const testDSN = required('PANEL_TEST_DSN')
+    const schema = required('PANEL_E2E_SCHEMA')
+    execFileSync('psql', [
+      testDSN,
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-c',
+      `drop schema if exists "${schema}" cascade`,
+    ])
+    rmSync(required('PANEL_E2E_RESET_FILE'), { force: true })
+    rmSync(required('PANEL_E2E_SITES_FILE'), { force: true })
+  }
+}
+
+export const test = base.extend<{ owner: Owner }>({
+  owner: async ({}, use) => {
+    const serialized = JSON.parse(required('PANEL_E2E_OWNER')) as SerializedOwner
+    await use({
+      ...serialized,
+      async login(page, next = '/') {
+        await page.goto(`/login?next=${encodeURIComponent(next)}`)
+        const emailInput = page.getByLabel('Email')
+        await expect(emailInput).toBeVisible()
+        await emailInput.fill(serialized.email)
+        await page.getByLabel('Password').fill(serialized.password)
+        const responsePromise = page.waitForResponse(
+          (response) =>
+            response.url().endsWith('/api/private/auth/login') &&
+            response.request().method() === 'POST',
+        )
+        await page.getByRole('button', { name: 'Sign in' }).click()
+        const response = await responsePromise
+        expect(response.ok(), await response.text()).toBe(true)
+      },
+    })
+  },
+})
+
+export { expect } from '@playwright/test'

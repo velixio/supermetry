@@ -105,6 +105,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ## Apache-2.0 dependencies
 
+- Playwright v1.63.0 — Copyright (c) Microsoft Corporation
 - `class-variance-authority` v0.7.1 — Copyright (c) Joe Bell
 - TypeScript v5.9.3 — Copyright (c) Microsoft Corporation
 - `github.com/pquerna/otp` v1.5.0 — Copyright 2014 Paul Querna

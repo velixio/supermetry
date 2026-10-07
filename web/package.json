@@ -8,8 +8,9 @@
     "gen:api": "openapi-typescript ../internal/api/openapi.yaml -o src/lib/api.gen.ts",
     "gen:routes": "node node_modules/@tanstack/router-cli/dist/esm/index.js generate",
     "typecheck": "npm run gen:routes && tsc --noEmit",
-    "test": "vitest",
-    "build": "npm run gen:routes && tsc --noEmit && vite build && node scripts/size-check.mjs"
+    "test": "vitest --exclude=e2e/**",
+    "build": "npm run gen:routes && tsc --noEmit && vite build && node scripts/size-check.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",
@@ -31,6 +32,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-cli": "^1.167.40",
     "@tanstack/router-plugin": "^1.168.42",
