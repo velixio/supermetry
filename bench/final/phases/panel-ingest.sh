@@ -12,7 +12,7 @@ plan "S5 probe: realtime visibility <=5s and dashboard visibility <=60s"
 fresh_artifacts "$ART"
 require curl; sudo -n true; [[ -x $PROTO ]] || exit 1
 pid=; cleanup(){ [[ -z ${pid:-} ]] || { kill -TERM "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; }; }; trap cleanup EXIT
-"$PROTO" serve --sites "$SITES" >"$ART/server.log" 2>&1 & pid=$!
+"$PROTO" serve --sites "$SITES" --geoip "$ROOT/bench/proto/data/dbip-country-lite.mmdb" >"$ART/server.log" 2>&1 & pid=$!
 for _ in {1..120}; do curl -fsS http://127.0.0.1:8090/api/stats >/dev/null 2>&1 && break; sleep .25; done
 kill -0 "$pid"
 "$FINAL_DIR/freshness.py" --url http://127.0.0.1:8090 --out "$ART/s5.json"

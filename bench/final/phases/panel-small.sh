@@ -16,7 +16,7 @@ sudo -n pg_createcluster 18 "$cluster" --port 5433 --start-conf=manual >/dev/nul
 sudo -n pg_conftool 18 "$cluster" set shared_buffers 128MB
 sudo -n pg_conftool 18 "$cluster" set max_connections 20
 quiet_gate
-sudo -n systemd-run --scope --wait --pipe --unit=panel-final-small.scope -p MemoryMax=1G -p CPUQuota=100% \
+sudo -n systemd-run --scope --unit=panel-final-small.scope -p MemoryMax=1G -p CPUQuota=100% \
   "$FINAL_DIR/small-inner.sh" "$ART" "$cluster"
 cleanup; trap - EXIT
 python3 -I - "$ART/meta.json" "$ART" <<'PY'

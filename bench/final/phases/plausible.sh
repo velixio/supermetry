@@ -15,7 +15,7 @@ cleanup(){ "$RIG/down.sh" plausible --purge >/dev/null 2>&1 || true; }; trap cle
 "$RIG/up.sh" plausible; "$RIG/seed.sh" plausible 100
 t0=$(date +%s); "$LOAD/plausible/load.sh" 90 | tee "$ART/load.out"; load_s=$(( $(date +%s)-t0 ))
 key=$(openssl rand -hex 32)
-p_rpc "user=Plausible.Repo.get_by!(Plausible.Auth.User,email: \"$PLAUSIBLE_ADMIN_EMAIL\"); team=Plausible.Repo.one!(Ecto.assoc(user,:teams)); Plausible.Auth.ApiKey.changeset(%Plausible.Auth.ApiKey{user_id: user.id},team,%{name: \"final-bench\",key: \"$key\"}) |> Plausible.Repo.insert!()" >/dev/null
+p_rpc "user=Plausible.Repo.get_by!(Plausible.Auth.User,email: \"$PLAUSIBLE_ADMIN_EMAIL\"); {:ok, team}=Plausible.Teams.get_or_create(user); Plausible.Auth.ApiKey.changeset(%Plausible.Auth.ApiKey{user_id: user.id},team,%{name: \"final-bench\",key: \"$key\"}) |> Plausible.Repo.insert!()" >/dev/null
 printf '%s\n' "$key" >"$ART/api-key"; chmod 600 "$ART/api-key"
 p_psql -c "UPDATE sites SET native_stats_start_at='2026-07-01', stats_start_date='2026-07-01'; UPDATE api_keys SET hourly_request_limit=1000000;"
 for range in '30|2026-09-01|2026-09-30' '90|2026-07-03|2026-09-30'; do
