@@ -20,3 +20,4 @@ bench/results/codex-*.log
 **/__pycache__/
 *.pyc
 bench/rig/plausible/ce/
+.codex-runs/
