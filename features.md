@@ -16,7 +16,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Page, source, country, browser, OS and device breakdowns | ✓ | ✓ | ✓ | ✅ |
 | UTM breakdowns | ✓ | ✓ | ✓ | ✅ |
 | Entry and exit pages | ✓ | ✓ | ✓ | ✅ |
-| Region and city | ✓ | ✓ | ✓ | ⏳ |
+| Region and city | ✓ | ✓ | ✓ | ✅ |
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |
@@ -39,10 +39,10 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | No cookies | ✓ | ✓ | ✓ | ✅ |
 | SPA pageviews | ✓ | ✓ | ✓ | ✅ |
 | Scroll depth and engagement time | ✓ | – | ? | ✅ |
-| Automatic outbound-link, file-download and 404 tracking | ✓ | ✓ | ✓ | ⏳ |
-| Click tracking from HTML attributes | ✓ | ✓ | ✓ | ⏳ |
+| Automatic outbound-link, file-download and 404 tracking | ✓ | ✓ | ✓ | ✅ (full script, 1.5 KB gz) |
+| Click tracking from HTML attributes | ✓ | ✓ | ✓ | ✅ (`data-panel-event`) |
 | Server-side events API, with examples | ✓ | ✓ | ✓ | ❌ (API exists, no docs) |
-| Bot filtering; IP and path exclusion | ✓ | ✓ | ✓ | ⏳ (bot filtering ✅) |
+| Bot filtering; IP and path exclusion | ✓ | ✓ | ✓ | ✅ |
 | Mobile SDKs | – | – | ✓ | ⏸ |
 
 ## Team, sharing and API
@@ -85,11 +85,11 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 
 ### Build now (most used)
 
-1. ~~Entry and exit pages~~ (already built)
-2. Region and city breakdowns ⏳
-3. Automatic outbound-link, file-download and 404 tracking ⏳
-4. Click tracking from HTML attributes ⏳
-5. Site exclusion rules: IP ranges, paths (bot filtering already built) ⏳
+1. ~~Entry and exit pages~~ ✅ (already built)
+2. ~~Region and city breakdowns~~ ✅
+3. ~~Automatic outbound-link, file-download and 404 tracking~~ ✅
+4. ~~Click tracking from HTML attributes~~ ✅
+5. ~~Site exclusion rules: IP ranges, paths~~ ✅
 6. Saved segments
 7. Revenue goals
 8. Stats API: timeseries, breakdowns, realtime
