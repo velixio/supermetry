@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api'
+import { countryLabel } from '@/lib/country'
 import { fmt } from '@/lib/format'
 import { useStats, type StatsQuery } from '@/lib/stats'
 
@@ -113,7 +114,8 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
         accessorFn: (row) => String(row[dimension] ?? ''),
         header: dimension,
         cell: ({ getValue }) => {
-          const value = String(getValue())
+          const raw = String(getValue())
+          const value = dimension === 'country' ? countryLabel(raw) : raw
           return (
             <span className="block max-w-[18rem] truncate" title={value}>
               {value}

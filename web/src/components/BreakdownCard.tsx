@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { countryLabel } from '@/lib/country'
 import { fmt } from '@/lib/format'
 import type { Filter } from '@/lib/search'
 import { useStats, type StatsQuery } from '@/lib/stats'
@@ -82,6 +83,7 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
         <ol className="flex min-w-0 flex-col p-2">
           {rows.map((row, index) => {
             const label = String(row[activeTab.dimension] ?? '')
+            const display = activeTab.dimension === 'country' ? countryLabel(label) : label
             const rawValue = Number(row[activeTab.metric] ?? 0)
             const value = Number.isFinite(rawValue) ? rawValue : 0
             const width = maximum > 0 ? `${Math.max(2, (value / maximum) * 100)}%` : '0%'
@@ -100,8 +102,8 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
                   }
                 >
                   <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
-                  <span className="relative min-w-0 truncate text-sm" title={label}>
-                    {label}
+                  <span className="relative min-w-0 truncate text-sm" title={display}>
+                    {display}
                   </span>
                   <span className="relative text-sm tabular-nums text-muted-foreground">
                     {fmt.number(value)}

@@ -91,7 +91,7 @@ describe('BreakdownCard', () => {
     )
 
     expect(screen.getByText('/')).toBeVisible()
-    expect(screen.getByText('IN')).toBeVisible()
+    expect(screen.getByText('🇮🇳 India')).toBeVisible()
     const sources = screen.getByRole('region', { name: /sources/i })
     expect(within(sources).getByText(/try again/i)).toBeVisible()
     expect(within(sources).getByRole('button', { name: /retry/i })).toBeEnabled()
