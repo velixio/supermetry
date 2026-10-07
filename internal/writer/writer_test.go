@@ -149,7 +149,7 @@ func TestDirtySessionsAreUpsertedOnShutdown(t *testing.T) {
 	sessions := session.NewMemory(1, realClock{})
 	hit := session.Hit{
 		SiteID: 1, Retention: db.Ret30, TS: day.Add(13 * time.Hour), LocalDay: day,
-		VisitorID: 7, Kind: 0, PathID: 42, Country: "IN",
+		VisitorID: 7, Kind: 0, PathID: 42, Country: "IN", Region: 51, City: 52,
 	}
 	result := sessions.Touch(hit)
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -161,11 +161,12 @@ func TestDirtySessionsAreUpsertedOnShutdown(t *testing.T) {
 	var sessionID int64
 	var pageviews int
 	var bounce bool
-	if err := pool.QueryRow(ctx, `select session_id, pageviews, bounce from sessions`).Scan(&sessionID, &pageviews, &bounce); err != nil {
+	var regionID, cityID int32
+	if err := pool.QueryRow(ctx, `select session_id, pageviews, bounce, region_id, city_id from sessions`).Scan(&sessionID, &pageviews, &bounce, &regionID, &cityID); err != nil {
 		t.Fatal(err)
 	}
-	if sessionID != result.SessionID || pageviews != 1 || !bounce {
-		t.Fatalf("session_id=%d pageviews=%d bounce=%v", sessionID, pageviews, bounce)
+	if sessionID != result.SessionID || pageviews != 1 || !bounce || regionID != 51 || cityID != 52 {
+		t.Fatalf("session_id=%d pageviews=%d bounce=%v region=%d city=%d", sessionID, pageviews, bounce, regionID, cityID)
 	}
 }
 
@@ -173,7 +174,7 @@ func testEvent(day time.Time, i int) writer.Event {
 	return writer.Event{
 		Hit: session.Hit{
 			SiteID: 1, Retention: db.Ret30, TS: day.Add(time.Duration(i) * time.Second), LocalDay: day,
-			VisitorID: int64(i + 1), Kind: 0, PathID: int32(i + 1), Country: "IN",
+			VisitorID: int64(i + 1), Kind: 0, PathID: int32(i + 1), Country: "IN", Region: 51, City: 52,
 		},
 		SessionID: int64(i + 1),
 		Props:     map[string]string{"index": fmt.Sprint(i)},

@@ -26,6 +26,7 @@ const (
 
 var validDimensions = map[string]struct{}{
 	"browser":      {},
+	"city":         {},
 	"country":      {},
 	"device":       {},
 	"entry":        {},
@@ -36,6 +37,7 @@ var validDimensions = map[string]struct{}{
 	"page":         {},
 	"path":         {},
 	"prop":         {},
+	"region":       {},
 	"source":       {},
 	"time":         {},
 	"utm_campaign": {},

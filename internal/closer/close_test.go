@@ -132,6 +132,28 @@ func TestCloseDayMatchesTruthAndIsIdempotent(t *testing.T) {
 	if utmContent != 51 || utmTerm != 52 {
 		t.Fatalf("custom utm_content_id=%d utm_term_id=%d", utmContent, utmTerm)
 	}
+	var closedRegion, closedCity, customRegion, customCity int32
+	if err := pool.QueryRow(ctx, `
+select s.region_id, s.city_id, c.region_id, c.city_id
+from sessions_closed s
+join custom_closed c using (site_id, day, visitor_id)
+where s.site_id=1 and s.day='2026-10-07' and s.session_id=11`).Scan(
+		&closedRegion, &closedCity, &customRegion, &customCity,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if closedRegion != 61 || closedCity != 71 || customRegion != 61 || customCity != 71 {
+		t.Fatalf("closed geo session=%d/%d custom=%d/%d", closedRegion, closedCity, customRegion, customCity)
+	}
+	for dimension, valueID := range map[int16]int32{9: 61, 10: 71} {
+		var rows int
+		if err := pool.QueryRow(ctx, `select count(*) from rollup_day_dim where site_id=1 and day='2026-10-07' and dim=$1 and value_id=$2`, dimension, valueID).Scan(&rows); err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("rollup dim=%d value=%d rows=%d", dimension, valueID, rows)
+		}
+	}
 
 	var customRows, cubeRows, visitorRows, blockRows, closeVersion int
 	if err := pool.QueryRow(ctx, `
@@ -282,30 +304,34 @@ func loadFixture(t *testing.T, pool *pgxpool.Pool) {
 	}
 
 	_, err := pool.Exec(ctx, `
+insert into dict(kind, id, value) values
+  (11, 61, 'Karnataka'), (11, 62, 'California'), (11, 63, 'Bagmati'),
+  (12, 71, 'Bengaluru'), (12, 72, 'Testville'), (12, 73, 'Kathmandu');
+
 insert into sessions
   (site_id, retention_class, session_id, visitor_id, start, last, local_day,
-   entry_path, exit_path, source_id, country, browser_id, os_id, device,
+   entry_path, exit_path, source_id, country, region_id, city_id, browser_id, os_id, device,
    pageviews, events, engagement_ms, bounce)
 values
-  (1, 30, 10, 100, '2026-10-07 10:00Z', '2026-10-07 10:01:30Z', '2026-10-07', 1, 2, 10, 'IN', 20, 30, 1, 2, 0, 5000, false),
-  (1, 30, 11, 100, '2026-10-07 12:00Z', '2026-10-07 12:00:10Z', '2026-10-07', 0, 0, 11, 'US', 21, 31, 2, 0, 1, 0, false),
-  (1, 30, 20, 200, '2026-10-07 14:00Z', '2026-10-07 14:00:00Z', '2026-10-07', 1, 1, 10, 'US', 20, 30, 1, 1, 0, 0, true),
-  (1, 30, 30, 300, '2026-10-08 13:00Z', '2026-10-08 13:00:00Z', '2026-10-07', 9, 9, 10, 'US', 20, 30, 1, 1, 0, 0, true),
-  (2, 30, 40, 400, '2026-10-07 15:00Z', '2026-10-07 15:00:00Z', '2026-10-07', 3, 3, 12, 'NP', 22, 32, 1, 1, 0, 0, true);
+  (1, 30, 10, 100, '2026-10-07 10:00Z', '2026-10-07 10:01:30Z', '2026-10-07', 1, 2, 10, 'IN', 61, 71, 20, 30, 1, 2, 0, 5000, false),
+  (1, 30, 11, 100, '2026-10-07 12:00Z', '2026-10-07 12:00:10Z', '2026-10-07', 0, 0, 11, 'US', 62, 72, 21, 31, 2, 0, 1, 0, false),
+  (1, 30, 20, 200, '2026-10-07 14:00Z', '2026-10-07 14:00:00Z', '2026-10-07', 1, 1, 10, 'US', 62, 72, 20, 30, 1, 1, 0, 0, true),
+  (1, 30, 30, 300, '2026-10-08 13:00Z', '2026-10-08 13:00:00Z', '2026-10-07', 9, 9, 10, 'US', 62, 72, 20, 30, 1, 1, 0, 0, true),
+  (2, 30, 40, 400, '2026-10-07 15:00Z', '2026-10-07 15:00:00Z', '2026-10-07', 3, 3, 12, 'NP', 63, 73, 22, 32, 1, 1, 0, 0, true);
 
 insert into events
   (site_id, retention_class, local_day, ts, visitor_id, session_id, kind,
    name_id, path_id, source_id, utm_content_id, utm_term_id,
-   country, browser_id, os_id, device, engagement_ms, scroll_pct, props)
+   country, region_id, city_id, browser_id, os_id, device, engagement_ms, scroll_pct, props)
 values
-  (1, 30, '2026-10-07', '2026-10-07 10:00:00Z', 100, 10, 0, 0,   1, 10, 41, 42, 'IN', 20, 30, 1, 0,    0, null),
-  (1, 30, '2026-10-07', '2026-10-07 10:00:20Z', 100, 10, 2, 0,   1, 10, 0,  0,  'IN', 20, 30, 1, 1000, 25, null),
-  (1, 30, '2026-10-07', '2026-10-07 10:00:30Z', 100, 10, 0, 0,   2, 10, 0,  0,  'IN', 20, 30, 1, 0,    0, null),
-  (1, 30, '2026-10-07', '2026-10-07 10:01:30Z', 100, 10, 2, 0,   2, 10, 0,  0,  'IN', 20, 30, 1, 4000, 80, null),
-  (1, 30, '2026-10-07', '2026-10-07 12:00:00Z', 100, 11, 1, 100, 0, 11, 51, 52, 'US', 21, 31, 2, 0,    0, '{"plan":"pro"}'),
-  (1, 30, '2026-10-07', '2026-10-07 14:00:00Z', 200, 20, 0, 0,   1, 10, 0,  0,  'US', 20, 30, 1, 0,    0, null),
-  (1, 30, '2026-10-07', '2026-10-08 13:00:00Z', 300, 30, 0, 0,   9, 10, 0,  0,  'US', 20, 30, 1, 0,    0, null),
-  (2, 30, '2026-10-07', '2026-10-07 15:00:00Z', 400, 40, 0, 0,   3, 12, 0,  0,  'NP', 22, 32, 1, 0,    0, null)`)
+  (1, 30, '2026-10-07', '2026-10-07 10:00:00Z', 100, 10, 0, 0,   1, 10, 41, 42, 'IN', 61, 71, 20, 30, 1, 0,    0, null),
+  (1, 30, '2026-10-07', '2026-10-07 10:00:20Z', 100, 10, 2, 0,   1, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 1000, 25, null),
+  (1, 30, '2026-10-07', '2026-10-07 10:00:30Z', 100, 10, 0, 0,   2, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 0,    0, null),
+  (1, 30, '2026-10-07', '2026-10-07 10:01:30Z', 100, 10, 2, 0,   2, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 4000, 80, null),
+  (1, 30, '2026-10-07', '2026-10-07 12:00:00Z', 100, 11, 1, 100, 0, 11, 51, 52, 'US', 62, 72, 21, 31, 2, 0,    0, '{"plan":"pro"}'),
+  (1, 30, '2026-10-07', '2026-10-07 14:00:00Z', 200, 20, 0, 0,   1, 10, 0,  0,  'US', 62, 72, 20, 30, 1, 0,    0, null),
+  (1, 30, '2026-10-07', '2026-10-08 13:00:00Z', 300, 30, 0, 0,   9, 10, 0,  0,  'US', 62, 72, 20, 30, 1, 0,    0, null),
+  (2, 30, '2026-10-07', '2026-10-07 15:00:00Z', 400, 40, 0, 0,   3, 12, 0,  0,  'NP', 63, 73, 22, 32, 1, 0,    0, null)`)
 	if err != nil {
 		t.Fatal(err)
 	}

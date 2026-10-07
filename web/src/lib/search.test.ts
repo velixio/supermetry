@@ -83,6 +83,15 @@ describe('time zones', () => {
 })
 
 describe('filters', () => {
+  it('accepts region and city filters', () => {
+    expect(
+      parseFilters(['region:is:California', 'city:is:San%20Francisco']).filters,
+    ).toEqual([
+      { dimension: 'region', operator: 'is', values: ['California'] },
+      { dimension: 'city', operator: 'is', values: ['San Francisco'] },
+    ])
+  })
+
   it('adds then removes a filter without losing other search state', () => {
     const added = addFilter(
       { ...base, period: '7d' },

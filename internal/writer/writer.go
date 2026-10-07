@@ -321,7 +321,7 @@ func (w *Writer) currentPool() *pgxpool.Pool {
 var eventColumns = []string{
 	"site_id", "retention_class", "local_day", "ts", "visitor_id", "session_id", "kind",
 	"name_id", "path_id", "referrer_id", "source_id", "medium_id", "campaign_id",
-	"utm_content_id", "utm_term_id", "country", "browser_id", "os_id", "device", "screen",
+	"utm_content_id", "utm_term_id", "country", "region_id", "city_id", "browser_id", "os_id", "device", "screen",
 	"engagement_ms", "scroll_pct", "props",
 }
 
@@ -363,7 +363,7 @@ type siteDay struct {
 type eventSource struct {
 	events []Event
 	index  int
-	row    [23]any
+	row    [25]any
 }
 
 func (s *eventSource) Next() bool {
@@ -379,10 +379,10 @@ func (s *eventSource) Values() ([]any, error) {
 	if event.Props != nil {
 		props = event.Props
 	}
-	s.row = [23]any{
+	s.row = [25]any{
 		event.SiteID, event.Retention, event.LocalDay, event.TS, event.VisitorID, event.SessionID, event.Kind,
 		event.NameID, event.PathID, event.ReferrerID, event.Source, event.Medium, event.Campaign,
-		int32(0), int32(0), event.Country, event.Browser, event.OS, event.Device, event.Screen,
+		int32(0), int32(0), event.Country, event.Region, event.City, event.Browser, event.OS, event.Device, event.Screen,
 		event.EngagementMS, event.ScrollPct, props,
 	}
 	return s.row[:], nil
@@ -390,7 +390,7 @@ func (s *eventSource) Values() ([]any, error) {
 
 var sessionColumns = []string{
 	"site_id", "retention_class", "session_id", "visitor_id", "start", "last", "local_day",
-	"entry_path", "exit_path", "source_id", "medium_id", "campaign_id", "country", "browser_id",
+	"entry_path", "exit_path", "source_id", "medium_id", "campaign_id", "country", "region_id", "city_id", "browser_id",
 	"os_id", "device", "pageviews", "events", "engagement_ms", "bounce",
 }
 
@@ -435,7 +435,7 @@ func joinColumns(columns []string) string {
 type sessionSource struct {
 	snapshots []session.Snapshot
 	index     int
-	row       [20]any
+	row       [22]any
 }
 
 func (s *sessionSource) Next() bool {
@@ -447,10 +447,10 @@ func (s *sessionSource) Err() error { return nil }
 
 func (s *sessionSource) Values() ([]any, error) {
 	snapshot := &s.snapshots[s.index-1]
-	s.row = [20]any{
+	s.row = [22]any{
 		snapshot.SiteID, snapshot.Retention, snapshot.SessionID, snapshot.VisitorID,
 		snapshot.Start, snapshot.Last, snapshot.LocalDay, snapshot.Entry, snapshot.Exit,
-		snapshot.Source, snapshot.Medium, snapshot.Campaign, snapshot.Country,
+		snapshot.Source, snapshot.Medium, snapshot.Campaign, snapshot.Country, snapshot.Region, snapshot.City,
 		snapshot.Browser, snapshot.OS, snapshot.Device, snapshot.Pageviews,
 		snapshot.Events, snapshot.EngagementMS, snapshot.Bounce,
 	}

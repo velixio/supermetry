@@ -81,6 +81,10 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 			return "s.campaign_id", dictionaryKind(dict.Campaign), nil
 		case "country":
 			return "s.country", nil, nil
+		case "region":
+			return "s.region_id", dictionaryKind(dict.Region), nil
+		case "city":
+			return "s.city_id", dictionaryKind(dict.City), nil
 		case "device":
 			return "s.device", nil, nil
 		case "time":
@@ -97,6 +101,11 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	presentConditions, err := presentDimensionConditions(req.Dimensions, resolver)
+	if err != nil {
+		return "", nil, err
+	}
+	conditions = append(conditions, presentConditions...)
 	specialConditions, err := hotSpecialConditions(builder, specialFilters)
 	if err != nil {
 		return "", nil, err
@@ -150,6 +159,11 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	presentConditions, err := presentDimensionConditions(req.Dimensions, resolver)
+	if err != nil {
+		return "", nil, err
+	}
+	conditions = append(conditions, presentConditions...)
 	where := "e.site_id=" + builder.arg(req.SiteID) + " and e.local_day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date and e.kind=1" + andSQL(conditions)
 	visitors := "count(distinct (e.local_day,e.visitor_id))::int8"
 	sums := []string{visitors, "count(distinct e.session_id)::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "count(*)::int8", visitors}

@@ -20,6 +20,8 @@ func TestPlanRoutes(t *testing.T) {
 		{name: "one visitor dimension", filters: []api.Filter{filter("country", api.Is, "US")}, want: query.RouteVisitorDay},
 		{name: "two visitor dimensions", filters: []api.Filter{filter("country", api.Is, "US"), filter("browser", api.Is, "Chrome")}, want: query.RouteVisitorDay},
 		{name: "session dimension", filters: []api.Filter{filter("source", api.Is, "Google")}, want: query.RouteCube},
+		{name: "region filter", filters: []api.Filter{filter("region", api.Is, "California")}, want: query.RouteClosed},
+		{name: "city filter", filters: []api.Filter{filter("city", api.Is, "Bengaluru")}, want: query.RouteClosed},
 		{name: "page operator", filters: []api.Filter{filter("page", api.Contains, "/blog")}, want: query.RouteClosed},
 	}
 	for _, tt := range tests {
@@ -31,6 +33,17 @@ func TestPlanRoutes(t *testing.T) {
 			}
 			if !reflect.DeepEqual(parts, want) {
 				t.Fatalf("Plan() = %+v, want %+v", parts, want)
+			}
+		})
+	}
+}
+
+func TestPlanUsesRollupsForRegionAndCityBreakdowns(t *testing.T) {
+	for _, dimension := range []string{"region", "city"} {
+		t.Run(dimension, func(t *testing.T) {
+			parts := query.Plan(normalized("2026-10-01", "2026-10-02", []string{dimension}, nil), day("2026-10-02"))
+			if len(parts) != 1 || parts[0].Route != query.RouteRollup {
+				t.Fatalf("Plan() = %+v, want one rollup part", parts)
 			}
 		})
 	}

@@ -40,9 +40,13 @@ func TestRouteEquivalence(t *testing.T) {
 		{name: "page", req: queryRequest([]string{"page"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
 		{name: "source", req: queryRequest([]string{"source"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteCube, query.RouteHot}},
 		{name: "country", req: queryRequest([]string{"country"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteVisitorDay, query.RouteCube, query.RouteHot}},
+		{name: "region", req: queryRequest([]string{"region"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
+		{name: "city", req: queryRequest([]string{"city"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
 		{name: "entry", req: queryRequest([]string{"entry"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
 		{name: "country filter", req: queryRequest([]string{"source"}, []api.Filter{filter("country", api.Is, "US")}), eligible: []query.Route{query.RouteCube, query.RouteHot}},
 		{name: "country and source", req: queryRequest([]string{"country"}, []api.Filter{filter("country", api.Is, "US"), filter("source", api.Is, "Google")}), eligible: []query.Route{query.RouteCube, query.RouteHot}},
+		{name: "region filter", req: queryRequest([]string{"city"}, []api.Filter{filter("region", api.Is, "California")}), eligible: []query.Route{query.RouteHot}},
+		{name: "city filter", req: queryRequest([]string{"source"}, []api.Filter{filter("city", api.Is, "Bengaluru")}), eligible: []query.Route{query.RouteHot}},
 		{name: "page contains", req: queryRequest([]string{"page"}, []api.Filter{filter("page", api.Contains, "/blog")}), eligible: []query.Route{query.RouteHot}},
 	}
 	for _, tt := range tests {
@@ -54,6 +58,41 @@ func TestRouteEquivalence(t *testing.T) {
 					gotJSON, _ := json.Marshal(got)
 					wantJSON, _ := json.Marshal(want)
 					t.Fatalf("route %v differs\ngot  %s\nwant %s", route, gotJSON, wantJSON)
+				}
+			}
+		})
+	}
+}
+
+func TestRegionAndCityBreakdownsUseLabelsAndExcludeUnknown(t *testing.T) {
+	_, engine := setupTiny(t)
+	tests := []struct {
+		name      string
+		dimension string
+		want      []string
+	}{
+		{name: "region", dimension: "region", want: []string{"California", "Karnataka"}},
+		{name: "city", dimension: "city", want: []string{"Los Angeles", "Bengaluru"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, route := range []query.Route{query.RouteClosed, query.RouteRollup, query.RouteHot} {
+				got := mustQuery(t, engine.WithForcedRoute(route), queryRequest([]string{tt.dimension}, nil))
+				labels := make([]string, 0, len(got.Rows))
+				for _, row := range got.Rows {
+					label, _ := row[tt.dimension].(string)
+					if label == "" || label == "0" {
+						t.Fatalf("route %v returned unknown %s row: %+v", route, tt.dimension, row)
+					}
+					labels = append(labels, label)
+				}
+				if len(labels) != len(tt.want) {
+					t.Errorf("route %v labels = %v, want exactly %v", route, labels, tt.want)
+				}
+				for _, want := range tt.want {
+					if !containsString(labels, want) {
+						t.Errorf("route %v labels = %v, missing %q", route, labels, want)
+					}
 				}
 			}
 		})
@@ -158,6 +197,20 @@ func TestCustomEventBreakdowns(t *testing.T) {
 	}
 }
 
+func TestCustomEventRegionFilterMatchesClosedAndHot(t *testing.T) {
+	_, engine := setupTiny(t)
+	req := queryRequest([]string{"event", "region"}, []api.Filter{filter("region", api.Is, "California")})
+	req.Metrics = []api.Metric{api.Events, api.Conversions}
+	want := mustQuery(t, engine.WithForcedRoute(query.RouteClosed), req)
+	got := mustQuery(t, engine.WithForcedRoute(query.RouteHot), req)
+	if !equivalent(got, want) {
+		t.Fatalf("custom event region filter differs: got %+v want %+v", got, want)
+	}
+	if len(got.Rows) != 1 || got.Rows[0]["event"] != "signup" || got.Rows[0]["region"] != "California" || got.Rows[0]["events"] != float64(2) {
+		t.Fatalf("custom event region breakdown = %+v", got.Rows)
+	}
+}
+
 func TestFunnelMatchesTruth(t *testing.T) {
 	_, engine := setupTiny(t)
 	got, err := engine.Funnel(context.Background(), api.FunnelRequest{
@@ -213,38 +266,40 @@ insert into dict(kind, id, value) values
   (0, 1, '/'), (0, 2, '/pricing'), (0, 3, '/blog/post'), (0, 4, '/docs'),
   (2, 10, 'Google'), (2, 11, 'Direct'),
   (7, 20, 'signup'), (9, 30, 'Chrome'), (9, 31, 'Firefox'),
-  (10, 40, 'Linux'), (10, 41, 'Windows');
+  (10, 40, 'Linux'), (10, 41, 'Windows'),
+  (11, 50, 'California'), (11, 51, 'Karnataka'),
+  (12, 60, 'Los Angeles'), (12, 61, 'San Francisco'), (12, 62, 'Bengaluru');
 
 insert into sessions
   (site_id, retention_class, session_id, visitor_id, start, last, local_day,
-   entry_path, exit_path, source_id, country, browser_id, os_id, device,
+   entry_path, exit_path, source_id, country, region_id, city_id, browser_id, os_id, device,
    pageviews, events, engagement_ms, bounce)
 values
-  (1,30,101,1001,'2026-10-06 10:00Z','2026-10-06 10:03Z','2026-10-06',1,2,10,'US',30,40,1,2,1,60000,false),
-  (1,30,102,1002,'2026-10-06 11:00Z','2026-10-06 11:00Z','2026-10-06',3,3,11,'IN',31,41,2,1,0,10000,true),
-  (1,30,103,1001,'2026-10-06 12:00Z','2026-10-06 12:01Z','2026-10-06',1,4,10,'US',30,40,1,2,0,30000,false),
-  (1,30,201,2001,'2026-10-07 09:00Z','2026-10-07 09:02Z','2026-10-07',1,2,10,'US',30,40,1,2,1,45000,false),
-  (1,30,202,2002,'2026-10-07 11:00Z','2026-10-07 11:00Z','2026-10-07',3,3,11,'IN',31,41,2,1,0,5000,true),
-	  (1,30,301,3001,'2026-10-08 08:00Z','2026-10-08 08:02Z','2026-10-08',1,2,10,'US',30,40,1,2,0,30000,false),
-  (1,30,302,3002,'2026-10-08 12:00Z','2026-10-08 12:00Z','2026-10-08',4,4,11,'IN',31,41,2,1,0,0,true);
+  (1,30,101,1001,'2026-10-06 10:00Z','2026-10-06 10:03Z','2026-10-06',1,2,10,'US',50,60,30,40,1,2,1,60000,false),
+  (1,30,102,1002,'2026-10-06 11:00Z','2026-10-06 11:00Z','2026-10-06',3,3,11,'IN',0,0,31,41,2,1,0,10000,true),
+  (1,30,103,1001,'2026-10-06 12:00Z','2026-10-06 12:01Z','2026-10-06',1,4,10,'US',50,60,30,40,1,2,0,30000,false),
+  (1,30,201,2001,'2026-10-07 09:00Z','2026-10-07 09:02Z','2026-10-07',1,2,10,'US',50,60,30,40,1,2,1,45000,false),
+  (1,30,202,2002,'2026-10-07 11:00Z','2026-10-07 11:00Z','2026-10-07',3,3,11,'IN',51,62,31,41,2,1,0,5000,true),
+	  (1,30,301,3001,'2026-10-08 08:00Z','2026-10-08 08:02Z','2026-10-08',1,2,10,'US',50,60,30,40,1,2,0,30000,false),
+  (1,30,302,3002,'2026-10-08 12:00Z','2026-10-08 12:00Z','2026-10-08',4,4,11,'IN',0,0,31,41,2,1,0,0,true);
 
 insert into events
   (site_id, retention_class, local_day, ts, visitor_id, session_id, kind,
-   name_id, path_id, source_id, country, browser_id, os_id, device, engagement_ms, scroll_pct, props)
+   name_id, path_id, source_id, country, region_id, city_id, browser_id, os_id, device, engagement_ms, scroll_pct, props)
 values
-  (1,30,'2026-10-06','2026-10-06 10:00Z',1001,101,0,0,1,10,'US',30,40,1,0,0,null),
-  (1,30,'2026-10-06','2026-10-06 10:01Z',1001,101,0,0,2,10,'US',30,40,1,0,0,null),
-  (1,30,'2026-10-06','2026-10-06 10:02Z',1001,101,1,20,2,10,'US',30,40,1,0,0,'{"plan":"pro"}'),
-  (1,30,'2026-10-06','2026-10-06 11:00Z',1002,102,0,0,3,11,'IN',31,41,2,0,0,null),
-  (1,30,'2026-10-06','2026-10-06 12:00Z',1001,103,0,0,1,10,'US',30,40,1,0,0,null),
-  (1,30,'2026-10-06','2026-10-06 12:01Z',1001,103,0,0,4,10,'US',30,40,1,0,0,null),
-  (1,30,'2026-10-07','2026-10-07 09:00Z',2001,201,0,0,1,10,'US',30,40,1,0,0,null),
-  (1,30,'2026-10-07','2026-10-07 09:01Z',2001,201,0,0,2,10,'US',30,40,1,0,0,null),
-  (1,30,'2026-10-07','2026-10-07 09:02Z',2001,201,1,20,2,10,'US',30,40,1,0,0,'{"plan":"pro"}'),
-  (1,30,'2026-10-07','2026-10-07 11:00Z',2002,202,0,0,3,11,'IN',31,41,2,0,0,null),
-  (1,30,'2026-10-08','2026-10-08 08:00Z',3001,301,0,0,1,10,'US',30,40,1,0,0,null),
-  (1,30,'2026-10-08','2026-10-08 08:01Z',3001,301,0,0,2,10,'US',30,40,1,0,0,null),
-	  (1,30,'2026-10-08','2026-10-08 12:00Z',3002,302,0,0,4,11,'IN',31,41,2,0,0,null)`)
+  (1,30,'2026-10-06','2026-10-06 10:00Z',1001,101,0,0,1,10,'US',50,60,30,40,1,0,0,null),
+  (1,30,'2026-10-06','2026-10-06 10:01Z',1001,101,0,0,2,10,'US',50,60,30,40,1,0,0,null),
+  (1,30,'2026-10-06','2026-10-06 10:02Z',1001,101,1,20,2,10,'US',50,60,30,40,1,0,0,'{"plan":"pro"}'),
+  (1,30,'2026-10-06','2026-10-06 11:00Z',1002,102,0,0,3,11,'IN',0,0,31,41,2,0,0,null),
+  (1,30,'2026-10-06','2026-10-06 12:00Z',1001,103,0,0,1,10,'US',50,60,30,40,1,0,0,null),
+  (1,30,'2026-10-06','2026-10-06 12:01Z',1001,103,0,0,4,10,'US',50,60,30,40,1,0,0,null),
+  (1,30,'2026-10-07','2026-10-07 09:00Z',2001,201,0,0,1,10,'US',50,60,30,40,1,0,0,null),
+  (1,30,'2026-10-07','2026-10-07 09:01Z',2001,201,0,0,2,10,'US',50,60,30,40,1,0,0,null),
+  (1,30,'2026-10-07','2026-10-07 09:02Z',2001,201,1,20,2,10,'US',50,60,30,40,1,0,0,'{"plan":"pro"}'),
+  (1,30,'2026-10-07','2026-10-07 11:00Z',2002,202,0,0,3,11,'IN',51,62,31,41,2,0,0,null),
+  (1,30,'2026-10-08','2026-10-08 08:00Z',3001,301,0,0,1,10,'US',50,60,30,40,1,0,0,null),
+  (1,30,'2026-10-08','2026-10-08 08:01Z',3001,301,0,0,2,10,'US',50,60,30,40,1,0,0,null),
+	  (1,30,'2026-10-08','2026-10-08 12:00Z',3002,302,0,0,4,11,'IN',0,0,31,41,2,0,0,null)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,6 +338,15 @@ func mustQuery(t *testing.T, engine *query.Engine, req api.QueryRequest) api.Que
 func equivalent(got, want api.QueryResponse) bool {
 	got.Meta, want.Meta = api.QueryMeta{}, api.QueryMeta{}
 	return reflect.DeepEqual(got, want)
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func stepVisitors(response api.FunnelResponse) []int64 {

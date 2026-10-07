@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -16,6 +17,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/maxmind/mmdbwriter"
+	"github.com/maxmind/mmdbwriter/mmdbtype"
 
 	"panel/internal/db"
 	"panel/internal/dict"
@@ -309,6 +312,36 @@ func TestTrustedProxyControlsForwardedClientIP(t *testing.T) {
 	}
 }
 
+func TestCityEnrichmentReachesEventAndSession(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	cityPath := writeCityMMDB(t)
+	enricher, err := enrich.NewWithGeo(enrich.GeoPaths{City: cityPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = enricher.Close() })
+	f.h.Enricher = enricher
+
+	if rr := post(t, f.h, okBody, testUA, "192.0.2.42:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	for _, table := range []string{"events", "sessions"} {
+		var country, region, city string
+		if err := f.pool.QueryRow(context.Background(), `
+select row.country, region.value, city.value
+from `+table+` row
+join dict region on region.kind = $1 and region.id = row.region_id
+join dict city on city.kind = $2 and city.id = row.city_id`, dict.Region, dict.City).Scan(&country, &region, &city); err != nil {
+			t.Fatal(err)
+		}
+		if country != "US" || region != "California" || city != "Testville" {
+			t.Fatalf("%s geo = %q/%q/%q", table, country, region, city)
+		}
+	}
+}
+
 func TestTokenBuckets(t *testing.T) {
 	limiter := ingest.NewTokenBuckets(0, 2)
 	if !limiter.Allow("site:1") || !limiter.Allow("site:1") {
@@ -445,4 +478,43 @@ func post(t *testing.T, h http.Handler, body, ua, remote string) *httptest.Respo
 
 func fakeNow() time.Time {
 	return time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+}
+
+func writeCityMMDB(t *testing.T) string {
+	t.Helper()
+	tree, err := mmdbwriter.New(mmdbwriter.Options{
+		BuildEpoch:              1_700_000_000,
+		DatabaseType:            "GeoLite2-City",
+		Description:             map[string]string{"en": "Panel ingest test database"},
+		IncludeReservedNetworks: true,
+		IPVersion:               4,
+		Languages:               []string{"en"},
+		RecordSize:              24,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, network, err := net.ParseCIDR("192.0.2.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := mmdbtype.Map{
+		"country": mmdbtype.Map{"iso_code": mmdbtype.String("US")},
+		"subdivisions": mmdbtype.Slice{mmdbtype.Map{
+			"names": mmdbtype.Map{"en": mmdbtype.String("California")},
+		}},
+		"city": mmdbtype.Map{"names": mmdbtype.Map{"en": mmdbtype.String("Testville")}},
+	}
+	if err := tree.Insert(network, record); err != nil {
+		t.Fatal(err)
+	}
+	var data bytes.Buffer
+	if _, err := tree.WriteTo(&data); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "GeoLite2-City.mmdb")
+	if err := os.WriteFile(path, data.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

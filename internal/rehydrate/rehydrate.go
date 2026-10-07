@@ -56,6 +56,8 @@ WITH candidates AS MATERIALIZED (
         (array_agg(e.medium_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS medium_id,
         (array_agg(e.campaign_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS campaign_id,
         (array_agg(e.country ORDER BY e.ts, e.tableoid, e.ctid))[1] AS country,
+        (array_agg(e.region_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS region_id,
+        (array_agg(e.city_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS city_id,
         (array_agg(e.browser_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS browser_id,
         (array_agg(e.os_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS os_id,
         (array_agg(e.device ORDER BY e.ts, e.tableoid, e.ctid))[1] AS device
@@ -80,6 +82,8 @@ SELECT
     e.medium_id,
     e.campaign_id,
     e.country,
+    e.region_id,
+    e.city_id,
     e.browser_id,
     e.os_id,
     e.device
@@ -120,6 +124,8 @@ ORDER BY e.site_id, e.session_id`, cutoff)
 			&snapshot.Medium,
 			&snapshot.Campaign,
 			&snapshot.Country,
+			&snapshot.Region,
+			&snapshot.City,
 			&snapshot.Browser,
 			&snapshot.OS,
 			&snapshot.Device,
