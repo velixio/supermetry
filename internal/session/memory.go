@@ -20,7 +20,7 @@ const (
 	maxCompactCount            = 1<<16 - 1
 )
 
-// memorySession is kept at 80 bytes because one instance lives for every
+// memorySession is kept at 88 bytes because one instance lives for every
 // active visitor. Counts spill into the owning shard only for the exceptional
 // case of a session exceeding 65,535 pageviews or custom events.
 type memorySession struct {
@@ -36,6 +36,8 @@ type memorySession struct {
 	source       int32
 	medium       int32
 	campaign     int32
+	region       int32
+	city         int32
 	browser      int32
 	os           int32
 	counts       uint32
@@ -49,8 +51,8 @@ type memorySession struct {
 const memorySessionSize = unsafe.Sizeof(memorySession{})
 
 var (
-	_ [80 - memorySessionSize]byte
-	_ [memorySessionSize - 80]byte
+	_ [88 - memorySessionSize]byte
+	_ [memorySessionSize - 88]byte
 )
 
 type sessionKey struct {
@@ -300,6 +302,8 @@ func (m *Memory) newSession(h Hit) *memorySession {
 		source:    h.Source,
 		medium:    h.Medium,
 		campaign:  h.Campaign,
+		region:    h.Region,
+		city:      h.City,
 		browser:   h.Browser,
 		os:        h.OS,
 		day:       encodeDay(h.LocalDay),
@@ -322,6 +326,8 @@ func restoredSession(snapshot Snapshot) *memorySession {
 		source:       snapshot.Source,
 		medium:       snapshot.Medium,
 		campaign:     snapshot.Campaign,
+		region:       snapshot.Region,
+		city:         snapshot.City,
 		browser:      snapshot.Browser,
 		os:           snapshot.OS,
 		day:          encodeDay(snapshot.LocalDay),
@@ -408,6 +414,8 @@ func (m *Memory) snapshot(sh *memoryShard, s *memorySession) Snapshot {
 		Medium:       s.medium,
 		Campaign:     s.campaign,
 		Country:      decodeCountry(s.country),
+		Region:       s.region,
+		City:         s.city,
 		Browser:      s.browser,
 		OS:           s.os,
 		Device:       s.device,

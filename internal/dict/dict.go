@@ -25,6 +25,8 @@ const (
 	PropKey
 	Browser
 	OS
+	Region
+	City
 )
 
 const maxValueBytes = 2000

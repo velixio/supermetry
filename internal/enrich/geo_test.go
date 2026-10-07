@@ -63,7 +63,7 @@ func TestNewWithGeoLookups(t *testing.T) {
 		t.Errorf("Country() = %q, want US from City database", got)
 	}
 	wantCity := enrich.CityInfo{
-		Country: "United States",
+		Country: "US",
 		Region:  "California",
 		City:    "Testville",
 	}
@@ -88,6 +88,9 @@ func TestNewPreservesCountryPathBehavior(t *testing.T) {
 
 	if got := e.Country(netip.MustParseAddr("192.0.2.1")); got != "NZ" {
 		t.Errorf("Country() = %q, want NZ", got)
+	}
+	if got := e.City(netip.MustParseAddr("192.0.2.1")); got != (enrich.CityInfo{Country: "NZ"}) {
+		t.Errorf("City() = %+v, want country code with empty region and city", got)
 	}
 }
 

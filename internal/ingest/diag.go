@@ -10,10 +10,9 @@ import (
 	"panel/internal/enrich"
 )
 
-// logDiag records how a client address was resolved. It never writes a public
-// address: private addresses print as-is, public ones as <public>, and
-// anything unparseable as <unparsed>. Enabled with PANEL_INGEST_DIAG=1.
-func (h *Handler) logDiag(r *http.Request, ip netip.Addr) {
+// logDiag records how a client address was resolved without writing any
+// address value. Enabled with PANEL_INGEST_DIAG=1.
+func (h *Handler) logDiag(r *http.Request, ip netip.Addr, location enrich.CityInfo) {
 	peer, _ := parseRemoteAddr(r.RemoteAddr)
 	peer = peer.Unmap()
 	slog.Info("ingest ip diag",
@@ -24,7 +23,7 @@ func (h *Handler) logDiag(r *http.Request, ip netip.Addr) {
 		"x_real_ip", maskHeader(r.Header.Get("X-Real-IP")),
 		"cf", maskHeader(r.Header.Get("CF-Connecting-IP")),
 		"forwarded", maskHeader(r.Header.Get("Forwarded")),
-		"country", countryOrDash(h.Enricher.Country(ip)),
+		"country", countryOrDash(location.Country),
 	)
 }
 
@@ -49,10 +48,10 @@ func maskAddr(a netip.Addr) string {
 	if isPublicIP(a) {
 		return "<public>"
 	}
-	return a.String()
+	return "<private>"
 }
 
-// maskHeader keeps private addresses readable and hides everything else.
+// maskHeader retains only address classes from forwarding headers.
 func maskHeader(v string) string {
 	if v == "" {
 		return "-"
@@ -106,7 +105,7 @@ func countryOrDash(c string) string {
 
 // logBotDrop explains why an event was accepted but discarded as a bot. The
 // network organisation (never the address) shows which list matched.
-func (h *Handler) logBotDrop(reason enrich.BotReason, ip netip.Addr) {
+func (h *Handler) logBotDrop(reason enrich.BotReason, ip netip.Addr, location enrich.CityInfo) {
 	names := map[enrich.BotReason]string{
 		enrich.BotUserAgent:    "crawler_user_agent",
 		enrich.BotHeadless:     "headless_browser",
@@ -114,7 +113,7 @@ func (h *Handler) logBotDrop(reason enrich.BotReason, ip netip.Addr) {
 	}
 	slog.Info("ingest dropped as bot",
 		"reason", names[reason],
-		"country", countryOrDash(h.Enricher.Country(ip)),
+		"country", countryOrDash(location.Country),
 		"asn_org", h.Enricher.ASN(ip).Organization,
 	)
 }

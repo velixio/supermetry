@@ -22,7 +22,8 @@ type GeoPaths struct {
 	ASN     string
 }
 
-// CityInfo contains the English location names associated with an address.
+// CityInfo contains an ISO country code and English location names associated
+// with an address.
 type CityInfo struct {
 	Country string
 	Region  string
@@ -144,7 +145,8 @@ func (e *Enricher) Country(ip netip.Addr) string {
 	return iso
 }
 
-// City returns English country, first-level region and city names.
+// City returns an ISO country code plus English first-level region and city
+// names. Country-only databases return the code with empty location names.
 func (e *Enricher) City(ip netip.Addr) CityInfo {
 	if e == nil || !ip.IsValid() {
 		return CityInfo{}
@@ -152,12 +154,12 @@ func (e *Enricher) City(ip netip.Addr) CityInfo {
 	e.geoLife.RLock()
 	defer e.geoLife.RUnlock()
 	readers := e.geo.Load()
-	if readers == nil || readers.city == nil {
+	if readers == nil || readers.country == nil {
 		return CityInfo{}
 	}
 	var record struct {
 		Country struct {
-			Names map[string]string `maxminddb:"names"`
+			ISOCode string `maxminddb:"iso_code"`
 		} `maxminddb:"country"`
 		Subdivisions []struct {
 			Names map[string]string `maxminddb:"names"`
@@ -166,11 +168,11 @@ func (e *Enricher) City(ip netip.Addr) CityInfo {
 			Names map[string]string `maxminddb:"names"`
 		} `maxminddb:"city"`
 	}
-	if err := readers.city.Lookup(ip.Unmap()).Decode(&record); err != nil {
+	if err := readers.country.Lookup(ip.Unmap()).Decode(&record); err != nil {
 		return CityInfo{}
 	}
 	result := CityInfo{
-		Country: record.Country.Names["en"],
+		Country: record.Country.ISOCode,
 		City:    record.City.Names["en"],
 	}
 	if len(record.Subdivisions) > 0 {

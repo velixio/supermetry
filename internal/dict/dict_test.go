@@ -43,3 +43,30 @@ func TestIDsStableConcurrentAndCached(t *testing.T) {
 		t.Fatalf("Load: %q %v", v, ok)
 	}
 }
+
+func TestRegionAndCityUseSeparateNamespaces(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	d := dict.New(pool)
+	regionIDs, err := d.IDs(ctx, dict.Region, []string{"Singapore"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cityIDs, err := d.IDs(ctx, dict.City, []string{"Singapore"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if regionIDs[0] == cityIDs[0] {
+		t.Fatalf("region and city IDs share a namespace: %d", regionIDs[0])
+	}
+	if got, ok := d.Value(dict.Region, regionIDs[0]); !ok || got != "Singapore" {
+		t.Fatalf("region lookup = %q, %v", got, ok)
+	}
+	if got, ok := d.Value(dict.City, cityIDs[0]); !ok || got != "Singapore" {
+		t.Fatalf("city lookup = %q, %v", got, ok)
+	}
+}

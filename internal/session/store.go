@@ -33,6 +33,8 @@ type Hit struct {
 	Medium        int32
 	Campaign      int32
 	Country       string
+	Region        int32
+	City          int32
 	Browser       int32
 	OS            int32
 	Device        int16
@@ -68,6 +70,8 @@ type Snapshot struct {
 	Medium       int32
 	Campaign     int32
 	Country      string
+	Region       int32
+	City         int32
 	Browser      int32
 	OS           int32
 	Device       int16

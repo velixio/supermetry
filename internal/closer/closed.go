@@ -3,7 +3,7 @@ package closer
 const closeSessionsSQL = `
 insert into sessions_closed (
   site_id, day, visitor_id, session_id, source_id, medium_id, campaign_id,
-  utm_content_id, utm_term_id, country, browser_id, os_id, device,
+  utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id, device,
   entry_path, exit_path, pageviews, custom, duration_ms, engagement_ms,
   vd_n, flags, seq, seq_engage, seq_scroll
 )
@@ -61,8 +61,10 @@ with candidate_sessions as (
 	        s.source_id, s.medium_id, s.campaign_id,
 	        coalesce(attribution.utm_content_id, 0) as utm_content_id,
 	        coalesce(attribution.utm_term_id, 0) as utm_term_id,
-         first_value(s.country) over visitor_order as country,
-         first_value(s.browser_id) over visitor_order as browser_id,
+	         first_value(s.country) over visitor_order as country,
+	         first_value(s.region_id) over visitor_order as region_id,
+	         first_value(s.city_id) over visitor_order as city_id,
+	         first_value(s.browser_id) over visitor_order as browser_id,
          first_value(s.os_id) over visitor_order as os_id,
          first_value(s.device) over visitor_order as device,
          s.entry_path, s.exit_path, s.pageviews, s.events as custom,
@@ -87,7 +89,7 @@ with candidate_sessions as (
 )
 select s.site_id, $1, s.visitor_id, s.session_id,
 	       s.source_id, s.medium_id, s.campaign_id, s.utm_content_id, s.utm_term_id,
-       s.country, s.browser_id, s.os_id, s.device, s.entry_path, s.exit_path,
+       s.country, s.region_id, s.city_id, s.browser_id, s.os_id, s.device, s.entry_path, s.exit_path,
        s.pageviews, s.custom, s.duration_ms, s.engagement_ms,
        s.vd_n, s.flags, q.seq, q.seq_engage, q.seq_scroll
 from session_rows s
@@ -97,12 +99,12 @@ order by s.site_id, s.country, s.visitor_id, s.start, s.session_id`
 const closeCustomSQL = `
 insert into custom_closed (
   site_id, day, visitor_id, name_id, path_id, source_id, medium_id,
-  campaign_id, utm_content_id, utm_term_id, country, browser_id, os_id,
+  campaign_id, utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
   device, entry_path, exit_path, props
 )
 select c.site_id, $1, c.visitor_id, e.name_id, e.path_id,
        c.source_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
-       c.country, c.browser_id, c.os_id, c.device, c.entry_path, c.exit_path, e.props
+       c.country, c.region_id, c.city_id, c.browser_id, c.os_id, c.device, c.entry_path, c.exit_path, e.props
 from events e
 join sessions_closed c
   on c.site_id = e.site_id and c.session_id = e.session_id and c.day = $1

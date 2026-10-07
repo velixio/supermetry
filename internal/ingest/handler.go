@@ -93,8 +93,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	location := h.Enricher.City(ip)
 	if h.Diag {
-		h.logDiag(r, ip)
+		h.logDiag(r, ip, location)
 	}
 	if h.Limiter != nil && (!h.Limiter.Allow("site:"+strconv.FormatInt(int64(site.ID), 10)) || !h.Limiter.Allow(ipRateKey(ip))) {
 		w.Header().Set("Retry-After", "1")
@@ -107,7 +108,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Bots[reason].Add(1)
 		health.BotsFiltered[reason].Add(1)
 		if h.Diag {
-			h.logBotDrop(reason, ip)
+			h.logBotDrop(reason, ip, location)
 		}
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -133,7 +134,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	event, hit, err := h.buildEvent(r.Context(), payload, pageURL, site, ip, ua, now, localDay, visitorID, previousVisitorID)
+	event, hit, err := h.buildEvent(r.Context(), payload, pageURL, site, location, ua, now, localDay, visitorID, previousVisitorID)
 	if err != nil {
 		h.unavailable(w)
 		return
@@ -157,7 +158,7 @@ func (h *Handler) buildEvent(
 	payload Payload,
 	pageURL *url.URL,
 	site sites.Site,
-	ip netip.Addr,
+	location enrich.CityInfo,
 	ua string,
 	now, localDay time.Time,
 	visitorID, previousVisitorID int64,
@@ -169,7 +170,6 @@ func (h *Handler) buildEvent(
 	utm := enrich.ParseUTM(payload.URL)
 	source, medium := h.Enricher.Source(payload.Referrer, payload.URL, utm)
 	client := h.Enricher.Client(ua)
-	country := h.Enricher.Country(ip)
 
 	pathID, err := h.dimensionID(ctx, dict.Path, path)
 	if err != nil {
@@ -188,6 +188,14 @@ func (h *Handler) buildEvent(
 		return writer.Event{}, session.Hit{}, err
 	}
 	campaignID, err := h.dimensionID(ctx, dict.Campaign, utm.Campaign)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
+	regionID, err := h.dimensionID(ctx, dict.Region, location.Region)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
+	cityID, err := h.dimensionID(ctx, dict.City, location.City)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
@@ -217,7 +225,8 @@ func (h *Handler) buildEvent(
 		SiteID: site.ID, Retention: site.Retention, TS: now, LocalDay: localDay,
 		VisitorID: visitorID, PrevVisitorID: previousVisitorID, Kind: kind,
 		PathID: pathID, NameID: nameID, Source: sourceID, Medium: mediumID,
-		Campaign: campaignID, Country: country, Browser: browserID, OS: osID,
+		Campaign: campaignID, Country: location.Country, Region: regionID, City: cityID,
+		Browser: browserID, OS: osID,
 		Device: client.Device, EngagementMS: int32(payload.EngagementMS), ScrollPct: int16(payload.ScrollPct),
 	}
 	props := payload.Props
