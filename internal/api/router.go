@@ -39,6 +39,7 @@ type Deps struct {
 	PublicAuth  Authenticator
 	PrivateAuth Authenticator
 	Sites       sites.Registry // resolves site ownership for every site-scoped request
+	UI          http.Handler   // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter ingest.RateLimiter
 	Sessions    session.Store
 	// Platform serves the application routes implemented under
@@ -85,6 +86,16 @@ func NewRouter(deps Deps) http.Handler {
 		mux.HandleFunc("GET "+deps.Config.TrackerPath, http.NotFound)
 	}
 	mux.HandleFunc("GET /api/public/openapi.json", serveOpenAPI)
+	if deps.UI != nil {
+		// Least specific pattern: API, intake, tracker and ops routes above take precedence.
+		mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				http.NotFound(w, r)
+				return
+			}
+			deps.UI.ServeHTTP(w, r)
+		}))
+	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
 	})
