@@ -1,9 +1,11 @@
 package ingest_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -18,6 +20,7 @@ import (
 	"panel/internal/db"
 	"panel/internal/dict"
 	"panel/internal/enrich"
+	"panel/internal/health"
 	"panel/internal/ingest"
 	"panel/internal/salts"
 	"panel/internal/session"
@@ -58,6 +61,15 @@ func (l *recordingLimiter) Allow(key string) bool {
 	l.keys = append(l.keys, key)
 	return true
 }
+
+type siteRegistry struct{ site sites.Site }
+
+func (r siteRegistry) ByPublicID(id string) (sites.Site, bool) {
+	return r.site, id == r.site.PublicID
+}
+
+func (r siteRegistry) Site(id int32) (sites.Site, bool) { return r.site, id == r.site.ID }
+func (r siteRegistry) All() []sites.Site                { return []sites.Site{r.site} }
 
 func TestHostilePayloads(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
@@ -134,6 +146,87 @@ func TestBotsCountedNotStored(t *testing.T) {
 	}
 	if events != 0 || ingest.Bots[enrich.BotUserAgent].Load() != before+1 {
 		t.Fatalf("events=%d bots=%d", events, ingest.Bots[enrich.BotUserAgent].Load()-before)
+	}
+}
+
+func TestExcludedIPCountedNotStored(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	setExclusions(t, f, []string{"203.0.113.7"}, nil)
+	limiter := &recordingLimiter{}
+	f.h.Limiter = limiter
+	before := health.ExclusionsFiltered[health.ExclusionIP].Load()
+
+	rr := post(t, f.h, okBody, testUA, "[::ffff:203.0.113.7]:5555")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	if len(limiter.keys) != 0 {
+		t.Fatalf("excluded request reached limiter: %v", limiter.keys)
+	}
+	f.stop(t)
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 0 || health.ExclusionsFiltered[health.ExclusionIP].Load() != before+1 {
+		t.Fatalf("events=%d excluded_ip_delta=%d", events, health.ExclusionsFiltered[health.ExclusionIP].Load()-before)
+	}
+}
+
+func TestExcludedTrafficDoesNotLogClientIP(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	setExclusions(t, f, []string{"10.0.0.0/8"}, nil)
+	f.h.Diag = true
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	rr := post(t, f.h, okBody, testUA, "10.1.2.3:5555")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("excluded request was logged: %s", logs.String())
+	}
+}
+
+func TestExcludedPathCountedNotStored(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	setExclusions(t, f, nil, []string{"/admin/*"})
+	before := health.ExclusionsFiltered[health.ExclusionPath].Load()
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/admin/users?source=test"}`
+
+	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 0 || health.ExclusionsFiltered[health.ExclusionPath].Load() != before+1 {
+		t.Fatalf("events=%d excluded_path_delta=%d", events, health.ExclusionsFiltered[health.ExclusionPath].Load()-before)
+	}
+}
+
+func TestExclusionNonMatchPasses(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	setExclusions(t, f, []string{"203.0.113.0/24"}, []string{"/admin/*"})
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/admin/users/7"}`
+
+	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 {
+		t.Fatalf("events=%d, want 1", events)
 	}
 }
 
@@ -324,6 +417,20 @@ func primeDictionary(t *testing.T, dictionary *dict.Dict) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func setExclusions(t *testing.T, fixture *handlerFixture, ips, paths []string) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	exclusions, err := sites.CompileExclusions(ips, paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	site.Exclusions = exclusions
+	fixture.h.Sites = siteRegistry{site: site}
 }
 
 func post(t *testing.T, h http.Handler, body, ua, remote string) *httptest.ResponseRecorder {

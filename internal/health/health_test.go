@@ -76,12 +76,14 @@ func TestGeoIPMetricsPrometheusTextFormat(t *testing.T) {
 func TestPrometheusTextFormat(t *testing.T) {
 	health.IngestAccepted.Add(3)
 	health.BotsFiltered[1].Add(2)
+	health.ExclusionsFiltered[health.ExclusionPath].Add(4)
 	var b bytes.Buffer
 	health.WritePrometheus(&b)
 	for _, want := range []string{
 		"# TYPE panel_ingest_accepted_total counter",
 		"panel_ingest_accepted_total 3",
 		`panel_bots_filtered_total{reason="ua"} 2`,
+		`panel_ingest_excluded_total{reason="path"} 4`,
 	} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("missing %q in\n%s", want, b.String())

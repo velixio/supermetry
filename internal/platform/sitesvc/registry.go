@@ -106,6 +106,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 
 func cloneSite(site coresites.Site) coresites.Site {
 	site.AllowedHosts = append([]string(nil), site.AllowedHosts...)
+	site.Exclusions = site.Exclusions.Clone()
 	return site
 }
 

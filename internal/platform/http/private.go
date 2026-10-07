@@ -137,6 +137,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/private/funnels/{funnel}", h.updateFunnel)
 	mux.HandleFunc("DELETE /api/private/funnels/{funnel}", h.deleteFunnel)
 	mux.HandleFunc("GET /api/private/me", h.me)
+	mux.HandleFunc("GET /api/private/me/ip", h.currentIP)
 	mux.HandleFunc("GET /api/private/me/sessions", h.listSessions)
 	mux.HandleFunc("DELETE /api/private/me/sessions/{session}", h.revokeSession)
 	mux.HandleFunc("POST /api/private/me/totp", h.enrollTOTP)
