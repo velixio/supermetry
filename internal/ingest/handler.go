@@ -252,12 +252,29 @@ func (h *Handler) clientIP(r *http.Request) (netip.Addr, bool) {
 	// (::ffff:192.168.0.1); unmap before matching IPv4 proxy prefixes.
 	peer = peer.Unmap()
 	if h.proxyTrusted(peer) {
-		first, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
-		if forwarded, err := netip.ParseAddr(strings.TrimSpace(first)); err == nil {
-			return forwarded.Unmap(), true
+		// Walk the chain from the nearest hop outward and take the first
+		// public address, so private hops and spoofed left-hand entries lose
+		// to what our own proxy appended. A chain with no public address
+		// (LAN or local testing) falls back to the peer.
+		hops := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+		for i := len(hops) - 1; i >= 0; i-- {
+			hop, err := netip.ParseAddr(strings.TrimSpace(hops[i]))
+			if err != nil {
+				continue
+			}
+			hop = hop.Unmap()
+			if isPublicIP(hop) && !h.proxyTrusted(hop) {
+				return hop, true
+			}
 		}
 	}
 	return peer.Unmap(), true
+}
+
+// isPublicIP reports whether addr is a globally routable unicast address;
+// private, loopback, link-local and unique-local ranges are not.
+func isPublicIP(addr netip.Addr) bool {
+	return addr.IsGlobalUnicast() && !addr.IsPrivate() && !addr.IsLoopback() && !addr.IsLinkLocalUnicast()
 }
 
 func parseRemoteAddr(remote string) (netip.Addr, bool) {
