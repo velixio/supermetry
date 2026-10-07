@@ -1,0 +1,136 @@
+package shares
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"panel/internal/db"
+	"panel/internal/platform/authz"
+	platformcrypto "panel/internal/platform/crypto"
+	"panel/internal/platform/store"
+	"panel/internal/testpg"
+)
+
+func TestShareLifecycle(t *testing.T) {
+	service, principal, siteID, pool := newShares(t)
+	ctx := context.Background()
+
+	slug, info, err := service.Create(ctx, principal, siteID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, ok := service.Principal(ctx, slug, "")
+	if !ok {
+		t.Fatal("passwordless share was refused")
+	}
+	if shared.Role != authz.RoleShare || shared.OrgID != principal.OrgID || shared.ShareID != info.ID || len(shared.SiteIDs) != 1 || shared.SiteIDs[0] != siteID {
+		t.Fatalf("passwordless principal = %+v", shared)
+	}
+
+	var storedSlug []byte
+	var storedPassword *string
+	if err := pool.QueryRow(ctx, `select slug_hash, password_hash from shared_links where id = $1`, info.ID).Scan(&storedSlug, &storedPassword); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(storedSlug, platformcrypto.HashToken(slug)) || storedPassword != nil || bytes.Contains(storedSlug, []byte(slug)) {
+		t.Fatalf("stored passwordless share material = (%x, %v)", storedSlug, storedPassword)
+	}
+
+	protectedSlug, protected, err := service.Create(ctx, principal, siteID, "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := service.Principal(ctx, protectedSlug, ""); ok {
+		t.Fatal("protected share accepted without cookie")
+	}
+	if _, err := service.Open(ctx, protectedSlug, ""); !errors.Is(err, ErrPasswordRequired) {
+		t.Fatalf("empty password error = %v, want ErrPasswordRequired", err)
+	}
+	if _, err := service.Open(ctx, protectedSlug, "wrong"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("wrong password error = %v, want ErrInvalid", err)
+	}
+	cookie, err := service.Open(ctx, protectedSlug, "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cookie == "" || strings.Contains(cookie, "correct horse battery staple") {
+		t.Fatalf("unsafe share cookie %q", cookie)
+	}
+	shared, ok = service.Principal(ctx, protectedSlug, cookie)
+	if !ok || shared.ShareID != protected.ID || shared.Role != authz.RoleShare || len(shared.SiteIDs) != 1 || shared.SiteIDs[0] != siteID {
+		t.Fatalf("protected principal = (%+v, %t)", shared, ok)
+	}
+
+	viewer := principal
+	viewer.Role = authz.RoleViewer
+	if err := service.Revoke(ctx, viewer, protected.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("viewer revoke error = %v, want ErrForbidden", err)
+	}
+	if _, ok := service.Principal(ctx, protectedSlug, cookie); !ok {
+		t.Fatal("forbidden revoke changed the share")
+	}
+
+	if err := service.Revoke(ctx, principal, protected.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := service.Principal(ctx, protectedSlug, cookie); ok {
+		t.Fatal("revoked share accepted a valid cookie")
+	}
+	if _, err := service.Open(ctx, protectedSlug, "correct horse battery staple"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("revoked share open error = %v, want ErrInvalid", err)
+	}
+
+	var actions []string
+	rows, err := pool.Query(ctx, `select action from audit_log where org_id = $1 order by id`, principal.OrgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var action string
+		if err := rows.Scan(&action); err != nil {
+			t.Fatal(err)
+		}
+		actions = append(actions, action)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(actions, ","); got != "share.created,share.created,share.revoked" {
+		t.Fatalf("audit actions = %q", got)
+	}
+}
+
+func newShares(t *testing.T) (*Shares, authz.Principal, int32, *pgxpool.Pool) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('owner@example.test', 'Owner', 'hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name, slug) values ('Test', 'test') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id, user_id, role) values ($1, $2, 'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `
+		insert into sites(org_id, public_id, name, timezone, retention_class)
+		values ($1, 'testsite0001', 'Test site', 'UTC', 30)
+		returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	return New(&store.Store{Pool: pool}), authz.Principal{
+		UserID: userID, OrgID: orgID, Role: authz.RoleOwner,
+	}, siteID, pool
+}
