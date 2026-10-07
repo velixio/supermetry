@@ -132,12 +132,15 @@ const breakdownCards: { title: string; tabs: BreakdownTab[] }[] = [
       { key: 'source', label: 'Source', dimension: 'source', metric: 'visitors' },
       { key: 'medium', label: 'Medium', dimension: 'utm_medium', metric: 'visitors' },
       { key: 'campaign', label: 'Campaign', dimension: 'utm_campaign', metric: 'visitors' },
-      { key: 'referrer', label: 'Referrer', dimension: 'referrer', metric: 'visitors' },
     ],
   },
   {
     title: 'Countries',
-    tabs: [{ key: 'country', dimension: 'country', metric: 'visitors' }],
+    tabs: [
+      { key: 'country', label: 'Countries', dimension: 'country', metric: 'visitors' },
+      { key: 'region', label: 'Regions', dimension: 'region', metric: 'visitors' },
+      { key: 'city', label: 'Cities', dimension: 'city', metric: 'visitors' },
+    ],
   },
   {
     title: 'Devices',

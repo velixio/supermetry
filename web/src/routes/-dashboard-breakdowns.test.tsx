@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }))
@@ -47,11 +47,15 @@ describe('dashboard breakdown route', () => {
         const label =
           dimension === 'country'
             ? 'IN'
-            : dimension === 'page'
-              ? '/'
-              : dimension === 'time'
-                ? '2026-09-28'
-                : 'Direct'
+            : dimension === 'region'
+              ? 'California'
+              : dimension === 'city'
+                ? 'San Francisco'
+                : dimension === 'page'
+                  ? '/'
+                  : dimension === 'time'
+                    ? '2026-09-28'
+                    : 'Direct'
         const totals = Object.fromEntries(
           options.body.metrics.map((requestedMetric) => [requestedMetric, 5]),
         )
@@ -70,7 +74,7 @@ describe('dashboard breakdown route', () => {
 
   afterEach(cleanup)
 
-  it('clicking a country row adds the is filter to router search', async () => {
+  function renderDashboard() {
     const history = createMemoryHistory({
       initialEntries: [
         '/acme/example?period=custom&from=2026-09-28&to=2026-09-30',
@@ -85,6 +89,45 @@ describe('dashboard breakdown route', () => {
         <RouterProvider router={router} />
       </QueryClientProvider>,
     )
+    return router
+  }
+
+  it('shows country, region, and city tabs without a referrer tab', async () => {
+    renderDashboard()
+
+    const locations = await screen.findByRole('region', { name: 'Countries' })
+    expect(
+      within(locations)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Countries', 'Regions', 'Cities'])
+
+    const sources = screen.getByRole('region', { name: 'Sources' })
+    expect(within(sources).queryByRole('tab', { name: 'Referrer' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['Regions', 'region', 'California', 'region:is:California'],
+    ['Cities', 'city', 'San Francisco', 'city:is:San%20Francisco'],
+  ])(
+    'clicking a %s row adds its filter to router search',
+    async (tab, dimension, label, encoded) => {
+      const router = renderDashboard()
+      const locations = await screen.findByRole('region', { name: 'Countries' })
+
+      fireEvent.click(within(locations).getByRole('tab', { name: tab }))
+      fireEvent.click(
+        await within(locations).findByRole('button', {
+          name: `Filter by ${dimension} ${label}`,
+        }),
+      )
+
+      await waitFor(() => expect(router.state.location.search.f).toEqual([encoded]))
+    },
+  )
+
+  it('clicking a country row adds the is filter to router search', async () => {
+    const router = renderDashboard()
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /visitors/i })).toHaveTextContent('5'),

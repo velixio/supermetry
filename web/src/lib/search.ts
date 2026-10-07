@@ -82,6 +82,7 @@ export type Filter = {
 
 const dimensions = new Set([
   'browser',
+  'city',
   'country',
   'device',
   'entry',
@@ -92,6 +93,7 @@ const dimensions = new Set([
   'page',
   'path',
   'prop',
+  'region',
   'source',
   'time',
   'utm_campaign',
