@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -23,6 +24,20 @@ import (
 	"panel/internal/dict"
 	"panel/internal/enrich"
 	"panel/internal/ingest"
+	platformauth "panel/internal/platform/auth"
+	"panel/internal/platform/authn"
+	platformcrypto "panel/internal/platform/crypto"
+	"panel/internal/platform/goals"
+	platformhttp "panel/internal/platform/http"
+	"panel/internal/platform/invites"
+	"panel/internal/platform/keys"
+	"panel/internal/platform/mail"
+	"panel/internal/platform/orgs"
+	"panel/internal/platform/reports"
+	"panel/internal/platform/shares"
+	"panel/internal/platform/sitesvc"
+	"panel/internal/platform/store"
+	"panel/internal/platform/users"
 	"panel/internal/query"
 	"panel/internal/rehydrate"
 	"panel/internal/retention"
@@ -67,9 +82,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	for _, option := range options {
 		option(&settings)
 	}
-	if cfg.SitesFile == "" {
-		return errors.New("PANEL_SITES_FILE is required")
-	}
 
 	pool, err := db.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -80,9 +92,25 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return err
 	}
 
-	registry, err := newReloadableRegistry(cfg.SitesFile)
-	if err != nil {
-		return err
+	platformStore := &store.Store{Pool: pool}
+	databaseRegistry := sitesvc.NewRegistry(platformStore, 30*time.Second)
+	defer databaseRegistry.Close()
+	var registry sites.Registry = databaseRegistry
+	refreshRegistry := databaseRegistry.Invalidate
+	var compatibility *compatibilityMode
+	var usersExist bool
+	if err := pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&usersExist); err != nil {
+		return fmt.Errorf("check platform users: %w", err)
+	}
+	if !usersExist && cfg.SitesFile != "" {
+		fileRegistry, err := newReloadableRegistry(cfg.SitesFile)
+		if err != nil {
+			return err
+		}
+		compatibility = newCompatibilityMode(pool, fileRegistry, databaseRegistry)
+		registry = compatibility
+		refreshRegistry = compatibility.Refresh
+		slog.Warn("using PANEL_SITES_FILE benchmark compatibility because no platform user exists")
 	}
 	dictionary := dict.New(pool)
 	if err := dictionary.Load(ctx); err != nil {
@@ -112,6 +140,49 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	w := writer.New(pool, sessions, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, closed)
 	engine := query.NewEngine(pool, dictionary, registry)
+	sender := mail.NewSMTP(cfg.SMTP)
+	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/totp/v1")
+	if err != nil {
+		return fmt.Errorf("initialize TOTP encryption: %w", err)
+	}
+	accounts := users.New(platformStore)
+	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL)
+	orgService := orgs.New(platformStore)
+	keyService := keys.New(platformStore)
+	defer keyService.Close()
+	shareService := shares.New(platformStore)
+	inviteService := invites.New(platformStore, accounts, sender, cfg.BaseURL)
+	definitionService := goals.New(platformStore, 30*time.Second)
+	defer definitionService.Close()
+	reportService := reports.New(platformStore, engine, registry, sender)
+	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
+	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
+	siteService := sitesvc.New(platformStore, databaseRegistry)
+	platformHandler := platformhttp.New(platformhttp.Deps{
+		Authenticator: serviceAuthenticator,
+		Sites:         registry,
+		Mutations: platformhttp.Services{
+			Sites: siteService,
+			Keys:  keyService,
+			Store: platformStore,
+		},
+		Store:       platformStore,
+		Definitions: definitionService,
+		Auth:        authService,
+		Orgs:        orgService,
+		Keys:        keyService,
+		Invites:     inviteService,
+		Shares:      shareService,
+		Reports:     reportService,
+		Query:       engine,
+	})
+	var publicAuthenticator api.Authenticator = apiAuthenticator
+	if compatibility != nil {
+		publicAuthenticator = &compatibilityAuthenticator{
+			mode: compatibility, platform: apiAuthenticator, fallback: api.StaticKey(cfg.AdminAPIKey),
+		}
+		platformHandler = transitionFromCompatibility(platformHandler, compatibility)
+	}
 	intakeLimiter := ingest.NewTokenBuckets(10_000, 10_000)
 	intake := &ingest.Handler{
 		Sites: registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
@@ -122,11 +193,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
 		Config: cfg, Query: engine, Ingest: intake, Sessions: sessions, Sites: registry,
+		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})
 	listener, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Listen, err)
+	}
+	if setupURL, ok := authService.SetupURL(ctx); ok {
+		fmt.Fprintln(os.Stdout, setupURL)
 	}
 	server := &http.Server{
 		Handler:           router,
@@ -139,7 +214,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	go func() { writerDone <- w.Run(writerCtx) }()
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, dictionary, saltStore, sessions, closed, settings.clock)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, settings.clock)
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
@@ -184,19 +259,108 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if schedulerDone != nil {
 		cause = errors.Join(cause, <-schedulerDone)
 	}
+	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, settings.clock.Now()))
 	return errors.Join(cause, httpErr)
+}
+
+type compatibilityMode struct {
+	active   atomic.Bool
+	pool     *pgxpool.Pool
+	file     *reloadableRegistry
+	database *sitesvc.Registry
+}
+
+func newCompatibilityMode(pool *pgxpool.Pool, file *reloadableRegistry, database *sitesvc.Registry) *compatibilityMode {
+	mode := &compatibilityMode{pool: pool, file: file, database: database}
+	mode.active.Store(true)
+	return mode
+}
+
+func (m *compatibilityMode) ByPublicID(id string) (sites.Site, bool) {
+	if m.active.Load() {
+		return m.file.ByPublicID(id)
+	}
+	return m.database.ByPublicID(id)
+}
+
+func (m *compatibilityMode) Site(id int32) (sites.Site, bool) {
+	if m.active.Load() {
+		return m.file.Site(id)
+	}
+	return m.database.Site(id)
+}
+
+func (m *compatibilityMode) All() []sites.Site {
+	if m.active.Load() {
+		return m.file.All()
+	}
+	return m.database.All()
+}
+
+func (m *compatibilityMode) Refresh() error {
+	if err := m.disableWhenUsersExist(context.Background()); err != nil {
+		return err
+	}
+	if m.active.Load() {
+		return m.file.Refresh()
+	}
+	return m.database.Invalidate()
+}
+
+func (m *compatibilityMode) disableWhenUsersExist(ctx context.Context) error {
+	if !m.active.Load() {
+		return nil
+	}
+	var exists bool
+	if err := m.pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&exists); err != nil {
+		return fmt.Errorf("check platform users: %w", err)
+	}
+	if exists {
+		if err := m.database.Invalidate(); err != nil {
+			return err
+		}
+		m.active.Store(false)
+	}
+	return nil
+}
+
+type compatibilityAuthenticator struct {
+	mode     *compatibilityMode
+	platform api.Authenticator
+	fallback api.Authenticator
+}
+
+func (a *compatibilityAuthenticator) Authenticate(request *http.Request) (api.Principal, bool) {
+	if err := a.mode.disableWhenUsersExist(request.Context()); err != nil {
+		return api.Principal{}, false
+	}
+	if a.mode.active.Load() {
+		return a.fallback.Authenticate(request)
+	}
+	return a.platform.Authenticate(request)
+}
+
+func transitionFromCompatibility(next http.Handler, mode *compatibilityMode) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		next.ServeHTTP(w, request)
+		if request.Method == http.MethodPost && request.URL.Path == "/api/private/setup" {
+			_ = mode.disableWhenUsersExist(context.WithoutCancel(request.Context()))
+		}
+	})
 }
 
 func scheduledJobs(
 	pool *pgxpool.Pool,
-	registry *reloadableRegistry,
+	registry sites.Registry,
+	refreshRegistry func() error,
 	dictionary *dict.Dict,
 	saltStore *salts.Store,
 	sessions session.Store,
 	closed *closedDays,
+	reportService *reports.Reports,
 	clk clock,
 ) []scheduler.Job {
-	return []scheduler.Job{
+	jobs := []scheduler.Job{
 		{Name: "close-days", Every: time.Minute, Run: func(ctx context.Context) error {
 			return closeDueDays(ctx, pool, registry, closed, clk.Now())
 		}},
@@ -223,9 +387,55 @@ func scheduledJobs(
 			if err := dictionary.Load(ctx); err != nil {
 				return err
 			}
-			return registry.Refresh()
+			return refreshRegistry()
+		}},
+		{Name: "site-erasure", Every: time.Minute, Run: func(ctx context.Context) error {
+			return eraseDeletedSites(ctx, pool, clk.Now())
+		}},
+		{Name: "user-session-cleanup", Every: time.Hour, Run: func(ctx context.Context) error {
+			now := clk.Now()
+			_, err := pool.Exec(ctx, `delete from user_sessions where expires_at <= $1 or last_seen_at <= $2`, now, now.Add(-14*24*time.Hour))
+			return err
+		}},
+		{Name: "invitation-cleanup", Every: time.Hour, Run: func(ctx context.Context) error {
+			_, err := pool.Exec(ctx, `delete from invitations where expires_at <= $1 or accepted_at is not null or revoked_at is not null`, clk.Now())
+			return err
 		}},
 	}
+	if reportService != nil {
+		jobs = append(jobs, reportService.Job())
+	}
+	return jobs
+}
+
+func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	rows, err := pool.Query(ctx, `select id from sites where deleted_at is not null order by id`)
+	if err != nil {
+		return fmt.Errorf("load sites pending erasure: %w", err)
+	}
+	var siteIDs []int32
+	for rows.Next() {
+		var siteID int32
+		if err := rows.Scan(&siteID); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan site pending erasure: %w", err)
+		}
+		siteIDs = append(siteIDs, siteID)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate sites pending erasure: %w", err)
+	}
+	rows.Close()
+	for _, siteID := range siteIDs {
+		if err := retention.Erase(ctx, pool, siteID, 10_000, 10*time.Millisecond); err != nil {
+			return err
+		}
+		if _, err := pool.Exec(ctx, `update sites set settings=jsonb_set(settings,'{erased_at}',to_jsonb($2::text)) where id=$1`, siteID, now.UTC().Format(time.RFC3339)); err != nil {
+			return fmt.Errorf("mark site %d erased: %w", siteID, err)
+		}
+	}
+	return nil
 }
 
 func closeDueDays(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, closed *closedDays, now time.Time) error {
