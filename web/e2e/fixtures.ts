@@ -5,6 +5,7 @@ import {
   expect,
   request as playwrightRequest,
   test as base,
+  type APIResponse,
   type FullConfig,
   type Page,
 } from '@playwright/test'
@@ -47,6 +48,12 @@ export function fmtCompact(input: number): string {
     : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(input)
 }
 
+async function responseJSON<T>(response: APIResponse): Promise<T> {
+  const body = await response.text()
+  expect(response.ok(), body).toBe(true)
+  return JSON.parse(body) as T
+}
+
 export default async function globalSetup(config: FullConfig) {
   const baseURL = String(config.projects[0]?.use.baseURL)
   const resetURL = readFileSync(required('PANEL_E2E_RESET_FILE'), 'utf8').trim()
@@ -57,12 +64,14 @@ export default async function globalSetup(config: FullConfig) {
   const reset = await api.post('/api/private/auth/password-reset/confirm', {
     data: { token, password },
   })
-  expect(reset.ok(), await reset.text()).toBe(true)
+  const resetBody = await reset.text()
+  expect(reset.ok(), resetBody).toBe(true)
 
   const login = await api.post('/api/private/auth/login', {
     data: { email, password, device_label: 'Playwright setup' },
   })
-  expect(login.ok(), await login.text()).toBe(true)
+  const loginBody = await login.text()
+  expect(login.ok(), loginBody).toBe(true)
 
   const state = await api.storageState()
   const csrf = state.cookies.find((cookie) => cookie.name === 'panel_csrf')?.value
@@ -71,10 +80,9 @@ export default async function globalSetup(config: FullConfig) {
   const authHeaders = { Cookie: cookie, 'X-CSRF-Token': csrf }
 
   const organizations = await api.get('/api/private/orgs', { headers: authHeaders })
-  expect(organizations.ok(), await organizations.text()).toBe(true)
-  const organizationBody = (await organizations.json()) as {
+  const organizationBody = await responseJSON<{
     data: Array<Record<string, unknown>>
-  }
+  }>(organizations)
   const membership = organizationBody.data[0]
   if (!membership) throw new Error('owner has no organization')
   const orgId = value<number>(membership, 'org_id', 'OrgID')
@@ -90,8 +98,7 @@ export default async function globalSetup(config: FullConfig) {
       retention_days: 30,
     },
   })
-  expect(createdSite.ok(), await createdSite.text()).toBe(true)
-  const site = (await createdSite.json()) as Record<string, unknown>
+  const site = await responseJSON<Record<string, unknown>>(createdSite)
   const siteId = value<number>(site, 'id', 'ID')
   const siteSlug = value<string>(site, 'public_id', 'PublicID')
 
@@ -99,8 +106,7 @@ export default async function globalSetup(config: FullConfig) {
     headers: apiHeaders,
     data: { password: '' },
   })
-  expect(createdShare.ok(), await createdShare.text()).toBe(true)
-  const share = (await createdShare.json()) as Record<string, unknown>
+  const share = await responseJSON<Record<string, unknown>>(createdShare)
   const shareSlug = value<string>(share, 'slug', 'Slug')
 
   const owner: SerializedOwner = {
@@ -138,6 +144,7 @@ export const test = base.extend<{ owner: Owner }>({
     await use({
       ...serialized,
       async login(page, next = '/') {
+        const destination = new URL(next, 'http://panel.test')
         await page.goto(`/login?next=${encodeURIComponent(next)}`)
         const emailInput = page.getByLabel('Email')
         await expect(emailInput).toBeVisible()
@@ -148,9 +155,17 @@ export const test = base.extend<{ owner: Owner }>({
             response.url().endsWith('/api/private/auth/login') &&
             response.request().method() === 'POST',
         )
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        const response = await responsePromise
-        expect(response.ok(), await response.text()).toBe(true)
+        const destinationPromise = page.waitForURL((url) =>
+          next === '/'
+            ? url.pathname !== '/login'
+            : url.pathname === destination.pathname && url.search === destination.search,
+        )
+        const [response] = await Promise.all([
+          responsePromise,
+          destinationPromise,
+          page.getByRole('button', { name: 'Sign in' }).click(),
+        ])
+        expect(response.ok()).toBe(true)
       },
     })
   },

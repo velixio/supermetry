@@ -7,5 +7,6 @@ test('a shared dashboard renders read-only', async ({ page, owner }) => {
   await expect(page.getByText('Visitors')).toBeVisible()
   await expect(page.getByRole('button')).toHaveCount(0)
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: 'e2e/screenshots/share.png', fullPage: true })
 })

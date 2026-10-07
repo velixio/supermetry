@@ -94,6 +94,10 @@ function timeValue(row: Record<string, unknown>): string {
   return typeof row.time === 'string' ? row.time : ''
 }
 
+function chronological(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  return [...rows].sort((left, right) => timeValue(left).localeCompare(timeValue(right)))
+}
+
 function ChartContainer({ children }: { children: ReactNode }) {
   return <div className="h-64 min-h-64 w-full">{children}</div>
 }
@@ -127,8 +131,8 @@ export function MainChart({
   }
   const current = useStats(currentQuery)
   const comparison = useStats(comparisonQuery)
-  const comparisonRows = comparison.data?.rows ?? []
-  const points: ChartPoint[] = (current.data?.rows ?? []).map((row, index) => ({
+  const comparisonRows = chronological(comparison.data?.rows ?? [])
+  const points: ChartPoint[] = chronological(current.data?.rows ?? []).map((row, index) => ({
     time: timeValue(row),
     value: numeric(row, metric),
     ...(compare === 'off'

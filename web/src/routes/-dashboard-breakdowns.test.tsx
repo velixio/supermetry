@@ -44,12 +44,22 @@ describe('dashboard breakdown route', () => {
       (_path: string, options: { body: { dimensions?: string[]; metrics: string[] } }) => {
         const dimension = options.body.dimensions?.[0] ?? 'page'
         const metric = options.body.metrics[0]
-        const label = dimension === 'country' ? 'IN' : dimension === 'page' ? '/' : 'Direct'
+        const label =
+          dimension === 'country'
+            ? 'IN'
+            : dimension === 'page'
+              ? '/'
+              : dimension === 'time'
+                ? '2026-09-28'
+                : 'Direct'
+        const totals = Object.fromEntries(
+          options.body.metrics.map((requestedMetric) => [requestedMetric, 5]),
+        )
         return Promise.resolve({
           data: {
             columns: [dimension, metric],
             rows: [{ [dimension]: label, [metric]: 5 }],
-            totals: { [metric]: 5 },
+            totals,
             meta: { sources_used: ['daily'], cached: false },
           },
           response: new Response(null, { status: 200 }),
@@ -61,7 +71,11 @@ describe('dashboard breakdown route', () => {
   afterEach(cleanup)
 
   it('clicking a country row adds the is filter to router search', async () => {
-    const history = createMemoryHistory({ initialEntries: ['/acme/example'] })
+    const history = createMemoryHistory({
+      initialEntries: [
+        '/acme/example?period=custom&from=2026-09-28&to=2026-09-30',
+      ],
+    })
     const router = createRouter({ routeTree, history })
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -71,6 +85,15 @@ describe('dashboard breakdown route', () => {
         <RouterProvider router={router} />
       </QueryClientProvider>,
     )
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /visitors/i })).toHaveTextContent('5'),
+    )
+    expect(screen.getByRole('combobox', { name: 'Compare' })).toBeVisible()
+    expect(screen.getByRole('table', { name: /visitors over time/i })).toBeVisible()
+
+    fireEvent.keyDown(document, { key: 'm' })
+    await waitFor(() => expect(router.state.location.search.period).toBe('30d'))
 
     fireEvent.click(await screen.findByRole('button', { name: /filter by country IN/i }))
 

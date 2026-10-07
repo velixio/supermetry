@@ -1,12 +1,14 @@
 package platformhttp
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
+	"panel/internal/db"
 	"panel/internal/platform/authz"
 	"panel/internal/platform/orgs"
 )
@@ -25,14 +27,84 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
+	if h.deps.Orgs == nil {
+		unavailable(w, "organization")
+		return
+	}
+	memberships, err := h.deps.Orgs.MembershipsFor(r.Context(), principal.UserID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	type membershipResponse struct {
+		Org struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+			Slug string `json:"slug"`
+		} `json:"org"`
+		Role    authz.Role     `json:"role"`
+		SiteIDs []int32        `json:"site_ids,omitempty"`
+		Sites   []siteResponse `json:"sites"`
+	}
+	items := make([]membershipResponse, 0, len(memberships))
+	for _, membership := range memberships {
+		sites, err := h.membershipSites(r.Context(), membership)
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+		item := membershipResponse{Role: membership.Role, SiteIDs: membership.SiteIDs, Sites: sites}
+		item.Org.ID = membership.OrgID
+		item.Org.Name = membership.OrgName
+		item.Org.Slug = membership.OrgSlug
+		items = append(items, item)
+	}
 	writeJSON(w, http.StatusOK, struct {
-		ID          int64      `json:"id"`
-		Email       string     `json:"email"`
-		Name        string     `json:"name"`
-		TOTPEnabled bool       `json:"totp_enabled"`
-		CreatedAt   time.Time  `json:"created_at"`
-		LastLoginAt *time.Time `json:"last_login_at,omitempty"`
-	}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt})
+		User struct {
+			ID          int64      `json:"id"`
+			Email       string     `json:"email"`
+			Name        string     `json:"name"`
+			TOTPEnabled bool       `json:"totp_enabled"`
+			CreatedAt   time.Time  `json:"created_at"`
+			LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+		} `json:"user"`
+		Memberships []membershipResponse `json:"memberships"`
+	}{
+		User: struct {
+			ID          int64      `json:"id"`
+			Email       string     `json:"email"`
+			Name        string     `json:"name"`
+			TOTPEnabled bool       `json:"totp_enabled"`
+			CreatedAt   time.Time  `json:"created_at"`
+			LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+		}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt},
+		Memberships: items,
+	})
+}
+
+func (h *handler) membershipSites(ctx context.Context, membership orgs.Membership) ([]siteResponse, error) {
+	rows, err := h.deps.Store.Pool.Query(ctx, `
+		select id,org_id,public_id,name,timezone,retention_class,allowed_hosts
+		from sites
+		where org_id=$1 and deleted_at is null
+		  and ($2::integer[] is null or id=any($2))
+		order by name,id`, membership.OrgID, membership.SiteIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sites := make([]siteResponse, 0)
+	for rows.Next() {
+		var site siteResponse
+		var retention int16
+		if err := rows.Scan(&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.Timezone, &retention, &site.AllowedHosts); err != nil {
+			return nil, err
+		}
+		site.RetentionDays = int(db.RetentionClass(retention))
+		sites = append(sites, site)
+	}
+	return sites, rows.Err()
 }
 
 func (h *handler) listSessions(w http.ResponseWriter, r *http.Request) {

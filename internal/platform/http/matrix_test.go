@@ -17,6 +17,7 @@ import (
 	"panel/internal/ingest"
 	"panel/internal/platform/authz"
 	platformhttp "panel/internal/platform/http"
+	"panel/internal/platform/orgs"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
 	coresites "panel/internal/sites"
@@ -148,6 +149,86 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestMeReturnsUserMembershipsAndSites(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('owner@example.test','Owner','hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Example','example') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+
+	data := &store.Store{Pool: pool}
+	registry := sitesvc.NewRegistry(data, 0)
+	t.Cleanup(registry.Close)
+	sites := sitesvc.New(data, registry)
+	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
+	site, err := sites.Create(ctx, principal, "Example site", []string{"example.test"}, "Asia/Kathmandu", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"owner": principal},
+		Store:         data,
+		Orgs:          orgs.New(data),
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/private/me", nil)
+	request.Header.Set("X-Test-Actor", "owner")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		User struct {
+			ID    int64  `json:"id"`
+			Email string `json:"email"`
+			Name  string `json:"name"`
+		} `json:"user"`
+		Memberships []struct {
+			Org struct {
+				ID   int64  `json:"id"`
+				Name string `json:"name"`
+				Slug string `json:"slug"`
+			} `json:"org"`
+			Role  authz.Role `json:"role"`
+			Sites []struct {
+				ID       int32  `json:"id"`
+				PublicID string `json:"public_id"`
+				Name     string `json:"name"`
+				Timezone string `json:"timezone"`
+			} `json:"sites"`
+		} `json:"memberships"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.User.ID != userID || body.User.Email != "owner@example.test" || body.User.Name != "Owner" {
+		t.Fatalf("user=%+v", body.User)
+	}
+	if len(body.Memberships) != 1 {
+		t.Fatalf("memberships=%+v", body.Memberships)
+	}
+	membership := body.Memberships[0]
+	if membership.Org.ID != orgID || membership.Org.Slug != "example" || membership.Role != authz.RoleOwner {
+		t.Fatalf("membership=%+v", membership)
+	}
+	if len(membership.Sites) != 1 || membership.Sites[0].ID != site.ID || membership.Sites[0].PublicID != site.PublicID || membership.Sites[0].Timezone != "Asia/Kathmandu" {
+		t.Fatalf("sites=%+v", membership.Sites)
 	}
 }
 

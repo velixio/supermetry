@@ -68,4 +68,24 @@ describe('MainChart', () => {
     expect(autoInterval('2026-10-07', '2026-10-07')).toBe('hour')
     expect(autoInterval('2026-09-08', '2026-10-07')).toBe('day')
   })
+
+  it('orders API rows chronologically', async () => {
+    mockSeries([
+      ['2026-10-02', 7],
+      ['2026-10-01', 5],
+    ])
+
+    render(
+      <MainChart
+        query={query}
+        metric="visitors"
+        compare="off"
+        interval="hour"
+      />,
+    )
+
+    const rows = await screen.findAllByRole('row')
+    expect(rows[1]).toHaveTextContent('Oct 1, 2026')
+    expect(rows[2]).toHaveTextContent('Oct 2, 2026')
+  })
 })

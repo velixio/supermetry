@@ -4,14 +4,6 @@ import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useStats, type StatsQuery } from '../lib/stats'
 
-export type StatMetric = StatsQuery['metrics'][number]
-
-type StatsStripProps = {
-  query: StatsQuery
-  compare: Compare
-  onSelectMetric: (metric: StatMetric) => void
-}
-
 const statMetrics = [
   'visitors',
   'visits',
@@ -20,7 +12,15 @@ const statMetrics = [
   'bounce_rate',
   'visit_duration',
   'engagement_time',
-] as const satisfies readonly StatMetric[]
+] as const satisfies readonly StatsQuery['metrics'][number][]
+
+export type StatMetric = (typeof statMetrics)[number]
+
+type StatsStripProps = {
+  query: StatsQuery
+  compare: Compare
+  onSelectMetric: (metric: StatMetric) => void
+}
 
 function dateAtUTC(value: string): Date {
   return new Date(`${value}T00:00:00Z`)

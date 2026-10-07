@@ -22,8 +22,10 @@ export const metricValues = [
   'visitors',
   'visits',
   'pageviews',
+  'views_per_visit',
   'bounce_rate',
   'visit_duration',
+  'engagement_time',
 ] as const
 
 export const filterOperatorValues = [

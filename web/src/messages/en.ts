@@ -43,6 +43,30 @@ export const en = {
   common: {
     close: 'Close',
   },
+  dashboard: {
+    period: 'Period',
+    periods: {
+      today: 'Today',
+      yesterday: 'Yesterday',
+      '7d': 'Last 7 days',
+      '30d': 'Last 30 days',
+      month: 'This month',
+      last_month: 'Last month',
+      '12mo': 'Last 12 months',
+      year: 'This year',
+      custom: 'Custom range',
+    },
+    from: 'From',
+    to: 'To',
+    compare: 'Compare',
+    comparisons: {
+      off: 'Off',
+      previous_period: 'Previous period',
+      previous_year: 'Previous year',
+    },
+    invalidFilter: 'Some invalid filters were removed.',
+    filterLabel: 'Remove {dimension} filter {value}',
+  },
   theme: {
     light: 'Use dark theme',
     dark: 'Use light theme',

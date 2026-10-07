@@ -1,11 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { BreakdownCard, type BreakdownTab } from '../components/BreakdownCard'
+import { DatePicker } from '../components/DatePicker'
+import { FilterBar } from '../components/FilterBar'
+import { MainChart } from '../components/MainChart'
+import { StatsStrip } from '../components/StatsStrip'
+import { useShortcuts } from '../lib/shortcuts'
 import type { StatsQuery } from '../lib/stats'
 import {
   addFilter,
   dashboardSearch,
   parseFilters,
+  removeFilter,
   resolveRange,
   type Filter,
 } from '../lib/search'
@@ -22,20 +28,34 @@ function DashboardStateRoute() {
   const { org, site: siteSlug } = Route.useParams()
   const navigate = Route.useNavigate()
   const me = useMe()
-  const { filters } = parseFilters(search.f)
+  const { filters, dropped } = parseFilters(search.f)
   const membership = me.data?.memberships.find((item) => item.org.slug === org)
   const site = membership?.sites.find(
     (item) =>
       item.slug === siteSlug || item.public_id === siteSlug || String(item.id) === siteSlug,
   )
+  const updateSearch = (next: typeof search) => {
+    void navigate({ search: next })
+  }
+
+  useShortcuts({
+    m: () => updateSearch({ ...search, period: '30d', from: undefined, to: undefined }),
+    c: () =>
+      updateSearch({
+        ...search,
+        compare: search.compare === 'off' ? 'previous_period' : 'off',
+      }),
+  })
 
   if (!site) return <p className="sr-only">{en.loadingDashboard}</p>
+
+  const timezone = site.timezone || 'UTC'
 
   const query: StatsQuery = {
     siteId: site.id,
     dateRange: resolveRange(
       search.period,
-      'UTC',
+      timezone,
       new Date(),
       search.from,
       search.to,
@@ -43,7 +63,7 @@ function DashboardStateRoute() {
     metrics: ['visitors'],
     filters,
     compare: search.compare,
-    timezone: 'UTC',
+    timezone,
     live: search.live,
   }
   const onFilter = (filter: Filter) => {
@@ -51,19 +71,43 @@ function DashboardStateRoute() {
   }
 
   return (
-    <div
-      className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2"
-      data-filter-count={filters.length}
-    >
-      {breakdownCards.map((card) => (
-        <BreakdownCard
-          key={card.title}
-          title={card.title}
-          tabs={card.tabs}
-          query={query}
-          onFilter={onFilter}
+    <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <FilterBar
+          filters={filters}
+          dropped={dropped}
+          invalidNotice={en.dashboard.invalidFilter}
+          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.join(', ')}`}
+          removeLabel={(filter) =>
+            en.dashboard.filterLabel
+              .replace('{dimension}', filter.dimension)
+              .replace('{value}', filter.values.join(', '))
+          }
+          onRemove={(index) => updateSearch(removeFilter(search, index))}
         />
-      ))}
+        <DatePicker
+          search={search}
+          labels={en.dashboard}
+          onChange={updateSearch}
+        />
+      </div>
+      <StatsStrip
+        query={query}
+        compare={search.compare}
+        onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+      />
+      <MainChart query={query} metric={search.metric} compare={search.compare} />
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+        {breakdownCards.map((card) => (
+          <BreakdownCard
+            key={card.title}
+            title={card.title}
+            tabs={card.tabs}
+            query={query}
+            onFilter={onFilter}
+          />
+        ))}
+      </div>
     </div>
   )
 }

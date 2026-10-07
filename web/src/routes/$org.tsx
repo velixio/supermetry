@@ -18,6 +18,7 @@ export type Site = {
   name: string
   slug?: string
   public_id?: string
+  timezone?: string
 }
 
 export type Membership = {
