@@ -7,12 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"net"
 	"net/http"
-	"net/netip"
 	"strings"
 	"time"
 
+	"panel/internal/clientip"
 	platformauth "panel/internal/platform/auth"
 )
 
@@ -126,26 +125,10 @@ func (h *handler) clientContext(r *http.Request) context.Context {
 }
 
 func (h *handler) clientAddress(r *http.Request) string {
-	host := r.RemoteAddr
-	if parsed, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		host = parsed
+	if addr, ok := clientip.Resolve(r, h.deps.TrustedProxies); ok {
+		return addr.String()
 	}
-	peer, err := netip.ParseAddr(host)
-	if err != nil {
-		return host
-	}
-	peer = peer.Unmap()
-	for _, prefix := range h.deps.TrustedProxies {
-		if !prefix.Contains(peer) {
-			continue
-		}
-		first, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
-		if forwarded, parseErr := netip.ParseAddr(strings.TrimSpace(first)); parseErr == nil {
-			return forwarded.Unmap().String()
-		}
-		break
-	}
-	return peer.String()
+	return r.RemoteAddr
 }
 
 func (h *handler) setAuthCookies(w http.ResponseWriter, r *http.Request, token, csrfToken string) {

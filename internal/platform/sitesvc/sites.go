@@ -38,6 +38,8 @@ type SitePatch struct {
 	Hosts         *[]string
 	TZ            *string
 	RetentionDays *int
+	ExcludeIPs    *[]string
+	ExcludePaths  *[]string
 }
 
 type Sites struct {
@@ -115,6 +117,12 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.RetentionDays != nil {
 			current.RetentionClass = int16(*patch.RetentionDays)
 		}
+		if patch.ExcludeIPs != nil {
+			current.ExcludeIPs = append([]string(nil), (*patch.ExcludeIPs)...)
+		}
+		if patch.ExcludePaths != nil {
+			current.ExcludePaths = append([]string(nil), (*patch.ExcludePaths)...)
+		}
 		name, hosts, location, retention, err := validateSite(
 			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
 		)
@@ -123,6 +131,12 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		}
 		current.Name, current.AllowedHosts = name, hosts
 		current.Timezone, current.RetentionClass = location.String(), int16(retention)
+		exclusions, err := coresites.CompileExclusions(current.ExcludeIPs, current.ExcludePaths)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalid, err)
+		}
+		current.ExcludeIPs = append([]string(nil), exclusions.IPRules...)
+		current.ExcludePaths = append([]string(nil), exclusions.PathRules...)
 		updated, err = store.UpdateSite(ctx, tx, current)
 		if err != nil {
 			return err
@@ -275,9 +289,13 @@ func coreSite(row store.Site) (coresites.Site, error) {
 	if !ok {
 		return coresites.Site{}, fmt.Errorf("site %d has invalid retention class %d", row.ID, row.RetentionClass)
 	}
+	exclusions, err := coresites.CompileExclusions(row.ExcludeIPs, row.ExcludePaths)
+	if err != nil {
+		return coresites.Site{}, fmt.Errorf("load exclusions for site %d: %w", row.ID, err)
+	}
 	return coresites.Site{
 		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
-		AllowedHosts: append([]string(nil), row.AllowedHosts...),
+		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
 	}, nil
 }
 

@@ -3,6 +3,7 @@ package sitesvc
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -117,6 +118,61 @@ func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 	}
 	if actions != "site.created,site.updated" {
 		t.Fatalf("audit actions = %q", actions)
+	}
+}
+
+func TestUpdateExclusionsPersistsAndRefreshesRegistry(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ips := []string{"203.0.113.7", "2001:db8::/32"}
+	paths := []string{"/admin/*", "/preview/**", "/internal"}
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{
+		ExcludeIPs: &ips, ExcludePaths: &paths,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(updated.Exclusions.IPRules, ","); got != "203.0.113.7/32,2001:db8::/32" {
+		t.Fatalf("updated IP rules = %q", got)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || !loaded.Exclusions.ExcludesIP(netip.MustParseAddr("::ffff:203.0.113.7")) || !loaded.Exclusions.ExcludesPath("/preview/build/7") {
+		t.Fatalf("registry exclusions not refreshed: found=%t site=%+v", ok, loaded)
+	}
+	var storedIPs, storedPaths string
+	if err := pool.QueryRow(ctx, `select settings->'exclude_ips', settings->'exclude_paths' from sites where id=$1`, site.ID).Scan(&storedIPs, &storedPaths); err != nil {
+		t.Fatal(err)
+	}
+	if storedIPs != `["203.0.113.7/32", "2001:db8::/32"]` || storedPaths != `["/admin/*", "/preview/**", "/internal"]` {
+		t.Fatalf("stored exclusions = (%s, %s)", storedIPs, storedPaths)
+	}
+
+	empty := []string{}
+	if _, err := service.Update(ctx, principal, site.ID, SitePatch{ExcludeIPs: &empty, ExcludePaths: &empty}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok = registry.Site(site.ID)
+	if !ok || loaded.Exclusions.ExcludesIP(netip.MustParseAddr("203.0.113.7")) || loaded.Exclusions.ExcludesPath("/internal") {
+		t.Fatalf("replace-to-empty exclusions = %+v, found=%t", loaded.Exclusions, ok)
+	}
+}
+
+func TestUpdateExclusionsNamesInvalidEntry(t *testing.T) {
+	service, _, principal, _ := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ips := []string{"203.0.113.0/99"}
+	_, err = service.Update(ctx, principal, site.ID, SitePatch{ExcludeIPs: &ips})
+	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), `203.0.113.0/99`) {
+		t.Fatalf("Update error = %v, want ErrInvalid naming bad entry", err)
 	}
 }
 
