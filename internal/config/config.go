@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -20,18 +21,19 @@ const (
 )
 
 type Config struct {
-	DatabaseURL  string
-	Listen       string
-	BaseURL      string
-	EventPath    string
-	TrackerPath  string
-	GeoIPPath    string
-	SitesFile    string
-	QueueSize    int
-	FlushEvery   time.Duration
-	SessionFlush time.Duration
-	QueryTimeout time.Duration
-	AdminAPIKey  string
+	DatabaseURL    string
+	Listen         string
+	BaseURL        string
+	EventPath      string
+	TrackerPath    string
+	GeoIPPath      string
+	SitesFile      string
+	QueueSize      int
+	FlushEvery     time.Duration
+	SessionFlush   time.Duration
+	QueryTimeout   time.Duration
+	AdminAPIKey    string
+	TrustedProxies []netip.Prefix
 }
 
 func Load(getenv func(string) string) (Config, error) {
@@ -83,8 +85,29 @@ func Load(getenv func(string) string) (Config, error) {
 	parsePositiveDuration(getenv("PANEL_FLUSH_EVERY"), "PANEL_FLUSH_EVERY", &c.FlushEvery, &errs)
 	parsePositiveDuration(getenv("PANEL_SESSION_FLUSH"), "PANEL_SESSION_FLUSH", &c.SessionFlush, &errs)
 	parsePositiveDuration(getenv("PANEL_QUERY_TIMEOUT"), "PANEL_QUERY_TIMEOUT", &c.QueryTimeout, &errs)
+	if raw := getenv("PANEL_TRUSTED_PROXIES"); raw != "" {
+		for _, item := range strings.Split(raw, ",") {
+			proxy, err := parseTrustedProxy(strings.TrimSpace(item))
+			if err != nil {
+				errs = append(errs, fmt.Errorf("PANEL_TRUSTED_PROXIES: %w", err))
+				continue
+			}
+			c.TrustedProxies = append(c.TrustedProxies, proxy)
+		}
+	}
 
 	return c, errors.Join(errs...)
+}
+
+func parseTrustedProxy(raw string) (netip.Prefix, error) {
+	if prefix, err := netip.ParsePrefix(raw); err == nil {
+		return prefix.Masked(), nil
+	}
+	addr, err := netip.ParseAddr(raw)
+	if err != nil {
+		return netip.Prefix{}, fmt.Errorf("%q is not an IP address or prefix", raw)
+	}
+	return netip.PrefixFrom(addr, addr.BitLen()), nil
 }
 
 func valueOrDefault(value, fallback string) string {

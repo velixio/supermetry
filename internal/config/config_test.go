@@ -1,12 +1,41 @@
 package config
 
 import (
+	"net/netip"
 	"testing"
 	"time"
 )
 
 func env(m map[string]string) func(string) string {
 	return func(k string) string { return m[k] }
+}
+
+func TestLoadTrustedProxies(t *testing.T) {
+	c, err := Load(env(map[string]string{
+		"PANEL_DATABASE_URL":    "postgres://x",
+		"PANEL_BASE_URL":        "https://a.example",
+		"PANEL_TRUSTED_PROXIES": "192.0.2.1, 2001:db8::/32",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []netip.Prefix{netip.MustParsePrefix("192.0.2.1/32"), netip.MustParsePrefix("2001:db8::/32")}
+	if len(c.TrustedProxies) != len(want) {
+		t.Fatalf("TrustedProxies=%v, want %v", c.TrustedProxies, want)
+	}
+	for i := range want {
+		if c.TrustedProxies[i] != want[i] {
+			t.Fatalf("TrustedProxies[%d]=%v, want %v", i, c.TrustedProxies[i], want[i])
+		}
+	}
+
+	if _, err := Load(env(map[string]string{
+		"PANEL_DATABASE_URL":    "postgres://x",
+		"PANEL_BASE_URL":        "https://a.example",
+		"PANEL_TRUSTED_PROXIES": "not-an-address",
+	})); err == nil {
+		t.Fatal("invalid trusted proxy accepted")
+	}
 }
 
 func TestLoadDefaultsAndRequired(t *testing.T) {
