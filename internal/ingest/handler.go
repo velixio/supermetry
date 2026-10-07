@@ -248,6 +248,9 @@ func (h *Handler) clientIP(r *http.Request) (netip.Addr, bool) {
 	if !ok {
 		return netip.Addr{}, false
 	}
+	// A dual-stack listener reports IPv4 peers as IPv4-mapped IPv6
+	// (::ffff:192.168.0.1); unmap before matching IPv4 proxy prefixes.
+	peer = peer.Unmap()
 	if h.proxyTrusted(peer) {
 		first, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
 		if forwarded, err := netip.ParseAddr(strings.TrimSpace(first)); err == nil {
