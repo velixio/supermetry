@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SiteForm } from './SiteForm'
 import { SitesPage, siteActions } from './SitesPage'
+import { renderWithRouter } from '@/test/renderWithRouter'
 
 afterEach(cleanup)
 
@@ -46,18 +47,18 @@ describe('SitesPage', () => {
 
   it('confirms deletion before calling the private API', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined)
-    render(<SitesPage org="acme" role="owner" sites={[site]} onDelete={onDelete} />)
+    renderWithRouter(<SitesPage org="acme" role="owner" sites={[site]} onDelete={onDelete} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Docs' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Docs' }))
     expect(screen.getByRole('alertdialog')).toBeVisible()
     expect(onDelete).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Delete site' }))
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith(7))
   })
 
-  it('guides an empty organization to add its first site', () => {
-    render(<SitesPage org="acme" role="owner" sites={[]} onDelete={vi.fn()} />)
-    expect(screen.getByRole('link', { name: 'Add your first site' })).toHaveAttribute(
+  it('guides an empty organization to add its first site', async () => {
+    renderWithRouter(<SitesPage org="acme" role="owner" sites={[]} onDelete={vi.fn()} />)
+    expect(await screen.findByRole('link', { name: 'Add your first site' })).toHaveAttribute(
       'href',
       '/acme/sites/new',
     )

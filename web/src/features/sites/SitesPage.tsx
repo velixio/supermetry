@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { GlobeIcon, Trash2Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -48,7 +49,7 @@ export function SitesPage({
         <h1 className="text-2xl font-semibold tracking-tight">No sites yet</h1>
         <p className="text-sm text-muted-foreground">Add a site when you are ready to start collecting analytics.</p>
         {role === 'owner' || role === 'admin' ? (
-          <Button asChild><a href={`/${org}/sites/new`}>Add your first site</a></Button>
+          <Button asChild><Link to="/$org/sites/new" params={{ org }}>Add your first site</Link></Button>
         ) : null}
       </section>
     )
@@ -62,7 +63,7 @@ export function SitesPage({
           <p className="text-sm text-muted-foreground">Manage the sites you can access in this organization.</p>
         </div>
         {role === 'owner' || role === 'admin' ? (
-          <Button asChild><a href={`/${org}/sites/new`}>Add site</a></Button>
+          <Button asChild><Link to="/$org/sites/new" params={{ org }}>Add site</Link></Button>
         ) : null}
       </header>
       <ul className="flex flex-col overflow-hidden rounded-xl border bg-card">
@@ -75,8 +76,8 @@ export function SitesPage({
                 <p className="truncate text-xs text-muted-foreground">{site.public_id ?? site.id}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {actions.includes('edit') ? <Button size="sm" variant="outline" asChild><a href={`/${org}/${slug}/settings/general`}>Edit</a></Button> : null}
-                {actions.includes('installation') ? <Button size="sm" variant="outline" asChild><a href={`/${org}/${slug}/settings/installation`}>Installation</a></Button> : null}
+                {actions.includes('edit') ? <Button size="sm" variant="outline" asChild><Link to="/$org/$site/settings/general" params={{ org, site: slug }}>Edit</Link></Button> : null}
+                {actions.includes('installation') ? <Button size="sm" variant="outline" asChild><Link to="/$org/$site/settings/installation" params={{ org, site: slug }}>Installation</Link></Button> : null}
                 {actions.includes('delete') ? (
                   <Button size="sm" variant="outline" aria-label={`Delete ${site.name}`} onClick={() => setPendingDelete(site)}>
                     <Trash2Icon data-icon="inline-start" />Delete

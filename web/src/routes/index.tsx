@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { useCallback, useEffect } from 'react'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { createSite as createManagedSite } from '@/features/sites/api'
@@ -14,6 +14,14 @@ export const Route = createFileRoute('/')({
 
 function IndexPage() {
   const me = useMe()
+  const router = useRouter()
+  const navigate = useCallback(
+    (path: string, replace?: boolean) => {
+      if (replace) router.history.replace(path)
+      else router.history.push(path)
+    },
+    [router],
+  )
 
   if (me.isError) {
     return <OnboardingError detail="Your account could not be loaded." />
@@ -26,7 +34,12 @@ function IndexPage() {
     )
   }
 
-  return <Onboarding me={me.data} />
+  return (
+    <Onboarding
+      me={me.data}
+      navigate={navigate}
+    />
+  )
 }
 
 function siteSlug(site: Me['memberships'][number]['sites'][number]): string {
@@ -47,19 +60,19 @@ function OnboardingError({ detail }: { detail: string }) {
 export function Onboarding({
   me,
   createSite,
-  navigate = (path) => window.location.assign(path),
+  navigate,
 }: {
   me: Me
   createSite?: (input: SiteInput) => Promise<ManagedSite>
-  navigate?: (path: string) => void
+  navigate: (path: string, replace?: boolean) => void
 }) {
   const membership = me.memberships[0]
   const existingSite = membership?.sites[0]
 
   useEffect(() => {
     if (!membership || !existingSite) return
-    window.location.replace(`/${membership.org.slug}/${siteSlug(existingSite)}`)
-  }, [existingSite, membership])
+    navigate(`/${membership.org.slug}/${siteSlug(existingSite)}`, true)
+  }, [existingSite, membership, navigate])
 
   if (!membership) {
     return <OnboardingError detail="Your account does not belong to an organization." />

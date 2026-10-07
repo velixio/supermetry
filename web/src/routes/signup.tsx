@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
+import { applyPreferredTheme } from '@/lib/theme'
 
 import {
   AuthScreen,
@@ -48,7 +49,10 @@ function SignupPage() {
     <SignupPageContent
       signup={signup}
       submit={(input) => postPrivate('/api/private/auth/signup', input)}
-      onSuccess={() => void navigate({ to: '/', replace: true })}
+      onSuccess={() => {
+        applyPreferredTheme()
+        void navigate({ to: '/', replace: true })
+      }}
     />
   )
 }

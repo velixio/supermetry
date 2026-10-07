@@ -127,3 +127,9 @@
     @apply font-sans;
     }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skeleton"] {
+    animation: none;
+  }
+}

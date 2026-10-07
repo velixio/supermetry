@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { LoaderCircleIcon } from 'lucide-react'
 import { z } from 'zod'
 
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { createApi } from '@/lib/api'
+import { applyPreferredTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 
 const loginSearch = z.object({ next: z.string().optional().catch(undefined) })
@@ -108,6 +109,7 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const search = Route.useSearch()
+  const router = useRouter()
   const [signup, setSignup] = useState<SignupMode>()
 
   useEffect(() => {
@@ -130,7 +132,10 @@ function LoginPage() {
         postPrivate('/api/private/auth/login', credentials)
       }
       next={safeNext(search.next ?? '/')}
-      onSuccess={(next) => window.location.assign(next)}
+      onSuccess={(next) => {
+        applyPreferredTheme()
+        router.history.replace(next)
+      }}
       signup={signup}
     />
   )
@@ -146,7 +151,7 @@ export function AuthScreen({
   children: React.ReactNode
 }) {
   return (
-    <main className="grid min-h-dvh place-items-center px-5 py-12">
+    <main className="dark grid min-h-dvh place-items-center bg-background px-5 py-12 text-foreground">
       <section className="flex w-full max-w-sm flex-col gap-8">
         <header className="flex flex-col gap-2 border-l-2 border-accent pl-5">
           <p className="text-sm font-medium text-muted-foreground">{en.appName}</p>

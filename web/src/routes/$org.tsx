@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { queryOptions, useQuery } from '@tanstack/react-query'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 import { AppShell } from '@/components/AppShell'
 import {
@@ -10,6 +10,7 @@ import {
 } from '@/components/Sidebar'
 import type { Role } from '@/components/Sidebar'
 import { api } from '@/lib/api'
+import { queryClient } from '@/lib/queryClient'
 import { en } from '@/messages/en'
 
 export { canCreateSites, navigationHref, organizationHref, visibleNavigation }
@@ -53,19 +54,21 @@ export async function fetchMe(): Promise<Me> {
   return data
 }
 
-export function useMe() {
-  return useQuery({
+export const meQueryOptions = queryOptions({
     queryKey: ['me'],
     queryFn: fetchMe,
     staleTime: 30_000,
     retry: (count, error) => !(error instanceof AuthenticationRequired) && count < 1,
-  })
+})
+
+export function useMe() {
+  return useQuery(meQueryOptions)
 }
 
 export const Route = createFileRoute('/$org')({
   beforeLoad: async ({ location, params }) => {
     try {
-      const me = await fetchMe()
+      const me = await queryClient.ensureQueryData(meQueryOptions)
       if (!me.memberships.some((membership) => membership.org.slug === params.org)) {
         throw new AuthenticationRequired()
       }
@@ -96,11 +99,5 @@ function OrganizationLayout() {
 
   const membership = me.data.memberships.find((item) => item.org.slug === org)
   if (!membership) return null
-  const requestedSite = window.location.pathname.split('/').filter(Boolean)[1]
-
-  return (
-    <AppShell me={me.data} membership={membership} requestedSite={requestedSite}>
-      <Outlet />
-    </AppShell>
-  )
+  return <AppShell me={me.data} membership={membership} />
 }

@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { copyText } from "@/lib/clipboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { ExternalLinkIcon, KeyRoundIcon, ShieldCheckIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -266,10 +267,13 @@ export function SiteLinksPage({
     >
       <Surface>
         <Button asChild className="self-start">
-          <a href={`/${org}/${site}/${kind}`}>
+          <Link
+            to={kind === "goals" ? "/$org/$site/goals" : "/$org/$site/funnels"}
+            params={{ org, site }}
+          >
             {`Open ${kind}`}
             <ExternalLinkIcon data-icon="inline-end" />
-          </a>
+          </Link>
         </Button>
       </Surface>
     </Page>

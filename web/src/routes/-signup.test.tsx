@@ -44,6 +44,7 @@ describe('signup page', () => {
     )
 
     expect(await screen.findByText(/signup is available by invitation only/i)).toBeVisible()
+    expect(screen.getByRole('main')).toHaveClass('dark', 'bg-background', 'text-foreground')
     expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/login')
   })
 

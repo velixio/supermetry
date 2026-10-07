@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Outlet, useRouterState } from '@tanstack/react-router'
 import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -19,19 +20,24 @@ import type { Me, Membership } from '@/routes/$org'
 
 import { PanelSidebar } from './Sidebar'
 
+function sidebarStartsOpen(): boolean {
+  return !document.cookie
+    .split('; ')
+    .some((entry) => entry === 'sidebar_state=false')
+}
+
 export function AppShell({
   me,
   membership,
-  requestedSite,
-  children,
 }: {
   me: Me
   membership: Membership
-  requestedSite?: string
-  children: React.ReactNode
 }) {
   const { theme, toggle } = useTheme()
   const [helpOpen, setHelpOpen] = useState(false)
+  const [sidebarOpen] = useState(sidebarStartsOpen)
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const requestedSite = pathname.split('/').filter(Boolean)[1]
 
   useShortcuts({
     d: toggle,
@@ -40,7 +46,7 @@ export function AppShell({
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={sidebarOpen}>
         <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} />
         <SidebarInset>
           <header className="flex h-14 items-center justify-between border-b px-4">
@@ -66,7 +72,14 @@ export function AppShell({
               </Button>
             </div>
           </header>
-          <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+          <main className="min-w-0 flex-1 p-4 md:p-6">
+            <div
+              key={pathname}
+              className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-150"
+            >
+              <Outlet />
+            </div>
+          </main>
         </SidebarInset>
       </SidebarProvider>
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>

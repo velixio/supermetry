@@ -29,6 +29,12 @@ function renderWithRouter(children: ReactNode) {
 }
 
 describe('login form', () => {
+  it('uses the dark auth surface by default', () => {
+    render(<LoginForm login={vi.fn()} next="/" onSuccess={vi.fn()} />)
+
+    expect(screen.getByRole('main')).toHaveClass('dark', 'bg-background', 'text-foreground')
+  })
+
   it('turns auth network failures into a generic message', async () => {
     await expect(
       authResultMessage(() => Promise.reject(new Error('offline'))),

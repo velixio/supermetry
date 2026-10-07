@@ -8,6 +8,7 @@ import {
   PlusIcon,
   SettingsIcon,
 } from 'lucide-react'
+import { Link, useRouterState } from '@tanstack/react-router'
 
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import type { Me, Membership, Site } from '@/routes/$org'
 import { en } from '@/messages/en'
@@ -83,8 +85,70 @@ export function navigationHref(
   return `${base}${item.suffix}`
 }
 
+export function navigationIsActive(
+  item: NavigationItem,
+  pathname: string,
+  org: string,
+  site: string,
+): boolean {
+  const href = navigationHref(item, org, site)
+  if (item.suffix === '') return pathname === href || pathname === `${href}/`
+  if (item.suffix === '/settings/general') {
+    return pathname.startsWith(`/${org}/${site}/settings/`)
+  }
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 function activeSite(membership: Membership, requested?: string): Site | undefined {
   return membership.sites.find((site) => siteSlug(site) === requested) ?? membership.sites[0]
+}
+
+function navigationLink(
+  item: NavigationItem,
+  org: string,
+  site: string,
+  active: boolean,
+  closeMobile: () => void,
+) {
+  const props = {
+    'aria-current': active ? ('page' as const) : undefined,
+    onClick: closeMobile,
+  }
+  const content = (
+    <>
+      <item.icon />
+      <span>{item.label}</span>
+    </>
+  )
+
+  switch (item.suffix) {
+    case '':
+      return (
+        <Link
+          to="/$org/$site"
+          params={{ org, site }}
+          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+          {...props}
+        >
+          {content}
+        </Link>
+      )
+    case '/funnels':
+      return <Link to="/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
+    case '/realtime':
+      return <Link to="/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
+    case '/goals':
+      return <Link to="/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
+    case '/settings/general':
+      return <Link to="/$org/$site/settings/general" params={{ org, site }} {...props}>{content}</Link>
+    case '/sites':
+      return <Link to="/$org/sites" params={{ org }} {...props}>{content}</Link>
+    case '/health':
+      return <Link to="/$org/health" params={{ org }} {...props}>{content}</Link>
+  }
+
+  const unreachable: never = item
+  return unreachable
 }
 
 export function PanelSidebar({
@@ -98,6 +162,9 @@ export function PanelSidebar({
 }) {
   const site = activeSite(membership, requestedSite)
   const currentSite = site ? siteSlug(site) : ''
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const { setOpenMobile } = useSidebar()
+  const closeMobile = () => setOpenMobile(false)
 
   return (
     <Sidebar collapsible="icon">
@@ -113,7 +180,24 @@ export function PanelSidebar({
             <DropdownMenuGroup>
               {me.memberships.map((item) => (
                 <DropdownMenuItem key={item.org.id} asChild>
-                  <a href={organizationHref(item)}>{item.org.name}</a>
+                  {item.sites[0] ? (
+                    <Link
+                      to="/$org/$site"
+                      params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
+                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+                      onClick={closeMobile}
+                    >
+                      {item.org.name}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/$org"
+                      params={{ org: item.org.slug }}
+                      onClick={closeMobile}
+                    >
+                      {item.org.name}
+                    </Link>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuGroup>
@@ -130,15 +214,26 @@ export function PanelSidebar({
             <DropdownMenuGroup>
               {membership.sites.map((item) => (
                 <DropdownMenuItem key={item.id} asChild>
-                  <a href={`/${membership.org.slug}/${siteSlug(item)}`}>{item.name}</a>
+                  <Link
+                    to="/$org/$site"
+                    params={{ org: membership.org.slug, site: siteSlug(item) }}
+                    search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+                    onClick={closeMobile}
+                  >
+                    {item.name}
+                  </Link>
                 </DropdownMenuItem>
               ))}
               {canCreateSites(membership.role) ? (
                 <DropdownMenuItem asChild>
-                  <a href={`/${membership.org.slug}/sites/new`}>
+                  <Link
+                    to="/$org/sites/new"
+                    params={{ org: membership.org.slug }}
+                    onClick={closeMobile}
+                  >
                     <PlusIcon />
                     {en.navigation.addSite}
-                  </a>
+                  </Link>
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuGroup>
@@ -151,17 +246,28 @@ export function PanelSidebar({
             <SidebarMenu>
               {visibleNavigation(membership.role, Boolean(site)).map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton asChild tooltip={item.label}>
-                    <a
-                      href={navigationHref(
+                  <SidebarMenuButton
+                    asChild
+                    isActive={navigationIsActive(
+                      item,
+                      pathname,
+                      membership.org.slug,
+                      currentSite,
+                    )}
+                    tooltip={item.label}
+                  >
+                    {navigationLink(
+                      item,
+                      membership.org.slug,
+                      currentSite,
+                      navigationIsActive(
                         item,
+                        pathname,
                         membership.org.slug,
                         currentSite,
-                      )}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </a>
+                      ),
+                      closeMobile,
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

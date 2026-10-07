@@ -1,5 +1,6 @@
 import { createRouter } from '@tanstack/react-router'
 
+import { RoutePending } from './components/RoutePending'
 import { routeTree } from './routeTree.gen'
 
 function parseValue(value: string): unknown {
@@ -43,6 +44,11 @@ export function stringifySearch(search: Record<string, unknown>): string {
 export const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
+  defaultPreloadDelay: 50,
+  defaultPreloadStaleTime: 0,
+  defaultPendingComponent: RoutePending,
+  defaultPendingMs: 180,
+  defaultPendingMinMs: 200,
   scrollRestoration: true,
   parseSearch,
   stringifySearch,

@@ -1,29 +1,31 @@
+import { Link } from '@tanstack/react-router'
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TrackingSnippet } from './TrackingSnippet'
 
 const settingsTabs = [
-  ['general', 'General'],
-  ['installation', 'Installation'],
-  ['goals', 'Goals'],
-  ['funnels', 'Funnels'],
-  ['shares', 'Shares'],
-  ['reports', 'Reports'],
+  ['general', 'General', '/$org/$site/settings/general'],
+  ['installation', 'Installation', '/$org/$site/settings/installation'],
+  ['goals', 'Goals', '/$org/$site/settings/goals'],
+  ['funnels', 'Funnels', '/$org/$site/settings/funnels'],
+  ['shares', 'Shares', '/$org/$site/settings/shares'],
+  ['reports', 'Reports', '/$org/$site/settings/reports'],
 ] as const
 
 export function SiteSettingsTabs({ org, site, current }: { org: string; site: string; current: string }) {
   return (
     <nav aria-label="Site settings" className="overflow-x-auto border-b">
       <div role="tablist" className="flex min-w-max gap-5">
-        {settingsTabs.map(([value, label]) => (
-          <a
+        {settingsTabs.map(([value, label, to]) => (
+          <Link
             key={value}
-            role="tab"
-            aria-selected={current === value}
-            className="border-b-2 border-transparent px-0.5 py-3 text-sm font-medium text-muted-foreground aria-selected:border-accent aria-selected:text-foreground"
-            href={`/${org}/${site}/settings/${value}`}
+            aria-current={current === value ? 'page' : undefined}
+            className="border-b-2 border-transparent px-0.5 py-3 text-sm font-medium text-muted-foreground aria-current-page:border-accent aria-current-page:text-foreground"
+            to={to}
+            params={{ org, site }}
           >
             {label}
-          </a>
+          </Link>
         ))}
       </div>
     </nav>

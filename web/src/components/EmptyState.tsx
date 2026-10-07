@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+
 import { Button } from '@/components/ui/button'
 
 type EmptyStateProps = {
@@ -10,7 +12,7 @@ export function EmptyState({ trackingHref }: EmptyStateProps) {
       <p className="text-sm text-muted-foreground">No data for this date range.</p>
       {trackingHref ? (
         <Button asChild size="sm" variant="outline">
-          <a href={trackingHref}>Set up tracking</a>
+          <Link to={trackingHref}>Set up tracking</Link>
         </Button>
       ) : null}
     </div>
