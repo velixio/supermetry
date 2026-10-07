@@ -21,3 +21,14 @@ bench/results/codex-*.log
 *.pyc
 bench/rig/plausible/ce/
 .codex-runs/
+bench/results/final/.state/
+bench/results/final/artifacts/.archive/
+bench/**/*.log.gz
+bench/results/final/artifacts/**/api-key
+bench/results/final/artifacts/**/secrets.txt
+bench/results/final/artifacts/**/*.ndjson
+bench/results/final/artifacts/**/*.log
+bench/results/final/artifacts/**/schema.sql
+bench/results/final/artifacts/**/generator-truth.json
+bench/results/final/artifacts/**/*.jsonl
+bench/results/final/artifacts/**/*inspect*.json
