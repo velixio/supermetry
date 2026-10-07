@@ -36,6 +36,8 @@ describe('site settings', () => {
 
     expect(screen.getByText('✓ Last event 20 seconds ago')).toBeVisible()
     expect(screen.getByText(/proxy the script through your own domain/i)).toBeVisible()
+    expect(screen.getByText('Track custom clicks')).toBeVisible()
+    expect(screen.getByText(/data-panel-event="Signup"/)).toBeVisible()
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js / React' }), {
       button: 0,
       ctrlKey: false,

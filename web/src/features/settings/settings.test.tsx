@@ -1,12 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiKeySecretDialog } from "./ApiKeySecretDialog";
 import { MemberRoleSelect } from "./MemberRoleSelect";
 import { TotpQr } from "./TotpQr";
 import { TrackingSnippet } from "./TrackingSnippet";
+
+afterEach(cleanup);
 
 describe("settings security boundaries", () => {
   it("removes an API key secret from the DOM when the shown-once dialog closes", () => {
@@ -54,6 +56,29 @@ describe("settings security boundaries", () => {
     expect(writeText).toHaveBeenCalledWith(
       expect.stringContaining("site_public_42"),
     );
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining("/js/script.full.js"),
+    );
+  });
+
+  it("switches between the server full and core snippets", () => {
+    const view = render(
+      <TrackingSnippet
+        publicId="site_public_42"
+        snippet='<script src="https://stats.example/js/custom.js"></script>'
+        fullSnippet='<script src="https://stats.example/js/custom.full.js"></script>'
+      />,
+    );
+
+    const checkbox = view.getByRole("checkbox", {
+      name: /track outbound links, downloads and clicks/i,
+    });
+    expect(checkbox).toBeChecked();
+    expect(view.getByText(/custom\.full\.js/)).toBeVisible();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+    expect(view.getByText(/custom\.js/)).toBeVisible();
   });
 
   it("renders a TOTP QR locally without a network request", () => {
