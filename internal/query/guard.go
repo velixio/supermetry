@@ -1,0 +1,317 @@
+package query
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"panel/internal/api"
+	"panel/internal/sites"
+)
+
+const (
+	defaultLimit  = 100
+	maxLimit      = 1000
+	maxRangeDays  = 366
+	maxDimensions = 3
+	maxFilters    = 10
+)
+
+var validDimensions = map[string]struct{}{
+	"browser":      {},
+	"country":      {},
+	"device":       {},
+	"entry":        {},
+	"event":        {},
+	"exit":         {},
+	"goal":         {},
+	"os":           {},
+	"page":         {},
+	"path":         {},
+	"prop":         {},
+	"source":       {},
+	"time":         {},
+	"utm_campaign": {},
+	"utm_medium":   {},
+	"utm_source":   {},
+}
+
+// Normalized is a validated query with an inclusive civil-date range and
+// concrete defaults. From and To encode date labels at UTC midnight; callers
+// must use Location when deriving real timestamp boundaries for those dates.
+type Normalized struct {
+	SiteID     int32
+	From       time.Time
+	To         time.Time
+	Location   *time.Location
+	Metrics    []api.Metric
+	Dimensions []string
+	Filters    []api.Filter
+	OrderBy    []api.OrderBy
+	Limit      int
+	Cursor     *string
+	Compare    *api.QueryRequestCompare
+}
+
+// Normalize validates req and resolves its date range in the requested time
+// zone, defaulting to the site's time zone.
+func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized, *api.Problem) {
+	location, problem := queryLocation(req.Timezone, site.TZ)
+	if problem != nil {
+		return Normalized{}, problem
+	}
+	if req.SiteId != site.ID {
+		return Normalized{}, badQuery("site_id does not match the requested site")
+	}
+	if len(req.Metrics) == 0 {
+		return Normalized{}, badQuery("at least one metric is required")
+	}
+	for _, metric := range req.Metrics {
+		if !metric.Valid() {
+			return Normalized{}, badQuery(fmt.Sprintf("unknown metric %q", metric))
+		}
+	}
+
+	from, to, problem := normalizeRange(req, location, now)
+	if problem != nil {
+		return Normalized{}, problem
+	}
+	if from.After(to) {
+		return Normalized{}, badQuery("date_range.from must not be after date_range.to")
+	}
+	if daysInclusive(from, to) > maxRangeDays {
+		return Normalized{}, badQuery("date range must not exceed 366 days")
+	}
+
+	dimensions := copyValues(req.Dimensions)
+	if len(dimensions) > maxDimensions {
+		return Normalized{}, badQuery("at most 3 dimensions are allowed")
+	}
+	for _, dimension := range dimensions {
+		if !knownDimension(dimension) {
+			return Normalized{}, badQuery(fmt.Sprintf("unknown dimension %q", dimension))
+		}
+	}
+
+	filters := copyValues(req.Filters)
+	if len(filters) > maxFilters {
+		return Normalized{}, badQuery("at most 10 filters are allowed")
+	}
+	for _, filter := range filters {
+		if !knownDimension(filter.Dimension) {
+			return Normalized{}, badQuery(fmt.Sprintf("unknown filter dimension %q", filter.Dimension))
+		}
+		if !filter.Operator.Valid() {
+			return Normalized{}, badQuery(fmt.Sprintf("unknown filter operator %q", filter.Operator))
+		}
+		if len(filter.Values) == 0 {
+			return Normalized{}, badQuery(fmt.Sprintf("filter %q must contain at least one value", filter.Dimension))
+		}
+	}
+
+	limit := defaultLimit
+	if req.Limit != nil {
+		limit = *req.Limit
+	}
+	if limit < 1 || limit > maxLimit {
+		return Normalized{}, badQuery("limit must be between 1 and 1000")
+	}
+	if req.Compare != nil && !req.Compare.Valid() {
+		return Normalized{}, badQuery(fmt.Sprintf("unknown comparison %q", *req.Compare))
+	}
+
+	orderBy := copyValues(req.OrderBy)
+	for _, order := range orderBy {
+		if order.Direction != nil && !order.Direction.Valid() {
+			return Normalized{}, badQuery(fmt.Sprintf("unknown order direction %q", *order.Direction))
+		}
+		if !containsDimension(dimensions, order.Column) && !containsMetric(req.Metrics, order.Column) {
+			return Normalized{}, badQuery(fmt.Sprintf("order_by column %q is not requested", order.Column))
+		}
+	}
+
+	return Normalized{
+		SiteID:     req.SiteId,
+		From:       from,
+		To:         to,
+		Location:   location,
+		Metrics:    append([]api.Metric(nil), req.Metrics...),
+		Dimensions: dimensions,
+		Filters:    filters,
+		OrderBy:    orderBy,
+		Limit:      limit,
+		Cursor:     clonePointer(req.Cursor),
+		Compare:    clonePointer(req.Compare),
+	}, nil
+}
+
+func queryLocation(requested *string, siteLocation *time.Location) (*time.Location, *api.Problem) {
+	if requested != nil {
+		location, err := time.LoadLocation(*requested)
+		if err != nil {
+			return nil, badQuery(fmt.Sprintf("invalid timezone %q", *requested))
+		}
+		return location, nil
+	}
+	if siteLocation == nil {
+		return nil, badQuery("site timezone is not configured")
+	}
+	return siteLocation, nil
+}
+
+func normalizeRange(req api.QueryRequest, location *time.Location, now time.Time) (time.Time, time.Time, *api.Problem) {
+	if req.DateRange != nil && req.Period != nil {
+		return time.Time{}, time.Time{}, badQuery("provide either date_range or period, not both")
+	}
+	if req.DateRange != nil {
+		from := civilDate(req.DateRange.From.Time)
+		to := civilDate(req.DateRange.To.Time)
+		if from.IsZero() || to.IsZero() {
+			return time.Time{}, time.Time{}, badQuery("date_range.from and date_range.to are required")
+		}
+		return from, to, nil
+	}
+	if req.Period == nil {
+		return time.Time{}, time.Time{}, badQuery("date_range or period is required")
+	}
+	if !req.Period.Valid() || *req.Period == api.Custom {
+		return time.Time{}, time.Time{}, badQuery(fmt.Sprintf("unknown period %q", *req.Period))
+	}
+
+	today := civilDate(now.In(location))
+	switch *req.Period {
+	case api.Today:
+		return today, today, nil
+	case api.Yesterday:
+		yesterday := today.AddDate(0, 0, -1)
+		return yesterday, yesterday, nil
+	case api.N7d:
+		return today.AddDate(0, 0, -6), today, nil
+	case api.N30d:
+		return today.AddDate(0, 0, -29), today, nil
+	case api.Month:
+		return time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC), today, nil
+	case api.LastMonth:
+		startThisMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC)
+		return startThisMonth.AddDate(0, -1, 0), startThisMonth.AddDate(0, 0, -1), nil
+	case api.N12mo:
+		return today.AddDate(-1, 0, 1), today, nil
+	case api.Year:
+		return time.Date(today.Year(), time.January, 1, 0, 0, 0, 0, time.UTC), today, nil
+	default:
+		return time.Time{}, time.Time{}, badQuery(fmt.Sprintf("unknown period %q", *req.Period))
+	}
+}
+
+func civilDate(value time.Time) time.Time {
+	if value.IsZero() {
+		return time.Time{}
+	}
+	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func daysInclusive(from, to time.Time) int {
+	fromCivil := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC)
+	toCivil := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, time.UTC)
+	return int(toCivil.Sub(fromCivil)/(24*time.Hour)) + 1
+}
+
+func knownDimension(dimension string) bool {
+	if _, ok := validDimensions[dimension]; ok {
+		return true
+	}
+	return strings.HasPrefix(dimension, "prop:")
+}
+
+func containsDimension(dimensions []string, value string) bool {
+	for _, dimension := range dimensions {
+		if dimension == value {
+			return true
+		}
+	}
+	return false
+}
+
+func containsMetric(metrics []api.Metric, value string) bool {
+	for _, metric := range metrics {
+		if string(metric) == value {
+			return true
+		}
+	}
+	return false
+}
+
+func copyValues[T any](values *[]T) []T {
+	if values == nil {
+		return nil
+	}
+	return append([]T(nil), (*values)...)
+}
+
+func clonePointer[T any](value *T) *T {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
+}
+
+func badQuery(detail string) *api.Problem {
+	return &api.Problem{
+		Type:   "https://panel.dev/problems/invalid-query",
+		Title:  "Invalid query",
+		Status: 400,
+		Detail: &detail,
+	}
+}
+
+// EscapeLike escapes PostgreSQL LIKE metacharacters for use with
+// LIKE ... ESCAPE '\'.
+func EscapeLike(value string) string {
+	return strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(value)
+}
+
+// WithStatementTimeout runs fn in a transaction with a transaction-local
+// PostgreSQL statement timeout. Any error rolls the transaction back.
+func WithStatementTimeout(ctx context.Context, pool *pgxpool.Pool, timeout time.Duration, fn func(pgx.Tx) error) error {
+	if timeout <= 0 {
+		return errors.New("query timeout must be positive")
+	}
+	timeoutMS := max(timeout.Milliseconds(), 1)
+	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "set local statement_timeout = '"+strconv.FormatInt(timeoutMS, 10)+"ms'"); err != nil {
+			return fmt.Errorf("set query statement timeout: %w", err)
+		}
+		return fn(tx)
+	})
+}
+
+// QueryProblem maps a PostgreSQL or context query timeout to the public 503
+// problem. Other errors are left for the API's general error handling.
+func QueryProblem(err error) *api.Problem {
+	if !isQueryTimeout(err) {
+		return nil
+	}
+	detail := "the query exceeded its execution time limit"
+	return &api.Problem{
+		Type:   "https://panel.dev/problems/query-timeout",
+		Title:  "Query timed out",
+		Status: 503,
+		Detail: &detail,
+	}
+}
+
+func isQueryTimeout(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var pgError *pgconn.PgError
+	return errors.As(err, &pgError) && pgError.Code == "57014"
+}
