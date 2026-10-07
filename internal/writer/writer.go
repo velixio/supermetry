@@ -139,12 +139,12 @@ func (w *Writer) Run(ctx context.Context) error {
 
 	sessionDone := make(chan error, 1)
 	go func() { sessionDone <- w.runSessions(ctx) }()
-	eventErr := w.runEvents(ctx)
+	eventErr := w.runEvents(ctx, w.copyEvents)
 	sessionErr := <-sessionDone
 	return errors.Join(eventErr, sessionErr)
 }
 
-func (w *Writer) runEvents(ctx context.Context) error {
+func (w *Writer) runEvents(ctx context.Context, write func(context.Context, []Event) error) error {
 	timer := time.NewTimer(w.flushEvery)
 	defer timer.Stop()
 	batch := make([]Event, 0, batchSize)
@@ -154,8 +154,8 @@ func (w *Writer) runEvents(ctx context.Context) error {
 		case event := <-w.ch:
 			batch = append(batch, event)
 			if len(batch) == batchSize {
-				if err := w.retryEvents(ctx, batch); err != nil {
-					return w.shutdownEvents(batch)
+				if err := w.retryEvents(ctx, context.WithoutCancel(ctx), batch, write); err != nil {
+					return w.shutdownEvents(batch, write)
 				}
 				w.release(batch)
 				batch = batch[:0]
@@ -163,27 +163,27 @@ func (w *Writer) runEvents(ctx context.Context) error {
 			}
 		case <-timer.C:
 			if len(batch) != 0 {
-				if err := w.retryEvents(ctx, batch); err != nil {
-					return w.shutdownEvents(batch)
+				if err := w.retryEvents(ctx, context.WithoutCancel(ctx), batch, write); err != nil {
+					return w.shutdownEvents(batch, write)
 				}
 				w.release(batch)
 				batch = batch[:0]
 			}
 			timer.Reset(w.flushEvery)
 		case <-ctx.Done():
-			return w.shutdownEvents(batch)
+			return w.shutdownEvents(batch, write)
 		}
 	}
 }
 
-func (w *Writer) shutdownEvents(batch []Event) error {
+func (w *Writer) shutdownEvents(batch []Event, write func(context.Context, []Event) error) error {
 	w.stopAccepting()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	for {
 		if len(batch) != 0 {
-			if err := w.retryEvents(shutdownCtx, batch); err != nil {
+			if err := w.retryEvents(shutdownCtx, shutdownCtx, batch, write); err != nil {
 				return fmt.Errorf("flush events at shutdown: %w", err)
 			}
 			w.release(batch)
@@ -221,13 +221,19 @@ func (w *Writer) stopAccepting() {
 	w.stateMu.Unlock()
 }
 
-func (w *Writer) retryEvents(ctx context.Context, batch []Event) error {
+func (w *Writer) retryEvents(waitCtx, attemptCtx context.Context, batch []Event, write func(context.Context, []Event) error) error {
+	return retryOperation(waitCtx, attemptCtx, func(ctx context.Context) error {
+		return write(ctx, batch)
+	})
+}
+
+func retryOperation(waitCtx, attemptCtx context.Context, operation func(context.Context) error) error {
 	backoff := initialBackoff
 	for {
-		if err := w.copyEvents(ctx, batch); err == nil {
+		if err := operation(attemptCtx); err == nil {
 			return nil
 		}
-		if err := waitBackoff(ctx, backoff); err != nil {
+		if err := waitBackoff(waitCtx, backoff); err != nil {
 			return err
 		}
 		backoff = min(backoff*2, maximumBackoff)
