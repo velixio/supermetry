@@ -16,6 +16,10 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
+import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
+import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
+import { Route as OrgSiteFunnelsIndexRouteImport } from './routes/$org.$site.funnels.index'
+import { Route as OrgSiteFunnelsIdRouteImport } from './routes/$org.$site.funnels.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +56,26 @@ const OrgSiteIndexRoute = OrgSiteIndexRouteImport.update({
   path: '/$site/',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSiteGoalsRoute = OrgSiteGoalsRouteImport.update({
+  id: '/$site/goals',
+  path: '/$site/goals',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteRealtimeRoute = OrgSiteRealtimeRouteImport.update({
+  id: '/$site/realtime',
+  path: '/$site/realtime',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteFunnelsIndexRoute = OrgSiteFunnelsIndexRouteImport.update({
+  id: '/$site/funnels/',
+  path: '/$site/funnels/',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteFunnelsIdRoute = OrgSiteFunnelsIdRouteImport.update({
+  id: '/$site/funnels/$id',
+  path: '/$site/funnels/$id',
+  getParentRoute: () => OrgRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,7 +84,11 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
+  '/$org/$site/goals': typeof OrgSiteGoalsRoute
+  '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,7 +97,11 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
+  '/$org/$site/goals': typeof OrgSiteGoalsRoute
+  '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site': typeof OrgSiteIndexRoute
+  '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/funnels': typeof OrgSiteFunnelsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -79,7 +111,11 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
+  '/$org/$site/goals': typeof OrgSiteGoalsRoute
+  '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,7 +126,11 @@ export interface FileRouteTypes {
     | '/setup'
     | '/invite/$token'
     | '/reset/$token'
+    | '/$org/$site/goals'
+    | '/$org/$site/realtime'
     | '/$org/$site/'
+    | '/$org/$site/funnels/$id'
+    | '/$org/$site/funnels/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -99,7 +139,11 @@ export interface FileRouteTypes {
     | '/setup'
     | '/invite/$token'
     | '/reset/$token'
+    | '/$org/$site/goals'
+    | '/$org/$site/realtime'
     | '/$org/$site'
+    | '/$org/$site/funnels/$id'
+    | '/$org/$site/funnels'
   id:
     | '__root__'
     | '/'
@@ -108,7 +152,11 @@ export interface FileRouteTypes {
     | '/setup'
     | '/invite/$token'
     | '/reset/$token'
+    | '/$org/$site/goals'
+    | '/$org/$site/realtime'
     | '/$org/$site/'
+    | '/$org/$site/funnels/$id'
+    | '/$org/$site/funnels/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,15 +219,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteIndexRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/$site/goals': {
+      id: '/$org/$site/goals'
+      path: '/$site/goals'
+      fullPath: '/$org/$site/goals'
+      preLoaderRoute: typeof OrgSiteGoalsRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/realtime': {
+      id: '/$org/$site/realtime'
+      path: '/$site/realtime'
+      fullPath: '/$org/$site/realtime'
+      preLoaderRoute: typeof OrgSiteRealtimeRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/funnels/': {
+      id: '/$org/$site/funnels/'
+      path: '/$site/funnels'
+      fullPath: '/$org/$site/funnels/'
+      preLoaderRoute: typeof OrgSiteFunnelsIndexRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/funnels/$id': {
+      id: '/$org/$site/funnels/$id'
+      path: '/$site/funnels/$id'
+      fullPath: '/$org/$site/funnels/$id'
+      preLoaderRoute: typeof OrgSiteFunnelsIdRouteImport
+      parentRoute: typeof OrgRoute
+    }
   }
 }
 
 interface OrgRouteChildren {
+  OrgSiteGoalsRoute: typeof OrgSiteGoalsRoute
+  OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
   OrgSiteIndexRoute: typeof OrgSiteIndexRoute
+  OrgSiteFunnelsIdRoute: typeof OrgSiteFunnelsIdRoute
+  OrgSiteFunnelsIndexRoute: typeof OrgSiteFunnelsIndexRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
+  OrgSiteGoalsRoute: OrgSiteGoalsRoute,
+  OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
   OrgSiteIndexRoute: OrgSiteIndexRoute,
+  OrgSiteFunnelsIdRoute: OrgSiteFunnelsIdRoute,
+  OrgSiteFunnelsIndexRoute: OrgSiteFunnelsIndexRoute,
 }
 
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
