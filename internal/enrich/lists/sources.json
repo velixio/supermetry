@@ -1,0 +1,9 @@
+[
+  {"name":"Google","medium":"organic","domains":["google.com","google.co.uk","google.co.in","google.ca","google.com.au","google.de","google.fr","google.co.jp"]},
+  {"name":"Bing","medium":"organic","domains":["bing.com"]},
+  {"name":"Yahoo!","medium":"organic","domains":["search.yahoo.com","yahoo.com"]},
+  {"name":"DuckDuckGo","medium":"organic","domains":["duckduckgo.com"]},
+  {"name":"Baidu","medium":"organic","domains":["baidu.com"]},
+  {"name":"Yandex","medium":"organic","domains":["yandex.com","yandex.ru"]},
+  {"name":"Ecosia","medium":"organic","domains":["ecosia.org"]}
+]

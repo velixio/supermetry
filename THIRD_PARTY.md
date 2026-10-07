@@ -6,6 +6,8 @@
 - `github.com/jackc/pgpassfile` v1.0.0 — Copyright (c) 2019 Jack Christensen
 - `github.com/jackc/pgservicefile` — Copyright (c) 2020 Jack Christensen
 - `github.com/jackc/puddle/v2` v2.2.2 — Copyright (c) 2018 Jack Christensen
+- `github.com/mileusna/useragent` v1.3.5 — Copyright (c) 2017 Miloš Mileusnić
+- `monperrus/crawler-user-agents` dataset — Copyright (c) 2017 Martin Monperrus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +29,8 @@ SOFTWARE.
 
 ## BSD-3-Clause dependencies
 
-- `golang.org/x/sync` v0.17.0
+- `golang.org/x/sync` v0.23.0
+- `golang.org/x/sys` v0.48.0
 - `golang.org/x/text` v0.29.0
 
 Copyright 2009 The Go Authors.
@@ -54,3 +57,34 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## ISC-licensed dependencies
+
+- `github.com/oschwald/maxminddb-golang/v2` v2.7.0 — Copyright (c) 2015,
+  Gregory J. Oschwald
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+## CC BY 4.0 data
+
+- DB-IP IP to Country Lite database, refreshed monthly and bundled without
+  modification. IP Geolocation by [DB-IP](https://db-ip.com). Licensed under
+  [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+
+## Public-domain and public data
+
+- `matomo-org/referrer-spam-list` is dedicated to the public domain.
+- Datacenter CIDRs are generated from the providers' published public IP range
+  files: AWS `ip-ranges.json`, Google Cloud `cloud.json`, Microsoft Azure
+  `ServiceTags_Public`, Oracle Cloud `public_ip_ranges.json`, and Cloudflare's
+  IPv4 and IPv6 lists.
