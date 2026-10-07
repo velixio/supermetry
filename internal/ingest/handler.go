@@ -106,6 +106,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if reason := h.Enricher.Bot(ua, ip, payload.Referrer); reason != enrich.BotNone {
 		Bots[reason].Add(1)
 		health.BotsFiltered[reason].Add(1)
+		if h.Diag {
+			h.logBotDrop(reason, ip)
+		}
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}

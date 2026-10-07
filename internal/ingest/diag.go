@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+
+	"panel/internal/enrich"
 )
 
 // logDiag records how a client address was resolved. It never writes a public
@@ -22,7 +24,7 @@ func (h *Handler) logDiag(r *http.Request, ip netip.Addr) {
 		"x_real_ip", maskHeader(r.Header.Get("X-Real-IP")),
 		"cf", maskHeader(r.Header.Get("CF-Connecting-IP")),
 		"forwarded", maskHeader(r.Header.Get("Forwarded")),
-		"country", h.Enricher.Country(ip) != "",
+		"country", countryOrDash(h.Enricher.Country(ip)),
 	)
 }
 
@@ -93,4 +95,26 @@ func parseHop(tok string) (netip.Addr, bool) {
 		}
 	}
 	return netip.Addr{}, false
+}
+
+func countryOrDash(c string) string {
+	if c == "" {
+		return "-"
+	}
+	return c
+}
+
+// logBotDrop explains why an event was accepted but discarded as a bot. The
+// network organisation (never the address) shows which list matched.
+func (h *Handler) logBotDrop(reason enrich.BotReason, ip netip.Addr) {
+	names := map[enrich.BotReason]string{
+		enrich.BotUserAgent:    "crawler_user_agent",
+		enrich.BotHeadless:     "headless_browser",
+		enrich.BotSpamReferrer: "spam_referrer",
+	}
+	slog.Info("ingest dropped as bot",
+		"reason", names[reason],
+		"country", countryOrDash(h.Enricher.Country(ip)),
+		"asn_org", h.Enricher.ASN(ip).Organization,
+	)
 }
