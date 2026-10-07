@@ -41,3 +41,5 @@ web/e2e/screenshots/
 web/test-results/
 web/playwright-report/
 !.env.example
+/bin/
+web/node_modules
