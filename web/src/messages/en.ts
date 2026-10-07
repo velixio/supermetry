@@ -26,6 +26,13 @@ export const en = {
     resetDescription: 'Use a strong password you have not used before.',
     resetPassword: 'Reset password',
     success: 'Your changes were saved.',
+    signupHeading: 'Create your Panel account',
+    signupDescription: 'Create an account and an organization for your sites.',
+    createAccount: 'Create account',
+    creatingAccount: 'Creating account…',
+    signupError: 'Account creation failed. Check your details and try again.',
+    inviteOnly: 'Public signup is available by invitation only.',
+    backToLogin: 'Sign in',
   },
   navigation: {
     dashboard: 'Dashboard',

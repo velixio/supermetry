@@ -12,6 +12,12 @@ import (
 	platformcrypto "panel/internal/platform/crypto"
 )
 
+func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
+	var required bool
+	err := a.store.Pool.QueryRow(ctx, `select not exists(select 1 from users)`).Scan(&required)
+	return required, err
+}
+
 func (a *Auth) SetupURL(ctx context.Context) (string, bool) {
 	var usersExist bool
 	if err := a.store.Pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&usersExist); err != nil || usersExist {

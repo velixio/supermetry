@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -52,19 +53,21 @@ type Deps struct {
 	// SecureCookies forces the Secure flag on every cookie. Set it when
 	// PANEL_BASE_URL is https so production never downgrades, even behind a
 	// proxy that omits X-Forwarded-Proto.
-	SecureCookies bool
-	Authenticator Authenticator
-	Sites         coresites.Registry
-	Mutations     MutationService
-	Store         *store.Store
-	Definitions   interface{ Invalidate() error }
-	Auth          *platformauth.Auth
-	Orgs          *orgs.Orgs
-	Keys          *keys.Keys
-	Invites       *invites.Invites
-	Shares        *shares.Shares
-	Reports       *reports.Reports
-	Query         interface {
+	SecureCookies  bool
+	Signup         string
+	TrustedProxies []netip.Prefix
+	Authenticator  Authenticator
+	Sites          coresites.Registry
+	Mutations      MutationService
+	Store          *store.Store
+	Definitions    interface{ Invalidate() error }
+	Auth           *platformauth.Auth
+	Orgs           *orgs.Orgs
+	Keys           *keys.Keys
+	Invites        *invites.Invites
+	Shares         *shares.Shares
+	Reports        *reports.Reports
+	Query          interface {
 		Query(context.Context, api.QueryRequest) (api.QueryResponse, error)
 	}
 }
@@ -343,7 +346,7 @@ func csrf(next http.Handler) http.Handler {
 
 func csrfExempt(path string) bool {
 	switch path {
-	case "/api/private/auth/login", "/api/private/auth/password-reset", "/api/private/auth/password-reset/confirm", "/api/private/setup":
+	case "/api/private/auth/login", "/api/private/auth/signup", "/api/private/auth/password-reset", "/api/private/auth/password-reset/confirm", "/api/private/setup":
 		return true
 	default:
 		return strings.HasPrefix(path, "/api/private/invitations/") && strings.HasSuffix(path, "/accept") ||

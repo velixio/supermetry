@@ -9,6 +9,41 @@ type PrivatePaths = {
       ? Path
       : never]: paths[Path]
 } & {
+  '/api/private/auth/config': {
+    get: {
+      responses: {
+        200: {
+          content: {
+            'application/json': {
+              signup: 'open' | 'invite'
+              setup_required: boolean
+            }
+          }
+        }
+      }
+    }
+  }
+  '/api/private/auth/signup': {
+    post: {
+      requestBody: {
+        content: {
+          'application/json': {
+            email: string
+            name: string
+            password: string
+            org_name: string
+          }
+        }
+      }
+      responses: {
+        201: {
+          content: {
+            'application/json': { authenticated: boolean }
+          }
+        }
+      }
+    }
+  }
   '/api/private/me': {
     get: {
       responses: {

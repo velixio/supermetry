@@ -138,7 +138,9 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		mux.Handle(pattern, public)
 	}
 	for _, pattern := range []string{
+		"GET " + privatePrefix + "/auth/config",
 		"POST " + privatePrefix + "/auth/login",
+		"POST " + privatePrefix + "/auth/signup",
 		"POST " + privatePrefix + "/auth/logout",
 		"POST " + privatePrefix + "/auth/password-reset",
 		"POST " + privatePrefix + "/auth/password-reset/confirm",

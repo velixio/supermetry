@@ -105,6 +105,17 @@ func TestLoginRateLimitUsesClientKey(t *testing.T) {
 	}
 }
 
+func TestSignupRateLimitUsesClientKey(t *testing.T) {
+	env := newAuth(t)
+	clientCtx := auth.WithClientKey(ctx, "ephemeral-signup-client-hash")
+	for i := 0; i < 20; i++ {
+		_, _ = env.a.Signup(clientCtx, "", "", "", "", "")
+	}
+	if _, err := env.a.Signup(clientCtx, "new@example.test", "New", "pw-123456789", "New org", ""); !errors.Is(err, auth.ErrRateLimited) {
+		t.Fatalf("21st client attempt must be limited, got %v", err)
+	}
+}
+
 func TestLoginTruncatesDeviceLabelAtUTF8Boundary(t *testing.T) {
 	env := newAuth(t)
 	createUser(t, env, "u@x.io", "pw-123456789")

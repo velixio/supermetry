@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrgRouteImport } from './routes/$org'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as OrgHealthRouteImport } from './routes/$org.health'
 import { Route as AccountProfileRouteImport } from './routes/account.profile'
 import { Route as AccountSecurityRouteImport } from './routes/account.security'
@@ -54,6 +55,11 @@ const LoginRoute = LoginRouteImport.update({
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgHealthRoute = OrgHealthRouteImport.update({
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/$org': typeof OrgRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/$org': typeof OrgRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   '/$org': typeof OrgRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
     | '/$org'
     | '/login'
     | '/setup'
+    | '/signup'
     | '/$org/health'
     | '/account/profile'
     | '/account/security'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/$org'
     | '/login'
     | '/setup'
+    | '/signup'
     | '/$org/health'
     | '/account/profile'
     | '/account/security'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/$org'
     | '/login'
     | '/setup'
+    | '/signup'
     | '/$org/health'
     | '/account/profile'
     | '/account/security'
@@ -344,6 +356,7 @@ export interface RootRouteChildren {
   OrgRoute: typeof OrgRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  SignupRoute: typeof SignupRoute
   AccountProfileRoute: typeof AccountProfileRoute
   AccountSecurityRoute: typeof AccountSecurityRoute
   AccountSessionsRoute: typeof AccountSessionsRoute
@@ -380,6 +393,13 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$org/health': {
@@ -584,6 +604,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrgRoute: OrgRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  SignupRoute: SignupRoute,
   AccountProfileRoute: AccountProfileRoute,
   AccountSecurityRoute: AccountSecurityRoute,
   AccountSessionsRoute: AccountSessionsRoute,

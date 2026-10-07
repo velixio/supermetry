@@ -19,7 +19,7 @@ const (
 	defaultFlushEvery   = time.Second
 	defaultSessionFlush = 10 * time.Second
 	defaultQueryTimeout = 10 * time.Second
-	defaultSignup       = "invite"
+	defaultSignup       = "open"
 	defaultSMTPPort     = 587
 )
 

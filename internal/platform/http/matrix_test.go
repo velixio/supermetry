@@ -15,8 +15,11 @@ import (
 	"panel/internal/config"
 	"panel/internal/db"
 	"panel/internal/ingest"
+	platformauth "panel/internal/platform/auth"
 	"panel/internal/platform/authz"
+	platformcrypto "panel/internal/platform/crypto"
 	platformhttp "panel/internal/platform/http"
+	"panel/internal/platform/mail"
 	"panel/internal/platform/orgs"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
@@ -149,6 +152,126 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestAnonymousAuthRouteMatrix(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authService := platformauth.New(data, &mail.Fake{}, box, "https://panel.example")
+
+	tests := []struct {
+		name   string
+		signup string
+		method string
+		path   string
+		body   string
+		want   int
+	}{
+		{name: "config is anonymous", signup: "open", method: http.MethodGet, path: "/api/private/auth/config", want: http.StatusOK},
+		{name: "signup is anonymous when open", signup: "open", method: http.MethodPost, path: "/api/private/auth/signup", body: `{"email":"owner@example.test","name":"Owner","password":"pw-123456789","org_name":"Acme"}`, want: http.StatusCreated},
+		{name: "signup is hidden when invite only", signup: "invite", method: http.MethodPost, path: "/api/private/auth/signup", body: `{"email":"other@example.test","name":"Other","password":"pw-123456789","org_name":"Other"}`, want: http.StatusNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			platform := platformhttp.New(platformhttp.Deps{Auth: authService, Signup: tt.signup})
+			handler := api.NewRouter(api.Deps{Platform: platform})
+			request := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			request.Header.Set("Content-Type", "application/json")
+			request.RemoteAddr = "192.0.2.10:12345"
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != tt.want {
+				t.Fatalf("status=%d body=%s, want %d", response.Code, response.Body.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authService := platformauth.New(data, &mail.Fake{}, box, "https://panel.example")
+	handler := platformhttp.New(platformhttp.Deps{Auth: authService, Signup: "open"})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/private/auth/signup", strings.NewReader(`{"email":"owner@example.test","name":"Owner","password":"pw-123456789","org_name":"Acme"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.RemoteAddr = "192.0.2.10:12345"
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	var orgs, owners, audits, sessions int
+	if err := pool.QueryRow(ctx, `select count(*) from orgs`).Scan(&orgs); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `select count(*) from memberships where role='owner'`).Scan(&owners); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `select count(*) from audit_log`).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `select count(*) from user_sessions`).Scan(&sessions); err != nil {
+		t.Fatal(err)
+	}
+	if orgs != 1 || owners != 1 || audits != 1 || sessions != 1 {
+		t.Fatalf("orgs=%d owners=%d audits=%d sessions=%d", orgs, owners, audits, sessions)
+	}
+
+	cookies := response.Result().Cookies()
+	var sessionCookie, csrfCookie *http.Cookie
+	for _, cookie := range cookies {
+		switch cookie.Name {
+		case platformauth.CookieName:
+			sessionCookie = cookie
+		case "panel_csrf":
+			csrfCookie = cookie
+		}
+	}
+	if sessionCookie == nil || sessionCookie.Value == "" || !sessionCookie.HttpOnly {
+		t.Fatalf("session cookie=%+v", sessionCookie)
+	}
+	if csrfCookie == nil || csrfCookie.Value == "" || csrfCookie.HttpOnly {
+		t.Fatalf("csrf cookie=%+v", csrfCookie)
+	}
+
+	duplicate := httptest.NewRequest(http.MethodPost, "/api/private/auth/signup", strings.NewReader(`{"email":"OWNER@example.test","name":"Another","password":"pw-123456789","org_name":"Another"}`))
+	duplicate.Header.Set("Content-Type", "application/json")
+	duplicate.RemoteAddr = "192.0.2.10:12346"
+	duplicateResponse := httptest.NewRecorder()
+	handler.ServeHTTP(duplicateResponse, duplicate)
+	invalid := httptest.NewRequest(http.MethodPost, "/api/private/auth/signup", strings.NewReader(`{"email":"","name":"Another","password":"pw-123456789","org_name":"Another"}`))
+	invalid.Header.Set("Content-Type", "application/json")
+	invalid.RemoteAddr = "192.0.2.10:12347"
+	invalidResponse := httptest.NewRecorder()
+	handler.ServeHTTP(invalidResponse, invalid)
+	if duplicateResponse.Code != http.StatusBadRequest || invalidResponse.Code != http.StatusBadRequest || duplicateResponse.Body.String() != invalidResponse.Body.String() {
+		t.Fatalf("duplicate status/body=%d/%q invalid=%d/%q", duplicateResponse.Code, duplicateResponse.Body.String(), invalidResponse.Code, invalidResponse.Body.String())
+	}
+
+	configRequest := httptest.NewRequest(http.MethodGet, "/api/private/auth/config", nil)
+	configResponse := httptest.NewRecorder()
+	handler.ServeHTTP(configResponse, configRequest)
+	if configResponse.Code != http.StatusOK || configResponse.Body.String() != "{\"setup_required\":false,\"signup\":\"open\"}\n" {
+		t.Fatalf("config status=%d body=%s", configResponse.Code, configResponse.Body.String())
 	}
 }
 

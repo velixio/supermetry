@@ -57,6 +57,17 @@ func (l *loginLimiter) allow(account, client string, now time.Time) bool {
 	return true
 }
 
+func (l *loginLimiter) allowClient(client string, now time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.attempt++
+	if l.attempt%256 == 0 {
+		pruneBuckets(l.account, now)
+		pruneBuckets(l.client, now)
+	}
+	return client == "" || take(l.client, client, 20, now)
+}
+
 func pruneBuckets(buckets map[string]bucket, now time.Time) {
 	for key, b := range buckets {
 		if now.Sub(b.last) >= time.Minute {

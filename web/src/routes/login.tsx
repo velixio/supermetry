@@ -1,5 +1,5 @@
-import { type FormEvent, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { type FormEvent, useEffect, useState } from 'react'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { LoaderCircleIcon } from 'lucide-react'
 import { z } from 'zod'
 
@@ -28,7 +28,17 @@ export type LoginResult = {
   type?: string
 }
 
+export type SignupMode = 'open' | 'invite'
+
+export type AuthConfig = {
+  signup: SignupMode
+  setup_required: boolean
+}
+
 type AuthClient = {
+  GET: (
+    path: string,
+  ) => Promise<{ data?: unknown; error?: unknown; response: Response }>
   POST: (
     path: string,
     options: { body: Record<string, string> },
@@ -54,10 +64,21 @@ export function createAuthApi(fetch?: typeof globalThis.fetch) {
   }
 }
 
-const authApi = createAuthApi()
+export function createAuthConfigApi(fetch?: typeof globalThis.fetch) {
+  const client = createApi({ fetch, onUnauthorized: () => undefined }) as unknown as AuthClient
+  return async (): Promise<AuthConfig> => {
+    const result = await client.GET('/api/private/auth/config')
+    if (!result.response.ok || !result.data) {
+      throw new Error('Authentication configuration is unavailable')
+    }
+    return result.data as AuthConfig
+  }
+}
+
+const authConfigApi = createAuthConfigApi()
 
 export async function postPrivate(path: string, body: Record<string, string>) {
-  return authApi(path, body)
+  return createAuthApi()(path, body)
 }
 
 export async function authResultMessage(
@@ -87,6 +108,22 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const search = Route.useSearch()
+  const [signup, setSignup] = useState<SignupMode>()
+
+  useEffect(() => {
+    let active = true
+    void authConfigApi()
+      .then((config) => {
+        if (active) setSignup(config.signup)
+      })
+      .catch(() => {
+        if (active) setSignup('invite')
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
   return (
     <LoginForm
       login={(credentials) =>
@@ -94,6 +131,7 @@ function LoginPage() {
       }
       next={safeNext(search.next ?? '/')}
       onSuccess={(next) => window.location.assign(next)}
+      signup={signup}
     />
   )
 }
@@ -125,10 +163,12 @@ export function LoginForm({
   login,
   next,
   onSuccess,
+  signup,
 }: {
   login: (credentials: LoginCredentials) => Promise<LoginResult>
   next: string
   onSuccess: (next: string) => void
+  signup?: SignupMode
 }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -225,6 +265,11 @@ export function LoginForm({
           </Button>
         </FieldGroup>
       </form>
+      {signup === 'open' ? (
+        <p className="text-sm text-muted-foreground">
+          New to Panel? <Link to="/signup">Create an account</Link>
+        </p>
+      ) : null}
     </AuthScreen>
   )
 }

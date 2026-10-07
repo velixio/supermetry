@@ -1,10 +1,15 @@
 package platformhttp
 
 import (
+	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -12,11 +17,33 @@ import (
 )
 
 func (h *handler) registerAuth(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/private/auth/config", h.authConfig)
 	mux.HandleFunc("POST /api/private/auth/login", h.login)
+	mux.HandleFunc("POST /api/private/auth/signup", h.signup)
 	mux.HandleFunc("POST /api/private/auth/logout", h.logout)
 	mux.HandleFunc("POST /api/private/auth/password-reset", h.startPasswordReset)
 	mux.HandleFunc("POST /api/private/auth/password-reset/confirm", h.finishPasswordReset)
 	mux.HandleFunc("POST /api/private/setup", h.setup)
+}
+
+func (h *handler) authConfig(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Auth == nil {
+		unavailable(w, "authentication")
+		return
+	}
+	setupRequired, err := h.deps.Auth.SetupRequired(r.Context())
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	mode := "invite"
+	if h.deps.Signup == "open" {
+		mode = "open"
+	}
+	writeJSON(w, http.StatusOK, struct {
+		SetupRequired bool   `json:"setup_required"`
+		Signup        string `json:"signup"`
+	}{SetupRequired: setupRequired, Signup: mode})
 }
 
 func (h *handler) login(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +65,7 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal server error", "the request could not be completed")
 		return
 	}
-	token, err := h.deps.Auth.Login(r.Context(), request.Email, request.Password, request.TOTPCode, request.DeviceLabel)
+	token, err := h.deps.Auth.Login(h.clientContext(r), request.Email, request.Password, request.TOTPCode, request.DeviceLabel)
 	if err != nil {
 		if errors.Is(err, platformauth.ErrRateLimited) {
 			w.Header().Set("Retry-After", "60")
@@ -48,9 +75,82 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "invalid email, password, or verification code")
 		return
 	}
+	h.setAuthCookies(w, r, token, csrfToken)
+	writeJSON(w, http.StatusOK, map[string]bool{"authenticated": true})
+}
+
+func (h *handler) signup(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Signup != "open" {
+		writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+		return
+	}
+	if h.deps.Auth == nil {
+		unavailable(w, "authentication")
+		return
+	}
+	var request struct {
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Password string `json:"password"`
+		OrgName  string `json:"org_name"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	csrfToken, err := randomCookieToken()
+	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal server error", "the request could not be completed")
+		return
+	}
+	token, err := h.deps.Auth.Signup(h.clientContext(r), request.Email, request.Name, request.Password, request.OrgName, "")
+	if err != nil {
+		switch {
+		case errors.Is(err, platformauth.ErrRateLimited):
+			w.Header().Set("Retry-After", "60")
+			writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
+		case errors.Is(err, platformauth.ErrInvalid):
+			writeProblem(w, http.StatusBadRequest, "Bad request", "signup details are invalid")
+		default:
+			writeProblem(w, http.StatusInternalServerError, "Internal server error", "the request could not be completed")
+		}
+		return
+	}
+	h.setAuthCookies(w, r, token, csrfToken)
+	writeJSON(w, http.StatusCreated, map[string]bool{"authenticated": true})
+}
+
+func (h *handler) clientContext(r *http.Request) context.Context {
+	client := h.clientAddress(r)
+	hash := sha256.Sum256([]byte(client))
+	return platformauth.WithClientKey(r.Context(), hex.EncodeToString(hash[:]))
+}
+
+func (h *handler) clientAddress(r *http.Request) string {
+	host := r.RemoteAddr
+	if parsed, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		host = parsed
+	}
+	peer, err := netip.ParseAddr(host)
+	if err != nil {
+		return host
+	}
+	peer = peer.Unmap()
+	for _, prefix := range h.deps.TrustedProxies {
+		if !prefix.Contains(peer) {
+			continue
+		}
+		first, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
+		if forwarded, parseErr := netip.ParseAddr(strings.TrimSpace(first)); parseErr == nil {
+			return forwarded.Unmap().String()
+		}
+		break
+	}
+	return peer.String()
+}
+
+func (h *handler) setAuthCookies(w http.ResponseWriter, r *http.Request, token, csrfToken string) {
 	h.setCookie(w, r, platformauth.CookieName, token, 90*24*time.Hour)
 	http.SetCookie(w, &http.Cookie{Name: "panel_csrf", Value: csrfToken, Path: "/", Secure: h.cookieSecure(r), SameSite: http.SameSiteLaxMode})
-	writeJSON(w, http.StatusOK, map[string]bool{"authenticated": true})
 }
 
 func (h *handler) logout(w http.ResponseWriter, r *http.Request) {

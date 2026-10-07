@@ -1,13 +1,32 @@
 import '@testing-library/jest-dom/vitest'
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
+import type { ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { loginRedirect } from './$org'
 import { LoginForm, authResultMessage, createAuthApi } from './login'
 import { en } from '@/messages/en'
 
 afterEach(cleanup)
+beforeEach(() => {
+  window.scrollTo = vi.fn()
+})
+
+function renderWithRouter(children: ReactNode) {
+  const rootRoute = createRootRoute({ component: () => children })
+  const router = createRouter({
+    routeTree: rootRoute,
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  })
+  return render(<RouterProvider router={router} />)
+}
 
 describe('login form', () => {
   it('turns auth network failures into a generic message', async () => {
@@ -104,5 +123,34 @@ describe('login form', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('/'))
+  })
+
+  it('offers public signup only when signup is open', async () => {
+    renderWithRouter(
+      <LoginForm
+        login={vi.fn()}
+        next="/"
+        onSuccess={vi.fn()}
+        signup="open"
+      />,
+    )
+
+    expect(await screen.findByRole('link', { name: 'Create an account' })).toHaveAttribute(
+      'href',
+      '/signup',
+    )
+  })
+
+  it('does not offer public signup when signup is invite only', () => {
+    render(
+      <LoginForm
+        login={vi.fn()}
+        next="/"
+        onSuccess={vi.fn()}
+        signup="invite"
+      />,
+    )
+
+    expect(screen.queryByRole('link', { name: 'Create an account' })).toBeNull()
   })
 })

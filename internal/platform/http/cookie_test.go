@@ -4,8 +4,12 @@ import (
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
+	"strings"
 	"testing"
 	"time"
+
+	platformauth "panel/internal/platform/auth"
 )
 
 // Cookies are Secure only over HTTPS, so plain-http LAN and dev logins work.
@@ -33,5 +37,30 @@ func TestCookiesSecureOnlyOverHTTPS(t *testing.T) {
 				t.Errorf("httpsBase=%v %s: cookie %+v, want Secure=%v HttpOnly=true", httpsBase, c.name, cookies, want)
 			}
 		}
+	}
+}
+
+func TestSignupRateLimitUsesForwardedClientFromTrustedProxy(t *testing.T) {
+	handler := New(Deps{
+		Auth:           platformauth.New(nil, nil, nil, ""),
+		Signup:         "open",
+		TrustedProxies: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
+	})
+	request := func(forwarded string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "/api/private/auth/signup", strings.NewReader(`{}`))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("X-Forwarded-For", forwarded)
+		r.RemoteAddr = "192.0.2.10:12345"
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	for range 20 {
+		if response := request("203.0.113.10"); response.Code != http.StatusBadRequest {
+			t.Fatalf("initial client status=%d body=%s", response.Code, response.Body.String())
+		}
+	}
+	if response := request("203.0.113.11"); response.Code != http.StatusBadRequest {
+		t.Fatalf("second client status=%d body=%s", response.Code, response.Body.String())
 	}
 }

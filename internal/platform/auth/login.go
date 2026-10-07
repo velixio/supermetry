@@ -110,21 +110,30 @@ func (a *Auth) Login(ctx context.Context, email, password, totpCode, deviceLabel
 		}
 	}
 
-	plain, hash := platformcrypto.NewToken("")
+	var plain string
 	err = a.store.Tx(ctx, func(tx pgx.Tx) error {
-		if err := store.CreateSession(ctx, tx, store.UserSession{
-			IDHash:      hash,
-			UserID:      user.ID,
-			CreatedAt:   now,
-			ExpiresAt:   now.Add(90 * 24 * time.Hour),
-			DeviceLabel: sanitizeDeviceLabel(deviceLabel),
-		}); err != nil {
-			return err
-		}
-		_, err := tx.Exec(ctx, `update users set last_login_at=$2 where id=$1`, user.ID, now)
-		return err
+		var createErr error
+		plain, createErr = createSession(ctx, tx, user.ID, deviceLabel, now)
+		return createErr
 	})
 	if err != nil {
+		return "", err
+	}
+	return plain, nil
+}
+
+func createSession(ctx context.Context, db store.DBTX, userID int64, deviceLabel string, now time.Time) (string, error) {
+	plain, hash := platformcrypto.NewToken("")
+	if err := store.CreateSession(ctx, db, store.UserSession{
+		IDHash:      hash,
+		UserID:      userID,
+		CreatedAt:   now,
+		ExpiresAt:   now.Add(90 * 24 * time.Hour),
+		DeviceLabel: sanitizeDeviceLabel(deviceLabel),
+	}); err != nil {
+		return "", err
+	}
+	if _, err := db.Exec(ctx, `update users set last_login_at=$2 where id=$1`, userID, now); err != nil {
 		return "", err
 	}
 	return plain, nil
