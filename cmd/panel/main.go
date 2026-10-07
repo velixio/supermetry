@@ -14,6 +14,15 @@ import (
 var version = "dev"
 
 func main() {
+	// Read ./.env (or PANEL_ENV_FILE); variables already in the environment win.
+	envFile := os.Getenv("PANEL_ENV_FILE")
+	if envFile == "" {
+		envFile = ".env"
+	}
+	if err := config.LoadDotEnv(envFile); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|version}")
 		os.Exit(2)
