@@ -1,0 +1,65 @@
+import '@testing-library/jest-dom/vitest'
+
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { SiteForm } from './SiteForm'
+import { SitesPage, siteActions } from './SitesPage'
+
+afterEach(cleanup)
+
+describe('SiteForm', () => {
+  it('submits name, domains, time zone, and retention', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(<SiteForm submitLabel="Add site" onSubmit={onSubmit} />)
+
+    fireEvent.change(screen.getByLabelText('Site name'), { target: { value: 'Shop' } })
+    fireEvent.change(screen.getByLabelText('Domains'), {
+      target: { value: 'shop.example.com, checkout.example.com' },
+    })
+    fireEvent.change(screen.getByLabelText('Time zone'), { target: { value: 'Asia/Kathmandu' } })
+    fireEvent.change(screen.getByLabelText('Retention'), { target: { value: '365' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add site' }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
+      name: 'Shop',
+      hosts: ['shop.example.com', 'checkout.example.com'],
+      timezone: 'Asia/Kathmandu',
+      retention_days: 365,
+    }))
+  })
+})
+
+describe('SitesPage', () => {
+  const site = {
+    id: 7,
+    name: 'Docs',
+    public_id: 'docs-public',
+    timezone: 'UTC',
+  }
+
+  it('filters actions using the organization role', () => {
+    expect(siteActions('owner')).toEqual(['edit', 'installation', 'delete'])
+    expect(siteActions('editor')).toEqual(['edit', 'installation'])
+    expect(siteActions('viewer')).toEqual(['installation'])
+  })
+
+  it('confirms deletion before calling the private API', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    render(<SitesPage org="acme" role="owner" sites={[site]} onDelete={onDelete} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Docs' }))
+    expect(screen.getByRole('alertdialog')).toBeVisible()
+    expect(onDelete).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete site' }))
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(7))
+  })
+
+  it('guides an empty organization to add its first site', () => {
+    render(<SitesPage org="acme" role="owner" sites={[]} onDelete={vi.fn()} />)
+    expect(screen.getByRole('link', { name: 'Add your first site' })).toHaveAttribute(
+      'href',
+      '/acme/sites/new',
+    )
+  })
+})

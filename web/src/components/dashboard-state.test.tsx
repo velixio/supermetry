@@ -1,5 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import '@testing-library/jest-dom/vitest'
+
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DatePicker, type DatePickerLabels } from './DatePicker'
 import { FilterBar } from './FilterBar'
@@ -23,13 +25,30 @@ const labels: DatePickerLabels = {
   to: 'To',
   compare: 'Compare',
   comparisons: {
-    off: 'Off',
+    off: 'No comparison',
     previous_period: 'Previous period',
     previous_year: 'Previous year',
   },
 }
 
+afterEach(cleanup)
+
 describe('DatePicker', () => {
+  it('shows a visible Compare label and all comparison choices', () => {
+    render(
+      <DatePicker
+        search={dashboardSearch.parse({})}
+        labels={labels}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Compare')).toBeVisible()
+    expect(screen.getByRole('option', { name: 'No comparison' })).toBeVisible()
+    expect(screen.getByRole('option', { name: 'Previous period' })).toBeVisible()
+    expect(screen.getByRole('option', { name: 'Previous year' })).toBeVisible()
+  })
+
   it('emits period and compare changes while preserving filters', () => {
     const onChange = vi.fn()
     const search = dashboardSearch.parse({ f: ['country:is:IN'] })

@@ -1,0 +1,16 @@
+import { useStats, type StatsQuery } from '@/lib/stats'
+
+export function NoDataBanner({ href }: { href: string }) {
+  return (
+    <aside className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent/40 bg-accent/5 px-4 py-3 text-sm">
+      <span className="font-medium">No data yet</span>
+      <a className="font-medium text-accent underline-offset-4 hover:underline" href={href}>View installation steps →</a>
+    </aside>
+  )
+}
+
+export function DashboardNoDataBanner({ query, href }: { query: StatsQuery; href: string }) {
+  const result = useStats({ ...query, metrics: ['pageviews'], dimensions: undefined })
+  if (result.isLoading || result.isError || (result.data?.totals.pageviews ?? 0) > 0) return null
+  return <NoDataBanner href={href} />
+}

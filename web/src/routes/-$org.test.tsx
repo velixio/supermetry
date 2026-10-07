@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canCreateSites,
   loginRedirect,
   navigationHref,
   organizationHref,
@@ -36,5 +37,25 @@ describe('organization shell authentication', () => {
       (item) => item.label === 'Data health',
     )
     expect(health && navigationHref(health, 'acme', 'blog')).toBe('/acme/health')
+  })
+
+  it('shows the organization Sites page to every role', () => {
+    for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
+      expect(visibleNavigation(role).map((item) => item.label)).toContain('Sites')
+    }
+  })
+
+  it('offers Add site only to roles that can create sites', () => {
+    expect(canCreateSites('owner')).toBe(true)
+    expect(canCreateSites('admin')).toBe(true)
+    expect(canCreateSites('editor')).toBe(false)
+    expect(canCreateSites('viewer')).toBe(false)
+  })
+
+  it('hides site-scoped navigation when the organization has no sites', () => {
+    expect(visibleNavigation('owner', false).map((item) => item.label)).toEqual([
+      'Sites',
+      'Data health',
+    ])
   })
 })

@@ -16,7 +16,7 @@ import { ApiKeySecretDialog } from "./ApiKeySecretDialog";
 import { MemberRoleSelect, type MemberRole } from "./MemberRoleSelect";
 import { privateRequest, type ListResponse } from "./privateApi";
 import { TotpQr } from "./TotpQr";
-import { TrackingSnippet } from "./TrackingSnippet";
+import { InstallGuide, installationStatusInterval } from "./SiteSettings";
 
 type Site = {
   id: number;
@@ -211,7 +211,7 @@ export function SiteGeneralPage({
   );
 }
 
-export function TrackingPage({
+export function InstallationPage({
   siteId,
   publicId,
   orgId,
@@ -225,20 +225,18 @@ export function TrackingPage({
     queryFn: () =>
       privateRequest<Site>("GET", `/api/private/sites/${siteId}`, { orgId }),
     refetchInterval: (query) =>
-      query.state.data?.last_event_received_at ? false : 5_000,
+      installationStatusInterval(query.state.data?.last_event_received_at),
   });
   return (
     <Page
-      title="Install tracking"
-      description="Add this snippet once, then Panel will watch for the first event."
+      title="Installation"
+      description="Install the tracker once, then verify the first event arrives."
     >
       <Surface>
-        <TrackingSnippet publicId={publicId} />
-        <p role="status" className="text-sm text-muted-foreground">
-          {status.data?.last_event_received_at
-            ? `Last event received ${fmt.date(status.data.last_event_received_at, status.data.timezone)}`
-            : "Waiting for the first event…"}
-        </p>
+        <InstallGuide
+          publicId={publicId}
+          lastEventReceivedAt={status.data?.last_event_received_at}
+        />
       </Surface>
     </Page>
   );

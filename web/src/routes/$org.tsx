@@ -3,6 +3,7 @@ import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 
 import { AppShell } from '@/components/AppShell'
 import {
+  canCreateSites,
   navigationHref,
   organizationHref,
   visibleNavigation,
@@ -11,7 +12,7 @@ import type { Role } from '@/components/Sidebar'
 import { api } from '@/lib/api'
 import { en } from '@/messages/en'
 
-export { navigationHref, organizationHref, visibleNavigation }
+export { canCreateSites, navigationHref, organizationHref, visibleNavigation }
 
 export type Site = {
   id: number

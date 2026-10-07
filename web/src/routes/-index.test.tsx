@@ -8,7 +8,7 @@ import { Onboarding } from './index'
 afterEach(cleanup)
 
 describe('onboarding', () => {
-  it('moves from first-site creation to the tracking snippet', async () => {
+  it('creates a first site with all settings and opens Installation', async () => {
     const createSite = vi.fn().mockResolvedValue({
       id: 7,
       org_id: 1,
@@ -18,6 +18,7 @@ describe('onboarding', () => {
       retention_days: 30,
       allowed_hosts: ['docs.example.com'],
     })
+    const navigate = vi.fn()
     render(
       <Onboarding
         me={{
@@ -31,14 +32,21 @@ describe('onboarding', () => {
           ],
         }}
         createSite={createSite}
+        navigate={navigate}
       />,
     )
 
     fireEvent.change(screen.getByLabelText('Site name'), {
       target: { value: 'Docs' },
     })
-    fireEvent.change(screen.getByLabelText('Website host'), {
+    fireEvent.change(screen.getByLabelText('Domains'), {
       target: { value: 'docs.example.com' },
+    })
+    fireEvent.change(screen.getByLabelText('Time zone'), {
+      target: { value: 'Asia/Kolkata' },
+    })
+    fireEvent.change(screen.getByLabelText('Retention'), {
+      target: { value: '90' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create site' }))
 
@@ -46,12 +54,37 @@ describe('onboarding', () => {
       expect(createSite).toHaveBeenCalledWith({
         name: 'Docs',
         hosts: ['docs.example.com'],
-        timezone: expect.any(String),
-        retention_days: 30,
+        timezone: 'Asia/Kolkata',
+        retention_days: 90,
       }),
     )
-    expect(await screen.findByText('Add the tracking snippet')).toBeVisible()
-    expect(screen.getByText(/site_public_123/)).toBeVisible()
-    expect(screen.getByText('Waiting for the first event…')).toBeVisible()
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith(
+        '/acme/site_public_123/settings/installation',
+      ),
+    )
+  })
+
+  it('skips site creation and opens the organization empty state', () => {
+    const navigate = vi.fn()
+    render(
+      <Onboarding
+        me={{
+          user: { id: 1, name: 'Owner', email: 'owner@example.com' },
+          memberships: [
+            {
+              org: { id: 1, name: 'Acme', slug: 'acme' },
+              role: 'owner',
+              sites: [],
+            },
+          ],
+        }}
+        createSite={vi.fn()}
+        navigate={navigate}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(navigate).toHaveBeenCalledWith('/acme/sites')
   })
 })

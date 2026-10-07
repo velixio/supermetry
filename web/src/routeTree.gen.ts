@@ -24,15 +24,19 @@ import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
 import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
 import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
+import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
 import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
 import { Route as OrgSettingsInvitesRouteImport } from './routes/$org.settings.invites'
 import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
+import { Route as OrgSitesIndexRouteImport } from './routes/$org.sites.index'
+import { Route as OrgSitesNewRouteImport } from './routes/$org.sites.new'
 import { Route as OrgSiteFunnelsIndexRouteImport } from './routes/$org.$site.funnels.index'
 import { Route as OrgSiteFunnelsIdRouteImport } from './routes/$org.$site.funnels.$id'
 import { Route as OrgSiteSettingsFunnelsRouteImport } from './routes/$org.$site.settings.funnels'
 import { Route as OrgSiteSettingsGeneralRouteImport } from './routes/$org.$site.settings.general'
 import { Route as OrgSiteSettingsGoalsRouteImport } from './routes/$org.$site.settings.goals'
+import { Route as OrgSiteSettingsInstallationRouteImport } from './routes/$org.$site.settings.installation'
 import { Route as OrgSiteSettingsReportsRouteImport } from './routes/$org.$site.settings.reports'
 import { Route as OrgSiteSettingsSharesRouteImport } from './routes/$org.$site.settings.shares'
 import { Route as OrgSiteSettingsTrackingRouteImport } from './routes/$org.$site.settings.tracking'
@@ -112,6 +116,11 @@ const OrgSiteRealtimeRoute = OrgSiteRealtimeRouteImport.update({
   path: '/$site/realtime',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSiteSettingsRoute = OrgSiteSettingsRouteImport.update({
+  id: '/$site/settings',
+  path: '/$site/settings',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSettingsApiKeysRoute = OrgSettingsApiKeysRouteImport.update({
   id: '/settings/api-keys',
   path: '/settings/api-keys',
@@ -132,6 +141,16 @@ const OrgSettingsMembersRoute = OrgSettingsMembersRouteImport.update({
   path: '/settings/members',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSitesIndexRoute = OrgSitesIndexRouteImport.update({
+  id: '/sites/',
+  path: '/sites/',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSitesNewRoute = OrgSitesNewRouteImport.update({
+  id: '/sites/new',
+  path: '/sites/new',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSiteFunnelsIndexRoute = OrgSiteFunnelsIndexRouteImport.update({
   id: '/$site/funnels/',
   path: '/$site/funnels/',
@@ -143,34 +162,40 @@ const OrgSiteFunnelsIdRoute = OrgSiteFunnelsIdRouteImport.update({
   getParentRoute: () => OrgRoute,
 } as any)
 const OrgSiteSettingsFunnelsRoute = OrgSiteSettingsFunnelsRouteImport.update({
-  id: '/$site/settings/funnels',
-  path: '/$site/settings/funnels',
-  getParentRoute: () => OrgRoute,
+  id: '/funnels',
+  path: '/funnels',
+  getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
 const OrgSiteSettingsGeneralRoute = OrgSiteSettingsGeneralRouteImport.update({
-  id: '/$site/settings/general',
-  path: '/$site/settings/general',
-  getParentRoute: () => OrgRoute,
+  id: '/general',
+  path: '/general',
+  getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
 const OrgSiteSettingsGoalsRoute = OrgSiteSettingsGoalsRouteImport.update({
-  id: '/$site/settings/goals',
-  path: '/$site/settings/goals',
-  getParentRoute: () => OrgRoute,
+  id: '/goals',
+  path: '/goals',
+  getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
+const OrgSiteSettingsInstallationRoute =
+  OrgSiteSettingsInstallationRouteImport.update({
+    id: '/installation',
+    path: '/installation',
+    getParentRoute: () => OrgSiteSettingsRoute,
+  } as any)
 const OrgSiteSettingsReportsRoute = OrgSiteSettingsReportsRouteImport.update({
-  id: '/$site/settings/reports',
-  path: '/$site/settings/reports',
-  getParentRoute: () => OrgRoute,
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
 const OrgSiteSettingsSharesRoute = OrgSiteSettingsSharesRouteImport.update({
-  id: '/$site/settings/shares',
-  path: '/$site/settings/shares',
-  getParentRoute: () => OrgRoute,
+  id: '/shares',
+  path: '/shares',
+  getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
 const OrgSiteSettingsTrackingRoute = OrgSiteSettingsTrackingRouteImport.update({
-  id: '/$site/settings/tracking',
-  path: '/$site/settings/tracking',
-  getParentRoute: () => OrgRoute,
+  id: '/tracking',
+  path: '/tracking',
+  getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -188,15 +213,19 @@ export interface FileRoutesByFullPath {
   '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
+  '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
@@ -217,15 +246,19 @@ export interface FileRoutesByTo {
   '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site': typeof OrgSiteIndexRoute
+  '/$org/sites': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
+  '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
@@ -247,15 +280,19 @@ export interface FileRoutesById {
   '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
+  '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
@@ -278,15 +315,19 @@ export interface FileRouteTypes {
     | '/share/$slug'
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
+    | '/$org/$site/settings'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
     | '/$org/settings/members'
+    | '/$org/sites/new'
     | '/$org/$site/'
+    | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
+    | '/$org/$site/settings/installation'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
@@ -307,15 +348,19 @@ export interface FileRouteTypes {
     | '/share/$slug'
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
+    | '/$org/$site/settings'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
     | '/$org/settings/members'
+    | '/$org/sites/new'
     | '/$org/$site'
+    | '/$org/sites'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
+    | '/$org/$site/settings/installation'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
@@ -336,15 +381,19 @@ export interface FileRouteTypes {
     | '/share/$slug'
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
+    | '/$org/$site/settings'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
     | '/$org/settings/members'
+    | '/$org/sites/new'
     | '/$org/$site/'
+    | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
+    | '/$org/$site/settings/installation'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
@@ -472,6 +521,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteRealtimeRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/$site/settings': {
+      id: '/$org/$site/settings'
+      path: '/$site/settings'
+      fullPath: '/$org/$site/settings'
+      preLoaderRoute: typeof OrgSiteSettingsRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/settings/api-keys': {
       id: '/$org/settings/api-keys'
       path: '/settings/api-keys'
@@ -500,6 +556,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSettingsMembersRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/sites/': {
+      id: '/$org/sites/'
+      path: '/sites'
+      fullPath: '/$org/sites/'
+      preLoaderRoute: typeof OrgSitesIndexRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/sites/new': {
+      id: '/$org/sites/new'
+      path: '/sites/new'
+      fullPath: '/$org/sites/new'
+      preLoaderRoute: typeof OrgSitesNewRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/$site/funnels/': {
       id: '/$org/$site/funnels/'
       path: '/$site/funnels'
@@ -516,65 +586,93 @@ declare module '@tanstack/react-router' {
     }
     '/$org/$site/settings/funnels': {
       id: '/$org/$site/settings/funnels'
-      path: '/$site/settings/funnels'
+      path: '/funnels'
       fullPath: '/$org/$site/settings/funnels'
       preLoaderRoute: typeof OrgSiteSettingsFunnelsRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSiteSettingsRoute
     }
     '/$org/$site/settings/general': {
       id: '/$org/$site/settings/general'
-      path: '/$site/settings/general'
+      path: '/general'
       fullPath: '/$org/$site/settings/general'
       preLoaderRoute: typeof OrgSiteSettingsGeneralRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSiteSettingsRoute
     }
     '/$org/$site/settings/goals': {
       id: '/$org/$site/settings/goals'
-      path: '/$site/settings/goals'
+      path: '/goals'
       fullPath: '/$org/$site/settings/goals'
       preLoaderRoute: typeof OrgSiteSettingsGoalsRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSiteSettingsRoute
+    }
+    '/$org/$site/settings/installation': {
+      id: '/$org/$site/settings/installation'
+      path: '/installation'
+      fullPath: '/$org/$site/settings/installation'
+      preLoaderRoute: typeof OrgSiteSettingsInstallationRouteImport
+      parentRoute: typeof OrgSiteSettingsRoute
     }
     '/$org/$site/settings/reports': {
       id: '/$org/$site/settings/reports'
-      path: '/$site/settings/reports'
+      path: '/reports'
       fullPath: '/$org/$site/settings/reports'
       preLoaderRoute: typeof OrgSiteSettingsReportsRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSiteSettingsRoute
     }
     '/$org/$site/settings/shares': {
       id: '/$org/$site/settings/shares'
-      path: '/$site/settings/shares'
+      path: '/shares'
       fullPath: '/$org/$site/settings/shares'
       preLoaderRoute: typeof OrgSiteSettingsSharesRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSiteSettingsRoute
     }
     '/$org/$site/settings/tracking': {
       id: '/$org/$site/settings/tracking'
-      path: '/$site/settings/tracking'
+      path: '/tracking'
       fullPath: '/$org/$site/settings/tracking'
       preLoaderRoute: typeof OrgSiteSettingsTrackingRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSiteSettingsRoute
     }
   }
 }
+
+interface OrgSiteSettingsRouteChildren {
+  OrgSiteSettingsFunnelsRoute: typeof OrgSiteSettingsFunnelsRoute
+  OrgSiteSettingsGeneralRoute: typeof OrgSiteSettingsGeneralRoute
+  OrgSiteSettingsGoalsRoute: typeof OrgSiteSettingsGoalsRoute
+  OrgSiteSettingsInstallationRoute: typeof OrgSiteSettingsInstallationRoute
+  OrgSiteSettingsReportsRoute: typeof OrgSiteSettingsReportsRoute
+  OrgSiteSettingsSharesRoute: typeof OrgSiteSettingsSharesRoute
+  OrgSiteSettingsTrackingRoute: typeof OrgSiteSettingsTrackingRoute
+}
+
+const OrgSiteSettingsRouteChildren: OrgSiteSettingsRouteChildren = {
+  OrgSiteSettingsFunnelsRoute: OrgSiteSettingsFunnelsRoute,
+  OrgSiteSettingsGeneralRoute: OrgSiteSettingsGeneralRoute,
+  OrgSiteSettingsGoalsRoute: OrgSiteSettingsGoalsRoute,
+  OrgSiteSettingsInstallationRoute: OrgSiteSettingsInstallationRoute,
+  OrgSiteSettingsReportsRoute: OrgSiteSettingsReportsRoute,
+  OrgSiteSettingsSharesRoute: OrgSiteSettingsSharesRoute,
+  OrgSiteSettingsTrackingRoute: OrgSiteSettingsTrackingRoute,
+}
+
+const OrgSiteSettingsRouteWithChildren = OrgSiteSettingsRoute._addFileChildren(
+  OrgSiteSettingsRouteChildren,
+)
 
 interface OrgRouteChildren {
   OrgHealthRoute: typeof OrgHealthRoute
   OrgSiteGoalsRoute: typeof OrgSiteGoalsRoute
   OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
+  OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
   OrgSettingsApiKeysRoute: typeof OrgSettingsApiKeysRoute
   OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
   OrgSettingsInvitesRoute: typeof OrgSettingsInvitesRoute
   OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
+  OrgSitesNewRoute: typeof OrgSitesNewRoute
   OrgSiteIndexRoute: typeof OrgSiteIndexRoute
+  OrgSitesIndexRoute: typeof OrgSitesIndexRoute
   OrgSiteFunnelsIdRoute: typeof OrgSiteFunnelsIdRoute
-  OrgSiteSettingsFunnelsRoute: typeof OrgSiteSettingsFunnelsRoute
-  OrgSiteSettingsGeneralRoute: typeof OrgSiteSettingsGeneralRoute
-  OrgSiteSettingsGoalsRoute: typeof OrgSiteSettingsGoalsRoute
-  OrgSiteSettingsReportsRoute: typeof OrgSiteSettingsReportsRoute
-  OrgSiteSettingsSharesRoute: typeof OrgSiteSettingsSharesRoute
-  OrgSiteSettingsTrackingRoute: typeof OrgSiteSettingsTrackingRoute
   OrgSiteFunnelsIndexRoute: typeof OrgSiteFunnelsIndexRoute
 }
 
@@ -582,18 +680,15 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgHealthRoute: OrgHealthRoute,
   OrgSiteGoalsRoute: OrgSiteGoalsRoute,
   OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
+  OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,
   OrgSettingsApiKeysRoute: OrgSettingsApiKeysRoute,
   OrgSettingsAuditRoute: OrgSettingsAuditRoute,
   OrgSettingsInvitesRoute: OrgSettingsInvitesRoute,
   OrgSettingsMembersRoute: OrgSettingsMembersRoute,
+  OrgSitesNewRoute: OrgSitesNewRoute,
   OrgSiteIndexRoute: OrgSiteIndexRoute,
+  OrgSitesIndexRoute: OrgSitesIndexRoute,
   OrgSiteFunnelsIdRoute: OrgSiteFunnelsIdRoute,
-  OrgSiteSettingsFunnelsRoute: OrgSiteSettingsFunnelsRoute,
-  OrgSiteSettingsGeneralRoute: OrgSiteSettingsGeneralRoute,
-  OrgSiteSettingsGoalsRoute: OrgSiteSettingsGoalsRoute,
-  OrgSiteSettingsReportsRoute: OrgSiteSettingsReportsRoute,
-  OrgSiteSettingsSharesRoute: OrgSiteSettingsSharesRoute,
-  OrgSiteSettingsTrackingRoute: OrgSiteSettingsTrackingRoute,
   OrgSiteFunnelsIndexRoute: OrgSiteFunnelsIndexRoute,
 }
 

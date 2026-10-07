@@ -71,6 +71,7 @@ function metricLabel(metric: StatMetric): string {
 }
 
 function metricValue(metric: StatMetric, value: number): string {
+  if (metric === 'engagement_time' && value <= 0) return '—'
   if (metric === 'bounce_rate') return fmt.percent(value)
   if (metric === 'visit_duration' || metric === 'engagement_time') {
     return fmt.duration(value)

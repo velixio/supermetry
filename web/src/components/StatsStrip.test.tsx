@@ -93,4 +93,15 @@ describe('StatsStrip', () => {
     fireEvent.click(screen.getByRole('button', { name: /visitors/i }))
     expect(onSelectMetric).toHaveBeenCalledWith('visitors')
   })
+
+  it('shows an em dash for empty or zero engagement time', () => {
+    mockQuery({ engagement_time: 0 }, {})
+    render(
+      <StatsStrip query={query} compare="off" onSelectMetric={vi.fn()} />,
+    )
+
+    const engagement = screen.getByRole('button', { name: /engagement time/i })
+    expect(engagement).toHaveTextContent('—')
+    expect(engagement).not.toHaveTextContent('0s')
+  })
 })

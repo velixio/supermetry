@@ -4,6 +4,8 @@ import {
   CircleGaugeIcon,
   FilterIcon,
   GoalIcon,
+  Globe2Icon,
+  PlusIcon,
   SettingsIcon,
 } from 'lucide-react'
 
@@ -40,6 +42,7 @@ const coreNavigation = [
 
 const managementNavigation = [
   { label: en.navigation.settings, suffix: '/settings/general', icon: SettingsIcon, scope: 'site' },
+  { label: en.navigation.sites, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
   { label: en.navigation.health, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
 ] as const
 
@@ -47,10 +50,17 @@ export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
 
-export function visibleNavigation(role: Role) {
-  if (role === 'viewer') return [...coreNavigation]
-  if (role === 'editor') return [...coreNavigation, managementNavigation[0]]
-  return [...coreNavigation, ...managementNavigation]
+export function visibleNavigation(role: Role, hasSite = true): NavigationItem[] {
+  const items: NavigationItem[] = role === 'viewer'
+    ? [...coreNavigation, managementNavigation[1]]
+    : role === 'editor'
+      ? [...coreNavigation, managementNavigation[0], managementNavigation[1]]
+      : [...coreNavigation, ...managementNavigation]
+  return hasSite ? items : items.filter((item) => item.scope === 'org')
+}
+
+export function canCreateSites(role: Role): boolean {
+  return role === 'owner' || role === 'admin'
 }
 
 function siteSlug(site: Site): string {
@@ -123,6 +133,14 @@ export function PanelSidebar({
                   <a href={`/${membership.org.slug}/${siteSlug(item)}`}>{item.name}</a>
                 </DropdownMenuItem>
               ))}
+              {canCreateSites(membership.role) ? (
+                <DropdownMenuItem asChild>
+                  <a href={`/${membership.org.slug}/sites/new`}>
+                    <PlusIcon />
+                    {en.navigation.addSite}
+                  </a>
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -131,7 +149,7 @@ export function PanelSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleNavigation(membership.role).map((item) => (
+              {visibleNavigation(membership.role, Boolean(site)).map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton asChild tooltip={item.label}>
                     <a

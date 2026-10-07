@@ -72,18 +72,20 @@ export function DatePicker({ search, labels, onChange }: DatePickerProps) {
           />
         </>
       ) : null}
-      <select
-        aria-label={labels.compare}
-        className={controlClass}
-        value={search.compare}
-        onChange={setCompare}
-      >
-        {compareValues.map((compare) => (
-          <option key={compare} value={compare}>
-            {labels.comparisons[compare]}
-          </option>
-        ))}
-      </select>
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <span>{labels.compare}</span>
+        <select
+          className={controlClass}
+          value={search.compare}
+          onChange={setCompare}
+        >
+          {compareValues.map((compare) => (
+            <option key={compare} value={compare}>
+              {labels.comparisons[compare]}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   )
 }

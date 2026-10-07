@@ -40,6 +40,8 @@ export const en = {
     realtime: 'Realtime',
     goals: 'Goals',
     settings: 'Settings',
+    sites: 'Sites',
+    addSite: '+ Add site',
     health: 'Data health',
     organization: 'Organization',
     site: 'Site',
@@ -67,7 +69,7 @@ export const en = {
     to: 'To',
     compare: 'Compare',
     comparisons: {
-      off: 'Off',
+      off: 'No comparison',
       previous_period: 'Previous period',
       previous_year: 'Previous year',
     },

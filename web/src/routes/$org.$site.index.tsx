@@ -4,6 +4,7 @@ import { BreakdownCard, type BreakdownTab } from '../components/BreakdownCard'
 import { DatePicker } from '../components/DatePicker'
 import { FilterBar } from '../components/FilterBar'
 import { MainChart } from '../components/MainChart'
+import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
 import { useShortcuts } from '../lib/shortcuts'
 import type { StatsQuery } from '../lib/stats'
@@ -95,6 +96,10 @@ function DashboardStateRoute() {
         query={query}
         compare={search.compare}
         onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+      />
+      <DashboardNoDataBanner
+        query={query}
+        href={`/${org}/${siteSlug}/settings/installation`}
       />
       <MainChart query={query} metric={search.metric} compare={search.compare} />
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
