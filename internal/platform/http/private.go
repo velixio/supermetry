@@ -53,7 +53,10 @@ type Deps struct {
 	// SecureCookies forces the Secure flag on every cookie. Set it when
 	// PANEL_BASE_URL is https so production never downgrades, even behind a
 	// proxy that omits X-Forwarded-Proto.
-	SecureCookies  bool
+	SecureCookies bool
+	// Snippet returns the tracking snippet (absolute script and event URLs built
+	// from PANEL_BASE_URL) for a site's public ID.
+	Snippet        func(publicID string) string
 	Signup         string
 	TrustedProxies []netip.Prefix
 	Authenticator  Authenticator
@@ -118,6 +121,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites", h.listSites)
 	mux.HandleFunc("POST /api/private/sites", h.createSite)
 	mux.HandleFunc("GET /api/private/sites/{site}", h.getSite)
+	mux.HandleFunc("GET /api/private/sites/{site}/snippet", h.siteSnippet)
 	mux.HandleFunc("PATCH /api/private/sites/{site}", h.updateSite)
 	mux.HandleFunc("DELETE /api/private/sites/{site}", h.deleteSite)
 	mux.HandleFunc("POST /api/private/orgs/{org}/api-keys", h.createAPIKey)

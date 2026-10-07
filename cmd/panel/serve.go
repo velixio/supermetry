@@ -161,6 +161,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry)
 	platformHandler := platformhttp.New(platformhttp.Deps{
+		Snippet: func(publicID string) string {
+			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID)
+		},
 		SecureCookies:  strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://"),
 		Signup:         cfg.Signup,
 		TrustedProxies: cfg.TrustedProxies,

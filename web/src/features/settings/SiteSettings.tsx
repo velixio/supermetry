@@ -46,10 +46,10 @@ function relativeTime(value: string, now: Date): string {
   return formatter.format(Math.round(hours / 24), 'day')
 }
 
-export function InstallGuide({ publicId, lastEventReceivedAt, now = new Date() }: { publicId: string; lastEventReceivedAt?: string; now?: Date }) {
+export function InstallGuide({ publicId, snippet, lastEventReceivedAt, now = new Date() }: { publicId: string; snippet?: string; lastEventReceivedAt?: string; now?: Date }) {
   return (
     <div className="flex flex-col gap-6">
-      <TrackingSnippet publicId={publicId} />
+      <TrackingSnippet publicId={publicId} snippet={snippet} />
       <Tabs defaultValue="html">
         <TabsList aria-label="Installation method" className="max-w-full overflow-x-auto">
           <TabsTrigger value="html">Plain HTML</TabsTrigger>

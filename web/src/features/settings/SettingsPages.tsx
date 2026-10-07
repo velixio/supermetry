@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { copyText } from "@/lib/clipboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon, KeyRoundIcon, ShieldCheckIcon } from "lucide-react";
 
@@ -227,6 +228,11 @@ export function InstallationPage({
     refetchInterval: (query) =>
       installationStatusInterval(query.state.data?.last_event_received_at),
   });
+  const snippet = useQuery({
+    queryKey: ["site-snippet", orgId, siteId],
+    queryFn: () =>
+      privateRequest<{ snippet: string }>("GET", `/api/private/sites/${siteId}/snippet`, { orgId }),
+  });
   return (
     <Page
       title="Installation"
@@ -235,6 +241,7 @@ export function InstallationPage({
       <Surface>
         <InstallGuide
           publicId={publicId}
+          snippet={snippet.data?.snippet}
           lastEventReceivedAt={status.data?.last_event_received_at}
         />
       </Surface>
@@ -337,7 +344,7 @@ export function SharesPage({
             <code className="break-all text-xs">{createdLink}</code>
             <Button
               variant="outline"
-              onClick={() => void navigator.clipboard.writeText(createdLink)}
+              onClick={() => void copyText(createdLink)}
             >
               Copy link
             </Button>
@@ -619,7 +626,7 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
           <Button
             className="self-start"
             variant="outline"
-            onClick={() => void navigator.clipboard.writeText(link)}
+            onClick={() => void copyText(link)}
           >
             Copy invitation link
           </Button>

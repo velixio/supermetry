@@ -306,3 +306,17 @@ func parseLimit(r *http.Request) (int, bool) {
 	}
 	return 50, true
 }
+
+// siteSnippet returns the installation snippet for a site the caller can read.
+func (h *handler) siteSnippet(w http.ResponseWriter, r *http.Request) {
+	roles := []authz.Role{authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer}
+	_, site, ok := h.sitePrincipal(w, r, authz.ActionStatsRead, roles...)
+	if !ok {
+		return
+	}
+	if h.deps.Snippet == nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal server error", "snippet is not configured")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"snippet": h.deps.Snippet(site.PublicID)})
+}

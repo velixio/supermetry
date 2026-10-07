@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { copyText } from "@/lib/clipboard";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +44,7 @@ export function ApiKeySecretDialog({
         <DialogFooter>
           <Button
             type="button"
-            onClick={() => void navigator.clipboard.writeText(secret)}
+            onClick={() => void copyText(secret)}
           >
             Copy API key
           </Button>
