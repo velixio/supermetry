@@ -1,8 +1,11 @@
 name: CI
 
+# Disabled for now (user, 2026-10-07): manual runs only.
+# To re-enable, restore:
+#   push:
+#   pull_request:
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
