@@ -203,5 +203,7 @@ func cloneSiteIDs(siteIDs []int32) []int32 {
 	if siteIDs == nil {
 		return nil
 	}
-	return append([]int32(nil), siteIDs...)
+	out := make([]int32, len(siteIDs)) // keeps an empty restriction empty (no sites), unlike append on nil
+	copy(out, siteIDs)
+	return out
 }

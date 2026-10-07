@@ -162,7 +162,9 @@ func cloneSites(values []int32) []int32 {
 	if values == nil {
 		return nil
 	}
-	return append([]int32(nil), values...)
+	out := make([]int32, len(values)) // keeps an empty restriction empty (no sites), unlike append on nil
+	copy(out, values)
+	return out
 }
 
 var _ api.Authenticator = (*Authenticator)(nil)

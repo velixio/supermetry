@@ -68,7 +68,7 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 	}
 	return authz.Principal{
 		UserID: session.UserID, OrgID: membership.OrgID, Role: authz.Role(membership.Role),
-		SiteIDs: append([]int32(nil), membership.SiteIDs...),
+		SiteIDs: copySiteIDs(membership.SiteIDs),
 	}, true
 }
 
@@ -100,3 +100,13 @@ func pathSegment(path, prefix string) (string, bool) {
 }
 
 var _ Authenticator = (*ServiceAuthenticator)(nil)
+
+// copySiteIDs keeps nil (all sites) distinct from empty (no sites).
+func copySiteIDs(values []int32) []int32 {
+	if values == nil {
+		return nil
+	}
+	out := make([]int32, len(values))
+	copy(out, values)
+	return out
+}
