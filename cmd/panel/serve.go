@@ -215,6 +215,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Sites: registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
 		Sessions: sessions, Writer: w, Limiter: intakeLimiter,
 		TrustedProxies: cfg.TrustedProxies, Clock: settings.clock,
+		Diag: os.Getenv("PANEL_INGEST_DIAG") == "1",
 	}
 
 	var ready atomic.Bool
@@ -259,6 +260,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		serverDone <- err
 	}()
 	ready.Store(true)
+	slog.Info("server started",
+		"listen", listener.Addr().String(),
+		"base_url", cfg.BaseURL,
+		"geoip", enricher.GeoIPSource(),
+		"trusted_proxies", len(cfg.TrustedProxies),
+		"ingest_diag", intake.Diag,
+	)
 
 	var cause error
 	select {

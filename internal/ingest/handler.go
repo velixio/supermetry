@@ -51,6 +51,7 @@ type Handler struct {
 	Limiter        RateLimiter
 	TrustedProxies []netip.Prefix
 	Clock          Clock
+	Diag           bool // log how each client address was resolved (PANEL_INGEST_DIAG=1)
 }
 
 // ServeHTTP validates, enriches and queues one analytics event.
@@ -91,6 +92,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		h.invalid(w)
 		return
+	}
+	if h.Diag {
+		h.logDiag(r, ip)
 	}
 	if h.Limiter != nil && (!h.Limiter.Allow("site:"+strconv.FormatInt(int64(site.ID), 10)) || !h.Limiter.Allow(ipRateKey(ip))) {
 		w.Header().Set("Retry-After", "1")
