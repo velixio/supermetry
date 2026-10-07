@@ -191,15 +191,6 @@ func (e StatsTimeseriesParamsInterval) Valid() bool {
 	}
 }
 
-// DataHealthResponse defines model for DataHealthResponse.
-type DataHealthResponse struct {
-	BotsFiltered    int64   `json:"bots_filtered"`
-	CloseLagSeconds float64 `json:"close_lag_seconds"`
-	Drops503        int64   `json:"drops_503"`
-	IngestRate      float64 `json:"ingest_rate"`
-	QueueDepth      int64   `json:"queue_depth"`
-}
-
 // DateRange defines model for DateRange.
 type DateRange struct {
 	From openapi_types.Date `json:"from"`
@@ -393,25 +384,22 @@ type QueryJSONRequestBody = QueryRequest
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// FunnelQuery Run a funnel query
-	// (POST /api/v1/funnels/query)
+	// (POST /api/public/v1/funnels/query)
 	FunnelQuery(w http.ResponseWriter, r *http.Request)
-	// DataHealth Get analytics data-health counters
-	// (GET /api/v1/health)
-	DataHealth(w http.ResponseWriter, r *http.Request)
 	// Query Run an analytics query
-	// (POST /api/v1/query)
+	// (POST /api/public/v1/query)
 	Query(w http.ResponseWriter, r *http.Request)
 	// Realtime Get active visitors and top pages
-	// (GET /api/v1/realtime)
+	// (GET /api/public/v1/realtime)
 	Realtime(w http.ResponseWriter, r *http.Request, params RealtimeParams)
 	// StatsBreakdown Get a dimension breakdown
-	// (GET /api/v1/stats/breakdown)
+	// (GET /api/public/v1/stats/breakdown)
 	StatsBreakdown(w http.ResponseWriter, r *http.Request, params StatsBreakdownParams)
 	// StatsSummary Get summary metrics
-	// (GET /api/v1/stats/summary)
+	// (GET /api/public/v1/stats/summary)
 	StatsSummary(w http.ResponseWriter, r *http.Request, params StatsSummaryParams)
 	// StatsTimeseries Get a metrics time series
-	// (GET /api/v1/stats/timeseries)
+	// (GET /api/public/v1/stats/timeseries)
 	StatsTimeseries(w http.ResponseWriter, r *http.Request, params StatsTimeseriesParams)
 	// Healthz Check process health
 	// (GET /healthz)
@@ -438,20 +426,6 @@ func (siw *ServerInterfaceWrapper) FunnelQuery(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.FunnelQuery(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// DataHealth operation middleware
-func (siw *ServerInterfaceWrapper) DataHealth(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DataHealth(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -873,13 +847,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/query", wrapper.Query)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/stats/summary", wrapper.StatsSummary)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/stats/timeseries", wrapper.StatsTimeseries)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/stats/breakdown", wrapper.StatsBreakdown)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/funnels/query", wrapper.FunnelQuery)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/realtime", wrapper.Realtime)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/health", wrapper.DataHealth)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/query", wrapper.Query)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/summary", wrapper.StatsSummary)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/timeseries", wrapper.StatsTimeseries)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/breakdown", wrapper.StatsBreakdown)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/funnels/query", wrapper.FunnelQuery)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/realtime", wrapper.Realtime)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

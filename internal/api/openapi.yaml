@@ -8,7 +8,7 @@ servers:
 security:
   - bearerAuth: []
 paths:
-  /api/v1/query:
+  /api/public/v1/query:
     post:
       operationId: query
       summary: Run an analytics query
@@ -41,7 +41,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /api/v1/stats/summary:
+  /api/public/v1/stats/summary:
     get:
       operationId: statsSummary
       summary: Get summary metrics
@@ -57,7 +57,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /api/v1/stats/timeseries:
+  /api/public/v1/stats/timeseries:
     get:
       operationId: statsTimeseries
       summary: Get a metrics time series
@@ -79,7 +79,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /api/v1/stats/breakdown:
+  /api/public/v1/stats/breakdown:
     get:
       operationId: statsBreakdown
       summary: Get a dimension breakdown
@@ -106,7 +106,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /api/v1/funnels/query:
+  /api/public/v1/funnels/query:
     post:
       operationId: funnelQuery
       summary: Run a funnel query
@@ -139,7 +139,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /api/v1/realtime:
+  /api/public/v1/realtime:
     get:
       operationId: realtime
       summary: Get active visitors and top pages
@@ -165,19 +165,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /api/v1/health:
-    get:
-      operationId: dataHealth
-      summary: Get analytics data-health counters
-      responses:
-        '200':
-          description: Data-health counters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DataHealthResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
   /healthz:
     get:
       operationId: healthz

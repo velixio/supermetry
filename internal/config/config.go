@@ -13,7 +13,7 @@ import (
 
 const (
 	defaultListen       = ":8080"
-	defaultEventPath    = "/api/event"
+	defaultEventPath    = "/api/public/v1/events"
 	defaultTrackerPath  = "/js/script.js"
 	defaultQueueSize    = 65536
 	defaultFlushEvery   = time.Second
