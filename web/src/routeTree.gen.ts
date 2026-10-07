@@ -10,6 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrgRouteImport } from './routes/$org'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SetupRouteImport } from './routes/setup'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -17,36 +22,102 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgSiteIndexRoute = OrgSiteIndexRouteImport.update({
-  id: '/$org/$site/',
-  path: '/$org/$site/',
+const OrgRoute = OrgRouteImport.update({
+  id: '/$org',
+  path: '/$org',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetTokenRoute = ResetTokenRouteImport.update({
+  id: '/reset/$token',
+  path: '/reset/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrgSiteIndexRoute = OrgSiteIndexRouteImport.update({
+  id: '/$site/',
+  path: '/$site/',
+  getParentRoute: () => OrgRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$org': typeof OrgRouteWithChildren
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/reset/$token': typeof ResetTokenRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$org': typeof OrgRouteWithChildren
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/reset/$token': typeof ResetTokenRoute
   '/$org/$site': typeof OrgSiteIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$org': typeof OrgRouteWithChildren
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/reset/$token': typeof ResetTokenRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$org/$site/'
+  fullPaths:
+    | '/'
+    | '/$org'
+    | '/login'
+    | '/setup'
+    | '/invite/$token'
+    | '/reset/$token'
+    | '/$org/$site/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$org/$site'
-  id: '__root__' | '/' | '/$org/$site/'
+  to:
+    | '/'
+    | '/$org'
+    | '/login'
+    | '/setup'
+    | '/invite/$token'
+    | '/reset/$token'
+    | '/$org/$site'
+  id:
+    | '__root__'
+    | '/'
+    | '/$org'
+    | '/login'
+    | '/setup'
+    | '/invite/$token'
+    | '/reset/$token'
+    | '/$org/$site/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  OrgSiteIndexRoute: typeof OrgSiteIndexRoute
+  OrgRoute: typeof OrgRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  SetupRoute: typeof SetupRoute
+  InviteTokenRoute: typeof InviteTokenRoute
+  ResetTokenRoute: typeof ResetTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,19 +129,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$org': {
+      id: '/$org'
+      path: '/$org'
+      fullPath: '/$org'
+      preLoaderRoute: typeof OrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset/$token': {
+      id: '/reset/$token'
+      path: '/reset/$token'
+      fullPath: '/reset/$token'
+      preLoaderRoute: typeof ResetTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$org/$site/': {
       id: '/$org/$site/'
-      path: '/$org/$site'
+      path: '/$site'
       fullPath: '/$org/$site/'
       preLoaderRoute: typeof OrgSiteIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof OrgRoute
     }
   }
 }
 
+interface OrgRouteChildren {
+  OrgSiteIndexRoute: typeof OrgSiteIndexRoute
+}
+
+const OrgRouteChildren: OrgRouteChildren = {
+  OrgSiteIndexRoute: OrgSiteIndexRoute,
+}
+
+const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  OrgSiteIndexRoute: OrgSiteIndexRoute,
+  OrgRoute: OrgRouteWithChildren,
+  LoginRoute: LoginRoute,
+  SetupRoute: SetupRoute,
+  InviteTokenRoute: InviteTokenRoute,
+  ResetTokenRoute: ResetTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
