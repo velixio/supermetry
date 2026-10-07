@@ -15,7 +15,7 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|close-days|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|version}")
 		os.Exit(2)
 	}
 
@@ -38,13 +38,18 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "load":
+		if err := loadCommand(context.Background(), os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case "close-days":
 		if err := closeDays(context.Background(), os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|close-days|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|version}")
 		os.Exit(2)
 	}
 }
