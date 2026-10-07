@@ -40,7 +40,7 @@ function ResetPage() {
               name="password"
               type="password"
               autoComplete="new-password"
-              minLength={12}
+
               required
             />
           </Field>

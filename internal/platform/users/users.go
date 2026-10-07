@@ -32,7 +32,7 @@ func (u *Users) Create(ctx context.Context, email, name, password string) (int64
 func (u *Users) CreateWithDB(ctx context.Context, db store.DBTX, email, name, password string, now time.Time) (int64, error) {
 	email = NormalizeEmail(email)
 	name = strings.TrimSpace(name)
-	if email == "" || name == "" || len(password) < 12 {
+	if email == "" || name == "" || password == "" {
 		return 0, ErrInvalid
 	}
 	hash, err := crypto.HashPassword(password)

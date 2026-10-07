@@ -1,6 +1,12 @@
-.PHONY: build test lint web web-test release run dev migrate clean distclean kill
+.PHONY: build build-go test lint web web-test release run dev migrate clean distclean kill
 
-build:
+# Build everything: the dashboard UI, then the binary with the UI embedded.
+build: web
+	mkdir -p bin
+	go build -tags embedui -o bin/panel ./cmd/panel
+
+# Quick Go-only build (no UI; shows the "UI not built" page). For fast iteration.
+build-go:
 	mkdir -p bin
 	go build -o bin/panel ./cmd/panel
 
@@ -17,22 +23,20 @@ web:
 web-test:
 	cd web && npm ci --no-audit --no-fund && npm run typecheck && npm test -- --run
 
-release: web
-	mkdir -p bin
-	go build -tags embedui -o bin/panel ./cmd/panel
+release: build
 
 # Load .env (if present) into the environment of the recipes below.
 ENV := set -a; [ -f .env ] && . ./.env; set +a;
 
 # Build the full binary (with the embedded UI) and run it with .env.
-run: release
+run: build
 	$(ENV) $(CURDIR)/bin/panel serve
 
 # Run without rebuilding the UI (shows the "UI not built" page if web/dist is absent).
-dev: build
+dev: build-go
 	$(ENV) $(CURDIR)/bin/panel serve
 
-migrate: build
+migrate: build-go
 	$(ENV) $(CURDIR)/bin/panel migrate
 
 # Stop the panel server started by make run/dev from this checkout (anchored, so it never matches itself or worktree servers).

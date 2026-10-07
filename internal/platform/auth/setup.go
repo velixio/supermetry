@@ -33,7 +33,7 @@ func (a *Auth) CompleteSetup(ctx context.Context, token, email, name, password, 
 	orgName = strings.TrimSpace(orgName)
 	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
 	name = strings.TrimSpace(name)
-	if orgName == "" || normalizedEmail == "" || name == "" || len(password) < 12 {
+	if orgName == "" || normalizedEmail == "" || name == "" || password == "" {
 		return 0, 0, ErrInvalid
 	}
 	var preliminaryHash []byte

@@ -189,7 +189,7 @@ export function LoginForm({
                   name="password"
                   type="password"
                   autoComplete="current-password"
-                  minLength={12}
+
                   required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

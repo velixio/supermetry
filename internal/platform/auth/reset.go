@@ -46,7 +46,7 @@ func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
 }
 
 func (a *Auth) FinishReset(ctx context.Context, token, newPassword string) error {
-	if len(newPassword) < 12 {
+	if newPassword == "" {
 		return ErrInvalid
 	}
 	tokenHash := platformcrypto.HashToken(token)
