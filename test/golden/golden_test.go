@@ -22,6 +22,7 @@ import (
 
 	"panel/internal/api"
 	"panel/internal/db"
+	"panel/internal/enrich"
 	"panel/internal/testenv"
 	"panel/internal/testpg"
 )
@@ -125,6 +126,10 @@ func TestGracefulShutdownLosesNothing(t *testing.T) {
 
 func verifyAgainstTruth(t *testing.T, env *testenv.Env, path string) int {
 	t.Helper()
+	classifier, err := enrich.NewSourceClassifier()
+	if err != nil {
+		t.Fatal(err)
+	}
 	rows := loadTruth(t, path)
 	mismatches := 0
 	report := func(format string, args ...any) {
@@ -174,7 +179,9 @@ func verifyAgainstTruth(t *testing.T, env *testenv.Env, path string) int {
 			}
 		}
 		for dimension, want := range truth.Top {
-			limit := len(want)
+			rawLimit := len(want)
+			want = comparisonTop(classifier, dimension, want)
+			limit := rawLimit
 			dimensions := []string{dimension}
 			descending := api.Desc
 			orderBy := []api.OrderBy{
@@ -188,8 +195,12 @@ func verifyAgainstTruth(t *testing.T, env *testenv.Env, path string) int {
 			got := make(map[string]topEntry, len(response.Rows))
 			for _, row := range response.Rows {
 				value, _ := row[dimension].(string)
-				value = truthLabel(dimension, value)
-				got[value] = topEntry{Value: value, Visitors: int64(row["visitors"].(float64)), Pageviews: int64(row["pageviews"].(float64))}
+				value = truthLabel(classifier, dimension, value)
+				entry := got[value]
+				entry.Value = value
+				entry.Visitors += int64(row["visitors"].(float64))
+				entry.Pageviews += int64(row["pageviews"].(float64))
+				got[value] = entry
 			}
 			for _, entry := range want {
 				if actual, ok := got[entry.Value]; !ok || actual.Visitors != entry.Visitors || actual.Pageviews != entry.Pageviews {
@@ -377,24 +388,36 @@ func dateRange(t *testing.T, from, to string) *api.DateRange {
 	return &api.DateRange{From: openapi_types.Date{Time: fromTime}, To: openapi_types.Date{Time: toTime}}
 }
 
-func truthLabel(dimension, value string) string {
+func comparisonTop(classifier *enrich.SourceClassifier, dimension string, entries []topEntry) []topEntry {
+	if dimension != "source" {
+		return entries
+	}
+	positions := make(map[string]int, len(entries))
+	result := make([]topEntry, 0, len(entries))
+	for _, entry := range entries {
+		entry.Value = truthLabel(classifier, dimension, entry.Value)
+		if position, ok := positions[entry.Value]; ok {
+			result[position].Visitors += entry.Visitors
+			result[position].Pageviews += entry.Pageviews
+			continue
+		}
+		positions[entry.Value] = len(result)
+		result = append(result, entry)
+	}
+	return result
+}
+
+func truthLabel(classifier *enrich.SourceClassifier, dimension, value string) string {
 	if dimension != "source" {
 		return value
 	}
-	switch value {
-	case "":
+	if value == "" || value == "(direct)" {
 		return "(direct)"
-	case "Google":
-		return "www.google.com"
-	case "Bing":
-		return "www.bing.com"
-	case "DuckDuckGo":
-		return "duckduckgo.com"
-	case "Ecosia":
-		return "www.ecosia.org"
-	default:
-		return value
 	}
+	if canonical, _, known := classifier.CanonicalSource(value); known {
+		return canonical
+	}
+	return strings.TrimPrefix(value, "www.")
 }
 
 func mustTime(t *testing.T, value string) time.Time {

@@ -17,7 +17,7 @@ type Enricher struct {
 	crawler    crawlerMatcher
 	datacenter prefixSet
 	spam       map[string]struct{}
-	sources    []sourceRule
+	source     *SourceClassifier
 }
 
 // New loads an Enricher. An empty geoPath uses the bundled DB-IP Lite country
@@ -41,7 +41,7 @@ func New(geoPath string) (*Enricher, error) {
 		_ = geo.Close()
 		return nil, err
 	}
-	sources, err := loadSources()
+	source, err := NewSourceClassifier()
 	if err != nil {
 		_ = geo.Close()
 		return nil, err
@@ -53,7 +53,7 @@ func New(geoPath string) (*Enricher, error) {
 		crawler:    crawler,
 		datacenter: datacenter,
 		spam:       spam,
-		sources:    sources,
+		source:     source,
 	}, nil
 }
 

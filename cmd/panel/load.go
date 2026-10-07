@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"panel/internal/config"
 	"panel/internal/db"
 	"panel/internal/dict"
+	"panel/internal/enrich"
 	"panel/internal/salts"
 	"panel/internal/session"
 	"panel/internal/sites"
@@ -104,6 +104,10 @@ func loadEventsWithQueue(
 	if err := dictionary.Load(ctx); err != nil {
 		return loadStats{}, fmt.Errorf("load dictionary: %w", err)
 	}
+	sourceClassifier, err := enrich.NewSourceClassifier()
+	if err != nil {
+		return loadStats{}, fmt.Errorf("load source classifier: %w", err)
+	}
 	sessions := session.NewMemory(16, nil)
 	w := writer.New(pool, sessions, queueSize, flushEvery, sessionFlush, neverClosedDays{})
 	writerCtx, stopWriter := context.WithCancel(context.Background())
@@ -112,7 +116,7 @@ func loadEventsWithQueue(
 
 	loader := &ndjsonLoader{
 		pool: pool, registry: registry, dictionary: dictionary, sessions: sessions, writer: w,
-		salts: make(map[string][]byte),
+		sourceClassifier: sourceClassifier, salts: make(map[string][]byte),
 	}
 	events, loadErr := loader.run(ctx, in)
 	stopWriter()
@@ -133,14 +137,15 @@ func loadEventsWithQueue(
 }
 
 type ndjsonLoader struct {
-	pool       *pgxpool.Pool
-	registry   sites.Registry
-	dictionary *dict.Dict
-	sessions   session.Store
-	writer     *writer.Writer
-	salts      map[string][]byte
-	ensuredTo  time.Time
-	lastTS     time.Time
+	pool             *pgxpool.Pool
+	registry         sites.Registry
+	dictionary       *dict.Dict
+	sessions         session.Store
+	writer           *writer.Writer
+	sourceClassifier *enrich.SourceClassifier
+	salts            map[string][]byte
+	ensuredTo        time.Time
+	lastTS           time.Time
 }
 
 func (l *ndjsonLoader) run(ctx context.Context, in io.Reader) (int64, error) {
@@ -281,6 +286,18 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 		}
 		return out
 	}
+	sources := make([]string, len(records))
+	mediums := make([]string, len(records))
+	for i, record := range records {
+		sources[i], mediums[i] = l.sourceClassifier.Source(
+			record.Referrer,
+			"https://"+record.Host+"/",
+			enrich.UTM{Source: record.UTMSource, Medium: record.UTMMedium},
+		)
+		if sources[i] == "" {
+			sources[i] = "(direct)"
+		}
+	}
 	lookups := []struct {
 		kind   dict.Kind
 		values []string
@@ -288,8 +305,8 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 	}{
 		{dict.Path, values(func(r loadRecord) string { return r.Path }), nil},
 		{dict.Referrer, values(func(r loadRecord) string { return r.Referrer }), nil},
-		{dict.Source, values(loadSource), nil},
-		{dict.Medium, values(func(r loadRecord) string { return r.UTMMedium }), nil},
+		{dict.Source, sources, nil},
+		{dict.Medium, mediums, nil},
 		{dict.Campaign, values(func(r loadRecord) string { return r.UTMCampaign }), nil},
 		{dict.EventName, values(func(r loadRecord) string { return r.Name }), nil},
 		{dict.Browser, values(func(r loadRecord) string { return r.Browser }), nil},
@@ -345,17 +362,6 @@ func (l *ndjsonLoader) visitorID(siteID int32, day time.Time, ip, userAgent stri
 		l.salts[key] = salt
 	}
 	return salts.VisitorID(salt, siteID, ip, userAgent), nil
-}
-
-func loadSource(record loadRecord) string {
-	if record.UTMSource != "" {
-		return record.UTMSource
-	}
-	referrer, err := url.Parse(record.Referrer)
-	if err != nil || referrer.Hostname() == "" || strings.EqualFold(referrer.Hostname(), record.Host) {
-		return "(direct)"
-	}
-	return strings.ToLower(referrer.Hostname())
 }
 
 func loadDevice(value string) int16 {

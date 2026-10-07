@@ -1,9 +1,29 @@
-[
-  {"name":"Google","medium":"organic","domains":["google.com","google.co.uk","google.co.in","google.ca","google.com.au","google.de","google.fr","google.co.jp"]},
-  {"name":"Bing","medium":"organic","domains":["bing.com"]},
-  {"name":"Yahoo!","medium":"organic","domains":["search.yahoo.com","yahoo.com"]},
-  {"name":"DuckDuckGo","medium":"organic","domains":["duckduckgo.com"]},
-  {"name":"Baidu","medium":"organic","domains":["baidu.com"]},
-  {"name":"Yandex","medium":"organic","domains":["yandex.com","yandex.ru"]},
-  {"name":"Ecosia","medium":"organic","domains":["ecosia.org"]}
-]
+{
+  "sources": [
+    {"name":"Google","medium":"organic","domains":["google.*"],"aliases":["google"]},
+    {"name":"Bing","medium":"organic","domains":["bing.com"],"aliases":["bing"]},
+    {"name":"DuckDuckGo","medium":"organic","domains":["duckduckgo.com"],"aliases":["duckduckgo"]},
+    {"name":"Yahoo","medium":"organic","domains":["yahoo.com"],"aliases":["yahoo"]},
+    {"name":"Yandex","medium":"organic","domains":["yandex.com","yandex.ru"],"aliases":["yandex"]},
+    {"name":"Baidu","medium":"organic","domains":["baidu.com"],"aliases":["baidu"]},
+    {"name":"Ecosia","medium":"organic","domains":["ecosia.org"],"aliases":["ecosia"]},
+    {"name":"Facebook","medium":"social","domains":["facebook.com","l.facebook.com","m.facebook.com","lm.facebook.com"],"aliases":["facebook","fb"]},
+    {"name":"Instagram","medium":"social","domains":["instagram.com"],"aliases":["instagram"]},
+    {"name":"X/Twitter","medium":"social","domains":["t.co","twitter.com","x.com"],"aliases":["twitter","x"]},
+    {"name":"LinkedIn","medium":"social","domains":["lnkd.in","linkedin.com"],"aliases":["linkedin"]},
+    {"name":"Reddit","medium":"social","domains":["reddit.com"],"aliases":["reddit"]},
+    {"name":"YouTube","medium":"social","domains":["youtube.com","youtu.be"],"aliases":["youtube"]},
+    {"name":"Pinterest","medium":"social","domains":["pinterest.com","pin.it"],"aliases":["pinterest"]},
+    {"name":"GitHub","medium":"referral","domains":["github.com"],"aliases":["github"]},
+    {"name":"Hacker News","medium":"referral","domains":["news.ycombinator.com"],"aliases":["hacker news","hackernews","hn"]},
+    {"name":"ChatGPT","medium":"referral","domains":["chatgpt.com","chat.openai.com"],"aliases":["chatgpt"]},
+    {"name":"Perplexity","medium":"referral","domains":["perplexity.ai"],"aliases":["perplexity"]}
+  ],
+  "mediums": [
+    {"name":"organic","aliases":["organic","search"]},
+    {"name":"social","aliases":["social","social-network","social_media","social-media"]},
+    {"name":"referral","aliases":["referral"]},
+    {"name":"email","aliases":["email","e-mail"]},
+    {"name":"paid","aliases":["paid","cpc","ppc","paid-search","paid_search","paid-social","paid_social"]}
+  ]
+}

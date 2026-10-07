@@ -498,6 +498,8 @@ type fixtureEvent struct {
 	ScrollPct    int               `json:"scroll_pct,omitempty"`
 }
 
+// fixtureSource intentionally mirrors the generator's raw source labels. The
+// golden comparison canonicalizes labels without changing generator counts.
 func fixtureSource(event fixtureEvent) string {
 	if event.UTMSource != "" {
 		return event.UTMSource
