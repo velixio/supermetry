@@ -19,6 +19,7 @@ import { Route as AccountSecurityRouteImport } from './routes/account.security'
 import { Route as AccountSessionsRouteImport } from './routes/account.sessions'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
+import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
 import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
 import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
@@ -83,6 +84,11 @@ const InviteTokenRoute = InviteTokenRouteImport.update({
 const ResetTokenRoute = ResetTokenRouteImport.update({
   id: '/reset/$token',
   path: '/reset/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareSlugRoute = ShareSlugRouteImport.update({
+  id: '/share/$slug',
+  path: '/share/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgSiteIndexRoute = OrgSiteIndexRouteImport.update({
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/account/sessions': typeof AccountSessionsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
+  '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/account/sessions': typeof AccountSessionsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
+  '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/account/sessions': typeof AccountSessionsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
+  '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/account/sessions'
     | '/invite/$token'
     | '/reset/$token'
+    | '/share/$slug'
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
     | '/$org/settings/api-keys'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/account/sessions'
     | '/invite/$token'
     | '/reset/$token'
+    | '/share/$slug'
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
     | '/$org/settings/api-keys'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/account/sessions'
     | '/invite/$token'
     | '/reset/$token'
+    | '/share/$slug'
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
     | '/$org/settings/api-keys'
@@ -337,6 +349,7 @@ export interface RootRouteChildren {
   AccountSessionsRoute: typeof AccountSessionsRoute
   InviteTokenRoute: typeof InviteTokenRoute
   ResetTokenRoute: typeof ResetTokenRoute
+  ShareSlugRoute: typeof ShareSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -409,6 +422,13 @@ declare module '@tanstack/react-router' {
       path: '/reset/$token'
       fullPath: '/reset/$token'
       preLoaderRoute: typeof ResetTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share/$slug': {
+      id: '/share/$slug'
+      path: '/share/$slug'
+      fullPath: '/share/$slug'
+      preLoaderRoute: typeof ShareSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$org/$site/': {
@@ -569,6 +589,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountSessionsRoute: AccountSessionsRoute,
   InviteTokenRoute: InviteTokenRoute,
   ResetTokenRoute: ResetTokenRoute,
+  ShareSlugRoute: ShareSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
