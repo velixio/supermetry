@@ -129,6 +129,11 @@ func (o *Orgs) Remove(ctx context.Context, actor authz.Principal, userID int64) 
 		if _, err := tx.Exec(ctx, `delete from memberships where org_id = $1 and user_id = $2`, actor.OrgID, userID); err != nil {
 			return fmt.Errorf("delete membership: %w", err)
 		}
+		// Stop email reports for the removed member's sites in the same transaction.
+		if _, err := tx.Exec(ctx, `delete from report_subscriptions rs using sites s
+			where rs.site_id = s.id and s.org_id = $1 and rs.user_id = $2`, actor.OrgID, userID); err != nil {
+			return fmt.Errorf("delete report subscriptions: %w", err)
+		}
 		return audit.Write(ctx, tx, actor, "membership.removed", "membership", userID, map[string]any{"role": role})
 	})
 }

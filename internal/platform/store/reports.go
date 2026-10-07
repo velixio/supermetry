@@ -49,14 +49,19 @@ func SubscribeReport(ctx context.Context, tx pgx.Tx, orgID, userID int64, siteID
 	return id, false, nil
 }
 
-// ReportSubscriptions returns active subscriptions with their recipient.
+// ReportSubscriptions returns active subscriptions whose recipient still has
+// access to the site, with the recipient address.
 func ReportSubscriptions(ctx context.Context, data *Store) ([]ReportSubscription, error) {
 	rows, err := data.Pool.Query(ctx, `
 		select rs.id, rs.site_id, rs.user_id, u.email, rs.cadence, rs.last_sent_at
 		from report_subscriptions rs
 		join users u on u.id = rs.user_id
 		join sites s on s.id = rs.site_id
+		-- Re-check access at delivery time: the recipient must still be a member of
+		-- the site's org, and a site restriction must still include this site.
+		join memberships m on m.user_id = rs.user_id and m.org_id = s.org_id
 		where s.deleted_at is null
+		  and (m.site_ids is null or rs.site_id = any(m.site_ids))
 		order by rs.id`)
 	if err != nil {
 		return nil, fmt.Errorf("list report subscriptions: %w", err)
