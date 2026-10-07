@@ -48,10 +48,10 @@ function relativeTime(value: string, now: Date): string {
   return formatter.format(Math.round(hours / 24), 'day')
 }
 
-export function InstallGuide({ publicId, snippet, lastEventReceivedAt, now = new Date() }: { publicId: string; snippet?: string; lastEventReceivedAt?: string; now?: Date }) {
+export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceivedAt, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; lastEventReceivedAt?: string; now?: Date }) {
   return (
     <div className="flex flex-col gap-6">
-      <TrackingSnippet publicId={publicId} snippet={snippet} />
+      <TrackingSnippet publicId={publicId} snippet={snippet} fullSnippet={fullSnippet} />
       <Tabs defaultValue="html">
         <TabsList aria-label="Installation method" className="max-w-full overflow-x-auto">
           <TabsTrigger value="html">Plain HTML</TabsTrigger>
@@ -80,6 +80,11 @@ export function InstallGuide({ publicId, snippet, lastEventReceivedAt, now = new
           </ol>
         </TabsContent>
       </Tabs>
+      <aside className="border-l-2 border-accent pl-4 text-sm">
+        <p className="font-medium">Track custom clicks</p>
+        <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>
+        <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all"><code>{'<button data-panel-event="Signup" data-panel-prop-plan="pro">Start free trial</button>'}</code></pre>
+      </aside>
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Reduce ad-blocker losses</p>
         <p className="text-muted-foreground">Proxy the script through your own domain and forward the event endpoint from the same host.</p>

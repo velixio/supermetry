@@ -232,7 +232,7 @@ export function InstallationPage({
   const snippet = useQuery({
     queryKey: ["site-snippet", orgId, siteId],
     queryFn: () =>
-      privateRequest<{ snippet: string }>("GET", `/api/private/sites/${siteId}/snippet`, { orgId }),
+      privateRequest<{ snippet: string; full_snippet: string }>("GET", `/api/private/sites/${siteId}/snippet`, { orgId }),
   });
   return (
     <Page
@@ -243,6 +243,7 @@ export function InstallationPage({
         <InstallGuide
           publicId={publicId}
           snippet={snippet.data?.snippet}
+          fullSnippet={snippet.data?.full_snippet}
           lastEventReceivedAt={status.data?.last_event_received_at}
         />
       </Surface>

@@ -318,5 +318,8 @@ func (h *handler) siteSnippet(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal server error", "snippet is not configured")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"snippet": h.deps.Snippet(site.PublicID)})
+	writeJSON(w, http.StatusOK, map[string]string{
+		"snippet":      h.deps.Snippet(site.PublicID, false),
+		"full_snippet": h.deps.Snippet(site.PublicID, true),
+	})
 }

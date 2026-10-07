@@ -85,6 +85,7 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.Config.TrackerPath != "" {
 		mux.Handle("GET "+deps.Config.TrackerPath, tracker.Handler())
+		mux.Handle("GET "+tracker.FullPath(deps.Config.TrackerPath), tracker.FullHandler())
 	}
 	mux.HandleFunc("GET /api/public/openapi.json", serveOpenAPI)
 	if deps.UI != nil {

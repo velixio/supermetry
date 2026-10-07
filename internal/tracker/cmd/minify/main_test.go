@@ -39,3 +39,28 @@ func TestCheckedInMinifiedTrackerIsCurrent(t *testing.T) {
 		t.Fatal("tracker.min.js is stale; run go generate ./internal/tracker")
 	}
 }
+
+func TestCheckedInMinifiedFullTrackerIsCurrent(t *testing.T) {
+	t.Parallel()
+
+	core, err := os.ReadFile("../../tracker.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	extensions, err := os.ReadFile("../../tracker.extensions.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := minify(append(core, extensions...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile("../../tracker.full.min.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = bytes.TrimSuffix(want, []byte{'\n'})
+	if !bytes.Equal(got, want) {
+		t.Fatal("tracker.full.min.js is stale; run go generate ./internal/tracker")
+	}
+}
