@@ -25,6 +25,15 @@ const (
 
 var retentionClasses = []RetentionClass{Ret7, Ret30, Ret90, Ret365, RetForever}
 
+var monthlyDayTables = []string{
+	"sessions_closed",
+	"custom_closed",
+	"cube_day",
+	"visitor_day",
+	"rollup_day",
+	"rollup_day_dim",
+}
+
 // Partition describes a leaf partition below a retention-class partition.
 type Partition struct {
 	Name  string
@@ -55,8 +64,32 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 			}
 		}
 	}
+	for _, table := range monthlyDayTables {
+		if err := ensureMonthlyDayPartitions(ctx, tx, table, from, to); err != nil {
+			return err
+		}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit partition creation: %w", err)
+	}
+	return nil
+}
+
+func ensureMonthlyDayPartitions(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+	start := time.Date(from.UTC().Year(), from.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
+	for lower := start; lower.Before(to); lower = lower.AddDate(0, 1, 0) {
+		upper := lower.AddDate(0, 1, 0)
+		name := table + "_" + lower.Format("200601")
+		sql := fmt.Sprintf(
+			"CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
+			pgx.Identifier{name}.Sanitize(),
+			pgx.Identifier{table}.Sanitize(),
+			lower.Format(time.DateOnly),
+			upper.Format(time.DateOnly),
+		)
+		if _, err := tx.Exec(ctx, sql); err != nil {
+			return fmt.Errorf("create %s partition for %s: %w", name, lower.Format("2006-01"), err)
+		}
 	}
 	return nil
 }
