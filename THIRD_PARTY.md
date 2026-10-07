@@ -9,6 +9,7 @@
 - Tailwind CSS and `@tailwindcss/vite` v4.3.3
 - shadcn v4.21.4, Radix UI v1.7.0, `clsx` v2.1.1,
   `tailwind-merge` v3.7.0, and `tw-animate-css` v1.4.0
+- Sonner v2.0.8 and next-themes v0.4.6
 - Recharts v3.10.1
 - Zod v4.6.5
 - `openapi-fetch` v0.17.0 and `openapi-typescript` v7.13.0
