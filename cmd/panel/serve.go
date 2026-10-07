@@ -24,7 +24,7 @@ import (
 	"panel/internal/config"
 	"panel/internal/db"
 	"panel/internal/dict"
-	"panel/internal/enrich"
+	"panel/internal/geoupdate"
 	"panel/internal/ingest"
 	platformauth "panel/internal/platform/auth"
 	"panel/internal/platform/authn"
@@ -64,7 +64,9 @@ type wallClock struct{}
 func (wallClock) Now() time.Time { return time.Now() }
 
 type serveOptions struct {
-	clock clock
+	clock     clock
+	geoUpdate geoUpdateFunc
+	listen    func(network, address string) (net.Listener, error)
 }
 
 type serveOption func(*serveOptions)
@@ -79,11 +81,32 @@ func withClock(value clock) serveOption {
 	}
 }
 
+func withGeoUpdate(value geoUpdateFunc) serveOption {
+	return func(options *serveOptions) {
+		if value != nil {
+			options.geoUpdate = value
+		}
+	}
+}
+
+func withListen(value func(network, address string) (net.Listener, error)) serveOption {
+	return func(options *serveOptions) {
+		if value != nil {
+			options.listen = value
+		}
+	}
+}
+
 func serve(ctx context.Context, cfg config.Config, options ...serveOption) error {
-	settings := serveOptions{clock: wallClock{}}
+	settings := serveOptions{clock: wallClock{}, geoUpdate: geoupdate.Update, listen: net.Listen}
 	for _, option := range options {
 		option(&settings)
 	}
+	geo, err := prepareGeoIP(ctx, cfg, settings.geoUpdate)
+	if err != nil {
+		return err
+	}
+	defer geo.Close()
 
 	pool, err := db.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -126,11 +149,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -1), now.Add(partitionLookahead)); err != nil {
 		return fmt.Errorf("ensure startup partitions: %w", err)
 	}
-	enricher, err := enrich.New(cfg.GeoIPPath)
-	if err != nil {
-		return fmt.Errorf("load enrichment data: %w", err)
-	}
-	defer enricher.Close()
+	enricher := geo.enricher
 
 	closed, err := loadClosedDays(ctx, pool)
 	if err != nil {
@@ -205,7 +224,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})
-	listener, err := net.Listen("tcp", cfg.Listen)
+	listener, err := settings.listen("tcp", cfg.Listen)
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Listen, err)
 	}
@@ -223,10 +242,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	go func() { writerDone <- w.Run(writerCtx) }()
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, settings.clock)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, geo, settings.clock)
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
+	geoRefreshDone := startGeoIPRefresh(schedulerCtx, geo, func(err error) {
+		slog.Warn("GeoIP background refresh failed", "error", err)
+	})
 
 	serverDone := make(chan error, 1)
 	go func() {
@@ -267,6 +289,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelScheduler()
 	if schedulerDone != nil {
 		cause = errors.Join(cause, <-schedulerDone)
+	}
+	if geoRefreshDone != nil {
+		<-geoRefreshDone
 	}
 	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, settings.clock.Now()))
 	return errors.Join(cause, httpErr)
@@ -367,6 +392,7 @@ func scheduledJobs(
 	sessions session.Store,
 	closed *closedDays,
 	reportService *reports.Reports,
+	geo *geoService,
 	clk clock,
 ) []scheduler.Job {
 	jobs := []scheduler.Job{
@@ -410,6 +436,12 @@ func scheduledJobs(
 			_, err := pool.Exec(ctx, `delete from invitations where expires_at <= $1 or accepted_at is not null or revoked_at is not null`, clk.Now())
 			return err
 		}},
+	}
+	if geo != nil && geo.maxMind {
+		jobs = append(jobs, scheduler.Job{Name: "geoip-update", Every: geoIPUpdateInterval, Run: func(ctx context.Context) error {
+			_, err := geo.Refresh(ctx, false)
+			return err
+		}})
 	}
 	if reportService != nil {
 		jobs = append(jobs, reportService.Job())

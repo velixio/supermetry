@@ -1,0 +1,28 @@
+# Case-insensitive substrings found in hosting and cloud ASN organizations.
+amazon-02
+amazon.com
+amazon data services
+amazon technologies
+amazon web services
+google-cloud
+google cloud
+google llc
+microsoft-corp
+microsoft azure
+microsoft corporation
+digitalocean
+hetzner
+ovh sas
+ovh hosting
+linode
+akamai
+constant company
+vultr
+oracle corporation
+oracle cloud
+alibaba
+alicloud
+tencent
+cloudflare
+scaleway
+contabo

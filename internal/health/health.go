@@ -46,15 +46,24 @@ var (
 	// unfiltered case and is intentionally not exported as a metric.
 	BotsFiltered [5]Counter
 
-	WriterQueueDepth     Gauge
-	CopySeconds          Gauge
-	CloseLagSeconds      Gauge
-	CloseDurationSeconds Gauge
+	WriterQueueDepth           Gauge
+	CopySeconds                Gauge
+	CloseLagSeconds            Gauge
+	CloseDurationSeconds       Gauge
+	GeoIPUpdateLastSuccessUnix Gauge
+	GeoIPUpdateFailures        Counter
 
 	QuerySeconds = newRouteHistogram()
 
 	QueryCacheHits   Counter
 	QueryCacheMisses Counter
+
+	geoIPSource atomic.Uint32
+)
+
+const (
+	geoIPSourceDBIP uint32 = iota
+	geoIPSourceMaxMind
 )
 
 var botReasons = [...]string{"", "ua", "headless", "datacenter", "spam_referrer"}
@@ -62,6 +71,25 @@ var botReasons = [...]string{"", "ua", "headless", "datacenter", "spam_referrer"
 var querySecondBuckets = [...]float64{
 	0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25,
 	0.5, 1, 2.5, 5, 10, 30,
+}
+
+// SetGeoIPSource records the active GeoIP database provider. Unsupported
+// values leave the current provider unchanged.
+func SetGeoIPSource(source string) {
+	switch source {
+	case "dbip":
+		geoIPSource.Store(geoIPSourceDBIP)
+	case "maxmind":
+		geoIPSource.Store(geoIPSourceMaxMind)
+	}
+}
+
+// GeoIPSource returns the active GeoIP database provider.
+func GeoIPSource() string {
+	if geoIPSource.Load() == geoIPSourceMaxMind {
+		return "maxmind"
+	}
+	return "dbip"
 }
 
 type bucketHistogram struct {
@@ -123,15 +151,20 @@ func (h *RouteHistogram) snapshot() map[string]float64 {
 // updates.
 func Snapshot() map[string]float64 {
 	snapshot := map[string]float64{
-		"ingest_accepted_total":  float64(IngestAccepted.Load()),
-		"ingest_invalid_total":   float64(IngestInvalid.Load()),
-		"ingest_dropped_total":   float64(IngestDropped.Load()),
-		"writer_queue_depth":     WriterQueueDepth.Load(),
-		"copy_seconds":           CopySeconds.Load(),
-		"close_lag_seconds":      CloseLagSeconds.Load(),
-		"close_duration_seconds": CloseDurationSeconds.Load(),
-		"query_cache_hit_ratio":  cacheHitRatio(),
+		"ingest_accepted_total":          float64(IngestAccepted.Load()),
+		"ingest_invalid_total":           float64(IngestInvalid.Load()),
+		"ingest_dropped_total":           float64(IngestDropped.Load()),
+		"writer_queue_depth":             WriterQueueDepth.Load(),
+		"copy_seconds":                   CopySeconds.Load(),
+		"close_lag_seconds":              CloseLagSeconds.Load(),
+		"close_duration_seconds":         CloseDurationSeconds.Load(),
+		"geoip_update_last_success_unix": GeoIPUpdateLastSuccessUnix.Load(),
+		"geoip_update_failures_total":    float64(GeoIPUpdateFailures.Load()),
+		"query_cache_hit_ratio":          cacheHitRatio(),
 	}
+	snapshot[`geoip_source{source="dbip"}`] = 0
+	snapshot[`geoip_source{source="maxmind"}`] = 0
+	snapshot[fmt.Sprintf(`geoip_source{source=%q}`, GeoIPSource())] = 1
 	for reason := 1; reason < len(BotsFiltered); reason++ {
 		snapshot[fmt.Sprintf(`bots_filtered_total{reason=%q}`, botReasons[reason])] = float64(BotsFiltered[reason].Load())
 	}
@@ -161,6 +194,9 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "copy_seconds", "gauge")
 	writeFamily(w, snapshot, "close_lag_seconds", "gauge")
 	writeFamily(w, snapshot, "close_duration_seconds", "gauge")
+	writeFamily(w, snapshot, "geoip_update_last_success_unix", "gauge")
+	writeFamily(w, snapshot, "geoip_update_failures_total", "counter")
+	writeFamily(w, snapshot, "geoip_source", "gauge")
 	writeFamily(w, snapshot, "query_seconds", "gauge")
 	writeFamily(w, snapshot, "query_cache_hit_ratio", "gauge")
 }

@@ -35,6 +35,9 @@ var referrerSpam []byte
 //go:embed lists/datacenter-cidrs.txt
 var datacenterCIDRs []byte
 
+//go:embed lists/hosting-organizations.txt
+var hostingOrganizations []byte
+
 type crawlerMatcher struct {
 	pattern *regexp.Regexp
 }
@@ -69,11 +72,26 @@ func (e *Enricher) Bot(ua string, ip netip.Addr, referrer string) BotReason {
 		return BotUserAgent
 	case e.datacenter.contains(ip):
 		return BotDatacenter
+	case e.isHostingOrganization(e.ASN(ip).Organization):
+		return BotDatacenter
 	case e.isSpamReferrer(referrer):
 		return BotSpamReferrer
 	default:
 		return BotNone
 	}
+}
+
+func (e *Enricher) isHostingOrganization(organization string) bool {
+	organization = strings.ToLower(strings.TrimSpace(organization))
+	if organization == "" {
+		return false
+	}
+	for _, pattern := range e.hosting {
+		if strings.Contains(organization, pattern) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Enricher) isSpamReferrer(referrer string) bool {
@@ -94,10 +112,10 @@ func (e *Enricher) isSpamReferrer(referrer string) bool {
 	}
 }
 
-func loadBotData() (crawlerMatcher, prefixSet, map[string]struct{}, error) {
+func loadBotData() (crawlerMatcher, prefixSet, map[string]struct{}, []string, error) {
 	var crawlers []crawlerEntry
 	if err := json.Unmarshal(crawlerUserAgentsJSON, &crawlers); err != nil {
-		return crawlerMatcher{}, nil, nil, fmt.Errorf("parse crawler list: %w", err)
+		return crawlerMatcher{}, nil, nil, nil, fmt.Errorf("parse crawler list: %w", err)
 	}
 	patterns := make([]string, 0, len(crawlers))
 	for _, crawler := range crawlers {
@@ -107,12 +125,12 @@ func loadBotData() (crawlerMatcher, prefixSet, map[string]struct{}, error) {
 	}
 	pattern, err := regexp.Compile(`(?i)(?:` + strings.Join(patterns, "|") + `)`)
 	if err != nil {
-		return crawlerMatcher{}, nil, nil, fmt.Errorf("compile crawler list: %w", err)
+		return crawlerMatcher{}, nil, nil, nil, fmt.Errorf("compile crawler list: %w", err)
 	}
 
 	prefixes, err := parsePrefixes(datacenterCIDRs)
 	if err != nil {
-		return crawlerMatcher{}, nil, nil, err
+		return crawlerMatcher{}, nil, nil, nil, err
 	}
 
 	spam := make(map[string]struct{})
@@ -124,10 +142,23 @@ func loadBotData() (crawlerMatcher, prefixSet, map[string]struct{}, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return crawlerMatcher{}, nil, nil, fmt.Errorf("parse spam list: %w", err)
+		return crawlerMatcher{}, nil, nil, nil, fmt.Errorf("parse spam list: %w", err)
 	}
 
-	return crawlerMatcher{pattern: pattern}, prefixes, spam, nil
+	hosting := parseLines(hostingOrganizations)
+	return crawlerMatcher{pattern: pattern}, prefixes, spam, hosting, nil
+}
+
+func parseLines(data []byte) []string {
+	var lines []string
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := strings.ToLower(strings.TrimSpace(scanner.Text()))
+		if line != "" && !strings.HasPrefix(line, "#") {
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }
 
 func parsePrefixes(data []byte) (prefixSet, error) {

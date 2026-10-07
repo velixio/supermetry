@@ -21,7 +21,15 @@ const (
 	defaultQueryTimeout = 10 * time.Second
 	defaultSignup       = "open"
 	defaultSMTPPort     = 587
+	defaultDataDir      = "./data"
+	defaultMaxMind      = "GeoLite2-City,GeoLite2-ASN"
 )
+
+var allowedMaxMindEditions = map[string]bool{
+	"GeoLite2-City":    true,
+	"GeoLite2-ASN":     true,
+	"GeoLite2-Country": true,
+}
 
 type SMTP struct {
 	Host     string
@@ -33,39 +41,48 @@ type SMTP struct {
 }
 
 type Config struct {
-	DatabaseURL    string
-	Listen         string
-	BaseURL        string
-	EventPath      string
-	TrackerPath    string
-	GeoIPPath      string
-	SitesFile      string
-	QueueSize      int
-	FlushEvery     time.Duration
-	SessionFlush   time.Duration
-	QueryTimeout   time.Duration
-	AdminAPIKey    string
-	TrustedProxies []netip.Prefix
-	SecretKey      []byte
-	Signup         string
-	SMTP           SMTP
+	DatabaseURL       string
+	Listen            string
+	BaseURL           string
+	EventPath         string
+	TrackerPath       string
+	GeoIPPath         string
+	DataDir           string
+	MaxMindAccountID  string
+	MaxMindLicenseKey string
+	MaxMindEditions   []string
+	SitesFile         string
+	QueueSize         int
+	FlushEvery        time.Duration
+	SessionFlush      time.Duration
+	QueryTimeout      time.Duration
+	AdminAPIKey       string
+	TrustedProxies    []netip.Prefix
+	SecretKey         []byte
+	Signup            string
+	SMTP              SMTP
 }
 
 func Load(getenv func(string) string) (Config, error) {
+	geo, geoErr := LoadGeoIP(getenv)
 	c := Config{
-		DatabaseURL:  getenv("PANEL_DATABASE_URL"),
-		Listen:       valueOrDefault(getenv("PANEL_LISTEN"), defaultListen),
-		BaseURL:      getenv("PANEL_BASE_URL"),
-		EventPath:    valueOrDefault(getenv("PANEL_EVENT_PATH"), defaultEventPath),
-		TrackerPath:  valueOrDefault(getenv("PANEL_TRACKER_PATH"), defaultTrackerPath),
-		GeoIPPath:    getenv("PANEL_GEOIP_PATH"),
-		SitesFile:    getenv("PANEL_SITES_FILE"),
-		QueueSize:    defaultQueueSize,
-		FlushEvery:   defaultFlushEvery,
-		SessionFlush: defaultSessionFlush,
-		QueryTimeout: defaultQueryTimeout,
-		AdminAPIKey:  getenv("PANEL_ADMIN_API_KEY"),
-		Signup:       valueOrDefault(getenv("PANEL_SIGNUP"), defaultSignup),
+		DatabaseURL:       getenv("PANEL_DATABASE_URL"),
+		Listen:            valueOrDefault(getenv("PANEL_LISTEN"), defaultListen),
+		BaseURL:           getenv("PANEL_BASE_URL"),
+		EventPath:         valueOrDefault(getenv("PANEL_EVENT_PATH"), defaultEventPath),
+		TrackerPath:       valueOrDefault(getenv("PANEL_TRACKER_PATH"), defaultTrackerPath),
+		GeoIPPath:         geo.GeoIPPath,
+		DataDir:           geo.DataDir,
+		MaxMindAccountID:  geo.MaxMindAccountID,
+		MaxMindLicenseKey: geo.MaxMindLicenseKey,
+		MaxMindEditions:   geo.MaxMindEditions,
+		SitesFile:         getenv("PANEL_SITES_FILE"),
+		QueueSize:         defaultQueueSize,
+		FlushEvery:        defaultFlushEvery,
+		SessionFlush:      defaultSessionFlush,
+		QueryTimeout:      defaultQueryTimeout,
+		AdminAPIKey:       getenv("PANEL_ADMIN_API_KEY"),
+		Signup:            valueOrDefault(getenv("PANEL_SIGNUP"), defaultSignup),
 		SMTP: SMTP{
 			Host:     getenv("PANEL_SMTP_HOST"),
 			Port:     defaultSMTPPort,
@@ -75,8 +92,10 @@ func Load(getenv func(string) string) (Config, error) {
 			StartTLS: true,
 		},
 	}
-
 	var errs []error
+	if geoErr != nil {
+		errs = append(errs, geoErr)
+	}
 	if c.DatabaseURL == "" {
 		errs = append(errs, errors.New("PANEL_DATABASE_URL is required"))
 	} else if err := validateURL(c.DatabaseURL, "PANEL_DATABASE_URL", nil); err != nil {
@@ -150,6 +169,33 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	}
 
+	return c, errors.Join(errs...)
+}
+
+// LoadGeoIP loads only the settings needed by the geoip command. It does not
+// require database or HTTP server configuration.
+func LoadGeoIP(getenv func(string) string) (Config, error) {
+	c := Config{
+		GeoIPPath:         getenv("PANEL_GEOIP_PATH"),
+		DataDir:           valueOrDefault(getenv("PANEL_DATA_DIR"), defaultDataDir),
+		MaxMindAccountID:  getenv("PANEL_MAXMIND_ACCOUNT_ID"),
+		MaxMindLicenseKey: getenv("PANEL_MAXMIND_LICENSE_KEY"),
+		MaxMindEditions:   strings.Split(valueOrDefault(getenv("PANEL_MAXMIND_EDITIONS"), defaultMaxMind), ","),
+	}
+	var errs []error
+	if (c.MaxMindAccountID == "") != (c.MaxMindLicenseKey == "") {
+		errs = append(errs, errors.New("PANEL_MAXMIND_ACCOUNT_ID and PANEL_MAXMIND_LICENSE_KEY must both be set or both be empty"))
+	}
+	seenEditions := make(map[string]bool, len(c.MaxMindEditions))
+	for index, edition := range c.MaxMindEditions {
+		edition = strings.TrimSpace(edition)
+		c.MaxMindEditions[index] = edition
+		if !allowedMaxMindEditions[edition] || seenEditions[edition] {
+			errs = append(errs, fmt.Errorf("PANEL_MAXMIND_EDITIONS contains invalid or duplicate edition %q", edition))
+			continue
+		}
+		seenEditions[edition] = true
+	}
 	return c, errors.Join(errs...)
 }
 

@@ -2,6 +2,7 @@
 knowledge
 goal
 bin
+/data/
 # Secrets and credentials (never commit)
 .env
 .env.*

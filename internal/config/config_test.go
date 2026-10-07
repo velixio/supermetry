@@ -3,6 +3,8 @@ package config
 import (
 	"encoding/base64"
 	"net/netip"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -64,6 +66,74 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	}
 	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "open" {
 		t.Fatalf("bad defaults: %+v", c)
+	}
+	if c.DataDir != "./data" {
+		t.Errorf("DataDir = %q, want ./data", c.DataDir)
+	}
+	if want := []string{"GeoLite2-City", "GeoLite2-ASN"}; !reflect.DeepEqual(c.MaxMindEditions, want) {
+		t.Errorf("MaxMindEditions = %v, want %v", c.MaxMindEditions, want)
+	}
+}
+
+func TestLoadMaxMind(t *testing.T) {
+	tests := []struct {
+		name     string
+		account  string
+		key      string
+		editions string
+		want     []string
+		wantErr  string
+	}{
+		{name: "credentials and allowed editions", account: "1234", key: "top-secret", editions: "GeoLite2-Country, GeoLite2-ASN", want: []string{"GeoLite2-Country", "GeoLite2-ASN"}},
+		{name: "account without key", account: "1234", wantErr: "both be set"},
+		{name: "key without account", key: "top-secret", wantErr: "both be set"},
+		{name: "unknown edition", account: "1234", key: "top-secret", editions: "GeoIP2-City", wantErr: "PANEL_MAXMIND_EDITIONS"},
+		{name: "empty edition", account: "1234", key: "top-secret", editions: "GeoLite2-City,", wantErr: "PANEL_MAXMIND_EDITIONS"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values := baseEnv()
+			values["PANEL_MAXMIND_ACCOUNT_ID"] = tt.account
+			values["PANEL_MAXMIND_LICENSE_KEY"] = tt.key
+			if tt.editions != "" {
+				values["PANEL_MAXMIND_EDITIONS"] = tt.editions
+			}
+			values["PANEL_DATA_DIR"] = "/var/lib/panel"
+
+			got, err := Load(env(values))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load() error = %v, want containing %q", err, tt.wantErr)
+				}
+				if strings.Contains(err.Error(), tt.key) && tt.key != "" {
+					t.Fatalf("Load() error leaked license key: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.MaxMindAccountID != tt.account || got.MaxMindLicenseKey != tt.key || got.DataDir != "/var/lib/panel" {
+				t.Fatalf("MaxMind config = %+v", got)
+			}
+			if !reflect.DeepEqual(got.MaxMindEditions, tt.want) {
+				t.Errorf("MaxMindEditions = %v, want %v", got.MaxMindEditions, tt.want)
+			}
+		})
+	}
+}
+
+func TestLoadGeoIPDoesNotRequireServerConfiguration(t *testing.T) {
+	got, err := LoadGeoIP(env(map[string]string{
+		"PANEL_MAXMIND_ACCOUNT_ID":  "1234",
+		"PANEL_MAXMIND_LICENSE_KEY": "top-secret",
+		"PANEL_DATA_DIR":            "/var/lib/panel",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DatabaseURL != "" || got.BaseURL != "" || got.MaxMindAccountID != "1234" || got.DataDir != "/var/lib/panel" {
+		t.Fatalf("LoadGeoIP() = %+v", got)
 	}
 }
 

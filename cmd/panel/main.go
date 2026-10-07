@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|version}")
 		os.Exit(2)
 	}
 
@@ -57,8 +57,13 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "geoip":
+		if err := geoIPCommand(context.Background(), os.Args[2:], os.Stdout, os.Getenv, nil); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|version}")
 		os.Exit(2)
 	}
 }

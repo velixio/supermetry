@@ -4,6 +4,7 @@ go 1.27.0
 
 require (
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/mileusna/useragent v1.3.5
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/oschwald/maxminddb-golang/v2 v2.7.0
@@ -30,6 +31,7 @@ require (
 	github.com/speakeasy-api/jsonpath v0.6.3 // indirect
 	github.com/speakeasy-api/openapi v1.24.0 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect

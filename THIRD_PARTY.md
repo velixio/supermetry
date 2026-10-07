@@ -21,6 +21,8 @@
 - `github.com/jackc/pgservicefile` — Copyright (c) 2020 Jack Christensen
 - `github.com/jackc/puddle/v2` v2.2.2 — Copyright (c) 2018 Jack Christensen
 - `github.com/mileusna/useragent` v1.3.5 — Copyright (c) 2017 Miloš Mileusnić
+- `github.com/maxmind/mmdbwriter` v1.2.0 (test-only) — MIT or Apache-2.0;
+  used under MIT
 - `github.com/apapsch/go-jsonmerge/v2` v2.0.0 — Copyright (c) 2016-2019 Artur Kraev
 - `github.com/boombuler/barcode` — Copyright (c) 2013 Boombuler
 - `github.com/dprotaso/go-yit` — Copyright (c) 2019 David Protasowski
@@ -56,6 +58,7 @@ SOFTWARE.
 - `golang.org/x/sync` v0.23.0
 - `golang.org/x/sys` v0.48.0
 - `golang.org/x/text` v0.42.0
+- `go4.org/netipx` (test-only) — Copyright (c) 2020 The Inet.af AUTHORS
 - `github.com/google/uuid` v1.6.0 — Copyright (c) 2009, 2014 Google Inc.
 - `golang.org/x/mod` v0.41.0
 - `golang.org/x/tools` v0.50.0
@@ -132,6 +135,12 @@ the License.
 - DB-IP IP to Country Lite database, refreshed monthly and bundled without
   modification. IP Geolocation by [DB-IP](https://db-ip.com). Licensed under
   [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+
+## MaxMind GeoLite2 data
+
+This product includes GeoLite2 data created by MaxMind, available from
+<https://www.maxmind.com>. GeoLite2 data is downloaded by each installation
+when configured and is not bundled with Panel.
 
 ## Public-domain and public data
 
