@@ -84,7 +84,7 @@ export function SiteIconSettings({
 const settingsTabs = [
   ['general', 'General', '/$org/$site/settings/general'],
   ['installation', 'Installation', '/$org/$site/settings/installation'],
-  ['tracking', 'Exclusions', '/$org/$site/settings/tracking'],
+  ['tracking', 'Tracking', '/$org/$site/settings/tracking'],
   ['goals', 'Goals', '/$org/$site/settings/goals'],
   ['funnels', 'Funnels', '/$org/$site/settings/funnels'],
   ['shares', 'Shares', '/$org/$site/settings/shares'],
@@ -131,16 +131,16 @@ function relativeTime(value: string, now: Date): string {
 
 const featureSetup: { feature: string; needs: string; code?: string }[] = [
   { feature: 'Pageviews, sources, countries, devices', needs: 'Either script. Nothing else to do.' },
-  { feature: 'Outbound links, file downloads, data-panel-event clicks', needs: 'Full script.' },
-  { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Full script. Sent when a visitor leaves the page, so data appears after a few minutes.' },
-  { feature: '404 pages', needs: 'Full script, plus this tag on your 404 page:', code: '<meta name="panel:404">' },
+  { feature: 'Outbound links, file downloads, data-panel-event clicks', needs: 'Enable them in Site settings → Tracking.' },
+  { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Enable Web Vitals in Site settings → Tracking. Data appears after a visitor leaves.' },
+  { feature: '404 pages', needs: 'Enable 404 tracking, then add this tag to your 404 page:', code: '<meta name="panel:404">' },
   { feature: 'Custom events', needs: 'Either script. Call from your code:', code: "panel.track('Signup', { plan: 'pro' })" },
   {
     feature: 'Revenue',
     needs: 'Either script. Send an amount and currency with an event, then add a revenue goal:',
     code: "panel.track('Purchase', { plan: 'pro' }, { revenue: { amount: '49.90', currency: 'USD' } })",
   },
-  { feature: 'Heatmaps', needs: 'Full script, and turn on heatmaps in Site settings → Exclusions.' },
+  { feature: 'Heatmaps', needs: 'Turn on heatmaps and click tracking in Site settings → Tracking.' },
   {
     feature: 'User profiles',
     needs: 'Either script. Turn on profiles in Site settings → General (needs your users\' consent), then on every page load call:',

@@ -10,13 +10,13 @@ vi.mock('@/lib/api', () => ({ api: { GET: get, PATCH: patch } }))
 
 import { ExclusionsPage } from './ExclusionsPage'
 
-function renderPage() {
+function renderPage(role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   render(
     <QueryClientProvider client={client}>
-      <ExclusionsPage orgId={3} siteId={7} />
+      <ExclusionsPage orgId={3} role={role} siteId={7} />
     </QueryClientProvider>,
   )
   return client
@@ -34,7 +34,8 @@ describe('ExclusionsPage', () => {
           id: 7,
           exclude_ips: ['203.0.113.0/24'],
           exclude_paths: ['/admin/*', '/internal'],
-		  heatmaps_enabled: false,
+          exclude_countries: ['RU'],
+          heatmaps_enabled: false,
         },
         response: { ok: true, status: 200 },
       })
@@ -44,7 +45,8 @@ describe('ExclusionsPage', () => {
         id: 7,
         exclude_ips: ['203.0.113.0/24', '198.51.100.7/32'],
         exclude_paths: ['/preview/**', '/internal'],
-		heatmaps_enabled: false,
+        exclude_countries: ['RU'],
+        heatmaps_enabled: false,
       },
       response: { ok: true, status: 200 },
     })
@@ -70,6 +72,7 @@ describe('ExclusionsPage', () => {
         body: {
           exclude_ips: ['203.0.113.0/24', '198.51.100.7'],
           exclude_paths: ['/preview/**', '/internal'],
+          exclude_countries: ['RU'],
         },
       }),
     ))
@@ -91,21 +94,70 @@ describe('ExclusionsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('invalid exclude_ips entry "not-an-ip"')
   })
 
-	it('lets an owner enable heatmaps with a dedicated audited patch', async () => {
-		const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-		render(
-			<QueryClientProvider client={client}>
-				<ExclusionsPage orgId={3} siteId={7} canManageHeatmaps />
-			</QueryClientProvider>,
-		)
-		const toggle = await screen.findByRole('switch', { name: 'Collect click heatmaps' })
-		await waitFor(() => expect(toggle).toBeEnabled())
-		expect(toggle).not.toBeChecked()
-		fireEvent.pointerDown(toggle, { button: 0, ctrlKey: false })
-		fireEvent.click(toggle)
-		await waitFor(() => expect(patch).toHaveBeenCalledWith(
-			'/api/private/sites/7',
-			expect.objectContaining({ body: { heatmaps_enabled: true } }),
-		))
-	})
+  it('lets an owner enable heatmaps with a dedicated audited patch', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <ExclusionsPage orgId={3} role="owner" siteId={7} canManageHeatmaps />
+      </QueryClientProvider>,
+    )
+    const toggle = await screen.findByRole('switch', { name: 'Collect click heatmaps' })
+    await waitFor(() => expect(toggle).toBeEnabled())
+    expect(toggle).not.toBeChecked()
+    fireEvent.pointerDown(toggle, { button: 0, ctrlKey: false })
+    fireEvent.click(toggle)
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        '/api/private/sites/7',
+        expect.objectContaining({ body: { heatmaps_enabled: true } }),
+      ),
+    )
+  })
+
+  it('searches, adds, removes, and saves blocked countries', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Russia')).toBeVisible()
+    const search = screen.getByRole('searchbox', { name: 'Find a country' })
+    fireEvent.change(search, { target: { value: 'India' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add India' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Russia' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save exclusions' }))
+
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(
+      '/api/private/sites/7',
+      expect.objectContaining({
+        body: expect.objectContaining({ exclude_countries: ['IN'] }),
+      }),
+    ))
+  })
+
+  it('hides blocked countries from editors and viewers', async () => {
+    const { rerender } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ExclusionsPage orgId={3} role="editor" siteId={7} />
+      </QueryClientProvider>,
+    )
+    expect(screen.queryByLabelText('Blocked countries')).not.toBeInTheDocument()
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <ExclusionsPage orgId={3} role="viewer" siteId={7} />
+      </QueryClientProvider>,
+    )
+    expect(screen.queryByLabelText('Blocked countries')).not.toBeInTheDocument()
+  })
+
+  it('shows country validation errors from the server', async () => {
+    patch.mockResolvedValue({
+      error: { detail: 'exclude_countries must contain at most 50 entries' },
+      response: { ok: false, status: 400 },
+    })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save exclusions' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('exclude_countries must contain at most 50 entries')
+  })
 })

@@ -43,11 +43,14 @@ export function TrackingSnippet({
 }) {
   const [copied, setCopied] = useState<"yes" | "manual" | null>(null);
   const [full, setFull] = useState(true);
+  const generatedSnippet = Boolean(
+    serverSnippet && fullSnippet && serverSnippet === fullSnippet,
+  );
   const snippet = useMemo(
     () =>
-      (full ? fullSnippet : serverSnippet) ??
+      (generatedSnippet ? serverSnippet : full ? fullSnippet : serverSnippet) ??
       trackingSnippet(publicId, window.location.origin, full),
-    [full, fullSnippet, publicId, serverSnippet],
+    [full, fullSnippet, generatedSnippet, publicId, serverSnippet],
   );
 
   async function copy() {
@@ -56,32 +59,40 @@ export function TrackingSnippet({
 
   return (
     <div className="flex flex-col gap-3">
-      <fieldset className="grid gap-3 sm:grid-cols-2">
-        <legend className="mb-2 text-sm font-medium">Choose a script</legend>
-        {scriptOptions.map((option) => (
-          <label
-            key={option.id}
-            className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent/5"
-          >
-            <span className="flex items-center gap-2 font-medium">
-              <input
-                type="radio"
-                name="tracker-script"
-                value={option.id}
-                checked={full === option.full}
-                onChange={() => setFull(option.full)}
-                className="size-4 accent-accent"
-              />
-              {option.title}
-              <span className="ml-auto text-xs font-normal text-muted-foreground">{option.size}</span>
-            </span>
-            <span className="text-muted-foreground">{option.collects}</span>
-          </label>
-        ))}
-      </fieldset>
-      <p className="text-xs text-muted-foreground">
-        Already installed the core script? Change <code>/js/script.js</code> to <code>/js/script.full.js</code> in your snippet to switch.
-      </p>
+      {generatedSnippet ? (
+        <p className="text-sm text-muted-foreground">
+          This URL applies the tracker features selected in Site settings → Tracking.
+        </p>
+      ) : (
+        <>
+          <fieldset className="grid gap-3 sm:grid-cols-2">
+            <legend className="mb-2 text-sm font-medium">Choose a script</legend>
+            {scriptOptions.map((option) => (
+              <label
+                key={option.id}
+                className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent/5"
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <input
+                    type="radio"
+                    name="tracker-script"
+                    value={option.id}
+                    checked={full === option.full}
+                    onChange={() => setFull(option.full)}
+                    className="size-4 accent-accent"
+                  />
+                  {option.title}
+                  <span className="ml-auto text-xs font-normal text-muted-foreground">{option.size}</span>
+                </span>
+                <span className="text-muted-foreground">{option.collects}</span>
+              </label>
+            ))}
+          </fieldset>
+          <p className="text-xs text-muted-foreground">
+            Already installed the core script? Change <code>/js/script.js</code> to <code>/js/script.full.js</code> in your snippet to switch.
+          </p>
+        </>
+      )}
       <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all">
         <code>{snippet}</code>
       </pre>

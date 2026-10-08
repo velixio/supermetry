@@ -81,6 +81,20 @@ describe("settings security boundaries", () => {
     expect(view.getByText(/custom\.js/)).toBeVisible();
   });
 
+  it("shows one installation snippet when the server returns the per-site URL", () => {
+    const snippet = '<script defer src="https://stats.example/js/abc123def456.js"></script>';
+    render(
+      <TrackingSnippet
+        publicId="abc123def456"
+        snippet={snippet}
+        fullSnippet={snippet}
+      />,
+    );
+
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.getByText(/abc123def456\.js/)).toBeVisible();
+  });
+
   it("renders a TOTP QR locally without a network request", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     render(
