@@ -1,6 +1,7 @@
 .claude
 knowledge
 goal
+nohup.out
 bin
 /data/
 # Secrets and credentials (never commit)
