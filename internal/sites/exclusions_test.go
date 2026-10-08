@@ -12,6 +12,7 @@ func TestCompileExclusionsNormalizesAndMatchesIPs(t *testing.T) {
 	exclusions, err := CompileExclusions(
 		[]string{"203.0.113.7", "2001:db8::/32", "198.51.100.9/24"},
 		nil,
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +47,7 @@ func TestCompileExclusionsNormalizesAndMatchesIPs(t *testing.T) {
 func TestCompileExclusionsMatchesPaths(t *testing.T) {
 	t.Parallel()
 
-	exclusions, err := CompileExclusions(nil, []string{"/admin/*", "/preview/**", "/internal"})
+	exclusions, err := CompileExclusions(nil, []string{"/admin/*", "/preview/**", "/internal"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,10 +97,55 @@ func TestCompileExclusionsRejectsInvalidRules(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := CompileExclusions(test.ips, test.paths)
+			_, err := CompileExclusions(test.ips, test.paths, nil)
 			if err == nil || !strings.Contains(err.Error(), test.entry) {
 				t.Fatalf("CompileExclusions() error = %v, want entry %q", err, test.entry)
 			}
 		})
+	}
+}
+
+func TestCompileExclusionsNormalizesAndMatchesCountries(t *testing.T) {
+	t.Parallel()
+
+	exclusions, err := CompileExclusions(nil, nil, []string{"ru", " US ", "RU"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(exclusions.CountryRules, ","); got != "RU,US" {
+		t.Fatalf("CountryRules = %q, want RU,US", got)
+	}
+	if !exclusions.ExcludesCountry("RU") {
+		t.Fatal("RU must be excluded")
+	}
+	if exclusions.ExcludesCountry("") {
+		t.Fatal("an unresolved country must not be excluded")
+	}
+}
+
+func TestCompileExclusionsRejectsInvalidCountries(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		code string
+	}{
+		{name: "one letter", code: "U"},
+		{name: "three letters", code: "USA"},
+		{name: "non-letter", code: "1A"},
+		{name: "empty", code: ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := CompileExclusions(nil, nil, []string{test.code}); err == nil {
+				t.Fatalf("CompileExclusions(%q) error = nil", test.code)
+			}
+		})
+	}
+
+	tooMany := make([]string, MaxExclusionRules+1)
+	if _, err := CompileExclusions(nil, nil, tooMany); err == nil || !strings.Contains(err.Error(), "exclude_countries") {
+		t.Fatalf("too many countries error = %v", err)
 	}
 }

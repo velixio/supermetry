@@ -128,6 +128,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
+	if len(site.Exclusions.Countries) != 0 {
+		country := h.Enricher.Country(ip)
+		if country != "" && site.Exclusions.ExcludesCountry(country) {
+			health.ExclusionsFiltered[health.ExclusionCountry].Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+	}
 	if h.Limiter != nil && (!h.Limiter.Allow("site:"+strconv.FormatInt(int64(site.ID), 10)) || !h.Limiter.Allow(ipRateKey(ip))) {
 		w.Header().Set("Retry-After", "1")
 		w.WriteHeader(http.StatusTooManyRequests)

@@ -107,7 +107,22 @@ func (r *Registry) refresh(ctx context.Context) error {
 func cloneSite(site coresites.Site) coresites.Site {
 	site.AllowedHosts = append([]string(nil), site.AllowedHosts...)
 	site.Exclusions = site.Exclusions.Clone()
+	site.Tracker = cloneTrackerSettings(site.Tracker)
 	return site
+}
+
+func cloneTrackerSettings(settings coresites.TrackerSettingsInput) coresites.TrackerSettingsInput {
+	clone := func(value *bool) *bool {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	return coresites.TrackerSettingsInput{
+		Outbound: clone(settings.Outbound), Downloads: clone(settings.Downloads), Forms: clone(settings.Forms),
+		Vitals: clone(settings.Vitals), NotFound: clone(settings.NotFound), Hash: clone(settings.Hash), Clicks: clone(settings.Clicks),
+	}
 }
 
 var _ coresites.Registry = (*Registry)(nil)

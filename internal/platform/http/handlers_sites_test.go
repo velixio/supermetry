@@ -51,29 +51,40 @@ func TestSiteExclusionAPI(t *testing.T) {
 	handler := platformhttp.New(platformhttp.Deps{
 		Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
 		Mutations: platformhttp.Services{Sites: sites}, Store: data,
+		BaseURL: "https://panel.example", TrackerPath: "/js/script.js",
 	})
 	fresh := authenticatedRequest(http.MethodGet, fmt.Sprintf("/api/private/sites/%d", site.ID), "")
 	freshResponse := httptest.NewRecorder()
 	handler.ServeHTTP(freshResponse, fresh)
-	if freshResponse.Code != http.StatusOK || !strings.Contains(freshResponse.Body.String(), `"exclude_ips":[]`) || !strings.Contains(freshResponse.Body.String(), `"exclude_paths":[]`) {
+	if freshResponse.Code != http.StatusOK || !strings.Contains(freshResponse.Body.String(), `"exclude_ips":[]`) ||
+		!strings.Contains(freshResponse.Body.String(), `"exclude_paths":[]`) ||
+		!strings.Contains(freshResponse.Body.String(), `"exclude_countries":[]`) ||
+		!strings.Contains(freshResponse.Body.String(), `"tracker_url":"https://panel.example/js/`+site.PublicID+`.js"`) ||
+		!strings.Contains(freshResponse.Body.String(), `"tracker":{"outbound":true`) {
 		t.Fatalf("fresh GET status=%d body=%s, want empty arrays", freshResponse.Code, freshResponse.Body.String())
 	}
 
 	patch := authenticatedRequest(http.MethodPatch, fmt.Sprintf("/api/private/sites/%d", site.ID),
-		`{"exclude_ips":["203.0.113.7","2001:db8::/32"],"exclude_paths":["/admin/*","/preview/**"]}`)
+		`{"exclude_ips":["203.0.113.7","2001:db8::/32"],"exclude_paths":["/admin/*","/preview/**"],"exclude_countries":["ru"," RU "],"tracker":{"hash":true}}`)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, patch)
 	if response.Code != http.StatusOK {
 		t.Fatalf("PATCH status=%d body=%s", response.Code, response.Body.String())
 	}
 	var patched struct {
-		ExcludeIPs   []string `json:"exclude_ips"`
-		ExcludePaths []string `json:"exclude_paths"`
+		ExcludeIPs       []string                  `json:"exclude_ips"`
+		ExcludePaths     []string                  `json:"exclude_paths"`
+		ExcludeCountries []string                  `json:"exclude_countries"`
+		Tracker          coresites.TrackerSettings `json:"tracker"`
+		TrackerURL       string                    `json:"tracker_url"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&patched); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(patched.ExcludeIPs, ",") != "203.0.113.7/32,2001:db8::/32" || strings.Join(patched.ExcludePaths, ",") != "/admin/*,/preview/**" {
+	if strings.Join(patched.ExcludeIPs, ",") != "203.0.113.7/32,2001:db8::/32" ||
+		strings.Join(patched.ExcludePaths, ",") != "/admin/*,/preview/**" ||
+		strings.Join(patched.ExcludeCountries, ",") != "RU" || !patched.Tracker.Hash ||
+		patched.TrackerURL != "https://panel.example/js/"+site.PublicID+".js" {
 		t.Fatalf("PATCH exclusions = %+v", patched)
 	}
 
@@ -84,13 +95,17 @@ func TestSiteExclusionAPI(t *testing.T) {
 		t.Fatalf("GET status=%d body=%s", response.Code, response.Body.String())
 	}
 	var loaded struct {
-		ExcludeIPs   []string `json:"exclude_ips"`
-		ExcludePaths []string `json:"exclude_paths"`
+		ExcludeIPs       []string                  `json:"exclude_ips"`
+		ExcludePaths     []string                  `json:"exclude_paths"`
+		ExcludeCountries []string                  `json:"exclude_countries"`
+		Tracker          coresites.TrackerSettings `json:"tracker"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&loaded); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(loaded.ExcludeIPs, ",") != strings.Join(patched.ExcludeIPs, ",") || strings.Join(loaded.ExcludePaths, ",") != strings.Join(patched.ExcludePaths, ",") {
+	if strings.Join(loaded.ExcludeIPs, ",") != strings.Join(patched.ExcludeIPs, ",") ||
+		strings.Join(loaded.ExcludePaths, ",") != strings.Join(patched.ExcludePaths, ",") ||
+		strings.Join(loaded.ExcludeCountries, ",") != "RU" || !loaded.Tracker.Hash {
 		t.Fatalf("GET exclusions = %+v, want %+v", loaded, patched)
 	}
 
@@ -101,6 +116,9 @@ func TestSiteExclusionAPI(t *testing.T) {
 	}{
 		{name: "bad IP", body: `{"exclude_ips":["203.0.113.0/99"]}`, entry: "203.0.113.0/99"},
 		{name: "bad path", body: `{"exclude_paths":["admin/**"]}`, entry: "admin/**"},
+		{name: "bad country", body: `{"exclude_countries":["USA"]}`, entry: "USA"},
+		{name: "unknown tracker field", body: `{"tracker":{"unknown":true}}`, entry: "tracker"},
+		{name: "non-boolean tracker field", body: `{"tracker":{"hash":"yes"}}`, entry: "tracker"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -117,6 +135,13 @@ func TestSiteExclusionAPI(t *testing.T) {
 				t.Fatalf("problem=%+v error=%v, want entry %q", problem, err, test.entry)
 			}
 		})
+	}
+	var storedTracker, storedCountries string
+	if err := pool.QueryRow(ctx, `select settings->'tracker', settings->'exclude_countries' from sites where id=$1`, site.ID).Scan(&storedTracker, &storedCountries); err != nil {
+		t.Fatal(err)
+	}
+	if storedTracker != `{"hash": true}` || storedCountries != `["RU"]` {
+		t.Fatalf("invalid PATCH changed settings: tracker=%s countries=%s", storedTracker, storedCountries)
 	}
 }
 
@@ -272,6 +297,8 @@ func TestCreateSiteReturnsBeforeIconDiscoveryFinishes(t *testing.T) {
 	handler := platformhttp.New(platformhttp.Deps{
 		Authenticator: actorAuthenticator{"owner": principal},
 		Mutations:     mutations,
+		BaseURL:       "https://panel.example",
+		TrackerPath:   "/js/script.js",
 	})
 	request := authenticatedRequest(http.MethodPost, "/api/private/sites", `{"name":"Example","hosts":["example.test"],"timezone":"UTC","retention_days":30}`)
 	response := httptest.NewRecorder()
@@ -285,6 +312,11 @@ func TestCreateSiteReturnsBeforeIconDiscoveryFinishes(t *testing.T) {
 	case <-done:
 		if response.Code != http.StatusCreated {
 			t.Fatalf("create status=%d body=%s", response.Code, response.Body.String())
+		}
+		if body := response.Body.String(); !strings.Contains(body, `"exclude_countries":[]`) ||
+			!strings.Contains(body, `"tracker":{"outbound":true`) ||
+			!strings.Contains(body, `"tracker_url":"https://panel.example/js/abcdefgh2345.js"`) {
+			t.Fatalf("create body=%s, want tracker contract", body)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("create blocked on icon discovery")

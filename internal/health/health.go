@@ -35,6 +35,7 @@ const (
 	ExclusionNone ExclusionReason = iota
 	ExclusionIP
 	ExclusionPath
+	ExclusionCountry
 )
 
 // Store replaces the current gauge value.
@@ -59,7 +60,7 @@ var (
 	// unfiltered case and is intentionally not exported as a metric.
 	BotsFiltered [5]Counter
 	// ExclusionsFiltered is indexed by ExclusionReason. Index zero is unused.
-	ExclusionsFiltered [3]Counter
+	ExclusionsFiltered [4]Counter
 
 	WriterQueueDepth           Gauge
 	CopySeconds                Gauge
@@ -83,7 +84,7 @@ const (
 )
 
 var botReasons = [...]string{"", "ua", "headless", "datacenter", "spam_referrer"}
-var exclusionReasons = [...]string{"", "ip", "path"}
+var exclusionReasons = [...]string{"", "ip", "path", "country"}
 
 var querySecondBuckets = [...]float64{
 	0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25,

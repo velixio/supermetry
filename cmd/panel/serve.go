@@ -202,6 +202,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry)
 	platformHandler := platformhttp.New(platformhttp.Deps{
+		BaseURL: cfg.BaseURL, TrackerPath: cfg.TrackerPath,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
 		},

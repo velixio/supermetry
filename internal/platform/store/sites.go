@@ -10,21 +10,23 @@ import (
 )
 
 type Site struct {
-	ID              int32
-	OrgID           int64
-	PublicID        string
-	Name            string
-	AllowedHosts    []string
-	Timezone        string
-	RetentionClass  int16
-	ExcludeIPs      []string
-	ExcludePaths    []string
-	ProfilesEnabled bool
-	HeatmapsEnabled bool
-	IconURL         string
-	IconCheckedAt   string
-	CreatedAt       time.Time
-	DeletedAt       *time.Time
+	ID               int32
+	OrgID            int64
+	PublicID         string
+	Name             string
+	AllowedHosts     []string
+	Timezone         string
+	RetentionClass   int16
+	ExcludeIPs       []string
+	ExcludePaths     []string
+	ExcludeCountries []string
+	Tracker          []byte
+	ProfilesEnabled  bool
+	HeatmapsEnabled  bool
+	IconURL          string
+	IconCheckedAt    string
+	CreatedAt        time.Time
+	DeletedAt        *time.Time
 }
 
 func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
@@ -49,6 +51,8 @@ func SiteForUpdate(ctx context.Context, tx pgx.Tx, orgID int64, id int32) (Site,
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(settings->'exclude_countries', '[]'::jsonb),
+		       coalesce(settings->'tracker', '{}'::jsonb),
 		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''), created_at, deleted_at
@@ -64,22 +68,28 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		set name = $3, allowed_hosts = $4, timezone = $5, retention_class = $6,
 		    settings = jsonb_set(
 		        jsonb_set(
-		            jsonb_set(settings, '{exclude_ips}', coalesce(to_jsonb($7::text[]), '[]'::jsonb)),
-		            '{exclude_paths}', coalesce(to_jsonb($8::text[]), '[]'::jsonb)),
-		        '{profiles_enabled}', to_jsonb($9::boolean)) ||
-		        jsonb_build_object('heatmaps_enabled', $10::boolean)
+		            jsonb_set(
+		                jsonb_set(
+		                    jsonb_set(settings, '{exclude_ips}', coalesce(to_jsonb($7::text[]), '[]'::jsonb)),
+		                    '{exclude_paths}', coalesce(to_jsonb($8::text[]), '[]'::jsonb)),
+		                '{exclude_countries}', coalesce(to_jsonb($9::text[]), '[]'::jsonb)),
+		            '{tracker}', coalesce($10::jsonb, '{}'::jsonb)),
+		        '{profiles_enabled}', to_jsonb($11::boolean)) ||
+		        jsonb_build_object('heatmaps_enabled', $12::boolean)
 		where id = $1 and org_id = $2 and deleted_at is null
 		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),
 		          coalesce(settings->'exclude_paths', '[]'::jsonb),
+		          coalesce(settings->'exclude_countries', '[]'::jsonb),
+		          coalesce(settings->'tracker', '{}'::jsonb),
 		          coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''), created_at, deleted_at`,
 		site.ID, site.OrgID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass,
-		site.ExcludeIPs, site.ExcludePaths, site.ProfilesEnabled, site.HeatmapsEnabled,
+		site.ExcludeIPs, site.ExcludePaths, site.ExcludeCountries, string(site.Tracker), site.ProfilesEnabled, site.HeatmapsEnabled,
 	).Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
-		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ProfilesEnabled,
+		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.IconURL, &site.IconCheckedAt,
 		&site.CreatedAt, &site.DeletedAt,
 	)
@@ -111,6 +121,8 @@ func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(settings->'exclude_countries', '[]'::jsonb),
+		       coalesce(settings->'tracker', '{}'::jsonb),
 		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''), created_at, deleted_at
@@ -129,6 +141,8 @@ func ListSites(ctx context.Context, data *Store, orgID int64, siteIDs []int32, a
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(settings->'exclude_countries', '[]'::jsonb),
+		       coalesce(settings->'tracker', '{}'::jsonb),
 		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''), created_at, deleted_at
@@ -152,7 +166,7 @@ func scanSite(row siteScanner) (Site, error) {
 	var site Site
 	if err := row.Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
-		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ProfilesEnabled,
+		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.IconURL, &site.IconCheckedAt,
 		&site.CreatedAt, &site.DeletedAt,
 	); err != nil {
@@ -171,6 +185,8 @@ func SetSiteIcon(ctx context.Context, data *Store, orgID int64, id int32, iconUR
 		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),
 		          coalesce(settings->'exclude_paths', '[]'::jsonb),
+		          coalesce(settings->'exclude_countries', '[]'::jsonb),
+		          coalesce(settings->'tracker', '{}'::jsonb),
 		          coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''), created_at, deleted_at`,

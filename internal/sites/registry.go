@@ -17,6 +17,7 @@ type Site struct {
 	Retention       db.RetentionClass
 	AllowedHosts    []string
 	Exclusions      Exclusions
+	Tracker         TrackerSettingsInput
 	ProfilesEnabled bool
 	HeatmapsEnabled bool
 	IconURL         string

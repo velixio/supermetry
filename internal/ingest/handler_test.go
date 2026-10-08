@@ -291,6 +291,35 @@ func TestExcludedPathCountedNotStored(t *testing.T) {
 	}
 }
 
+func TestExcludedCountryCountedAndUnresolvedCountryAccepted(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	cityPath := writeCityMMDB(t)
+	enricher, err := enrich.NewWithGeo(enrich.GeoPaths{City: cityPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = enricher.Close() })
+	f.h.Enricher = enricher
+	setCountryExclusions(t, f, []string{"US"})
+	before := health.ExclusionsFiltered[health.ExclusionCountry].Load()
+
+	if response := post(t, f.h, okBody, testUA, "192.0.2.42:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("excluded country status = %d, want 202", response.Code)
+	}
+	if response := post(t, f.h, okBody, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("unresolved country status = %d, want 202", response.Code)
+	}
+	f.stop(t)
+
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 || health.ExclusionsFiltered[health.ExclusionCountry].Load() != before+1 {
+		t.Fatalf("events=%d excluded_country_delta=%d, want 1/1", events, health.ExclusionsFiltered[health.ExclusionCountry].Load()-before)
+	}
+}
+
 func TestExclusionNonMatchPasses(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setExclusions(t, f, []string{"203.0.113.0/24"}, []string{"/admin/*"})
@@ -729,7 +758,21 @@ func setExclusions(t *testing.T, fixture *handlerFixture, ips, paths []string) {
 	if !ok {
 		t.Fatal("fixture site missing")
 	}
-	exclusions, err := sites.CompileExclusions(ips, paths)
+	exclusions, err := sites.CompileExclusions(ips, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	site.Exclusions = exclusions
+	fixture.h.Sites = siteRegistry{site: site}
+}
+
+func setCountryExclusions(t *testing.T, fixture *handlerFixture, countries []string) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	exclusions, err := sites.CompileExclusions(nil, nil, countries)
 	if err != nil {
 		t.Fatal(err)
 	}
