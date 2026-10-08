@@ -19,12 +19,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"panel/internal/alerts"
 	"panel/internal/api"
 	"panel/internal/closer"
 	"panel/internal/config"
 	"panel/internal/db"
 	"panel/internal/dict"
 	"panel/internal/geoupdate"
+	"panel/internal/health"
 	"panel/internal/ingest"
 	platformauth "panel/internal/platform/auth"
 	"panel/internal/platform/authn"
@@ -176,6 +178,19 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	definitionService := goals.New(platformStore, 30*time.Second)
 	defer definitionService.Close()
 	reportService := reports.New(platformStore, engine, registry, sender)
+	alertBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/alerts/v1")
+	if err != nil {
+		return fmt.Errorf("initialize alert encryption: %w", err)
+	}
+	webhookClient := alerts.NewWebhookClient(alerts.WebhookOptions{AllowPrivate: cfg.AllowPrivateWebhooks})
+	alertDispatcher := alerts.NewDispatcher(sender, webhookClient)
+	alertService := alerts.New(platformStore, alertBox, alertDispatcher)
+	alertMetrics := alerts.NewEngineSource(engine, definitionService)
+	alertEvaluator := alerts.NewEvaluator(alertService, alertMetrics, registry, alertDispatcher, settings.clock.Now,
+		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
+			health.AlertDeliveryFailures.Add(1)
+			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
+		})
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry)
@@ -201,6 +216,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Invites:     inviteService,
 		Shares:      shareService,
 		Reports:     reportService,
+		Alerts:      alertService,
 		Query:       engine,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
@@ -243,7 +259,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	go func() { writerDone <- w.Run(writerCtx) }()
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, geo, settings.clock)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, settings.clock)
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
@@ -400,6 +416,7 @@ func scheduledJobs(
 	sessions session.Store,
 	closed *closedDays,
 	reportService *reports.Reports,
+	alertJobs interface{ Job() scheduler.Job },
 	geo *geoService,
 	clk clock,
 ) []scheduler.Job {
@@ -453,6 +470,9 @@ func scheduledJobs(
 	}
 	if reportService != nil {
 		jobs = append(jobs, reportService.Job())
+	}
+	if alertJobs != nil {
+		jobs = append(jobs, alertJobs.Job())
 	}
 	return jobs
 }

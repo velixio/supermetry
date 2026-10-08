@@ -194,3 +194,20 @@ func TestLoadSMTP(t *testing.T) {
 		t.Fatalf("bad platform config: %+v", c)
 	}
 }
+
+func TestLoadAllowPrivateWebhooks(t *testing.T) {
+	values := baseEnv()
+	values["PANEL_ALLOW_PRIVATE_WEBHOOKS"] = "true"
+	c, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.AllowPrivateWebhooks {
+		t.Fatal("AllowPrivateWebhooks = false, want true")
+	}
+
+	values["PANEL_ALLOW_PRIVATE_WEBHOOKS"] = "not-a-boolean"
+	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "PANEL_ALLOW_PRIVATE_WEBHOOKS") {
+		t.Fatalf("Load() error = %v, want webhook boolean validation", err)
+	}
+}

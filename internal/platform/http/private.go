@@ -70,6 +70,7 @@ type Deps struct {
 	Invites        *invites.Invites
 	Shares         *shares.Shares
 	Reports        *reports.Reports
+	Alerts         AlertsService
 	Query          interface {
 		Query(context.Context, api.QueryRequest) (api.QueryResponse, error)
 	}
@@ -162,6 +163,15 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/reports", h.subscribeReport)
 	mux.HandleFunc("GET /api/private/sites/{site}/reports", h.listReports)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/reports/{report}", h.deleteReport)
+	mux.HandleFunc("GET /api/private/orgs/{org}/channels", h.listChannels)
+	mux.HandleFunc("POST /api/private/orgs/{org}/channels", h.createChannel)
+	mux.HandleFunc("PATCH /api/private/orgs/{org}/channels/{channel}", h.updateChannel)
+	mux.HandleFunc("DELETE /api/private/orgs/{org}/channels/{channel}", h.deleteChannel)
+	mux.HandleFunc("POST /api/private/orgs/{org}/channels/{channel}/test", h.testChannel)
+	mux.HandleFunc("GET /api/private/sites/{site}/alerts", h.listAlerts)
+	mux.HandleFunc("POST /api/private/sites/{site}/alerts", h.createAlert)
+	mux.HandleFunc("PATCH /api/private/sites/{site}/alerts/{alert}", h.updateAlert)
+	mux.HandleFunc("DELETE /api/private/sites/{site}/alerts/{alert}", h.deleteAlert)
 	mux.HandleFunc("POST /api/private/invitations/{token}/accept", h.acceptInvitation)
 	mux.HandleFunc("POST /api/private/share/{slug}/open", h.openShare)
 }

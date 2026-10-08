@@ -15,7 +15,7 @@ describe('site settings', () => {
 
   it('shows all settings tabs including Exclusions', async () => {
     renderWithRouter(<SiteSettingsTabs org="acme" site="docs" current="installation" />)
-    for (const label of ['General', 'Installation', 'Exclusions', 'Goals', 'Funnels', 'Shares', 'Reports']) {
+    for (const label of ['General', 'Installation', 'Exclusions', 'Goals', 'Funnels', 'Shares', 'Reports', 'Alerts']) {
       expect(await screen.findByRole('link', { name: label })).toBeVisible()
     }
     expect(screen.getByRole('link', { name: 'Installation' })).toHaveAttribute(

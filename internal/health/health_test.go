@@ -93,3 +93,19 @@ func TestPrometheusTextFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestDeliveryFailuresAreExported(t *testing.T) {
+	before := health.AlertDeliveryFailures.Load()
+	health.AlertDeliveryFailures.Add(2)
+
+	snapshot := health.Snapshot()
+	if got := snapshot["alert_delivery_failures_total"]; got != float64(before+2) {
+		t.Fatalf("alert_delivery_failures_total = %v, want %d", got, before+2)
+	}
+
+	var b strings.Builder
+	health.WritePrometheus(&b)
+	if !strings.Contains(b.String(), "panel_alert_delivery_failures_total") {
+		t.Fatalf("Prometheus output missing alert delivery failures:\n%s", b.String())
+	}
+}

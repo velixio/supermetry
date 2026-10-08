@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as OrgHealthRouteImport } from './routes/$org.health'
+import { Route as OrgSettingsRouteImport } from './routes/$org.settings'
 import { Route as AccountProfileRouteImport } from './routes/account.profile'
 import { Route as AccountSecurityRouteImport } from './routes/account.security'
 import { Route as AccountSessionsRouteImport } from './routes/account.sessions'
@@ -29,10 +30,12 @@ import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.a
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
 import { Route as OrgSettingsInvitesRouteImport } from './routes/$org.settings.invites'
 import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
+import { Route as OrgSettingsNotificationsRouteImport } from './routes/$org.settings.notifications'
 import { Route as OrgSitesIndexRouteImport } from './routes/$org.sites.index'
 import { Route as OrgSitesNewRouteImport } from './routes/$org.sites.new'
 import { Route as OrgSiteFunnelsIndexRouteImport } from './routes/$org.$site.funnels.index'
 import { Route as OrgSiteFunnelsIdRouteImport } from './routes/$org.$site.funnels.$id'
+import { Route as OrgSiteSettingsAlertsRouteImport } from './routes/$org.$site.settings.alerts'
 import { Route as OrgSiteSettingsFunnelsRouteImport } from './routes/$org.$site.settings.funnels'
 import { Route as OrgSiteSettingsGeneralRouteImport } from './routes/$org.$site.settings.general'
 import { Route as OrgSiteSettingsGoalsRouteImport } from './routes/$org.$site.settings.goals'
@@ -69,6 +72,11 @@ const SignupRoute = SignupRouteImport.update({
 const OrgHealthRoute = OrgHealthRouteImport.update({
   id: '/health',
   path: '/health',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSettingsRoute = OrgSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => OrgRoute,
 } as any)
 const AccountProfileRoute = AccountProfileRouteImport.update({
@@ -122,25 +130,31 @@ const OrgSiteSettingsRoute = OrgSiteSettingsRouteImport.update({
   getParentRoute: () => OrgRoute,
 } as any)
 const OrgSettingsApiKeysRoute = OrgSettingsApiKeysRouteImport.update({
-  id: '/settings/api-keys',
-  path: '/settings/api-keys',
-  getParentRoute: () => OrgRoute,
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => OrgSettingsRoute,
 } as any)
 const OrgSettingsAuditRoute = OrgSettingsAuditRouteImport.update({
-  id: '/settings/audit',
-  path: '/settings/audit',
-  getParentRoute: () => OrgRoute,
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => OrgSettingsRoute,
 } as any)
 const OrgSettingsInvitesRoute = OrgSettingsInvitesRouteImport.update({
-  id: '/settings/invites',
-  path: '/settings/invites',
-  getParentRoute: () => OrgRoute,
+  id: '/invites',
+  path: '/invites',
+  getParentRoute: () => OrgSettingsRoute,
 } as any)
 const OrgSettingsMembersRoute = OrgSettingsMembersRouteImport.update({
-  id: '/settings/members',
-  path: '/settings/members',
-  getParentRoute: () => OrgRoute,
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => OrgSettingsRoute,
 } as any)
+const OrgSettingsNotificationsRoute =
+  OrgSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => OrgSettingsRoute,
+  } as any)
 const OrgSitesIndexRoute = OrgSitesIndexRouteImport.update({
   id: '/sites/',
   path: '/sites/',
@@ -160,6 +174,11 @@ const OrgSiteFunnelsIdRoute = OrgSiteFunnelsIdRouteImport.update({
   id: '/$site/funnels/$id',
   path: '/$site/funnels/$id',
   getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteSettingsAlertsRoute = OrgSiteSettingsAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
 const OrgSiteSettingsFunnelsRoute = OrgSiteSettingsFunnelsRouteImport.update({
   id: '/funnels',
@@ -205,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
+  '/$org/settings': typeof OrgSettingsRouteWithChildren
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/sessions': typeof AccountSessionsRoute
@@ -218,10 +238,12 @@ export interface FileRoutesByFullPath {
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
@@ -238,6 +260,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
+  '/$org/settings': typeof OrgSettingsRouteWithChildren
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/sessions': typeof AccountSessionsRoute
@@ -251,10 +274,12 @@ export interface FileRoutesByTo {
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site': typeof OrgSiteIndexRoute
   '/$org/sites': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
@@ -272,6 +297,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
+  '/$org/settings': typeof OrgSettingsRouteWithChildren
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/sessions': typeof AccountSessionsRoute
@@ -285,10 +311,12 @@ export interface FileRoutesById {
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
@@ -307,6 +335,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/signup'
     | '/$org/health'
+    | '/$org/settings'
     | '/account/profile'
     | '/account/security'
     | '/account/sessions'
@@ -320,10 +349,12 @@ export interface FileRouteTypes {
     | '/$org/settings/audit'
     | '/$org/settings/invites'
     | '/$org/settings/members'
+    | '/$org/settings/notifications'
     | '/$org/sites/new'
     | '/$org/$site/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
+    | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
@@ -340,6 +371,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/signup'
     | '/$org/health'
+    | '/$org/settings'
     | '/account/profile'
     | '/account/security'
     | '/account/sessions'
@@ -353,10 +385,12 @@ export interface FileRouteTypes {
     | '/$org/settings/audit'
     | '/$org/settings/invites'
     | '/$org/settings/members'
+    | '/$org/settings/notifications'
     | '/$org/sites/new'
     | '/$org/$site'
     | '/$org/sites'
     | '/$org/$site/funnels/$id'
+    | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
@@ -373,6 +407,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/signup'
     | '/$org/health'
+    | '/$org/settings'
     | '/account/profile'
     | '/account/security'
     | '/account/sessions'
@@ -386,10 +421,12 @@ export interface FileRouteTypes {
     | '/$org/settings/audit'
     | '/$org/settings/invites'
     | '/$org/settings/members'
+    | '/$org/settings/notifications'
     | '/$org/sites/new'
     | '/$org/$site/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
+    | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
@@ -456,6 +493,13 @@ declare module '@tanstack/react-router' {
       path: '/health'
       fullPath: '/$org/health'
       preLoaderRoute: typeof OrgHealthRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/settings': {
+      id: '/$org/settings'
+      path: '/settings'
+      fullPath: '/$org/settings'
+      preLoaderRoute: typeof OrgSettingsRouteImport
       parentRoute: typeof OrgRoute
     }
     '/account/profile': {
@@ -530,31 +574,38 @@ declare module '@tanstack/react-router' {
     }
     '/$org/settings/api-keys': {
       id: '/$org/settings/api-keys'
-      path: '/settings/api-keys'
+      path: '/api-keys'
       fullPath: '/$org/settings/api-keys'
       preLoaderRoute: typeof OrgSettingsApiKeysRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSettingsRoute
     }
     '/$org/settings/audit': {
       id: '/$org/settings/audit'
-      path: '/settings/audit'
+      path: '/audit'
       fullPath: '/$org/settings/audit'
       preLoaderRoute: typeof OrgSettingsAuditRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSettingsRoute
     }
     '/$org/settings/invites': {
       id: '/$org/settings/invites'
-      path: '/settings/invites'
+      path: '/invites'
       fullPath: '/$org/settings/invites'
       preLoaderRoute: typeof OrgSettingsInvitesRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSettingsRoute
     }
     '/$org/settings/members': {
       id: '/$org/settings/members'
-      path: '/settings/members'
+      path: '/members'
       fullPath: '/$org/settings/members'
       preLoaderRoute: typeof OrgSettingsMembersRouteImport
-      parentRoute: typeof OrgRoute
+      parentRoute: typeof OrgSettingsRoute
+    }
+    '/$org/settings/notifications': {
+      id: '/$org/settings/notifications'
+      path: '/notifications'
+      fullPath: '/$org/settings/notifications'
+      preLoaderRoute: typeof OrgSettingsNotificationsRouteImport
+      parentRoute: typeof OrgSettingsRoute
     }
     '/$org/sites/': {
       id: '/$org/sites/'
@@ -583,6 +634,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$org/$site/funnels/$id'
       preLoaderRoute: typeof OrgSiteFunnelsIdRouteImport
       parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/settings/alerts': {
+      id: '/$org/$site/settings/alerts'
+      path: '/alerts'
+      fullPath: '/$org/$site/settings/alerts'
+      preLoaderRoute: typeof OrgSiteSettingsAlertsRouteImport
+      parentRoute: typeof OrgSiteSettingsRoute
     }
     '/$org/$site/settings/funnels': {
       id: '/$org/$site/settings/funnels'
@@ -636,7 +694,28 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface OrgSettingsRouteChildren {
+  OrgSettingsApiKeysRoute: typeof OrgSettingsApiKeysRoute
+  OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
+  OrgSettingsInvitesRoute: typeof OrgSettingsInvitesRoute
+  OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
+  OrgSettingsNotificationsRoute: typeof OrgSettingsNotificationsRoute
+}
+
+const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
+  OrgSettingsApiKeysRoute: OrgSettingsApiKeysRoute,
+  OrgSettingsAuditRoute: OrgSettingsAuditRoute,
+  OrgSettingsInvitesRoute: OrgSettingsInvitesRoute,
+  OrgSettingsMembersRoute: OrgSettingsMembersRoute,
+  OrgSettingsNotificationsRoute: OrgSettingsNotificationsRoute,
+}
+
+const OrgSettingsRouteWithChildren = OrgSettingsRoute._addFileChildren(
+  OrgSettingsRouteChildren,
+)
+
 interface OrgSiteSettingsRouteChildren {
+  OrgSiteSettingsAlertsRoute: typeof OrgSiteSettingsAlertsRoute
   OrgSiteSettingsFunnelsRoute: typeof OrgSiteSettingsFunnelsRoute
   OrgSiteSettingsGeneralRoute: typeof OrgSiteSettingsGeneralRoute
   OrgSiteSettingsGoalsRoute: typeof OrgSiteSettingsGoalsRoute
@@ -647,6 +726,7 @@ interface OrgSiteSettingsRouteChildren {
 }
 
 const OrgSiteSettingsRouteChildren: OrgSiteSettingsRouteChildren = {
+  OrgSiteSettingsAlertsRoute: OrgSiteSettingsAlertsRoute,
   OrgSiteSettingsFunnelsRoute: OrgSiteSettingsFunnelsRoute,
   OrgSiteSettingsGeneralRoute: OrgSiteSettingsGeneralRoute,
   OrgSiteSettingsGoalsRoute: OrgSiteSettingsGoalsRoute,
@@ -662,13 +742,10 @@ const OrgSiteSettingsRouteWithChildren = OrgSiteSettingsRoute._addFileChildren(
 
 interface OrgRouteChildren {
   OrgHealthRoute: typeof OrgHealthRoute
+  OrgSettingsRoute: typeof OrgSettingsRouteWithChildren
   OrgSiteGoalsRoute: typeof OrgSiteGoalsRoute
   OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
   OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
-  OrgSettingsApiKeysRoute: typeof OrgSettingsApiKeysRoute
-  OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
-  OrgSettingsInvitesRoute: typeof OrgSettingsInvitesRoute
-  OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
   OrgSitesNewRoute: typeof OrgSitesNewRoute
   OrgSiteIndexRoute: typeof OrgSiteIndexRoute
   OrgSitesIndexRoute: typeof OrgSitesIndexRoute
@@ -678,13 +755,10 @@ interface OrgRouteChildren {
 
 const OrgRouteChildren: OrgRouteChildren = {
   OrgHealthRoute: OrgHealthRoute,
+  OrgSettingsRoute: OrgSettingsRouteWithChildren,
   OrgSiteGoalsRoute: OrgSiteGoalsRoute,
   OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
   OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,
-  OrgSettingsApiKeysRoute: OrgSettingsApiKeysRoute,
-  OrgSettingsAuditRoute: OrgSettingsAuditRoute,
-  OrgSettingsInvitesRoute: OrgSettingsInvitesRoute,
-  OrgSettingsMembersRoute: OrgSettingsMembersRoute,
   OrgSitesNewRoute: OrgSitesNewRoute,
   OrgSiteIndexRoute: OrgSiteIndexRoute,
   OrgSitesIndexRoute: OrgSitesIndexRoute,

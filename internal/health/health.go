@@ -64,6 +64,7 @@ var (
 	CloseDurationSeconds       Gauge
 	GeoIPUpdateLastSuccessUnix Gauge
 	GeoIPUpdateFailures        Counter
+	AlertDeliveryFailures      Counter
 
 	QuerySeconds = newRouteHistogram()
 
@@ -174,6 +175,7 @@ func Snapshot() map[string]float64 {
 		"close_duration_seconds":         CloseDurationSeconds.Load(),
 		"geoip_update_last_success_unix": GeoIPUpdateLastSuccessUnix.Load(),
 		"geoip_update_failures_total":    float64(GeoIPUpdateFailures.Load()),
+		"alert_delivery_failures_total":  float64(AlertDeliveryFailures.Load()),
 		"query_cache_hit_ratio":          cacheHitRatio(),
 	}
 	snapshot[`geoip_source{source="dbip"}`] = 0
@@ -215,6 +217,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "close_duration_seconds", "gauge")
 	writeFamily(w, snapshot, "geoip_update_last_success_unix", "gauge")
 	writeFamily(w, snapshot, "geoip_update_failures_total", "counter")
+	writeFamily(w, snapshot, "alert_delivery_failures_total", "counter")
 	writeFamily(w, snapshot, "geoip_source", "gauge")
 	writeFamily(w, snapshot, "query_seconds", "gauge")
 	writeFamily(w, snapshot, "query_cache_hit_ratio", "gauge")
