@@ -34,12 +34,15 @@ var Dropped, Written atomic.Int64
 // never contain an IP address or a full user-agent string.
 type Event struct {
 	session.Hit
-	SessionID       int64
-	Props           map[string]string
-	Screen          int16
-	ReferrerID      int32
-	RevenueMicros   int64
-	RevenueCurrency string
+	SessionID         int64
+	ProfileExternalID string
+	ProfileTraits     map[string]string
+	ProfileID         int64
+	Props             map[string]string
+	Screen            int16
+	ReferrerID        int32
+	RevenueMicros     int64
+	RevenueCurrency   string
 }
 
 // ClosedDays reports whether a site-local day has already been compacted.
@@ -112,6 +115,13 @@ func (w *Writer) Enqueue(e Event) bool {
 			props[key] = value
 		}
 		e.Props = props
+	}
+	if e.ProfileTraits != nil {
+		traits := make(map[string]string, len(e.ProfileTraits))
+		for key, value := range e.ProfileTraits {
+			traits[key] = value
+		}
+		e.ProfileTraits = traits
 	}
 	select {
 	case w.ch <- e:
@@ -326,6 +336,7 @@ var eventColumns = []string{
 	"utm_content_id", "utm_term_id", "country", "region_id", "city_id", "browser_id", "os_id", "device", "screen",
 	"engagement_ms", "scroll_pct", "props",
 	"revenue_micros", "revenue_currency",
+	"profile_id",
 }
 
 func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
@@ -334,6 +345,9 @@ func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
 		return errors.New("writer: database pool is nil")
 	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if err := upsertProfiles(ctx, tx, events); err != nil {
+			return err
+		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"events"}, eventColumns, &eventSource{events: events}); err != nil {
 			return err
 		}
@@ -358,6 +372,149 @@ func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
 	})
 }
 
+type profileKey struct {
+	siteID     int32
+	externalID string
+}
+
+type profileRow struct {
+	profileKey
+	traits              map[string]string
+	firstSeen, lastSeen time.Time
+}
+
+func upsertProfiles(ctx context.Context, tx pgx.Tx, events []Event) error {
+	profiles := make(map[profileKey]*profileRow)
+	for i := range events {
+		event := &events[i]
+		if event.ProfileExternalID == "" {
+			continue
+		}
+		key := profileKey{siteID: event.SiteID, externalID: event.ProfileExternalID}
+		row := profiles[key]
+		if row == nil {
+			row = &profileRow{
+				profileKey: key,
+				traits:     make(map[string]string, len(event.ProfileTraits)),
+				firstSeen:  event.TS,
+				lastSeen:   event.TS,
+			}
+			profiles[key] = row
+		}
+		if event.TS.Before(row.firstSeen) {
+			row.firstSeen = event.TS
+		}
+		if event.TS.After(row.lastSeen) {
+			row.lastSeen = event.TS
+		}
+		mergeTraits(row, event.ProfileTraits)
+	}
+	if len(profiles) == 0 {
+		return nil
+	}
+
+	rowsToWrite := make([]profileRow, 0, len(profiles))
+	for _, row := range profiles {
+		rowsToWrite = append(rowsToWrite, *row)
+	}
+	if _, err := tx.Exec(ctx, `
+		create temporary table profiles_stage (
+			site_id integer not null,
+			external_id text not null,
+			traits jsonb not null,
+			first_seen_at timestamptz not null,
+			last_seen_at timestamptz not null
+		) on commit drop`); err != nil {
+		return err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"profiles_stage"}, profileColumns, &profileSource{profiles: rowsToWrite}); err != nil {
+		return err
+	}
+	rows, err := tx.Query(ctx, `
+		insert into profiles(site_id, external_id, traits, first_seen_at, last_seen_at)
+		select site_id, external_id, traits, first_seen_at, last_seen_at
+		from profiles_stage
+		where true
+		on conflict (site_id, external_id) do update set
+			traits = case
+				when (select count(*) from jsonb_object_keys(profiles.traits || excluded.traits)) <= 20
+				then profiles.traits || excluded.traits
+				else excluded.traits
+			end,
+			first_seen_at = least(profiles.first_seen_at, excluded.first_seen_at),
+			last_seen_at = greatest(profiles.last_seen_at, excluded.last_seen_at)
+		returning id, site_id, external_id`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	ids := make(map[profileKey]int64, len(profiles))
+	for rows.Next() {
+		var key profileKey
+		var id int64
+		if err := rows.Scan(&id, &key.siteID, &key.externalID); err != nil {
+			return err
+		}
+		ids[key] = id
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for i := range events {
+		if events[i].ProfileExternalID != "" {
+			key := profileKey{siteID: events[i].SiteID, externalID: events[i].ProfileExternalID}
+			id, ok := ids[key]
+			if !ok {
+				return fmt.Errorf("writer: profile upsert returned no identifier")
+			}
+			events[i].ProfileID = id
+		}
+	}
+	return nil
+}
+
+// MaxProfileTraits caps the stored traits object. Ingest caps one identify
+// call at the same size; merges that would exceed it keep the latest call's
+// traits so a client cannot grow a profile without bound by rotating keys.
+// The upsert SQL repeats the value.
+const MaxProfileTraits = 20
+
+func mergeTraits(row *profileRow, traits map[string]string) {
+	added := 0
+	for key := range traits {
+		if _, ok := row.traits[key]; !ok {
+			added++
+		}
+	}
+	if len(row.traits)+added > MaxProfileTraits {
+		clear(row.traits)
+	}
+	for key, value := range traits {
+		row.traits[key] = value
+	}
+}
+
+var profileColumns = []string{"site_id", "external_id", "traits", "first_seen_at", "last_seen_at"}
+
+type profileSource struct {
+	profiles []profileRow
+	index    int
+	row      [5]any
+}
+
+func (s *profileSource) Next() bool {
+	s.index++
+	return s.index <= len(s.profiles)
+}
+
+func (s *profileSource) Err() error { return nil }
+
+func (s *profileSource) Values() ([]any, error) {
+	profile := &s.profiles[s.index-1]
+	s.row = [5]any{profile.siteID, profile.externalID, profile.traits, profile.firstSeen, profile.lastSeen}
+	return s.row[:], nil
+}
+
 type siteDay struct {
 	site int32
 	day  time.Time
@@ -366,7 +523,7 @@ type siteDay struct {
 type eventSource struct {
 	events []Event
 	index  int
-	row    [27]any
+	row    [28]any
 }
 
 func (s *eventSource) Next() bool {
@@ -382,14 +539,22 @@ func (s *eventSource) Values() ([]any, error) {
 	if event.Props != nil {
 		props = event.Props
 	}
-	s.row = [27]any{
+	s.row = [28]any{
 		event.SiteID, event.Retention, event.LocalDay, event.TS, event.VisitorID, event.SessionID, event.Kind,
 		event.NameID, event.PathID, event.ReferrerID, event.Source, event.Medium, event.Campaign,
 		int32(0), int32(0), event.Country, event.Region, event.City, event.Browser, event.OS, event.Device, event.Screen,
 		event.EngagementMS, event.ScrollPct, props,
 		event.RevenueMicros, nullableString(event.RevenueCurrency),
+		nullableInt64(event.ProfileID),
 	}
 	return s.row[:], nil
+}
+
+func nullableInt64(value int64) any {
+	if value == 0 {
+		return nil
+	}
+	return value
 }
 
 func nullableString(value string) any {

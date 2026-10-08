@@ -116,6 +116,66 @@ func TestSiteExclusionAPI(t *testing.T) {
 	}
 }
 
+func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('profiles-owner@example.test','Owner','hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Profiles Settings','profiles-settings') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	registry := sitesvc.NewRegistry(data, 0)
+	t.Cleanup(registry.Close)
+	sites := sitesvc.New(data, registry)
+	owner := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
+	site, err := sites.Create(ctx, owner, "Example", []string{"example.test"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{
+			"owner":  owner,
+			"admin":  {UserID: userID, OrgID: orgID, Role: authz.RoleAdmin},
+			"editor": {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
+		},
+		Sites: registry, Mutations: platformhttp.Services{Sites: sites}, Store: data,
+	})
+	patch := func(actor string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/private/sites/%d", site.ID), strings.NewReader(`{"profiles_enabled":true}`))
+		request.Header.Set("X-Test-Actor", actor)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-CSRF-Token", "token")
+		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+	if response := patch("editor"); response.Code != http.StatusForbidden {
+		t.Fatalf("editor PATCH status=%d body=%s", response.Code, response.Body.String())
+	}
+	response := patch("admin")
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"profiles_enabled":true`) {
+		t.Fatalf("admin PATCH status=%d body=%s", response.Code, response.Body.String())
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || !loaded.ProfilesEnabled {
+		t.Fatalf("registry site=%+v found=%t", loaded, ok)
+	}
+	var audits int
+	if err := pool.QueryRow(ctx, `select count(*) from audit_log where action='site.updated' and target_id=$1 and metadata->>'profiles_enabled'='true'`, site.ID).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 1 {
+		t.Fatalf("profile setting audit rows=%d, want 1", audits)
+	}
+}
+
 func TestCurrentIPUsesResolvedClientAddress(t *testing.T) {
 	principal := authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}
 	handler := platformhttp.New(platformhttp.Deps{

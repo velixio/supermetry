@@ -11,6 +11,7 @@ import { useMe } from './$org'
 
 const retentionSearch = dashboardSearch.extend({
   interval: z.enum(['day', 'week', 'month']).catch('day'),
+  identity: z.enum(['anonymous', 'profile']).catch('anonymous'),
 })
 
 export const Route = createFileRoute('/$org/$site/retention')({
@@ -55,8 +56,11 @@ function RetentionRoute() {
       <RetentionPage
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         filters={filters}
+        identity={site.profiles_enabled ? search.identity : 'anonymous'}
         interval={search.interval}
+        profilesEnabled={Boolean(site.profiles_enabled)}
         siteId={site.id}
+        onIdentityChange={(identity) => void navigate({ search: { ...search, identity } })}
         onIntervalChange={(interval) => void navigate({ search: { ...search, interval } })}
       />
     </div>

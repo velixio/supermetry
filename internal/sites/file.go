@@ -18,12 +18,13 @@ type FileRegistry struct {
 }
 
 type fileSite struct {
-	ID            int32    `json:"id"`
-	OrgID         int64    `json:"org_id"`
-	PublicID      string   `json:"public_id"`
-	Timezone      string   `json:"timezone"`
-	RetentionDays int16    `json:"retention_days"`
-	AllowedHosts  []string `json:"allowed_hosts"`
+	ID              int32    `json:"id"`
+	OrgID           int64    `json:"org_id"`
+	PublicID        string   `json:"public_id"`
+	Timezone        string   `json:"timezone"`
+	RetentionDays   int16    `json:"retention_days"`
+	AllowedHosts    []string `json:"allowed_hosts"`
+	ProfilesEnabled bool     `json:"profiles_enabled"`
 }
 
 // LoadFile loads site metadata from a JSON array at path.
@@ -56,12 +57,13 @@ func LoadFile(path string) (*FileRegistry, error) {
 			allowedHosts[j] = strings.ToLower(host)
 		}
 		site := Site{
-			OrgID:        record.OrgID,
-			ID:           record.ID,
-			PublicID:     record.PublicID,
-			TZ:           location,
-			Retention:    retention,
-			AllowedHosts: allowedHosts,
+			OrgID:           record.OrgID,
+			ID:              record.ID,
+			PublicID:        record.PublicID,
+			TZ:              location,
+			Retention:       retention,
+			AllowedHosts:    allowedHosts,
+			ProfilesEnabled: record.ProfilesEnabled,
 		}
 		if _, exists := r.byPublicID[site.PublicID]; exists {
 			return nil, fmt.Errorf("site %d: duplicate public_id %q", i, site.PublicID)

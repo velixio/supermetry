@@ -9,6 +9,6 @@ function GeneralRoute() {
   const { org, site: slug } = Route.useParams();
   const { membership, site } = useSite(org, slug);
   return membership && site ? (
-    <SiteGeneralPage orgId={membership.org.id} siteId={site.id} />
+    <SiteGeneralPage orgId={membership.org.id} role={membership.role} siteId={site.id} />
   ) : null;
 }

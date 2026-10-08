@@ -10,17 +10,18 @@ import (
 )
 
 type Site struct {
-	ID             int32
-	OrgID          int64
-	PublicID       string
-	Name           string
-	AllowedHosts   []string
-	Timezone       string
-	RetentionClass int16
-	ExcludeIPs     []string
-	ExcludePaths   []string
-	CreatedAt      time.Time
-	DeletedAt      *time.Time
+	ID              int32
+	OrgID           int64
+	PublicID        string
+	Name            string
+	AllowedHosts    []string
+	Timezone        string
+	RetentionClass  int16
+	ExcludeIPs      []string
+	ExcludePaths    []string
+	ProfilesEnabled bool
+	CreatedAt       time.Time
+	DeletedAt       *time.Time
 }
 
 func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
@@ -44,7 +45,8 @@ func SiteForUpdate(ctx context.Context, tx pgx.Tx, orgID int64, id int32) (Site,
 	row := tx.QueryRow(ctx, `
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
-		       coalesce(settings->'exclude_paths', '[]'::jsonb), created_at, deleted_at
+		       coalesce(settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at
 		from sites
 		where id = $1 and org_id = $2 and deleted_at is null
 		for update`, id, orgID)
@@ -56,17 +58,20 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		update sites
 		set name = $3, allowed_hosts = $4, timezone = $5, retention_class = $6,
 		    settings = jsonb_set(
-		        jsonb_set(settings, '{exclude_ips}', coalesce(to_jsonb($7::text[]), '[]'::jsonb)),
-		        '{exclude_paths}', coalesce(to_jsonb($8::text[]), '[]'::jsonb))
+		        jsonb_set(
+		            jsonb_set(settings, '{exclude_ips}', coalesce(to_jsonb($7::text[]), '[]'::jsonb)),
+		            '{exclude_paths}', coalesce(to_jsonb($8::text[]), '[]'::jsonb)),
+		        '{profiles_enabled}', to_jsonb($9::boolean))
 		where id = $1 and org_id = $2 and deleted_at is null
 		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),
-		          coalesce(settings->'exclude_paths', '[]'::jsonb), created_at, deleted_at`,
+		          coalesce(settings->'exclude_paths', '[]'::jsonb),
+		          coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at`,
 		site.ID, site.OrgID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass,
-		site.ExcludeIPs, site.ExcludePaths,
+		site.ExcludeIPs, site.ExcludePaths, site.ProfilesEnabled,
 	).Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
-		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths,
+		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ProfilesEnabled,
 		&site.CreatedAt, &site.DeletedAt,
 	)
 	if err != nil {
@@ -96,7 +101,8 @@ func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 	rows, err := data.Pool.Query(ctx, `
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
-		       coalesce(settings->'exclude_paths', '[]'::jsonb), created_at, deleted_at
+		       coalesce(settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at
 		from sites
 		where deleted_at is null
 		order by id`)
@@ -111,7 +117,8 @@ func ListSites(ctx context.Context, data *Store, orgID int64, siteIDs []int32, a
 	rows, err := data.Pool.Query(ctx, `
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
-		       coalesce(settings->'exclude_paths', '[]'::jsonb), created_at, deleted_at
+		       coalesce(settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at
 		from sites
 		where org_id = $1 and deleted_at is null and id > $2
 		  and ($3::integer[] is null or id = any($3))
@@ -132,7 +139,7 @@ func scanSite(row siteScanner) (Site, error) {
 	var site Site
 	if err := row.Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
-		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths,
+		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ProfilesEnabled,
 		&site.CreatedAt, &site.DeletedAt,
 	); err != nil {
 		return Site{}, err

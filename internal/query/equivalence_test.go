@@ -338,7 +338,7 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	if err := dictionary.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
-	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30}}
+	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
 	return pool, query.NewEngine(pool, dictionary, reg)
 }
 

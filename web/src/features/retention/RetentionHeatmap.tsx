@@ -10,31 +10,37 @@ function cellLabel(count: number, size: number): string {
 export function RetentionHeatmap({
   cohorts,
   identityWindow,
+  interval,
   retentionMode,
 }: {
   cohorts: RetentionCohort[]
   identityWindow: string
+  interval: 'day' | 'week' | 'month'
   retentionMode: string
 }) {
   const columns = Math.max(0, ...cohorts.map((cohort) => cohort.retained.length))
+  const usesProfiles = identityWindow === 'profile'
+  const title = usesProfiles ? 'Profile retention' : 'Within-day returning sessions'
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
       <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-        <p className="font-medium">Within-day returning sessions</p>
+        <p className="font-medium">{title}</p>
         <p className="text-muted-foreground">
-          Identity window: {identityWindow}. Panel cannot identify the same person across days; week and month views group daily cohorts without linking them. Mode: {retentionMode}.
+          {usesProfiles
+            ? `Identity window: ${identityWindow}. This view follows identified users returning across days. Mode: ${retentionMode}.`
+            : `Identity window: ${identityWindow}. Panel cannot identify the same person across days; week and month views group daily cohorts without linking them. Mode: ${retentionMode}.`}
         </p>
       </div>
       <div className="min-w-0 overflow-x-auto rounded-xl border bg-card">
-        <table aria-label="Within-day returning sessions" className="w-full border-collapse text-sm">
+        <table aria-label={title} className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b text-left">
               <th className="px-3 py-2 font-medium">Cohort</th>
               <th className="px-3 py-2 text-right font-medium">Size</th>
               {Array.from({ length: columns }, (_, index) => (
                 <th className="min-w-28 px-3 py-2 text-center font-medium" key={index}>
-                  {index === 0 ? 'Session 1' : `Return ${index}`}
+                  {usesProfiles ? `${interval[0].toUpperCase()}${interval.slice(1)} ${index}` : index === 0 ? 'Session 1' : `Return ${index}`}
                 </th>
               ))}
             </tr>

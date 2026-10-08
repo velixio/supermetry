@@ -96,6 +96,9 @@ func validateRetentionRequest(request RetentionRequest) *Problem {
 	if !request.Interval.Valid() {
 		return problemPointer(badRequest("retention interval must be day, week, or month"))
 	}
+	if request.Identity != nil && !request.Identity.Valid() {
+		return problemPointer(badRequest("retention identity must be anonymous or profile"))
+	}
 	return nil
 }
 

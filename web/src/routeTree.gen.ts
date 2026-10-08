@@ -38,6 +38,8 @@ import { Route as OrgSitesIndexRouteImport } from './routes/$org.sites.index'
 import { Route as OrgSitesNewRouteImport } from './routes/$org.sites.new'
 import { Route as OrgSiteFunnelsIndexRouteImport } from './routes/$org.$site.funnels.index'
 import { Route as OrgSiteFunnelsIdRouteImport } from './routes/$org.$site.funnels.$id'
+import { Route as OrgSiteProfilesIndexRouteImport } from './routes/$org.$site.profiles.index'
+import { Route as OrgSiteProfilesIdRouteImport } from './routes/$org.$site.profiles.$id'
 import { Route as OrgSiteSettingsAlertsRouteImport } from './routes/$org.$site.settings.alerts'
 import { Route as OrgSiteSettingsFunnelsRouteImport } from './routes/$org.$site.settings.funnels'
 import { Route as OrgSiteSettingsGeneralRouteImport } from './routes/$org.$site.settings.general'
@@ -194,6 +196,16 @@ const OrgSiteFunnelsIdRoute = OrgSiteFunnelsIdRouteImport.update({
   path: '/$site/funnels/$id',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSiteProfilesIndexRoute = OrgSiteProfilesIndexRouteImport.update({
+  id: '/$site/profiles/',
+  path: '/$site/profiles/',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteProfilesIdRoute = OrgSiteProfilesIdRouteImport.update({
+  id: '/$site/profiles/$id',
+  path: '/$site/profiles/$id',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSiteSettingsAlertsRoute = OrgSiteSettingsAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -270,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/': typeof OrgSiteIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
   '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
@@ -280,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
   '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
+  '/$org/$site/profiles/': typeof OrgSiteProfilesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -310,6 +324,7 @@ export interface FileRoutesByTo {
   '/$org/$site': typeof OrgSiteIndexRoute
   '/$org/sites': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
   '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
@@ -320,6 +335,7 @@ export interface FileRoutesByTo {
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
   '/$org/$site/funnels': typeof OrgSiteFunnelsIndexRoute
+  '/$org/$site/profiles': typeof OrgSiteProfilesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -351,6 +367,7 @@ export interface FileRoutesById {
   '/$org/$site/': typeof OrgSiteIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
+  '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
   '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
@@ -361,6 +378,7 @@ export interface FileRoutesById {
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
   '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
+  '/$org/$site/profiles/': typeof OrgSiteProfilesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -393,6 +411,7 @@ export interface FileRouteTypes {
     | '/$org/$site/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
+    | '/$org/$site/profiles/$id'
     | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
@@ -403,6 +422,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
     | '/$org/$site/funnels/'
+    | '/$org/$site/profiles/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -433,6 +453,7 @@ export interface FileRouteTypes {
     | '/$org/$site'
     | '/$org/sites'
     | '/$org/$site/funnels/$id'
+    | '/$org/$site/profiles/$id'
     | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
@@ -443,6 +464,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
     | '/$org/$site/funnels'
+    | '/$org/$site/profiles'
   id:
     | '__root__'
     | '/'
@@ -473,6 +495,7 @@ export interface FileRouteTypes {
     | '/$org/$site/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
+    | '/$org/$site/profiles/$id'
     | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
@@ -483,6 +506,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
     | '/$org/$site/funnels/'
+    | '/$org/$site/profiles/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -704,6 +728,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteFunnelsIdRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/$site/profiles/': {
+      id: '/$org/$site/profiles/'
+      path: '/$site/profiles'
+      fullPath: '/$org/$site/profiles/'
+      preLoaderRoute: typeof OrgSiteProfilesIndexRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/profiles/$id': {
+      id: '/$org/$site/profiles/$id'
+      path: '/$site/profiles/$id'
+      fullPath: '/$org/$site/profiles/$id'
+      preLoaderRoute: typeof OrgSiteProfilesIdRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/$site/settings/alerts': {
       id: '/$org/$site/settings/alerts'
       path: '/alerts'
@@ -831,7 +869,9 @@ interface OrgRouteChildren {
   OrgSiteIndexRoute: typeof OrgSiteIndexRoute
   OrgSitesIndexRoute: typeof OrgSitesIndexRoute
   OrgSiteFunnelsIdRoute: typeof OrgSiteFunnelsIdRoute
+  OrgSiteProfilesIdRoute: typeof OrgSiteProfilesIdRoute
   OrgSiteFunnelsIndexRoute: typeof OrgSiteFunnelsIndexRoute
+  OrgSiteProfilesIndexRoute: typeof OrgSiteProfilesIndexRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
@@ -847,7 +887,9 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgSiteIndexRoute: OrgSiteIndexRoute,
   OrgSitesIndexRoute: OrgSitesIndexRoute,
   OrgSiteFunnelsIdRoute: OrgSiteFunnelsIdRoute,
+  OrgSiteProfilesIdRoute: OrgSiteProfilesIdRoute,
   OrgSiteFunnelsIndexRoute: OrgSiteFunnelsIndexRoute,
+  OrgSiteProfilesIndexRoute: OrgSiteProfilesIndexRoute,
 }
 
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)

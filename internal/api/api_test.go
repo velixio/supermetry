@@ -114,8 +114,8 @@ func TestAPIConventions(t *testing.T) {
 		response := get(t, srv.URL+"/api/public/openapi.json", "")
 		defer response.Body.Close()
 		var document struct {
-			OpenAPI string         `json:"openapi"`
-			Paths   map[string]any `json:"paths"`
+			OpenAPI string                    `json:"openapi"`
+			Paths   map[string]map[string]any `json:"paths"`
 		}
 		if response.StatusCode != http.StatusOK || json.NewDecoder(response.Body).Decode(&document) != nil || document.OpenAPI == "" {
 			t.Fatalf("status=%d document=%+v", response.StatusCode, document)
@@ -128,6 +128,18 @@ func TestAPIConventions(t *testing.T) {
 		}
 		if _, ok := document.Paths["/api/public/v1/sites/{site_id}/annotations"]; !ok {
 			t.Fatal("public annotations path missing")
+		}
+		if _, ok := document.Paths["/api/public/v1/sites/{site_id}/profiles"]; !ok {
+			t.Fatal("public profiles path missing")
+		}
+		if _, ok := document.Paths["/api/public/v1/profiles/{profile_id}"]; !ok {
+			t.Fatal("public profile detail path missing")
+		}
+		if _, ok := document.Paths["/api/public/v1/sites/{site_id}/goals"]["post"]; !ok {
+			t.Fatal("public goal creation operation missing")
+		}
+		if _, ok := document.Paths["/api/public/v1/profiles/{profile_id}"]["post"]; ok {
+			t.Fatal("profile detail path unexpectedly publishes POST")
 		}
 		for path := range document.Paths {
 			if strings.HasPrefix(path, "/api/v1/") || strings.HasPrefix(path, "/api/private/") {
@@ -235,6 +247,11 @@ func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
 		{name: "private import list", method: http.MethodGet, path: "/api/private/sites/1/imports"},
 		{name: "private import delete", method: http.MethodDelete, path: "/api/private/imports/1"},
 		{name: "private site export", method: http.MethodGet, path: "/api/private/sites/1/export?from=2026-10-01&to=2026-10-02"},
+		{name: "public profile list", method: http.MethodGet, path: "/api/public/v1/sites/1/profiles"},
+		{name: "public profile detail", method: http.MethodGet, path: "/api/public/v1/profiles/1"},
+		{name: "private profile list", method: http.MethodGet, path: "/api/private/sites/1/profiles"},
+		{name: "private profile detail", method: http.MethodGet, path: "/api/private/profiles/1"},
+		{name: "private profile erase", method: http.MethodDelete, path: "/api/private/profiles/1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

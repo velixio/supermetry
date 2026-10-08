@@ -31,7 +31,6 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	minified = append(minified, '\n')
 	if err := os.WriteFile(*out, minified, 0o644); err != nil {
 		fail(err)
 	}

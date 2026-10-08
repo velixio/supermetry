@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	identifyEvent     = "identify"
 	maxBodyBytes      = 8 << 10
 	maxProps          = 30
 	maxKeyBytes       = 300
@@ -19,6 +20,12 @@ const (
 	maxURLBytes       = 2000
 	maxSiteBytes      = 300
 	maxEventNameBytes = 300
+	// Profile caps count characters, matching the tracker and the
+	// profiles.external_id CHECK; the body cap bounds their byte size.
+	maxProfileIDChars  = 128
+	maxTraits          = 20
+	maxTraitKeyChars   = 64
+	maxTraitValueChars = 256
 )
 
 var webVitalCaps = map[string]uint64{"lcp": 60000, "cls": 10000, "inp": 60000}
@@ -38,18 +45,27 @@ type Payload struct {
 	RevenueMicros   int64             `json:"-"`
 	RevenueCurrency string            `json:"-"`
 	RevenueInvalid  bool              `json:"-"`
+	profileID       json.RawMessage
+	traits          json.RawMessage
 }
 
 // ParsePayload decodes and bounds an intake payload. It deliberately returns
 // non-specific errors so request data never appears in a response or log.
 func ParsePayload(body []byte) (Payload, error) {
-	var payload Payload
-	if len(body) == 0 || len(body) > maxBodyBytes || !utf8.Valid(body) {
-		return payload, errors.New("invalid payload")
+	var decoded struct {
+		Payload
+		ProfileID json.RawMessage `json:"profile_id"`
+		Traits    json.RawMessage `json:"traits"`
 	}
-	if err := json.Unmarshal(body, &payload); err != nil {
+	if len(body) == 0 || len(body) > maxBodyBytes || !utf8.Valid(body) {
 		return Payload{}, errors.New("invalid payload")
 	}
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		return Payload{}, errors.New("invalid payload")
+	}
+	payload := decoded.Payload
+	payload.profileID = decoded.ProfileID
+	payload.traits = decoded.Traits
 	if !validText(payload.Site, maxSiteBytes) ||
 		!validText(payload.Name, maxEventNameBytes) ||
 		!validText(payload.URL, maxURLBytes) ||
@@ -72,6 +88,45 @@ func ParsePayload(body []byte) (Payload, error) {
 	}
 	payload.normalizeRevenue()
 	return payload, nil
+}
+
+// Identity validates the optional profile fields after site lookup. Disabled
+// sites deliberately treat their contents as opaque so malformed identity
+// data cannot prevent an otherwise valid anonymous event.
+func (p Payload) Identity(profilesEnabled bool) (string, map[string]string, bool, error) {
+	supplied := len(p.profileID) != 0 || len(p.traits) != 0
+	if !profilesEnabled {
+		return "", nil, supplied, nil
+	}
+	if !supplied {
+		if p.Name == identifyEvent {
+			return "", nil, false, errors.New("invalid payload")
+		}
+		return "", nil, false, nil
+	}
+	if len(p.profileID) == 0 {
+		return "", nil, true, errors.New("invalid payload")
+	}
+	var externalID string
+	if err := json.Unmarshal(p.profileID, &externalID); err != nil || externalID == "" || !validChars(externalID, maxProfileIDChars) {
+		return "", nil, true, errors.New("invalid payload")
+	}
+	if len(p.traits) == 0 {
+		return externalID, nil, true, nil
+	}
+	if p.Name != identifyEvent {
+		return "", nil, true, errors.New("invalid payload")
+	}
+	var traits map[string]string
+	if err := json.Unmarshal(p.traits, &traits); err != nil || traits == nil || len(traits) > maxTraits {
+		return "", nil, true, errors.New("invalid payload")
+	}
+	for key, value := range traits {
+		if key == "" || !validChars(key, maxTraitKeyChars) || !validChars(value, maxTraitValueChars) {
+			return "", nil, true, errors.New("invalid payload")
+		}
+	}
+	return externalID, traits, true, nil
 }
 
 func (p *Payload) normalizeWebVitals() {
@@ -211,6 +266,10 @@ func validCurrency(currency string) bool {
 		}
 	}
 	return true
+}
+
+func validChars(value string, maxChars int) bool {
+	return utf8.ValidString(value) && utf8.RuneCountInString(value) <= maxChars
 }
 
 func validText(value string, maxBytes int) bool {

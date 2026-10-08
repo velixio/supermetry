@@ -228,6 +228,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List identified profiles
+         * @description Requires stats:read. profiles_enabled reports the site setting; profiles stored while it was on stay listed after it is turned off so they can still be erased.
+         */
+        get: operations["listProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get an identified profile and its raw event timeline
+         * @description Requires stats:read. The timeline is limited to the site's raw-data retention window.
+         */
+        get: operations["getProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/sites/{site_id}/annotations": {
         parameters: {
             query: {
@@ -396,6 +440,8 @@ export interface components {
             name: string;
             timezone: string;
             retention_days: number;
+            /** @default false */
+            profiles_enabled: boolean;
             allowed_hosts: string[];
         };
         SiteList: {
@@ -410,6 +456,7 @@ export interface components {
             retention_days: 0 | 7 | 30 | 90 | 365;
         };
         UpdateSiteRequest: {
+            profiles_enabled?: boolean;
             name?: string;
             hosts?: string[];
             timezone?: string;
@@ -682,6 +729,11 @@ export interface components {
             filters?: components["schemas"]["Filter"][];
             /** @enum {string} */
             interval: "day" | "week" | "month";
+            /**
+             * @default anonymous
+             * @enum {string}
+             */
+            identity: "anonymous" | "profile";
         };
         RetentionCohort: {
             /** Format: date */
@@ -692,17 +744,54 @@ export interface components {
         };
         RetentionResponse: {
             /**
-             * @description Daily visitor IDs cannot be linked across local-day salt rotations.
+             * @description Anonymous identities last one local day; opted-in profiles link activity across days.
              * @enum {string}
              */
-            identity_window: "day";
+            identity_window: "day" | "profile";
             /**
-             * @description Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+             * @description Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
              * @enum {string}
              */
-            retention_mode: "within_day_session_return";
+            retention_mode: "within_day_session_return" | "classic_profile_return";
             /** @description Week and month intervals group daily cohorts without cross-day identity linkage. */
             cohorts: components["schemas"]["RetentionCohort"][];
+        };
+        Profile: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            external_id: string;
+            traits: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            first_seen_at: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            /** Format: int64 */
+            sessions: number;
+            /** Format: int64 */
+            events: number;
+        };
+        ProfileList: {
+            profiles_enabled: boolean;
+            data: components["schemas"]["Profile"][];
+            next_cursor?: string | null;
+        };
+        ProfileEvent: {
+            /** Format: date-time */
+            ts: string;
+            kind: number;
+            name: string;
+            path: string;
+            props?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        ProfileDetail: components["schemas"]["Profile"] & {
+            timeline: components["schemas"]["ProfileEvent"][];
+            next_cursor?: string | null;
         };
         TopPage: {
             page: string;
@@ -1379,6 +1468,67 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listProfiles: {
+        parameters: {
+            query?: {
+                search?: string;
+                limit?: components["parameters"]["Limit"];
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getProfile: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                profile_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
         };
     };
     listAnnotations: {
