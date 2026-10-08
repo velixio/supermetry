@@ -31,6 +31,7 @@ import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtim
 import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retention'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
 import { Route as OrgSiteVitalsRouteImport } from './routes/$org.$site.vitals'
+import { Route as OrgSettingsApiRouteImport } from './routes/$org.settings.api'
 import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
 import { Route as OrgSettingsInvitesRouteImport } from './routes/$org.settings.invites'
@@ -162,6 +163,11 @@ const OrgSiteVitalsRoute = OrgSiteVitalsRouteImport.update({
   path: '/$site/vitals',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSettingsApiRoute = OrgSettingsApiRouteImport.update({
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => OrgSettingsRoute,
+} as any)
 const OrgSettingsApiKeysRoute = OrgSettingsApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
@@ -287,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/$site/vitals': typeof OrgSiteVitalsRoute
+  '/$org/settings/api': typeof OrgSettingsApiRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/$site/vitals': typeof OrgSiteVitalsRoute
+  '/$org/settings/api': typeof OrgSettingsApiRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
@@ -376,6 +384,7 @@ export interface FileRoutesById {
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/$site/vitals': typeof OrgSiteVitalsRoute
+  '/$org/settings/api': typeof OrgSettingsApiRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
@@ -422,6 +431,7 @@ export interface FileRouteTypes {
     | '/$org/$site/retention'
     | '/$org/$site/settings'
     | '/$org/$site/vitals'
+    | '/$org/settings/api'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/$org/$site/retention'
     | '/$org/$site/settings'
     | '/$org/$site/vitals'
+    | '/$org/settings/api'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
@@ -510,6 +521,7 @@ export interface FileRouteTypes {
     | '/$org/$site/retention'
     | '/$org/$site/settings'
     | '/$org/$site/vitals'
+    | '/$org/settings/api'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
@@ -703,6 +715,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteVitalsRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/settings/api': {
+      id: '/$org/settings/api'
+      path: '/api'
+      fullPath: '/$org/settings/api'
+      preLoaderRoute: typeof OrgSettingsApiRouteImport
+      parentRoute: typeof OrgSettingsRoute
+    }
     '/$org/settings/api-keys': {
       id: '/$org/settings/api-keys'
       path: '/api-keys'
@@ -847,6 +866,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface OrgSettingsRouteChildren {
+  OrgSettingsApiRoute: typeof OrgSettingsApiRoute
   OrgSettingsApiKeysRoute: typeof OrgSettingsApiKeysRoute
   OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
   OrgSettingsInvitesRoute: typeof OrgSettingsInvitesRoute
@@ -855,6 +875,7 @@ interface OrgSettingsRouteChildren {
 }
 
 const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
+  OrgSettingsApiRoute: OrgSettingsApiRoute,
   OrgSettingsApiKeysRoute: OrgSettingsApiKeysRoute,
   OrgSettingsAuditRoute: OrgSettingsAuditRoute,
   OrgSettingsInvitesRoute: OrgSettingsInvitesRoute,

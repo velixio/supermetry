@@ -11,7 +11,7 @@ describe('organization settings navigation', () => {
 
   it('links every organization setting and marks Notifications current', async () => {
     renderWithRouter(<OrganizationSettingsTabs org="acme" current="notifications" />)
-    for (const label of ['Members', 'Invitations', 'API keys', 'Audit log', 'Notifications']) {
+    for (const label of ['Members', 'Invitations', 'API keys', 'API reference', 'Audit log', 'Notifications']) {
       expect(await screen.findByRole('link', { name: label })).toBeVisible()
     }
     expect(screen.getByRole('link', { name: 'Notifications' })).toHaveAttribute('aria-current', 'page')

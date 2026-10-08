@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun scripts/copy-flags.mjs && vite",
-    "gen:api": "openapi-typescript ../internal/api/openapi.yaml -o src/lib/api.gen.ts",
+    "gen:api": "openapi-typescript ../internal/api/openapi.yaml -o src/lib/api.gen.ts && bun run gen:api-client",
+    "gen:api-client": "openapi-typescript ../internal/api/openapi.yaml -o packages/api-client/src/schema.ts",
     "gen:routes": "bun node_modules/@tanstack/router-cli/dist/esm/index.js generate",
     "typecheck": "bun run gen:routes && tsc --noEmit",
     "test": "vitest --configLoader runner --exclude=e2e/**",
