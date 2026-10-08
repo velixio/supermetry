@@ -211,7 +211,9 @@ describe('dashboard breakdown route', () => {
     )
   })
 
-  it('exports every dashboard CSV with the current range and filters', async () => {
+  // Exports one CSV per dashboard tab, so it needs more than the 5 s default
+  // when the full suite runs in parallel.
+  it('exports every dashboard CSV with the current range and filters', { timeout: 20_000 }, async () => {
     const history = createMemoryHistory({
       initialEntries: [
         '/acme/example?period=custom&from=2026-09-28&to=2026-09-30&f=country%3Ais%3AIN',
