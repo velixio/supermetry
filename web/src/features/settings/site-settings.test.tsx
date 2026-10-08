@@ -85,6 +85,8 @@ describe('site settings', () => {
     expect(setup).toHaveTextContent(/name="panel:404"/)
     expect(setup).toHaveTextContent(/Site settings → Exclusions/)
     expect(setup).toHaveTextContent(/Site settings → General/)
+    expect(setup).toHaveTextContent(/data-heatmap="true"/)
+    expect(setup).toHaveTextContent(/panel\.optOut\(\)/)
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js / React' }), {
       button: 0,
       ctrlKey: false,

@@ -19,6 +19,7 @@ type SiteExclusions = {
   exclude_ips: string[]
   exclude_paths: string[]
   heatmaps_enabled: boolean
+  respect_privacy_signals: boolean
 }
 
 function lines(value: string): string[] {
@@ -61,6 +62,17 @@ export function ExclusionsPage({ siteId, orgId, canManageHeatmaps = false }: { s
         orgId,
         body: { heatmaps_enabled: enabled },
       }),
+    onSuccess: (value) => {
+      queryClient.setQueryData(['site', siteId], value)
+      void queryClient.invalidateQueries({ queryKey: ['site-snippet', orgId, siteId] })
+    },
+  })
+  const savePrivacySignals = useMutation({
+    mutationFn: (enabled: boolean) =>
+      privateRequest<SiteExclusions>('PATCH', `/api/private/sites/${siteId}`, {
+        orgId,
+        body: { respect_privacy_signals: enabled },
+      }),
     onSuccess: (value) => queryClient.setQueryData(['site', siteId], value),
   })
 
@@ -69,7 +81,7 @@ export function ExclusionsPage({ siteId, orgId, canManageHeatmaps = false }: { s
     save.mutate({ exclude_ips: lines(ipRules ?? ''), exclude_paths: lines(pathRules ?? '') })
   }
 
-  const error = save.error ?? saveHeatmaps.error ?? currentIP.error ?? site.error
+  const error = save.error ?? saveHeatmaps.error ?? savePrivacySignals.error ?? currentIP.error ?? site.error
   const message = error instanceof Error ? error.message : ''
   const ipInvalid = message.includes('exclude_ips')
   const pathInvalid = message.includes('exclude_paths')
@@ -84,9 +96,23 @@ export function ExclusionsPage({ siteId, orgId, canManageHeatmaps = false }: { s
       </header>
       <section className="flex items-center justify-between gap-4 rounded-xl border bg-card p-5 text-card-foreground">
         <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium" htmlFor="privacy-signals-enabled">Respect browser privacy signals</label>
+          <p className="text-sm text-muted-foreground">
+            Drop events when the browser sends Global Privacy Control or Do Not Track. Enabled by default.
+          </p>
+        </div>
+        <Switch
+          id="privacy-signals-enabled"
+          checked={site.data?.respect_privacy_signals !== false}
+          disabled={savePrivacySignals.isPending || !site.data}
+          onCheckedChange={(checked) => savePrivacySignals.mutate(checked)}
+        />
+      </section>
+      <section className="flex items-center justify-between gap-4 rounded-xl border bg-card p-5 text-card-foreground">
+        <div className="flex flex-col gap-1">
           <label className="text-sm font-medium" htmlFor="heatmaps-enabled">Collect click heatmaps</label>
           <p className="text-sm text-muted-foreground">
-            Uses the full tracker to collect anonymous coordinates only—no text, selectors, cookies, or browser storage.
+            Uses the full tracker to collect anonymous coordinates only—no text, selectors, cookies, or identifiers.
           </p>
         </div>
         <Switch

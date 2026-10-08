@@ -140,7 +140,12 @@ const featureSetup: { feature: string; needs: string; code?: string }[] = [
     needs: 'Either script. Send an amount and currency with an event, then add a revenue goal:',
     code: "panel.track('Purchase', { plan: 'pro' }, { revenue: { amount: '49.90', currency: 'USD' } })",
   },
-  { feature: 'Heatmaps', needs: 'Full script, and turn on heatmaps in Site settings → Exclusions.' },
+  { feature: 'Heatmaps', needs: 'Full script. Turn on heatmaps in Site settings → Exclusions. The full snippet then includes data-heatmap="true"; re-copy it after changing the setting.' },
+  {
+    feature: 'Visitor opt-out',
+    needs: 'Use this in an opt-out link or button. It stores only panel_ignore="1" in localStorage; call panel.optIn() to resume:',
+    code: 'panel.optOut()',
+  },
   {
     feature: 'User profiles',
     needs: 'Either script. Turn on profiles in Site settings → General (needs your users\' consent), then on every page load call:',

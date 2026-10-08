@@ -35,6 +35,7 @@ describe('ExclusionsPage', () => {
           exclude_ips: ['203.0.113.0/24'],
           exclude_paths: ['/admin/*', '/internal'],
 		  heatmaps_enabled: false,
+		  respect_privacy_signals: true,
         },
         response: { ok: true, status: 200 },
       })
@@ -45,6 +46,7 @@ describe('ExclusionsPage', () => {
         exclude_ips: ['203.0.113.0/24', '198.51.100.7/32'],
         exclude_paths: ['/preview/**', '/internal'],
 		heatmaps_enabled: false,
+		respect_privacy_signals: true,
       },
       response: { ok: true, status: 200 },
     })
@@ -93,6 +95,7 @@ describe('ExclusionsPage', () => {
 
 	it('lets an owner enable heatmaps with a dedicated audited patch', async () => {
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+		client.setQueryData(['site-snippet', 3, 7], { full_snippet: '<script>' })
 		render(
 			<QueryClientProvider client={client}>
 				<ExclusionsPage orgId={3} siteId={7} canManageHeatmaps />
@@ -101,11 +104,23 @@ describe('ExclusionsPage', () => {
 		const toggle = await screen.findByRole('switch', { name: 'Collect click heatmaps' })
 		await waitFor(() => expect(toggle).toBeEnabled())
 		expect(toggle).not.toBeChecked()
-		fireEvent.pointerDown(toggle, { button: 0, ctrlKey: false })
 		fireEvent.click(toggle)
 		await waitFor(() => expect(patch).toHaveBeenCalledWith(
 			'/api/private/sites/7',
 			expect.objectContaining({ body: { heatmaps_enabled: true } }),
+		))
+		expect(client.getQueryState(['site-snippet', 3, 7])?.isInvalidated).toBe(true)
+	})
+
+	it('lets a site editor disable privacy signal handling', async () => {
+		renderPage()
+		const toggle = await screen.findByRole('switch', { name: 'Respect browser privacy signals' })
+		await waitFor(() => expect(toggle).toBeEnabled())
+		expect(toggle).toBeChecked()
+		fireEvent.click(toggle)
+		await waitFor(() => expect(patch).toHaveBeenCalledWith(
+			'/api/private/sites/7',
+			expect.objectContaining({ body: { respect_privacy_signals: false } }),
 		))
 	})
 })
