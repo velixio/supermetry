@@ -12,7 +12,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Visitors, pageviews, bounce rate, visit duration | ✓ | ✓ | ✓ | ✅ |
 | Realtime view | ✓ | ✓ | ✓ | ✅ (live feed, per-minute chart) |
 | Compare with the previous period | ✓ | ✓ | ? | ✅ |
-| Filters on any dimension | ✓ | ✓ | ✓ | ✅ |
+| Filters on any dimension | ✓ | ✓ | ✓ | ⏳ (by clicking a row; no filter picker yet) |
 | Page, source, country, browser, OS and device breakdowns | ✓ | ✓ | ✓ | ✅ |
 | UTM breakdowns | ✓ | ✓ | ✓ | ✅ |
 | Entry and exit pages | ✓ | ✓ | ✓ | ✅ |
@@ -95,7 +95,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 8. ~~Stats API: timeseries, breakdowns, realtime~~ ✅
 9. ~~Full CSV export of every report~~ ✅
 10. ~~User journeys / path flow~~ ✅
-11. ~~Retention report~~ ✅ (same-day return only: visitor IDs rotate daily by design)
+11. ~~Retention report~~ ✅ (cross-day for identified profiles; same-day for anonymous visitors)
 12. ~~Alerts: traffic spike or drop, goal hit~~ ✅ (spike window is the whole local day for now)
 13. ~~Annotations on the chart~~ ✅
 14. ~~Importers from Plausible and Umami~~ ✅ (GA4 not yet)
@@ -113,5 +113,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 - Server-side events API docs; landing page and docs (Astro + Starlight)
 - Security review
 - Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
+
+Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
 
 Deferred: session replay (lean design discussed: sampled, files on disk), AI insights, mobile SDKs, SSO/OIDC.
