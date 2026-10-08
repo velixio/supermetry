@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"panel/internal/db"
+	"panel/internal/profiletombstone"
 	"panel/internal/session"
 	"panel/internal/testpg"
 )
@@ -78,5 +79,52 @@ func TestCopyEventsUpsertsOneProfileAndLinksBatch(t *testing.T) {
 	}
 	if linked != 2 || distinct != 1 || events[0].ProfileID != profileID || events[1].ProfileID != profileID {
 		t.Fatalf("linked=%d distinct=%d event profile IDs=%d/%d, want 2/1/%d", linked, distinct, events[0].ProfileID, events[1].ProfileID, profileID)
+	}
+}
+
+func TestBufferedProfileEventStaysAnonymousAfterErasureAndRestart(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
+	if _, err := pool.Exec(ctx, `
+		create table events_r30_20261008 partition of events_r30
+		for values from ('2026-10-08T00:00:00Z') to ('2026-10-09T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Erasure','erasure') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class) values ($1,'erasure00001','Erasure','UTC',30) returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+
+	tombstones := profiletombstone.New(pool, nil)
+	if err := tombstones.Remember(ctx, siteID, "customer-1"); err != nil {
+		t.Fatal(err)
+	}
+	restarted := profiletombstone.New(pool, nil)
+	if err := restarted.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	events := []Event{{
+		Hit:       session.Hit{SiteID: siteID, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, Kind: 1},
+		SessionID: 1, ProfileExternalID: "customer-1", ProfileTraits: map[string]string{"plan": "pro"},
+	}}
+	w := New(pool, nil, 1, time.Hour, time.Hour, nil)
+	w.SetProfileTombstones(restarted)
+	if err := w.copyEvents(ctx, events); err != nil {
+		t.Fatal(err)
+	}
+	var profiles, linked int
+	if err := pool.QueryRow(ctx, `select (select count(*) from profiles where site_id=$1), count(profile_id) from events where site_id=$1`, siteID).Scan(&profiles, &linked); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 0 || linked != 0 || events[0].ProfileExternalID != "" || events[0].ProfileTraits != nil {
+		t.Fatalf("profiles=%d linked=%d event=%+v, want anonymous", profiles, linked, events[0])
 	}
 }

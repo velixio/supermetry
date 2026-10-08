@@ -60,6 +60,10 @@ func (denyLimiter) Allow(string) bool { return false }
 
 type recordingLimiter struct{ keys []string }
 
+type allProfilesTombstoned struct{}
+
+func (allProfilesTombstoned) Contains(int32, string) bool { return true }
+
 func (l *recordingLimiter) Allow(key string) bool {
 	l.keys = append(l.keys, key)
 	return true
@@ -589,6 +593,26 @@ func TestEnabledIdentifyWithoutTraitsUpsertsAndLinks(t *testing.T) {
 	}
 	if profiles != 1 || linked != 1 {
 		t.Fatalf("profiles=%d linked=%d, want 1/1", profiles, linked)
+	}
+}
+
+func TestTombstonedProfileIsRemovedBeforeQueueing(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	setProfilesEnabled(t, f, true)
+	f.h.ProfileTombstones = allProfilesTombstoned{}
+	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	var profiles, linked int
+	if err := f.pool.QueryRow(context.Background(), `select (select count(*) from profiles), count(profile_id) from events`).Scan(&profiles, &linked); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 0 || linked != 0 {
+		t.Fatalf("profiles=%d linked=%d, want anonymous queued event", profiles, linked)
 	}
 }
 

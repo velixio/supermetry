@@ -87,6 +87,10 @@ type Deps struct {
 		Delete(context.Context, int64) (bool, error)
 		SetFailed(context.Context, int64, error) error
 	}
+	ProfileTombstones interface {
+		RememberTx(context.Context, pgx.Tx, int32, string) error
+		ForgetMemory(int32, string)
+	}
 	ImportQueue interface {
 		Queue(imports.Job) error
 	}
