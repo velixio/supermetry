@@ -2,6 +2,8 @@
 package realtime
 
 import (
+	"context"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -14,6 +16,11 @@ const window = 30 * time.Minute
 // "live now", matching the 5 minutes Plausible, Umami and OpenPanel use. The
 // charts and breakdowns keep the 30-minute window.
 const LiveWindow = 5 * time.Minute
+
+// MinuteSource reads durable visitor counts for closed minute buckets.
+type MinuteSource interface {
+	Minutes(ctx context.Context, siteID int32, from, to time.Time) ([]session.MinuteVisitors, error)
+}
 
 // Item is a ranked realtime dimension value.
 type Item struct {
@@ -68,6 +75,43 @@ func RichSnapshot(store session.Store, siteID int32, now time.Time) session.Real
 		result.Sources = append(result.Sources, session.ActiveValue{ID: int32(id), Visitors: source.Visitors})
 	}
 	return result
+}
+
+// RichSnapshotWithMinutes merges durable closed-minute visitor counts into the
+// process-local snapshot. The open minute remains process-local because a
+// durable row for it may be incomplete.
+func RichSnapshotWithMinutes(ctx context.Context, store session.Store, minutes MinuteSource, siteID int32, now time.Time) session.RealtimeSnapshot {
+	result := RichSnapshot(store, siteID, now)
+	if minutes == nil {
+		return result
+	}
+
+	current := now.UTC().Truncate(time.Minute)
+	from := current.Add(-29 * time.Minute)
+	stored, err := minutes.Minutes(ctx, siteID, from, current)
+	if err != nil {
+		slog.WarnContext(ctx, "load durable realtime minutes", "site_id", siteID, "error", err)
+		return result
+	}
+
+	merged := emptyMinutes(now)
+	mergeMinutes(merged, result.VisitorsPerMinute, from, current, false)
+	mergeMinutes(merged, stored, from, current, true)
+	result.VisitorsPerMinute = merged
+	return result
+}
+
+func mergeMinutes(target, values []session.MinuteVisitors, from, current time.Time, closedOnly bool) {
+	for _, value := range values {
+		minute := value.Minute.UTC().Truncate(time.Minute)
+		if minute.Before(from) || minute.After(current) || closedOnly && !minute.Before(current) {
+			continue
+		}
+		index := int(minute.Sub(from) / time.Minute)
+		if value.Visitors > target[index].Visitors {
+			target[index].Visitors = value.Visitors
+		}
+	}
 }
 
 func emptyMinutes(now time.Time) []session.MinuteVisitors {
