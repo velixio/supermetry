@@ -8,8 +8,8 @@
     "gen:api": "openapi-typescript ../internal/api/openapi.yaml -o src/lib/api.gen.ts",
     "gen:routes": "bun node_modules/@tanstack/router-cli/dist/esm/index.js generate",
     "typecheck": "bun run gen:routes && tsc --noEmit",
-    "test": "vitest --exclude=e2e/**",
-    "build": "bun run gen:routes && tsc --noEmit && vite build && bun scripts/size-check.mjs",
+    "test": "vitest --configLoader runner --exclude=e2e/**",
+    "build": "bun run gen:routes && tsc --noEmit && vite build --configLoader runner && bun scripts/size-check.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {

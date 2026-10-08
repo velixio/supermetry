@@ -14,21 +14,38 @@ type GoalEditorProps = {
 }
 
 const emptyGoal: GoalInput = { kind: 'page', match: 'exact', value: '', name: '' }
+const commonCurrencies = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'CAD', 'AUD'] as const
+
+function isCommonCurrency(currency: string | undefined): boolean {
+  return commonCurrencies.some((value) => value === currency)
+}
 
 export function GoalEditor({ goal, pending, onSave, onCancel }: GoalEditorProps) {
   const [input, setInput] = useState<GoalInput>(goal ?? emptyGoal)
+  const [customCurrency, setCustomCurrency] = useState(Boolean(goal?.currency && !isCommonCurrency(goal.currency)))
   const [error, setError] = useState('')
 
-  useEffect(() => setInput(goal ?? emptyGoal), [goal])
+  useEffect(() => {
+    setInput(goal ?? emptyGoal)
+    setCustomCurrency(Boolean(goal?.currency && !isCommonCurrency(goal.currency)))
+  }, [goal])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
+    const currency = input.currency?.trim().toUpperCase()
     if (!input.name.trim() || !input.value.trim()) {
       setError('Enter a name and value.')
       return
     }
+    if (input.kind === 'event' && customCurrency && !/^[A-Z]{3}$/.test(currency ?? '')) {
+      setError('Enter a three-letter currency code.')
+      return
+    }
     setError('')
-    void onSave({ ...input, name: input.name.trim(), value: input.value.trim() })
+    const normalized = { ...input, name: input.name.trim(), value: input.value.trim() }
+    if (input.kind === 'event' && currency) normalized.currency = currency
+    else delete normalized.currency
+    void onSave(normalized)
   }
 
   return (
@@ -41,7 +58,11 @@ export function GoalEditor({ goal, pending, onSave, onCancel }: GoalEditorProps)
         </Field>
         <Field>
           <FieldLabel htmlFor="goal-kind">Goal type</FieldLabel>
-          <select id="goal-kind" className="h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" value={input.kind} onChange={(event) => setInput((current) => ({ ...current, kind: event.target.value as GoalInput['kind'] }))}>
+          <select id="goal-kind" className="h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" value={input.kind} onChange={(event) => {
+            const kind = event.target.value as GoalInput['kind']
+            setCustomCurrency(false)
+            setInput((current) => kind === 'page' ? { ...current, kind, currency: undefined } : { ...current, kind })
+          }}>
             <option value="page">Page</option><option value="event">Event</option>
           </select>
         </Field>
@@ -55,6 +76,38 @@ export function GoalEditor({ goal, pending, onSave, onCancel }: GoalEditorProps)
           <FieldLabel htmlFor="goal-value">Goal value</FieldLabel>
           <Input id="goal-value" aria-invalid={error !== '' && !input.value.trim()} value={input.value} onChange={(event) => setInput((current) => ({ ...current, value: event.target.value }))} />
         </Field>
+        {input.kind === 'event' ? (
+          <Field data-invalid={error !== '' && customCurrency && !/^[A-Za-z]{3}$/.test(input.currency ?? '')}>
+            <FieldLabel htmlFor="goal-currency">Revenue currency</FieldLabel>
+            <select
+              id="goal-currency"
+              aria-invalid={error !== '' && customCurrency && !/^[A-Za-z]{3}$/.test(input.currency ?? '')}
+              className="h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={customCurrency ? 'custom' : (input.currency ?? '')}
+              onChange={(event) => {
+                const currency = event.target.value
+                setCustomCurrency(currency === 'custom')
+                setInput((current) => ({ ...current, currency: currency === 'custom' || currency === '' ? undefined : currency }))
+              }}
+            >
+              <option value="">No revenue</option>
+              {commonCurrencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+              <option value="custom">Other currency…</option>
+            </select>
+            {customCurrency ? (
+              <Input
+                id="goal-custom-currency"
+                aria-invalid={error !== '' && !/^[A-Za-z]{3}$/.test(input.currency ?? '')}
+                aria-label="Custom currency"
+                autoCapitalize="characters"
+                maxLength={3}
+                placeholder="CHF"
+                value={input.currency ?? ''}
+                onChange={(event) => setInput((current) => ({ ...current, currency: event.target.value }))}
+              />
+            ) : null}
+          </Field>
+        ) : null}
       </FieldGroup>
       {error ? <FieldError>{error}</FieldError> : null}
       <div className="flex items-center gap-2">

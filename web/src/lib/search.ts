@@ -26,6 +26,8 @@ export const metricValues = [
   'bounce_rate',
   'visit_duration',
   'engagement_time',
+  'total_revenue',
+  'average_revenue',
 ] as const
 
 export const filterOperatorValues = [
@@ -89,6 +91,7 @@ const dimensions = new Set([
   'event',
   'exit',
   'goal',
+  'revenue_currency',
   'os',
   'page',
   'path',

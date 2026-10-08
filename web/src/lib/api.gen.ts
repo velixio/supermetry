@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/v1/query": {
+    "/api/public/v1/query": {
         parameters: {
             query?: never;
             header?: never;
@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/stats/summary": {
+    "/api/public/v1/stats/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -38,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/stats/timeseries": {
+    "/api/public/v1/stats/timeseries": {
         parameters: {
             query?: never;
             header?: never;
@@ -55,7 +55,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/stats/breakdown": {
+    "/api/public/v1/stats/breakdown": {
         parameters: {
             query?: never;
             header?: never;
@@ -72,7 +72,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/funnels/query": {
+    "/api/public/v1/funnels/query": {
         parameters: {
             query?: never;
             header?: never;
@@ -89,7 +89,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/realtime": {
+    "/api/public/v1/realtime": {
         parameters: {
             query?: never;
             header?: never;
@@ -106,21 +106,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/health": {
+    "/api/public/v1/sites": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get analytics data-health counters */
-        get: operations["dataHealth"];
+        /** List accessible sites */
+        get: operations["listSites"];
         put?: never;
-        post?: never;
+        /** Create a site */
+        post: operations["createSite"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** Get a site */
+        get: operations["getSite"];
+        put?: never;
+        post?: never;
+        /** Delete a site */
+        delete: operations["deleteSite"];
+        options?: never;
+        head?: never;
+        /** Update a site */
+        patch: operations["updateSite"];
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** List goals */
+        get: operations["listGoals"];
+        put?: never;
+        /** Create a goal */
+        post: operations["createGoal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/goals/{goal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: components["parameters"]["GoalPathID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a goal */
+        delete: operations["deleteGoal"];
+        options?: never;
+        head?: never;
+        /** Update a goal */
+        patch: operations["updateGoal"];
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/funnels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** List saved funnels */
+        get: operations["listFunnels"];
+        put?: never;
+        /** Create a saved funnel */
+        post: operations["createFunnel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/funnels/{funnel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                funnel_id: components["parameters"]["FunnelPathID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a saved funnel */
+        delete: operations["deleteFunnel"];
+        options?: never;
+        head?: never;
+        /** Update a saved funnel */
+        patch: operations["updateFunnel"];
         trace?: never;
     };
     "/healthz": {
@@ -178,6 +280,69 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Site: {
+            /** Format: int32 */
+            id: number;
+            /** Format: int64 */
+            org_id: number;
+            public_id: string;
+            name: string;
+            timezone: string;
+            retention_days: number;
+            allowed_hosts: string[];
+        };
+        SiteList: {
+            data: components["schemas"]["Site"][];
+            next_cursor?: string | null;
+        };
+        CreateSiteRequest: {
+            name: string;
+            hosts: string[];
+            timezone: string;
+            /** @enum {integer} */
+            retention_days: 0 | 7 | 30 | 90 | 365;
+        };
+        UpdateSiteRequest: {
+            name?: string;
+            hosts?: string[];
+            timezone?: string;
+            /** @enum {integer} */
+            retention_days?: 0 | 7 | 30 | 90 | 365;
+        };
+        GoalInput: {
+            /** @enum {string} */
+            kind: "page" | "event";
+            /** @enum {string} */
+            match: "exact" | "prefix" | "wildcard";
+            value: string;
+            prop_key?: string;
+            prop_value?: string;
+            name: string;
+            currency?: string | null;
+        };
+        Goal: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            kind: string;
+            match: string;
+            value: string;
+            prop_key?: string;
+            prop_value?: string;
+            name: string;
+            currency?: string | null;
+        };
+        SavedFunnelInput: {
+            name: string;
+            steps: components["schemas"]["FunnelStep"][];
+        };
+        SavedFunnel: components["schemas"]["SavedFunnelInput"] & {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+        };
         /** @enum {string} */
         Period: "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "12mo" | "year" | "custom";
         DateRange: {
@@ -187,7 +352,7 @@ export interface components {
             to: string;
         };
         /** @enum {string} */
-        Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "scroll_depth" | "events" | "conversions" | "conversion_rate";
+        Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
         Filter: {
             dimension: string;
             /** @enum {string} */
@@ -237,6 +402,8 @@ export interface components {
             type: "page" | "event";
             match: string;
             value: string;
+            prop_key?: string;
+            prop_value?: string;
         };
         FunnelRequest: {
             /** Format: int32 */
@@ -326,6 +493,24 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The authenticated principal lacks permission. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The resource does not exist or is outside the principal's scope. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The rate limit was exceeded. */
         RateLimited: {
             headers: {
@@ -360,6 +545,9 @@ export interface components {
     };
     parameters: {
         SiteID: number;
+        SitePathID: number;
+        GoalPathID: number;
+        FunnelPathID: number;
         Period: components["schemas"]["Period"];
         Limit: number;
         Cursor: string;
@@ -528,25 +716,348 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    dataHealth: {
+    listSites: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                cursor?: components["parameters"]["Cursor"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Data-health counters */
+            /** @description Sites page */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DataHealthResponse"];
+                    "application/json": components["schemas"]["SiteList"];
                 };
             };
             401: components["responses"]["Unauthorized"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    createSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSiteRequest"];
+            };
+        };
+        responses: {
+            /** @description Site created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Site"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Site */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Site"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Site deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSiteRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated site */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Site"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listGoals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Goals */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalInput"];
+            };
+        };
+        responses: {
+            /** @description Goal created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: components["parameters"]["GoalPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Goal deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: components["parameters"]["GoalPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalInput"];
+            };
+        };
+        responses: {
+            /** @description Updated goal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listFunnels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Funnels */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedFunnel"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createFunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedFunnelInput"];
+            };
+        };
+        responses: {
+            /** @description Funnel created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedFunnel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteFunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                funnel_id: components["parameters"]["FunnelPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Funnel deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateFunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                funnel_id: components["parameters"]["FunnelPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedFunnelInput"];
+            };
+        };
+        responses: {
+            /** @description Updated funnel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedFunnel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     healthz: {
