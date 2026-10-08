@@ -8,6 +8,10 @@ import { describe, expect, it } from 'vitest'
 type EventPayload = {
   name: string
   props: Record<string, string>
+  url: string
+  clicks?: [number, number][]
+  doc_h?: number
+  vw?: number
 }
 
 // Exercise the checked-in artifact browsers receive, including minification.
@@ -37,8 +41,8 @@ function load(attributes = '', body = '', withObservers = false) {
   Object.defineProperty(dom.window, 'Blob', { configurable: true, value: BodyBlob })
   Object.defineProperty(dom.window.navigator, 'sendBeacon', {
     configurable: true,
-    value: (_url: string, blob: BodyBlob) => {
-      payloads.push(JSON.parse(blob.body) as EventPayload)
+    value: (_url: string, data: BodyBlob | string) => {
+      payloads.push(JSON.parse(typeof data === 'string' ? data : data.body) as EventPayload)
       return true
     },
   })
@@ -101,6 +105,99 @@ function event(payloads: EventPayload[], name: string) {
 }
 
 describe('full tracker', () => {
+  it('captures normalized click coordinates and page dimensions on pagehide', () => {
+    const { dom, payloads } = load()
+    Object.defineProperty(dom.window.document.documentElement, 'scrollWidth', { configurable: true, value: 2000 })
+    Object.defineProperty(dom.window.document.documentElement, 'scrollHeight', { configurable: true, value: 4321 })
+    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 1280 })
+    const click = new dom.window.MouseEvent('click', { bubbles: true, clientX: 500 })
+    Object.defineProperty(click, 'pageY', { configurable: true, value: 1234.6 })
+
+    dom.window.document.body.dispatchEvent(click)
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+
+    expect(event(payloads, 'heatmap')).toMatchObject({
+      clicks: [[250, 1235]],
+      doc_h: 4321,
+      vw: 1280,
+    })
+  })
+
+  it('clamps horizontal coordinates and captures at most 200 clicks per page', () => {
+    const { dom, payloads } = load()
+    Object.defineProperty(dom.window.document.documentElement, 'scrollWidth', { configurable: true, value: 1000 })
+    for (let index = 0; index < 205; index++) {
+      const click = new dom.window.MouseEvent('click', { bubbles: true, clientX: index === 0 ? -20 : 1200 })
+      Object.defineProperty(click, 'pageY', {
+        configurable: true,
+        value: index === 0 ? -20 : index === 199 ? 123456 : index,
+      })
+      dom.window.document.body.dispatchEvent(click)
+    }
+
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+
+    const heatmap = event(payloads, 'heatmap')
+    expect(heatmap?.clicks).toHaveLength(200)
+    expect(heatmap?.clicks?.[0]).toEqual([0, 0])
+    expect(heatmap?.clicks?.[199]).toEqual([1000, 100000])
+  })
+
+  it('bounds document and viewport dimensions for ingestion', () => {
+    const { dom, payloads } = load()
+    Object.defineProperty(dom.window.document.documentElement, 'scrollHeight', { configurable: true, value: 123456 })
+    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 12345 })
+    dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+
+    expect(event(payloads, 'heatmap')).toMatchObject({ doc_h: 100000, vw: 10000 })
+  })
+
+  it('uses the core transport fallback when sendBeacon is unavailable', () => {
+    const { dom, payloads } = load()
+    Object.defineProperty(dom.window.navigator, 'sendBeacon', { configurable: true, value: undefined })
+    Object.defineProperty(dom.window, 'fetch', {
+      configurable: true,
+      value: (_url: string, init: { body: string }) => {
+        payloads.push(JSON.parse(init.body) as EventPayload)
+        return Promise.resolve({})
+      },
+    })
+    dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+
+    expect(event(payloads, 'heatmap')?.clicks).toEqual([[0, 0]])
+  })
+
+  it('flushes each page heatmap once across SPA navigation and pagehide', () => {
+    const { dom, payloads } = load()
+    Object.defineProperty(dom.window.document.documentElement, 'scrollWidth', { configurable: true, value: 1000 })
+    dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 100 }))
+
+    dom.window.history.pushState({}, '', '/next')
+    dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 900 }))
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+
+    const heatmaps = payloads.filter((payload) => payload.name === 'heatmap')
+    expect(heatmaps).toHaveLength(2)
+    expect(heatmaps.map((payload) => payload.url)).toEqual([
+      'https://site.example/start?private=yes',
+      'https://site.example/next',
+    ])
+    expect(heatmaps.map((payload) => payload.clicks)).toEqual([[[100, 0]], [[900, 0]]])
+  })
+
+  it('honors data-heatmap=false', () => {
+    const { dom, payloads } = load('data-heatmap="false"')
+    dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 100 }))
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+
+    expect(event(payloads, 'heatmap')).toBeUndefined()
+  })
+
   it('tracks outbound clicks and middle clicks without query strings', () => {
     const { dom, payloads } = load()
     const link = dom.window.document.createElement('a')
