@@ -4,6 +4,7 @@ const organizationSettingsTabs = [
   ['members', 'Members', '/$org/settings/members'],
   ['invites', 'Invitations', '/$org/settings/invites'],
   ['api-keys', 'API keys', '/$org/settings/api-keys'],
+  ['api', 'API reference', '/$org/settings/api'],
   ['audit', 'Audit log', '/$org/settings/audit'],
   ['notifications', 'Notifications', '/$org/settings/notifications'],
 ] as const
