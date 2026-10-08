@@ -21,6 +21,7 @@ type queryService interface {
 
 type handlers struct {
 	query    queryService
+	sessions sessionExploreService
 	heatmaps heatmapService
 	now      func() time.Time
 }
@@ -167,6 +168,7 @@ func isClientQueryError(detail string) bool {
 		"unknown order", "unknown period", "unknown site", "unsupported type",
 		"heatmap ", "invalid filter", "journey ", "retention ", "range must be within the raw retention window",
 		"property filter requires", "property key ", "property suggestion requires", "suggestion query ", "name must ",
+		"date range must ", "from ", "session timeline ",
 	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(detail, prefix) {

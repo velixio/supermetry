@@ -2,7 +2,7 @@ package closer
 
 const closeSessionsSQL = `
 insert into sessions_closed (
-  site_id, day, visitor_id, session_id, source_id, medium_id, campaign_id,
+  site_id, day, visitor_id, session_id, started_at, profile_id, source_id, medium_id, campaign_id,
   utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id, device,
   entry_path, exit_path, pageviews, custom, duration_ms, engagement_ms,
   vd_n, flags, seq, seq_engage, seq_scroll
@@ -56,8 +56,16 @@ with candidate_sessions as (
   join candidate_sessions s using (site_id, session_id)
   where e.ts >= $2 and e.ts < $3
   order by e.site_id, e.session_id, e.ts
+), first_profile as (
+  select distinct on (e.site_id, e.session_id)
+         e.site_id, e.session_id, e.profile_id
+  from events e
+  join candidate_sessions s using (site_id, session_id)
+  where e.ts >= $2 and e.ts < $3 and e.profile_id is not null
+  order by e.site_id, e.session_id, e.ts
 ), session_rows as (
 	 select s.site_id, s.visitor_id, s.session_id, s.start,
+	        profile.profile_id,
 	        s.source_id, s.medium_id, s.campaign_id,
 	        coalesce(attribution.utm_content_id, 0) as utm_content_id,
 	        coalesce(attribution.utm_term_id, 0) as utm_term_id,
@@ -84,10 +92,11 @@ with candidate_sessions as (
             ) = 1 then 8 else 0 end)::smallint as flags
   from candidate_sessions s
   left join first_attribution attribution using (site_id, session_id)
+  left join first_profile profile using (site_id, session_id)
   window visitor_day as (partition by s.site_id, s.visitor_id),
          visitor_order as (partition by s.site_id, s.visitor_id order by s.start, s.session_id)
 )
-select s.site_id, $1, s.visitor_id, s.session_id,
+select s.site_id, $1, s.visitor_id, s.session_id, s.start, s.profile_id,
 	       s.source_id, s.medium_id, s.campaign_id, s.utm_content_id, s.utm_term_id,
        s.country, s.region_id, s.city_id, s.browser_id, s.os_id, s.device, s.entry_path, s.exit_path,
        s.pageviews, s.custom, s.duration_ms, s.engagement_ms,

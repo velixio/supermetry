@@ -84,6 +84,15 @@ func TestCloseDayMatchesTruthAndIsIdempotent(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
 	loadFixture(t, pool)
+	if _, err := pool.Exec(ctx, `
+insert into orgs(id,name,slug) overriding system value values (1,'Closer','closer');
+insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value
+values (1,1,'closersite01','Closer','UTC',30);
+insert into profiles(id,site_id,external_id,first_seen_at,last_seen_at) overriding system value
+values (1,1,'customer-10','2026-10-07 10:00Z','2026-10-07 10:02Z');
+update events set profile_id=1 where site_id=1 and session_id=10`); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, day := range fixtureDays() {
 		stats, err := closer.CloseDay(ctx, pool, []int32{1}, day)
@@ -123,6 +132,16 @@ func TestCloseDayMatchesTruthAndIsIdempotent(t *testing.T) {
 	}
 	if utmContent != 41 || utmTerm != 42 {
 		t.Fatalf("utm_content_id=%d utm_term_id=%d", utmContent, utmTerm)
+	}
+	var startedAt time.Time
+	var profileID *int64
+	if err := pool.QueryRow(ctx, `
+		select started_at, profile_id from sessions_closed
+		where site_id = 1 and day = '2026-10-07' and session_id = 10`).Scan(&startedAt, &profileID); err != nil {
+		t.Fatal(err)
+	}
+	if want := utc(2026, 10, 7, 10, 0); !startedAt.Equal(want) || profileID == nil || *profileID != 1 {
+		t.Fatalf("closed identity metadata=%s/%v, want %s/1", startedAt, profileID, want)
 	}
 	if err := pool.QueryRow(ctx, `
 		select utm_content_id, utm_term_id from custom_closed
