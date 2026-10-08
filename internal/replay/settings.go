@@ -89,7 +89,7 @@ func ResolveSite(env config.ReplayEnv, in sites.ReplaySiteInput) SiteSettings {
 		QuotaBytes:    resolve(defaultQuotaBytes, in.QuotaBytes, env.QuotaBytes),
 		Triggers: Triggers{
 			Error: true, RageClick: true, URL: true, Manual: true,
-			URLPatterns: append([]string(nil), in.Triggers.URLPatterns...),
+			URLPatterns: append([]string{}, in.Triggers.URLPatterns...), // [] not null in JSON
 		},
 		Consent: "auto",
 	}

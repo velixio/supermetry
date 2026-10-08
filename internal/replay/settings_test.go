@@ -2,8 +2,10 @@ package replay
 
 import (
 	"bytes"
+	"encoding/json"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"panel/internal/config"
@@ -28,7 +30,7 @@ func TestResolveSitePrecedence(t *testing.T) {
 				RetentionDays: Value[int]{V: 30},
 				QuotaBytes:    Value[int64]{V: defaultQuota},
 				Triggers: Triggers{
-					Error: true, RageClick: true, URL: true, Manual: true,
+					Error: true, RageClick: true, URL: true, Manual: true, URLPatterns: []string{},
 				},
 				Consent: "auto",
 			},
@@ -63,7 +65,7 @@ func TestResolveSitePrecedence(t *testing.T) {
 				SampleRate:    Value[int]{V: 75, Locked: true},
 				RetentionDays: Value[int]{V: 120, Locked: true},
 				QuotaBytes:    Value[int64]{V: 2048, Locked: true},
-				Triggers:      Triggers{Error: true, RageClick: true, URL: true, Manual: true},
+				Triggers:      Triggers{Error: true, RageClick: true, URL: true, Manual: true, URLPatterns: []string{}},
 				Consent:       "auto",
 			},
 		},
@@ -159,5 +161,15 @@ func TestStoredStorageSealsS3Secret(t *testing.T) {
 	}
 	if _, err := OpenStoredStorage(bytes.Repeat([]byte{2}, 32), sealed); err == nil {
 		t.Fatal("OpenStoredStorage() accepted the wrong master key")
+	}
+}
+
+func TestResolveSiteEncodesEmptyURLPatternsAsArray(t *testing.T) {
+	encoded, err := json.Marshal(ResolveSite(config.ReplayEnv{Enabled: true}, sites.ReplaySiteInput{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"url_patterns":[]`) {
+		t.Fatalf("encoded settings = %s, want url_patterns as an empty array", encoded)
 	}
 }

@@ -31,14 +31,19 @@ function requireData<T>(result: { data?: T; error?: unknown; response: Response 
   return result.data
 }
 
+// Older servers encode an empty pattern list as null; the form needs an array.
+export function normalizeReplaySettings(settings: SiteSettings): SiteSettings {
+  return { ...settings, triggers: { ...settings.triggers, url_patterns: settings.triggers.url_patterns ?? [] } }
+}
+
 export async function getReplaySettings(siteId: number, signal?: AbortSignal): Promise<SiteSettings> {
-  return requireData(await api.GET('/api/private/sites/{site_id}/replay-settings', {
+  return normalizeReplaySettings(requireData(await api.GET('/api/private/sites/{site_id}/replay-settings', {
     params: { path: { site_id: siteId } }, signal,
-  }))
+  })))
 }
 
 export async function putReplaySettings(siteId: number, settings: SiteSettings): Promise<SiteSettings> {
-  return requireData(await api.PUT('/api/private/sites/{site_id}/replay-settings', {
+  return normalizeReplaySettings(requireData(await api.PUT('/api/private/sites/{site_id}/replay-settings', {
     params: { path: { site_id: siteId } },
     body: {
       enabled: settings.enabled,
@@ -49,7 +54,7 @@ export async function putReplaySettings(siteId: number, settings: SiteSettings):
       triggers: settings.triggers,
       consent: settings.consent,
     },
-  }))
+  })))
 }
 
 export async function listReplays(
