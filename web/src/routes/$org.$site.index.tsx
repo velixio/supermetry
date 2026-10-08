@@ -13,6 +13,7 @@ import {
   dashboardSearch,
   parseFilters,
   removeFilter,
+  replaceFilters,
   resolveRange,
   type Filter,
 } from '../lib/search'
@@ -75,6 +76,8 @@ function DashboardStateRoute() {
     <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <FilterBar
+          siteId={site.id}
+          canEdit={membership?.role !== 'viewer'}
           filters={filters}
           dropped={dropped}
           invalidNotice={en.dashboard.invalidFilter}
@@ -83,6 +86,9 @@ function DashboardStateRoute() {
             en.dashboard.filterLabel
               .replace('{dimension}', filter.dimension)
               .replace('{value}', filter.values.join(', '))
+          }
+          onApply={(segmentFilters) =>
+            updateSearch(replaceFilters(search, segmentFilters))
           }
           onRemove={(index) => updateSearch(removeFilter(search, index))}
         />

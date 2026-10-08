@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -73,17 +74,23 @@ describe('DatePicker', () => {
 describe('FilterBar', () => {
   it('shows one invalid-filter notice and removes a chip by index', () => {
     const onRemove = vi.fn()
+    const client = new QueryClient({ defaultOptions: { queries: { enabled: false } } })
     render(
-      <FilterBar
-        filters={[
-          { dimension: 'country', operator: 'is', values: ['IN'] },
-        ]}
-        dropped={['bad', 'also-bad']}
-        invalidNotice="Some filters were removed"
-        filterLabel={(filter) => filter.values.join(', ')}
-        removeLabel={(filter) => `Remove ${filter.values.join(', ')}`}
-        onRemove={onRemove}
-      />,
+      <QueryClientProvider client={client}>
+        <FilterBar
+          siteId={7}
+          canEdit
+          filters={[
+            { dimension: 'country', operator: 'is', values: ['IN'] },
+          ]}
+          dropped={['bad', 'also-bad']}
+          invalidNotice="Some filters were removed"
+          filterLabel={(filter) => filter.values.join(', ')}
+          removeLabel={(filter) => `Remove ${filter.values.join(', ')}`}
+          onApply={vi.fn()}
+          onRemove={onRemove}
+        />
+      </QueryClientProvider>,
     )
 
     expect(screen.getAllByRole('status')).toHaveLength(1)
