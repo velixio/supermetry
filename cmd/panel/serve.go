@@ -207,7 +207,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	w.SetProfileTombstones(profileTombstones)
 	engine := query.NewEngine(pool, dictionary, registry)
-	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill)
+	engine.SetCache(query.NewCache(0))
+	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill, engine.InvalidateSite)
 	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
 	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/totp/v1")
@@ -354,7 +355,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock, engine.InvalidateSite)
 	jobs = append(jobs, profileTombstones.Job(), rollupBackfill.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
@@ -572,11 +573,12 @@ func scheduledJobs(
 	secretKey []byte,
 	refreshReplayDiskGuard func(),
 	clk clock,
+	closeInvalidators ...func(int32),
 ) []scheduler.Job {
 	jobs := []scheduler.Job{
 		minutes.NewStore(pool).Job(clk.Now),
 		{Name: "close-days", Every: time.Minute, Run: func(ctx context.Context) error {
-			return closeDueDays(ctx, pool, registry, closed, clk.Now())
+			return closeDueDays(ctx, pool, registry, closed, clk.Now(), closeInvalidators...)
 		}},
 		{Name: "salts", Every: 10 * time.Minute, Run: func(ctx context.Context) error {
 			if err := saltStore.Refresh(ctx); err != nil {
@@ -723,7 +725,7 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore repl
 	return nil
 }
 
-func closeDueDays(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, closed *closedDays, now time.Time) error {
+func closeDueDays(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, closed *closedDays, now time.Time, invalidators ...func(int32)) error {
 	due := closer.Due(now, registry, closed.IsClosed)
 	rows, err := pool.Query(ctx, `select site_id, day from dirty_day order by day, site_id`)
 	if err != nil {
@@ -748,6 +750,11 @@ func closeDueDays(ctx context.Context, pool *pgxpool.Pool, registry sites.Regist
 			return err
 		}
 		closed.Mark(siteIDs, day)
+		if len(invalidators) > 0 && invalidators[0] != nil {
+			for _, siteID := range siteIDs {
+				invalidators[0](siteID)
+			}
+		}
 	}
 	return nil
 }

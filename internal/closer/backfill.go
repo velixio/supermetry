@@ -30,12 +30,17 @@ type RollupBackfill struct {
 	pool   *pgxpool.Pool
 	layout RollupLayout
 	pause  func(context.Context) error
+	notify func(int32)
 }
 
 // NewRollupBackfill constructs a resumable backfill towards layout. pause runs
 // between site-days; nil disables throttling and is intended for tests.
-func NewRollupBackfill(pool *pgxpool.Pool, layout RollupLayout, pause func(context.Context) error) *RollupBackfill {
-	return &RollupBackfill{pool: pool, layout: NewRollupLayout(layout.Dimensions, layout.Counters), pause: pause}
+func NewRollupBackfill(pool *pgxpool.Pool, layout RollupLayout, pause func(context.Context) error, notify ...func(int32)) *RollupBackfill {
+	backfill := &RollupBackfill{pool: pool, layout: NewRollupLayout(layout.Dimensions, layout.Counters), pause: pause}
+	if len(notify) > 0 {
+		backfill.notify = notify[0]
+	}
+	return backfill
 }
 
 // Job returns the scheduler definition that starts the upgrade work without
@@ -243,6 +248,9 @@ func (b *RollupBackfill) recompute(ctx context.Context, item rollupBackfillItem,
 		} else if err := recomputeDayDimensions(ctx, tx, item.day, siteIDs, plan.dimensions); err != nil {
 			return err
 		}
+		if err := bumpCloseVersions(ctx, tx, item.day, siteIDs); err != nil {
+			return err
+		}
 		// days_done is capped: a day re-closed behind the cursor during the
 		// run may add one more item than counted at the start.
 		return tx.QueryRow(ctx, `
@@ -253,6 +261,9 @@ func (b *RollupBackfill) recompute(ctx context.Context, item rollupBackfillItem,
 	})
 	if err != nil {
 		return progress, fmt.Errorf("backfill rollups for site %d on %s: %w", item.siteID, item.day.Format(time.DateOnly), err)
+	}
+	if b.notify != nil {
+		b.notify(item.siteID)
 	}
 	return progress, nil
 }

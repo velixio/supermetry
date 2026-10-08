@@ -110,6 +110,53 @@ func TestCacheOwnsNestedRowValues(t *testing.T) {
 	}
 }
 
+func TestCacheOwnsComparisonValues(t *testing.T) {
+	t.Parallel()
+
+	cache := query.NewCache(1)
+	key := query.CacheKey(1, "comparison", mustDay("2026-10-06"), 1)
+	original := response(1)
+	original.Comparison = &api.ComparisonResult{
+		Rows:   []map[string]interface{}{{"page": "/original"}},
+		Totals: map[string]float64{"visitors": 2},
+	}
+	cache.Put(key, original)
+
+	original.Comparison.Rows[0]["page"] = "/changed-before-get"
+	got, ok := cache.Get(key)
+	if !ok {
+		t.Fatal("Get() missed")
+	}
+	if got.Comparison.Rows[0]["page"] != "/original" {
+		t.Fatalf("Get() observed caller comparison mutation: %+v", got.Comparison)
+	}
+
+	got.Comparison.Rows[0]["page"] = "/changed-after-get"
+	again, ok := cache.Get(key)
+	if !ok {
+		t.Fatal("second Get() missed")
+	}
+	if again.Comparison.Rows[0]["page"] != "/original" {
+		t.Fatalf("cached comparison was mutated through Get(): %+v", again.Comparison)
+	}
+}
+
+func TestCacheSeparatesSites(t *testing.T) {
+	t.Parallel()
+
+	cache := query.NewCache(2)
+	day := mustDay("2026-10-06")
+	cache.Put(query.CacheKey(1, "same-query", day, 1), response(1))
+	cache.Put(query.CacheKey(2, "same-query", day, 1), response(2))
+
+	for siteID, want := range map[int32]float64{1: 1, 2: 2} {
+		got, ok := cache.Get(query.CacheKey(siteID, "same-query", day, 1))
+		if !ok || got.Totals["visitors"] != want {
+			t.Fatalf("site %d Get() = %+v, %v; want visitors=%v", siteID, got, ok, want)
+		}
+	}
+}
+
 func TestCacheKeySeparatesEveryInput(t *testing.T) {
 	t.Parallel()
 

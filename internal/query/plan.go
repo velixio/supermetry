@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"golang.org/x/sync/semaphore"
@@ -130,6 +130,8 @@ type Engine struct {
 	dict        *dict.Dict
 	registry    sites.Registry
 	goals       GoalLookup
+	cache       *Cache
+	closeMemo   *Cache
 	forcedRoute *Route
 	now         func() time.Time
 }
@@ -140,7 +142,27 @@ func NewEngine(pool *pgxpool.Pool, dictionary *dict.Dict, registry sites.Registr
 	if len(definitions) > 0 {
 		lookup = definitions[0]
 	}
-	return &Engine{pool: pool, dict: dictionary, registry: registry, goals: lookup, now: time.Now}
+	return &Engine{pool: pool, dict: dictionary, registry: registry, goals: lookup, closeMemo: NewCache(1), now: time.Now}
+}
+
+// SetCache attaches the shared closed-range result cache. NewEngine keeps its
+// existing signature so tests and embedders may opt in explicitly.
+func (e *Engine) SetCache(cache *Cache) {
+	if e == nil {
+		return
+	}
+	e.cache = cache
+	if cache != nil {
+		e.closeMemo = cache
+	}
+}
+
+// InvalidateSite forces the next request for siteID to reload close metadata.
+func (e *Engine) InvalidateSite(siteID int32) {
+	if e == nil || e.closeMemo == nil {
+		return
+	}
+	e.closeMemo.InvalidateSite(siteID)
 }
 
 // WithForcedRoute returns a shallow test engine that reads the entire range
@@ -177,15 +199,59 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	if err := e.resolveGoalFilters(&normalized); err != nil {
 		return api.QueryResponse{}, err
 	}
-	closedThrough, err := e.closedThrough(ctx, normalized.SiteID, normalized.From, normalized.To)
+	metadata, err := e.closeMemo.closeMetadata(ctx, e, normalized.SiteID)
 	if err != nil {
 		return api.QueryResponse{}, err
 	}
+	return e.queryNormalized(ctx, req, site, normalized, now, metadata)
+}
+
+func (e *Engine) queryNormalized(ctx context.Context, req api.QueryRequest, site sites.Site, normalized Normalized, now time.Time, metadata closeMetadata) (api.QueryResponse, error) {
+	closedThrough := metadata.closedThrough(normalized.From, normalized.To)
 	parts := Plan(normalized, closedThrough)
 	if e.forcedRoute != nil {
 		parts = []Part{{Route: *e.forcedRoute, From: normalized.From, To: normalized.To}}
 	}
 
+	var cacheKey Key
+	cacheable := e.cache != nil && e.forcedRoute == nil && cacheEligible(normalized, site, now, metadata) && partsExcludeHot(parts)
+	if cacheable {
+		cacheKey = CacheKey(normalized.SiteID, normalizedCacheQuery(normalized), closedThrough, metadata.maxCloseVersion)
+		if response, ok := e.cache.Get(cacheKey); ok {
+			response.Meta.Cached = true
+			return response, nil
+		}
+	}
+	if !cacheable {
+		return e.executeNormalized(ctx, req, site, normalized, now, metadata, parts)
+	}
+
+	value, err, _ := e.cache.resultSF.Do(fmt.Sprintf("%x", cacheKey), func() (any, error) {
+		if response, ok := e.cache.Get(cacheKey); ok {
+			return cachedQueryResult{response: response, cached: true}, nil
+		}
+		response, queryErr := e.executeNormalized(ctx, req, site, normalized, now, metadata, parts)
+		if queryErr != nil {
+			return cachedQueryResult{}, queryErr
+		}
+		e.cache.Put(cacheKey, response)
+		return cachedQueryResult{response: response}, nil
+	})
+	if err != nil {
+		return api.QueryResponse{}, err
+	}
+	result := value.(cachedQueryResult)
+	response := cloneResponse(result.response)
+	response.Meta.Cached = result.cached
+	return response, nil
+}
+
+type cachedQueryResult struct {
+	response api.QueryResponse
+	cached   bool
+}
+
+func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, site sites.Site, normalized Normalized, now time.Time, metadata closeMetadata, parts []Part) (api.QueryResponse, error) {
 	rows, sources, err := e.queryParts(ctx, normalized, parts)
 	if err != nil {
 		return api.QueryResponse{}, err
@@ -283,7 +349,14 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 			From: openapi_types.Date{Time: comparisonFrom},
 			To:   openapi_types.Date{Time: comparisonTo},
 		}
-		comparisonResponse, comparisonErr := e.Query(ctx, comparisonRequest)
+		comparisonNormalized, problem := Normalize(comparisonRequest, site, now)
+		if problem != nil {
+			return api.QueryResponse{}, errors.New(problemDetail(problem))
+		}
+		if err := e.resolveGoalFilters(&comparisonNormalized); err != nil {
+			return api.QueryResponse{}, err
+		}
+		comparisonResponse, comparisonErr := e.queryNormalized(ctx, comparisonRequest, site, comparisonNormalized, now, metadata)
 		if comparisonErr != nil {
 			return api.QueryResponse{}, comparisonErr
 		}
@@ -294,6 +367,52 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 		}
 	}
 	return response, nil
+}
+
+func cacheEligible(req Normalized, site sites.Site, now time.Time, metadata closeMetadata) bool {
+	location := site.TZ
+	if location == nil {
+		location = time.UTC
+	}
+	today := civilDate(now.In(location))
+	if !req.To.Before(today) || metadata.closedThrough(req.From, req.To).Before(req.To) {
+		return false
+	}
+	if req.Compare == nil {
+		return true
+	}
+	from, to := comparisonRange(req.From, req.To, *req.Compare)
+	return to.Before(today) && !metadata.closedThrough(from, to).Before(to)
+}
+
+func partsExcludeHot(parts []Part) bool {
+	for _, part := range parts {
+		if part.Route == RouteHot {
+			return false
+		}
+	}
+	return len(parts) > 0
+}
+
+func normalizedCacheQuery(req Normalized) string {
+	encoded, _ := json.Marshal(struct {
+		From, To, Timezone string
+		Metrics            []api.Metric
+		Dimensions         []string
+		Filters            []api.Filter
+		OrderBy            []api.OrderBy
+		Limit              int
+		Cursor             *string
+		Compare            *api.QueryRequestCompare
+		IncludeImported    bool
+		GoalDefinitions    any
+	}{
+		From: req.From.Format(time.DateOnly), To: req.To.Format(time.DateOnly), Timezone: req.Location.String(),
+		Metrics: req.Metrics, Dimensions: req.Dimensions, Filters: req.Filters, OrderBy: req.OrderBy,
+		Limit: req.Limit, Cursor: req.Cursor, Compare: req.Compare, IncludeImported: req.IncludeImported,
+		GoalDefinitions: req.GoalDefinitions,
+	})
+	return string(encoded)
 }
 
 func comparisonRange(from, to time.Time, compare api.QueryRequestCompare) (time.Time, time.Time) {
@@ -357,22 +476,11 @@ func (e *Engine) queryPart(ctx context.Context, req Normalized, part Part) ([]re
 }
 
 func (e *Engine) closedThrough(ctx context.Context, siteID int32, from, to time.Time) (time.Time, error) {
-	var missing *time.Time
-	err := WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
-select min(day)::date from generate_series($2::date,$3::date,interval '1 day') days(day)
-where not exists (
-  select 1 from day_close closed
-  where closed.site_id=$1 and closed.day=days.day and closed.status='done'
-)`, siteID, dateParam(from), dateParam(to)).Scan(&missing)
-	})
+	metadata, err := e.closeMemo.closeMetadata(ctx, e, siteID)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("query closed-through day: %w", err)
 	}
-	if missing == nil {
-		return civilDate(to), nil
-	}
-	return civilDate(*missing).AddDate(0, 0, -1), nil
+	return metadata.closedThrough(from, to), nil
 }
 
 func mergeRows(rows []resultRow) []resultRow {

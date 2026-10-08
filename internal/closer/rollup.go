@@ -196,12 +196,21 @@ order by closed.day`)
 
 	for _, item := range batches {
 		if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-			return recomputeDayRollups(ctx, tx, item.day, item.siteIDs)
+			if err := recomputeDayRollups(ctx, tx, item.day, item.siteIDs); err != nil {
+				return err
+			}
+			return bumpCloseVersions(ctx, tx, item.day, item.siteIDs)
 		}); err != nil {
 			return 0, fmt.Errorf("recompute rollups for %s: %w", item.day.Format(time.DateOnly), err)
 		}
 	}
 	return len(batches), nil
+}
+
+func bumpCloseVersions(ctx context.Context, tx pgx.Tx, day time.Time, siteIDs []int32) error {
+	_, err := tx.Exec(ctx, `update day_close set version=version+1, closed_at=clock_timestamp()
+where day=$1 and site_id=any($2) and status='done'`, day, siteIDs)
+	return err
 }
 
 // recomputeDayRollups replaces every rollup row of siteIDs on one closed day,

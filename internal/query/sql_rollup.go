@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"panel/internal/api"
 	"panel/internal/closer"
 	"panel/internal/dict"
@@ -291,27 +289,11 @@ func (b dayBlock) end() time.Time {
 }
 
 func (e *Engine) completedDayBlocks(ctx context.Context, siteID int32) (map[dayBlock]bool, error) {
-	done := make(map[dayBlock]bool)
-	err := WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
-		rows, queryErr := tx.Query(ctx, `select k, start_day from rollup_block_done where site_id=$1`, siteID)
-		if queryErr != nil {
-			return queryErr
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var block dayBlock
-			if scanErr := rows.Scan(&block.level, &block.start); scanErr != nil {
-				return scanErr
-			}
-			block.start = civilDate(block.start)
-			done[block] = true
-		}
-		return rows.Err()
-	})
+	metadata, err := e.closeMemo.closeMetadata(ctx, e, siteID)
 	if err != nil {
 		return nil, fmt.Errorf("query completed rollup blocks: %w", err)
 	}
-	return done, nil
+	return metadata.blocks, nil
 }
 
 func availableDayBlocks(from, to time.Time, done map[dayBlock]bool) []dayBlock {
