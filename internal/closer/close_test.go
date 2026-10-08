@@ -132,6 +132,16 @@ func TestCloseDayMatchesTruthAndIsIdempotent(t *testing.T) {
 	if utmContent != 51 || utmTerm != 52 {
 		t.Fatalf("custom utm_content_id=%d utm_term_id=%d", utmContent, utmTerm)
 	}
+	var revenueMicros int64
+	var revenueCurrency string
+	if err := pool.QueryRow(ctx, `
+		select revenue_micros, revenue_currency from custom_closed
+		where site_id = 1 and day = '2026-10-07' and name_id = 100`).Scan(&revenueMicros, &revenueCurrency); err != nil {
+		t.Fatal(err)
+	}
+	if revenueMicros != 12_345_678 || revenueCurrency != "USD" {
+		t.Fatalf("custom revenue=%d/%q, want 12345678/USD", revenueMicros, revenueCurrency)
+	}
 	var closedRegion, closedCity, customRegion, customCity int32
 	if err := pool.QueryRow(ctx, `
 select s.region_id, s.city_id, c.region_id, c.city_id
@@ -322,16 +332,17 @@ values
 insert into events
   (site_id, retention_class, local_day, ts, visitor_id, session_id, kind,
    name_id, path_id, source_id, utm_content_id, utm_term_id,
-   country, region_id, city_id, browser_id, os_id, device, engagement_ms, scroll_pct, props)
+	 country, region_id, city_id, browser_id, os_id, device, engagement_ms, scroll_pct, props,
+	 revenue_micros, revenue_currency)
 values
-  (1, 30, '2026-10-07', '2026-10-07 10:00:00Z', 100, 10, 0, 0,   1, 10, 41, 42, 'IN', 61, 71, 20, 30, 1, 0,    0, null),
-  (1, 30, '2026-10-07', '2026-10-07 10:00:20Z', 100, 10, 2, 0,   1, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 1000, 25, null),
-  (1, 30, '2026-10-07', '2026-10-07 10:00:30Z', 100, 10, 0, 0,   2, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 0,    0, null),
-  (1, 30, '2026-10-07', '2026-10-07 10:01:30Z', 100, 10, 2, 0,   2, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 4000, 80, null),
-  (1, 30, '2026-10-07', '2026-10-07 12:00:00Z', 100, 11, 1, 100, 0, 11, 51, 52, 'US', 62, 72, 21, 31, 2, 0,    0, '{"plan":"pro"}'),
-  (1, 30, '2026-10-07', '2026-10-07 14:00:00Z', 200, 20, 0, 0,   1, 10, 0,  0,  'US', 62, 72, 20, 30, 1, 0,    0, null),
-  (1, 30, '2026-10-07', '2026-10-08 13:00:00Z', 300, 30, 0, 0,   9, 10, 0,  0,  'US', 62, 72, 20, 30, 1, 0,    0, null),
-  (2, 30, '2026-10-07', '2026-10-07 15:00:00Z', 400, 40, 0, 0,   3, 12, 0,  0,  'NP', 63, 73, 22, 32, 1, 0,    0, null)`)
+	(1, 30, '2026-10-07', '2026-10-07 10:00:00Z', 100, 10, 0, 0,   1, 10, 41, 42, 'IN', 61, 71, 20, 30, 1, 0,    0, null, 0, null),
+	(1, 30, '2026-10-07', '2026-10-07 10:00:20Z', 100, 10, 2, 0,   1, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 1000, 25, null, 0, null),
+	(1, 30, '2026-10-07', '2026-10-07 10:00:30Z', 100, 10, 0, 0,   2, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 0,    0, null, 0, null),
+	(1, 30, '2026-10-07', '2026-10-07 10:01:30Z', 100, 10, 2, 0,   2, 10, 0,  0,  'IN', 61, 71, 20, 30, 1, 4000, 80, null, 0, null),
+	(1, 30, '2026-10-07', '2026-10-07 12:00:00Z', 100, 11, 1, 100, 0, 11, 51, 52, 'US', 62, 72, 21, 31, 2, 0,    0, '{"plan":"pro"}', 12345678, 'USD'),
+	(1, 30, '2026-10-07', '2026-10-07 14:00:00Z', 200, 20, 0, 0,   1, 10, 0,  0,  'US', 62, 72, 20, 30, 1, 0,    0, null, 0, null),
+	(1, 30, '2026-10-07', '2026-10-08 13:00:00Z', 300, 30, 0, 0,   9, 10, 0,  0,  'US', 62, 72, 20, 30, 1, 0,    0, null, 0, null),
+	(2, 30, '2026-10-07', '2026-10-07 15:00:00Z', 400, 40, 0, 0,   3, 12, 0,  0,  'NP', 63, 73, 22, 32, 1, 0,    0, null, 0, null)`)
 	if err != nil {
 		t.Fatal(err)
 	}

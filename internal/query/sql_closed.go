@@ -96,7 +96,7 @@ func (e *Engine) queryClosedChunks(ctx context.Context, req Normalized, part Par
 }
 
 func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
-	if hasCustomDimension(req.Dimensions) {
+	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) {
 		return buildCustomClosedSQL(req, part)
 	}
 	builder := &sqlBuilder{}
@@ -226,6 +226,8 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		"coalesce(sum(" + scrollN + "),0)::int8",
 		"coalesce(sum(s.custom),0)::int8",
 		converted,
+		"0::int8",
+		"0::int8",
 	}
 	return aggregateSQL(dimensions, sums, from, where), builder.args, nil
 }
@@ -248,7 +250,12 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 	conditions = append(conditions, presentConditions...)
 	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date" + andSQL(conditions)
 	visitors := "count(distinct (c.day,c.visitor_id))::int8"
-	sums := []string{visitors, "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "count(*)::int8", visitors}
+	sums := []string{
+		visitors, "0::int8", "0::int8", "0::int8", "0::int8", "0::int8",
+		"0::int8", "0::int8", "count(*)::int8", visitors,
+		"coalesce(sum(c.revenue_micros),0)::int8",
+		"count(*) filter (where c.revenue_micros>0)::int8",
+	}
 	return aggregateSQL(dimensions, sums, "custom_closed c", where), builder.args, nil
 }
 
@@ -258,6 +265,8 @@ func customResolver(alias string) dimensionResolver {
 		switch {
 		case dimension == "event" || dimension == "goal":
 			return prefix + "name_id", dictionaryKind(dict.EventName), nil
+		case dimension == "revenue_currency":
+			return prefix + "revenue_currency", nil, nil
 		case strings.HasPrefix(dimension, "prop:"):
 			key := strings.TrimPrefix(dimension, "prop:")
 			if key == "" {
@@ -505,8 +514,8 @@ func (e *Engine) executeAggregate(ctx context.Context, querySQL string, args []a
 			if err != nil {
 				return err
 			}
-			if len(values) != dimensionCount+10 {
-				return fmt.Errorf("aggregate returned %d columns, want %d", len(values), dimensionCount+10)
+			if len(values) != dimensionCount+12 {
+				return fmt.Errorf("aggregate returned %d columns, want %d", len(values), dimensionCount+12)
 			}
 			row := resultRow{dimensions: make([]string, dimensionCount)}
 			for i := range dimensionCount {
@@ -514,16 +523,18 @@ func (e *Engine) executeAggregate(ctx context.Context, querySQL string, args []a
 			}
 			metrics := values[dimensionCount:]
 			row.sums = Sums{
-				Visitors:     asInt64(metrics[0]),
-				Visits:       asInt64(metrics[1]),
-				Pageviews:    asInt64(metrics[2]),
-				Bounces:      asInt64(metrics[3]),
-				DurationMS:   asInt64(metrics[4]),
-				EngagementMS: asInt64(metrics[5]),
-				ScrollSum:    asInt64(metrics[6]),
-				ScrollN:      asInt64(metrics[7]),
-				Events:       asInt64(metrics[8]),
-				Converted:    asInt64(metrics[9]),
+				Visitors:      asInt64(metrics[0]),
+				Visits:        asInt64(metrics[1]),
+				Pageviews:     asInt64(metrics[2]),
+				Bounces:       asInt64(metrics[3]),
+				DurationMS:    asInt64(metrics[4]),
+				EngagementMS:  asInt64(metrics[5]),
+				ScrollSum:     asInt64(metrics[6]),
+				ScrollN:       asInt64(metrics[7]),
+				Events:        asInt64(metrics[8]),
+				Converted:     asInt64(metrics[9]),
+				RevenueMicros: asInt64(metrics[10]),
+				RevenueEvents: asInt64(metrics[11]),
 			}
 			result = append(result, row)
 		}

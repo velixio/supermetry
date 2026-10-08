@@ -34,10 +34,12 @@ var Dropped, Written atomic.Int64
 // never contain an IP address or a full user-agent string.
 type Event struct {
 	session.Hit
-	SessionID  int64
-	Props      map[string]string
-	Screen     int16
-	ReferrerID int32
+	SessionID       int64
+	Props           map[string]string
+	Screen          int16
+	ReferrerID      int32
+	RevenueMicros   int64
+	RevenueCurrency string
 }
 
 // ClosedDays reports whether a site-local day has already been compacted.
@@ -323,6 +325,7 @@ var eventColumns = []string{
 	"name_id", "path_id", "referrer_id", "source_id", "medium_id", "campaign_id",
 	"utm_content_id", "utm_term_id", "country", "region_id", "city_id", "browser_id", "os_id", "device", "screen",
 	"engagement_ms", "scroll_pct", "props",
+	"revenue_micros", "revenue_currency",
 }
 
 func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
@@ -363,7 +366,7 @@ type siteDay struct {
 type eventSource struct {
 	events []Event
 	index  int
-	row    [25]any
+	row    [27]any
 }
 
 func (s *eventSource) Next() bool {
@@ -379,13 +382,21 @@ func (s *eventSource) Values() ([]any, error) {
 	if event.Props != nil {
 		props = event.Props
 	}
-	s.row = [25]any{
+	s.row = [27]any{
 		event.SiteID, event.Retention, event.LocalDay, event.TS, event.VisitorID, event.SessionID, event.Kind,
 		event.NameID, event.PathID, event.ReferrerID, event.Source, event.Medium, event.Campaign,
 		int32(0), int32(0), event.Country, event.Region, event.City, event.Browser, event.OS, event.Device, event.Screen,
 		event.EngagementMS, event.ScrollPct, props,
+		event.RevenueMicros, nullableString(event.RevenueCurrency),
 	}
 	return s.row[:], nil
+}
+
+func nullableString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 var sessionColumns = []string{

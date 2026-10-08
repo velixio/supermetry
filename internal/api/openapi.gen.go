@@ -124,6 +124,7 @@ func (e GoalInputMatch) Valid() bool {
 
 // Defines values for Metric.
 const (
+	AverageRevenue Metric = "average_revenue"
 	BounceRate     Metric = "bounce_rate"
 	ConversionRate Metric = "conversion_rate"
 	Conversions    Metric = "conversions"
@@ -131,6 +132,7 @@ const (
 	Events         Metric = "events"
 	Pageviews      Metric = "pageviews"
 	ScrollDepth    Metric = "scroll_depth"
+	TotalRevenue   Metric = "total_revenue"
 	ViewsPerVisit  Metric = "views_per_visit"
 	VisitDuration  Metric = "visit_duration"
 	Visitors       Metric = "visitors"
@@ -140,6 +142,8 @@ const (
 // Valid indicates whether the value is a known member of the Metric enum.
 func (e Metric) Valid() bool {
 	switch e {
+	case AverageRevenue:
+		return true
 	case BounceRate:
 		return true
 	case ConversionRate:
@@ -153,6 +157,8 @@ func (e Metric) Valid() bool {
 	case Pageviews:
 		return true
 	case ScrollDepth:
+		return true
+	case TotalRevenue:
 		return true
 	case ViewsPerVisit:
 		return true
@@ -344,6 +350,7 @@ type FunnelStepResult struct {
 
 // Goal defines model for Goal.
 type Goal struct {
+	Currency  *string `json:"currency,omitempty"`
 	Id        int64   `json:"id"`
 	Kind      string  `json:"kind"`
 	Match     string  `json:"match"`
@@ -356,6 +363,7 @@ type Goal struct {
 
 // GoalInput defines model for GoalInput.
 type GoalInput struct {
+	Currency  *string        `json:"currency,omitempty"`
 	Kind      GoalInputKind  `json:"kind"`
 	Match     GoalInputMatch `json:"match"`
 	Name      string         `json:"name"`

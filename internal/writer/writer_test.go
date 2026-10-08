@@ -71,7 +71,7 @@ func TestFlushOnShutdownAndLateEventMarksDirty(t *testing.T) {
 			SiteID: 1, Retention: db.Ret30, TS: day.Add(13 * time.Hour), LocalDay: day,
 			VisitorID: 1, Kind: 0, PathID: 1,
 		},
-		SessionID: 9,
+		SessionID: 9, RevenueMicros: 9_990_000, RevenueCurrency: "USD",
 	}) {
 		t.Fatal("event rejected")
 	}
@@ -79,13 +79,17 @@ func TestFlushOnShutdownAndLateEventMarksDirty(t *testing.T) {
 	waitStopped(t, stopped)
 
 	var events, dirty int
+	var revenueMicros int64
+	var revenueCurrency string
 	if err := pool.QueryRow(context.Background(), `
 		select (select count(*) from events),
-		       (select count(*) from dirty_day where site_id = 1 and day = $1)`, day).Scan(&events, &dirty); err != nil {
+		       (select count(*) from dirty_day where site_id = 1 and day = $1),
+		       revenue_micros, revenue_currency
+		from events`, day).Scan(&events, &dirty, &revenueMicros, &revenueCurrency); err != nil {
 		t.Fatal(err)
 	}
-	if events != 1 || dirty != 1 {
-		t.Fatalf("events=%d dirty=%d", events, dirty)
+	if events != 1 || dirty != 1 || revenueMicros != 9_990_000 || revenueCurrency != "USD" {
+		t.Fatalf("events=%d dirty=%d revenue=%d/%q", events, dirty, revenueMicros, revenueCurrency)
 	}
 }
 

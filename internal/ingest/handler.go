@@ -163,6 +163,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
+	if payload.RevenueInvalid {
+		health.IngestRevenueInvalid.Add(1)
+	}
 	health.IngestAccepted.Add(1)
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -249,6 +252,7 @@ func (h *Handler) buildEvent(
 	}
 	return writer.Event{
 		Props: props, Screen: int16(payload.ScreenWidth), ReferrerID: referrerID,
+		RevenueMicros: payload.RevenueMicros, RevenueCurrency: payload.RevenueCurrency,
 	}, hit, nil
 }
 

@@ -662,6 +662,9 @@ components:
         prop_key: { type: string }
         prop_value: { type: string }
         name: { type: string }
+        currency:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}$'
     Goal:
       type: object
       additionalProperties: false
@@ -675,6 +678,9 @@ components:
         prop_key: { type: string }
         prop_value: { type: string }
         name: { type: string }
+        currency:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}$'
     SavedFunnelInput:
       type: object
       additionalProperties: false
@@ -722,6 +728,8 @@ components:
         - events
         - conversions
         - conversion_rate
+        - total_revenue
+        - average_revenue
     Filter:
       type: object
       additionalProperties: false

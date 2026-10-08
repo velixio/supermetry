@@ -14,6 +14,7 @@ type Goal struct {
 	PropKey   string
 	PropValue string
 	Name      string
+	Currency  string
 }
 
 type Funnel struct {
@@ -26,7 +27,8 @@ type Funnel struct {
 func ActiveGoals(ctx context.Context, data *Store) ([]Goal, error) {
 	rows, err := data.Pool.Query(ctx, `
 		select g.id, g.site_id, g.kind, g.match, g.value,
-		       coalesce(g.prop_key, ''), coalesce(g.prop_value, ''), g.name
+		       coalesce(g.prop_key, ''), coalesce(g.prop_value, ''), g.name,
+		       coalesce(g.currency, '')
 		from goals g
 		join sites s on s.id = g.site_id
 		where s.deleted_at is null
@@ -41,7 +43,7 @@ func ActiveGoals(ctx context.Context, data *Store) ([]Goal, error) {
 		var goal Goal
 		if err := rows.Scan(
 			&goal.ID, &goal.SiteID, &goal.Kind, &goal.Match, &goal.Value,
-			&goal.PropKey, &goal.PropValue, &goal.Name,
+			&goal.PropKey, &goal.PropValue, &goal.Name, &goal.Currency,
 		); err != nil {
 			return nil, fmt.Errorf("scan goal: %w", err)
 		}

@@ -5,6 +5,7 @@ export type GoalInput = {
   name: string
   prop_key?: string
   prop_value?: string
+  currency?: string
 }
 
 export type Goal = GoalInput & {

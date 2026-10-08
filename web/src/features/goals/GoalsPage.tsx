@@ -24,7 +24,7 @@ export function GoalsPage({ siteId, dateRange }: GoalsPageProps) {
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
         <section className="overflow-hidden rounded-xl border bg-card">
           <table className="w-full text-sm">
-            <thead className="border-b text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Goal</th><th className="px-4 py-3 text-right font-medium">Conversions</th><th className="px-4 py-3 text-right font-medium">Rate</th><th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead className="border-b text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Goal</th><th className="px-4 py-3 text-right font-medium">Conversions</th><th className="px-4 py-3 text-right font-medium">Rate</th><th className="px-4 py-3 text-right font-medium">Revenue</th><th className="px-4 py-3 text-right font-medium">Average revenue</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {(goals.data ?? []).map((goal) => <GoalRow dateRange={dateRange} goal={goal} key={goal.id} siteId={siteId} onEdit={() => setEditing(goal)} />)}
             </tbody>
@@ -59,5 +59,23 @@ function GoalRow({ goal, siteId, dateRange, onEdit }: { goal: Goal; siteId: numb
   const conversions = matched.data?.totals?.visitors ?? 0
   const visitors = all.data?.totals?.visitors ?? 0
   const rate = visitors > 0 ? (conversions / visitors) * 100 : 0
-  return <tr className="border-b last:border-0"><th className="max-w-56 truncate px-4 py-3 text-left font-medium" title={goal.name}>{goal.name}</th><td className="px-4 py-3 text-right tabular-nums">{fmt.number(conversions)}</td><td className="px-4 py-3 text-right tabular-nums">{fmt.percent(rate)}</td><td className="px-4 py-2 text-right"><Button size="sm" type="button" variant="ghost" onClick={onEdit}>Edit</Button></td></tr>
+  return <tr className="border-b last:border-0"><th className="max-w-56 truncate px-4 py-3 text-left font-medium" title={goal.name}>{goal.name}</th><td className="px-4 py-3 text-right tabular-nums">{fmt.number(conversions)}</td><td className="px-4 py-3 text-right tabular-nums">{fmt.percent(rate)}</td>{goal.currency ? <RevenueCells dateRange={dateRange} goal={goal} siteId={siteId} /> : <><td className="px-4 py-3 text-right text-muted-foreground">—</td><td className="px-4 py-3 text-right text-muted-foreground">—</td></>}<td className="px-4 py-2 text-right"><Button size="sm" type="button" variant="ghost" onClick={onEdit}>Edit</Button></td></tr>
+}
+
+function RevenueCells({ goal, siteId, dateRange }: { goal: Goal; siteId: number; dateRange: GoalsPageProps['dateRange'] }) {
+  const currency = goal.currency ?? 'USD'
+  const operator = goal.match === 'exact' ? 'is' : goal.match === 'prefix' ? 'starts_with' : 'contains'
+  const value = goal.match === 'wildcard' ? goal.value.replaceAll('*', '') : goal.value
+  const revenue = useStats({
+    siteId,
+    dateRange,
+    metrics: ['total_revenue', 'average_revenue'],
+    filters: [
+      { dimension: goal.kind, operator, values: [value] },
+      { dimension: 'revenue_currency', operator: 'is', values: [currency] },
+    ],
+    timezone: 'UTC',
+  })
+  const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency })
+  return <><td className="px-4 py-3 text-right tabular-nums">{formatter.format(revenue.data?.totals?.total_revenue ?? 0)}</td><td className="px-4 py-3 text-right tabular-nums">{formatter.format(revenue.data?.totals?.average_revenue ?? 0)}</td></>
 }

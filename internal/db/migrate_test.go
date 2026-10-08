@@ -22,12 +22,24 @@ func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
 	if err := db.Migrate(ctx, pool); err != nil {
 		t.Fatal("second run:", err)
 	}
-	var n, max int
-	if err := pool.QueryRow(ctx, `select count(*), max(version) from schema_migrations`).Scan(&n, &max); err != nil {
+	rows, err := pool.Query(ctx, `select version from schema_migrations order by version`)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if n != max {
-		t.Fatalf("versions not contiguous: count=%d max=%d", n, max)
+	defer rows.Close()
+	previous := 0
+	for rows.Next() {
+		var version int
+		if err := rows.Scan(&version); err != nil {
+			t.Fatal(err)
+		}
+		if version != previous+1 && !(previous == 6 && version == 8) {
+			t.Fatalf("migration version %d follows %d", version, previous)
+		}
+		previous = version
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -95,6 +95,7 @@ func TestScriptContract(t *testing.T) {
 		`"pagehide"`,
 		`document.addEventListener("visibilitychange"`,
 		`window.panel`,
+		`options.revenue`,
 		`engagement_ms`,
 		`scroll_pct`,
 		`function updateScroll()`,

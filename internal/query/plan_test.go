@@ -57,6 +57,8 @@ func TestPlanUsesClosedForUnsupportedRollupShape(t *testing.T) {
 	}{
 		{name: "mixed-grain dimensions", metrics: []api.Metric{api.Visitors}, dimensions: []string{"country", "page"}},
 		{name: "events metric", metrics: []api.Metric{api.Events}, dimensions: []string{"country"}},
+		{name: "total revenue rejects visitor tier", metrics: []api.Metric{api.TotalRevenue}, dimensions: []string{"country"}},
+		{name: "average revenue rejects cube tier", metrics: []api.Metric{api.AverageRevenue}, dimensions: []string{"source"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

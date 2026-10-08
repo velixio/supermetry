@@ -508,8 +508,16 @@ func TestGoalAndFunnelMutationsWriteAudit(t *testing.T) {
 		Store:         data,
 	})
 
-	goalID := mutationID(t, handler, http.MethodPost, fmt.Sprintf("/api/private/sites/%d/goals", site.ID), `{"kind":"page","match":"exact","value":"/thanks","name":"Signup"}`)
-	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"page","match":"prefix","value":"/done","name":"Signup"}`, http.StatusOK)
+	goalID := mutationID(t, handler, http.MethodPost, fmt.Sprintf("/api/private/sites/%d/goals", site.ID), `{"kind":"event","match":"exact","value":"purchase","name":"Purchase","currency":"USD"}`)
+	var currency string
+	if err := pool.QueryRow(ctx, `select currency from goals where id=$1`, goalID).Scan(&currency); err != nil || currency != "USD" {
+		t.Fatalf("created goal currency=%q error=%v", currency, err)
+	}
+	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"event","match":"exact","value":"purchase","name":"Purchase","currency":"EUR"}`, http.StatusOK)
+	if err := pool.QueryRow(ctx, `select currency from goals where id=$1`, goalID).Scan(&currency); err != nil || currency != "EUR" {
+		t.Fatalf("updated goal currency=%q error=%v", currency, err)
+	}
+	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"page","match":"exact","value":"/done","name":"Purchase","currency":"USD"}`, http.StatusBadRequest)
 	requestOK(t, handler, http.MethodDelete, fmt.Sprintf("/api/private/goals/%d", goalID), "", http.StatusNoContent)
 
 	funnelID := mutationID(t, handler, http.MethodPost, fmt.Sprintf("/api/private/sites/%d/funnels", site.ID), `{"name":"Signup","steps":[{"type":"page","match":"exact","value":"/"},{"type":"page","match":"exact","value":"/thanks"}]}`)

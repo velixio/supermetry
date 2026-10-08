@@ -23,7 +23,7 @@ func (e *Engine) queryHot(ctx context.Context, req Normalized, part Part) ([]res
 }
 
 func buildHotSQL(req Normalized, part Part) (string, []any, error) {
-	if hasCustomDimension(req.Dimensions) {
+	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) {
 		return buildCustomHotSQL(req, part)
 	}
 	builder := &sqlBuilder{}
@@ -138,6 +138,8 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		"coalesce(sum(" + scrollN + "),0)::int8",
 		"coalesce(sum(s.events),0)::int8",
 		converted,
+		"0::int8",
+		"0::int8",
 	}
 	return aggregateSQL(dimensions, sums, from, where), builder.args, nil
 }
@@ -166,7 +168,12 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 	conditions = append(conditions, presentConditions...)
 	where := "e.site_id=" + builder.arg(req.SiteID) + " and e.local_day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date and e.kind=1" + andSQL(conditions)
 	visitors := "count(distinct (e.local_day,e.visitor_id))::int8"
-	sums := []string{visitors, "count(distinct e.session_id)::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "count(*)::int8", visitors}
+	sums := []string{
+		visitors, "count(distinct e.session_id)::int8", "0::int8", "0::int8", "0::int8", "0::int8",
+		"0::int8", "0::int8", "count(*)::int8", visitors,
+		"coalesce(sum(e.revenue_micros),0)::int8",
+		"count(*) filter (where e.revenue_micros>0)::int8",
+	}
 	return aggregateSQL(dimensions, sums, "events e", where), builder.args, nil
 }
 

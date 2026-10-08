@@ -101,4 +101,40 @@ describe('GoalsPage', () => {
       filters: [{ dimension: 'page', operator: 'is', values: ['/thanks'] }],
     }))
   })
+
+  it('shows currency-formatted revenue only for revenue goals', async () => {
+    get.mockReset()
+    useStats.mockReset()
+    get.mockResolvedValue({
+      data: [
+        { id: 4, site_id: 7, kind: 'event', match: 'exact', value: 'purchase', name: 'Purchase', currency: 'USD' },
+        { id: 5, site_id: 7, kind: 'page', match: 'exact', value: '/thanks', name: 'Signup complete' },
+      ],
+      response: { status: 200 },
+    })
+    useStats.mockImplementation((query: { metrics: string[]; filters: { dimension: string; values: string[] }[] }) => ({
+      data: {
+        totals: query.metrics.includes('total_revenue')
+          ? { visitors: 2, total_revenue: 123.45, average_revenue: 61.725 }
+          : query.filters.length > 0 ? { visitors: 8 } : { visitors: 80 },
+      },
+      isPending: false,
+      isError: false,
+    }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(<QueryClientProvider client={client}><GoalsPage siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} /></QueryClientProvider>)
+
+    expect(await screen.findByText('Purchase')).toBeVisible()
+    expect(screen.getByText('$123.45')).toBeVisible()
+    expect(screen.getByText('$61.73')).toBeVisible()
+    expect(screen.getAllByText('—')).toHaveLength(2)
+    expect(useStats).toHaveBeenCalledWith(expect.objectContaining({
+      metrics: ['total_revenue', 'average_revenue'],
+      filters: [
+        { dimension: 'event', operator: 'is', values: ['purchase'] },
+        { dimension: 'revenue_currency', operator: 'is', values: ['USD'] },
+      ],
+    }))
+  })
 })

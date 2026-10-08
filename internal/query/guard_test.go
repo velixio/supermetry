@@ -134,6 +134,105 @@ func TestNormalizeAcceptsRegionAndCityDimensionsAndFilters(t *testing.T) {
 	}
 }
 
+func TestNormalizeValidatesRevenueMetricsAndCurrencyFilter(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	site := sites.Site{ID: 1, TZ: time.UTC}
+	revenueMetrics := []api.Metric{api.TotalRevenue, api.AverageRevenue}
+	tests := []struct {
+		name    string
+		req     api.QueryRequest
+		wantBad bool
+	}{
+		{
+			name: "event filter with currency",
+			req: func() api.QueryRequest {
+				r := requestPeriod(api.N7d)
+				r.Metrics = revenueMetrics
+				return withFilters(r,
+					api.Filter{Dimension: "event", Operator: api.Is, Values: []string{"purchase"}},
+					api.Filter{Dimension: "revenue_currency", Operator: api.Is, Values: []string{"USD"}},
+				)
+			}(),
+		},
+		{
+			name: "goal dimension",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "goal")
+				r.Metrics = revenueMetrics
+				return r
+			}(),
+		},
+		{
+			name: "missing event or goal scope",
+			req: func() api.QueryRequest {
+				r := requestPeriod(api.N7d)
+				r.Metrics = revenueMetrics
+				return r
+			}(),
+			wantBad: true,
+		},
+		{
+			name: "currency is filter only",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "event", "revenue_currency")
+				r.Metrics = revenueMetrics
+				return r
+			}(),
+			wantBad: true,
+		},
+		{
+			name: "currency requires is operator",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "event")
+				r.Metrics = revenueMetrics
+				return withFilters(r, api.Filter{Dimension: "revenue_currency", Operator: api.IsNot, Values: []string{"USD"}})
+			}(),
+			wantBad: true,
+		},
+		{
+			name: "currency requires one value",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "event")
+				r.Metrics = revenueMetrics
+				return withFilters(r, api.Filter{Dimension: "revenue_currency", Operator: api.Is, Values: []string{"USD", "EUR"}})
+			}(),
+			wantBad: true,
+		},
+		{
+			name: "currency requires uppercase ISO shape",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "event")
+				r.Metrics = revenueMetrics
+				return withFilters(r, api.Filter{Dimension: "revenue_currency", Operator: api.Is, Values: []string{"usd"}})
+			}(),
+			wantBad: true,
+		},
+		{
+			name: "currency unavailable to non-revenue metrics",
+			req: withFilters(requestPeriod(api.N7d),
+				api.Filter{Dimension: "event", Operator: api.Is, Values: []string{"purchase"}},
+				api.Filter{Dimension: "revenue_currency", Operator: api.Is, Values: []string{"USD"}},
+			),
+			wantBad: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, problem := query.Normalize(tt.req, site, now)
+			if tt.wantBad && problem == nil {
+				t.Fatal("Normalize() problem = nil, want invalid query")
+			}
+			if !tt.wantBad && problem != nil {
+				t.Fatalf("Normalize() problem = %+v", problem)
+			}
+		})
+	}
+}
+
 func TestNormalizeUsesRequestedTimezone(t *testing.T) {
 	t.Parallel()
 

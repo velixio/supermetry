@@ -107,7 +107,7 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		return Normalized{}, badQuery("at most 10 filters are allowed")
 	}
 	for _, filter := range filters {
-		if !knownDimension(filter.Dimension) {
+		if !knownFilterDimension(filter.Dimension) {
 			return Normalized{}, badQuery(fmt.Sprintf("unknown filter dimension %q", filter.Dimension))
 		}
 		if !filter.Operator.Valid() {
@@ -116,6 +116,18 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		if len(filter.Values) == 0 {
 			return Normalized{}, badQuery(fmt.Sprintf("filter %q must contain at least one value", filter.Dimension))
 		}
+		if filter.Dimension == "revenue_currency" {
+			if filter.Operator != api.Is || len(filter.Values) != 1 || !validCurrency(filter.Values[0]) {
+				return Normalized{}, badQuery("revenue_currency requires operator is and one uppercase 3-letter value")
+			}
+		}
+	}
+	if hasRevenueMetric(req.Metrics) {
+		if !hasEventOrGoalScope(dimensions, filters) {
+			return Normalized{}, badQuery("revenue metrics require an event or goal filter or dimension")
+		}
+	} else if filterHasDimension(filters, "revenue_currency") {
+		return Normalized{}, badQuery("revenue_currency requires a revenue metric")
 	}
 
 	limit := defaultLimit
@@ -230,6 +242,29 @@ func knownDimension(dimension string) bool {
 		return true
 	}
 	return strings.HasPrefix(dimension, "prop:")
+}
+
+func knownFilterDimension(dimension string) bool {
+	return dimension == "revenue_currency" || knownDimension(dimension)
+}
+
+func validCurrency(value string) bool {
+	if len(value) != 3 {
+		return false
+	}
+	for _, character := range value {
+		if character < 'A' || character > 'Z' {
+			return false
+		}
+	}
+	return true
+}
+
+func hasEventOrGoalScope(dimensions []string, filters []api.Filter) bool {
+	if containsAny(dimensions, "event", "goal") {
+		return true
+	}
+	return filterHasDimension(filters, "event") || filterHasDimension(filters, "goal")
 }
 
 func containsDimension(dimensions []string, value string) bool {
