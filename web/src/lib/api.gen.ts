@@ -4,6 +4,33 @@
  */
 
 export interface paths {
+    "/api/public/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit an analytics event
+         * @description Public event intake; no API key is required. Requests are counted against
+         *     per-site and per-visitor-address rate limits. Deployments may configure a
+         *     different path with `PANEL_EVENT_PATH`.
+         *
+         *     When calling this endpoint through a reverse proxy, forward the visitor's
+         *     address with `X-Forwarded-For` only when that proxy is listed in
+         *     `PANEL_TRUSTED_PROXIES`. Forward the visitor's `User-Agent` as well so
+         *     device dimensions and bot filtering remain accurate.
+         */
+        post: operations["submitEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/heatmaps/query": {
         parameters: {
             query?: never;
@@ -448,6 +475,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        EventPayload: {
+            /**
+             * @description Public site identifier.
+             * @example my-site
+             */
+            site: string;
+            /**
+             * @description Event name, such as pageview or a custom event name.
+             * @example pageview
+             */
+            name: string;
+            /**
+             * Format: uri
+             * @description Full page URL. Required by the event intake handler.
+             * @example https://www.example.com/pricing
+             */
+            url?: string;
+            /** @example https://search.example/ */
+            referrer?: string;
+            /** @example 1440 */
+            screen_width?: number;
+            /**
+             * @example {
+             *       "plan": "pro"
+             *     }
+             */
+            props?: {
+                [key: string]: string;
+            };
+            /** @example 12500 */
+            engagement_ms?: number;
+            /** @example 75 */
+            scroll_pct?: number;
+            revenue?: {
+                /** @example 29.99 */
+                amount: number | string;
+                /** @example USD */
+                currency: string;
+            };
+            /**
+             * @description Profile traits for an identify event on a profiles-enabled site.
+             * @example {
+             *       "plan": "pro"
+             *     }
+             */
+            traits?: {
+                [key: string]: string;
+            };
+            /**
+             * @description External profile identifier for a profiles-enabled site.
+             * @example customer-123
+             */
+            profile_id?: string;
+        };
         Site: {
             /** Format: int32 */
             id: number;
@@ -1107,6 +1188,52 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    submitEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventPayload"];
+                "text/plain": components["schemas"]["EventPayload"];
+            };
+        };
+        responses: {
+            /** @description The event was accepted for processing. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The payload, site, page URL, or client address is invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The site or visitor-address rate limit was exceeded. */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Event intake is unavailable or its bounded queue is full. */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     heatmapQuery: {
         parameters: {
             query?: never;

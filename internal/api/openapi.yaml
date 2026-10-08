@@ -8,6 +8,70 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/public/v1/events:
+    post:
+      operationId: submitEvent
+      security: []
+      summary: Submit an analytics event
+      description: |
+        Public event intake; no API key is required. Requests are counted against
+        per-site and per-visitor-address rate limits. Deployments may configure a
+        different path with `PANEL_EVENT_PATH`.
+
+        When calling this endpoint through a reverse proxy, forward the visitor's
+        address with `X-Forwarded-For` only when that proxy is listed in
+        `PANEL_TRUSTED_PROXIES`. Forward the visitor's `User-Agent` as well so
+        device dimensions and bot filtering remain accurate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+          text/plain:
+            schema:
+              $ref: '#/components/schemas/EventPayload'
+      responses:
+        '202':
+          description: The event was accepted for processing.
+        '400':
+          description: The payload, site, page URL, or client address is invalid.
+        '429':
+          description: The site or visitor-address rate limit was exceeded.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+        '503':
+          description: Event intake is unavailable or its bounded queue is full.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+      x-codeSamples:
+        - lang: Shell
+          label: curl
+          source: |-
+            curl --request POST https://analytics.example.com/api/public/v1/events \
+              --header 'Content-Type: application/json' \
+              --header 'User-Agent: Mozilla/5.0' \
+              --header 'X-Forwarded-For: 203.0.113.10' \
+              --data '{"site":"my-site","name":"pageview","url":"https://www.example.com/pricing"}'
+        - lang: JavaScript
+          label: fetch
+          source: |-
+            await fetch('https://analytics.example.com/api/public/v1/events', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': visitorUserAgent,
+                // Only send this through a proxy listed in PANEL_TRUSTED_PROXIES.
+                'X-Forwarded-For': visitorAddress,
+              },
+              body: JSON.stringify({
+                site: 'my-site',
+                name: 'pageview',
+                url: 'https://www.example.com/pricing',
+              }),
+            });
   /api/public/v1/heatmaps/query:
     post:
       operationId: heatmapQuery
@@ -973,6 +1037,72 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    EventPayload:
+      type: object
+      required: [site, name]
+      properties:
+        site:
+          type: string
+          description: Public site identifier.
+          example: my-site
+        name:
+          type: string
+          description: Event name, such as pageview or a custom event name.
+          example: pageview
+        url:
+          type: string
+          format: uri
+          description: Full page URL. Required by the event intake handler.
+          example: https://www.example.com/pricing
+        referrer:
+          type: string
+          example: https://search.example/
+        screen_width:
+          type: integer
+          minimum: 0
+          maximum: 32767
+          example: 1440
+        props:
+          type: object
+          additionalProperties:
+            type: string
+          maxProperties: 30
+          example: { plan: pro }
+        engagement_ms:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          example: 12500
+        scroll_pct:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 75
+        revenue:
+          type: object
+          required: [amount, currency]
+          properties:
+            amount:
+              oneOf:
+                - type: number
+                - type: string
+              example: '29.99'
+            currency:
+              type: string
+              pattern: '^[A-Z]{3}$'
+              example: USD
+        traits:
+          type: object
+          description: Profile traits for an identify event on a profiles-enabled site.
+          additionalProperties:
+            type: string
+          maxProperties: 20
+          example: { plan: pro }
+        profile_id:
+          type: string
+          description: External profile identifier for a profiles-enabled site.
+          maxLength: 128
+          example: customer-123
     Site:
       type: object
       additionalProperties: false
