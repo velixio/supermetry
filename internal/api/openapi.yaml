@@ -139,7 +139,7 @@ paths:
   /api/private/sites/{site_id}/replays/{session_id}/data:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
-      - { name: session_id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      - { name: session_id, in: path, required: true, schema: { type: string, pattern: '^[1-9][0-9]*$' } }
     get:
       operationId: getReplayData
       security: [{ cookieAuth: [] }]
@@ -2621,7 +2621,7 @@ components:
       additionalProperties: false
       required: [session_id, started_at, duration_s, pages, bytes, trigger]
       properties:
-        session_id: { type: integer, format: int64, minimum: 1 }
+        session_id: { type: string, pattern: '^[1-9][0-9]*$' }
         started_at: { type: string, format: date-time }
         duration_s: { type: integer, format: int64, minimum: 0 }
         pages: { type: integer, format: int32, minimum: 0 }

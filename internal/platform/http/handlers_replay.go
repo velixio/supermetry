@@ -23,7 +23,7 @@ import (
 )
 
 type replayListItem struct {
-	SessionID int64     `json:"session_id"`
+	SessionID int64     `json:"session_id,string"` // string: JS numbers lose precision above 2^53
 	StartedAt time.Time `json:"started_at"`
 	DurationS int64     `json:"duration_s"`
 	Pages     int32     `json:"pages"`

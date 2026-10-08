@@ -1086,7 +1086,7 @@ type ReplaySummary struct {
 	DurationS int64     `json:"duration_s"`
 	Pages     int32     `json:"pages"`
 	ProfileId *int64    `json:"profile_id,omitempty"`
-	SessionId int64     `json:"session_id"`
+	SessionId string    `json:"session_id"`
 	StartedAt time.Time `json:"started_at"`
 	Trigger   string    `json:"trigger"`
 }
@@ -1801,7 +1801,7 @@ type ServerInterface interface {
 	GetReplayCSS(w http.ResponseWriter, r *http.Request, siteId SitePathID, hash string)
 	// GetReplayData Download replay events
 	// (GET /api/private/sites/{site_id}/replays/{session_id}/data)
-	GetReplayData(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId int64)
+	GetReplayData(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId string)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -2280,9 +2280,9 @@ func (siw *ServerInterfaceWrapper) GetReplayData(w http.ResponseWriter, r *http.
 	}
 
 	// ------------- Path parameter "session_id" -------------
-	var sessionId int64
+	var sessionId string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
 		return

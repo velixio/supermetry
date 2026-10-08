@@ -131,7 +131,7 @@ func TestReplayEndToEnd(t *testing.T) {
 	list := doReplayRequest(t, router, http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-08&to=2026-10-08", siteID), nil, http.StatusOK)
 	var listed struct {
 		Data []struct {
-			SessionID int64 `json:"session_id"`
+			SessionID int64 `json:"session_id,string"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(list.Body.Bytes(), &listed); err != nil || len(listed.Data) != 1 {

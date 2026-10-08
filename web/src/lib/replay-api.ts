@@ -116,7 +116,7 @@ export function parseReplayNDJSON(value: string): ReplayData {
 
 export async function getReplayData(siteId: number, sessionId: string, signal?: AbortSignal): Promise<ReplayData> {
   const result = await api.GET('/api/private/sites/{site_id}/replays/{session_id}/data', {
-    params: { path: { site_id: siteId, session_id: Number(sessionId) } }, signal, parseAs: 'text',
+    params: { path: { site_id: siteId, session_id: sessionId } }, signal, parseAs: 'text',
   })
   return parseReplayNDJSON(requireData(result))
 }

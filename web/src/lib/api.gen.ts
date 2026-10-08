@@ -109,7 +109,7 @@ export interface paths {
             header?: never;
             path: {
                 site_id: components["parameters"]["SitePathID"];
-                session_id: number;
+                session_id: string;
             };
             cookie?: never;
         };
@@ -1478,8 +1478,7 @@ export interface components {
             s3: components["schemas"]["ReplayStorageS3Value"];
         };
         ReplaySummary: {
-            /** Format: int64 */
-            session_id: number;
+            session_id: string;
             /** Format: date-time */
             started_at: string;
             /** Format: int64 */
@@ -2137,7 +2136,7 @@ export interface operations {
             header?: never;
             path: {
                 site_id: components["parameters"]["SitePathID"];
-                session_id: number;
+                session_id: string;
             };
             cookie?: never;
         };

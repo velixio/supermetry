@@ -160,7 +160,7 @@ func TestReplayListPaginates(t *testing.T) {
 	}
 	var page struct {
 		Data []struct {
-			SessionID int64 `json:"session_id"`
+			SessionID int64 `json:"session_id,string"`
 		} `json:"data"`
 		NextCursor *string `json:"next_cursor"`
 	}
@@ -171,7 +171,7 @@ func TestReplayListPaginates(t *testing.T) {
 		t.Fatalf("first page=%+v", page)
 	}
 	second := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09&limit=2&cursor=%s", f.siteID, *page.NextCursor), "")
-	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"session_id":100`) {
+	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"session_id":"100"`) {
 		t.Fatalf("second status=%d body=%s", second.Code, second.Body.String())
 	}
 }
@@ -282,5 +282,21 @@ func TestReplayEnabledComesOnlyFromEnvironment(t *testing.T) {
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), fmt.Sprintf(`"enabled":%t`, envEnabled)) {
 			t.Fatalf("env=%t: GET status=%d body=%s, want enabled=%t", envEnabled, response.Code, response.Body.String(), envEnabled)
 		}
+	}
+}
+
+// Session IDs use all 64 bits; JavaScript numbers round anything above 2^53,
+// so the API must send them as decimal strings like the sessions API does.
+func TestReplayListSendsLargeSessionIDsAsStrings(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
+	const sessionID int64 = 1683029196918025731
+	started := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
+	if _, err := f.pool.Pool.Exec(context.Background(), `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key) values ($1,$2,$3,$3,'2026-10-08',100,1,$4)`,
+		f.siteID, sessionID, started, replay.SessionKey(f.siteID, started, sessionID)); err != nil {
+		t.Fatal(err)
+	}
+	response := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09", f.siteID), "")
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"session_id":"1683029196918025731"`) {
+		t.Fatalf("status=%d body=%s, want session_id as a string", response.Code, response.Body.String())
 	}
 }
