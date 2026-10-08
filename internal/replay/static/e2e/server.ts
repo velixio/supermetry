@@ -2,6 +2,8 @@ type Upload = { text: string; trigger: string | null; page: string | null; seque
 
 let uploads: Upload[] = [];
 let starts = 0;
+let cssPuts: Array<{ hash: string; text: string }> = [];
+let failCSSPut = false;
 
 const root = import.meta.dir + "/../../../tracker";
 const tracker = await Bun.file(root + "/tracker.full.min.js").text();
@@ -9,8 +11,11 @@ const tracker = await Bun.file(root + "/tracker.full.min.js").text();
 function fixture(pathname: string): Response {
   const replayConsent = pathname === "/consent-always" ? "always" : "never";
   const hugeDOM = pathname === "/trigger/huge" ? `<div>${"large-dom-text".repeat(440_000)}</div>` : "";
+  const largeCSS = pathname.startsWith("/full/css")
+    ? `<style>${Array.from({ length: 8_000 }, (_, index) => `.fixture-${index}{color:#123456;background:#abcdef}`).join("")}</style>`
+    : "";
   return new Response(`<!doctype html>
-    <html><body>
+    <html><head>${largeCSS}</head><body>
       ${hugeDOM}
       <input id="password" type="password">
       <input id="card" autocomplete="cc-number">
@@ -36,6 +41,7 @@ Bun.serve({
     if (url.pathname === "/api/replay/start" && request.method === "POST") {
       starts++;
       const body = await request.json() as { u?: string };
+      failCSSPut = body.u?.includes("/css-fail") ?? false;
       const mode = body.u?.includes("/trigger") ? "trigger" : "full";
       return Response.json({
         m: mode,
@@ -53,13 +59,23 @@ Bun.serve({
       });
       return new Response(null, { status: 202 });
     }
+    if (url.pathname.startsWith("/api/replay/css/") && request.method === "PUT") {
+      const compressed = new Uint8Array(await request.arrayBuffer());
+      cssPuts.push({
+        hash: url.pathname.slice("/api/replay/css/".length),
+        text: new TextDecoder().decode(Bun.gunzipSync(compressed)),
+      });
+      return new Response(null, { status: url.searchParams.get("s") === "abc123def456" && !failCSSPut ? 201 : 503 });
+    }
     if (url.pathname === "/test/reset" && request.method === "POST") {
       uploads = [];
       starts = 0;
+      cssPuts = [];
+      failCSSPut = false;
       return new Response(null, { status: 204 });
     }
-    if (url.pathname === "/test/state") return Response.json({ uploads, starts });
-    if (["/full", "/trigger", "/save-data", "/consent-always", "/trigger/manual-off", "/trigger/url-spa", "/trigger/huge"].includes(url.pathname)) return fixture(url.pathname);
+    if (url.pathname === "/test/state") return Response.json({ uploads, starts, cssPuts });
+    if (["/full", "/full/css", "/full/css-fail", "/trigger", "/save-data", "/consent-always", "/trigger/manual-off", "/trigger/url-spa", "/trigger/huge"].includes(url.pathname)) return fixture(url.pathname);
     return new Response("not found", { status: 404 });
   },
 });
