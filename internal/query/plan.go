@@ -43,7 +43,9 @@ var (
 	rollupDimensions  = map[string]bool{
 		"page": true, "path": true, "source": true, "country": true, "browser": true,
 		"os": true, "device": true, "entry": true, "exit": true, "region": true,
-		"city": true, "utm_source": true, "utm_medium": true, "utm_campaign": true, "time": true,
+		"city": true, "utm_source": true, "utm_medium": true, "utm_campaign": true,
+		"browser_version": true, "os_version": true,
+		"screen_size": true, "language": true, "hostname": true, "time": true,
 	}
 	globalQuerySlots = semaphore.NewWeighted(16)
 )

@@ -23,6 +23,7 @@ export type Site = {
   timezone?: string
   profiles_enabled?: boolean
   icon_url?: string
+  allowed_hosts?: string[]
 }
 
 export type Membership = {

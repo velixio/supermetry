@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"panel/internal/db"
+	"panel/internal/dict"
 	"panel/internal/session"
 	"panel/internal/sites"
 )
@@ -84,6 +85,19 @@ func CloseDay(ctx context.Context, pool *pgxpool.Pool, siteIDs []int32, day time
 				return fmt.Errorf("delete %s: %w", table, err)
 			}
 		}
+		for _, dimension := range []struct {
+			column string
+			kind   dict.Kind
+		}{
+			{column: "browser_ver_id", kind: dict.BrowserVersion},
+			{column: "os_ver_id", kind: dict.OSVersion},
+			{column: "language_id", kind: dict.Language},
+			{column: "hostname_id", kind: dict.Hostname},
+		} {
+			if _, err := tx.Exec(ctx, foldDimensionSQL(dimension.column), day, windowStart, windowEnd, siteIDs, dimension.kind); err != nil {
+				return fmt.Errorf("fold %s: %w", dimension.column, err)
+			}
+		}
 
 		tag, err := tx.Exec(ctx, closeSessionsSQL, day, windowStart, windowEnd, siteIDs)
 		if err != nil {
@@ -132,6 +146,35 @@ func CloseDay(ctx context.Context, pool *pgxpool.Pool, siteIDs []int32, day time
 		return Stats{}, err
 	}
 	return stats, nil
+}
+
+// foldDimensionSQL is called only with the fixed column names above.
+func foldDimensionSQL(column string) string {
+	return `
+with ins as (
+  insert into dict (kind, value) values ($5, 'Other')
+  on conflict (kind, value) do nothing
+  returning id
+), other as (
+  select id from ins
+  union all
+  select id from dict where kind=$5 and value='Other'
+  limit 1
+), ranked as (
+  select site_id, value_id,
+         row_number() over (partition by site_id order by sessions desc, value_id) as rank
+  from (
+    select site_id, ` + column + ` as value_id, count(*) as sessions
+    from sessions
+    where local_day=$1 and start >= $2 and start < $3 and site_id=any($4)
+      and ` + column + ` <> 0 and ` + column + ` <> (select id from other)
+    group by site_id, ` + column + `
+  ) counts
+)
+update sessions s set ` + column + `=(select id from other)
+from ranked r
+where s.local_day=$1 and s.start >= $2 and s.start < $3
+  and s.site_id=r.site_id and s.` + column + `=r.value_id and r.rank > 200`
 }
 
 const markClosedSQL = `

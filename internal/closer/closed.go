@@ -3,7 +3,8 @@ package closer
 const closeSessionsSQL = `
 insert into sessions_closed (
   site_id, day, visitor_id, session_id, started_at, profile_id, source_id, utm_source_id, medium_id, campaign_id,
-  utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id, device,
+  utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
+  browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket, device,
   entry_path, exit_path, pageviews, custom, duration_ms, engagement_ms,
   vd_n, flags, seq, seq_engage, seq_scroll
 )
@@ -74,6 +75,9 @@ with candidate_sessions as (
 	         first_value(s.city_id) over visitor_order as city_id,
 	         first_value(s.browser_id) over visitor_order as browser_id,
          first_value(s.os_id) over visitor_order as os_id,
+		 first_value(s.browser_ver_id) over visitor_order as browser_ver_id,
+		 first_value(s.os_ver_id) over visitor_order as os_ver_id,
+		 s.language_id, s.hostname_id, s.screen_bucket,
          first_value(s.device) over visitor_order as device,
          s.entry_path, s.exit_path, s.pageviews, s.events as custom,
          least(2147483647::numeric,
@@ -92,7 +96,16 @@ with candidate_sessions as (
             ) = 1 then 8 else 0 end
           | case when row_number() over (
               partition by s.site_id, s.visitor_id, s.utm_source_id order by s.start, s.session_id
-            ) = 1 then 16 else 0 end)::smallint as flags
+            ) = 1 then 16 else 0 end
+          | case when row_number() over (
+              partition by s.site_id, s.visitor_id, s.screen_bucket order by s.start, s.session_id
+            ) = 1 then 32 else 0 end
+          | case when row_number() over (
+              partition by s.site_id, s.visitor_id, s.language_id order by s.start, s.session_id
+            ) = 1 then 64 else 0 end
+          | case when row_number() over (
+              partition by s.site_id, s.visitor_id, s.hostname_id order by s.start, s.session_id
+            ) = 1 then 128 else 0 end)::smallint as flags
   from candidate_sessions s
   left join first_attribution attribution using (site_id, session_id)
   left join first_profile profile using (site_id, session_id)
@@ -101,7 +114,9 @@ with candidate_sessions as (
 )
 select s.site_id, $1, s.visitor_id, s.session_id, s.start, s.profile_id,
 	       s.source_id, s.utm_source_id, s.medium_id, s.campaign_id, s.utm_content_id, s.utm_term_id,
-       s.country, s.region_id, s.city_id, s.browser_id, s.os_id, s.device, s.entry_path, s.exit_path,
+       s.country, s.region_id, s.city_id, s.browser_id, s.os_id,
+       s.browser_ver_id, s.os_ver_id, s.language_id, s.hostname_id, s.screen_bucket,
+       s.device, s.entry_path, s.exit_path,
        s.pageviews, s.custom, s.duration_ms, s.engagement_ms,
        s.vd_n, s.flags, q.seq, q.seq_engage, q.seq_scroll
 from session_rows s
@@ -112,11 +127,14 @@ const closeCustomSQL = `
 insert into custom_closed (
   site_id, day, visitor_id, name_id, path_id, source_id, utm_source_id, medium_id,
   campaign_id, utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
+  browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket,
   device, entry_path, exit_path, props, revenue_micros, revenue_currency
 )
 select c.site_id, $1, c.visitor_id, e.name_id, e.path_id,
        c.source_id, c.utm_source_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
-       c.country, c.region_id, c.city_id, c.browser_id, c.os_id, c.device, c.entry_path, c.exit_path, e.props,
+       c.country, c.region_id, c.city_id, c.browser_id, c.os_id,
+       c.browser_ver_id, c.os_ver_id, c.language_id, c.hostname_id, c.screen_bucket,
+       c.device, c.entry_path, c.exit_path, e.props,
        e.revenue_micros, e.revenue_currency
 from events e
 join sessions_closed c

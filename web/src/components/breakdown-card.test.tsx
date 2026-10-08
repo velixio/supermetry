@@ -176,6 +176,48 @@ describe('BreakdownCard', () => {
     expect(screen.getByLabelText('URL filters')).toHaveTextContent('country:is:IN')
   })
 
+  it('renders an empty dimension as Unknown without a filter action', () => {
+    useStats.mockReturnValue(result({ data: data('browser_version', '', 5) }))
+    const onFilter = vi.fn()
+
+    render(
+      <BreakdownCard
+        title="Devices"
+        tabs={tabs('browser_version')}
+        query={baseQuery}
+        onFilter={onFilter}
+      />,
+    )
+
+    expect(screen.getByText('Unknown')).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: /filter by browser_version/i }),
+    ).not.toBeInTheDocument()
+    expect(onFilter).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['mobile', 'Mobile (<768px)'],
+    ['tablet', 'Tablet (768–1023px)'],
+    ['laptop', 'Laptop (1024–1439px)'],
+    ['desktop', 'Desktop (1440–1919px)'],
+    ['large', 'Large (≥1920px)'],
+  ])('renders the %s screen bucket as %s', (value, label) => {
+    useStats.mockReturnValue(result({ data: data('screen_size', value, 5) }))
+
+    render(
+      <BreakdownCard
+        title="Devices"
+        tabs={tabs('screen_size')}
+        query={baseQuery}
+        onFilter={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(label)).toBeVisible()
+    expect(screen.getByRole('button', { name: `Filter by screen_size ${value}` })).toBeEnabled()
+  })
+
   it('defaults a map-enabled country breakdown to its list and switches to the lazy map', async () => {
     useStats.mockReturnValue(result({ data: data('country', 'IN', 5) }))
 

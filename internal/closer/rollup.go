@@ -53,10 +53,15 @@ cross join lateral (values
   (9::smallint, s.region_id, s.flags & 1 <> 0),
   (10::smallint, s.city_id, s.flags & 1 <> 0),
   (11::smallint, s.utm_source_id, s.flags & 16 <> 0),
-  (12::smallint, s.medium_id, s.medium_visitor),
-  (13::smallint, s.campaign_id, s.campaign_visitor)
+  (12::smallint, s.browser_ver_id, s.flags & 1 <> 0),
+  (13::smallint, s.os_ver_id, s.flags & 1 <> 0),
+  (14::smallint, s.screen_bucket::integer, s.flags & 32 <> 0),
+  (15::smallint, s.language_id, s.flags & 64 <> 0),
+  (16::smallint, s.hostname_id, s.flags & 128 <> 0),
+  (17::smallint, s.medium_id, s.medium_visitor),
+  (18::smallint, s.campaign_id, s.campaign_visitor)
 ) dimensions(dim, value_id, is_visitor)
-where not (dim in (11, 12, 13) and value_id = 0)
+where not (dim in (11, 17, 18) and value_id = 0)
   and not (dim in (7, 8) and s.pageviews = 0)
 group by site_id, dim, value_id`
 

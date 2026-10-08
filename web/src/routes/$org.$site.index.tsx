@@ -150,7 +150,7 @@ function DashboardStateRoute() {
             key={card.title}
             map={card.map}
             title={card.title}
-            tabs={card.tabs}
+            tabs={visibleTabs(card.tabs, site.allowed_hosts)}
             query={query}
             onFilter={onFilter}
           />
@@ -192,14 +192,19 @@ const breakdownCards: { title: string; tabs: BreakdownTab[]; map?: boolean }[] =
       { key: 'country', label: 'Countries', dimension: 'country', metric: 'visitors' },
       { key: 'region', label: 'Regions', dimension: 'region', metric: 'visitors' },
       { key: 'city', label: 'Cities', dimension: 'city', metric: 'visitors' },
+      { key: 'language', label: 'Language', dimension: 'language', metric: 'visitors' },
+      { key: 'hostname', label: 'Hostname', dimension: 'hostname', metric: 'visitors' },
     ],
   },
   {
     title: 'Devices',
     tabs: [
       { key: 'browser', label: 'Browser', dimension: 'browser', metric: 'visitors' },
+      { key: 'browser-version', label: 'Browser version', dimension: 'browser_version', metric: 'visitors' },
       { key: 'os', label: 'OS', dimension: 'os', metric: 'visitors' },
+      { key: 'os-version', label: 'OS version', dimension: 'os_version', metric: 'visitors' },
       { key: 'device', label: 'Device', dimension: 'device', metric: 'visitors' },
+      { key: 'screen-size', label: 'Screen size', dimension: 'screen_size', metric: 'visitors' },
     ],
   },
   {
@@ -210,3 +215,10 @@ const breakdownCards: { title: string; tabs: BreakdownTab[]; map?: boolean }[] =
     ],
   },
 ]
+
+function visibleTabs(tabs: BreakdownTab[], allowedHosts: string[] | undefined): BreakdownTab[] {
+  const showHostname =
+    (allowedHosts?.length ?? 0) > 1 ||
+    allowedHosts?.some((host) => host.startsWith('*.')) === true
+  return showHostname ? tabs : tabs.filter((tab) => tab.dimension !== 'hostname')
+}

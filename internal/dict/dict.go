@@ -27,6 +27,10 @@ const (
 	OS
 	Region
 	City
+	BrowserVersion
+	OSVersion
+	Language
+	Hostname
 )
 
 const maxValueBytes = 2000

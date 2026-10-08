@@ -607,7 +607,7 @@ type EventPayload_Revenue_Amount struct {
 
 // Filter defines model for Filter.
 type Filter struct {
-	// Dimension Analytics dimension to filter. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
+	// Dimension Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
 	Dimension string         `json:"dimension"`
 	Operator  FilterOperator `json:"operator"`
 	Values    []string       `json:"values"`
@@ -844,18 +844,20 @@ type QueryMeta struct {
 
 // QueryRequest defines model for QueryRequest.
 type QueryRequest struct {
-	Compare         *QueryRequestCompare `json:"compare,omitempty"`
-	Cursor          *string              `json:"cursor,omitempty"`
-	DateRange       *DateRange           `json:"date_range,omitempty"`
-	Dimensions      *[]string            `json:"dimensions,omitempty"`
-	Filters         *[]Filter            `json:"filters,omitempty"`
-	IncludeImported *bool                `json:"include_imported,omitempty"`
-	Limit           *int                 `json:"limit,omitempty"`
-	Metrics         []Metric             `json:"metrics"`
-	OrderBy         *[]OrderBy           `json:"order_by,omitempty"`
-	Period          *Period              `json:"period,omitempty"`
-	SiteId          int32                `json:"site_id"`
-	Timezone        *string              `json:"timezone,omitempty"`
+	Compare   *QueryRequestCompare `json:"compare,omitempty"`
+	Cursor    *string              `json:"cursor,omitempty"`
+	DateRange *DateRange           `json:"date_range,omitempty"`
+
+	// Dimensions Dimensions to group by. browser_version, os_version, screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop, desktop, and large, while stored value 0 is returned as an empty string for Unknown.
+	Dimensions      *[]string  `json:"dimensions,omitempty"`
+	Filters         *[]Filter  `json:"filters,omitempty"`
+	IncludeImported *bool      `json:"include_imported,omitempty"`
+	Limit           *int       `json:"limit,omitempty"`
+	Metrics         []Metric   `json:"metrics"`
+	OrderBy         *[]OrderBy `json:"order_by,omitempty"`
+	Period          *Period    `json:"period,omitempty"`
+	SiteId          int32      `json:"site_id"`
+	Timezone        *string    `json:"timezone,omitempty"`
 }
 
 // QueryRequestCompare defines model for QueryRequest.Compare.
@@ -1376,7 +1378,7 @@ type StatsBreakdownParams struct {
 	Compare *Compare `form:"compare,omitempty" json:"compare,omitempty"`
 	Format  *Format  `form:"format,omitempty" json:"format,omitempty"`
 
-	// Dimension Analytics dimension to group by. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other.
+	// Dimension Analytics dimension to group by, including browser_version, os_version, screen_size, language, and hostname. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other.
 	Dimension string `form:"dimension" json:"dimension"`
 
 	// Limit 1-1000, or all for a CSV export capped at 100,000 rows.

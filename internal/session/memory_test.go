@@ -102,12 +102,14 @@ func TestSessionMetricsAndFirstHitDimensions(t *testing.T) {
 		SiteID: 1, Retention: db.Ret30, TS: t0, LocalDay: t0, VisitorID: 9,
 		Kind: 1, NameID: 7, Source: 10, UTMSource: 17, Medium: 11, Campaign: 12,
 		Country: "DE", Region: 15, City: 16, Browser: 13, OS: 14, Device: 2,
+		BrowserVer: 18, OSVer: 19, Language: 20, Hostname: 21, ScreenBucket: 3,
 	}
 	r := m.Touch(first)
 	m.Touch(session.Hit{
 		SiteID: 1, Retention: db.Ret7, TS: t0.Add(time.Minute), LocalDay: t0,
 		VisitorID: 9, Kind: 0, PathID: 21, Source: 100, UTMSource: 107, Medium: 101,
 		Campaign: 102, Country: "US", Region: 105, City: 106, Browser: 103, OS: 104, Device: 4,
+		BrowserVer: 108, OSVer: 109, Language: 110, Hostname: 111, ScreenBucket: 5,
 	})
 	m.Touch(session.Hit{SiteID: 1, TS: t0.Add(2 * time.Minute), LocalDay: t0, VisitorID: 9, Kind: 0, PathID: 22})
 
@@ -117,7 +119,9 @@ func TestSessionMetricsAndFirstHitDimensions(t *testing.T) {
 	}
 	if snapshot.Retention != db.Ret30 || snapshot.Source != 10 || snapshot.UTMSource != 17 || snapshot.Medium != 11 || snapshot.Campaign != 12 ||
 		snapshot.Country != "DE" || snapshot.Region != 15 || snapshot.City != 16 ||
-		snapshot.Browser != 13 || snapshot.OS != 14 || snapshot.Device != 2 {
+		snapshot.Browser != 13 || snapshot.OS != 14 || snapshot.Device != 2 ||
+		snapshot.BrowserVer != 18 || snapshot.OSVer != 19 || snapshot.Language != 20 ||
+		snapshot.Hostname != 21 || snapshot.ScreenBucket != 3 {
 		t.Fatalf("first-hit dimensions changed: %+v", snapshot)
 	}
 }

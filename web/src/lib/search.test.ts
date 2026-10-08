@@ -119,6 +119,19 @@ describe('time zones', () => {
 })
 
 describe('filters', () => {
+  it.each([
+    ['browser_version:is:Chrome%20126', 'browser_version', 'Chrome 126'],
+    ['os_version:is:Windows%2010%2F11', 'os_version', 'Windows 10/11'],
+    ['screen_size:is:mobile', 'screen_size', 'mobile'],
+    ['language:is:en', 'language', 'en'],
+    ['hostname:is:docs.example.com', 'hostname', 'docs.example.com'],
+  ])('keeps the new dimension filter %s', (raw, dimension, value) => {
+    expect(parseFilters([raw])).toEqual({
+      filters: [{ dimension, operator: 'is', values: [value] }],
+      dropped: [],
+    })
+  })
+
   it('keeps channel filters', () => {
     expect(
       parseFilters(

@@ -20,7 +20,7 @@ const me = {
     {
       org: { id: 1, name: 'Acme', slug: 'acme' },
       role: 'owner',
-      sites: [{ id: 7, name: 'Example', slug: 'example' }],
+      sites: [{ id: 7, name: 'Example', slug: 'example', allowed_hosts: ['example.com'] }],
     },
   ],
 }
@@ -103,7 +103,7 @@ describe('dashboard breakdown route', () => {
       within(locations)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Countries', 'Regions', 'Cities'])
+    ).toEqual(['Countries', 'Regions', 'Cities', 'Language'])
 
     const sources = screen.getByRole('region', { name: 'Sources' })
     expect(within(sources).queryByRole('tab', { name: 'Referrer' })).not.toBeInTheDocument()
@@ -112,6 +112,41 @@ describe('dashboard breakdown route', () => {
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
     ).toEqual(['Source', 'Channels', 'UTM Source', 'Medium', 'Campaign'])
+  })
+
+  it('shows the new device tabs and hides Hostname for a single-host site', async () => {
+    renderDashboard()
+
+    const devices = await screen.findByRole('region', { name: 'Devices' })
+    expect(within(devices).getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Browser',
+      'Browser version',
+      'OS',
+      'OS version',
+      'Device',
+      'Screen size',
+    ])
+
+    const locations = screen.getByRole('region', { name: 'Countries' })
+    expect(within(locations).queryByRole('tab', { name: 'Hostname' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['multiple hosts', ['example.com', 'docs.example.com']],
+    ['a wildcard host', ['*.example.com']],
+  ])('shows Hostname for a site with %s', async (_case, allowedHosts) => {
+    get.mockResolvedValue({
+      data: {
+        ...me,
+        memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], allowed_hosts: allowedHosts }] }],
+      },
+      response: new Response(null, { status: 200 }),
+    })
+
+    renderDashboard()
+
+    const locations = await screen.findByRole('region', { name: 'Countries' })
+    expect(within(locations).getByRole('tab', { name: 'Hostname' })).toBeVisible()
   })
 
   it('shows a Channels tab in Sources and filters by channel', async () => {
@@ -176,7 +211,9 @@ describe('dashboard breakdown route', () => {
     )
   })
 
-  it('exports every dashboard CSV with the current range and filters', async () => {
+  // Exports one CSV per dashboard tab, so it needs more than the 5 s default
+  // when the full suite runs in parallel.
+  it('exports every dashboard CSV with the current range and filters', { timeout: 20_000 }, async () => {
     const history = createMemoryHistory({
       initialEntries: [
         '/acme/example?period=custom&from=2026-09-28&to=2026-09-30&f=country%3Ais%3AIN',

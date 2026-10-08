@@ -94,7 +94,21 @@ func TestSourceAndClient(t *testing.T) {
 
 	t.Run("mobile Safari client", func(t *testing.T) {
 		client := e.Client(mobileSafariUserAgent())
-		want := enrich.Client{Browser: "Safari", OS: "iOS", Device: 1}
+		want := enrich.Client{Browser: "Safari", BrowserVersion: "Safari 17", OS: "iOS", OSVersion: "iOS 17", Device: 1}
+		if client != want {
+			t.Errorf("Client() = %+v, want %+v", client, want)
+		}
+	})
+
+	t.Run("Chrome 126 on Windows", func(t *testing.T) {
+		client := e.Client(userAgent(
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) ",
+			"AppleWebKit/537.36 Chrome/126.0.6478.127 Safari/537.36",
+		))
+		want := enrich.Client{
+			Browser: "Chrome", BrowserVersion: "Chrome 126",
+			OS: "Windows", OSVersion: "Windows 10/11",
+		}
 		if client != want {
 			t.Errorf("Client() = %+v, want %+v", client, want)
 		}

@@ -216,6 +216,76 @@ where s.site_id=1 and s.day='2026-10-07' and s.session_id=11`).Scan(
 	}
 }
 
+func TestCloseDayFoldsDimensionValuesToExactTop200(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	from := utc(2026, 10, 6, 0, 0)
+	if err := db.EnsurePartitions(ctx, pool, from, from.AddDate(0, 0, 2)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into dict(kind, id, value)
+select 13, 1000 + n, 'v' || n from generate_series(1, 201) n;
+insert into sessions
+  (site_id, retention_class, session_id, visitor_id, start, last, local_day,
+   browser_ver_id, pageviews, events, engagement_ms, bounce)
+select 1, 30, 10000 + n, 20000 + n,
+       '2026-10-06 00:00Z'::timestamptz + n * interval '1 minute',
+       '2026-10-06 00:00Z'::timestamptz + n * interval '1 minute',
+       '2026-10-06', 1000 + case when n=202 then 1 else n end, 1, 0, 0, true
+from generate_series(1, 202) n;
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind, browser_ver_id)
+select site_id, retention_class, local_day, start, visitor_id, session_id, 0, browser_ver_id
+from sessions where local_day='2026-10-06';
+insert into sessions
+  (site_id, retention_class, session_id, visitor_id, start, last, local_day,
+   browser_ver_id, pageviews, events, engagement_ms, bounce)
+values (1,30,20001,30001,'2026-10-07 01:00Z','2026-10-07 01:00Z','2026-10-07',1201,1,0,0,true);
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind, browser_ver_id)
+values (1,30,'2026-10-07','2026-10-07 01:00Z',30001,20001,0,1201)`); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, value := range []time.Time{utc(2026, 10, 6, 0, 0), utc(2026, 10, 7, 0, 0)} {
+		if _, err := closer.CloseDay(ctx, pool, []int32{1}, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	assertDimensionFold(t, pool)
+	if _, err := closer.CloseDay(ctx, pool, []int32{1}, utc(2026, 10, 6, 0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	assertDimensionFold(t, pool)
+}
+
+func assertDimensionFold(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	ctx := context.Background()
+	var otherID int32
+	if err := pool.QueryRow(ctx, `select id from dict where kind=13 and value='Other'`).Scan(&otherID); err != nil {
+		t.Fatal(err)
+	}
+	var distinct, folded, tiedHighIDFolded, rollupRows, nextDay int
+	if err := pool.QueryRow(ctx, `
+select
+  (select count(distinct browser_ver_id) from sessions_closed where site_id=1 and day='2026-10-06'),
+  (select count(*) from sessions_closed where site_id=1 and day='2026-10-06' and browser_ver_id=$1),
+	(select count(*) from sessions_closed where site_id=1 and day='2026-10-06' and session_id=10201 and browser_ver_id=$1),
+  (select count(*) from rollup_day_dim where site_id=1 and day='2026-10-06' and dim=12),
+  (select count(*) from sessions_closed where site_id=1 and day='2026-10-07' and browser_ver_id=1201)`, otherID,
+	).Scan(&distinct, &folded, &tiedHighIDFolded, &rollupRows, &nextDay); err != nil {
+		t.Fatal(err)
+	}
+	if distinct != 201 || folded != 1 || tiedHighIDFolded != 1 || rollupRows != 201 || nextDay != 1 {
+		t.Fatalf("distinct=%d folded=%d tied high ID=%d rollup rows=%d next day=%d, want 201/1/1/201/1", distinct, folded, tiedHighIDFolded, rollupRows, nextDay)
+	}
+}
+
 func TestVisitorDayExactForVisitorLevelFilters(t *testing.T) {
 	pool, _ := testpg.New(t)
 	loadFixture(t, pool)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"panel/internal/enrich"
 	"panel/internal/session"
 )
 
@@ -61,7 +62,12 @@ WITH candidates AS MATERIALIZED (
         (array_agg(e.city_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS city_id,
         (array_agg(e.browser_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS browser_id,
         (array_agg(e.os_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS os_id,
-        (array_agg(e.device ORDER BY e.ts, e.tableoid, e.ctid))[1] AS device
+		(array_agg(e.browser_ver_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS browser_ver_id,
+		(array_agg(e.os_ver_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS os_ver_id,
+		(array_agg(e.language_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS language_id,
+		(array_agg(e.hostname_id ORDER BY e.ts, e.tableoid, e.ctid))[1] AS hostname_id,
+		(array_agg(e.screen ORDER BY e.ts, e.tableoid, e.ctid))[1] AS screen,
+		(array_agg(e.device ORDER BY e.ts, e.tableoid, e.ctid))[1] AS device
     FROM events AS e
     JOIN candidates AS c USING (site_id, retention_class, session_id)
     GROUP BY e.site_id, e.retention_class, e.session_id
@@ -88,6 +94,11 @@ SELECT
     e.city_id,
     e.browser_id,
     e.os_id,
+	e.browser_ver_id,
+	e.os_ver_id,
+	e.language_id,
+	e.hostname_id,
+	e.screen,
     e.device
 FROM event_state AS e
 LEFT JOIN LATERAL (
@@ -109,6 +120,7 @@ ORDER BY e.site_id, e.session_id`, cutoff)
 	snapshots := make([]session.Snapshot, 0)
 	for rows.Next() {
 		var snapshot session.Snapshot
+		var screen int16
 		if err := rows.Scan(
 			&snapshot.SiteID,
 			&snapshot.Retention,
@@ -131,11 +143,17 @@ ORDER BY e.site_id, e.session_id`, cutoff)
 			&snapshot.City,
 			&snapshot.Browser,
 			&snapshot.OS,
+			&snapshot.BrowserVer,
+			&snapshot.OSVer,
+			&snapshot.Language,
+			&snapshot.Hostname,
+			&screen,
 			&snapshot.Device,
 		); err != nil {
 			return 0, fmt.Errorf("scan open session: %w", err)
 		}
 		snapshot.Bounce = snapshot.Pageviews == 1 && snapshot.Events == 0
+		snapshot.ScreenBucket = enrich.ScreenBucket(int(screen))
 		snapshots = append(snapshots, snapshot)
 	}
 	if err := rows.Err(); err != nil {

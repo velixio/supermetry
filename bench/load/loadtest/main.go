@@ -1,11 +1,11 @@
-// Command loadtest replays gen NDJSON (stdin) through an incumbent's real HTTP
+// Command loadtest replays gen NDJSON (stdin) through a product's real HTTP
 // tracking API at a fixed open-loop rate, like the prototype's loadtest
 // (bench/proto/internal/benchq/loadtest.go): scheduled send times, latency
 // measured from the scheduled time (no coordinated omission), client backlog
 // counted as overflow. Timestamps in the stream are ignored (the APIs use server
 // time); ip/ua/path/ref/props come from the stream. Throwaway benchmark code.
 //
-//	gen --tier S --days 1 --start 2026-10-01 --out - | loadtest -product umami -rate 1000 -duration 5m -out f.json
+//	gen --tier S --days 1 --start 2026-10-01 --out - | loadtest -product panel -rate 1000 -duration 5m -out f.json
 package main
 
 import (
@@ -65,8 +65,29 @@ func utmQuery(r *rec.Record) string {
 // build returns the request for one event.
 type builder func(r *rec.Record) (*http.Request, error)
 
+func panelBuilder(base string, ids map[int]string) builder {
+	return func(r *rec.Record) (*http.Request, error) {
+		body, err := json.Marshal(map[string]any{
+			"site":         ids[r.Site],
+			"name":         r.Name,
+			"url":          "https://" + r.Host + r.Path + utmQuery(r),
+			"referrer":     r.Ref,
+			"screen_width": r.ScreenW,
+			"props":        r.Props,
+		})
+		if err != nil {
+			return nil, err
+		}
+		req, err := http.NewRequest(http.MethodPost, base+"/api/public/v1/events", bytes.NewReader(body))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		return req, err
+	}
+}
+
 func main() {
-	product := flag.String("product", "", "umami|plausible|goatcounter")
+	product := flag.String("product", "", "panel|umami|plausible|goatcounter")
 	base := flag.String("url", "", "base URL (default per product)")
 	rate := flag.Int("rate", 1000, "target events/s")
 	dur := flag.Duration("duration", 60*time.Second, "test length")
@@ -89,6 +110,11 @@ func main() {
 	}
 	var build builder
 	switch *product {
+	case "panel":
+		if *base == "" {
+			*base = "http://127.0.0.1:8080"
+		}
+		build = panelBuilder(*base, ids)
 	case "umami":
 		if *base == "" {
 			*base = "http://127.0.0.1:3030"

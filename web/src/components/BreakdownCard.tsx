@@ -31,6 +31,21 @@ type BreakdownCardProps = {
 
 const WorldMap = lazy(() => import('./WorldMap').then((module) => ({ default: module.WorldMap })))
 
+const screenSizeLabels: Record<string, string> = {
+  mobile: 'Mobile (<768px)',
+  tablet: 'Tablet (768–1023px)',
+  laptop: 'Laptop (1024–1439px)',
+  desktop: 'Desktop (1440–1919px)',
+  large: 'Large (≥1920px)',
+}
+
+function breakdownLabel(dimension: string, value: string): string {
+  if (value === '') return 'Unknown'
+  if (dimension === 'country') return countryLabel(value)
+  if (dimension === 'screen_size') return screenSizeLabels[value] ?? value
+  return value
+}
+
 export function BreakdownCard({ title, tabs, query, onFilter, map = false }: BreakdownCardProps) {
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
   const [view, setView] = useState<'list' | 'map'>('list')
@@ -150,17 +165,22 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
             <tbody>
               {rows.map((row, index) => {
                 const label = String(row[activeTab.dimension] ?? '')
+                const display = breakdownLabel(activeTab.dimension, label)
                 return (
                   <tr key={`${label}:${index}`} className="border-t">
                     <td className="min-w-0 px-2 py-1">
-                      <button
-                        aria-label={`Filter by ${activeTab.dimension} ${label}`}
-                        className="w-full min-w-0 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-                        type="button"
-                        onClick={() => onFilter({ dimension: activeTab.dimension, operator: 'is', values: [label] })}
-                      >
-                        <span className="block min-w-0 truncate font-medium" title={label}>{label}</span>
-                      </button>
+                      {label === '' ? (
+                        <span className="block min-w-0 px-2 py-2 font-medium text-muted-foreground">{display}</span>
+                      ) : (
+                        <button
+                          aria-label={`Filter by ${activeTab.dimension} ${label}`}
+                          className="w-full min-w-0 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                          type="button"
+                          onClick={() => onFilter({ dimension: activeTab.dimension, operator: 'is', values: [label] })}
+                        >
+                          <span className="block min-w-0 truncate font-medium" title={display}>{display}</span>
+                        </button>
+                      )}
                     </td>
                     {displayedMetrics.map((metric) => (
                       <td key={metric} className="px-3 py-2 text-right tabular-nums text-muted-foreground">
@@ -177,36 +197,44 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
         <ol className="flex min-w-0 flex-col p-2">
           {rows.map((row, index) => {
             const label = String(row[activeTab.dimension] ?? '')
-            const display = activeTab.dimension === 'country' ? countryLabel(label) : label
+            const display = breakdownLabel(activeTab.dimension, label)
             const country = String(row.country ?? (activeTab.dimension === 'country' ? label : ''))
             const rawValue = Number(row[activeTab.metric] ?? 0)
             const value = Number.isFinite(rawValue) ? rawValue : 0
             const width = maximum > 0 ? `${Math.max(2, (value / maximum) * 100)}%` : '0%'
             return (
               <li key={`${label}:${index}`} className="min-w-0">
-                <button
-                  aria-label={`Filter by ${activeTab.dimension} ${label}`}
-                  className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-                  type="button"
-                  onClick={() =>
-                    onFilter({
-                      dimension: activeTab.dimension,
-                      operator: 'is',
-                      values: [label],
-                    })
-                  }
-                >
-                  <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
-                  <span className="relative flex min-w-0 items-center gap-2 text-sm">
-                    {activeTab.dimension === 'country' || activeTab.dimension === 'region' || activeTab.dimension === 'city'
-                      ? <Flag code={country} />
-                      : null}
-                    <span className="min-w-0 truncate" title={display}>{display}</span>
-                  </span>
-                  <span className="relative text-sm tabular-nums text-muted-foreground">
-                    {fmt.number(value)}
-                  </span>
-                </button>
+                {label === '' ? (
+                  <div className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-muted-foreground">
+                    <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
+                    <span className="relative min-w-0 truncate text-sm" title={display}>{display}</span>
+                    <span className="relative text-sm tabular-nums">{fmt.number(value)}</span>
+                  </div>
+                ) : (
+                  <button
+                    aria-label={`Filter by ${activeTab.dimension} ${label}`}
+                    className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                    type="button"
+                    onClick={() =>
+                      onFilter({
+                        dimension: activeTab.dimension,
+                        operator: 'is',
+                        values: [label],
+                      })
+                    }
+                  >
+                    <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
+                    <span className="relative flex min-w-0 items-center gap-2 text-sm">
+                      {activeTab.dimension === 'country' || activeTab.dimension === 'region' || activeTab.dimension === 'city'
+                        ? <Flag code={country} />
+                        : null}
+                      <span className="min-w-0 truncate" title={display}>{display}</span>
+                    </span>
+                    <span className="relative text-sm tabular-nums text-muted-foreground">
+                      {fmt.number(value)}
+                    </span>
+                  </button>
+                )}
               </li>
             )
           })}

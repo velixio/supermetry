@@ -22,6 +22,7 @@ func TestPlanRoutes(t *testing.T) {
 		{name: "session dimension", filters: []api.Filter{filter("source", api.Is, "Google")}, want: query.RouteCube},
 		{name: "region filter", filters: []api.Filter{filter("region", api.Is, "California")}, want: query.RouteClosed},
 		{name: "city filter", filters: []api.Filter{filter("city", api.Is, "Bengaluru")}, want: query.RouteClosed},
+		{name: "screen size filter", filters: []api.Filter{filter("screen_size", api.Is, "laptop")}, want: query.RouteClosed},
 		{name: "page operator", filters: []api.Filter{filter("page", api.Contains, "/blog")}, want: query.RouteClosed},
 	}
 	for _, tt := range tests {

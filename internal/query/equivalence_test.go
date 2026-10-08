@@ -30,7 +30,7 @@ func (r registry) Site(id int32) (sites.Site, bool) { return r.site, id == r.sit
 func (r registry) All() []sites.Site                { return []sites.Site{r.site} }
 
 func TestRouteEquivalence(t *testing.T) {
-	_, engine := setupTiny(t)
+	_, engine := setupTinyDims(t)
 	tests := []struct {
 		name     string
 		req      api.QueryRequest
@@ -42,11 +42,17 @@ func TestRouteEquivalence(t *testing.T) {
 		{name: "country", req: queryRequest([]string{"country"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteVisitorDay, query.RouteCube, query.RouteHot}},
 		{name: "region", req: queryRequest([]string{"region"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
 		{name: "city", req: queryRequest([]string{"city"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
+		{name: "browser version", req: queryRequest([]string{"browser_version"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
+		{name: "OS version", req: queryRequest([]string{"os_version"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
+		{name: "screen size", req: queryRequest([]string{"screen_size"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
+		{name: "language", req: queryRequest([]string{"language"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
+		{name: "hostname", req: queryRequest([]string{"hostname"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
 		{name: "entry", req: queryRequest([]string{"entry"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
 		{name: "country filter", req: queryRequest([]string{"source"}, []api.Filter{filter("country", api.Is, "US")}), eligible: []query.Route{query.RouteCube, query.RouteHot}},
 		{name: "country and source", req: queryRequest([]string{"country"}, []api.Filter{filter("country", api.Is, "US"), filter("source", api.Is, "Google")}), eligible: []query.Route{query.RouteCube, query.RouteHot}},
 		{name: "region filter", req: queryRequest([]string{"city"}, []api.Filter{filter("region", api.Is, "California")}), eligible: []query.Route{query.RouteHot}},
 		{name: "city filter", req: queryRequest([]string{"source"}, []api.Filter{filter("city", api.Is, "Bengaluru")}), eligible: []query.Route{query.RouteHot}},
+		{name: "language filter", req: queryRequest([]string{"source"}, []api.Filter{filter("language", api.Is, "en")}), eligible: []query.Route{query.RouteHot}},
 		{name: "page contains", req: queryRequest([]string{"page"}, []api.Filter{filter("page", api.Contains, "/blog")}), eligible: []query.Route{query.RouteHot}},
 	}
 	for _, tt := range tests {
@@ -59,6 +65,52 @@ func TestRouteEquivalence(t *testing.T) {
 					wantJSON, _ := json.Marshal(want)
 					t.Fatalf("route %v differs\ngot  %s\nwant %s", route, gotJSON, wantJSON)
 				}
+			}
+		})
+	}
+}
+
+func TestNewDimensionsMatchAcrossTiers(t *testing.T) {
+	_, engine := setupTinyDims(t)
+	want := map[string]map[string][3]int64{
+		"browser_version": {"Chrome 126": {1, 2, 4}, "Firefox 131": {2, 2, 2}, "": {1, 1, 2}},
+		"os_version":      {"Windows 10/11": {2, 2, 2}, "": {2, 3, 6}},
+		"screen_size":     {"laptop": {1, 2, 4}, "mobile": {1, 1, 1}, "tablet": {1, 1, 1}, "": {1, 1, 2}},
+		"language":        {"en": {1, 2, 4}, "hi": {2, 2, 2}, "": {1, 1, 2}},
+		"hostname":        {"docs.example.com": {3, 3, 4}, "example.com": {1, 1, 2}, "": {1, 1, 2}},
+	}
+	for dimension, expectedRows := range want {
+		t.Run(dimension, func(t *testing.T) {
+			for _, route := range []query.Route{query.RouteClosed, query.RouteRollup, query.RouteHot} {
+				req := queryRequestRange("2026-10-06", "2026-10-07", []string{dimension}, nil)
+				req.Metrics = []api.Metric{api.Visitors, api.Visits, api.Pageviews}
+				got := mustQuery(t, engine.WithForcedRoute(route), req)
+				if len(got.Rows) != len(expectedRows) {
+					t.Fatalf("route %v returned %d rows, want %d: %+v", route, len(got.Rows), len(expectedRows), got.Rows)
+				}
+				for _, row := range got.Rows {
+					label, _ := row[dimension].(string)
+					expected, ok := expectedRows[label]
+					if !ok || int64(row["visitors"].(float64)) != expected[0] || int64(row["visits"].(float64)) != expected[1] || int64(row["pageviews"].(float64)) != expected[2] {
+						t.Errorf("route %v row %+v, want %q %v", route, row, label, expected)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestNewDimensionsMatchForCustomEvents(t *testing.T) {
+	_, engine := setupTinyDims(t)
+	for _, dimension := range []string{"browser_version", "os_version", "screen_size", "language", "hostname"} {
+		t.Run(dimension, func(t *testing.T) {
+			dimensions := []string{"event", dimension}
+			req := queryRequest(dimensions, nil)
+			req.Metrics = []api.Metric{api.Events, api.Conversions}
+			closed := mustQuery(t, engine.WithForcedRoute(query.RouteClosed), req)
+			hot := mustQuery(t, engine.WithForcedRoute(query.RouteHot), req)
+			if !equivalent(hot, closed) {
+				t.Fatalf("custom-event dimension differs: hot=%+v closed=%+v", hot.Rows, closed.Rows)
 			}
 		})
 	}
@@ -412,6 +464,46 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
 	return pool, query.NewEngine(pool, dictionary, reg)
 }
+
+func setupTinyDims(t *testing.T) (*pgxpool.Pool, *query.Engine) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, day("2026-10-05"), day("2026-10-10")); err != nil {
+		t.Fatal(err)
+	}
+	loadTinyRows(t, pool)
+	if _, err := pool.Exec(ctx, tinyDimsSQL); err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"2026-10-06", "2026-10-07"} {
+		if _, err := closer.CloseDay(ctx, pool, []int32{1}, day(value)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
+	return pool, query.NewEngine(pool, dictionary, reg)
+}
+
+const tinyDimsSQL = `
+insert into dict(kind, id, value) values
+  (13, 70, 'Chrome 126'), (13, 71, 'Firefox 131'), (14, 80, 'Windows 10/11'),
+  (15, 90, 'en'), (15, 91, 'hi'), (16, 95, 'example.com'), (16, 96, 'docs.example.com');
+update sessions s set browser_ver_id = v.bv, os_ver_id = v.ov, screen_bucket = v.sb, language_id = v.lang, hostname_id = v.host
+from (values (101,70,0,3,90,95), (102,71,80,1,91,96), (103,70,0,3,90,96),
+             (202,71,80,2,91,96), (301,70,0,4,90,95), (302,71,80,5,0,0)
+) v(id, bv, ov, sb, lang, host) where s.session_id = v.id;
+update events e set browser_ver_id = s.browser_ver_id, os_ver_id = s.os_ver_id,
+  language_id = s.language_id, hostname_id = s.hostname_id,
+  screen = case s.screen_bucket when 1 then 375 when 2 then 800 when 3 then 1280 when 4 then 1600 when 5 then 1920 else 0 end
+from sessions s where s.session_id = e.session_id;`
 
 func setupPageMetricFixture(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	t.Helper()

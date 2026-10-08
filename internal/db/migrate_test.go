@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -221,6 +222,36 @@ func TestIntegrityMigrationSchema(t *testing.T) {
 		if !exists {
 			t.Errorf("missing %s.%s", check.table, check.column)
 		}
+	}
+}
+
+func TestDimensionsMigrationDefaultsClosedSessionColumns(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, day, day.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into sessions_closed (
+			site_id, day, visitor_id, session_id, pageviews, custom, duration_ms,
+			engagement_ms, vd_n, flags, seq, seq_engage, seq_scroll
+		) values (1, $1, 2, 3, 1, 0, 0, 0, 1, 0, '{}', '{}', '{}')`, day); err != nil {
+		t.Fatal(err)
+	}
+	var browserVersion, osVersion, language, hostname int32
+	var screenBucket int16
+	if err := pool.QueryRow(ctx, `
+		select browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket
+		from sessions_closed where site_id=1 and day=$1 and session_id=3`, day,
+	).Scan(&browserVersion, &osVersion, &language, &hostname, &screenBucket); err != nil {
+		t.Fatal(err)
+	}
+	if browserVersion != 0 || osVersion != 0 || language != 0 || hostname != 0 || screenBucket != 0 {
+		t.Fatalf("defaults=%d/%d/%d/%d/%d, want all zero", browserVersion, osVersion, language, hostname, screenBucket)
 	}
 }
 
