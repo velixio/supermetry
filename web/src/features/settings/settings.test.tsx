@@ -19,10 +19,10 @@ describe("settings security boundaries", () => {
       />,
     );
 
-    expect(screen.getByText("pnl_demo_only_once")).toBeVisible();
+    expect(screen.getByDisplayValue("pnl_demo_only_once")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
 
-    expect(screen.queryByText("pnl_demo_only_once")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("pnl_demo_only_once")).not.toBeInTheDocument();
   });
 
   it("hides the owner role from a non-owner editor", () => {
