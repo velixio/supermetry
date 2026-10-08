@@ -20,8 +20,8 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |
-| Revenue goals | ✓ (paid) | ✓ | ✓ ||| ✅ |
-| Saved segments | ✓ | ✓ | ✓ ||| ✅ |
+| Revenue goals | ✓ (paid) | ✓ | ✓ | ✅ |
+| Saved segments | ✓ | ✓ | ✓ | ✅ |
 | Annotations on the chart | – | ✓ | – | ✅ |
 | Retention (cohort) report | – | ✓ | ✓ | ✅ (same-day only) |
 | User journeys / path flow | ✓ (paid) | ✓ | ✓ | ✅ |
@@ -60,7 +60,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | CSV export | ✓ | ✓ | ? | ✅ (every report, streamed) |
 | Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ✅ (GA4 import not yet) |
 | Stats API: summary | ✓ | ✓ | ✓ | ✅ |
-| Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ ||| ✅ |
+| Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ | ✅ |
 | Sites / goals / funnels API | ✓ (not in CE) | ✓ | ✓ | ✅ |
 | MCP server for AI assistants | ? | ✓ | ✓ | ✅ |
 | SSO / OIDC | ✓ (enterprise) | ? | ? | ⏸ |
@@ -72,7 +72,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | No ClickHouse | – | ✓ | – | ✅ |
 | Single binary | – | – | – | ✅ |
 | Database | PG + ClickHouse | PG / MySQL | PG + ClickHouse + Redis | PG only |
-| Minimum RAM | ~2 GB | ~150 MB | 2 GB | ⏳ (104 MB idle, target <50 MB) |
+| Minimum RAM | ~2 GB | ~150 MB | 2 GB | ⏳ (~90 MB idle, target <50 MB) |
 | Data retention / purge | ? | – | ? | ✅ (per site, partition drop) |
 | Docker image | ✓ | ✓ | ✓ | ❌ |
 | Release binaries, systemd unit, install docs | – | – | – | ❌ |
