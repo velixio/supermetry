@@ -197,3 +197,9 @@ type Store interface {
 	Restore([]Snapshot)
 	Expire(now time.Time) int
 }
+
+// Joiner resolves an existing live session without changing analytics
+// counters, timestamps, dimensions, or dirty state.
+type Joiner interface {
+	Join(Hit) Result
+}

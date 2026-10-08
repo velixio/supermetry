@@ -57,6 +57,10 @@ var (
 	PrivacySignalsDropped    Counter
 	HeatmapInvalid           Counter
 	HeatmapDropped           Counter
+	ReplayDropped            Counter
+	ReplayRejected           Counter
+	ReplayNoSession          Counter
+	ReplayBytes              Counter
 
 	// BotsFiltered is indexed by enrich.BotReason. Index zero is the
 	// unfiltered case and is intentionally not exported as a metric.
@@ -179,6 +183,10 @@ func Snapshot() map[string]float64 {
 		"ingest_stale_pings_total":         float64(IngestStalePings.Load()),
 		"heatmap_invalid_total":            float64(HeatmapInvalid.Load()),
 		"heatmap_dropped_total":            float64(HeatmapDropped.Load()),
+		"replay_dropped_total":             float64(ReplayDropped.Load()),
+		"replay_rejected_total":            float64(ReplayRejected.Load()),
+		"replay_no_session_total":          float64(ReplayNoSession.Load()),
+		"replay_bytes_total":               float64(ReplayBytes.Load()),
 		"ingest_privacy_dropped_total":     float64(PrivacySignalsDropped.Load()),
 		"writer_queue_depth":               WriterQueueDepth.Load(),
 		"copy_seconds":                     CopySeconds.Load(),
@@ -224,6 +232,10 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
 	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
 	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")
+	writeFamily(w, snapshot, "replay_dropped_total", "counter")
+	writeFamily(w, snapshot, "replay_rejected_total", "counter")
+	writeFamily(w, snapshot, "replay_no_session_total", "counter")
+	writeFamily(w, snapshot, "replay_bytes_total", "counter")
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")
 	writeFamily(w, snapshot, "ingest_excluded_total", "counter")
 	writeFamily(w, snapshot, "writer_queue_depth", "gauge")
