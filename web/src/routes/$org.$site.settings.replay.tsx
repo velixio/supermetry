@@ -9,5 +9,5 @@ function ReplaySettingsRoute() {
   const { org, site: siteSlug } = Route.useParams()
   const { membership, site } = useSite(org, siteSlug)
   if (!membership || !site) return null
-  return <ReplaySettingsPage editable={membership.role !== 'viewer'} siteId={site.id} />
+  return <ReplaySettingsPage editable={membership.role === 'owner' || membership.role === 'admin'} siteId={site.id} />
 }

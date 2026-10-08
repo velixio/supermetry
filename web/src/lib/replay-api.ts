@@ -45,16 +45,21 @@ export async function getReplaySettings(siteId: number, signal?: AbortSignal): P
 export async function putReplaySettings(siteId: number, settings: SiteSettings): Promise<SiteSettings> {
   return normalizeReplaySettings(requireData(await api.PUT('/api/private/sites/{site_id}/replay-settings', {
     params: { path: { site_id: siteId } },
-    body: {
-      enabled: settings.enabled,
-      mask: settings.mask.value,
-      sample_rate: settings.sample_rate.value,
-      retention_days: settings.retention_days.value,
-      quota_bytes: settings.quota_bytes.value,
-      triggers: settings.triggers,
-      consent: settings.consent,
-    },
+    body: replaySettingsBody(settings),
   })))
+}
+
+// Fields set in .env are locked and the server rejects any value for them, so
+// they are left out. The on/off switch is env-only and never sent.
+export function replaySettingsBody(settings: SiteSettings) {
+  return {
+    ...(settings.mask.locked ? {} : { mask: settings.mask.value }),
+    ...(settings.sample_rate.locked ? {} : { sample_rate: settings.sample_rate.value }),
+    ...(settings.retention_days.locked ? {} : { retention_days: settings.retention_days.value }),
+    ...(settings.quota_bytes.locked ? {} : { quota_bytes: settings.quota_bytes.value }),
+    triggers: settings.triggers,
+    consent: settings.consent,
+  }
 }
 
 export async function listReplays(

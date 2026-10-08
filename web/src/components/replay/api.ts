@@ -26,7 +26,8 @@ export function useReplayAvailability(siteId?: number) {
     enabled: Boolean(siteId),
     retry: (count, error) => !(error instanceof ReplayApiError && error.status === 404) && count < 1,
   })
-  return { ...query, enabled: query.isSuccess }
+  // On only when PANEL_REPLAY_ENABLED is set; the settings tab still loads to show "Off".
+  return { ...query, enabled: query.isSuccess && query.data.enabled }
 }
 
 export function useReplaySettings(siteId: number) {

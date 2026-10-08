@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
@@ -7,6 +8,26 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { SiteSettings } from '@/lib/replay-api'
+
+// Recording is switched on only by PANEL_REPLAY_ENABLED; the dashboard just
+// reports it.
+function ReplayStatus({ enabled }: { enabled: boolean }) {
+  return (
+    <Field>
+      <FieldLabel>Session replay</FieldLabel>
+      <div className="flex items-center gap-2">
+        <Badge variant={enabled ? 'default' : 'secondary'}>{enabled ? 'On' : 'Off'}</Badge>
+      </div>
+      <FieldDescription>
+        {enabled ? (
+          <>On: enabled by <code>PANEL_REPLAY_ENABLED</code> for every site.</>
+        ) : (
+          <>Off: set <code>PANEL_REPLAY_ENABLED=true</code> in .env and restart panel to enable it.</>
+        )}
+      </FieldDescription>
+    </Field>
+  )
+}
 
 function LockedNote({ locked }: { locked: boolean }) {
   return locked ? <FieldDescription>Set by environment variable</FieldDescription> : null
@@ -68,12 +89,7 @@ export function ReplaySettingsForm({
         </CardHeader>
         <CardContent>
           <FieldGroup>
-            <ToggleField
-              checked={draft.enabled}
-              disabled={!editable}
-              label="Enable session replay"
-              onCheckedChange={(enabled) => setDraft((current) => ({ ...current, enabled }))}
-            />
+            <ReplayStatus enabled={draft.enabled} />
             <Field data-disabled={draft.mask.locked || !editable || undefined}>
               <ToggleField
                 checked={draft.mask.value}

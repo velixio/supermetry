@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseReplayNDJSON, normalizeReplaySettings } from './replay-api'
+import { normalizeReplaySettings, parseReplayNDJSON, replaySettingsBody } from './replay-api'
 
 describe('parseReplayNDJSON', () => {
   it('keeps complete events and marks an invalid final line as truncated', () => {
@@ -27,5 +27,23 @@ describe('normalizeReplaySettings', () => {
       consent: 'auto',
     })
     expect(settings.triggers.url_patterns).toEqual([])
+  })
+})
+
+describe('replaySettingsBody', () => {
+  it('leaves out fields locked by the environment so saving never hits 409', () => {
+    const body = replaySettingsBody({
+      enabled: true,
+      mask: { value: true, locked: true },
+      sample_rate: { value: 20, locked: false },
+      retention_days: { value: 30, locked: true },
+      quota_bytes: { value: 1024, locked: false },
+      triggers: { error: true, rage_click: true, url: true, manual: true, url_patterns: [] },
+      consent: 'auto',
+    })
+    expect(body).not.toHaveProperty('mask')
+    expect(body).not.toHaveProperty('retention_days')
+    expect(body).not.toHaveProperty('enabled')
+    expect(body).toMatchObject({ sample_rate: 20, quota_bytes: 1024, consent: 'auto' })
   })
 })
