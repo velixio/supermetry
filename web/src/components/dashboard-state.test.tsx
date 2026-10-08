@@ -15,10 +15,13 @@ const labels: DatePickerLabels = {
     today: 'Today',
     yesterday: 'Yesterday',
     '7d': 'Last 7 days',
+    '28d': 'Last 28 days',
     '30d': 'Last 30 days',
+    '91d': 'Last 91 days',
+    '6mo': 'Last 6 months',
+    '12mo': 'Last 12 months',
     month: 'This month',
     last_month: 'Last month',
-    '12mo': 'Last 12 months',
     year: 'This year',
     custom: 'Custom',
   },
@@ -35,6 +38,36 @@ const labels: DatePickerLabels = {
 afterEach(cleanup)
 
 describe('DatePicker', () => {
+  it('lists every period in calendar order', () => {
+    render(
+      <DatePicker
+        search={dashboardSearch.parse({})}
+        labels={labels}
+        onChange={vi.fn()}
+      />,
+    )
+
+    const picker = screen.getByLabelText('Date range')
+    expect(
+      Array.from(picker.querySelectorAll('option'), (option) =>
+        option.textContent,
+      ),
+    ).toEqual([
+      'Today',
+      'Yesterday',
+      'Last 7 days',
+      'Last 28 days',
+      'Last 30 days',
+      'Last 91 days',
+      'Last 6 months',
+      'Last 12 months',
+      'This month',
+      'Last month',
+      'This year',
+      'Custom',
+    ])
+  })
+
   it('shows a visible Compare label and all comparison choices', () => {
     render(
       <DatePicker
@@ -69,6 +102,39 @@ describe('DatePicker', () => {
       compare: 'previous_year',
     })
   })
+
+  it.each([
+    'today',
+    'yesterday',
+    '7d',
+    '28d',
+    '30d',
+    '91d',
+    '6mo',
+    '12mo',
+    'month',
+    'last_month',
+    'year',
+    'custom',
+  ] as const)(
+    'sets the %s search period while preserving other state',
+    (period) => {
+      const onChange = vi.fn()
+      const search = dashboardSearch.parse({
+        f: ['country:is:IN'],
+        compare: 'previous_period',
+      })
+      render(
+        <DatePicker search={search} labels={labels} onChange={onChange} />,
+      )
+
+      fireEvent.change(screen.getByLabelText('Date range'), {
+        target: { value: period },
+      })
+
+      expect(onChange).toHaveBeenCalledWith({ ...search, period })
+    },
+  )
 })
 
 describe('FilterBar', () => {

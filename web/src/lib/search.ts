@@ -4,10 +4,13 @@ export const periodValues = [
   'today',
   'yesterday',
   '7d',
+  '28d',
   '30d',
+  '91d',
+  '6mo',
+  '12mo',
   'month',
   'last_month',
-  '12mo',
   'year',
   'custom',
 ] as const
@@ -234,8 +237,13 @@ function monthStart(value: string): string {
 
 function shiftMonths(value: string, months: number): string {
   const date = civilDate(value)
+  const day = date.getUTCDate()
   date.setUTCDate(1)
   date.setUTCMonth(date.getUTCMonth() + months)
+  const lastDay = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+  ).getUTCDate()
+  date.setUTCDate(Math.min(day, lastDay))
   return dateString(date)
 }
 
@@ -266,8 +274,16 @@ export function resolveRange(
     }
     case '7d':
       return { from: shiftDays(today, -6), to: today }
+    case '28d':
+      return { from: shiftDays(today, -27), to: today }
     case '30d':
       return fallbackRange(today)
+    case '91d':
+      return { from: shiftDays(today, -90), to: today }
+    case '6mo':
+      return { from: shiftDays(shiftMonths(today, -6), 1), to: today }
+    case '12mo':
+      return { from: shiftDays(shiftYears(today, -1), 1), to: today }
     case 'month':
       return { from: monthStart(today), to: today }
     case 'last_month': {
@@ -277,8 +293,6 @@ export function resolveRange(
         to: shiftDays(thisMonth, -1),
       }
     }
-    case '12mo':
-      return { from: shiftDays(shiftYears(today, -1), 1), to: today }
     case 'year':
       return { from: `${today.slice(0, 4)}-01-01`, to: today }
     case 'custom':

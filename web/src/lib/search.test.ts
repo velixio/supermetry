@@ -14,6 +14,13 @@ import {
 const base: DashboardSearch = dashboardSearch.parse({})
 
 describe('search params', () => {
+  it.each(['28d', '91d', '6mo'] as const)(
+    'accepts the %s period in existing URLs',
+    (period) => {
+      expect(dashboardSearch.parse({ period }).period).toBe(period)
+    },
+  )
+
   it('falls back and drops invalid filters', () => {
     const search = dashboardSearch.parse({
       period: 'bogus',
@@ -81,6 +88,22 @@ describe('time zones', () => {
     expect(
       resolveRange('12mo', 'UTC', new Date('2026-10-07T12:00:00Z')),
     ).toEqual({ from: '2025-10-08', to: '2026-10-07' })
+  })
+
+  it.each([
+    ['28d', { from: '2026-08-04', to: '2026-08-31' }],
+    ['91d', { from: '2026-06-02', to: '2026-08-31' }],
+    ['6mo', { from: '2026-03-01', to: '2026-08-31' }],
+  ] as const)('resolves %s through a fixed month-end', (period, expected) => {
+    expect(
+      resolveRange(period, 'UTC', new Date('2026-08-31T12:00:00Z')),
+    ).toEqual(expected)
+  })
+
+  it('clamps the rolling 6-month boundary across leap day', () => {
+    expect(
+      resolveRange('6mo', 'UTC', new Date('2024-02-29T12:00:00Z')),
+    ).toEqual({ from: '2023-08-30', to: '2024-02-29' })
   })
 })
 
