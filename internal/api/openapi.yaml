@@ -813,6 +813,9 @@ components:
           $ref: '#/components/schemas/Period'
         timezone:
           type: string
+        include_imported:
+          type: boolean
+          default: true
         metrics:
           type: array
           minItems: 1
@@ -841,13 +844,15 @@ components:
     QueryMeta:
       type: object
       additionalProperties: false
-      required: [sources_used, cached]
+      required: [sources_used, cached, imported_included]
       properties:
         sources_used:
           type: array
           items:
             type: string
         cached:
+          type: boolean
+        imported_included:
           type: boolean
     QueryResponse:
       type: object

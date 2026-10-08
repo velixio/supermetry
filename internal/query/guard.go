@@ -49,17 +49,18 @@ var validDimensions = map[string]struct{}{
 // concrete defaults. From and To encode date labels at UTC midnight; callers
 // must use Location when deriving real timestamp boundaries for those dates.
 type Normalized struct {
-	SiteID     int32
-	From       time.Time
-	To         time.Time
-	Location   *time.Location
-	Metrics    []api.Metric
-	Dimensions []string
-	Filters    []api.Filter
-	OrderBy    []api.OrderBy
-	Limit      int
-	Cursor     *string
-	Compare    *api.QueryRequestCompare
+	SiteID          int32
+	From            time.Time
+	To              time.Time
+	Location        *time.Location
+	Metrics         []api.Metric
+	Dimensions      []string
+	Filters         []api.Filter
+	OrderBy         []api.OrderBy
+	Limit           int
+	Cursor          *string
+	Compare         *api.QueryRequestCompare
+	IncludeImported bool
 }
 
 // Normalize validates req and resolves its date range in the requested time
@@ -142,18 +143,20 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		}
 	}
 
+	includeImported := req.IncludeImported == nil || *req.IncludeImported
 	return Normalized{
-		SiteID:     req.SiteId,
-		From:       from,
-		To:         to,
-		Location:   location,
-		Metrics:    append([]api.Metric(nil), req.Metrics...),
-		Dimensions: dimensions,
-		Filters:    filters,
-		OrderBy:    orderBy,
-		Limit:      limit,
-		Cursor:     clonePointer(req.Cursor),
-		Compare:    clonePointer(req.Compare),
+		SiteID:          req.SiteId,
+		From:            from,
+		To:              to,
+		Location:        location,
+		Metrics:         append([]api.Metric(nil), req.Metrics...),
+		Dimensions:      dimensions,
+		Filters:         filters,
+		OrderBy:         orderBy,
+		Limit:           limit,
+		Cursor:          clonePointer(req.Cursor),
+		Compare:         clonePointer(req.Compare),
+		IncludeImported: includeImported,
 	}, nil
 }
 

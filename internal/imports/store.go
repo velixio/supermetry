@@ -1,0 +1,249 @@
+package imports
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sort"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var ErrNotFound = errors.New("import not found")
+
+type Source string
+
+const (
+	SourcePlausible Source = "plausible"
+	SourceUmami     Source = "umami"
+)
+
+type Status string
+
+const (
+	StatusPending   Status = "pending"
+	StatusRunning   Status = "running"
+	StatusCompleted Status = "completed"
+	StatusFailed    Status = "failed"
+)
+
+type Import struct {
+	ID          int64      `json:"id"`
+	SiteID      int32      `json:"site_id"`
+	Source      Source     `json:"source"`
+	Status      Status     `json:"status"`
+	FileName    string     `json:"file_name"`
+	DateFrom    *time.Time `json:"date_from"`
+	DateTo      *time.Time `json:"date_to"`
+	Rows        int64      `json:"rows"`
+	Error       *string    `json:"error"`
+	CreatedBy   *int64     `json:"created_by"`
+	CreatedAt   time.Time  `json:"created_at"`
+	CompletedAt *time.Time `json:"completed_at"`
+}
+
+type CreateInput struct {
+	SiteID    int32
+	Source    Source
+	FileName  string
+	CreatedBy int64
+}
+
+type Store struct {
+	pool *pgxpool.Pool
+}
+
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
+}
+
+func (s *Store) Create(ctx context.Context, input CreateInput) (Import, error) {
+	row := s.pool.QueryRow(ctx, `
+		insert into imports(site_id,source,file_name,created_by)
+		values ($1,$2,$3,$4)
+		returning id,site_id,source,status,file_name,date_from,date_to,rows,error,
+		          created_by,created_at,completed_at`,
+		input.SiteID, input.Source, input.FileName, input.CreatedBy)
+	return scanImport(row)
+}
+
+func (s *Store) Get(ctx context.Context, id int64) (Import, error) {
+	value, err := scanImport(s.pool.QueryRow(ctx, `
+		select id,site_id,source,status,file_name,date_from,date_to,rows,error,
+		       created_by,created_at,completed_at
+		from imports where id=$1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Import{}, ErrNotFound
+	}
+	return value, err
+}
+
+func (s *Store) List(ctx context.Context, siteID int32) ([]Import, error) {
+	rows, err := s.pool.Query(ctx, `
+		select id,site_id,source,status,file_name,date_from,date_to,rows,error,
+		       created_by,created_at,completed_at
+		from imports where site_id=$1 order by created_at desc,id desc`, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]Import, 0)
+	for rows.Next() {
+		value, err := scanImport(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
+func (s *Store) Delete(ctx context.Context, id int64) (bool, error) {
+	tag, err := s.pool.Exec(ctx, `delete from imports where id=$1`, id)
+	return tag.RowsAffected() == 1, err
+}
+
+func (s *Store) SetRunning(ctx context.Context, id int64) error {
+	tag, err := s.pool.Exec(ctx, `
+		update imports set status='running',error=null,completed_at=null
+		where id=$1 and status='pending'`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetFailed(ctx context.Context, id int64, cause error) error {
+	tag, err := s.pool.Exec(ctx, `
+		update imports set status='failed',error=$2,completed_at=now()
+		where id=$1`, id, cause.Error())
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, stats ParseStats) error {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(context.Background())
+
+	var siteID int32
+	if err := tx.QueryRow(ctx, `select site_id from imports where id=$1 for update`, id).Scan(&siteID); errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `delete from imported_day_dim where import_id=$1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `delete from imported_day where import_id=$1`, id); err != nil {
+		return err
+	}
+
+	days := sortedDays(aggregate.Days)
+	if len(days) > 0 {
+		_, err = tx.CopyFrom(ctx, pgx.Identifier{"imported_day"},
+			[]string{"site_id", "import_id", "day", "visitors", "visits", "pageviews", "bounces", "visit_duration_s"},
+			pgx.CopyFromSlice(len(days), func(index int) ([]any, error) {
+				day := days[index]
+				metrics := aggregate.Days[day]
+				return []any{siteID, id, day, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS}, nil
+			}))
+		if err != nil {
+			return fmt.Errorf("copy imported days: %w", err)
+		}
+	}
+	dimensions := sortedDimensions(aggregate.Dimensions)
+	if len(dimensions) > 0 {
+		_, err = tx.CopyFrom(ctx, pgx.Identifier{"imported_day_dim"},
+			[]string{"site_id", "import_id", "day", "dim", "value", "visitors", "visits", "pageviews", "bounces", "visit_duration_s", "events"},
+			pgx.CopyFromSlice(len(dimensions), func(index int) ([]any, error) {
+				key := dimensions[index]
+				metrics := aggregate.Dimensions[key]
+				return []any{siteID, id, key.Day, key.Dim, key.Value, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS, metrics.Events}, nil
+			}))
+		if err != nil {
+			return fmt.Errorf("copy imported dimensions: %w", err)
+		}
+	}
+	from, to := aggregateRange(aggregate)
+	var warning *string
+	if stats.BadRows > 0 {
+		value := fmt.Sprintf("%d invalid rows skipped", stats.BadRows)
+		warning = &value
+	}
+	if _, err := tx.Exec(ctx, `
+		update imports set status='completed',date_from=$2,date_to=$3,rows=$4,
+		                   error=$5,completed_at=now()
+		where id=$1`, id, from, to, stats.Rows, warning); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func scanImport(row pgx.Row) (Import, error) {
+	var value Import
+	err := row.Scan(&value.ID, &value.SiteID, &value.Source, &value.Status, &value.FileName,
+		&value.DateFrom, &value.DateTo, &value.Rows, &value.Error, &value.CreatedBy,
+		&value.CreatedAt, &value.CompletedAt)
+	return value, err
+}
+
+func sortedDays(values map[time.Time]Metrics) []time.Time {
+	result := make([]time.Time, 0, len(values))
+	for day := range values {
+		result = append(result, day)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Before(result[j]) })
+	return result
+}
+
+func sortedDimensions(values map[DimensionKey]Metrics) []DimensionKey {
+	result := make([]DimensionKey, 0, len(values))
+	for key := range values {
+		result = append(result, key)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if !result[i].Day.Equal(result[j].Day) {
+			return result[i].Day.Before(result[j].Day)
+		}
+		if result[i].Dim != result[j].Dim {
+			return result[i].Dim < result[j].Dim
+		}
+		return result[i].Value < result[j].Value
+	})
+	return result
+}
+
+func aggregateRange(aggregate Aggregate) (*time.Time, *time.Time) {
+	var from, to time.Time
+	visit := func(day time.Time) {
+		if from.IsZero() || day.Before(from) {
+			from = day
+		}
+		if to.IsZero() || day.After(to) {
+			to = day
+		}
+	}
+	for day := range aggregate.Days {
+		visit(day)
+	}
+	for key := range aggregate.Dimensions {
+		visit(key.Day)
+	}
+	if from.IsZero() {
+		return nil, nil
+	}
+	return &from, &to
+}

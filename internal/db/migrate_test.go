@@ -33,7 +33,8 @@ func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
 		if err := rows.Scan(&version); err != nil {
 			t.Fatal(err)
 		}
-		if version != previous+1 && !(previous == 6 && version == 8) {
+		reservedGap := (previous == 6 && version == 8) || (previous == 8 && version == 11)
+		if version != previous+1 && !reservedGap {
 			t.Fatalf("migration version %d follows %d", version, previous)
 		}
 		previous = version

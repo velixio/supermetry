@@ -411,23 +411,25 @@ type Problem struct {
 
 // QueryMeta defines model for QueryMeta.
 type QueryMeta struct {
-	Cached      bool     `json:"cached"`
-	SourcesUsed []string `json:"sources_used"`
+	Cached           bool     `json:"cached"`
+	ImportedIncluded bool     `json:"imported_included"`
+	SourcesUsed      []string `json:"sources_used"`
 }
 
 // QueryRequest defines model for QueryRequest.
 type QueryRequest struct {
-	Compare    *QueryRequestCompare `json:"compare,omitempty"`
-	Cursor     *string              `json:"cursor,omitempty"`
-	DateRange  *DateRange           `json:"date_range,omitempty"`
-	Dimensions *[]string            `json:"dimensions,omitempty"`
-	Filters    *[]Filter            `json:"filters,omitempty"`
-	Limit      *int                 `json:"limit,omitempty"`
-	Metrics    []Metric             `json:"metrics"`
-	OrderBy    *[]OrderBy           `json:"order_by,omitempty"`
-	Period     *Period              `json:"period,omitempty"`
-	SiteId     int32                `json:"site_id"`
-	Timezone   *string              `json:"timezone,omitempty"`
+	Compare         *QueryRequestCompare `json:"compare,omitempty"`
+	Cursor          *string              `json:"cursor,omitempty"`
+	DateRange       *DateRange           `json:"date_range,omitempty"`
+	Dimensions      *[]string            `json:"dimensions,omitempty"`
+	Filters         *[]Filter            `json:"filters,omitempty"`
+	IncludeImported *bool                `json:"include_imported,omitempty"`
+	Limit           *int                 `json:"limit,omitempty"`
+	Metrics         []Metric             `json:"metrics"`
+	OrderBy         *[]OrderBy           `json:"order_by,omitempty"`
+	Period          *Period              `json:"period,omitempty"`
+	SiteId          int32                `json:"site_id"`
+	Timezone        *string              `json:"timezone,omitempty"`
 }
 
 // QueryRequestCompare defines model for QueryRequest.Compare.

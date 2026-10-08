@@ -214,6 +214,10 @@ func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
 		{name: "private create", method: http.MethodPost, path: "/api/private/sites/1/segments"},
 		{name: "private update", method: http.MethodPatch, path: "/api/private/segments/1"},
 		{name: "private delete", method: http.MethodDelete, path: "/api/private/segments/1"},
+		{name: "private import upload", method: http.MethodPost, path: "/api/private/sites/1/imports"},
+		{name: "private import list", method: http.MethodGet, path: "/api/private/sites/1/imports"},
+		{name: "private import delete", method: http.MethodDelete, path: "/api/private/imports/1"},
+		{name: "private site export", method: http.MethodGet, path: "/api/private/sites/1/export?from=2026-10-01&to=2026-10-02"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -164,6 +164,30 @@ func TestNormalizeAcceptsRegionAndCityDimensionsAndFilters(t *testing.T) {
 	}
 }
 
+func TestNormalizeDefaultsImportedDataOnAndHonorsOptOut(t *testing.T) {
+	t.Parallel()
+	site := sites.Site{ID: 1, TZ: time.UTC}
+
+	defaulted, problem := query.Normalize(requestPeriod(api.N7d), site, time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC))
+	if problem != nil {
+		t.Fatal(problem.Title)
+	}
+	if !defaulted.IncludeImported {
+		t.Fatal("IncludeImported = false, want true when omitted")
+	}
+
+	disabled := false
+	req := requestPeriod(api.N7d)
+	req.IncludeImported = &disabled
+	optedOut, problem := query.Normalize(req, site, time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC))
+	if problem != nil {
+		t.Fatal(problem.Title)
+	}
+	if optedOut.IncludeImported {
+		t.Fatal("IncludeImported = true, want explicit false")
+	}
+}
+
 func TestNormalizeValidatesRevenueMetricsAndCurrencyFilter(t *testing.T) {
 	t.Parallel()
 
