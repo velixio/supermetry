@@ -2619,7 +2619,7 @@ components:
     ReplaySummary:
       type: object
       additionalProperties: false
-      required: [session_id, started_at, duration_s, pages, bytes, trigger]
+      required: [session_id, started_at, duration_s, pages, bytes, trigger, browser, os, device, country, city, actions]
       properties:
         session_id: { type: string, pattern: '^[1-9][0-9]*$' }
         started_at: { type: string, format: date-time }
@@ -2628,6 +2628,12 @@ components:
         bytes: { type: integer, format: int64, minimum: 0 }
         trigger: { type: string }
         profile_id: { type: [integer, 'null'], format: int64 }
+        browser: { type: string }
+        os: { type: string }
+        device: { type: string, enum: [desktop, mobile, tablet, ''] }
+        country: { type: string }
+        city: { type: string }
+        actions: { type: integer, format: int64, minimum: 0 }
     ReplayList:
       type: object
       additionalProperties: false
@@ -2741,7 +2747,7 @@ components:
     EventExploreItem:
       type: object
       additionalProperties: false
-      required: [ts, kind, name, page, country, device, browser, source, has_replay]
+      required: [ts, kind, name, page, country, city, device, browser, os, source, has_replay]
       properties:
         ts: { type: string, format: date-time }
         kind:
@@ -2754,8 +2760,10 @@ components:
           type: [object, 'null']
           additionalProperties: { type: string }
         country: { type: string }
+        city: { type: string }
         device: { type: string }
         browser: { type: string }
+        os: { type: string }
         source: { type: string }
         has_replay: { type: boolean }
     EventExploreList:

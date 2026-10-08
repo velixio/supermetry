@@ -70,8 +70,8 @@ func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv) replayFixture {
 		t.Fatal(err)
 	}
 	registry := siteRegistry{
-		siteID:      {ID: siteID, OrgID: orgID, PublicID: "replaytest01", TZ: time.UTC},
-		foreignSite: {ID: foreignSite, OrgID: foreignOrgID, PublicID: "replaytest02", TZ: time.UTC},
+		siteID:      {ID: siteID, OrgID: orgID, PublicID: "replaytest01", TZ: time.UTC, Retention: db.Ret30},
+		foreignSite: {ID: foreignSite, OrgID: foreignOrgID, PublicID: "replaytest02", TZ: time.UTC, Retention: db.Ret30},
 	}
 	data := &store.Store{Pool: pool}
 	handler := platformhttp.New(platformhttp.Deps{
@@ -173,6 +173,72 @@ func TestReplayListPaginates(t *testing.T) {
 	second := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09&limit=2&cursor=%s", f.siteID, *page.NextCursor), "")
 	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"session_id":"100"`) {
 		t.Fatalf("second status=%d body=%s", second.Code, second.Body.String())
+	}
+}
+
+func TestReplayListIncludesHotClosedAndMissingSessionDetails(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
+	ctx := context.Background()
+	if err := db.EnsurePartitions(ctx, f.pool.Pool, time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Pool.Exec(ctx, `insert into dict(kind,id,value) values
+  (9,91,'Firefox'),(9,92,'Safari'),(10,101,'Linux'),(10,102,'iOS'),(12,121,'Berlin'),(12,122,'Pune')`); err != nil {
+		t.Fatal(err)
+	}
+	statements := []string{
+		`insert into day_close(site_id,day,status) values ($1,'2026-10-07','done')`,
+		`insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,country,browser_id,os_id,device,city_id,pageviews,events)
+values ($1,30,201,1,'2026-10-08 10:00Z','2026-10-08 10:05Z','2026-10-08','DE',91,101,0,121,2,3)`,
+		`insert into sessions_closed
+  (site_id,day,visitor_id,session_id,country,browser_id,os_id,device,city_id,pageviews,custom,duration_ms,engagement_ms,vd_n,flags,seq,seq_engage,seq_scroll,started_at)
+values ($1,'2026-10-07',2,202,'IN',92,102,1,122,4,6,60000,1000,1,0,array[]::integer[],array[]::integer[],array[]::smallint[],'2026-10-07 09:00Z')`,
+		`insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key) values
+  ($1,201,'2026-10-08 10:00Z','2026-10-08 10:05Z','2026-10-08',100,2,'hot'),
+  ($1,202,'2026-10-07 09:00Z','2026-10-07 09:01Z','2026-10-07',100,4,'closed'),
+  ($1,203,'2026-10-06 08:00Z','2026-10-06 08:01Z','2026-10-06',100,1,'missing')`,
+	}
+	for _, statement := range statements {
+		if _, err := f.pool.Pool.Exec(ctx, statement, f.siteID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	response := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09", f.siteID), "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var page struct {
+		Data []struct {
+			SessionID int64  `json:"session_id,string"`
+			Browser   string `json:"browser"`
+			OS        string `json:"os"`
+			Device    string `json:"device"`
+			Country   string `json:"country"`
+			City      string `json:"city"`
+			Actions   int32  `json:"actions"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Data) != 3 {
+		t.Fatalf("data=%+v", page.Data)
+	}
+	want := map[int64]struct {
+		browser, os, device, country, city string
+		actions                            int32
+	}{
+		201: {"Firefox", "Linux", "desktop", "DE", "Berlin", 5},
+		202: {"Safari", "iOS", "mobile", "IN", "Pune", 10},
+		203: {"", "", "", "", "", 0},
+	}
+	for _, item := range page.Data {
+		expected := want[item.SessionID]
+		if item.Browser != expected.browser || item.OS != expected.os || item.Device != expected.device || item.Country != expected.country || item.City != expected.city || item.Actions != expected.actions {
+			t.Errorf("session %d details=%+v, want=%+v", item.SessionID, item, expected)
+		}
 	}
 }
 

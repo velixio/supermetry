@@ -27,7 +27,7 @@ func TestEngine_EventsExploreNewestFirstWithFiltersAndCursor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(first.Data) != 1 || first.Data[0].Name != "signup" || first.Data[0].Page != "/pricing" || first.Data[0].Country != "US" || first.Data[0].Device != "mobile" || first.Data[0].Browser != "Chrome" || first.Data[0].Source != "Google" {
+	if len(first.Data) != 1 || first.Data[0].Name != "signup" || first.Data[0].Page != "/pricing" || first.Data[0].Country != "US" || first.Data[0].City != "Singapore" || first.Data[0].Device != "mobile" || first.Data[0].Browser != "Chrome" || first.Data[0].Os != "Linux" || first.Data[0].Source != "Google" {
 		t.Fatalf("first page = %+v", first)
 	}
 	if first.Data[0].Props == nil || (*first.Data[0].Props)["plan"] != "pro" || first.NextCursor == nil {
@@ -207,13 +207,13 @@ func seedEventsExplore(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
 insert into dict(kind,id,value) values
-  (0,1,'/'),(0,2,'/pricing'),(2,3,'Google'),(7,4,'signup'),(9,5,'Chrome'),(10,6,'Linux');
+  (0,1,'/'),(0,2,'/pricing'),(2,3,'Google'),(7,4,'signup'),(9,5,'Chrome'),(10,6,'Linux'),(12,7,'Singapore');
 insert into events
-  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,source_id,country,browser_id,os_id,device,props)
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,source_id,country,browser_id,os_id,device,city_id,props)
 values
-  (1,30,'2026-10-06','2026-10-06 09:00Z',1,10,0,0,1,3,'US',5,6,0,null),
-  (1,30,'2026-10-07','2026-10-07 10:00Z',2,20,1,4,2,3,'US',5,6,1,'{"plan":"pro","tier":"team"}'),
-  (1,30,'2026-10-07','2026-10-07 11:00Z',3,30,1,4,2,0,'IN',5,6,0,'{"plan":"pro"}')`)
+  (1,30,'2026-10-06','2026-10-06 09:00Z',1,10,0,0,1,3,'US',5,6,0,7,null),
+  (1,30,'2026-10-07','2026-10-07 10:00Z',2,20,1,4,2,3,'US',5,6,1,7,'{"plan":"pro","tier":"team"}'),
+  (1,30,'2026-10-07','2026-10-07 11:00Z',3,30,1,4,2,0,'IN',5,6,0,0,'{"plan":"pro"}')`)
 	if err != nil {
 		t.Fatal(err)
 	}
