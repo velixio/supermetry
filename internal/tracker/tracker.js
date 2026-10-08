@@ -55,7 +55,16 @@
     });
     return payload;
   }
+  var gated = data.consent == "required";
+  var paused = gated ? [] : 0;
+  var denied;
   function emit(payload) {
+    if (denied) return true;
+    if (paused) {
+      paused.push(payload);
+      if (paused.length > 20) paused.shift();
+      return true;
+    }
     payload = run(payload);
     if (payload) post(payload);
     return true;
@@ -155,6 +164,20 @@
   panel.pageview = (options) => {
     flushEngagement();
     startPage(options?.url, options?.props);
+  };
+  panel.consent = (granted) => {
+    if (!gated) return;
+    var queued = paused;
+    denied = !granted;
+    if (!granted) {
+      paused = [];
+      return;
+    }
+    paused = 0;
+    if (queued) queued.forEach((payload) => {
+      payload = run(payload);
+      if (payload) post(payload);
+    });
   };
   /*@end*/
   panel.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);

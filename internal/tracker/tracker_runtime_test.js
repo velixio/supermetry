@@ -228,6 +228,68 @@ function testNamedBeforeSendIsResolvedAtSendTime() {
   ]);
 }
 
+function testConsentGrantFlushesInOrderThroughBeforeSend() {
+  const tracker = loadTracker({full: true, dataset: {consent: "required"}});
+  tracker.panel.beforeSend = (event) => ({...event, props: {approved: event.name}});
+  tracker.panel.track("A");
+
+  assert.deepEqual(tracker.payloads, [], "consent mode must start paused");
+  tracker.panel.consent(true);
+
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "A"]);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.props.approved), ["pageview", "A"]);
+}
+
+function testConsentQueueKeepsNewestTwentyEvents() {
+  const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
+  for (let index = 1; index <= 25; index++) {
+    tracker.panel.track(`Event ${index}`);
+  }
+
+  tracker.panel.consent(true);
+
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name),
+    Array.from({length: 20}, (_, index) => `Event ${index + 6}`));
+}
+
+function testConsentDenialClearsQueueAndDropsUntilGranted() {
+  const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
+  tracker.panel.track("Before denial");
+  tracker.panel.consent(false);
+  tracker.panel.track("While denied");
+  tracker.panel.consent(true);
+
+  assert.deepEqual(tracker.payloads, []);
+  tracker.panel.track("After grant");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["After grant"]);
+}
+
+function testConsentGrantIsIdempotent() {
+  const tracker = loadTracker({full: true, dataset: {consent: "required"}});
+  tracker.panel.consent(true);
+  tracker.panel.consent(true);
+
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
+}
+
+function testConsentQueuesManualPageview() {
+  const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
+  tracker.panel.pageview({url: "https://example.com/consented"});
+  assert.deepEqual(tracker.payloads, []);
+
+  tracker.panel.consent(true);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["engagement", "pageview"]);
+  assert.equal(tracker.payloads.at(-1).url, "https://example.com/consented");
+}
+
+function testConsentIsNoOpWithoutGate() {
+  const tracker = loadTracker({full: true});
+  tracker.panel.consent(false);
+  tracker.panel.track("Still enabled");
+
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "Still enabled"]);
+}
+
 function testCoreBuildExcludesFullRoutingFeatures() {
   const core = buildSource(false);
   for (const forbidden of ["hashchange", "beforeSend", "consent", "data.manual"]) {
@@ -245,4 +307,10 @@ testReplaceStateRouting();
 testDuplicateNavigationIsDropped();
 testBeforeSend();
 testNamedBeforeSendIsResolvedAtSendTime();
+testConsentGrantFlushesInOrderThroughBeforeSend();
+testConsentQueueKeepsNewestTwentyEvents();
+testConsentDenialClearsQueueAndDropsUntilGranted();
+testConsentGrantIsIdempotent();
+testConsentQueuesManualPageview();
+testConsentIsNoOpWithoutGate();
 testCoreBuildExcludesFullRoutingFeatures();
