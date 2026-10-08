@@ -19,7 +19,7 @@ func TestLoadFileAndAllows(t *testing.T) {
 		t.Fatal(err)
 	}
 	s, ok := r.ByPublicID("abc123")
-	if !ok || s.TZ.String() != "Asia/Kathmandu" || s.Retention != db.Ret30 || !s.ProfilesEnabled {
+	if !ok || s.TZ.String() != "Asia/Kathmandu" || s.Retention != db.Ret30 || !s.ProfilesEnabled || !s.RespectPrivacySignals {
 		t.Fatalf("%+v %v", s, ok)
 	}
 	for host, want := range map[string]bool{

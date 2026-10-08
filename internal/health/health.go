@@ -52,6 +52,7 @@ var (
 	IngestRevenueInvalid     Counter
 	IngestProfilesSuppressed Counter
 	IngestDropped            Counter
+	PrivacySignalsDropped    Counter
 	HeatmapInvalid           Counter
 	HeatmapDropped           Counter
 
@@ -184,6 +185,7 @@ func Snapshot() map[string]float64 {
 		"alert_delivery_failures_total":    float64(AlertDeliveryFailures.Load()),
 		"query_cache_hit_ratio":            cacheHitRatio(),
 	}
+	snapshot[`ingest_dropped_total{reason="privacy_signal"}`] = float64(PrivacySignalsDropped.Load())
 	snapshot[`geoip_source{source="dbip"}`] = 0
 	snapshot[`geoip_source{source="maxmind"}`] = 0
 	snapshot[fmt.Sprintf(`geoip_source{source=%q}`, GeoIPSource())] = 1

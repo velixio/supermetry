@@ -18,14 +18,15 @@ type FileRegistry struct {
 }
 
 type fileSite struct {
-	ID              int32    `json:"id"`
-	OrgID           int64    `json:"org_id"`
-	PublicID        string   `json:"public_id"`
-	Timezone        string   `json:"timezone"`
-	RetentionDays   int16    `json:"retention_days"`
-	AllowedHosts    []string `json:"allowed_hosts"`
-	ProfilesEnabled bool     `json:"profiles_enabled"`
-	HeatmapsEnabled bool     `json:"heatmaps_enabled"`
+	ID                    int32    `json:"id"`
+	OrgID                 int64    `json:"org_id"`
+	PublicID              string   `json:"public_id"`
+	Timezone              string   `json:"timezone"`
+	RetentionDays         int16    `json:"retention_days"`
+	AllowedHosts          []string `json:"allowed_hosts"`
+	ProfilesEnabled       bool     `json:"profiles_enabled"`
+	HeatmapsEnabled       bool     `json:"heatmaps_enabled"`
+	RespectPrivacySignals *bool    `json:"respect_privacy_signals"`
 }
 
 // LoadFile loads site metadata from a JSON array at path.
@@ -57,15 +58,20 @@ func LoadFile(path string) (*FileRegistry, error) {
 		for j, host := range record.AllowedHosts {
 			allowedHosts[j] = strings.ToLower(host)
 		}
+		respectPrivacySignals := true
+		if record.RespectPrivacySignals != nil {
+			respectPrivacySignals = *record.RespectPrivacySignals
+		}
 		site := Site{
-			OrgID:           record.OrgID,
-			ID:              record.ID,
-			PublicID:        record.PublicID,
-			TZ:              location,
-			Retention:       retention,
-			AllowedHosts:    allowedHosts,
-			ProfilesEnabled: record.ProfilesEnabled,
-			HeatmapsEnabled: record.HeatmapsEnabled,
+			OrgID:                 record.OrgID,
+			ID:                    record.ID,
+			PublicID:              record.PublicID,
+			TZ:                    location,
+			Retention:             retention,
+			AllowedHosts:          allowedHosts,
+			ProfilesEnabled:       record.ProfilesEnabled,
+			HeatmapsEnabled:       record.HeatmapsEnabled,
+			RespectPrivacySignals: respectPrivacySignals,
 		}
 		if _, exists := r.byPublicID[site.PublicID]; exists {
 			return nil, fmt.Errorf("site %d: duplicate public_id %q", i, site.PublicID)
