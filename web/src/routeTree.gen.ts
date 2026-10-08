@@ -28,6 +28,7 @@ import { Route as OrgSiteHeatmapsRouteImport } from './routes/$org.$site.heatmap
 import { Route as OrgSiteJourneysRouteImport } from './routes/$org.$site.journeys'
 import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
 import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retention'
+import { Route as OrgSiteSessionsRouteImport } from './routes/$org.$site.sessions'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
 import { Route as OrgSiteVitalsRouteImport } from './routes/$org.$site.vitals'
 import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
@@ -144,6 +145,11 @@ const OrgSiteRealtimeRoute = OrgSiteRealtimeRouteImport.update({
 const OrgSiteRetentionRoute = OrgSiteRetentionRouteImport.update({
   id: '/$site/retention',
   path: '/$site/retention',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteSessionsRoute = OrgSiteSessionsRouteImport.update({
+  id: '/$site/sessions',
+  path: '/$site/sessions',
   getParentRoute: () => OrgRoute,
 } as any)
 const OrgSiteSettingsRoute = OrgSiteSettingsRouteImport.update({
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
+  '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/$site/vitals': typeof OrgSiteVitalsRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
@@ -321,6 +328,7 @@ export interface FileRoutesByTo {
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
+  '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/$site/vitals': typeof OrgSiteVitalsRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
@@ -365,6 +373,7 @@ export interface FileRoutesById {
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
+  '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/$site/vitals': typeof OrgSiteVitalsRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
@@ -410,6 +419,7 @@ export interface FileRouteTypes {
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
     | '/$org/$site/retention'
+    | '/$org/$site/sessions'
     | '/$org/$site/settings'
     | '/$org/$site/vitals'
     | '/$org/settings/api-keys'
@@ -453,6 +463,7 @@ export interface FileRouteTypes {
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
     | '/$org/$site/retention'
+    | '/$org/$site/sessions'
     | '/$org/$site/settings'
     | '/$org/$site/vitals'
     | '/$org/settings/api-keys'
@@ -496,6 +507,7 @@ export interface FileRouteTypes {
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
     | '/$org/$site/retention'
+    | '/$org/$site/sessions'
     | '/$org/$site/settings'
     | '/$org/$site/vitals'
     | '/$org/settings/api-keys'
@@ -668,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/$site/retention'
       fullPath: '/$org/$site/retention'
       preLoaderRoute: typeof OrgSiteRetentionRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/sessions': {
+      id: '/$org/$site/sessions'
+      path: '/$site/sessions'
+      fullPath: '/$org/$site/sessions'
+      preLoaderRoute: typeof OrgSiteSessionsRouteImport
       parentRoute: typeof OrgRoute
     }
     '/$org/$site/settings': {
@@ -883,6 +902,7 @@ interface OrgRouteChildren {
   OrgSiteJourneysRoute: typeof OrgSiteJourneysRoute
   OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
   OrgSiteRetentionRoute: typeof OrgSiteRetentionRoute
+  OrgSiteSessionsRoute: typeof OrgSiteSessionsRoute
   OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
   OrgSiteVitalsRoute: typeof OrgSiteVitalsRoute
   OrgSitesNewRoute: typeof OrgSitesNewRoute
@@ -902,6 +922,7 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgSiteJourneysRoute: OrgSiteJourneysRoute,
   OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
   OrgSiteRetentionRoute: OrgSiteRetentionRoute,
+  OrgSiteSessionsRoute: OrgSiteSessionsRoute,
   OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,
   OrgSiteVitalsRoute: OrgSiteVitalsRoute,
   OrgSitesNewRoute: OrgSitesNewRoute,

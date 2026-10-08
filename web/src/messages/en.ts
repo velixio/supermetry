@@ -36,6 +36,7 @@ export const en = {
   },
   navigation: {
     dashboard: 'Dashboard',
+    sessions: 'Sessions',
     journeys: 'Journeys',
     retention: 'Retention',
     profiles: 'Profiles',
