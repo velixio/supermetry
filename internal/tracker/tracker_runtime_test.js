@@ -9,7 +9,7 @@ function buildSource(full) {
   return source.replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "");
 }
 
-function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) {
+function loadTracker({full = false, dataset = {}, withExtensions = false, globalPrivacyControl = false, ignored = false} = {}) {
   const events = new Map();
   const listeners = new Map();
   const payloads = [];
@@ -17,6 +17,34 @@ function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) 
   const forbidStorage = () => {
     throw new Error("tracker accessed browser storage");
   };
+  const storage = new Map(ignored ? [["panel_ignore", "1"]] : []);
+  const storageTarget = {
+    getItem(key) {
+      if (key != "panel_ignore") forbidStorage();
+      return storage.get(key) ?? null;
+    },
+    setItem(key, value) {
+      if (key != "panel_ignore" || value != "1") forbidStorage();
+      storage.set(key, value);
+    },
+    removeItem(key) {
+      if (key != "panel_ignore") forbidStorage();
+      storage.delete(key);
+    },
+  };
+  Object.defineProperty(storageTarget, "panel_ignore", {
+    configurable: true,
+    get: () => storage.get("panel_ignore"),
+    // Real Storage coerces values to strings.
+    set: (value) => value == "1" ? storage.set("panel_ignore", String(value)) : forbidStorage(),
+  });
+  const localStorage = new Proxy(storageTarget, {
+    deleteProperty(target, key) {
+      if (key != "panel_ignore") forbidStorage();
+      storage.delete(key);
+      return true;
+    },
+  });
   const location = {hostname: "example.com", href: "https://example.com/start"};
   const document = {
     body: {scrollHeight: 1000},
@@ -32,14 +60,17 @@ function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) 
       const registered = listeners.get(key) || [];
       registered.push(listener);
       listeners.set(key, registered);
-      events.set(key, (...args) => registered.forEach((callback) => callback(...args)));
+      events.set(key, (...args) => {
+        if (args[0] && typeof args[0] == "object" && !args[0].type) args[0].type = name;
+        registered.forEach((callback) => callback(...args));
+      });
     },
     querySelector: () => null,
   };
   Object.defineProperty(document, "cookie", {get: forbidStorage, set: forbidStorage});
   const window = {};
   Object.defineProperties(window, {
-    localStorage: {get: forbidStorage},
+    localStorage: {value: localStorage},
     sessionStorage: {get: forbidStorage},
   });
   const history = {
@@ -74,8 +105,11 @@ function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) 
     },
     history,
     innerHeight: 500,
+    innerWidth: 1000,
+    localStorage,
     location,
     navigator: {
+      globalPrivacyControl,
       webdriver: false,
       sendBeacon(_endpoint, body) {
         payloads.push(JSON.parse(body.parts.join("")));
@@ -90,7 +124,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) 
   if (withExtensions) {
     vm.runInNewContext(extensions, context, {filename: "tracker.extensions.js"});
   }
-  return {context, events, panel: window.panel, payloads};
+  return {context, events, panel: window.panel, payloads, storage};
 }
 
 function element({tagName = "BUTTON", classes = [], attributes = {}, parentElement = null} = {}) {
@@ -486,6 +520,38 @@ function testCoreBuildExcludesFullRoutingFeatures() {
   }
 }
 
+function testOptOutStopsSendsAndOptInResumes() {
+  const tracker = loadTracker();
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
+
+  tracker.panel.optOut();
+  assert.equal(tracker.storage.get("panel_ignore"), "1");
+  tracker.panel.track("Ignored");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
+
+  tracker.panel.optIn();
+  assert.equal(tracker.storage.has("panel_ignore"), false);
+  tracker.panel.track("Resumed");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "Resumed"]);
+}
+
+function testStoredOptOutSuppressesInitialPageview() {
+  const tracker = loadTracker({ignored: true});
+  assert.deepEqual(tracker.payloads, []);
+}
+
+function testHeatmapIsOffByDefaultAndExplicitlyEnabled() {
+  const off = loadTracker({full: true, withExtensions: true});
+  off.events.get("document:click")({button: 0, pageX: 20, pageY: 30, target: element()});
+  off.events.get("window:pagehide")();
+  assert.equal(off.payloads.some((payload) => payload.name == "heatmap"), false);
+
+  const on = loadTracker({full: true, withExtensions: true, dataset: {heatmap: "true"}});
+  on.events.get("document:click")({button: 0, pageX: 20, pageY: 30, target: element()});
+  on.events.get("window:pagehide")();
+  assert.equal(on.payloads.some((payload) => payload.name == "heatmap"), true);
+}
+
 testIdentifyAndSubsequentEvents();
 testClear();
 testOmittedTraits();
@@ -513,3 +579,6 @@ testClassTaggedClickIncludesValidProperties();
 testMalformedClassTagsAreIgnored();
 testDataAttributeTakesPrecedenceOverClassTag();
 testCoreBuildExcludesFullRoutingFeatures();
+testOptOutStopsSendsAndOptInResumes();
+testStoredOptOutSuppressesInitialPageview();
+testHeatmapIsOffByDefaultAndExplicitlyEnabled();

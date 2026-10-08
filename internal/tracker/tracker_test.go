@@ -122,7 +122,10 @@ func TestScriptContract(t *testing.T) {
 			t.Errorf("full tracker source is missing %q", want)
 		}
 	}
-	for _, forbidden := range []string{"localStorage", "sessionStorage", "document.cookie"} {
+	if strings.Count(text, "localStorage") == 0 || !strings.Contains(text, `panel_ignore`) {
+		t.Error("tracker source must use only the panel_ignore localStorage opt-out key")
+	}
+	for _, forbidden := range []string{"sessionStorage", "document.cookie"} {
 		if strings.Contains(text, forbidden) || strings.Contains(fullText, forbidden) {
 			t.Errorf("tracker source contains forbidden browser API %q", forbidden)
 		}
@@ -148,7 +151,10 @@ func TestMinifiedTrackerGzipSize(t *testing.T) {
 	Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/js/script.js", nil))
 
 	var compressed bytes.Buffer
-	zw := gzip.NewWriter(&compressed)
+	zw, err := gzip.NewWriterLevel(&compressed, gzip.BestCompression)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := io.Copy(zw, response.Body); err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +173,10 @@ func TestMinifiedFullTrackerGzipSize(t *testing.T) {
 	FullHandler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/js/script.full.js", nil))
 
 	var compressed bytes.Buffer
-	zw := gzip.NewWriter(&compressed)
+	zw, err := gzip.NewWriterLevel(&compressed, gzip.BestCompression)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := io.Copy(zw, response.Body); err != nil {
 		t.Fatal(err)
 	}

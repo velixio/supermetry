@@ -1,6 +1,4 @@
 (() => {
-  "use strict";
-
   var script = document.currentScript;
   var data = script && script.dataset;
   var host = location.hostname;
@@ -16,6 +14,8 @@
   var lastLocation = location.href;
   /*@end*/
   var endpoint = data.api || "/api/public/v1/events";
+  var ignored;
+  try { ignored = localStorage.panel_ignore; } catch (_) {}
   var pageURL = location.href;
   var active = 0;
   var started = /*@full*/ manual ? 0 : /*@end*/ document.hidden ? 0 : Date.now();
@@ -24,6 +24,7 @@
   var profileID;
 
   function post(payload) {
+    if (ignored) return;
     var body = JSON.stringify(payload);
     navigator.sendBeacon?.(endpoint,
       new Blob([body], {type: "text/plain"})) || fetch(endpoint, {
@@ -63,18 +64,17 @@
   var paused = gated ? [] : 0;
   var denied;
   function emit(payload) {
-    if (denied) return true;
+    if (denied) return;
     if (paused) {
       if (paused.length == 20) {
         var drop = paused.findIndex((event) => event.name != "pageview");
         paused.splice(drop < 0 ? 0 : drop, 1);
       }
       paused.push(payload);
-      return true;
+      return;
     }
     payload = run(payload);
     if (payload) post(payload);
-    return true;
   }
   /*@end*/
 
@@ -97,23 +97,20 @@
       payload.profile_id = profileID;
     }
     /*@full*/
-    if (emit(payload)) return;
+    emit(payload);
+    return;
     /*@end*/
     post(payload);
-  }
-
-  function stopTimer() {
-    if (started) {
-      active += Date.now() - started;
-      started = 0;
-    }
   }
 
   function flushEngagement() {
     /*@full*/
     if (!viewStarted) return;
     /*@end*/
-    stopTimer();
+    if (started) {
+      active += Date.now() - started;
+      started = 0;
+    }
     updateScroll();
     if (pending) {
       send("engagement", {}, Math.round(active), maxScroll);
@@ -177,6 +174,16 @@
 
   var panel = window.panel = window.panel || {};
   /*@full*/
+  panel._post = post;
+  /*@end*/
+  // Opt-out is the only thing the tracker ever stores: a flag, no identifier.
+  var opt = (value) => () => {
+    ignored = value;
+    try { value ? localStorage.panel_ignore = 1 : delete localStorage.panel_ignore; } catch (_) {}
+  };
+  panel.optOut = opt(1);
+  panel.optIn = opt(0);
+  /*@full*/
   panel.pageview = (options) => {
     var url = options?.url;
     try {
@@ -191,15 +198,8 @@
     if (!gated) return;
     var queued = paused;
     denied = !granted;
-    if (!granted) {
-      paused = [];
-      return;
-    }
-    paused = 0;
-    if (queued) queued.forEach((payload) => {
-      payload = run(payload);
-      if (payload) post(payload);
-    });
+    paused = granted ? 0 : [];
+    if (granted && queued) queued.forEach(emit);
   };
   /*@end*/
   panel.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);
