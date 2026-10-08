@@ -101,3 +101,22 @@ func TestBotPrecedenceIgnoresHostingOrganization(t *testing.T) {
 		})
 	}
 }
+
+func TestInAppBrowsersAreNotBots(t *testing.T) {
+	enricher, err := enrich.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer enricher.Close()
+	visitors := map[string]string{
+		"WhatsApp in-app browser": "Mozilla/5.0 (Linux; Android 13; CPH2381 Build/TP1A.220905.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.81 Mobile Safari/537.36 WhatsApp/2.24.20.89",
+	}
+	for name, ua := range visitors {
+		if reason := enricher.Bot(ua, netip.MustParseAddr("203.0.113.10"), ""); reason != enrich.BotNone {
+			t.Errorf("%s classified as bot (%v)", name, reason)
+		}
+	}
+	if reason := enricher.Bot("WhatsApp/2.24.20.89 A", netip.MustParseAddr("203.0.113.10"), ""); reason != enrich.BotUserAgent {
+		t.Errorf("WhatsApp link-preview fetcher = %v, want BotUserAgent", reason)
+	}
+}

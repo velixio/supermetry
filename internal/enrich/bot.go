@@ -75,6 +75,14 @@ func (e *Enricher) isSpamReferrer(referrer string) bool {
 	}
 }
 
+// crawlerPatternOverrides narrows upstream patterns that also match real
+// in-app browsers. WhatsApp's link-preview fetcher sends "WhatsApp/2.x", but
+// its in-app browser is a normal Android WebView whose user agent merely ends
+// with "WhatsApp/2.x"; an unanchored match dropped those visitors as bots.
+var crawlerPatternOverrides = map[string]string{
+	"WhatsApp": "^WhatsApp/",
+}
+
 func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 	var crawlers []crawlerEntry
 	if err := json.Unmarshal(crawlerUserAgentsJSON, &crawlers); err != nil {
@@ -82,8 +90,12 @@ func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 	}
 	patterns := make([]string, 0, len(crawlers))
 	for _, crawler := range crawlers {
-		if crawler.Pattern != "" {
-			patterns = append(patterns, crawler.Pattern)
+		pattern := crawler.Pattern
+		if override, ok := crawlerPatternOverrides[pattern]; ok {
+			pattern = override
+		}
+		if pattern != "" {
+			patterns = append(patterns, pattern)
 		}
 	}
 	pattern, err := regexp.Compile(`(?i)(?:` + strings.Join(patterns, "|") + `)`)
