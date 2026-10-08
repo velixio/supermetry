@@ -208,6 +208,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"POST " + privatePrefix + "/sites",
 		"GET " + privatePrefix + "/sites/{site}",
 		"GET " + privatePrefix + "/sites/{site}/snippet",
+		"POST " + privatePrefix + "/sites/{site}/icon/refetch",
 		"PATCH " + privatePrefix + "/sites/{site}",
 		"DELETE " + privatePrefix + "/sites/{site}",
 		"POST " + privatePrefix + "/orgs/{org}/api-keys",

@@ -15,6 +15,8 @@ import (
 	"net/netip"
 	"net/url"
 	"time"
+
+	"panel/internal/safehttp"
 )
 
 const (
@@ -22,11 +24,9 @@ const (
 	webhookAttempts = 3
 )
 
-type Resolver interface {
-	LookupNetIP(context.Context, string, string) ([]netip.Addr, error)
-}
+type Resolver = safehttp.Resolver
 
-type DialContextFunc func(context.Context, string, string) (net.Conn, error)
+type DialContextFunc = safehttp.DialContextFunc
 
 type WebhookOptions struct {
 	AllowPrivate bool
@@ -54,7 +54,7 @@ func NewWebhookClient(options WebhookOptions) *WebhookClient {
 	}
 	transport := &http.Transport{
 		Proxy:                 nil,
-		DialContext:           guardedDial(resolver, baseDial, options.AllowPrivate),
+		DialContext:           safehttp.GuardedDial(resolver, baseDial, options.AllowPrivate),
 		TLSHandshakeTimeout:   webhookTimeout,
 		ResponseHeaderTimeout: webhookTimeout,
 	}
@@ -151,68 +151,11 @@ func signWebhook(secret string, body []byte) string {
 }
 
 func guardedDial(resolver Resolver, dial DialContextFunc, allowPrivate bool) DialContextFunc {
-	return func(ctx context.Context, network, address string) (net.Conn, error) {
-		host, port, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, errors.New("invalid webhook address")
-		}
-		var addresses []netip.Addr
-		if literal, parseErr := netip.ParseAddr(host); parseErr == nil {
-			addresses = []netip.Addr{literal}
-		} else {
-			addresses, err = resolver.LookupNetIP(ctx, "ip", host)
-			if err != nil || len(addresses) == 0 {
-				return nil, errors.New("resolve webhook host")
-			}
-		}
-		for _, address := range addresses {
-			if !allowPrivate && blockedAddress(address) {
-				return nil, errors.New("webhook host resolves to a blocked address")
-			}
-		}
-		var dialErr error
-		for _, address := range addresses {
-			conn, err := dial(ctx, network, net.JoinHostPort(address.String(), port))
-			if err == nil {
-				return conn, nil
-			}
-			dialErr = err
-		}
-		_ = dialErr
-		return nil, errors.New("connect to webhook host")
-	}
+	return safehttp.GuardedDial(resolver, dial, allowPrivate)
 }
-
-// blockedPrefixes are special-purpose ranges not covered by the netip
-// predicates: "this network", CGNAT, IETF protocol assignments, benchmarking,
-// reserved/broadcast and deprecated IPv6 site-local.
-var blockedPrefixes = []netip.Prefix{
-	netip.MustParsePrefix("0.0.0.0/8"),
-	netip.MustParsePrefix("100.64.0.0/10"),
-	netip.MustParsePrefix("192.0.0.0/24"),
-	netip.MustParsePrefix("198.18.0.0/15"),
-	netip.MustParsePrefix("240.0.0.0/4"),
-	netip.MustParsePrefix("fec0::/10"),
-}
-
-var nat64Prefix = netip.MustParsePrefix("64:ff9b::/96")
 
 func blockedAddress(address netip.Addr) bool {
-	address = address.Unmap()
-	if address.Is6() && nat64Prefix.Contains(address) {
-		bytes := address.As16()
-		return blockedAddress(netip.AddrFrom4([4]byte{bytes[12], bytes[13], bytes[14], bytes[15]}))
-	}
-	if !address.IsValid() || address.IsPrivate() || address.IsLoopback() || address.IsLinkLocalUnicast() ||
-		address.IsLinkLocalMulticast() || address.IsInterfaceLocalMulticast() || address.IsMulticast() || address.IsUnspecified() {
-		return true
-	}
-	for _, prefix := range blockedPrefixes {
-		if prefix.Contains(address) {
-			return true
-		}
-	}
-	return false
+	return safehttp.BlockedAddress(address)
 }
 
 func sleepContext(ctx context.Context, duration time.Duration) error {

@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -48,6 +49,10 @@ type MutationService interface {
 	DeleteSite(context.Context, authz.Principal, int32) error
 	CreateAPIKey(context.Context, authz.Principal, CreateAPIKeyRequest) (CreatedAPIKey, error)
 	DeleteOrg(context.Context, authz.Principal, int64) error
+}
+
+type siteIconMutationService interface {
+	RefreshSiteIcon(context.Context, authz.Principal, int32) (coresites.Site, error)
 }
 
 type Deps struct {
@@ -117,14 +122,16 @@ type CreatedAPIKey struct {
 }
 
 type handler struct {
-	deps Deps
+	deps          Deps
+	iconRefetchMu sync.Mutex
+	iconRefetched map[int32]time.Time
 }
 
 // New returns the platform route set. It owns platform authentication so the
 // complete authz.Principal is available; the analytics router may mount this
 // handler as a fallback under its public and private route trees.
 func New(deps Deps) http.Handler {
-	h := &handler{deps: deps}
+	h := &handler{deps: deps, iconRefetched: make(map[int32]time.Time)}
 	mux := http.NewServeMux()
 	h.registerPrivate(mux)
 	h.registerAuth(mux)
@@ -137,6 +144,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites", h.createSite)
 	mux.HandleFunc("GET /api/private/sites/{site}", h.getSite)
 	mux.HandleFunc("GET /api/private/sites/{site}/snippet", h.siteSnippet)
+	mux.HandleFunc("POST /api/private/sites/{site}/icon/refetch", h.refetchSiteIcon)
 	mux.HandleFunc("PATCH /api/private/sites/{site}", h.updateSite)
 	mux.HandleFunc("DELETE /api/private/sites/{site}", h.deleteSite)
 	mux.HandleFunc("POST /api/private/orgs/{org}/api-keys", h.createAPIKey)
@@ -213,6 +221,13 @@ func (s Services) UpdateSite(ctx context.Context, principal authz.Principal, id 
 		return coresites.Site{}, errors.New("site service is unavailable")
 	}
 	return s.Sites.Update(ctx, principal, id, patch)
+}
+
+func (s Services) RefreshSiteIcon(ctx context.Context, principal authz.Principal, id int32) (coresites.Site, error) {
+	if s.Sites == nil {
+		return coresites.Site{}, errors.New("site service is unavailable")
+	}
+	return s.Sites.RefreshIcon(ctx, principal, id)
 }
 
 func (s Services) DeleteSite(ctx context.Context, principal authz.Principal, id int32) error {

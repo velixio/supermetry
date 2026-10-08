@@ -19,6 +19,7 @@ type Site struct {
 	Exclusions      Exclusions
 	ProfilesEnabled bool
 	HeatmapsEnabled bool
+	IconURL         string
 }
 
 // Registry provides in-memory site lookups for the analytics core.

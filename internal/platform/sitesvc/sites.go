@@ -20,6 +20,7 @@ import (
 	"panel/internal/platform/authz"
 	"panel/internal/platform/store"
 	coresites "panel/internal/sites"
+	siteicon "panel/internal/sites/icon"
 )
 
 const maxCreateAttempts = 8
@@ -45,12 +46,13 @@ type SitePatch struct {
 }
 
 type Sites struct {
-	store    *store.Store
-	registry *Registry
+	store        *store.Store
+	registry     *Registry
+	discoverIcon func(context.Context, string) string
 }
 
 func New(data *store.Store, registry *Registry) *Sites {
-	return &Sites{store: data, registry: registry}
+	return &Sites{store: data, registry: registry, discoverIcon: siteicon.Discover}
 }
 
 func (s *Sites) Create(ctx context.Context, principal authz.Principal, name string, hosts []string, timezone string, retentionDays int) (coresites.Site, error) {
@@ -192,6 +194,33 @@ func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32)
 	return nil
 }
 
+// RefreshIcon discovers and stores the favicon for the site's first allowed
+// host. Discovery deliberately happens outside a database transaction.
+func (s *Sites) RefreshIcon(ctx context.Context, principal authz.Principal, id int32) (coresites.Site, error) {
+	if !authz.Can(principal, authz.ActionSiteEdit, id) {
+		return coresites.Site{}, ErrForbidden
+	}
+	site, ok := s.registry.Site(id)
+	if !ok || site.OrgID != principal.OrgID {
+		return coresites.Site{}, ErrNotFound
+	}
+	if len(site.AllowedHosts) == 0 {
+		return site, nil
+	}
+	iconURL := s.discoverIcon(ctx, site.AllowedHosts[0])
+	updated, err := store.SetSiteIcon(ctx, s.store, principal.OrgID, id, iconURL, time.Now().UTC())
+	if errors.Is(err, pgx.ErrNoRows) {
+		return coresites.Site{}, ErrNotFound
+	}
+	if err != nil {
+		return coresites.Site{}, err
+	}
+	if err := s.registry.Invalidate(); err != nil {
+		return coresites.Site{}, fmt.Errorf("refresh site registry: %w", err)
+	}
+	return coreSite(updated)
+}
+
 func (s *Sites) List(ctx context.Context, principal authz.Principal, cursor string, limit int) ([]coresites.Site, string, error) {
 	if principal.OrgID == 0 || principal.Role == authz.RoleShare {
 		return nil, "", ErrForbidden
@@ -314,6 +343,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
 		ProfilesEnabled: row.ProfilesEnabled,
 		HeatmapsEnabled: row.HeatmapsEnabled,
+		IconURL:         row.IconURL,
 	}, nil
 }
 

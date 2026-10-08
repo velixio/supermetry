@@ -9,13 +9,16 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"panel/internal/db"
 	"panel/internal/platform/authz"
 	platformhttp "panel/internal/platform/http"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	coresites "panel/internal/sites"
 	"panel/internal/testpg"
 )
 
@@ -211,6 +214,137 @@ func TestCurrentIPUsesResolvedClientAddress(t *testing.T) {
 		})
 	}
 }
+
+func TestRefetchSiteIconAuthorizationAndRateLimit(t *testing.T) {
+	const siteID = int32(10)
+	owner := authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}
+	admin := authz.Principal{UserID: 2, OrgID: 1, Role: authz.RoleAdmin}
+	editor := authz.Principal{UserID: 3, OrgID: 1, Role: authz.RoleEditor}
+	mutations := &iconMutations{}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"owner": owner, "admin": admin, "editor": editor},
+		Sites: siteRegistry{siteID: {
+			ID: siteID, OrgID: 1, PublicID: "abcdefgh2345", TZ: time.UTC,
+			AllowedHosts: []string{"example.test"},
+		}},
+		Mutations: mutations,
+	})
+
+	request := func(actor string) *httptest.ResponseRecorder {
+		req := authenticatedRequest(http.MethodPost, fmt.Sprintf("/api/private/sites/%d/icon/refetch", siteID), "")
+		req.Header.Set("X-Test-Actor", actor)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, req)
+		return response
+	}
+	if response := request("editor"); response.Code != http.StatusForbidden {
+		t.Fatalf("editor status=%d body=%s", response.Code, response.Body.String())
+	}
+	if calls := mutations.calls.Load(); calls != 0 {
+		t.Fatalf("refresh calls after editor request=%d, want 0", calls)
+	}
+	response := request("owner")
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"icon_url":"https://example.test/icon.svg"`) {
+		t.Fatalf("owner status=%d body=%s", response.Code, response.Body.String())
+	}
+	response = request("admin")
+	if response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") == "" {
+		t.Fatalf("second status=%d retry-after=%q body=%s", response.Code, response.Header().Get("Retry-After"), response.Body.String())
+	}
+	if calls := mutations.calls.Load(); calls != 1 {
+		t.Fatalf("refresh calls=%d, want 1", calls)
+	}
+}
+
+func TestCreateSiteReturnsBeforeIconDiscoveryFinishes(t *testing.T) {
+	principal := authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}
+	started := make(chan struct{})
+	release := make(chan struct{})
+	mutations := &blockingIconMutations{started: started, release: release}
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"owner": principal},
+		Mutations:     mutations,
+	})
+	request := authenticatedRequest(http.MethodPost, "/api/private/sites", `{"name":"Example","hosts":["example.test"],"timezone":"UTC","retention_days":30}`)
+	response := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		handler.ServeHTTP(response, request)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		if response.Code != http.StatusCreated {
+			t.Fatalf("create status=%d body=%s", response.Code, response.Body.String())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("create blocked on icon discovery")
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("background icon discovery did not start")
+	}
+}
+
+type iconMutations struct {
+	noopSiteMutations
+	calls atomic.Int32
+}
+
+func (m *iconMutations) RefreshSiteIcon(context.Context, authz.Principal, int32) (coresites.Site, error) {
+	m.calls.Add(1)
+	return coresites.Site{
+		ID: 10, OrgID: 1, PublicID: "abcdefgh2345", TZ: time.UTC,
+		AllowedHosts: []string{"example.test"}, IconURL: "https://example.test/icon.svg",
+	}, nil
+}
+
+type blockingIconMutations struct {
+	noopSiteMutations
+	started chan struct{}
+	release chan struct{}
+}
+
+func (m *blockingIconMutations) CreateSite(context.Context, authz.Principal, platformhttp.CreateSiteRequest) (coresites.Site, error) {
+	return coresites.Site{ID: 10, OrgID: 1, PublicID: "abcdefgh2345", TZ: time.UTC, AllowedHosts: []string{"example.test"}}, nil
+}
+
+func (m *blockingIconMutations) RefreshSiteIcon(ctx context.Context, _ authz.Principal, _ int32) (coresites.Site, error) {
+	close(m.started)
+	select {
+	case <-m.release:
+		return coresites.Site{}, nil
+	case <-ctx.Done():
+		return coresites.Site{}, ctx.Err()
+	}
+}
+
+type noopSiteMutations struct{}
+
+func (noopSiteMutations) CreateSite(context.Context, authz.Principal, platformhttp.CreateSiteRequest) (coresites.Site, error) {
+	return coresites.Site{}, nil
+}
+
+func (noopSiteMutations) UpdateSite(context.Context, authz.Principal, int32, sitesvc.SitePatch) (coresites.Site, error) {
+	return coresites.Site{}, nil
+}
+
+func (noopSiteMutations) DeleteSite(context.Context, authz.Principal, int32) error { return nil }
+
+func (noopSiteMutations) CreateAPIKey(context.Context, authz.Principal, platformhttp.CreateAPIKeyRequest) (platformhttp.CreatedAPIKey, error) {
+	return platformhttp.CreatedAPIKey{}, nil
+}
+
+func (noopSiteMutations) DeleteOrg(context.Context, authz.Principal, int64) error { return nil }
 
 func authenticatedRequest(method, path, body string) *http.Request {
 	request := httptest.NewRequest(method, path, bytes.NewBufferString(body))

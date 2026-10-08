@@ -69,6 +69,42 @@ func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
 	}
 }
 
+func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Icons", []string{"first.example.com", "second.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var discoveredHost string
+	service.discoverIcon = func(_ context.Context, host string) string {
+		discoveredHost = host
+		return "https://first.example.com/icon.svg"
+	}
+
+	updated, err := service.RefreshIcon(ctx, principal, site.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if discoveredHost != "first.example.com" || updated.IconURL != "https://first.example.com/icon.svg" {
+		t.Fatalf("host=%q updated icon=%q", discoveredHost, updated.IconURL)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || loaded.IconURL != updated.IconURL {
+		t.Fatalf("registry site=(%+v,%t), want refreshed icon", loaded, ok)
+	}
+	var iconURL, checkedAt string
+	if err := pool.QueryRow(ctx, `select settings->>'icon_url', settings->>'icon_checked_at' from sites where id=$1`, site.ID).Scan(&iconURL, &checkedAt); err != nil {
+		t.Fatal(err)
+	}
+	if iconURL != updated.IconURL {
+		t.Fatalf("stored icon_url=%q, want %q", iconURL, updated.IconURL)
+	}
+	if _, err := time.Parse(time.RFC3339, checkedAt); err != nil {
+		t.Fatalf("stored icon_checked_at=%q: %v", checkedAt, err)
+	}
+}
+
 func TestUpdateProfilesEnabledPersistsRefreshesAndAudits(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()

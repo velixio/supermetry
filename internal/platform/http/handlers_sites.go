@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ type siteResponse struct {
 	ExcludePaths    []string `json:"exclude_paths"`
 	ProfilesEnabled bool     `json:"profiles_enabled"`
 	HeatmapsEnabled bool     `json:"heatmaps_enabled"`
+	IconURL         string   `json:"icon_url"`
 }
 
 func (h *handler) listSites(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +100,8 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 	query := `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
 		coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 		coalesce(settings->'profiles_enabled'='true'::jsonb,false),
-		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),created_at
+		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
+		coalesce(settings->>'icon_url',''),created_at
 		from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 		order by created_at,id limit $3`
 	args := []any{principal.OrgID, principal.SiteIDs, limit + 1}
@@ -106,7 +109,8 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		query = `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
 			coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 			coalesce(settings->'profiles_enabled'='true'::jsonb,false),
-		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),created_at
+			coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
+			coalesce(settings->>'icon_url',''),created_at
 			from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 			and (created_at,id)>($3,$4) order by created_at,id limit $5`
 		args = []any{principal.OrgID, principal.SiteIDs, cursor.CreatedAt, cursor.ID, limit + 1}
@@ -127,7 +131,8 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		var retention int16
 		if err := rows.Scan(&item.response.ID, &item.response.OrgID, &item.response.PublicID, &item.response.Name,
 			&item.response.AllowedHosts, &timezone, &retention, &item.response.ExcludeIPs,
-			&item.response.ExcludePaths, &item.response.ProfilesEnabled, &item.response.HeatmapsEnabled, &item.createdAt); err != nil {
+			&item.response.ExcludePaths, &item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
+			&item.response.IconURL, &item.createdAt); err != nil {
 			return nil, "", err
 		}
 		item.response.Timezone = timezone
@@ -206,6 +211,7 @@ func (h *handler) createSite(w http.ResponseWriter, r *http.Request) {
 	if response.Name == "" {
 		response.Name = request.Name
 	}
+	h.startIconDiscovery(principal, site.ID)
 	writeJSON(w, http.StatusCreated, response)
 }
 
@@ -316,11 +322,60 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		ExcludeIPs: append([]string{}, site.Exclusions.IPRules...), ExcludePaths: append([]string{}, site.Exclusions.PathRules...),
 		ProfilesEnabled: site.ProfilesEnabled,
 		HeatmapsEnabled: site.HeatmapsEnabled,
+		IconURL:         site.IconURL,
 	}
 	if h.deps.Store != nil {
-		_ = h.deps.Store.Pool.QueryRow(r.Context(), `select name from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).Scan(&response.Name)
+		_ = h.deps.Store.Pool.QueryRow(r.Context(), `select name,coalesce(settings->>'icon_url','') from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).Scan(&response.Name, &response.IconURL)
 	}
 	return response
+}
+
+func (h *handler) startIconDiscovery(principal authz.Principal, siteID int32) {
+	service, ok := h.deps.Mutations.(siteIconMutationService)
+	if !ok {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if _, err := service.RefreshSiteIcon(ctx, principal, siteID); err != nil {
+			slog.Warn("site icon discovery failed", "site_id", siteID, "error", err)
+		}
+	}()
+}
+
+func (h *handler) refetchSiteIcon(w http.ResponseWriter, r *http.Request) {
+	roles := []authz.Role{authz.RoleOwner, authz.RoleAdmin}
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSiteEdit, roles...)
+	if !ok {
+		return
+	}
+	service, ok := h.deps.Mutations.(siteIconMutationService)
+	if !ok {
+		unavailable(w, "site icon")
+		return
+	}
+	now := time.Now()
+	h.iconRefetchMu.Lock()
+	last := h.iconRefetched[site.ID]
+	if remaining := 30*time.Second - now.Sub(last); !last.IsZero() && remaining > 0 {
+		retry := int((remaining + time.Second - 1) / time.Second)
+		h.iconRefetchMu.Unlock()
+		w.Header().Set("Retry-After", strconv.Itoa(retry))
+		writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
+		return
+	}
+	h.iconRefetched[site.ID] = now
+	h.iconRefetchMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	updated, err := service.RefreshSiteIcon(ctx, principal, site.ID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, h.responseSite(r, updated))
 }
 
 func parseLimit(r *http.Request) (int, bool) {
