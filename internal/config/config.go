@@ -63,6 +63,26 @@ type Config struct {
 	Signup               string
 	SMTP                 SMTP
 	AllowPrivateWebhooks bool
+	Replay               ReplayEnv
+}
+
+type ReplayEnv struct {
+	Enabled    bool
+	Mask       *bool
+	SampleRate *int
+	Retention  *int
+	QuotaBytes *int64
+	Dir        string
+	S3         *S3Env
+}
+
+type S3Env struct {
+	Endpoint  string
+	Bucket    string
+	Region    string
+	AccessKey string
+	SecretKey string
+	Prefix    string
 }
 
 func Load(getenv func(string) string) (Config, error) {
@@ -128,6 +148,42 @@ func Load(getenv func(string) string) (Config, error) {
 		} else {
 			c.AllowPrivateWebhooks = value
 		}
+	}
+	parseOptionalBool(getenv("PANEL_REPLAY_ENABLED"), "PANEL_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
+	parseOptionalBoolPointer(getenv("PANEL_REPLAY_MASK"), "PANEL_REPLAY_MASK", &c.Replay.Mask, &errs)
+	parseOptionalIntPointer(getenv("PANEL_REPLAY_SAMPLE_RATE"), "PANEL_REPLAY_SAMPLE_RATE", 0, 100, &c.Replay.SampleRate, &errs)
+	parseOptionalIntPointer(getenv("PANEL_REPLAY_RETENTION_DAYS"), "PANEL_REPLAY_RETENTION_DAYS", 1, 365, &c.Replay.Retention, &errs)
+	if raw := getenv("PANEL_REPLAY_QUOTA"); raw != "" {
+		value, err := ParseSize(raw)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("PANEL_REPLAY_QUOTA: %w", err))
+		} else {
+			c.Replay.QuotaBytes = &value
+		}
+	}
+	c.Replay.Dir = getenv("PANEL_REPLAY_DIR")
+	s3 := S3Env{
+		Endpoint:  getenv("PANEL_REPLAY_S3_ENDPOINT"),
+		Bucket:    getenv("PANEL_REPLAY_S3_BUCKET"),
+		Region:    getenv("PANEL_REPLAY_S3_REGION"),
+		AccessKey: getenv("PANEL_REPLAY_S3_ACCESS_KEY"),
+		SecretKey: getenv("PANEL_REPLAY_S3_SECRET_KEY"),
+		Prefix:    getenv("PANEL_REPLAY_S3_PREFIX"),
+	}
+	// The prefix is optional. A partial S3 setup is an error rather than a
+	// silent fall back to disk.
+	required := []string{s3.Endpoint, s3.Bucket, s3.Region, s3.AccessKey, s3.SecretKey}
+	set := 0
+	for _, v := range required {
+		if v != "" {
+			set++
+		}
+	}
+	switch {
+	case set == len(required):
+		c.Replay.S3 = &s3
+	case set > 0 || s3.Prefix != "":
+		errs = append(errs, errors.New("PANEL_REPLAY_S3_ENDPOINT, _BUCKET, _REGION, _ACCESS_KEY and _SECRET_KEY must all be set together"))
 	}
 
 	for name, path := range map[string]string{
@@ -250,4 +306,77 @@ func parsePositiveDuration(raw, name string, target *time.Duration, errs *[]erro
 		return
 	}
 	*target = value
+}
+
+func parseOptionalBool(raw, name string, target *bool, errs *[]error) {
+	if raw == "" {
+		return
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		*errs = append(*errs, fmt.Errorf("%s must be a boolean", name))
+		return
+	}
+	*target = value
+}
+
+func parseOptionalBoolPointer(raw, name string, target **bool, errs *[]error) {
+	if raw == "" {
+		return
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		*errs = append(*errs, fmt.Errorf("%s must be a boolean", name))
+		return
+	}
+	*target = &value
+}
+
+func parseOptionalIntPointer(raw, name string, minimum, maximum int, target **int, errs *[]error) {
+	if raw == "" {
+		return
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < minimum || value > maximum {
+		*errs = append(*errs, fmt.Errorf("%s must be an integer from %d to %d", name, minimum, maximum))
+		return
+	}
+	*target = &value
+}
+
+// ParseSize parses a positive binary size written with a B, KB, MB, GB or TB
+// suffix. The short K, M, G and T suffixes are accepted as aliases.
+func ParseSize(raw string) (int64, error) {
+	value := strings.ToUpper(strings.TrimSpace(raw))
+	if value == "" {
+		return 0, errors.New("size must not be empty")
+	}
+
+	digitEnd := 0
+	for digitEnd < len(value) && value[digitEnd] >= '0' && value[digitEnd] <= '9' {
+		digitEnd++
+	}
+	if digitEnd == 0 {
+		return 0, fmt.Errorf("invalid size %q", raw)
+	}
+	number, err := strconv.ParseInt(value[:digitEnd], 10, 64)
+	if err != nil || number <= 0 {
+		return 0, fmt.Errorf("invalid size %q", raw)
+	}
+	multipliers := map[string]int64{
+		"B":  1,
+		"K":  1 << 10,
+		"KB": 1 << 10,
+		"M":  1 << 20,
+		"MB": 1 << 20,
+		"G":  1 << 30,
+		"GB": 1 << 30,
+		"T":  1 << 40,
+		"TB": 1 << 40,
+	}
+	multiplier, ok := multipliers[value[digitEnd:]]
+	if !ok || number > int64(^uint64(0)>>1)/multiplier {
+		return 0, fmt.Errorf("invalid size %q", raw)
+	}
+	return number * multiplier, nil
 }
