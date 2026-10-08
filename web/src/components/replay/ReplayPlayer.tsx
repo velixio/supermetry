@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ReplayData } from '@/lib/replay-api'
 
+import { rehydrateCSS } from './css-rehydrate'
+
 type MountPlayer = (target: HTMLElement, events: unknown[]) => void | (() => void) | Promise<void | (() => void)>
 
 async function mountRRWebPlayer(target: HTMLElement, events: unknown[]): Promise<() => void> {
@@ -17,10 +19,12 @@ async function mountRRWebPlayer(target: HTMLElement, events: unknown[]): Promise
 }
 
 export function ReplayPlayer({
-  load,
-  mountPlayer = mountRRWebPlayer,
+	load,
+	fetchCSS,
+	mountPlayer = mountRRWebPlayer,
 }: {
-  load: (signal: AbortSignal) => Promise<ReplayData>
+	load: (signal: AbortSignal) => Promise<ReplayData>
+	fetchCSS?: (hash: string) => Promise<string>
   mountPlayer?: MountPlayer
 }) {
   const target = useRef<HTMLDivElement>(null)
@@ -30,10 +34,12 @@ export function ReplayPlayer({
     const controller = new AbortController()
     let disposed = false
     let destroy: void | (() => void)
-    void load(controller.signal)
-      .then(async (data) => {
-        if (disposed || !target.current) return
-        destroy = await mountPlayer(target.current, data.events)
+	void load(controller.signal)
+		.then(async (data) => {
+			if (disposed || !target.current) return
+			const events = fetchCSS ? await rehydrateCSS(data.events, fetchCSS) : data.events
+			if (disposed || !target.current) return
+			destroy = await mountPlayer(target.current, events)
         if (!disposed) setState({ loading: false, truncated: data.truncated })
       })
       .catch((error: unknown) => {
@@ -46,7 +52,7 @@ export function ReplayPlayer({
       controller.abort()
       destroy?.()
     }
-  }, [load, mountPlayer])
+	}, [fetchCSS, load, mountPlayer])
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
