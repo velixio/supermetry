@@ -93,6 +93,8 @@ describe("settings security boundaries", () => {
 
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.getByText(/abc123def456\.js/)).toBeVisible();
+    expect(screen.getByText(/session replay only starts from this URL/i)).toBeVisible();
+    expect(screen.getByText(/script\.full\.js/)).toBeVisible();
   });
 
   it("renders a TOTP QR locally without a network request", () => {
