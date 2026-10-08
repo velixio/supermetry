@@ -22,27 +22,60 @@
     var a = e.target;
     for (var l = 0; a && l < 4; l++, a = a.parentElement) {
       var n = a.getAttribute?.("data-panel-event");
-      if (!n) continue;
-      var p = {};
-      for (var i = 0, c = 0, b = 0; i < a.attributes.length && c < 30; i++) {
-        var r = a.attributes[i];
-        if (r.name.indexOf("data-panel-prop-") != 0) continue;
-        var k = r.name.slice(16, 91);
-        if (!k) continue;
-        var v = r.value.slice(0, 500);
-        if ((b += k.length + v.length) > 700) break;
-        p[k] = v;
-        c++;
+      if (n) {
+        var p = {};
+        for (var i = 0, c = 0, b = 0; i < a.attributes.length && c < 30; i++) {
+          var r = a.attributes[i];
+          if (r.name.indexOf("data-panel-prop-") != 0) continue;
+          var k = r.name.slice(16, 91);
+          if (!k) continue;
+          var v = r.value.slice(0, 500);
+          if ((b += k.length + v.length) > 700) break;
+          p[k] = v;
+          c++;
+        }
+        t(n.slice(0, 75), p);
+        return;
       }
-      t(n.slice(0, 75), p);
-      return;
+
+      var tag = tagged(a);
+      if (tag) {
+        t(tag.name.slice(0, 75), tag.props);
+        return;
+      }
     }
+  }
+
+  function tagged(el) {
+    var name, props = {}, n = 0;
+    for (var c of el.classList || []) {
+      if (c.indexOf("panel-event-") != 0) continue;
+      var kv = c.slice(12).replace(/\+/g, " "), i = kv.indexOf("=");
+      if (i < 0) {
+        name = name || kv;
+      } else if (i && i <= 64 && kv.length - i - 1 <= 256 && ++n <= 20) {
+        props[kv.slice(0, i)] = kv.slice(i + 1);
+      }
+    }
+    return name && {name: name, props: props};
   }
 
   document.addEventListener("click", link);
   document.addEventListener("auxclick", link);
   document.addEventListener("click", custom);
   document.addEventListener("submit", custom);
+  if (d.forms != "false") {
+    document.addEventListener("submit", (e) => {
+      var f = e.target;
+      if (!f || f.tagName != "FORM" || f.getAttribute?.("data-panel-event") || tagged(f)) return;
+      var a = (f.getAttribute("action") || "").split(/[?#]/)[0].slice(0, 500);
+      t("Form: Submit", {
+        form_id: (f.getAttribute("id") || "").slice(0, 100),
+        form_name: (f.getAttribute("name") || "").slice(0, 100),
+        action: a
+      });
+    }, true);
+  }
   if (d[404] != "false" && (s.hasAttribute("data-404-page") || document.querySelector('meta[name="panel:404"]'))) {
     t("404", {path: location.pathname.slice(0, 500)});
   }
