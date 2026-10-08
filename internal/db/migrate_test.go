@@ -67,6 +67,42 @@ func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
 	}
 }
 
+func TestRollupStateMigrationSchema(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	var columns int
+	if err := pool.QueryRow(ctx, `
+		select count(*)
+		from information_schema.columns
+		where table_schema = current_schema()
+		  and table_name = 'rollup_state'
+		  and column_name = any($1::text[])`, []string{
+		"layout_version", "dimension_set", "counter_set", "pending_layout_version",
+		"pending_dimension_set", "pending_counter_set", "backfill_mode",
+		"last_processed_site_id", "last_processed_day", "through_site_id", "through_day",
+		"days_done", "total_days", "started_at", "finished_at",
+	}).Scan(&columns); err != nil {
+		t.Fatal(err)
+	}
+	if columns != 15 {
+		t.Fatalf("rollup_state progress columns = %d, want 15", columns)
+	}
+
+	if _, err := pool.Exec(ctx, `insert into rollup_state(singleton) values (true)`); err != nil {
+		t.Fatalf("insert singleton state: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `insert into rollup_state(singleton) values (true)`); err == nil {
+		t.Fatal("rollup_state accepted a second singleton row")
+	}
+	if _, err := pool.Exec(ctx, `insert into rollup_state(singleton) values (false)`); err == nil {
+		t.Fatal("rollup_state accepted a non-singleton key")
+	}
+}
+
 func TestPlatformMigrationTables(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
