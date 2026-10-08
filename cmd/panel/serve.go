@@ -188,6 +188,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	inviteService := invites.New(platformStore, accounts, sender, cfg.BaseURL)
 	definitionService := goals.New(platformStore, 30*time.Second)
 	defer definitionService.Close()
+	// goal_id filters resolve goal definitions from this in-memory snapshot.
+	engine.SetGoalLookup(definitionService)
 	reportService := reports.New(platformStore, engine, registry, sender)
 	alertBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/alerts/v1")
 	if err != nil {
