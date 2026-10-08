@@ -1,0 +1,16 @@
+{
+  "name": "panel-replay-static",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.ts",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "rrweb": "2.1.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/bun": "1.2.23"
+  }
+}
