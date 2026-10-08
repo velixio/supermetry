@@ -100,11 +100,12 @@ const closeCustomSQL = `
 insert into custom_closed (
   site_id, day, visitor_id, name_id, path_id, source_id, medium_id,
   campaign_id, utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
-  device, entry_path, exit_path, props
+  device, entry_path, exit_path, props, revenue_micros, revenue_currency
 )
 select c.site_id, $1, c.visitor_id, e.name_id, e.path_id,
        c.source_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
-       c.country, c.region_id, c.city_id, c.browser_id, c.os_id, c.device, c.entry_path, c.exit_path, e.props
+       c.country, c.region_id, c.city_id, c.browser_id, c.os_id, c.device, c.entry_path, c.exit_path, e.props,
+       e.revenue_micros, e.revenue_currency
 from events e
 join sessions_closed c
   on c.site_id = e.site_id and c.session_id = e.session_id and c.day = $1

@@ -375,6 +375,90 @@ func TestParsePayloadFieldLimits(t *testing.T) {
 	}
 }
 
+func TestCustomEventRevenuePersistsExactMicros(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	for _, body := range []string{
+		`{"site":"abc123","name":"purchase-string","url":"https://example.com/","revenue":{"amount":"12.345678","currency":"USD"}}`,
+		`{"site":"abc123","name":"purchase-number","url":"https://example.com/","revenue":{"amount":1000000000000,"currency":"JPY"}}`,
+	} {
+		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+			t.Fatalf("code=%d, want 202", rr.Code)
+		}
+	}
+	f.stop(t)
+
+	rows, err := f.pool.Query(context.Background(), `
+select revenue_micros, revenue_currency from events order by revenue_micros`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	wantMicros := []int64{12_345_678, 1_000_000_000_000_000_000}
+	wantCurrencies := []string{"USD", "JPY"}
+	var i int
+	for rows.Next() {
+		var micros int64
+		var currency string
+		if err := rows.Scan(&micros, &currency); err != nil {
+			t.Fatal(err)
+		}
+		if micros != wantMicros[i] || currency != wantCurrencies[i] {
+			t.Fatalf("row %d revenue=%d/%q, want %d/%q", i, micros, currency, wantMicros[i], wantCurrencies[i])
+		}
+		i++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if i != len(wantMicros) {
+		t.Fatalf("rows=%d, want %d", i, len(wantMicros))
+	}
+}
+
+func TestInvalidCustomEventRevenueIsDroppedAndCounted(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	before := health.IngestRevenueInvalid.Load()
+	body := `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"1.0000001","currency":"usd"}}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	var micros int64
+	var currency *string
+	if err := f.pool.QueryRow(context.Background(), `select revenue_micros, revenue_currency from events`).Scan(&micros, &currency); err != nil {
+		t.Fatal(err)
+	}
+	if micros != 0 || currency != nil {
+		t.Fatalf("revenue=%d/%v, want dropped", micros, currency)
+	}
+	if got := health.IngestRevenueInvalid.Load(); got != before+1 {
+		t.Fatalf("invalid revenue delta=%d, want 1", got-before)
+	}
+}
+
+func TestPageviewRevenueIsIgnoredWithoutHealthError(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	before := health.IngestRevenueInvalid.Load()
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","revenue":{"amount":"9.99","currency":"USD"}}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	var micros int64
+	var currency *string
+	if err := f.pool.QueryRow(context.Background(), `select revenue_micros, revenue_currency from events`).Scan(&micros, &currency); err != nil {
+		t.Fatal(err)
+	}
+	if micros != 0 || currency != nil {
+		t.Fatalf("pageview revenue=%d/%v, want ignored", micros, currency)
+	}
+	if got := health.IngestRevenueInvalid.Load(); got != before {
+		t.Fatalf("invalid revenue delta=%d, want 0", got-before)
+	}
+}
+
 func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *handlerFixture {
 	t.Helper()
 	pool, _ := testpg.New(t)

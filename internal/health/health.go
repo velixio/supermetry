@@ -47,9 +47,10 @@ func (g *Gauge) Observe(value float64) { g.Store(value) }
 func (g *Gauge) Load() float64 { return math.Float64frombits(g.bits.Load()) }
 
 var (
-	IngestAccepted Counter
-	IngestInvalid  Counter
-	IngestDropped  Counter
+	IngestAccepted       Counter
+	IngestInvalid        Counter
+	IngestRevenueInvalid Counter
+	IngestDropped        Counter
 
 	// BotsFiltered is indexed by enrich.BotReason. Index zero is the
 	// unfiltered case and is intentionally not exported as a metric.
@@ -165,6 +166,7 @@ func Snapshot() map[string]float64 {
 	snapshot := map[string]float64{
 		"ingest_accepted_total":          float64(IngestAccepted.Load()),
 		"ingest_invalid_total":           float64(IngestInvalid.Load()),
+		"ingest_revenue_invalid_total":   float64(IngestRevenueInvalid.Load()),
 		"ingest_dropped_total":           float64(IngestDropped.Load()),
 		"writer_queue_depth":             WriterQueueDepth.Load(),
 		"copy_seconds":                   CopySeconds.Load(),
@@ -203,6 +205,7 @@ func WritePrometheus(w io.Writer) {
 	snapshot := Snapshot()
 	writeFamily(w, snapshot, "ingest_accepted_total", "counter")
 	writeFamily(w, snapshot, "ingest_invalid_total", "counter")
+	writeFamily(w, snapshot, "ingest_revenue_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_dropped_total", "counter")
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")
 	writeFamily(w, snapshot, "ingest_excluded_total", "counter")
