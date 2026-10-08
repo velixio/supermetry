@@ -81,7 +81,9 @@ function DashboardStateRoute() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <FilterBar
           siteId={site.id}
+          orgId={membership?.org.id}
           canEdit={membership?.role !== 'viewer'}
+          dateRange={query.dateRange}
           filters={filters}
           dropped={dropped}
           invalidNotice={en.dashboard.invalidFilter}
@@ -94,6 +96,7 @@ function DashboardStateRoute() {
           onApply={(segmentFilters) =>
             updateSearch(replaceFilters(search, segmentFilters))
           }
+          onAdd={onFilter}
           onRemove={(index) => updateSearch(removeFilter(search, index))}
         />
         <div className="flex flex-wrap items-center gap-2">

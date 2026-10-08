@@ -60,16 +60,23 @@ func newAnnotationFixture(t *testing.T) annotationFixture {
 	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class) values ($1,'annotate0002','Foreign','UTC',30) returning id`, foreignOrgID).Scan(&foreignSite); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := pool.Exec(ctx, `insert into api_keys(id,org_id,name,prefix,hash,scopes,created_by) overriding system value values
+		(13,$1,'Annotations','annotate',decode(repeat('13',32),'hex'),array['annotations:write'],$2),
+		(14,$1,'Sites','siteskey',decode(repeat('14',32),'hex'),array['sites:write'],$2)`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
 	data := &store.Store{Pool: pool}
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)
 	invalidations := &invalidationCounter{}
 	authenticator := actorAuthenticator{
-		"owner":        {UserID: userID, OrgID: orgID, Role: authz.RoleOwner},
-		"editor":       {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
-		"viewer":       {UserID: userID, OrgID: orgID, Role: authz.RoleViewer},
-		"key":          {KeyID: 11, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"stats:read"}},
-		"key-no-scope": {KeyID: 12, OrgID: orgID, Role: authz.RoleKey},
+		"owner":          {UserID: userID, OrgID: orgID, Role: authz.RoleOwner},
+		"editor":         {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
+		"viewer":         {UserID: userID, OrgID: orgID, Role: authz.RoleViewer},
+		"key":            {KeyID: 11, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"stats:read"}},
+		"key-no-scope":   {KeyID: 12, OrgID: orgID, Role: authz.RoleKey},
+		"annotation-key": {KeyID: 13, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"annotations:write"}},
+		"sites-key":      {KeyID: 14, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"sites:write"}},
 	}
 	return annotationFixture{
 		handler: platformhttp.New(platformhttp.Deps{
@@ -217,4 +224,48 @@ func TestAnnotationsForeignIDIsHidden(t *testing.T) {
 	if err := f.pool.QueryRow(context.Background(), `select text from annotations where id=$1`, foreignID).Scan(&text); err != nil || text != "Foreign" {
 		t.Fatalf("foreign annotation changed: text=%q err=%v", text, err)
 	}
+}
+
+func TestAnnotationsPublicWriteScopesAndAudit(t *testing.T) {
+	f := newAnnotationFixture(t)
+	for _, actor := range []string{"annotation-key", "sites-key"} {
+		t.Run(actor, func(t *testing.T) {
+			created := f.request(t, actor, http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/annotations", f.siteID), `{"day":"2026-10-08","text":"Public note"}`)
+			if created.Code != http.StatusCreated {
+				t.Fatalf("POST status=%d body=%s", created.Code, created.Body.String())
+			}
+			var annotation annotationJSON
+			if err := json.NewDecoder(created.Body).Decode(&annotation); err != nil {
+				t.Fatal(err)
+			}
+			updated := f.request(t, actor, http.MethodPatch, fmt.Sprintf("/api/public/v1/annotations/%d", annotation.ID), `{"text":"Updated note"}`)
+			if updated.Code != http.StatusOK {
+				t.Fatalf("PATCH status=%d body=%s", updated.Code, updated.Body.String())
+			}
+			deleted := f.request(t, actor, http.MethodDelete, fmt.Sprintf("/api/public/v1/annotations/%d", annotation.ID), "")
+			if deleted.Code != http.StatusNoContent {
+				t.Fatalf("DELETE status=%d body=%s", deleted.Code, deleted.Body.String())
+			}
+		})
+	}
+
+	denied := f.request(t, "key", http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/annotations", f.siteID), `{"day":"2026-10-08","text":"No"}`)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("stats key POST status=%d body=%s", denied.Code, denied.Body.String())
+	}
+	foreign := f.request(t, "annotation-key", http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/annotations", f.foreignSite), `{"day":"2026-10-08","text":"No"}`)
+	if foreign.Code != http.StatusNotFound {
+		t.Fatalf("foreign POST status=%d body=%s", foreign.Code, foreign.Body.String())
+	}
+	var audits int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from audit_log where action like 'annotation.%' and actor_key_id is not null`).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 6 {
+		t.Fatalf("API-key audit rows=%d, want 6", audits)
+	}
+}
+
+type annotationJSON struct {
+	ID int64 `json:"id"`
 }

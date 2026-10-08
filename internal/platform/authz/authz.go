@@ -26,40 +26,41 @@ type Principal struct {
 type Action string
 
 const (
-	ActionStatsRead      Action = "stats.read"
-	ActionSiteEdit       Action = "site.edit"
-	ActionGoalsEdit      Action = "goals.edit"
-	ActionSegmentsEdit   Action = "segments.edit"
-	ActionSiteCreate     Action = "site.create"
-	ActionSiteDelete     Action = "site.delete"
-	ActionMembersManage  Action = "members.manage"
-	ActionKeysManage     Action = "keys.manage"
-	ActionSharesManage   Action = "shares.manage"
-	ActionReportsManage  Action = "reports.manage"
-	ActionChannelsRead   Action = "channels.read"
-	ActionChannelsManage Action = "channels.manage"
-	ActionAlertsManage   Action = "alerts.manage"
-	ActionAuditRead      Action = "audit.read"
-	ActionOrgDelete      Action = "org.delete"
-	ActionOrgTransfer    Action = "org.transfer"
+	ActionStatsRead       Action = "stats.read"
+	ActionSiteEdit        Action = "site.edit"
+	ActionGoalsEdit       Action = "goals.edit"
+	ActionSegmentsEdit    Action = "segments.edit"
+	ActionAnnotationsEdit Action = "annotations.edit"
+	ActionSiteCreate      Action = "site.create"
+	ActionSiteDelete      Action = "site.delete"
+	ActionMembersManage   Action = "members.manage"
+	ActionKeysManage      Action = "keys.manage"
+	ActionSharesManage    Action = "shares.manage"
+	ActionReportsManage   Action = "reports.manage"
+	ActionChannelsRead    Action = "channels.read"
+	ActionChannelsManage  Action = "channels.manage"
+	ActionAlertsManage    Action = "alerts.manage"
+	ActionAuditRead       Action = "audit.read"
+	ActionOrgDelete       Action = "org.delete"
+	ActionOrgTransfer     Action = "org.transfer"
 )
 
 var roleActions = map[Role]map[Action]bool{
 	RoleOwner: {
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionSiteCreate: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
 		ActionOrgDelete: true, ActionOrgTransfer: true,
 	},
 	RoleAdmin: {
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionSiteCreate: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
 	},
 	RoleEditor: {
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionChannelsRead: true, ActionAlertsManage: true,
 	},
 	RoleViewer: {
@@ -67,12 +68,14 @@ var roleActions = map[Role]map[Action]bool{
 	},
 }
 
-var keyScopes = map[Action]string{
-	ActionStatsRead:  "stats:read",
-	ActionSiteEdit:   "sites:write",
-	ActionGoalsEdit:  "goals:write",
-	ActionSiteCreate: "sites:write",
-	ActionSiteDelete: "sites:write",
+var keyScopes = map[Action][]string{
+	ActionStatsRead:       {"stats:read"},
+	ActionSiteEdit:        {"sites:write"},
+	ActionGoalsEdit:       {"goals:write"},
+	ActionSegmentsEdit:    {"segments:write", "sites:write"},
+	ActionAnnotationsEdit: {"annotations:write", "sites:write"},
+	ActionSiteCreate:      {"sites:write"},
+	ActionSiteDelete:      {"sites:write"},
 }
 
 // Can reports whether p may perform action for siteID. A zero siteID denotes
@@ -85,8 +88,8 @@ func Can(p Principal, action Action, siteID int32) bool {
 
 	switch p.Role {
 	case RoleKey:
-		scope, ok := keyScopes[action]
-		if !ok || !hasScope(p.Scopes, scope) {
+		scopes, ok := keyScopes[action]
+		if !ok || !hasAnyScope(p.Scopes, scopes) {
 			return false
 		}
 	case RoleShare:
@@ -117,7 +120,7 @@ func Can(p Principal, action Action, siteID int32) bool {
 
 func isSiteAction(action Action) bool {
 	switch action {
-	case ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSegmentsEdit, ActionSharesManage, ActionReportsManage, ActionAlertsManage:
+	case ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSegmentsEdit, ActionAnnotationsEdit, ActionSharesManage, ActionReportsManage, ActionAlertsManage:
 		return true
 	default:
 		return false
@@ -139,6 +142,15 @@ func allowsSite(siteIDs []int32, siteID int32) bool {
 func hasScope(scopes []string, want string) bool {
 	for _, scope := range scopes {
 		if scope == want {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnyScope(scopes, wanted []string) bool {
+	for _, want := range wanted {
+		if hasScope(scopes, want) {
 			return true
 		}
 	}

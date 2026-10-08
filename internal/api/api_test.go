@@ -239,6 +239,12 @@ func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
 		path   string
 	}{
 		{name: "public list", method: http.MethodGet, path: "/api/public/v1/sites/1/segments"},
+		{name: "public segment create", method: http.MethodPost, path: "/api/public/v1/sites/1/segments"},
+		{name: "public segment update", method: http.MethodPatch, path: "/api/public/v1/segments/1"},
+		{name: "public segment delete", method: http.MethodDelete, path: "/api/public/v1/segments/1"},
+		{name: "public annotation create", method: http.MethodPost, path: "/api/public/v1/sites/1/annotations"},
+		{name: "public annotation update", method: http.MethodPatch, path: "/api/public/v1/annotations/1"},
+		{name: "public annotation delete", method: http.MethodDelete, path: "/api/public/v1/annotations/1"},
 		{name: "private list", method: http.MethodGet, path: "/api/private/sites/1/segments"},
 		{name: "private create", method: http.MethodPost, path: "/api/private/sites/1/segments"},
 		{name: "private update", method: http.MethodPatch, path: "/api/private/segments/1"},
@@ -266,13 +272,6 @@ func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
 				t.Fatalf("status=%d body=%s, want platform response", response.Code, response.Body.String())
 			}
 		})
-	}
-
-	request := httptest.NewRequest(http.MethodPost, "/api/public/v1/sites/1/segments", nil)
-	response := httptest.NewRecorder()
-	router.ServeHTTP(response, request)
-	if response.Code == 218 {
-		t.Fatal("public segment mutation was forwarded")
 	}
 }
 

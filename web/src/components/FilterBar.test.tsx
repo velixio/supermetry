@@ -31,6 +31,7 @@ function response(data?: unknown, status = 200) {
 
 function renderBar({ canEdit = true, current = [] as Filter[] } = {}) {
   const onApply = vi.fn()
+  const onAdd = vi.fn()
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -38,18 +39,21 @@ function renderBar({ canEdit = true, current = [] as Filter[] } = {}) {
     <QueryClientProvider client={client}>
       <FilterBar
         canEdit={canEdit}
+        orgId={3}
         siteId={7}
         filters={current}
         dropped={[]}
         invalidNotice="Invalid filters"
         filterLabel={(filter) => filter.dimension}
         removeLabel={(filter) => `Remove ${filter.dimension}`}
+        dateRange={{ from: '2026-10-01', to: '2026-10-08' }}
+        onAdd={onAdd}
         onApply={onApply}
         onRemove={vi.fn()}
       />
     </QueryClientProvider>,
   )
-  return { onApply }
+  return { onAdd, onApply }
 }
 
 async function openSegments() {
@@ -211,5 +215,53 @@ describe('saved segments', () => {
     await openSegments()
     const error = await screen.findByRole('menuitem', { name: 'Could not load segments.' })
     expect(error).toHaveAttribute('data-disabled')
+  })
+
+  it('adds a filter through dimension, operator, and suggested value', async () => {
+    get.mockImplementation((path: string) => path.includes('/suggestions')
+      ? Promise.resolve(response([{ value: '/pricing', count: 8 }]))
+      : Promise.resolve(response([saved])))
+    const { onAdd } = renderBar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add filter' }))
+    fireEvent.change(screen.getByLabelText('Dimension'), { target: { value: 'page' } })
+    fireEvent.change(screen.getByLabelText('Operator'), { target: { value: 'contains' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'pri' } })
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/private/sites/7/suggestions', expect.objectContaining({
+      params: expect.objectContaining({ query: expect.objectContaining({ dimension: 'page', q: 'pri' }) }),
+    })))
+    fireEvent.click(await screen.findByRole('button', { name: '/pricing, 8 events' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filter' }))
+
+    expect(onAdd).toHaveBeenCalledWith({ dimension: 'page', operator: 'contains', values: ['/pricing'] })
+  })
+
+  it('keeps the add-filter dialog keyboard reachable and restores focus on Escape', async () => {
+    get.mockImplementation(() => Promise.resolve(response([saved])))
+    renderBar()
+
+    const trigger = await screen.findByRole('button', { name: 'Add filter' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const dialog = await screen.findByRole('dialog', { name: 'Add filter' })
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(trigger).toHaveFocus()
+  })
+
+  it('builds property dimensions from a property key', async () => {
+    get.mockImplementation((path: string) => path.includes('/suggestions')
+      ? Promise.resolve(response([{ value: 'pro', count: 3 }]))
+      : Promise.resolve(response([saved])))
+    const { onAdd } = renderBar()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add filter' }))
+    fireEvent.change(screen.getByLabelText('Dimension'), { target: { value: 'property' } })
+    fireEvent.change(screen.getByLabelText('Property key'), { target: { value: 'plan' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'pro' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filter' }))
+
+    expect(onAdd).toHaveBeenCalledWith({ dimension: 'prop:plan', operator: 'is', values: ['pro'] })
   })
 })

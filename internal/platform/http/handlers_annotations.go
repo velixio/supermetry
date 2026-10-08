@@ -74,7 +74,7 @@ func (h *handler) listAnnotations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) createAnnotation(w http.ResponseWriter, r *http.Request) {
-	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionAnnotationsEdit, h.resourceRoles(r)...)
 	if !ok {
 		return
 	}
@@ -96,7 +96,7 @@ func (h *handler) createAnnotation(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `
 			insert into annotations(site_id,day,text,created_by)
 			values($1,$2,$3,$4)
-			returning id,created_by,created_at`, site.ID, day, text, principal.UserID).
+			returning id,created_by,created_at`, site.ID, day, text, createdByUser(principal)).
 			Scan(&created.ID, &created.CreatedBy, &created.CreatedAt); err != nil {
 			return err
 		}
@@ -195,7 +195,7 @@ func (h *handler) annotationPrincipal(w http.ResponseWriter, r *http.Request) (a
 	if _, _, ok := h.visibleSite(w, principal, annotation.SiteID); !ok {
 		return authz.Principal{}, annotationResponse{}, false
 	}
-	if !roleAllowed(principal.Role, []authz.Role{authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor}) || !authz.Can(principal, authz.ActionSiteEdit, annotation.SiteID) {
+	if !roleAllowed(principal.Role, h.resourceRoles(r)) || !authz.Can(principal, authz.ActionAnnotationsEdit, annotation.SiteID) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
 		return authz.Principal{}, annotationResponse{}, false
 	}
