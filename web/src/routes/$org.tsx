@@ -33,7 +33,7 @@ export type Membership = {
 }
 
 export type Me = {
-  user: { id: number; name: string; email: string }
+  user: { id: number; name: string; email: string; totp_enabled?: boolean }
   memberships: Membership[]
 }
 

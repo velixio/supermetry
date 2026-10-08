@@ -134,7 +134,9 @@ function LoginPage() {
       next={safeNext(search.next ?? '/')}
       onSuccess={(next) => {
         applyPreferredTheme()
-        router.history.replace(next)
+        // Server routes (such as the emailed email-change link) need a full load.
+        if (next.startsWith('/api/')) window.location.assign(next)
+        else router.history.replace(next)
       }}
       signup={signup}
     />
