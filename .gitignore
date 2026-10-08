@@ -49,3 +49,5 @@ web/node_modules
 
 # JS wrapper dependencies
 sdk/js/node_modules/
+
+bench/results/tmp/
