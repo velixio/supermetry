@@ -66,6 +66,9 @@ func NewRouter(deps Deps) http.Handler {
 
 	public := http.NewServeMux()
 	registerStats(public, publicPrefix, h)
+	public.Handle("POST "+publicPrefix+"/mcp", NewMCPHandler(MCPDeps{
+		Query: deps.Query, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
+	}))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
 	public.HandleFunc("POST "+publicPrefix+"/funnels/query", h.funnelRequest)
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
@@ -279,23 +282,23 @@ func authorizeRequest(w http.ResponseWriter, r *http.Request, siteID int32, scop
 		writeProblem(w, forbidden("the credential does not grant the required scope"))
 		return false
 	}
-	if siteID != 0 {
-		// Fail closed: without a registry, or for unknown or foreign sites, answer 404
-		// so the existence of other organizations' sites is not revealed.
-		registry, _ := r.Context().Value(registryContextKey{}).(sites.Registry)
-		if registry == nil && !principal.AllSites {
-			writeProblem(w, notFound("site not found"))
-			return false
-		}
-		if registry != nil {
-			site, found := registry.Site(siteID)
-			if !found || !principal.allowsSite(site) {
-				writeProblem(w, notFound("site not found"))
-				return false
-			}
-		}
+	if siteID != 0 && !siteAllowed(r, principal, siteID) {
+		writeProblem(w, notFound("site not found"))
+		return false
 	}
 	return true
+}
+
+// siteAllowed reports whether principal may access siteID. It fails closed:
+// without a registry, or for unknown or foreign sites, callers answer "not
+// found" so the existence of other organizations' sites is not revealed.
+func siteAllowed(r *http.Request, principal Principal, siteID int32) bool {
+	registry, _ := r.Context().Value(registryContextKey{}).(sites.Registry)
+	if registry == nil {
+		return principal.AllSites
+	}
+	site, found := registry.Site(siteID)
+	return found && principal.allowsSite(site)
 }
 
 func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {

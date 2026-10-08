@@ -55,6 +55,12 @@ func TestAPIConventions(t *testing.T) {
 		assertProblem(t, response, http.StatusUnauthorized)
 	})
 
+	t.Run("MCP requires bearer authentication", func(t *testing.T) {
+		response := post(t, srv.URL+"/api/public/v1/mcp", "", `{"jsonrpc":"2.0","id":1,"method":"ping"}`)
+		defer response.Body.Close()
+		assertProblem(t, response, http.StatusUnauthorized)
+	})
+
 	t.Run("private API requires a session", func(t *testing.T) {
 		response := get(t, srv.URL+"/api/private/stats/summary?site_id=1&period=30d", "")
 		defer response.Body.Close()
