@@ -22,6 +22,8 @@ var (
 	ErrInvalid      = errors.New("invalid credentials")
 	ErrTOTPRequired = errors.New("TOTP code required")
 	ErrRateLimited  = errors.New("too many authentication attempts")
+	ErrSMTPRequired = errors.New("email change requires SMTP")
+	ErrLastOwner    = errors.New("account is the last owner of an organization")
 )
 
 const CookieName = "panel_session"
