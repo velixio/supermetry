@@ -40,9 +40,11 @@ cross join lateral (values
   (7::smallint, s.entry_path, 4::smallint),
   (8::smallint, s.exit_path, 8::smallint),
   (9::smallint, s.region_id, 1::smallint),
-  (10::smallint, s.city_id, 1::smallint)
+  (10::smallint, s.city_id, 1::smallint),
+  (11::smallint, s.utm_source_id, 16::smallint)
 ) dimensions(dim, value_id, visitor_flag)
-where not (dim in (7, 8) and s.pageviews = 0)
+where not (dim = 11 and value_id = 0)
+  and not (dim in (7, 8) and s.pageviews = 0)
 group by site_id, dim, value_id`
 
 const rollupPathSQL = `

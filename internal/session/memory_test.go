@@ -100,13 +100,13 @@ func TestSessionMetricsAndFirstHitDimensions(t *testing.T) {
 	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
 	first := session.Hit{
 		SiteID: 1, Retention: db.Ret30, TS: t0, LocalDay: t0, VisitorID: 9,
-		Kind: 1, NameID: 7, Source: 10, Medium: 11, Campaign: 12,
+		Kind: 1, NameID: 7, Source: 10, UTMSource: 17, Medium: 11, Campaign: 12,
 		Country: "DE", Region: 15, City: 16, Browser: 13, OS: 14, Device: 2,
 	}
 	r := m.Touch(first)
 	m.Touch(session.Hit{
 		SiteID: 1, Retention: db.Ret7, TS: t0.Add(time.Minute), LocalDay: t0,
-		VisitorID: 9, Kind: 0, PathID: 21, Source: 100, Medium: 101,
+		VisitorID: 9, Kind: 0, PathID: 21, Source: 100, UTMSource: 107, Medium: 101,
 		Campaign: 102, Country: "US", Region: 105, City: 106, Browser: 103, OS: 104, Device: 4,
 	})
 	m.Touch(session.Hit{SiteID: 1, TS: t0.Add(2 * time.Minute), LocalDay: t0, VisitorID: 9, Kind: 0, PathID: 22})
@@ -115,7 +115,7 @@ func TestSessionMetricsAndFirstHitDimensions(t *testing.T) {
 	if snapshot.Pageviews != 2 || snapshot.Events != 1 || snapshot.Entry != 21 || snapshot.Exit != 22 || snapshot.Bounce {
 		t.Fatalf("bad metrics: %+v", snapshot)
 	}
-	if snapshot.Retention != db.Ret30 || snapshot.Source != 10 || snapshot.Medium != 11 || snapshot.Campaign != 12 ||
+	if snapshot.Retention != db.Ret30 || snapshot.Source != 10 || snapshot.UTMSource != 17 || snapshot.Medium != 11 || snapshot.Campaign != 12 ||
 		snapshot.Country != "DE" || snapshot.Region != 15 || snapshot.City != 16 ||
 		snapshot.Browser != 13 || snapshot.OS != 14 || snapshot.Device != 2 {
 		t.Fatalf("first-hit dimensions changed: %+v", snapshot)
@@ -157,7 +157,7 @@ func TestRestoreContinuesSessionAndExpireUsesStrictIdleTimeout(t *testing.T) {
 	m.Restore([]session.Snapshot{{
 		SiteID: 1, Retention: db.Ret90, SessionID: 500, VisitorID: 77,
 		Start: t0, Last: t0.Add(5 * time.Minute), LocalDay: t0,
-		Entry: 1, Exit: 2, Pageviews: 2, Source: 3, Country: "US", Region: 4, City: 5,
+		Entry: 1, Exit: 2, Pageviews: 2, Source: 3, UTMSource: 6, Country: "US", Region: 4, City: 5,
 	}})
 	if dirty := m.Dirty(10); len(dirty) != 0 {
 		t.Fatalf("restore marked session dirty: %+v", dirty)
@@ -168,7 +168,7 @@ func TestRestoreContinuesSessionAndExpireUsesStrictIdleTimeout(t *testing.T) {
 		t.Fatalf("restored session not continued: %+v", r)
 	}
 	snapshot := findSnap(t, m.Dirty(10), 500)
-	if snapshot.Pageviews != 3 || snapshot.Entry != 1 || snapshot.Exit != 4 || snapshot.Region != 4 || snapshot.City != 5 {
+	if snapshot.Pageviews != 3 || snapshot.Entry != 1 || snapshot.Exit != 4 || snapshot.UTMSource != 6 || snapshot.Region != 4 || snapshot.City != 5 {
 		t.Fatalf("continued snapshot wrong: %+v", snapshot)
 	}
 	if expired := m.Expire(snapshot.Last.Add(30 * time.Minute)); expired != 0 {

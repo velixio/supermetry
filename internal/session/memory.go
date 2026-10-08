@@ -66,11 +66,12 @@ type overflowCounts struct {
 }
 
 type memoryShard struct {
-	mu       sync.Mutex
-	sessions map[sessionKey]*memorySession
-	dirty    []*memorySession
-	overflow map[*memorySession]*overflowCounts
-	_        [24]byte // reduce false sharing between frequently locked shards
+	mu        sync.Mutex
+	sessions  map[sessionKey]*memorySession
+	dirty     []*memorySession
+	overflow  map[*memorySession]*overflowCounts
+	utmSource map[*memorySession]int32
+	_         [24]byte // reduce false sharing between frequently locked shards
 }
 
 // Memory is a sharded in-memory Store. A session is owned by exactly one
@@ -172,6 +173,7 @@ func (m *Memory) Touch(h Hit) Result {
 	}
 	s := m.newSession(h)
 	currentShard.sessions[currentKey] = s
+	m.setUTMSource(currentShard, s, h.UTMSource)
 	m.apply(currentShard, s, h)
 	m.markDirty(currentShard, s)
 	return Result{SessionID: s.sessionID, VisitorID: s.visitorID, New: true}
@@ -194,6 +196,7 @@ func (m *Memory) Dirty(max int) []Snapshot {
 			s.status &^= statusQueued
 			if s.status&statusActive == 0 {
 				delete(sh.overflow, s)
+				delete(sh.utmSource, s)
 			}
 		}
 		copy(sh.dirty, sh.dirty[n:])
@@ -273,6 +276,7 @@ func (m *Memory) Restore(snapshots []Snapshot) {
 		}
 		s := restoredSession(snapshot)
 		sh.sessions[key] = s
+		m.setUTMSource(sh, s, snapshot.UTMSource)
 		m.setCounts(sh, s, snapshot.Pageviews, snapshot.Events)
 		sh.mu.Unlock()
 	}
@@ -386,6 +390,7 @@ func (m *Memory) deactivate(sh *memoryShard, key sessionKey, s *memorySession) {
 	s.status &^= statusActive
 	if s.status&statusQueued == 0 {
 		delete(sh.overflow, s)
+		delete(sh.utmSource, s)
 	}
 }
 
@@ -409,6 +414,10 @@ func (m *Memory) moveOwnership(from, to *memoryShard, s *memorySession) {
 		to.overflow[s] = overflow
 		delete(from.overflow, s)
 	}
+	if utmSource := from.utmSource[s]; utmSource != 0 {
+		m.setUTMSource(to, s, utmSource)
+		delete(from.utmSource, s)
+	}
 }
 
 func (m *Memory) snapshot(sh *memoryShard, s *memorySession) Snapshot {
@@ -428,6 +437,7 @@ func (m *Memory) snapshot(sh *memoryShard, s *memorySession) Snapshot {
 		EngagementMS: s.engagementMS,
 		Bounce:       pageviews == 1 && events == 0,
 		Source:       s.source,
+		UTMSource:    sh.utmSource[s],
 		Medium:       s.medium,
 		Campaign:     s.campaign,
 		Country:      decodeCountry(s.country),
@@ -437,6 +447,16 @@ func (m *Memory) snapshot(sh *memoryShard, s *memorySession) Snapshot {
 		OS:           s.os,
 		Device:       s.device,
 	}
+}
+
+func (m *Memory) setUTMSource(sh *memoryShard, s *memorySession, source int32) {
+	if source == 0 {
+		return
+	}
+	if sh.utmSource == nil {
+		sh.utmSource = make(map[*memorySession]int32)
+	}
+	sh.utmSource[s] = source
 }
 
 func (m *Memory) counts(sh *memoryShard, s *memorySession) (int32, int32) {
