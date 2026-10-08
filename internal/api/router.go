@@ -68,6 +68,8 @@ func NewRouter(deps Deps) http.Handler {
 	registerStats(public, publicPrefix, h)
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
 	public.HandleFunc("POST "+publicPrefix+"/funnels/query", h.funnelRequest)
+	public.HandleFunc("POST "+publicPrefix+"/journeys/query", h.journeyRequest)
+	public.HandleFunc("POST "+publicPrefix+"/retention/query", h.retentionRequest)
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
 	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, public)))
 
@@ -75,6 +77,8 @@ func NewRouter(deps Deps) http.Handler {
 	registerStats(private, privatePrefix, h)
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
 	private.HandleFunc("POST "+privatePrefix+"/funnels/query", h.funnelRequest)
+	private.HandleFunc("POST "+privatePrefix+"/journeys/query", h.journeyRequest)
+	private.HandleFunc("POST "+privatePrefix+"/retention/query", h.retentionRequest)
 	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler)
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))

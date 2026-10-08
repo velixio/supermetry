@@ -14,6 +14,8 @@ const maxQueryBodyBytes = 1 << 20
 type queryService interface {
 	Query(context.Context, QueryRequest) (QueryResponse, error)
 	Funnel(context.Context, FunnelRequest) (FunnelResponse, error)
+	Journey(context.Context, JourneyRequest) (JourneyResponse, error)
+	Retention(context.Context, RetentionRequest) (RetentionResponse, error)
 }
 
 type handlers struct {
@@ -116,6 +118,7 @@ func isClientQueryError(detail string) bool {
 		"limit ", "order_by ", "provide either", "site_id ", "site timezone",
 		"unknown comparison", "unknown dimension", "unknown filter", "unknown metric",
 		"unknown order", "unknown period", "unknown site", "unsupported type",
+		"invalid filter", "journey ", "retention ", "range must be within the raw retention window",
 	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(detail, prefix) {
