@@ -62,6 +62,24 @@ func APIKeysByPrefix(ctx context.Context, data *Store, prefix string) ([]APIKey,
 	return keys, nil
 }
 
+// APIKeyForDelegation locks and returns an active key while it creates a
+// narrower child key. The lock keeps a concurrent revocation from committing
+// between authorization and child creation.
+func APIKeyForDelegation(ctx context.Context, tx pgx.Tx, orgID, id int64) (APIKey, error) {
+	row := tx.QueryRow(ctx, `
+		select id, org_id, name, prefix, hash, scopes, site_ids, created_by,
+		       created_at, last_used_at, expires_at, revoked_at
+		from api_keys
+		where id = $1 and org_id = $2 and revoked_at is null
+		  and (expires_at is null or expires_at > now())
+		for share`, id, orgID)
+	key, err := scanAPIKey(row)
+	if err != nil {
+		return APIKey{}, err
+	}
+	return key, nil
+}
+
 func ListAPIKeys(ctx context.Context, data *Store, orgID int64) ([]APIKey, error) {
 	rows, err := data.Pool.Query(ctx, `
 		select id, org_id, name, prefix, hash, scopes, site_ids, created_by,

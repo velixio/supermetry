@@ -73,6 +73,7 @@ var keyScopes = map[Action]string{
 	ActionGoalsEdit:  "goals:write",
 	ActionSiteCreate: "sites:write",
 	ActionSiteDelete: "sites:write",
+	ActionKeysManage: "keys:manage",
 }
 
 // Can reports whether p may perform action for siteID. A zero siteID denotes

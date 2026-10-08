@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -89,6 +90,78 @@ func TestKeyLifecycle(t *testing.T) {
 	}
 	if got := strings.Join(actions, ","); got != "api_key.created,api_key.revoked,api_key.created" {
 		t.Fatalf("audit actions = %q", got)
+	}
+}
+
+func TestCreateDelegatedKey(t *testing.T) {
+	keys, owner, _ := newKeys(t)
+	ctx := context.Background()
+	callerExpiry := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+	callerPlain, callerInfo, err := keys.Create(ctx, owner, "Automation", []string{"keys:manage", "stats:read", "sites:write"}, []int32{10, 20}, &callerExpiry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caller, ok := keys.Verify(ctx, callerPlain)
+	if !ok {
+		t.Fatal("caller key did not verify")
+	}
+	if caller.KeyID != callerInfo.ID {
+		t.Fatalf("caller principal = %+v", caller)
+	}
+
+	childExpiry := callerExpiry.Add(-time.Minute)
+	childPlain, childInfo, err := keys.Create(ctx, caller, "Reporting", []string{"stats:read"}, []int32{10}, &childExpiry)
+	if err != nil {
+		t.Fatalf("create delegated key: %v", err)
+	}
+	if childPlain == "" || childInfo.CreatedBy != owner.UserID {
+		t.Fatalf("delegated key = (%q, %+v), want inherited creator %d", childPlain, childInfo, owner.UserID)
+	}
+
+	var actorKeyID *int64
+	var actorUserID *int64
+	if err := keys.store.Pool.QueryRow(ctx, `
+		select actor_key_id, actor_user_id from audit_log
+		where action='api_key.created' and target_id=$1`, childInfo.ID).Scan(&actorKeyID, &actorUserID); err != nil {
+		t.Fatal(err)
+	}
+	if actorKeyID == nil || *actorKeyID != callerInfo.ID || actorUserID != nil {
+		t.Fatalf("delegated audit actor key=%v user=%v", actorKeyID, actorUserID)
+	}
+}
+
+func TestCreateRejectsDelegationEscalation(t *testing.T) {
+	keys, owner, _ := newKeys(t)
+	ctx := context.Background()
+	callerExpiry := time.Now().Add(time.Hour)
+	callerPlain, _, err := keys.Create(ctx, owner, "Automation", []string{"keys:manage", "stats:read"}, []int32{10}, &callerExpiry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caller, ok := keys.Verify(ctx, callerPlain)
+	if !ok {
+		t.Fatal("caller key did not verify")
+	}
+	longerExpiry := callerExpiry.Add(time.Second)
+	tests := []struct {
+		name    string
+		scopes  []string
+		siteIDs []int32
+		expires *time.Time
+	}{
+		{name: "broader scope", scopes: []string{"sites:write"}, siteIDs: []int32{10}, expires: &callerExpiry},
+		{name: "management scope", scopes: []string{"keys:manage"}, siteIDs: []int32{10}, expires: &callerExpiry},
+		{name: "extra site", scopes: []string{"stats:read"}, siteIDs: []int32{10, 20}, expires: &callerExpiry},
+		{name: "all sites", scopes: []string{"stats:read"}, siteIDs: nil, expires: &callerExpiry},
+		{name: "longer expiry", scopes: []string{"stats:read"}, siteIDs: []int32{10}, expires: &longerExpiry},
+		{name: "no expiry", scopes: []string{"stats:read"}, siteIDs: []int32{10}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, _, err := keys.Create(ctx, caller, tt.name, tt.scopes, tt.siteIDs, tt.expires); !errors.Is(err, ErrForbidden) {
+				t.Fatalf("Create() error = %v, want ErrForbidden", err)
+			}
+		})
 	}
 }
 
