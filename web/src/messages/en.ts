@@ -152,6 +152,10 @@ export const en = {
     },
     invalidFilter: 'Some invalid filters were removed.',
     filterLabel: 'Remove {dimension} filter {value}',
+    metrics: {
+      timeOnPage: 'Time on page',
+      exitRate: 'Exit rate',
+    },
   },
   theme: {
     light: 'Use dark theme',

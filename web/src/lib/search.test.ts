@@ -14,6 +14,17 @@ import {
 const base: DashboardSearch = dashboardSearch.parse({})
 
 describe('search params', () => {
+  it.each(['exit_rate', 'time_on_page'] as const)(
+    'accepts the %s metric in dashboard URLs',
+    (metric) => {
+      expect(dashboardSearch.parse({ metric }).metric).toBe(metric)
+    },
+  )
+
+  it('falls back to visitors for an unknown metric', () => {
+    expect(dashboardSearch.parse({ metric: 'unknown' }).metric).toBe('visitors')
+  })
+
   it.each(['28d', '91d', '6mo'] as const)(
     'accepts the %s period in existing URLs',
     (period) => {

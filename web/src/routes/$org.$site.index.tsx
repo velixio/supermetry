@@ -164,7 +164,13 @@ const breakdownCards: { title: string; tabs: BreakdownTab[]; map?: boolean }[] =
   {
     title: 'Pages',
     tabs: [
-      { key: 'top', label: 'Top', dimension: 'page', metric: 'visitors' },
+      {
+        key: 'top',
+        label: 'Top',
+        dimension: 'page',
+        metric: 'visitors',
+        metrics: ['visitors', 'pageviews', 'time_on_page', 'exit_rate'],
+      },
       { key: 'entry', label: 'Entry', dimension: 'entry', metric: 'visitors' },
       { key: 'exit', label: 'Exit', dimension: 'exit', metric: 'visitors' },
     ],

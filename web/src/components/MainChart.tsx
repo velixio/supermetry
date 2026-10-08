@@ -223,9 +223,12 @@ export function MainChart({
   onEditAnnotation,
   onDeleteAnnotation,
 }: MainChartProps) {
+  const chartMetric: ChartMetric = metric === 'exit_rate' || metric === 'time_on_page'
+    ? 'visitors'
+    : metric
   const currentQuery: StatsQuery = {
     ...query,
-    metrics: [metric],
+    metrics: [chartMetric],
     dimensions: ['time'],
     compare: undefined,
   }
@@ -238,14 +241,14 @@ export function MainChart({
   const comparisonRows = chronological(comparison.data?.rows ?? [])
   const points: ChartPoint[] = chronological(current.data?.rows ?? []).map((row, index) => ({
     time: timeValue(row),
-    value: numeric(row, metric),
+    value: numeric(row, chartMetric),
     ...(compare === 'off'
       ? {}
-      : { comparison: numeric(comparisonRows[index] ?? {}, metric) }),
+      : { comparison: numeric(comparisonRows[index] ?? {}, chartMetric) }),
   }))
   const resolvedInterval =
     interval ?? autoInterval(query.dateRange.from, query.dateRange.to)
-  const label = `${metricLabel(metric)} over time`
+  const label = `${metricLabel(chartMetric)} over time`
 
   return (
     <section
@@ -298,7 +301,7 @@ export function MainChart({
         <thead>
           <tr>
             <th scope="col">time</th>
-            <th scope="col">{metricLabel(metric)}</th>
+            <th scope="col">{metricLabel(chartMetric)}</th>
             {compare === 'off' ? null : <th scope="col">{compare}</th>}
           </tr>
         </thead>
@@ -306,9 +309,9 @@ export function MainChart({
           {points.map((point) => (
             <tr key={point.time}>
               <th scope="row">{fmt.date(point.time, query.timezone ?? 'UTC')}</th>
-              <td>{metricValue(metric, point.value)}</td>
+              <td>{metricValue(chartMetric, point.value)}</td>
               {compare === 'off' ? null : (
-                <td>{metricValue(metric, point.comparison ?? 0)}</td>
+                <td>{metricValue(chartMetric, point.comparison ?? 0)}</td>
               )}
             </tr>
           ))}

@@ -33,7 +33,12 @@ function duration(value: number): string {
   const parts: string[] = []
   if (hours > 0) parts.push(`${hours}h`)
   if (minutes > 0) parts.push(`${minutes}m`)
-  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`)
+  if (seconds > 0 || parts.length === 0) {
+    const displaySeconds = hours === 0 && minutes > 0
+      ? seconds.toString().padStart(2, '0')
+      : seconds.toString()
+    parts.push(`${displaySeconds}s`)
+  }
   return parts.join(' ')
 }
 

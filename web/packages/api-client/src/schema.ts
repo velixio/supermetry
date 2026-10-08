@@ -1053,8 +1053,11 @@ export interface components {
             scroll_bands: components["schemas"]["ScrollBand"][];
             totals: components["schemas"]["HeatmapTotals"];
         };
-        /** @enum {string} */
-        Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
+        /**
+         * @description exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
+         * @enum {string}
+         */
+        Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "exit_rate" | "time_on_page" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
         Filter: {
             dimension: string;
             /** @enum {string} */

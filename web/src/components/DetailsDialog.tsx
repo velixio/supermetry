@@ -20,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { countryLabel } from '@/lib/country'
 import { downloadStatsCSV } from '@/lib/csv'
-import { fmt } from '@/lib/format'
+import { formatBreakdownMetric, metricLabel, undefinedLast } from '@/lib/breakdown-metrics'
 import { useStats, type StatsQuery } from '@/lib/stats'
 
 import { EmptyState } from './EmptyState'
@@ -47,6 +47,17 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
   const [exporting, setExporting] = useState(false)
   const searchValue = search.trim()
   const sort = sorting[0]
+  const pageMetricSort = sort?.id === 'time_on_page' || sort?.id === 'exit_rate'
+  const sortDirection = pageMetricSort || sort?.desc !== false ? 'desc' : 'asc'
+  const orderBy: NonNullable<StatsQuery['orderBy']> = [
+    {
+      column: sort?.id ?? metric,
+      direction: sortDirection,
+    },
+    ...(sort?.id === 'exit_rate'
+      ? [{ column: 'pageviews', direction: 'desc' as const }]
+      : []),
+  ]
   const detailsQuery = useMemo<StatsQuery>(
     () => ({
       ...query,
@@ -60,25 +71,21 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
           ? [{ dimension, operator: 'contains' as const, values: [searchValue] }]
           : []),
       ],
-      orderBy: [
-        {
-          column: sort?.id ?? metric,
-          direction: sort?.desc === false ? 'asc' : 'desc',
-        },
-      ],
+      orderBy,
       limit: 25,
       ...(cursor === undefined ? { cursor: undefined } : { cursor }),
     }),
-    [cursor, dimension, metric, query, searchValue, sort?.desc, sort?.id],
+    [cursor, dimension, orderBy, query, searchValue],
   )
   const result = useStats(detailsQuery)
+  const displayedMetrics = query.metrics.filter((candidate) => candidate !== 'pageviews')
 
   const columns = useMemo<ColumnDef<DetailRow>[]>(
     () => [
       {
         id: dimension,
         accessorFn: (row) => String(row[dimension] ?? ''),
-        header: dimension,
+        header: metricLabel(dimension),
         cell: ({ getValue, row }) => {
           const raw = String(getValue())
           const value = dimension === 'country' ? countryLabel(raw) : raw
@@ -93,18 +100,22 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
           )
         },
       },
-      {
-        id: metric,
-        accessorFn: (row) => Number(row[metric] ?? 0),
-        header: metric,
-        cell: ({ getValue }) => fmt.number(Number(getValue())),
-      },
+      ...displayedMetrics.map((candidate): ColumnDef<DetailRow> => ({
+        id: candidate,
+        accessorFn: (row) => Number(row[candidate] ?? 0),
+        header: metricLabel(candidate),
+        cell: ({ row }) => formatBreakdownMetric(candidate, row.original),
+      })),
     ],
-    [dimension, metric],
+    [dimension, displayedMetrics],
+  )
+  const tableRows = useMemo(
+    () => undefinedLast(result.data?.rows ?? [], sort?.id),
+    [result.data?.rows, sort?.id],
   )
   const table = useReactTable({
     columns,
-    data: result.data?.rows ?? [],
+    data: tableRows,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualSorting: true,
@@ -173,7 +184,9 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
                       <button
                         className="inline-flex max-w-full items-center gap-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         type="button"
-                        onClick={header.column.getToggleSortingHandler()}
+                        onClick={header.id === 'time_on_page' || header.id === 'exit_rate'
+                          ? () => header.column.toggleSorting(true)
+                          : header.column.getToggleSortingHandler()}
                       >
                         <span className="truncate">
                           {flexRender(header.column.columnDef.header, header.getContext())}

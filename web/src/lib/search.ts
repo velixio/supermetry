@@ -29,6 +29,8 @@ export const metricValues = [
   'bounce_rate',
   'visit_duration',
   'engagement_time',
+  'exit_rate',
+  'time_on_page',
   'total_revenue',
   'average_revenue',
 ] as const

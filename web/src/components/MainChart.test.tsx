@@ -77,6 +77,27 @@ describe('MainChart', () => {
     expect(autoInterval('2026-09-08', '2026-10-07')).toBe('day')
   })
 
+  it.each(['exit_rate', 'time_on_page'] as const)(
+    'falls back from the page-only %s URL metric to a supported chart metric',
+    (metric) => {
+      mockSeries([['2026-10-01', 5]])
+
+      render(
+        <MainChart
+          query={query}
+          metric={metric}
+          compare="off"
+        />,
+      )
+
+      expect(useStats).toHaveBeenCalledWith(expect.objectContaining({
+        dimensions: ['time'],
+        metrics: ['visitors'],
+      }))
+      expect(screen.getByRole('region', { name: 'visitors over time' })).toBeVisible()
+    },
+  )
+
   it('orders API rows chronologically', async () => {
     mockSeries([
       ['2026-10-02', 7],

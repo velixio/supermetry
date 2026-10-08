@@ -55,6 +55,14 @@ const tabs = (dimension: string): BreakdownTab[] => [
   { key: dimension, dimension, metric: 'visitors', label: dimension },
 ]
 
+const pageTabs = [{
+  key: 'top',
+  dimension: 'page',
+  metric: 'visitors',
+  metrics: ['visitors', 'pageviews', 'time_on_page', 'exit_rate'],
+  label: 'Top',
+}] as unknown as BreakdownTab[]
+
 function data(dimension: string, value: string, visitors: number): QueryData {
   return {
     columns: [dimension, 'visitors'],
@@ -225,6 +233,83 @@ describe('BreakdownCard', () => {
     expect(screen.getByTitle(label)).toHaveClass('truncate')
     expect(screen.getByText('12.3M')).toBeVisible()
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(360)
+  })
+
+  it('shows time on page and exit rate columns with undefined values last', () => {
+    useStats.mockReturnValue(result({
+      data: {
+        columns: ['page', 'visitors', 'pageviews', 'time_on_page', 'exit_rate'],
+        rows: [
+          { page: '/engaged', visitors: 9, pageviews: 3, time_on_page: 65, exit_rate: 33.3 },
+          { page: '/zero-exits', visitors: 4, pageviews: 4, time_on_page: 0, exit_rate: 0 },
+          { page: '/no-data', visitors: 0, pageviews: 0, time_on_page: 0, exit_rate: 0 },
+        ],
+        totals: { visitors: 13, pageviews: 7, time_on_page: 65, exit_rate: 14.3 },
+        meta: { sources_used: ['daily'], cached: false },
+      },
+    }))
+
+    render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} />)
+
+    const card = screen.getByRole('region', { name: 'Pages' })
+    expect(useStats).toHaveBeenCalledWith(expect.objectContaining({
+      metrics: ['visitors', 'pageviews', 'time_on_page', 'exit_rate'],
+    }))
+    expect(within(card).getByRole('columnheader', { name: 'Time on page' })).toBeVisible()
+    expect(within(card).getByRole('columnheader', { name: 'Exit rate' })).toBeVisible()
+    expect(within(card).getByText('1m 05s')).toBeVisible()
+    expect(within(card).getByText('33.3%')).toBeVisible()
+
+    const zeroExits = within(card).getByText('/zero-exits').closest('tr')
+    expect(zeroExits).not.toBeNull()
+    expect(within(zeroExits!).getByText('0%')).toBeVisible()
+    expect(within(zeroExits!).getByText('—')).toBeVisible()
+
+    const noData = within(card).getByText('/no-data').closest('tr')
+    expect(noData).not.toBeNull()
+    expect(within(noData!).getAllByText('—')).toHaveLength(2)
+    expect(within(card).getAllByRole('row').at(-1)).toHaveTextContent('/no-data')
+  })
+
+  it('shows and sorts the page metrics in the details table', () => {
+    useStats.mockReturnValue(result({
+      data: {
+        columns: ['page', 'visitors', 'pageviews', 'time_on_page', 'exit_rate'],
+        rows: [
+          { page: '/no-data', visitors: 0, pageviews: 0, time_on_page: 0, exit_rate: 0 },
+          { page: '/engaged', visitors: 9, pageviews: 3, time_on_page: 12, exit_rate: 33.3 },
+        ],
+        totals: { visitors: 9, pageviews: 3, time_on_page: 12, exit_rate: 33.3 },
+        meta: { sources_used: ['daily'], cached: false },
+      },
+    }))
+
+    render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+
+    const table = screen.getByRole('table', { name: 'Pages details' })
+    expect(within(table).getByRole('columnheader', { name: 'Time on page' })).toBeVisible()
+    expect(within(table).getByRole('columnheader', { name: 'Exit rate' })).toBeVisible()
+    expect(within(table).getByText('12s')).toBeVisible()
+
+    fireEvent.click(within(table).getByRole('button', { name: 'Time on page' }))
+    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({
+      orderBy: [{ column: 'time_on_page', direction: 'desc' }],
+    }))
+    expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent('/no-data')
+
+    fireEvent.click(within(table).getByRole('button', { name: /Time on page/ }))
+    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({
+      orderBy: [{ column: 'time_on_page', direction: 'desc' }],
+    }))
+
+    fireEvent.click(within(table).getByRole('button', { name: 'Exit rate' }))
+    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({
+      orderBy: [
+        { column: 'exit_rate', direction: 'desc' },
+        { column: 'pageviews', direction: 'desc' },
+      ],
+    }))
   })
 
   it('CSV export requests text/csv with the same query', async () => {

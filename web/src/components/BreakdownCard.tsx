@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
+import { formatBreakdownMetric, metricLabel } from '@/lib/breakdown-metrics'
 import { fmt } from '@/lib/format'
 import type { Filter } from '@/lib/search'
 import { useStats, type StatsQuery } from '@/lib/stats'
@@ -17,6 +18,7 @@ export type BreakdownTab = {
   label?: string
   dimension: string
   metric: StatsQuery['metrics'][number]
+  metrics?: StatsQuery['metrics']
 }
 
 type BreakdownCardProps = {
@@ -36,7 +38,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
   const mapActive = map && activeTab?.dimension === 'country' && view === 'map'
   const cardQuery: StatsQuery = {
     ...query,
-    metrics: activeTab ? [activeTab.metric] : query.metrics,
+    metrics: activeTab ? (activeTab.metrics ?? [activeTab.metric]) : query.metrics,
     dimensions: activeTab
       ? activeTab.dimension === 'region' || activeTab.dimension === 'city'
         ? [activeTab.dimension, 'country']
@@ -49,6 +51,8 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
   }
   const result = useStats(cardQuery)
   const rows = result.data?.rows ?? []
+  const displayedMetrics = (activeTab?.metrics ?? (activeTab ? [activeTab.metric] : []))
+    .filter((metric) => metric !== 'pageviews')
   const maximum = rows.reduce((largest, row) => {
     const value = activeTab ? Number(row[activeTab.metric] ?? 0) : 0
     return Math.max(largest, Number.isFinite(value) ? value : 0)
@@ -132,6 +136,43 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
             onSelect={(code) => onFilter({ dimension: 'country', operator: 'is', values: [code] })}
           />
         </Suspense>
+      ) : displayedMetrics.length > 1 ? (
+        <div className="min-w-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2 font-medium">{metricLabel(activeTab.dimension)}</th>
+                {displayedMetrics.map((metric) => (
+                  <th key={metric} className="px-3 py-2 text-right font-medium">{metricLabel(metric)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => {
+                const label = String(row[activeTab.dimension] ?? '')
+                return (
+                  <tr key={`${label}:${index}`} className="border-t">
+                    <td className="min-w-0 px-2 py-1">
+                      <button
+                        aria-label={`Filter by ${activeTab.dimension} ${label}`}
+                        className="w-full min-w-0 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                        type="button"
+                        onClick={() => onFilter({ dimension: activeTab.dimension, operator: 'is', values: [label] })}
+                      >
+                        <span className="block min-w-0 truncate font-medium" title={label}>{label}</span>
+                      </button>
+                    </td>
+                    {displayedMetrics.map((metric) => (
+                      <td key={metric} className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {formatBreakdownMetric(metric, row)}
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <ol className="flex min-w-0 flex-col p-2">
           {rows.map((row, index) => {

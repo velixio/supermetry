@@ -8,6 +8,7 @@ describe('format', () => {
     expect(fmt.number(9_999)).toBe('9,999')
     expect(fmt.duration(130)).toBe('2m 10s')
     expect(fmt.duration(3_905)).toBe('1h 5m 5s')
+    expect(fmt.duration(65)).toBe('1m 05s')
   })
 
   it('formats API percentages without multiplying them', () => {
