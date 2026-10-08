@@ -3,7 +3,9 @@ import createClient, { type Middleware } from 'openapi-fetch'
 import type { paths } from './api.gen'
 
 type PrivatePaths = {
-  [Path in keyof paths as Path extends `/api/v1${infer Rest}`
+  [Path in keyof paths as Path extends `/api/public/v1${infer Rest}`
+    ? `/api/private${Rest}`
+    : Path extends `/api/v1${infer Rest}`
     ? `/api/private${Rest}`
     : Path extends `/api/private${string}`
       ? Path
