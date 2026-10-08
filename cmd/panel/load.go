@@ -232,7 +232,7 @@ func (l *ndjsonLoader) loadChunk(ctx context.Context, records []loadRecord) erro
 		hit := session.Hit{
 			SiteID: site.ID, Retention: site.Retention, TS: record.TS, LocalDay: localDay,
 			VisitorID: visitorID, PrevVisitorID: previousVisitorID, Kind: kind,
-			PathID: dimensions.paths[i], NameID: nameID, Source: dimensions.sources[i],
+			PathID: dimensions.paths[i], NameID: nameID, Source: dimensions.sources[i], UTMSource: dimensions.utmSources[i],
 			Medium: dimensions.mediums[i], Campaign: dimensions.campaigns[i],
 			Country: record.Country, Browser: dimensions.browsers[i], OS: dimensions.operatingSystems[i],
 			Device: loadDevice(record.Device),
@@ -275,7 +275,7 @@ func (l *ndjsonLoader) ensurePartitions(ctx context.Context, first, last time.Ti
 }
 
 type loadDimensions struct {
-	paths, referrers, sources, mediums, campaigns, names, browsers, operatingSystems []int32
+	paths, referrers, sources, utmSources, mediums, campaigns, names, browsers, operatingSystems []int32
 }
 
 func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (loadDimensions, error) {
@@ -306,6 +306,7 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 		{dict.Path, values(func(r loadRecord) string { return r.Path }), nil},
 		{dict.Referrer, values(func(r loadRecord) string { return r.Referrer }), nil},
 		{dict.Source, sources, nil},
+		{dict.Source, values(func(r loadRecord) string { return r.UTMSource }), nil},
 		{dict.Medium, mediums, nil},
 		{dict.Campaign, values(func(r loadRecord) string { return r.UTMCampaign }), nil},
 		{dict.EventName, values(func(r loadRecord) string { return r.Name }), nil},
@@ -316,11 +317,12 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 	lookups[0].to = &dimensions.paths
 	lookups[1].to = &dimensions.referrers
 	lookups[2].to = &dimensions.sources
-	lookups[3].to = &dimensions.mediums
-	lookups[4].to = &dimensions.campaigns
-	lookups[5].to = &dimensions.names
-	lookups[6].to = &dimensions.browsers
-	lookups[7].to = &dimensions.operatingSystems
+	lookups[3].to = &dimensions.utmSources
+	lookups[4].to = &dimensions.mediums
+	lookups[5].to = &dimensions.campaigns
+	lookups[6].to = &dimensions.names
+	lookups[7].to = &dimensions.browsers
+	lookups[8].to = &dimensions.operatingSystems
 	for _, lookup := range lookups {
 		ids, err := dimensionIDs(ctx, l.dictionary, lookup.kind, lookup.values)
 		if err != nil {
