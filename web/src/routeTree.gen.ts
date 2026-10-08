@@ -25,6 +25,7 @@ import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
 import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
 import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
+import { Route as OrgSiteVitalsRouteImport } from './routes/$org.$site.vitals'
 import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
 import { Route as OrgSettingsInvitesRouteImport } from './routes/$org.settings.invites'
@@ -121,6 +122,11 @@ const OrgSiteSettingsRoute = OrgSiteSettingsRouteImport.update({
   path: '/$site/settings',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSiteVitalsRoute = OrgSiteVitalsRouteImport.update({
+  id: '/$site/vitals',
+  path: '/$site/vitals',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSettingsApiKeysRoute = OrgSettingsApiKeysRouteImport.update({
   id: '/settings/api-keys',
   path: '/settings/api-keys',
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
+  '/$org/$site/vitals': typeof OrgSiteVitalsRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
@@ -247,6 +254,7 @@ export interface FileRoutesByTo {
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
+  '/$org/$site/vitals': typeof OrgSiteVitalsRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
+  '/$org/$site/vitals': typeof OrgSiteVitalsRoute
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
     | '/$org/$site/settings'
+    | '/$org/$site/vitals'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
@@ -349,6 +359,7 @@ export interface FileRouteTypes {
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
     | '/$org/$site/settings'
+    | '/$org/$site/vitals'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/$org/$site/goals'
     | '/$org/$site/realtime'
     | '/$org/$site/settings'
+    | '/$org/$site/vitals'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
     | '/$org/settings/invites'
@@ -528,6 +540,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteSettingsRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/$site/vitals': {
+      id: '/$org/$site/vitals'
+      path: '/$site/vitals'
+      fullPath: '/$org/$site/vitals'
+      preLoaderRoute: typeof OrgSiteVitalsRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/settings/api-keys': {
       id: '/$org/settings/api-keys'
       path: '/settings/api-keys'
@@ -665,6 +684,7 @@ interface OrgRouteChildren {
   OrgSiteGoalsRoute: typeof OrgSiteGoalsRoute
   OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
   OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
+  OrgSiteVitalsRoute: typeof OrgSiteVitalsRoute
   OrgSettingsApiKeysRoute: typeof OrgSettingsApiKeysRoute
   OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
   OrgSettingsInvitesRoute: typeof OrgSettingsInvitesRoute
@@ -681,6 +701,7 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgSiteGoalsRoute: OrgSiteGoalsRoute,
   OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
   OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,
+  OrgSiteVitalsRoute: OrgSiteVitalsRoute,
   OrgSettingsApiKeysRoute: OrgSettingsApiKeysRoute,
   OrgSettingsAuditRoute: OrgSettingsAuditRoute,
   OrgSettingsInvitesRoute: OrgSettingsInvitesRoute,

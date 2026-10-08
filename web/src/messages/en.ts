@@ -36,6 +36,7 @@ export const en = {
   },
   navigation: {
     dashboard: 'Dashboard',
+    vitals: 'Web Vitals',
     funnels: 'Funnels',
     realtime: 'Realtime',
     goals: 'Goals',

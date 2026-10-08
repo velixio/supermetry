@@ -5,6 +5,7 @@ import {
   FilterIcon,
   GoalIcon,
   Globe2Icon,
+  GaugeIcon,
   PlusIcon,
   SettingsIcon,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
 const coreNavigation = [
   { label: en.navigation.dashboard, suffix: '', icon: ChartNoAxesCombinedIcon, scope: 'site' },
+  { label: en.navigation.vitals, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
   { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
   { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
   { label: en.navigation.goals, suffix: '/goals', icon: GoalIcon, scope: 'site' },
@@ -135,6 +137,17 @@ function navigationLink(
       )
     case '/funnels':
       return <Link to="/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
+    case '/vitals':
+      return (
+        <Link
+          to="/$org/$site/vitals"
+          params={{ org, site }}
+          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+          {...props}
+        >
+          {content}
+        </Link>
+      )
     case '/realtime':
       return <Link to="/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':

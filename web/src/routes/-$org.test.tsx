@@ -39,6 +39,13 @@ describe('organization shell authentication', () => {
     expect(health && navigationHref(health, 'acme', 'blog')).toBe('/acme/health')
   })
 
+  it('links Web Vitals at site scope', () => {
+    const vitals = visibleNavigation('viewer').find(
+      (item) => item.label === 'Web Vitals',
+    )
+    expect(vitals && navigationHref(vitals, 'acme', 'blog')).toBe('/acme/blog/vitals')
+  })
+
   it('shows the organization Sites page to every role', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
       expect(visibleNavigation(role).map((item) => item.label)).toContain('Sites')

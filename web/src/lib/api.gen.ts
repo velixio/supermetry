@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/public/v1/vitals/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query Web Vitals from raw events
+         * @description Returns p75 and rating shares for LCP, CLS, and INP. The requested range must be inside the site's raw-data retention window.
+         */
+        post: operations["vitalsQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/query": {
         parameters: {
             query?: never;
@@ -225,6 +245,28 @@ export interface paths {
         patch: operations["updateFunnel"];
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/segments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List saved segments
+         * @description Requires the stats:read API-key scope for the requested site.
+         */
+        get: operations["listSegments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -343,6 +385,20 @@ export interface components {
             /** Format: int32 */
             site_id: number;
         };
+        Segment: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            name: string;
+            filters: components["schemas"]["Filter"][];
+            /** Format: int64 */
+            created_by: number | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         /** @enum {string} */
         Period: "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "12mo" | "year" | "custom";
         DateRange: {
@@ -396,6 +452,42 @@ export interface components {
             };
             next_cursor?: string;
             meta: components["schemas"]["QueryMeta"];
+        };
+        /** @enum {string} */
+        VitalsDimension: "page" | "device" | "country" | "browser";
+        VitalsRequest: {
+            /** Format: int32 */
+            site_id: number;
+            date_range: components["schemas"]["DateRange"];
+            filters?: components["schemas"]["Filter"][];
+            dimension?: components["schemas"]["VitalsDimension"];
+        };
+        VitalMetric: {
+            /** Format: double */
+            p75?: number;
+            /** Format: int64 */
+            samples: number;
+            /** Format: double */
+            good: number;
+            /** Format: double */
+            needs_improvement: number;
+            /** Format: double */
+            poor: number;
+        };
+        VitalsMetrics: {
+            lcp: components["schemas"]["VitalMetric"];
+            cls: components["schemas"]["VitalMetric"];
+            inp: components["schemas"]["VitalMetric"];
+        };
+        VitalsBreakdown: {
+            value: string;
+            lcp: components["schemas"]["VitalMetric"];
+            cls: components["schemas"]["VitalMetric"];
+            inp: components["schemas"]["VitalMetric"];
+        };
+        VitalsResponse: {
+            overall: components["schemas"]["VitalsMetrics"];
+            breakdown: components["schemas"]["VitalsBreakdown"][];
         };
         FunnelStep: {
             /** @enum {string} */
@@ -567,6 +659,36 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    vitalsQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VitalsRequest"];
+            };
+        };
+        responses: {
+            /** @description Web Vitals results */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VitalsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     query: {
         parameters: {
             query?: never;
@@ -1058,6 +1180,32 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listSegments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved segments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Segment"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
         };
     };
     healthz: {
