@@ -371,6 +371,7 @@ paths:
         - name: dimension
           in: query
           required: true
+          description: Analytics dimension to group by. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other.
           schema:
             type: string
             example: page
@@ -2015,7 +2016,7 @@ components:
       properties:
         dimension:
           type: string
-          description: Analytics dimension to filter. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
+          description: Analytics dimension to filter. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
         operator:
           type: string
           enum: [is, is_not, contains, starts_with]

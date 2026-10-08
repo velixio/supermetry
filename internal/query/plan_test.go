@@ -70,6 +70,28 @@ func TestPlanUsesClosedForUnsupportedRollupShape(t *testing.T) {
 	}
 }
 
+func TestPlanRoutesChannelToSessionScan(t *testing.T) {
+	email := []api.Filter{filter("channel", api.Is, "Email")}
+	tests := []struct {
+		name       string
+		dimensions []string
+		filters    []api.Filter
+	}{
+		{name: "channel breakdown", dimensions: []string{"channel"}},
+		{name: "source with channel filter", dimensions: []string{"source"}, filters: email},
+		{name: "visitor dimension with channel filter", dimensions: []string{"country"}, filters: email},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parts := query.Plan(normalized("2026-10-01", "2026-10-02", tt.dimensions, tt.filters), day("2026-10-02"))
+			want := []query.Part{{Route: query.RouteClosed, From: day("2026-10-01"), To: day("2026-10-02")}}
+			if !reflect.DeepEqual(parts, want) {
+				t.Fatalf("Plan() = %+v, want %+v", parts, want)
+			}
+		})
+	}
+}
+
 func TestPlanReadsRawSessionsForHourlyTimeseries(t *testing.T) {
 	parts := query.Plan(normalized("2026-10-01", "2026-10-07", []string{"hour"}, nil), day("2026-10-07"))
 	want := []query.Part{{Route: query.RouteHot, From: day("2026-10-01"), To: day("2026-10-07")}}

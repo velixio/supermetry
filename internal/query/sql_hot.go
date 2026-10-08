@@ -68,6 +68,8 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 			return "pm.path_id", dictionaryKind(dict.Path), nil
 		case "source":
 			return "s.source_id", dictionaryKind(dict.Source), nil
+		case "channel":
+			return channelSQL("s.source_id", "s.medium_id"), nil, nil
 		case "browser":
 			return "s.browser_id", dictionaryKind(dict.Browser), nil
 		case "os":

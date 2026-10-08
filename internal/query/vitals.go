@@ -250,6 +250,8 @@ func vitalsDimensionResolver(alias string) dimensionResolver {
 				column = "exit_path"
 			}
 			return prefix + column, dictionaryKind(dict.Path), nil
+		case "channel":
+			return channelSQL(prefix+"source_id", prefix+"medium_id"), nil, nil
 		case "utm_source":
 			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":

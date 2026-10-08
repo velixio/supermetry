@@ -18,10 +18,11 @@ type UTM struct {
 }
 
 type sourceRule struct {
-	Name    string   `json:"name"`
-	Medium  string   `json:"medium"`
-	Domains []string `json:"domains"`
-	Aliases []string `json:"aliases"`
+	Name     string   `json:"name"`
+	Medium   string   `json:"medium"`
+	Category string   `json:"category"`
+	Domains  []string `json:"domains"`
+	Aliases  []string `json:"aliases"`
 }
 
 type mediumRule struct {
@@ -165,6 +166,11 @@ func loadSourceData() (sourceData, error) {
 	for i := range data.Sources {
 		if data.Sources[i].Name == "" || data.Sources[i].Medium == "" {
 			return sourceData{}, fmt.Errorf("source rule %d is incomplete", i)
+		}
+		switch data.Sources[i].Category {
+		case "", "search", "social", "ai":
+		default:
+			return sourceData{}, fmt.Errorf("source %q has unknown category %q", data.Sources[i].Name, data.Sources[i].Category)
 		}
 		for j := range data.Sources[i].Domains {
 			data.Sources[i].Domains[j] = normalizeHost(data.Sources[i].Domains[j])

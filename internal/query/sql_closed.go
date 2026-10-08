@@ -38,6 +38,7 @@ var dimensionDefs = map[string]dimensionDef{
 	"page":         {kind: dictionaryKind(dict.Path)},
 	"path":         {kind: dictionaryKind(dict.Path)},
 	"source":       {kind: dictionaryKind(dict.Source)},
+	"channel":      {},
 	"browser":      {kind: dictionaryKind(dict.Browser)},
 	"os":           {kind: dictionaryKind(dict.OS)},
 	"entry":        {kind: dictionaryKind(dict.Path)},
@@ -159,6 +160,8 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 			return pageAlias + ".path_id", dictionaryKind(dict.Path), nil
 		case "source":
 			return "s.source_id", dictionaryKind(dict.Source), nil
+		case "channel":
+			return channelSQL("s.source_id", "s.medium_id"), nil, nil
 		case "browser":
 			return "s.browser_id", dictionaryKind(dict.Browser), nil
 		case "os":
@@ -299,6 +302,8 @@ func customResolver(alias string) dimensionResolver {
 			return prefix + "path_id", dictionaryKind(dict.Path), nil
 		case dimension == "source":
 			return prefix + "source_id", dictionaryKind(dict.Source), nil
+		case dimension == "channel":
+			return channelSQL(prefix+"source_id", prefix+"medium_id"), nil, nil
 		case dimension == "utm_source":
 			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case dimension == "browser":

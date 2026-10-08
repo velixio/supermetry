@@ -74,6 +74,7 @@ func TestValidateFiltersUsesDashboardQueryRules(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "standard dimension", filters: []api.Filter{{Dimension: "country", Operator: api.Is, Values: []string{"US"}}}},
+		{name: "channel dimension", filters: []api.Filter{{Dimension: "channel", Operator: api.Is, Values: []string{"Email"}}}},
 		{name: "custom property", filters: []api.Filter{{Dimension: "prop:plan", Operator: api.Contains, Values: []string{"pro"}}}},
 		{name: "too many", filters: eleven, wantErr: true},
 		{name: "unknown dimension", filters: []api.Filter{{Dimension: "planet", Operator: api.Is, Values: []string{"earth"}}}, wantErr: true},

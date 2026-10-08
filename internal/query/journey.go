@@ -392,6 +392,8 @@ func reportSessionResolver(alias string) dimensionResolver {
 		switch dimension {
 		case "source":
 			return prefix + "source_id", dictionaryKind(dict.Source), nil
+		case "channel":
+			return channelSQL(prefix+"source_id", prefix+"medium_id"), nil, nil
 		case "utm_source":
 			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":

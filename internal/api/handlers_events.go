@@ -149,7 +149,7 @@ func exploreDimensionAllowed(dimension string) bool {
 		return strings.TrimSpace(key) != "" && len(key) <= 2000
 	}
 	switch dimension {
-	case "page", "path", "source", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term",
+	case "page", "path", "source", "channel", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term",
 		"event", "country", "region", "city", "browser", "os", "device":
 		return true
 	}
