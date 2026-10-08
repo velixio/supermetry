@@ -303,6 +303,37 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/annotations:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - name: from
+        in: query
+        required: true
+        schema: { type: string, format: date }
+      - name: to
+        in: query
+        required: true
+        schema: { type: string, format: date }
+    get:
+      operationId: listAnnotations
+      summary: List chart annotations in an inclusive date range
+      responses:
+        '200':
+          description: Annotations ordered by day and identifier
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Annotation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/public/v1/goals/{goal_id}:
     parameters:
       - $ref: '#/components/parameters/GoalPathID'
@@ -675,6 +706,17 @@ components:
         prop_key: { type: string }
         prop_value: { type: string }
         name: { type: string }
+    Annotation:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, day, text, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        day: { type: string, format: date }
+        text: { type: string, minLength: 1, maxLength: 200 }
+        created_by: { type: [integer, 'null'], format: int64 }
+        created_at: { type: string, format: date-time }
     SavedFunnelInput:
       type: object
       additionalProperties: false

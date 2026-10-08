@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -22,12 +23,45 @@ func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
 	if err := db.Migrate(ctx, pool); err != nil {
 		t.Fatal("second run:", err)
 	}
-	var n, max int
-	if err := pool.QueryRow(ctx, `select count(*), max(version) from schema_migrations`).Scan(&n, &max); err != nil {
+	entries, err := os.ReadDir("migrations")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if n != max {
-		t.Fatalf("versions not contiguous: count=%d max=%d", n, max)
+	want := make(map[int]string)
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		prefix, _, ok := strings.Cut(entry.Name(), "_")
+		if !ok {
+			t.Fatalf("migration name %q has no numeric prefix", entry.Name())
+		}
+		version, err := strconv.Atoi(prefix)
+		if err != nil {
+			t.Fatalf("parse migration name %q: %v", entry.Name(), err)
+		}
+		want[version] = entry.Name()
+	}
+	rows, err := pool.Query(ctx, `select version from schema_migrations order by version`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var version int
+		if err := rows.Scan(&version); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := want[version]; !ok {
+			t.Fatalf("unexpected applied migration %04d", version)
+		}
+		delete(want, version)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(want) != 0 {
+		t.Fatalf("migrations not applied exactly once: %v", want)
 	}
 }
 

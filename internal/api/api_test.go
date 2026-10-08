@@ -109,6 +109,9 @@ func TestAPIConventions(t *testing.T) {
 		if _, ok := document.Paths["/api/public/v1/query"]; !ok {
 			t.Fatal("public query path missing")
 		}
+		if _, ok := document.Paths["/api/public/v1/sites/{site_id}/annotations"]; !ok {
+			t.Fatal("public annotations path missing")
+		}
 		for path := range document.Paths {
 			if strings.HasPrefix(path, "/api/v1/") || strings.HasPrefix(path, "/api/private/") {
 				t.Fatalf("non-public path published: %s", path)

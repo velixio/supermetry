@@ -15,6 +15,7 @@ func (h *handler) registerPublic(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/public/v1/sites/{site}", h.updateSite)
 	mux.HandleFunc("DELETE /api/public/v1/sites/{site}", h.deleteSite)
 	mux.HandleFunc("GET /api/public/v1/sites/{site}/goals", h.listGoals)
+	mux.HandleFunc("GET /api/public/v1/sites/{site}/annotations", h.listAnnotations)
 	mux.HandleFunc("POST /api/public/v1/sites/{site}/goals", h.createGoal)
 	mux.HandleFunc("PATCH /api/public/v1/goals/{goal}", h.updateGoal)
 	mux.HandleFunc("DELETE /api/public/v1/goals/{goal}", h.deleteGoal)
