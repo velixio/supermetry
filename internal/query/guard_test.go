@@ -58,6 +58,36 @@ func TestNormalizeRejectsWithProblems(t *testing.T) {
 	}
 }
 
+func TestValidateFiltersUsesDashboardQueryRules(t *testing.T) {
+	t.Parallel()
+
+	eleven := make([]api.Filter, 11)
+	for i := range eleven {
+		eleven[i] = api.Filter{Dimension: "country", Operator: api.Is, Values: []string{"US"}}
+	}
+	tests := []struct {
+		name    string
+		filters []api.Filter
+		wantErr bool
+	}{
+		{name: "standard dimension", filters: []api.Filter{{Dimension: "country", Operator: api.Is, Values: []string{"US"}}}},
+		{name: "custom property", filters: []api.Filter{{Dimension: "prop:plan", Operator: api.Contains, Values: []string{"pro"}}}},
+		{name: "too many", filters: eleven, wantErr: true},
+		{name: "unknown dimension", filters: []api.Filter{{Dimension: "planet", Operator: api.Is, Values: []string{"earth"}}}, wantErr: true},
+		{name: "unknown operator", filters: []api.Filter{{Dimension: "country", Operator: "matches", Values: []string{"US"}}}, wantErr: true},
+		{name: "empty values", filters: []api.Filter{{Dimension: "country", Operator: api.Is}}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := query.ValidateFilters(tt.filters)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ValidateFilters() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestNormalizeResolvesPeriodsAndDefaults(t *testing.T) {
 	t.Parallel()
 

@@ -153,9 +153,20 @@ export function parseFilters(rawFilters: string[]): {
   return { filters, dropped }
 }
 
-function serializeFilter(filter: Filter): string {
+export function serializeFilter(filter: Filter): string {
   const values = filter.values.map((value) => encodeURIComponent(value)).join(',')
   return `${filter.dimension}:${filter.operator}:${values}`
+}
+
+export function serializeFilters(filters: Filter[]): string[] {
+  return filters.map(serializeFilter)
+}
+
+export function replaceFilters(
+  search: DashboardSearch,
+  filters: Filter[],
+): DashboardSearch {
+  return { ...search, f: serializeFilters(filters) }
 }
 
 export function addFilter(

@@ -22,6 +22,7 @@ func (h *handler) registerPublic(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/public/v1/sites/{site}/funnels", h.createFunnel)
 	mux.HandleFunc("PATCH /api/public/v1/funnels/{funnel}", h.updateFunnel)
 	mux.HandleFunc("DELETE /api/public/v1/funnels/{funnel}", h.deleteFunnel)
+	mux.HandleFunc("GET /api/public/v1/sites/{site}/segments", h.listSegments)
 	mux.HandleFunc("GET /api/public/v1/stats/summary", h.publicStats)
 }
 

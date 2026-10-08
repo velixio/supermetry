@@ -109,6 +109,9 @@ func TestAPIConventions(t *testing.T) {
 		if _, ok := document.Paths["/api/public/v1/query"]; !ok {
 			t.Fatal("public query path missing")
 		}
+		if _, ok := document.Paths["/api/public/v1/sites/{site_id}/segments"]; !ok {
+			t.Fatal("public segments path missing")
+		}
 		for path := range document.Paths {
 			if strings.HasPrefix(path, "/api/v1/") || strings.HasPrefix(path, "/api/private/") {
 				t.Fatalf("non-public path published: %s", path)
@@ -190,6 +193,49 @@ func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 			t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 		}
 	})
+}
+
+func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
+	platform := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(218)
+	})
+	router := api.NewRouter(api.Deps{
+		Platform:    platform,
+		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
+		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7}},
+	})
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "public list", method: http.MethodGet, path: "/api/public/v1/sites/1/segments"},
+		{name: "private list", method: http.MethodGet, path: "/api/private/sites/1/segments"},
+		{name: "private create", method: http.MethodPost, path: "/api/private/sites/1/segments"},
+		{name: "private update", method: http.MethodPatch, path: "/api/private/segments/1"},
+		{name: "private delete", method: http.MethodDelete, path: "/api/private/segments/1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.method, tt.path, nil)
+			if strings.HasPrefix(tt.path, "/api/private/") && tt.method != http.MethodGet {
+				request.Header.Set("X-CSRF-Token", "token")
+				request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != 218 {
+				t.Fatalf("status=%d body=%s, want platform response", response.Code, response.Body.String())
+			}
+		})
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/public/v1/sites/1/segments", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code == 218 {
+		t.Fatal("public segment mutation was forwarded")
+	}
 }
 
 func TestRouterRecoversWithoutExposingPanic(t *testing.T) {

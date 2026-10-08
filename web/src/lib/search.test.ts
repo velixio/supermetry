@@ -5,7 +5,9 @@ import {
   dashboardSearch,
   parseFilters,
   removeFilter,
+  replaceFilters,
   resolveRange,
+  serializeFilters,
   type DashboardSearch,
 } from './search'
 
@@ -83,6 +85,15 @@ describe('time zones', () => {
 })
 
 describe('filters', () => {
+  it('serializes a filter set canonically for saved segments', () => {
+    expect(
+      serializeFilters([
+        { dimension: 'country', operator: 'is', values: ['IN', 'US'] },
+        { dimension: 'path', operator: 'contains', values: ['/docs:a,b'] },
+      ]),
+    ).toEqual(['country:is:IN,US', 'path:contains:%2Fdocs%3Aa%2Cb'])
+  })
+
   it('accepts region and city filters', () => {
     expect(
       parseFilters(['region:is:California', 'city:is:San%20Francisco']).filters,
@@ -115,5 +126,21 @@ describe('filters', () => {
         values: ['/docs:a,b', '/pricing'],
       },
     ])
+  })
+
+  it('replaces only filters when applying a segment', () => {
+    const search: DashboardSearch = {
+      ...base,
+      period: 'custom',
+      from: '2026-10-01',
+      to: '2026-10-07',
+      compare: 'previous_period',
+      metric: 'bounce_rate',
+      live: true,
+      f: ['country:is:US'],
+    }
+    expect(
+      replaceFilters(search, [{ dimension: 'country', operator: 'is_not', values: ['IN'] }]),
+    ).toEqual({ ...search, f: ['country:is_not:IN'] })
   })
 })

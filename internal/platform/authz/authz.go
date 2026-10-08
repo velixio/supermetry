@@ -29,6 +29,7 @@ const (
 	ActionStatsRead     Action = "stats.read"
 	ActionSiteEdit      Action = "site.edit"
 	ActionGoalsEdit     Action = "goals.edit"
+	ActionSegmentsEdit  Action = "segments.edit"
 	ActionSiteCreate    Action = "site.create"
 	ActionSiteDelete    Action = "site.delete"
 	ActionMembersManage Action = "members.manage"
@@ -42,18 +43,18 @@ const (
 
 var roleActions = map[Role]map[Action]bool{
 	RoleOwner: {
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSiteCreate: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionOrgDelete: true, ActionOrgTransfer: true,
 	},
 	RoleAdmin: {
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSiteCreate: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 	},
 	RoleEditor: {
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true,
 		ActionSharesManage: true, ActionReportsManage: true,
 	},
 	RoleViewer: {
@@ -111,7 +112,7 @@ func Can(p Principal, action Action, siteID int32) bool {
 
 func isSiteAction(action Action) bool {
 	switch action {
-	case ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSharesManage, ActionReportsManage:
+	case ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSegmentsEdit, ActionSharesManage, ActionReportsManage:
 		return true
 	default:
 		return false

@@ -424,6 +424,30 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/segments:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listSegments
+      summary: List saved segments
+      description: Requires the stats:read API-key scope for the requested site.
+      responses:
+        '200':
+          description: Saved segments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Segment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /healthz:
     get:
       operationId: healthz
@@ -700,6 +724,24 @@ components:
           properties:
             id: { type: integer, format: int64 }
             site_id: { type: integer, format: int32 }
+    Segment:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, name, filters, created_by, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        filters:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Filter'
+        created_by:
+          type: [integer, 'null']
+          format: int64
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     Period:
       type: string
       enum: [today, yesterday, 7d, 30d, month, last_month, 12mo, year, custom]
