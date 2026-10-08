@@ -8,6 +8,113 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/private/me:
+    get:
+      operationId: getCurrentUser
+      security: [{ cookieAuth: [] }]
+      summary: Get the signed-in user and memberships
+      responses:
+        '200': { description: Current account details. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      operationId: updateCurrentUser
+      security: [{ cookieAuth: [] }]
+      summary: Update the display name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties: { name: { type: string, minLength: 1 } }
+      responses:
+        '200': { description: Updated identity. }
+        '403': { description: A valid CSRF cookie and header are required. }
+    delete:
+      operationId: deleteCurrentUser
+      security: [{ cookieAuth: [] }]
+      summary: Delete the signed-in account
+      description: Anonymises the user row so audit actor IDs and invitations remain, and removes memberships and sessions. Refused while the user is an organization's last owner.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, format: password }
+                totp_code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '204': { description: Account anonymised and authentication cookies cleared. }
+        '409': { description: Transfer ownership or delete the organization first. }
+        '429': { description: Too many password checks. }
+  /api/private/me/email:
+    post:
+      operationId: startCurrentUserEmailChange
+      security: [{ cookieAuth: [] }]
+      summary: Send an email-change confirmation
+      description: Requires SMTP. The one-time confirmation token expires after one hour.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_email, password]
+              properties:
+                new_email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '202': { description: Accepted. A confirmation is sent to the new address unless it is already registered; the response is the same either way. }
+        '409': { description: SMTP is not configured. }
+        '429': { description: Too many password checks. }
+  /api/private/auth/email-change/confirm:
+    get:
+      operationId: confirmCurrentUserEmailChangeLink
+      security: [{ cookieAuth: [] }]
+      summary: Confirm an email change from a link
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string } }
+      responses:
+        '303': { description: "Redirects to the login page without the requesting user's session, else to the profile page with email_changed=1 (changed, old address notified) or email_changed=0 (token invalid, expired, used, or for another user)." }
+    post:
+      operationId: confirmCurrentUserEmailChange
+      security: [{ cookieAuth: [] }]
+      summary: Confirm an email change
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties: { token: { type: string } }
+      responses:
+        '204': { description: Email changed and old address notified. }
+        '400': { description: Token is invalid, expired, already used, or belongs to another user. }
+        '401': { description: The requesting user's session is required. }
+  /api/private/me/password:
+    post:
+      operationId: changeCurrentUserPassword
+      security: [{ cookieAuth: [] }]
+      summary: Change the signed-in user's password
+      description: Revokes every other session and keeps the current session active.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string, format: password }
+                new_password: { type: string, format: password }
+      responses:
+        '204': { description: Password changed and other sessions revoked. }
+        '429': { description: Too many password checks. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/public/v1/events:
     post:
       operationId: submitEvent
@@ -1268,6 +1375,10 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: panel_session
   parameters:
     SiteID:
       name: site_id
