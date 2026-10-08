@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"panel/internal/csvsafe"
 )
 
 func writeCSV(w http.ResponseWriter, response QueryResponse) {
@@ -28,7 +30,7 @@ func csvValue(value any) string {
 	case nil:
 		return ""
 	case string:
-		return typed
+		return csvsafe.Cell(typed)
 	case float64:
 		return strconv.FormatFloat(typed, 'f', -1, 64)
 	case float32:

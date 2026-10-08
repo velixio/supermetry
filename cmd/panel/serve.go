@@ -25,6 +25,7 @@ import (
 	"panel/internal/db"
 	"panel/internal/dict"
 	"panel/internal/geoupdate"
+	"panel/internal/imports"
 	"panel/internal/ingest"
 	platformauth "panel/internal/platform/auth"
 	"panel/internal/platform/authn"
@@ -46,6 +47,7 @@ import (
 	"panel/internal/salts"
 	"panel/internal/scheduler"
 	"panel/internal/session"
+	"panel/internal/siteexport"
 	"panel/internal/sites"
 	"panel/internal/writer"
 )
@@ -176,6 +178,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	definitionService := goals.New(platformStore, 30*time.Second)
 	defer definitionService.Close()
 	reportService := reports.New(platformStore, engine, registry, sender)
+	importStore := imports.NewStore(pool)
+	importManager := imports.NewManager(importStore, 1)
+	exporter := siteexport.New(pool)
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry)
@@ -202,6 +207,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Shares:      shareService,
 		Reports:     reportService,
 		Query:       engine,
+		Imports:     importStore,
+		ImportQueue: importManager,
+		Exporter:    exporter,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {
@@ -250,6 +258,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	geoRefreshDone := startGeoIPRefresh(schedulerCtx, geo, func(err error) {
 		slog.Warn("GeoIP background refresh failed", "error", err)
 	})
+	importCtx, cancelImports := context.WithCancel(context.Background())
+	importDone := make(chan error, 1)
+	go func() {
+		err := importManager.Run(importCtx)
+		if errors.Is(err, context.Canceled) {
+			err = nil
+		}
+		importDone <- err
+	}()
 
 	serverDone := make(chan error, 1)
 	go func() {
@@ -280,6 +297,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-schedulerDone:
 		cause = err
 		schedulerDone = nil
+	case err := <-importDone:
+		cause = err
+		importDone = nil
 	}
 	ready.Store(false)
 
@@ -300,6 +320,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	if geoRefreshDone != nil {
 		<-geoRefreshDone
+	}
+	cancelImports()
+	if importDone != nil {
+		cause = errors.Join(cause, <-importDone)
 	}
 	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, settings.clock.Now()))
 	return errors.Join(cause, httpErr)
