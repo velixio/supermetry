@@ -10,6 +10,7 @@ import { useStats, type StatsQuery } from '@/lib/stats'
 import { DetailsDialog } from './DetailsDialog'
 import { EmptyState } from './EmptyState'
 import { ErrorState } from './ErrorState'
+import { Flag } from './Flag'
 
 export type BreakdownTab = {
   key: string
@@ -31,7 +32,11 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
   const cardQuery: StatsQuery = {
     ...query,
     metrics: activeTab ? [activeTab.metric] : query.metrics,
-    dimensions: activeTab ? [activeTab.dimension] : [],
+    dimensions: activeTab
+      ? activeTab.dimension === 'region' || activeTab.dimension === 'city'
+        ? [activeTab.dimension, 'country']
+        : [activeTab.dimension]
+      : [],
     orderBy: activeTab
       ? [{ column: activeTab.metric, direction: 'desc' }]
       : query.orderBy,
@@ -84,6 +89,7 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
           {rows.map((row, index) => {
             const label = String(row[activeTab.dimension] ?? '')
             const display = activeTab.dimension === 'country' ? countryLabel(label) : label
+            const country = String(row.country ?? (activeTab.dimension === 'country' ? label : ''))
             const rawValue = Number(row[activeTab.metric] ?? 0)
             const value = Number.isFinite(rawValue) ? rawValue : 0
             const width = maximum > 0 ? `${Math.max(2, (value / maximum) * 100)}%` : '0%'
@@ -102,8 +108,11 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
                   }
                 >
                   <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
-                  <span className="relative min-w-0 truncate text-sm" title={display}>
-                    {display}
+                  <span className="relative flex min-w-0 items-center gap-2 text-sm">
+                    {activeTab.dimension === 'country' || activeTab.dimension === 'region' || activeTab.dimension === 'city'
+                      ? <Flag code={country} />
+                      : null}
+                    <span className="min-w-0 truncate" title={display}>{display}</span>
                   </span>
                   <span className="relative text-sm tabular-nums text-muted-foreground">
                     {fmt.number(value)}

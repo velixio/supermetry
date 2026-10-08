@@ -68,6 +68,14 @@ describe('saved segments', () => {
 
   afterEach(cleanup)
 
+  it('shows country flags in active country filter chips while keeping raw accessible labels', async () => {
+    renderBar({ current: filters })
+
+    const chip = await screen.findByRole('button', { name: 'Remove country' })
+    expect(chip).toHaveTextContent('country')
+    expect(chip.querySelector('img')).toHaveAttribute('src', '/flags/in.svg')
+  })
+
   it('applies a saved segment and shows its name when active', async () => {
     const { onApply } = renderBar()
 

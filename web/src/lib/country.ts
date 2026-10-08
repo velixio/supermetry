@@ -5,10 +5,13 @@ const names =
 
 const isoCode = /^[A-Za-z]{2}$/
 
-// Flag emoji from the two regional-indicator code points; '' for non-ISO input.
-export function countryFlag(code: string): string {
-  if (!isoCode.test(code)) return ''
-  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)))
+export function normalizeCountryCode(code: string): string | undefined {
+  if (!isoCode.test(code)) return undefined
+  return code.toUpperCase()
+}
+
+export function countryFlagSrc(code: string): string | undefined {
+  return normalizeCountryCode(code) ? `/flags/${code.toLowerCase()}.svg` : undefined
 }
 
 export function countryName(code: string): string {
@@ -22,7 +25,5 @@ export function countryName(code: string): string {
 }
 
 export function countryLabel(code: string): string {
-  const flag = countryFlag(code)
-  const name = countryName(code)
-  return flag ? `${flag} ${name}` : name
+  return countryName(code)
 }

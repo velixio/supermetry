@@ -53,3 +53,19 @@ func TestAssetCaching(t *testing.T) {
 		t.Errorf("asset cache: got %q", got)
 	}
 }
+
+func TestFlagCaching(t *testing.T) {
+	h := newHandler(fstest.MapFS{
+		"index.html":   {Data: []byte("<main>Panel</main>")},
+		"flags/in.svg": {Data: []byte("<svg></svg>")},
+	})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/flags/in.svg", nil))
+
+	if rr.Code != 200 {
+		t.Fatalf("flag status: got %d, want 200", rr.Code)
+	}
+	if got := rr.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Errorf("flag cache: got %q", got)
+	}
+}

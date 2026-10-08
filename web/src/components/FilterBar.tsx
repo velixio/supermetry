@@ -36,6 +36,8 @@ import { useDeleteSegment, useSaveSegment, useSegments } from '@/features/segmen
 import type { Segment } from '@/features/segments/types'
 import { serializeFilters, type Filter } from '@/lib/search'
 
+import { Flag } from './Flag'
+
 type FilterBarProps = {
   siteId: number
   canEdit: boolean
@@ -192,6 +194,11 @@ export function FilterBar({
           variant="secondary"
           onClick={() => onRemove(index)}
         >
+          {filter.dimension === 'country' ? (
+            <span aria-hidden="true" className="flex items-center gap-1">
+              {filter.values.map((code) => <Flag key={code} code={code} />)}
+            </span>
+          ) : null}
           {filterLabel(filter)}
           <span aria-hidden="true" className="text-muted-foreground">×</span>
         </Button>

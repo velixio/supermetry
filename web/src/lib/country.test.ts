@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { countryFlag, countryLabel, countryName } from './country'
+import { countryFlagSrc, countryLabel, countryName, normalizeCountryCode } from './country'
 
 describe('country', () => {
-  it('turns an ISO code into a flag emoji', () => {
-    expect(countryFlag('IN')).toBe('🇮🇳')
-    expect(countryFlag('us')).toBe('🇺🇸')
+  it('normalizes valid ISO codes and builds lowercase asset paths', () => {
+    expect(normalizeCountryCode('IN')).toBe('IN')
+    expect(normalizeCountryCode('us')).toBe('US')
+    expect(countryFlagSrc('IN')).toBe('/flags/in.svg')
+    expect(countryFlagSrc('us')).toBe('/flags/us.svg')
   })
 
   it('names countries in English', () => {
@@ -14,14 +16,15 @@ describe('country', () => {
   })
 
   it('leaves empty and invalid codes alone', () => {
-    expect(countryFlag('')).toBe('')
-    expect(countryFlag('1A')).toBe('')
+    expect(normalizeCountryCode('')).toBeUndefined()
+    expect(normalizeCountryCode('1A')).toBeUndefined()
+    expect(countryFlagSrc('')).toBeUndefined()
     expect(countryName('')).toBe('Unknown')
     expect(countryName('ZZZ')).toBe('ZZZ')
     expect(countryLabel('')).toBe('Unknown')
   })
 
-  it('combines flag and name', () => {
-    expect(countryLabel('IN')).toBe('🇮🇳 India')
+  it('uses the country name as its text label', () => {
+    expect(countryLabel('IN')).toBe('India')
   })
 })
