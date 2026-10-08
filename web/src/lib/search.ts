@@ -93,6 +93,7 @@ export type Filter = {
 
 const dimensions = new Set([
   'browser',
+  'channel',
   'city',
   'country',
   'device',

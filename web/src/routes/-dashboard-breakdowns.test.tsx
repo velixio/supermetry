@@ -52,6 +52,8 @@ describe('dashboard breakdown route', () => {
               ? 'California'
               : dimension === 'city'
                 ? 'San Francisco'
+                : dimension === 'channel'
+                  ? 'Organic Search'
                 : dimension === 'page'
                   ? '/'
                   : dimension === 'time'
@@ -109,7 +111,30 @@ describe('dashboard breakdown route', () => {
       within(sources)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Source', 'UTM Source', 'Medium', 'Campaign'])
+    ).toEqual(['Source', 'Channels', 'UTM Source', 'Medium', 'Campaign'])
+  })
+
+  it('shows a Channels tab in Sources and filters by channel', async () => {
+    const router = renderDashboard()
+    const sources = await screen.findByRole('region', { name: 'Sources' })
+    expect(within(sources).getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Source',
+      'Channels',
+      'UTM Source',
+      'Medium',
+      'Campaign',
+    ])
+    fireEvent.click(within(sources).getByRole('tab', { name: 'Channels' }))
+    fireEvent.click(
+      await within(sources).findByRole('button', {
+        name: 'Filter by channel Organic Search',
+      }),
+    )
+    await waitFor(() =>
+      expect(router.state.location.search.f).toEqual([
+        'channel:is:Organic%20Search',
+      ]),
+    )
   })
 
   it.each([

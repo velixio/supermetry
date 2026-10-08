@@ -119,6 +119,23 @@ describe('time zones', () => {
 })
 
 describe('filters', () => {
+  it('keeps channel filters', () => {
+    expect(
+      parseFilters(
+        dashboardSearch.parse({ f: ['channel:is:AI%20Assistants'] }).f,
+      ),
+    ).toEqual({
+      filters: [
+        {
+          dimension: 'channel',
+          operator: 'is',
+          values: ['AI Assistants'],
+        },
+      ],
+      dropped: [],
+    })
+  })
+
   it('serializes a filter set canonically for saved segments', () => {
     expect(
       serializeFilters([

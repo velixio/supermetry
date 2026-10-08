@@ -15,10 +15,11 @@ import {
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { useSuggestions } from '@/features/events/api'
+import { CHANNELS } from '@/lib/channels'
 import type { Filter, FilterOperator } from '@/lib/search'
 
 const dimensions = [
-  'page', 'source', 'country', 'region', 'city', 'browser', 'os', 'device',
+  'page', 'source', 'channel', 'country', 'region', 'city', 'browser', 'os', 'device',
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'event', 'property',
 ] as const
 
@@ -63,7 +64,22 @@ export function AddFilterPicker({
     : dimension
   const suggestionDimension = useDebounced(actualDimension, suggestionDelayMs)
   const suggestionQuery = useDebounced(value, suggestionDelayMs)
-  const suggestions = useSuggestions(siteId, orgId, dateRange, suggestionDimension, suggestionQuery, open && suggestionDimension !== '')
+  const suggestions = useSuggestions(
+    siteId,
+    orgId,
+    dateRange,
+    suggestionDimension,
+    suggestionQuery,
+    open &&
+      suggestionDimension !== '' &&
+      suggestionDimension !== 'channel' &&
+      actualDimension !== 'channel',
+  )
+  const channelSuggestions = actualDimension === 'channel'
+    ? CHANNELS.filter((channel) =>
+        channel.toLowerCase().includes(value.trim().toLowerCase()),
+      )
+    : []
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -129,7 +145,22 @@ export function AddFilterPicker({
             <Field>
               <FieldLabel htmlFor="filter-value">Value</FieldLabel>
               <Input id="filter-value" autoComplete="off" value={value} onChange={(event) => setValue(event.target.value)} />
-              {suggestions.data && suggestions.data.length > 0 ? (
+              {actualDimension === 'channel' ? (
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Suggested values">
+                  {channelSuggestions.map((channel) => (
+                    <Button
+                      key={channel}
+                      aria-label={channel}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setValue(channel)}
+                    >
+                      {channel}
+                    </Button>
+                  ))}
+                </div>
+              ) : suggestions.data && suggestions.data.length > 0 ? (
                 <div className="flex flex-wrap gap-2" role="group" aria-label="Suggested values">
                   {suggestions.data.map((suggestion) => (
                     <Button
