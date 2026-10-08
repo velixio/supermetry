@@ -57,7 +57,7 @@ type PrivatePaths = {
       }
     }
   }
-  // Temporary contract until the site-icon endpoint is added to openapi.yaml.
+  // Private-only endpoint, typed by hand like /auth/* above (not part of the public OpenAPI spec).
   '/api/private/sites/{site}/icon/refetch': {
     post: {
       parameters: {
