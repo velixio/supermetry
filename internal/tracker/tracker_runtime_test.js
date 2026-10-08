@@ -9,7 +9,7 @@ function buildSource(full) {
   return source.replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "");
 }
 
-function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) {
+function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true} = {}) {
   const events = new Map();
   const listeners = new Map();
   const payloads = [];
@@ -21,7 +21,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) 
   const document = {
     body: {scrollHeight: 1000},
     currentScript: {
-      dataset: {site: "site-1", ...dataset},
+      dataset: {...(includeSite ? {site: "site-1"} : {}), ...dataset},
       hasAttribute: () => false,
     },
     documentElement: {scrollHeight: 1000},
@@ -86,7 +86,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) 
     scrollY: 0,
     window,
   };
-  vm.runInNewContext(buildSource(full), context, {filename: "tracker.js"});
+  vm.runInNewContext(prelude + buildSource(full), context, {filename: "tracker.js"});
   if (withExtensions) {
     vm.runInNewContext(extensions, context, {filename: "tracker.extensions.js"});
   }
@@ -486,6 +486,26 @@ function testCoreBuildExcludesFullRoutingFeatures() {
   }
 }
 
+function testGeneratedPreludeAppliesDefaultsWithoutOverridingAttributes() {
+  const defaults = loadTracker({
+    full: true,
+    withExtensions: true,
+    dataset: {},
+    includeSite: false,
+    prelude: `(d=>{d.site??="abc123def456";d.outbound??="false";})(document.currentScript.dataset);\n`,
+  });
+  assert.equal(defaults.context.document.currentScript.dataset.site, "abc123def456");
+  assert.equal(defaults.context.document.currentScript.dataset.outbound, "false");
+
+  const attributeWins = loadTracker({
+    full: true,
+    withExtensions: true,
+    dataset: {outbound: "true"},
+    prelude: `(d=>{d.outbound??="false";})(document.currentScript.dataset);\n`,
+  });
+  assert.equal(attributeWins.context.document.currentScript.dataset.outbound, "true");
+}
+
 testIdentifyAndSubsequentEvents();
 testClear();
 testOmittedTraits();
@@ -513,3 +533,4 @@ testClassTaggedClickIncludesValidProperties();
 testMalformedClassTagsAreIgnored();
 testDataAttributeTakesPrecedenceOverClassTag();
 testCoreBuildExcludesFullRoutingFeatures();
+testGeneratedPreludeAppliesDefaultsWithoutOverridingAttributes();
