@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -10,15 +11,41 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"panel/internal/api"
+	"panel/internal/closer"
 	"panel/internal/dict"
 )
 
+// rollupDimensionCodes maps query dimensions to rollup_day_dim.dim codes.
+//
+// REGISTER NEW ROLLUP DIMENSIONS HERE (and build them in the closer's rollup
+// SQL in internal/closer/rollup.go). The code set is part of the rollup layout
+// version (CurrentRollupLayout): after an upgrade that adds a code, `panel
+// serve` backfills only the new dimensions for already-closed days in the
+// background. New counter columns are registered in rollupCounterColumns in
+// internal/closer/layout.go and trigger a full per-day recompute instead.
 var rollupDimensionCodes = map[string]int16{
 	"page": 1, "path": 1, "source": 2, "country": 3, "browser": 4,
 	"os": 5, "device": 6, "entry": 7, "exit": 8, "region": 9, "city": 10,
 	"utm_source":      11,
 	"browser_version": 12, "os_version": 13, "screen_size": 14, "language": 15, "hostname": 16,
 	"utm_medium": 17, "utm_campaign": 18,
+}
+
+// RollupDimensionSet returns the sorted storage codes produced by the current
+// binary. It is persisted so upgrades can detect newly introduced breakdowns.
+func RollupDimensionSet() []int16 {
+	codes := make([]int16, 0, len(rollupDimensionCodes))
+	for _, code := range rollupDimensionCodes {
+		codes = append(codes, code)
+	}
+	slices.Sort(codes)
+	return slices.Compact(codes)
+}
+
+// CurrentRollupLayout is the rollup layout produced by this binary: the
+// dimension codes above plus the counter columns the closer writes.
+func CurrentRollupLayout() closer.RollupLayout {
+	return closer.NewRollupLayout(RollupDimensionSet(), closer.RollupCounterColumns())
 }
 
 func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {

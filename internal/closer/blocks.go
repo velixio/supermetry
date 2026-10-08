@@ -9,6 +9,7 @@ import (
 )
 
 const maxDayBlockLevel uint8 = 9
+const rollupRefreshLockID int64 = 7469002
 
 type dayBlockKey struct {
 	site  int32
@@ -16,7 +17,7 @@ type dayBlockKey struct {
 }
 
 func refreshDayBlocks(ctx context.Context, tx pgx.Tx, siteIDs []int32, day time.Time) error {
-	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(7469002)`); err != nil {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, rollupRefreshLockID); err != nil {
 		return err
 	}
 	affected := make([]map[dayBlockKey]struct{}, int(maxDayBlockLevel)+1)
