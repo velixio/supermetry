@@ -20,7 +20,10 @@ export async function rehydrateCSS<T>(
         css = fetchCSS(hash)
         fetched.set(hash, css)
       }
-      node.attributes!._cssText = await css
+      // A stylesheet that cannot be fetched only loses that styling; it must
+      // not stop the whole replay from playing.
+      const text = await css.catch(() => undefined)
+      if (text !== undefined) node.attributes!._cssText = text
       delete node.attributes!._cssRef
     }),
   )

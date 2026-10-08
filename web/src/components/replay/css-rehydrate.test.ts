@@ -33,4 +33,18 @@ describe('rehydrateCSS', () => {
     expect(fetchCSS).toHaveBeenCalledOnce()
     expect(fetchCSS).toHaveBeenCalledWith('abc123')
   })
+
+  it('plays without a stylesheet that cannot be fetched instead of failing the replay', async () => {
+    const events = [
+      { type: 2, data: { node: { attributes: { _cssRef: 'missing' }, childNodes: [{ attributes: { _cssRef: 'ok' } }] } } },
+    ]
+    const result = await rehydrateCSS(events, async (hash) => {
+      if (hash === 'missing') throw new Error('Request failed (404)')
+      return 'body{color:red}'
+    })
+    const root = result[0].data.node as { attributes: Record<string, unknown>; childNodes: { attributes: Record<string, unknown> }[] }
+    expect(root.attributes).not.toHaveProperty('_cssRef')
+    expect(root.attributes).not.toHaveProperty('_cssText')
+    expect(root.childNodes[0].attributes._cssText).toBe('body{color:red}')
+  })
 })
