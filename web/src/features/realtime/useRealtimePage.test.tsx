@@ -14,7 +14,7 @@ describe('useRealtimePage', () => {
     vi.useFakeTimers()
     Object.defineProperty(document, 'hidden', { configurable: true, value: false })
     get.mockResolvedValue({
-      data: { active_visitors: 4, top_pages: [] },
+      data: { active_visitors: 4, visitors_last_30m: 11, top_pages: [] },
       response: { status: 200 },
     })
   })
@@ -35,6 +35,10 @@ describe('useRealtimePage', () => {
     const { result } = renderHook(() => useRealtimePage(7), { wrapper })
 
     await vi.waitFor(() => expect(result.current.data?.active_visitors).toBe(4))
+    expect(client.getQueryData(['realtime-summary', 7])).toEqual({
+      active_visitors: 4,
+      visitors_last_30m: 11,
+    })
     expect(get).toHaveBeenCalledTimes(1)
 
     await vi.advanceTimersByTimeAsync(5_000)

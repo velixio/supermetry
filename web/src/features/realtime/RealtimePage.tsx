@@ -168,21 +168,32 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
       </header>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(14rem,0.7fr)_minmax(0,2fr)]">
-        <Card className="justify-between overflow-hidden border-accent/30 bg-accent/[0.025]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="relative flex size-2" aria-hidden="true">
-                <span className="absolute inline-flex size-full rounded-full bg-accent opacity-50 motion-safe:animate-ping" />
-                <span className="relative inline-flex size-2 rounded-full bg-accent" />
-              </span>
-              Live now
-            </CardTitle>
-            <CardDescription>Active in the last 5 minutes</CardDescription>
+        <Card className="overflow-hidden border-accent/30 bg-accent/[0.025]">
+          <CardHeader className="sr-only">
+            <CardTitle>Live visitors</CardTitle>
+            <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 pb-2">
-            <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.active_visitors)}</output>
+          <CardContent className="flex flex-col gap-6">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <section className="flex flex-col gap-2" aria-labelledby="live-now-title">
+                <h2 className="flex items-center gap-2 text-sm font-medium" id="live-now-title">
+                  <span className="relative flex size-2" aria-hidden="true">
+                    <span className="absolute inline-flex size-full rounded-full bg-accent opacity-50 motion-safe:animate-ping" />
+                    <span className="relative inline-flex size-2 rounded-full bg-accent" />
+                  </span>
+                  Live now
+                </h2>
+                <p className="text-sm text-muted-foreground">Active in the last 5 minutes</p>
+                <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.active_visitors)}</output>
+              </section>
+              <section className="flex flex-col gap-2" aria-labelledby="last-thirty-title">
+                <h2 className="text-sm font-medium" id="last-thirty-title">Last 30 minutes</h2>
+                <p className="text-sm text-muted-foreground">Visitors</p>
+                <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.visitors_last_30m)}</output>
+              </section>
+            </div>
             <p className="text-sm text-muted-foreground">
-              {fmt.number(data.visitors_last_30m)} visitors and {fmt.number(data.pageviews_last_30m)} pageviews in the last 30 minutes
+              {fmt.number(data.pageviews_last_30m)} pageviews in the last 30 minutes
             </p>
           </CardContent>
         </Card>

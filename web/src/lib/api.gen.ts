@@ -393,6 +393,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/realtime/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get lightweight live visitor counts */
+        get: operations["realtimeSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/sites": {
         parameters: {
             query?: never;
@@ -1705,6 +1722,18 @@ export interface components {
             events: components["schemas"]["RealtimeEvent"][];
             recent_activity: components["schemas"]["RecentActivity"][];
         };
+        /**
+         * @example {
+         *       "active_visitors": 12,
+         *       "visitors_last_30m": 41
+         *     }
+         */
+        RealtimeSummary: {
+            /** Format: int64 */
+            active_visitors: number;
+            /** Format: int64 */
+            visitors_last_30m: number;
+        };
         DataHealthResponse: {
             /** Format: double */
             ingest_rate: number;
@@ -2663,6 +2692,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RealtimeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    realtimeSummary: {
+        parameters: {
+            query: {
+                site_id: components["parameters"]["SiteID"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Live visitor summary */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "active_visitors": 12,
+                     *       "visitors_last_30m": 41
+                     *     }
+                     */
+                    "application/json": components["schemas"]["RealtimeSummary"];
                 };
             };
             400: components["responses"]["BadRequest"];

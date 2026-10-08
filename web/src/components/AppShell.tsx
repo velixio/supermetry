@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Outlet, useRouterState } from '@tanstack/react-router'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
 
+import { LiveBadge } from '@/components/LiveBadge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,15 +13,48 @@ import {
 } from '@/components/ui/dialog'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
-import { TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SiteIcon } from '@/components/SiteIcon'
 import { useReplayAvailability } from '@/components/replay/api'
+import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 import type { Me, Membership } from '@/routes/$org'
 
-import { activeSite, PanelSidebar } from './Sidebar'
+import { activeSite, PanelSidebar, siteSlug } from './Sidebar'
+
+function SiteLiveBadge({ siteId, org, site }: { siteId: number; org: string; site: string }) {
+  const summary = useLiveSummary(siteId)
+  if (summary.isError) return null
+
+  const description = summary.data
+    ? `${summary.data.active_visitors} active now, ${summary.data.visitors_last_30m} in the last 30 minutes`
+    : 'Loading live visitors'
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          aria-label={description}
+          params={{ org, site }}
+          title={description}
+          to="/$org/$site/realtime"
+        >
+          <LiveBadge
+            count={summary.data?.active_visitors ?? 0}
+            disableLabel={description}
+            enableLabel={description}
+            enabled
+            label={summary.data ? (count) => `${count} live` : () => '— live'}
+            muted={summary.isPending}
+          />
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent>{description}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 function sidebarStartsOpen(): boolean {
   return !document.cookie
@@ -39,8 +73,14 @@ export function AppShell({
   const [helpOpen, setHelpOpen] = useState(false)
   const [sidebarOpen] = useState(sidebarStartsOpen)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const requestedSite = pathname.split('/').filter(Boolean)[1]
+  const requestedSite = useRouterState({
+    select: (state) => {
+      const params = state.matches.at(-1)?.params
+      return params && 'site' in params ? params.site : undefined
+    },
+  })
   const site = activeSite(membership, requestedSite)
+  const scopedSite = membership.sites.find((item) => siteSlug(item) === requestedSite)
   const replay = useReplayAvailability(site?.id)
 
   useShortcuts({
@@ -64,6 +104,13 @@ export function AppShell({
               ) : null}
             </div>
             <div className="flex items-center gap-1">
+              {scopedSite && requestedSite ? (
+                <SiteLiveBadge
+                  org={membership.org.slug}
+                  site={requestedSite}
+                  siteId={scopedSite.id}
+                />
+              ) : null}
               <Button
                 type="button"
                 size="icon"

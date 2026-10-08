@@ -84,7 +84,7 @@ export function canCreateSites(role: Role): boolean {
   return role === 'owner' || role === 'admin'
 }
 
-function siteSlug(site: Site): string {
+export function siteSlug(site: Site): string {
   return site.slug ?? site.public_id ?? String(site.id)
 }
 

@@ -63,13 +63,16 @@ describe('RealtimePage', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the live anchor, thirty buckets, and every ranked breakdown', () => {
+  it('renders equal-weight live and 30-minute headline counts with every ranked breakdown', () => {
     render(<RealtimePage dateRange={{ from: '2026-10-08', to: '2026-10-08' }} siteId={7} timezone="Asia/Kolkata" />)
 
     expect(screen.getByText('12')).toBeVisible()
     expect(screen.getByText('Live now')).toBeVisible()
     expect(screen.getByText('Active in the last 5 minutes')).toBeVisible()
-    expect(screen.getByText('41 visitors and 91 pageviews in the last 30 minutes')).toBeVisible()
+    expect(screen.getByText('41')).toBeVisible()
+    expect(screen.getByText('Last 30 minutes')).toBeVisible()
+    expect(screen.getByText('Visitors')).toBeVisible()
+    expect(screen.getByText('91 pageviews in the last 30 minutes')).toBeVisible()
     expect(screen.getByRole('img', { name: 'Visitors during the last 30 minutes' })).toBeVisible()
     expect(screen.getAllByText('/docs').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/pricing').length).toBeGreaterThan(0)
