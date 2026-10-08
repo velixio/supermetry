@@ -131,7 +131,7 @@ func Start(t *testing.T) *Env {
 	engine := query.NewEngine(pool, dictionary, reg)
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{EventPath: "/api/public/v1/events", AdminAPIKey: TestAPIKey},
-		Query:  engine, Ingest: handler, Sessions: sessions, Now: clock.Now,
+		Query:  engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, Now: clock.Now,
 		RateLimiter: ingest.NewTokenBuckets(100_000, 100_000), Ready: func() bool { return true },
 	})
 	env := &Env{
