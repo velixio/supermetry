@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -453,6 +454,17 @@ type SavedFunnelInput struct {
 	Steps []FunnelStep `json:"steps"`
 }
 
+// Segment defines model for Segment.
+type Segment struct {
+	CreatedAt time.Time `json:"created_at"`
+	CreatedBy *int64    `json:"created_by"`
+	Filters   []Filter  `json:"filters"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	SiteId    int32     `json:"site_id"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // Site defines model for Site.
 type Site struct {
 	AllowedHosts  []string `json:"allowed_hosts"`
@@ -646,6 +658,9 @@ type ServerInterface interface {
 	// CreateGoal Create a goal
 	// (POST /api/public/v1/sites/{site_id}/goals)
 	CreateGoal(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListSegments List saved segments
+	// (GET /api/public/v1/sites/{site_id}/segments)
+	ListSegments(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// StatsBreakdown Get a dimension breakdown
 	// (GET /api/public/v1/stats/breakdown)
 	StatsBreakdown(w http.ResponseWriter, r *http.Request, params StatsBreakdownParams)
@@ -1082,6 +1097,32 @@ func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListSegments operation middleware
+func (siw *ServerInterfaceWrapper) ListSegments(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSegments(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StatsBreakdown operation middleware
 func (siw *ServerInterfaceWrapper) StatsBreakdown(w http.ResponseWriter, r *http.Request) {
 
@@ -1466,6 +1507,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.CreateFunnel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.DeleteFunnel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.UpdateFunnel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.ListSegments)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

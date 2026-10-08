@@ -135,6 +135,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"POST " + publicPrefix + "/sites/{site}/funnels",
 		"PATCH " + publicPrefix + "/funnels/{funnel}",
 		"DELETE " + publicPrefix + "/funnels/{funnel}",
+		"GET " + publicPrefix + "/sites/{site}/segments",
 	} {
 		mux.Handle(pattern, public)
 	}
@@ -187,6 +188,10 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"POST " + privatePrefix + "/sites/{site}/funnels",
 		"PATCH " + privatePrefix + "/funnels/{funnel}",
 		"DELETE " + privatePrefix + "/funnels/{funnel}",
+		"GET " + privatePrefix + "/sites/{site}/segments",
+		"POST " + privatePrefix + "/sites/{site}/segments",
+		"PATCH " + privatePrefix + "/segments/{segment}",
+		"DELETE " + privatePrefix + "/segments/{segment}",
 	} {
 		mux.Handle(pattern, platform)
 	}
