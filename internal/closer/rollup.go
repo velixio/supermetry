@@ -26,31 +26,42 @@ insert into rollup_day_dim (
   duration_ms, engagement_ms, scroll_sum, scroll_n
 )
 select site_id, $1, dim, value_id,
-       count(*) filter (where flags & visitor_flag <> 0),
+       count(*) filter (where is_visitor),
        count(*), sum(pageviews),
        count(*) filter (where pageviews = 1 and custom = 0),
        sum(duration_ms), sum(engagement_ms), sum(scroll_sum), sum(scroll_n)
-from session_metrics s
+from (
+  select metrics.*,
+         row_number() over (
+           partition by site_id, day, visitor_id, medium_id order by started_at, session_id
+         ) = 1 as medium_visitor,
+         row_number() over (
+           partition by site_id, day, visitor_id, campaign_id order by started_at, session_id
+         ) = 1 as campaign_visitor
+  from session_metrics metrics
+) s
 cross join lateral (values
-  (2::smallint, s.source_id, 2::smallint),
+  (2::smallint, s.source_id, s.flags & 2 <> 0),
   (3::smallint,
     coalesce(ascii(substr(s.country, 1, 1)), 0) * 256
-      + coalesce(ascii(substr(s.country, 2, 1)), 0), 1::smallint),
-  (4::smallint, s.browser_id, 1::smallint),
-  (5::smallint, s.os_id, 1::smallint),
-  (6::smallint, s.device::integer, 1::smallint),
-  (7::smallint, s.entry_path, 4::smallint),
-  (8::smallint, s.exit_path, 8::smallint),
-  (9::smallint, s.region_id, 1::smallint),
-  (10::smallint, s.city_id, 1::smallint),
-  (11::smallint, s.utm_source_id, 16::smallint),
-  (12::smallint, s.browser_ver_id, 1::smallint),
-  (13::smallint, s.os_ver_id, 1::smallint),
-  (14::smallint, s.screen_bucket::integer, 32::smallint),
-  (15::smallint, s.language_id, 64::smallint),
-  (16::smallint, s.hostname_id, 128::smallint)
-) dimensions(dim, value_id, visitor_flag)
-where not (dim = 11 and value_id = 0)
+      + coalesce(ascii(substr(s.country, 2, 1)), 0), s.flags & 1 <> 0),
+  (4::smallint, s.browser_id, s.flags & 1 <> 0),
+  (5::smallint, s.os_id, s.flags & 1 <> 0),
+  (6::smallint, s.device::integer, s.flags & 1 <> 0),
+  (7::smallint, s.entry_path, s.flags & 4 <> 0),
+  (8::smallint, s.exit_path, s.flags & 8 <> 0),
+  (9::smallint, s.region_id, s.flags & 1 <> 0),
+  (10::smallint, s.city_id, s.flags & 1 <> 0),
+  (11::smallint, s.utm_source_id, s.flags & 16 <> 0),
+  (12::smallint, s.browser_ver_id, s.flags & 1 <> 0),
+  (13::smallint, s.os_ver_id, s.flags & 1 <> 0),
+  (14::smallint, s.screen_bucket::integer, s.flags & 32 <> 0),
+  (15::smallint, s.language_id, s.flags & 64 <> 0),
+  (16::smallint, s.hostname_id, s.flags & 128 <> 0),
+  (17::smallint, s.medium_id, s.medium_visitor),
+  (18::smallint, s.campaign_id, s.campaign_visitor)
+) dimensions(dim, value_id, is_visitor)
+where not (dim in (11, 17, 18) and value_id = 0)
   and not (dim in (7, 8) and s.pageviews = 0)
 group by site_id, dim, value_id`
 

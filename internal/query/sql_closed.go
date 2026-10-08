@@ -321,6 +321,10 @@ func customResolver(alias string) dimensionResolver {
 			return channelSQL(prefix+"source_id", prefix+"medium_id"), nil, nil
 		case dimension == "utm_source":
 			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
+		case dimension == "utm_medium":
+			return prefix + "medium_id", dictionaryKind(dict.Medium), nil
+		case dimension == "utm_campaign":
+			return prefix + "campaign_id", dictionaryKind(dict.Campaign), nil
 		case dimension == "browser":
 			return prefix + "browser_id", dictionaryKind(dict.Browser), nil
 		case dimension == "browser_version":
@@ -420,7 +424,7 @@ func filterConditions(builder *sqlBuilder, filters []api.Filter, resolver dimens
 func presentDimensionConditions(dimensions []string, resolver dimensionResolver) ([]string, error) {
 	conditions := make([]string, 0, len(dimensions))
 	for _, dimension := range dimensions {
-		if dimension != "region" && dimension != "city" && dimension != "utm_source" {
+		if dimension != "region" && dimension != "city" && dimension != "utm_source" && dimension != "utm_medium" && dimension != "utm_campaign" {
 			continue
 		}
 		column, _, err := resolver(dimension)
