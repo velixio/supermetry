@@ -46,32 +46,29 @@ export function GoalsPage({ siteId, dateRange }: GoalsPageProps) {
 }
 
 function GoalRow({ goal, siteId, dateRange, onEdit }: { goal: Goal; siteId: number; dateRange: GoalsPageProps['dateRange']; onEdit: () => void }) {
-  const operator = goal.match === 'exact' ? 'is' : goal.match === 'prefix' ? 'starts_with' : 'contains'
-  const value = goal.match === 'wildcard' ? goal.value.replaceAll('*', '') : goal.value
   const matched = useStats({
     siteId,
     dateRange,
     metrics: ['visitors'],
-    filters: [{ dimension: goal.kind, operator, values: [value] }],
+    filters: [{ dimension: 'goal_id', operator: 'is', values: [String(goal.id)] }],
     timezone: 'UTC',
   })
   const all = useStats({ siteId, dateRange, metrics: ['visitors'], filters: [], timezone: 'UTC' })
   const conversions = matched.data?.totals?.visitors ?? 0
   const visitors = all.data?.totals?.visitors ?? 0
   const rate = visitors > 0 ? (conversions / visitors) * 100 : 0
-  return <tr className="border-b last:border-0"><th className="max-w-56 truncate px-4 py-3 text-left font-medium" title={goal.name}>{goal.name}</th><td className="px-4 py-3 text-right tabular-nums">{fmt.number(conversions)}</td><td className="px-4 py-3 text-right tabular-nums">{fmt.percent(rate)}</td>{goal.currency ? <RevenueCells dateRange={dateRange} goal={goal} siteId={siteId} /> : <><td className="px-4 py-3 text-right text-muted-foreground">—</td><td className="px-4 py-3 text-right text-muted-foreground">—</td></>}<td className="px-4 py-2 text-right"><Button size="sm" type="button" variant="ghost" onClick={onEdit}>Edit</Button></td></tr>
+  const description = goal.kind === 'scroll' ? `Scroll ≥ ${goal.scroll_threshold}% on ${goal.value}` : null
+  return <tr className="border-b last:border-0"><th className="max-w-56 px-4 py-3 text-left font-medium" title={goal.name}><span className="block truncate">{goal.name}</span>{description ? <span className="block truncate text-xs font-normal text-muted-foreground">{description}</span> : null}</th><td className="px-4 py-3 text-right tabular-nums">{fmt.number(conversions)}</td><td className="px-4 py-3 text-right tabular-nums">{fmt.percent(rate)}</td>{goal.currency ? <RevenueCells dateRange={dateRange} goal={goal} siteId={siteId} /> : <><td className="px-4 py-3 text-right text-muted-foreground">—</td><td className="px-4 py-3 text-right text-muted-foreground">—</td></>}<td className="px-4 py-2 text-right"><Button size="sm" type="button" variant="ghost" onClick={onEdit}>Edit</Button></td></tr>
 }
 
 function RevenueCells({ goal, siteId, dateRange }: { goal: Goal; siteId: number; dateRange: GoalsPageProps['dateRange'] }) {
   const currency = goal.currency ?? 'USD'
-  const operator = goal.match === 'exact' ? 'is' : goal.match === 'prefix' ? 'starts_with' : 'contains'
-  const value = goal.match === 'wildcard' ? goal.value.replaceAll('*', '') : goal.value
   const revenue = useStats({
     siteId,
     dateRange,
     metrics: ['total_revenue', 'average_revenue'],
     filters: [
-      { dimension: goal.kind, operator, values: [value] },
+      { dimension: 'goal_id', operator: 'is', values: [String(goal.id)] },
       { dimension: 'revenue_currency', operator: 'is', values: [currency] },
     ],
     timezone: 'UTC',

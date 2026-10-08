@@ -78,7 +78,7 @@ describe('GoalsPage', () => {
     expect(get).toHaveBeenCalledTimes(2)
   })
 
-  it('queries and displays conversions for each goal definition', async () => {
+  it('queries and displays conversions with the server-side goal id filter', async () => {
     get.mockReset()
     useStats.mockReset()
     get.mockResolvedValue({
@@ -98,8 +98,21 @@ describe('GoalsPage', () => {
     expect(screen.getByText('8')).toBeVisible()
     expect(screen.getByText('10%')).toBeVisible()
     expect(useStats).toHaveBeenCalledWith(expect.objectContaining({
-      filters: [{ dimension: 'page', operator: 'is', values: ['/thanks'] }],
+      filters: [{ dimension: 'goal_id', operator: 'is', values: ['4'] }],
     }))
+  })
+
+  it('describes scroll-depth goals in the goals list', async () => {
+    get.mockReset()
+    get.mockResolvedValue({
+      data: [{ id: 9, site_id: 7, kind: 'scroll', match: 'wildcard', value: '/blog/*', name: 'Engaged reader', scroll_threshold: 75 }],
+      response: { status: 200 },
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(<QueryClientProvider client={client}><GoalsPage siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} /></QueryClientProvider>)
+
+    expect(await screen.findByText('Scroll ≥ 75% on /blog/*')).toBeVisible()
   })
 
   it('shows currency-formatted revenue only for revenue goals', async () => {
@@ -132,7 +145,7 @@ describe('GoalsPage', () => {
     expect(useStats).toHaveBeenCalledWith(expect.objectContaining({
       metrics: ['total_revenue', 'average_revenue'],
       filters: [
-        { dimension: 'event', operator: 'is', values: ['purchase'] },
+        { dimension: 'goal_id', operator: 'is', values: ['4'] },
         { dimension: 'revenue_currency', operator: 'is', values: ['USD'] },
       ],
     }))

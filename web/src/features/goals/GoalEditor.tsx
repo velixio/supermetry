@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
 import type { Goal, GoalInput } from './types'
@@ -41,10 +41,15 @@ export function GoalEditor({ goal, pending, onSave, onCancel }: GoalEditorProps)
       setError('Enter a three-letter currency code.')
       return
     }
+    if (input.kind === 'scroll' && (!Number.isInteger(input.scroll_threshold) || input.scroll_threshold! < 1 || input.scroll_threshold! > 100)) {
+      setError('Enter a scroll threshold from 1 to 100.')
+      return
+    }
     setError('')
     const normalized = { ...input, name: input.name.trim(), value: input.value.trim() }
     if (input.kind === 'event' && currency) normalized.currency = currency
     else delete normalized.currency
+    if (input.kind !== 'scroll') delete normalized.scroll_threshold
     void onSave(normalized)
   }
 
@@ -61,9 +66,13 @@ export function GoalEditor({ goal, pending, onSave, onCancel }: GoalEditorProps)
           <select id="goal-kind" className="h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" value={input.kind} onChange={(event) => {
             const kind = event.target.value as GoalInput['kind']
             setCustomCurrency(false)
-            setInput((current) => kind === 'page' ? { ...current, kind, currency: undefined } : { ...current, kind })
+            setInput((current) => {
+              if (kind === 'event') return { ...current, kind, scroll_threshold: undefined }
+              if (kind === 'scroll') return { ...current, kind, currency: undefined }
+              return { ...current, kind, currency: undefined, scroll_threshold: undefined }
+            })
           }}>
-            <option value="page">Page</option><option value="event">Event</option>
+            <option value="page">Page</option><option value="event">Event</option><option value="scroll">Scroll depth</option>
           </select>
         </Field>
         <Field>
@@ -76,6 +85,25 @@ export function GoalEditor({ goal, pending, onSave, onCancel }: GoalEditorProps)
           <FieldLabel htmlFor="goal-value">Goal value</FieldLabel>
           <Input id="goal-value" aria-invalid={error !== '' && !input.value.trim()} value={input.value} onChange={(event) => setInput((current) => ({ ...current, value: event.target.value }))} />
         </Field>
+        {input.kind === 'scroll' ? (
+          <Field data-invalid={error !== '' && (!Number.isInteger(input.scroll_threshold) || input.scroll_threshold! < 1 || input.scroll_threshold! > 100)}>
+            <FieldLabel htmlFor="goal-scroll-threshold">Scroll threshold (%)</FieldLabel>
+            <Input
+              id="goal-scroll-threshold"
+              aria-invalid={error !== '' && (!Number.isInteger(input.scroll_threshold) || input.scroll_threshold! < 1 || input.scroll_threshold! > 100)}
+              max={100}
+              min={1}
+              required
+              type="number"
+              value={input.scroll_threshold ?? ''}
+              onChange={(event) => setInput((current) => ({
+                ...current,
+                scroll_threshold: event.target.value === '' ? undefined : event.target.valueAsNumber,
+              }))}
+            />
+            <FieldDescription>Counts a visit when someone scrolls at least this far on a matching page</FieldDescription>
+          </Field>
+        ) : null}
         {input.kind === 'event' ? (
           <Field data-invalid={error !== '' && customCurrency && !/^[A-Za-z]{3}$/.test(input.currency ?? '')}>
             <FieldLabel htmlFor="goal-currency">Revenue currency</FieldLabel>

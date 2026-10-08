@@ -962,7 +962,7 @@ export interface components {
         };
         GoalInput: {
             /** @enum {string} */
-            kind: "page" | "event";
+            kind: "page" | "event" | "scroll";
             /** @enum {string} */
             match: "exact" | "prefix" | "wildcard";
             value: string;
@@ -970,19 +970,30 @@ export interface components {
             prop_value?: string;
             name: string;
             currency?: string | null;
+            /**
+             * Format: int32
+             * @description Required when kind is scroll and absent for every other kind.
+             */
+            scroll_threshold?: number;
         };
         Goal: {
             /** Format: int64 */
             id: number;
             /** Format: int32 */
             site_id: number;
-            kind: string;
+            /** @enum {string} */
+            kind: "page" | "event" | "scroll";
             match: string;
             value: string;
             prop_key?: string;
             prop_value?: string;
             name: string;
             currency?: string | null;
+            /**
+             * Format: int32
+             * @description Present only for scroll goals.
+             */
+            scroll_threshold?: number;
         };
         Annotation: {
             /** Format: int64 */
@@ -1069,6 +1080,7 @@ export interface components {
          */
         Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "exit_rate" | "time_on_page" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
         Filter: {
+            /** @description Analytics dimension to filter. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. */
             dimension: string;
             /** @enum {string} */
             operator: "is" | "is_not" | "contains" | "starts_with";
