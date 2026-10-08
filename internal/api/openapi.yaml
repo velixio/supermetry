@@ -636,6 +636,39 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /api/public/v1/realtime/summary:
+    get:
+      operationId: realtimeSummary
+      summary: Get lightweight live visitor counts
+      parameters:
+        - $ref: '#/components/parameters/SiteID'
+      responses:
+        '200':
+          description: Live visitor summary
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeSummary'
+              example:
+                active_visitors: 12
+                visitors_last_30m: 41
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/public/v1/sites:
     get:
       operationId: listSites
@@ -2937,6 +2970,22 @@ components:
         visitors_last_30m: 41
         top_pages: [{ page: /docs, visitors: 7 }]
         top_sources: [{ source: google, visitors: 5 }]
+    RealtimeSummary:
+      type: object
+      additionalProperties: false
+      required: [active_visitors, visitors_last_30m]
+      properties:
+        active_visitors:
+          type: integer
+          format: int64
+          minimum: 0
+        visitors_last_30m:
+          type: integer
+          format: int64
+          minimum: 0
+      example:
+        active_visitors: 12
+        visitors_last_30m: 41
     DataHealthResponse:
       type: object
       additionalProperties: false

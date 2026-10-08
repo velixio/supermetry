@@ -499,6 +499,12 @@ func (s apiMinuteSource) Minutes(context.Context, int32, time.Time, time.Time) (
 	return s.minutes, nil
 }
 
+type panicMinuteSource struct{}
+
+func (panicMinuteSource) Minutes(context.Context, int32, time.Time, time.Time) ([]session.MinuteVisitors, error) {
+	panic("realtime summary must not read durable minutes")
+}
+
 func TestRealtimeUsesConfiguredMinuteSource(t *testing.T) {
 	now := time.Date(2026, 10, 8, 12, 0, 45, 0, time.UTC)
 	router := api.NewRouter(api.Deps{
@@ -526,6 +532,124 @@ func TestRealtimeUsesConfiguredMinuteSource(t *testing.T) {
 	if got := body.VisitorsPerMinute[28].Visitors; got != 6 {
 		t.Fatalf("stored visitors=%d, want 6", got)
 	}
+}
+
+func TestRealtimeSummaryMatchesFullRealtimeWithoutDatabaseAccess(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	store := session.NewMemory(1, nil)
+	for _, hit := range []session.Hit{
+		{SiteID: 1, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 101, PathID: 12},
+		{SiteID: 1, TS: now.Add(-10 * time.Minute), LocalDay: now, VisitorID: 202, PathID: 34},
+		{SiteID: 1, TS: now.Add(-31 * time.Minute), LocalDay: now, VisitorID: 303, PathID: 56},
+		{SiteID: 2, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 404, PathID: 78},
+	} {
+		store.Touch(hit)
+	}
+	router := api.NewRouter(api.Deps{
+		Config: config.Config{AdminAPIKey: "test-key"}, Sessions: store,
+		RateLimiter: ingest.NewTokenBuckets(0, 1000),
+		Sites:       orgSites{1: sites.Site{ID: 1, OrgID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30}},
+		Now:         func() time.Time { return now },
+	})
+
+	full := realtimeRequest(t, router, "/api/public/v1/realtime?site_id=1", "Bearer test-key")
+	summary := realtimeRequest(t, router, "/api/public/v1/realtime/summary?site_id=1", "Bearer test-key")
+	if full.Code != http.StatusOK || summary.Code != http.StatusOK {
+		t.Fatalf("full status=%d body=%s; summary status=%d body=%s", full.Code, full.Body.String(), summary.Code, summary.Body.String())
+	}
+	var fullBody struct {
+		ActiveVisitors  int64 `json:"active_visitors"`
+		VisitorsLast30m int64 `json:"visitors_last_30m"`
+	}
+	var summaryBody map[string]int64
+	if err := json.Unmarshal(full.Body.Bytes(), &fullBody); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(summary.Body.Bytes(), &summaryBody); err != nil {
+		t.Fatal(err)
+	}
+	if len(summaryBody) != 2 || summaryBody["active_visitors"] != fullBody.ActiveVisitors || summaryBody["visitors_last_30m"] != fullBody.VisitorsLast30m {
+		t.Fatalf("summary=%v full=%+v", summaryBody, fullBody)
+	}
+	if fullBody.ActiveVisitors != 1 || fullBody.VisitorsLast30m != 2 {
+		t.Fatalf("full realtime counters=%+v, want 1 active and 2 in 30m", fullBody)
+	}
+	if got := summary.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control=%q, want no-store", got)
+	}
+
+	noDatabaseRouter := api.NewRouter(api.Deps{
+		Config: config.Config{AdminAPIKey: "test-key"}, Sessions: store, MinuteSource: panicMinuteSource{},
+		RateLimiter: ingest.NewTokenBuckets(0, 1000),
+		Sites:       orgSites{1: sites.Site{ID: 1, OrgID: 1}},
+		Now:         func() time.Time { return now },
+	})
+	withoutDatabase := realtimeRequest(t, noDatabaseRouter, "/api/public/v1/realtime/summary?site_id=1", "Bearer test-key")
+	if withoutDatabase.Code != http.StatusOK {
+		t.Fatalf("summary without database status=%d body=%s", withoutDatabase.Code, withoutDatabase.Body.String())
+	}
+}
+
+func TestRealtimeSummaryAuthorizationMatchesFullRealtime(t *testing.T) {
+	tests := []struct {
+		name  string
+		auth  api.Authenticator
+		sites orgSites
+		want  int
+	}{
+		{name: "unauthenticated", auth: api.StaticKey("test-key"), sites: orgSites{1: {ID: 1, OrgID: 1}}, want: http.StatusUnauthorized},
+		{name: "missing stats read scope", auth: principalAuth{principal: api.Principal{OrgID: 1, Scopes: []string{"sites:read"}, SiteIDs: []int32{1}}}, sites: orgSites{1: {ID: 1, OrgID: 1}}, want: http.StatusForbidden},
+		{name: "unknown site", auth: principalAuth{principal: api.Principal{OrgID: 1, Scopes: []string{"stats:read"}}}, sites: orgSites{}, want: http.StatusNotFound},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := api.NewRouter(api.Deps{
+				PublicAuth: test.auth, Sessions: session.NewMemory(1, nil), Sites: test.sites,
+				RateLimiter: ingest.NewTokenBuckets(0, 1000),
+			})
+			authorization := ""
+			if test.name != "unauthenticated" {
+				authorization = "ignored"
+			}
+			full := realtimeRequest(t, router, "/api/public/v1/realtime?site_id=1", authorization)
+			summary := realtimeRequest(t, router, "/api/public/v1/realtime/summary?site_id=1", authorization)
+			if full.Code != test.want || summary.Code != full.Code || summary.Body.String() != full.Body.String() {
+				t.Fatalf("full status=%d body=%s; summary status=%d body=%s", full.Code, full.Body.String(), summary.Code, summary.Body.String())
+			}
+		})
+	}
+}
+
+func TestPrivateRealtimeSummaryUsesDashboardSessionAuthorization(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	store := session.NewMemory(1, nil)
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 101, PathID: 12})
+	router := api.NewRouter(api.Deps{
+		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
+		Sessions:    store,
+		Sites:       orgSites{1: {ID: 1, OrgID: 7}},
+		Now:         func() time.Time { return now },
+	})
+
+	full := realtimeRequest(t, router, "/api/private/realtime?site_id=1", "")
+	summary := realtimeRequest(t, router, "/api/private/realtime/summary?site_id=1", "")
+	if full.Code != http.StatusOK || summary.Code != http.StatusOK {
+		t.Fatalf("full status=%d body=%s; summary status=%d body=%s", full.Code, full.Body.String(), summary.Code, summary.Body.String())
+	}
+	if !strings.Contains(summary.Body.String(), `"active_visitors":1`) || !strings.Contains(summary.Body.String(), `"visitors_last_30m":1`) {
+		t.Fatalf("summary body=%s", summary.Body.String())
+	}
+}
+
+func realtimeRequest(t *testing.T, router http.Handler, path, authorization string) *httptest.ResponseRecorder {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodGet, path, nil)
+	if authorization != "" {
+		request.Header.Set("Authorization", authorization)
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	return response
 }
 
 func TestDataHealthShowsRollupBackfillProgress(t *testing.T) {

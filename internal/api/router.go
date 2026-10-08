@@ -100,6 +100,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("POST "+publicPrefix+"/journeys/query", h.journeyRequest)
 	public.HandleFunc("POST "+publicPrefix+"/retention/query", h.retentionRequest)
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
+	public.HandleFunc("GET "+publicPrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, public)))
 
@@ -116,6 +117,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("POST "+privatePrefix+"/journeys/query", h.journeyRequest)
 	private.HandleFunc("POST "+privatePrefix+"/retention/query", h.retentionRequest)
 	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
+	private.HandleFunc("GET "+privatePrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))

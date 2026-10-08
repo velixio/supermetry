@@ -989,6 +989,12 @@ type RealtimeResponse struct {
 	VisitorsPerMinute []RealtimeMinute `json:"visitors_per_minute"`
 }
 
+// RealtimeSummary defines model for RealtimeSummary.
+type RealtimeSummary struct {
+	ActiveVisitors  int64 `json:"active_visitors"`
+	VisitorsLast30m int64 `json:"visitors_last_30m"`
+}
+
 // RecentActivity defines model for RecentActivity.
 type RecentActivity struct {
 	Browser     string    `json:"browser"`
@@ -1477,6 +1483,11 @@ type RealtimeParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
 }
 
+// RealtimeSummaryParams defines parameters for RealtimeSummary.
+type RealtimeSummaryParams struct {
+	SiteId SiteID `form:"site_id" json:"site_id"`
+}
+
 // GetSessionParams defines parameters for GetSession.
 type GetSessionParams struct {
 	SiteId int32 `form:"site_id" json:"site_id"`
@@ -1850,6 +1861,9 @@ type ServerInterface interface {
 	// Realtime Get active visitors, pages, and sources from the last 30 minutes
 	// (GET /api/public/v1/realtime)
 	Realtime(w http.ResponseWriter, r *http.Request, params RealtimeParams)
+	// RealtimeSummary Get lightweight live visitor counts
+	// (GET /api/public/v1/realtime/summary)
+	RealtimeSummary(w http.ResponseWriter, r *http.Request, params RealtimeSummaryParams)
 	// RetentionQuery Run a retention query
 	// (POST /api/public/v1/retention/query)
 	RetentionQuery(w http.ResponseWriter, r *http.Request)
@@ -2690,6 +2704,39 @@ func (siw *ServerInterfaceWrapper) Realtime(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Realtime(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RealtimeSummary operation middleware
+func (siw *ServerInterfaceWrapper) RealtimeSummary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RealtimeSummaryParams
+
+	// ------------- Required query parameter "site_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "site_id", r.URL.Query(), &params.SiteId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "site_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RealtimeSummary(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4354,6 +4401,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/journeys/query", wrapper.JourneyQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/retention/query", wrapper.RetentionQuery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/realtime", wrapper.Realtime)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/realtime/summary", wrapper.RealtimeSummary)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites", wrapper.ListSites)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites", wrapper.CreateSite)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.DeleteSite)

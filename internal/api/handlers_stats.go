@@ -590,6 +590,29 @@ func realtimeHandler(store session.Store, minutes realtime.MinuteSource, now fun
 	}
 }
 
+func realtimeSummaryHandler(store session.Store, now func() time.Time) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		siteID, problem := siteIDParam(r)
+		if problem != nil {
+			writeProblem(w, *problem)
+			return
+		}
+		if !authorizeRequest(w, r, siteID, "stats:read") {
+			return
+		}
+		current := time.Now()
+		if now != nil {
+			current = now()
+		}
+		snapshot := realtime.RichSnapshot(store, siteID, current)
+		writeJSON(w, http.StatusOK, RealtimeSummary{
+			ActiveVisitors:  int64(snapshot.ActiveVisitors),
+			VisitorsLast30m: int64(snapshot.VisitorsLast30m),
+		})
+	}
+}
+
 // realtimeResponse builds the realtime payload shared by the HTTP API and MCP.
 func realtimeResponse(ctx context.Context, store session.Store, minutes realtime.MinuteSource, dictionary dictionaryResolver, siteID int32, now time.Time) RealtimeResponse {
 	snapshot := realtime.RichSnapshotWithMinutes(ctx, store, minutes, siteID, now)
