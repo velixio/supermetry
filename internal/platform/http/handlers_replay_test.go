@@ -267,3 +267,20 @@ func TestReplayEndpointsForbiddenAcrossOrgs(t *testing.T) {
 		t.Fatalf("status=%d body=%s, want 404", response.Code, response.Body.String())
 	}
 }
+
+func TestReplayEnabledComesOnlyFromEnvironment(t *testing.T) {
+	for _, envEnabled := range []bool{true, false} {
+		f := newReplayFixture(t, config.ReplayEnv{Enabled: envEnabled})
+		path := fmt.Sprintf("/api/private/sites/%d/replay-settings", f.siteID)
+		if response := f.request(t, "owner", http.MethodPut, path, fmt.Sprintf(`{"enabled":%t}`, !envEnabled)); response.Code != http.StatusConflict {
+			t.Fatalf("env=%t: PUT enabled=%t status=%d body=%s, want 409", envEnabled, !envEnabled, response.Code, response.Body.String())
+		}
+		if response := f.request(t, "owner", http.MethodPut, path, `{"sample_rate":40}`); response.Code != http.StatusOK {
+			t.Fatalf("env=%t: PUT sample_rate status=%d body=%s, want 200", envEnabled, response.Code, response.Body.String())
+		}
+		response := f.request(t, "viewer", http.MethodGet, path, "")
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), fmt.Sprintf(`"enabled":%t`, envEnabled)) {
+			t.Fatalf("env=%t: GET status=%d body=%s, want enabled=%t", envEnabled, response.Code, response.Body.String(), envEnabled)
+		}
+	}
+}

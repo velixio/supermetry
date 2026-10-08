@@ -82,7 +82,7 @@ type storedS3JSON struct {
 
 func ResolveSite(env config.ReplayEnv, in sites.ReplaySiteInput) SiteSettings {
 	settings := SiteSettings{
-		Enabled:       env.Enabled && in.Enabled,
+		Enabled:       env.Enabled, // PANEL_REPLAY_ENABLED is the only switch; the UI shows it read-only
 		Mask:          resolve(false, in.Mask, env.Mask),
 		SampleRate:    resolve(defaultSampleRate, in.SampleRate, env.SampleRate),
 		RetentionDays: resolve(defaultRetentionDays, in.RetentionDays, env.Retention),

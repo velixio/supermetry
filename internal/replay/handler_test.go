@@ -80,11 +80,15 @@ func (i *replayTestIndex) Add(update IndexUpdate) {
 	i.mu.Unlock()
 }
 
-func TestStartOffWhenSiteDisabled(t *testing.T) {
-	h, _, _, _, _ := newReplayTestHandler(t, sites.ReplaySiteInput{Enabled: false})
+func TestStartIgnoresStoredSiteSwitch(t *testing.T) {
+	// PANEL_REPLAY_ENABLED is the only switch: a stale per-site "enabled":false
+	// stored before that rule must not stop recording.
+	input := replayInput(100)
+	input.Enabled = false
+	h, _, _, _, _ := newReplayTestHandler(t, input)
 	response := requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")
-	if response.Code != http.StatusOK || decodeStart(t, response).Mode != "off" {
-		t.Fatalf("status/body = %d/%s, want 200 with off", response.Code, response.Body.String())
+	if response.Code != http.StatusOK || decodeStart(t, response).Mode != "full" {
+		t.Fatalf("status/body = %d/%s, want 200 with full", response.Code, response.Body.String())
 	}
 	assertCORS(t, response)
 }

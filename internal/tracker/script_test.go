@@ -240,8 +240,10 @@ func TestScriptHasNoReplayWhenDisabled(t *testing.T) {
 		env  config.ReplayEnv
 		site sites.ReplaySiteInput
 	}{
+		// PANEL_REPLAY_ENABLED is the only switch, so a stored site value cannot
+		// turn replay on.
 		{name: "instance off", site: sites.ReplaySiteInput{Enabled: true}},
-		{name: "site off", env: config.ReplayEnv{Enabled: true}},
+		{name: "instance off, site never set"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
