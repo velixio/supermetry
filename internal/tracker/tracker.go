@@ -9,7 +9,7 @@ import (
 )
 
 //go:generate go run ./cmd/minify -in tracker.js -out tracker.min.js
-//go:generate go run ./cmd/minify -in tracker.js -append tracker.extensions.js -out tracker.full.min.js
+//go:generate go run ./cmd/minify -in tracker.js -full -append tracker.extensions.js -out tracker.full.min.js
 
 //go:embed tracker.min.js
 var script []byte
