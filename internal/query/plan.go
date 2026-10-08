@@ -364,7 +364,7 @@ select min(day)::date from generate_series($2::date,$3::date,interval '1 day') d
 where not exists (
   select 1 from day_close closed
   where closed.site_id=$1 and closed.day=days.day and closed.status='done'
-)`, siteID, from, to).Scan(&missing)
+)`, siteID, dateParam(from), dateParam(to)).Scan(&missing)
 	})
 	if err != nil {
 		return time.Time{}, fmt.Errorf("query closed-through day: %w", err)

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -125,13 +126,127 @@ func TestPageMetricsMatchHotClosedAndRollupTiers(t *testing.T) {
 		exitRate   float64
 		timeOnPage float64
 	}{
-		"/a":      {pageviews: 3, exitRate: 100.0 / 3.0, timeOnPage: 30},
+		"/a":      {pageviews: 4, exitRate: 50, timeOnPage: 65.0 / 3.0},
 		"/b":      {pageviews: 2, exitRate: 100, timeOnPage: 0},
 		"/repeat": {pageviews: 2, exitRate: 50, timeOnPage: 30},
 	}
 	for _, route := range []query.Route{query.RouteHot, query.RouteClosed, query.RouteRollup} {
 		response := mustQuery(t, engine.WithForcedRoute(route), req)
 		assertPageMetrics(t, route.String(), response, want)
+	}
+}
+
+func TestHotAndClosedAgreeForEventDerivedMetricsAndFiltersAcrossUTCMidnight(t *testing.T) {
+	_, engine := setupPageMetricFixture(t)
+	tests := []struct {
+		name       string
+		dimensions []string
+		filters    []api.Filter
+	}{
+		{name: "totals"},
+		{name: "page breakdown", dimensions: []string{"page"}},
+		{name: "page filter", dimensions: []string{"page"}, filters: []api.Filter{filter("page", api.Is, "/a")}},
+		{name: "event filter", dimensions: []string{"page"}, filters: []api.Filter{filter("event", api.Is, "signup")}},
+		{name: "goal filter", dimensions: []string{"page"}, filters: []api.Filter{filter("goal", api.Is, "signup")}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := queryRequestRange("2026-10-09", "2026-10-09", tt.dimensions, tt.filters)
+			req.Metrics = []api.Metric{api.Visitors, api.Visits, api.Pageviews, api.ScrollDepth}
+			if len(tt.dimensions) == 1 && tt.dimensions[0] == "page" {
+				req.Metrics = append(req.Metrics, api.Metric(query.ExitRate), api.Metric(query.TimeOnPage))
+			}
+			closed := mustQuery(t, engine.WithForcedRoute(query.RouteClosed), req)
+			hot := mustQuery(t, engine.WithForcedRoute(query.RouteHot), req)
+			if !equivalent(hot, closed) {
+				t.Fatalf("hot and closed differ: hot=%+v closed=%+v", hot, closed)
+			}
+		})
+	}
+}
+
+func TestHotTierCivilDateIsIndependentOfConnectionTimezone(t *testing.T) {
+	pool, _ := setupPageMetricFixture(t)
+	config := pool.Config()
+	afterConnect := config.AfterConnect
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		if afterConnect != nil {
+			if err := afterConnect(ctx, conn); err != nil {
+				return err
+			}
+		}
+		_, err := conn.Exec(ctx, "set timezone='America/New_York'")
+		return err
+	}
+	timezonePool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(timezonePool.Close)
+	dictionary := dict.New(timezonePool)
+	if err := dictionary.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	engine := query.NewEngine(timezonePool, dictionary, registry{site: sites.Site{
+		ID: 1, PublicID: "pages", TZ: time.UTC, Retention: db.Ret30,
+	}}).WithForcedRoute(query.RouteHot)
+	req := queryRequestRange("2026-10-09", "2026-10-09", []string{"source"}, nil)
+	req.Metrics = []api.Metric{api.Visits, api.Pageviews}
+	response := mustQuery(t, engine, req)
+	if response.Totals["visits"] != 5 || response.Totals["pageviews"] != 8 {
+		t.Fatalf("New York connection omitted today's local day: totals=%v", response.Totals)
+	}
+}
+
+func TestHotSourceBreakdownPerformanceGuard(t *testing.T) {
+	if testing.Short() {
+		t.Skip("performance guard is skipped in short mode")
+	}
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, day("2026-09-10"), day("2026-10-10")); err != nil {
+		t.Fatal(err)
+	}
+	_, err := pool.Exec(ctx, `
+insert into dict(kind,id,value)
+select 2, id, 'source-' || id from generate_series(1,10) id;
+insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,source_id,pageviews,events,engagement_ms,bounce)
+select 1,30,id,id,'2026-10-09 00:00Z'::timestamptz + id * interval '1 second',
+       '2026-10-09 00:01Z'::timestamptz + id * interval '1 second','2026-10-09',
+       1 + id % 10,6 + case when id <= 2000 then 1 else 0 end,0,1000,false
+from generate_series(1,3000) id;
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,path_id,source_id,engagement_ms)
+select 1,30,'2026-10-09',s.start + n * interval '1 millisecond',s.visitor_id,s.session_id,
+       case when n=2 then 2 else 0 end,1,s.source_id,case when n=2 then 1000 else 0 end
+from sessions s
+cross join lateral generate_series(1,6 + case when s.session_id <= 2000 then 1 else 0 end) n
+where s.site_id=1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	engine := query.NewEngine(pool, dictionary, registry{site: sites.Site{
+		ID: 1, PublicID: "perf", TZ: time.UTC, Retention: db.Ret30,
+	}}).WithForcedRoute(query.RouteHot)
+	req := queryRequestRange("2026-09-10", "2026-10-09", []string{"source"}, nil)
+	req.Metrics = []api.Metric{api.Visitors, api.Visits, api.Pageviews}
+	started := time.Now()
+	response := mustQuery(t, engine, req)
+	elapsed := time.Since(started)
+	t.Logf("30-day hot source breakdown: %s", elapsed)
+	if len(response.Rows) != 10 || response.Totals["visits"] != 3000 || response.Totals["pageviews"] != 20000 {
+		t.Fatalf("unexpected source breakdown: rows=%d totals=%v", len(response.Rows), response.Totals)
+	}
+	if elapsed >= time.Second {
+		t.Fatalf("30-day hot source breakdown took %s, want under 1s", elapsed)
 	}
 }
 
@@ -161,7 +276,7 @@ func TestExitRateMatchesPageLikeDimensionsAcrossTiers(t *testing.T) {
 		dimension string
 		want      map[string]float64
 	}{
-		{name: "entry", dimension: "entry", want: map[string]float64{"/a": 20, "/repeat": 50}},
+		{name: "entry", dimension: "entry", want: map[string]float64{"/a": 100.0 / 3.0, "/repeat": 50}},
 		{name: "exit", dimension: "exit", want: map[string]float64{"/a": 100, "/b": 50, "/repeat": 50}},
 	}
 	for _, tt := range tests {
@@ -513,11 +628,12 @@ func setupPageMetricFixture(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 		t.Fatal(err)
 	}
 	fixtureDay := day("2026-10-09")
-	if err := db.EnsurePartitions(ctx, pool, fixtureDay, fixtureDay.AddDate(0, 0, 1)); err != nil {
+	if err := db.EnsurePartitions(ctx, pool, fixtureDay, fixtureDay.AddDate(0, 0, 2)); err != nil {
 		t.Fatal(err)
 	}
 	_, err := pool.Exec(ctx, `
-insert into dict(kind, id, value) values (0, 101, '/a'), (0, 102, '/b'), (0, 103, '/repeat');
+insert into dict(kind, id, value) values
+  (0, 101, '/a'), (0, 102, '/b'), (0, 103, '/repeat'), (7, 201, 'signup');
 
 insert into sessions
   (site_id, retention_class, session_id, visitor_id, start, last, local_day,
@@ -526,25 +642,30 @@ values
   (1,30,1,11,'2026-10-09 10:00Z','2026-10-09 10:04Z','2026-10-09',101,102,'IN',2,0,30000,false),
   (1,30,2,12,'2026-10-09 11:00Z','2026-10-09 11:01Z','2026-10-09',101,101,'IN',1,0,30000,true),
   (1,30,3,13,'2026-10-09 12:00Z','2026-10-09 12:01Z','2026-10-09',101,102,'US',2,0,0,false),
-  (1,30,4,14,'2026-10-09 13:00Z','2026-10-09 13:03Z','2026-10-09',103,103,'CA',2,0,30000,false);
+  (1,30,4,14,'2026-10-09 13:00Z','2026-10-09 13:03Z','2026-10-09',103,103,'CA',2,0,30000,false),
+  (1,30,5,15,'2026-10-09 23:59Z','2026-10-10 00:01Z','2026-10-09',101,101,'IN',1,1,5000,false);
 
 insert into events
   (site_id, retention_class, local_day, ts, visitor_id, session_id, kind,
-   path_id, country, engagement_ms)
+   name_id, path_id, country, engagement_ms, scroll_pct, props)
 values
-  (1,30,'2026-10-09','2026-10-09 10:00Z',11,1,0,101,'IN',0),
-  (1,30,'2026-10-09','2026-10-09 10:01Z',11,1,2,101,'IN',10000),
-  (1,30,'2026-10-09','2026-10-09 10:02Z',11,1,2,101,'IN',20000),
-  (1,30,'2026-10-09','2026-10-09 10:03Z',11,1,0,102,'IN',0),
-  (1,30,'2026-10-09','2026-10-09 10:04Z',11,1,2,102,'IN',0),
-  (1,30,'2026-10-09','2026-10-09 11:00Z',12,2,0,101,'IN',0),
-  (1,30,'2026-10-09','2026-10-09 11:01Z',12,2,2,101,'IN',30000),
-  (1,30,'2026-10-09','2026-10-09 12:00Z',13,3,0,101,'US',0),
-  (1,30,'2026-10-09','2026-10-09 12:01Z',13,3,0,102,'US',0),
-  (1,30,'2026-10-09','2026-10-09 13:00Z',14,4,0,103,'CA',0),
-  (1,30,'2026-10-09','2026-10-09 13:01Z',14,4,2,103,'CA',10000),
-  (1,30,'2026-10-09','2026-10-09 13:02Z',14,4,0,103,'CA',0),
-  (1,30,'2026-10-09','2026-10-09 13:03Z',14,4,2,103,'CA',20000)`)
+  (1,30,'2026-10-09','2026-10-09 10:00Z',11,1,0,0,101,'IN',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 10:01Z',11,1,2,0,101,'IN',10000,0,null),
+  (1,30,'2026-10-09','2026-10-09 10:02Z',11,1,2,0,101,'IN',20000,75,null),
+  (1,30,'2026-10-09','2026-10-09 10:02:30Z',11,1,1,201,101,'IN',0,0,'{"plan":"pro"}'),
+  (1,30,'2026-10-09','2026-10-09 10:03Z',11,1,0,0,102,'IN',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 10:04Z',11,1,2,0,102,'IN',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 11:00Z',12,2,0,0,101,'IN',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 11:01Z',12,2,2,0,101,'IN',30000,50,null),
+  (1,30,'2026-10-09','2026-10-09 12:00Z',13,3,0,0,101,'US',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 12:01Z',13,3,0,0,102,'US',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 13:00Z',14,4,0,0,103,'CA',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 13:01Z',14,4,2,0,103,'CA',10000,40,null),
+  (1,30,'2026-10-09','2026-10-09 13:02Z',14,4,0,0,103,'CA',0,0,null),
+  (1,30,'2026-10-09','2026-10-09 13:03Z',14,4,2,0,103,'CA',20000,90,null),
+  (1,30,'2026-10-09','2026-10-09 23:59Z',15,5,0,0,101,'IN',0,0,null),
+  (1,30,'2026-10-09','2026-10-10 00:00Z',15,5,1,201,101,'IN',0,0,'{"plan":"pro"}'),
+  (1,30,'2026-10-09','2026-10-10 00:01Z',15,5,2,0,101,'IN',5000,80,null)`)
 	if err != nil {
 		t.Fatal(err)
 	}

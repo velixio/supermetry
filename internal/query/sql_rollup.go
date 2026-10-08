@@ -62,16 +62,16 @@ func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]
 		"coalesce(sum(scroll_sum),0)::int8", "coalesce(sum(scroll_n),0)::int8", "0::int8", "0::int8", "0::int8", "0::int8",
 	}
 	if len(req.Dimensions) == 0 {
-		fromArg := builder.arg(part.From)
-		toArg := builder.arg(part.To)
+		fromArg := builder.arg(dateParam(part.From))
+		toArg := builder.arg(dateParam(part.To))
 		totalSums := append([]string(nil), baseSums...)
 		totalSums[6], totalSums[7] = "0::int8", "0::int8"
 		querySQL := aggregateSQL(nil, totalSums, "rollup_day", "site_id="+siteArg+" and day between "+fromArg+"::date and "+toArg+"::date")
 		return e.executeAggregate(ctx, querySQL, builder.args, nil)
 	}
 	if req.Dimensions[0] == "time" {
-		fromArg := builder.arg(part.From)
-		toArg := builder.arg(part.To)
+		fromArg := builder.arg(dateParam(part.From))
+		toArg := builder.arg(dateParam(part.To))
 		timeSums := append([]string(nil), baseSums...)
 		timeSums[6], timeSums[7] = "0::int8", "0::int8"
 		querySQL := aggregateSQL([]string{"to_char(day, 'YYYY-MM-DD')"}, timeSums, "rollup_day", "site_id="+siteArg+" and day between "+fromArg+"::date and "+toArg+"::date")
@@ -101,7 +101,7 @@ func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]
 	var inputs []string
 	dimension := req.Dimensions[0]
 	if len(daily) > 0 {
-		daysArg := builder.arg(daily)
+		daysArg := builder.arg(dateParams(daily))
 		switch dimension {
 		case "page", "path", "entry":
 			inputs = append(inputs, `select p.`+strings.ReplaceAll(columns, ", ", ", p.")+`, coalesce(x.visits,0)::int8 as exits
@@ -115,7 +115,7 @@ where p.site_id=`+siteArg+` and p.dim=`+dimArg+` and p.day=any(`+daysArg+`::date
 		}
 	}
 	if len(starts) > 0 {
-		levelArg, startArg := builder.arg(levels), builder.arg(starts)
+		levelArg, startArg := builder.arg(levels), builder.arg(dateParams(starts))
 		switch dimension {
 		case "page", "path", "entry":
 			inputs = append(inputs, `select p.`+strings.ReplaceAll(columns, ", ", ", p.")+`, coalesce(x.visits,0)::int8 as exits
@@ -203,7 +203,7 @@ func buildVisitorDaySQL(req Normalized, part Part) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	where := "v.site_id=" + builder.arg(req.SiteID) + " and v.day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date" + andSQL(conditions)
+	where := "v.site_id=" + builder.arg(req.SiteID) + " and v.day between " + builder.arg(dateParam(part.From)) + "::date and " + builder.arg(dateParam(part.To)) + "::date" + andSQL(conditions)
 	sums := additiveColumnSums("v", false)
 	return aggregateSQL(dimensions, sums, "visitor_day v", where), builder.args, nil
 }
@@ -225,7 +225,7 @@ func buildCubeSQL(req Normalized, part Part) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date" + andSQL(conditions)
+	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(dateParam(part.From)) + "::date and " + builder.arg(dateParam(part.To)) + "::date" + andSQL(conditions)
 	visitorColumn := "v_vd"
 	if containsAny(req.Dimensions, "source") || filterHasDimension(req.Filters, "source") {
 		visitorColumn = "v_src"

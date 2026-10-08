@@ -138,15 +138,17 @@ func buildFunnelSQL(siteID int32, from, to, closedThrough time.Time, matchers []
 	closedTo := minTime(to, closedThrough)
 	if !closedTo.Before(from) {
 		sequences = append(sequences, `select day, visitor_id, session_id, seq from sessions_closed
-where site_id=`+siteArg+` and day between `+builder.arg(from)+`::date and `+builder.arg(closedTo)+`::date`)
+where site_id=`+siteArg+` and day between `+builder.arg(dateParam(from))+`::date and `+builder.arg(dateParam(closedTo))+`::date`)
 	}
 	hotFrom := maxTime(from, closedThrough.AddDate(0, 0, 1))
 	if !hotFrom.After(to) {
+		eventStartArg, eventEndArg := hotEventRangeArgs(builder, Part{From: hotFrom, To: to})
 		sequences = append(sequences, `select s.local_day as day, s.visitor_id, s.session_id,
 	       array_agg(case when e.kind=0 then e.path_id << 2 else -e.name_id end
 	                 order by e.ts, (case when e.kind=0 then e.path_id << 2 else -e.name_id end) desc) as seq
 from sessions s join events e on e.site_id=s.site_id and e.session_id=s.session_id and e.kind in (0,1)
-where s.site_id=`+siteArg+` and s.local_day between `+builder.arg(hotFrom)+`::date and `+builder.arg(to)+`::date
+where s.site_id=`+siteArg+` and s.local_day between `+builder.arg(dateParam(hotFrom))+`::date and `+builder.arg(dateParam(to))+`::date
+  and e.site_id=`+siteArg+` and e.ts>=`+eventStartArg+` and e.ts<`+eventEndArg+`
 group by s.local_day, s.visitor_id, s.session_id`)
 	}
 	if len(sequences) == 0 {

@@ -155,7 +155,7 @@ where e.site_id=$1 and e.retention_class=$2 and e.session_id=$3 and e.kind in (0
   and e.local_day=$6 and e.ts>=$7 and e.ts<$8
 order by e.ts, e.kind, e.name_id
 limit `+strconv.Itoa(maxSessionEvents), siteID, site.Retention, sessionID, dict.EventName, dict.Path,
-			localDay, start, last.Add(sessionTimelineSlack))
+			dateParam(localDay), start, last.Add(sessionTimelineSlack))
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.
 	endTS := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, location).AddDate(0, 0, 1)
 	builder := &sqlBuilder{}
 	siteArg, retentionArg := builder.arg(siteID), builder.arg(retention)
-	fromArg, toArg := builder.arg(from), builder.arg(to)
+	fromArg, toArg := builder.arg(dateParam(from)), builder.arg(dateParam(to))
 	startArg, endArg := builder.arg(startTS), builder.arg(endTS)
 	closedConditions, err := sessionExploreConditions(builder, filters, true)
 	if err != nil {
@@ -247,6 +247,16 @@ func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.
   order by s.start desc,s.session_id desc
   limit ` + limitArg + `
   )
+), limited as (
+  select * from combined order by started_at desc,session_id desc limit ` + limitArg + `
+), hot_profiles as (
+  select distinct on (e.session_id) e.session_id,e.profile_id
+  from events e
+  join limited c on c.hot and c.session_id=e.session_id and c.local_day=e.local_day
+    and e.ts>=c.started_at and e.ts<c.last+interval '30 minutes'
+  where ` + profilesArg + ` and e.site_id=` + siteArg + ` and e.retention_class=` + retentionArg + `
+    and e.ts>=` + startArg + ` and e.ts<` + endArg + ` and e.profile_id is not null
+  order by e.session_id,e.ts
 )
 select c.session_id,c.started_at,c.duration_ms,c.pageviews,c.events,
        coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Path)) + ` and id=c.entry_path),''),
@@ -259,17 +269,9 @@ select c.session_id,c.started_at,c.duration_ms,c.pageviews,c.events,
        coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.OS)) + ` and id=c.os_id),''),
        p.external_id,
        exists (select 1 from replay_sessions rr where rr.site_id=` + siteArg + ` and rr.session_id=c.session_id)
-from (select * from combined order by started_at desc,session_id desc limit ` + limitArg + `) c
-left join lateral (
-  select case when not c.hot then c.profile_id else (
-    select e.profile_id from events e
-    where e.site_id=` + siteArg + ` and e.retention_class=` + retentionArg + ` and e.session_id=c.session_id
-      and e.local_day=c.local_day and e.ts>=c.started_at and e.ts<c.last+interval '30 minutes'
-      and e.profile_id is not null
-    order by e.ts limit 1) end as profile_id
-  where ` + profilesArg + `
-) lp on true
-left join profiles p on p.site_id=` + siteArg + ` and p.id=lp.profile_id
+from limited c
+left join hot_profiles hp on hp.session_id=c.session_id
+left join profiles p on ` + profilesArg + ` and p.site_id=` + siteArg + ` and p.id=case when c.hot then hp.profile_id else c.profile_id end
 order by c.started_at desc,c.session_id desc`
 	return querySQL, builder.args, nil
 }

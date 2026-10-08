@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"panel/internal/api"
@@ -28,34 +29,57 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		return buildCustomHotSQL(req, part)
 	}
 	builder := &sqlBuilder{}
+	siteArg := builder.arg(req.SiteID)
 	pageDimension := containsAny(req.Dimensions, "page", "path")
 	pageFilters, remainingFilters := splitPageFilters(req.Filters)
 	specialFilters, otherFilters := splitSpecialFilters(remainingFilters)
 	from := "sessions s"
+	ctes := make([]string, 0, 2)
 	pageAlias := ""
 	if pageDimension || len(pageFilters) > 0 {
 		conditions, err := filterConditions(builder, pageFilters, func(string) (string, *dict.Kind, error) {
-			return "e.path_id", dictionaryKind(dict.Path), nil
+			return "pe.path_id", dictionaryKind(dict.Path), nil
 		})
 		if err != nil {
 			return "", nil, err
 		}
-		group := ""
+		group := "pe.site_id, pe.session_id"
 		selectPath := ""
 		if pageDimension {
-			selectPath = "e.path_id, "
-			group = " group by e.path_id"
+			selectPath = "pe.path_id, "
+			group += ", pe.path_id"
 		}
-		from += ` cross join lateral (
-  select ` + selectPath + `count(*) filter (where e.kind=0)::int8 as pageviews,
-         coalesce(sum(e.engagement_ms) filter (where e.kind=2),0)::int8 as engagement_ms,
-         count(distinct e.session_id) filter (where e.kind=2 and e.engagement_ms>0)::int8 as engaged_n,
-         coalesce(sum(e.scroll_pct) filter (where e.kind=2 and e.scroll_pct>0),0)::int8 as scroll_sum,
-         count(*) filter (where e.kind=2 and e.scroll_pct>0)::int8 as scroll_n,
-         max(case when e.kind=0 and e.path_id=s.exit_path then 1 else 0 end)::int8 as exits
-  from events e where e.site_id=s.site_id and e.session_id=s.session_id` + andSQL(conditions) + group + `
-  having count(*) filter (where e.kind=0) > 0
-) pm`
+		engagement, engagedN := "0::int8", "0::int8"
+		if containsMetric(req.Metrics, string(EngagementTime)) || containsMetric(req.Metrics, string(TimeOnPage)) {
+			engagement = "coalesce(sum(pe.engagement_ms) filter (where pe.kind=2),0)::int8"
+		}
+		if containsMetric(req.Metrics, string(TimeOnPage)) {
+			engagedN = "case when count(*) filter (where pe.kind=2 and pe.engagement_ms>0)>0 then 1 else 0 end::int8"
+		}
+		scrollSum, scrollN := "0::int8", "0::int8"
+		if containsMetric(req.Metrics, string(ScrollDepth)) {
+			scrollSum = "coalesce(sum(pe.scroll_pct) filter (where pe.kind=2 and pe.scroll_pct>0),0)::int8"
+			scrollN = "count(*) filter (where pe.kind=2 and pe.scroll_pct>0)::int8"
+		}
+		pathIDs := "null::int4[]"
+		if !pageDimension && containsMetric(req.Metrics, string(ExitRate)) {
+			pathIDs = "array_agg(distinct pe.path_id) filter (where pe.kind=0)"
+		}
+		startArg, endArg := hotEventRangeArgs(builder, part)
+		ctes = append(ctes, `page_event_stats as (
+  select pe.site_id, pe.session_id, `+selectPath+`
+         count(*) filter (where pe.kind=0)::int8 as pageviews,
+         `+engagement+` as engagement_ms,
+         `+engagedN+` as engaged_n,
+         `+scrollSum+` as scroll_sum,
+         `+scrollN+` as scroll_n,
+         `+pathIDs+` as path_ids
+  from events pe
+  where pe.site_id=`+siteArg+` and pe.ts>=`+startArg+` and pe.ts<`+endArg+andSQL(conditions)+`
+  group by `+group+`
+  having count(*) filter (where pe.kind=0)>0
+)`)
+		from += " join page_event_stats pm on pm.site_id=s.site_id and pm.session_id=s.session_id"
 		pageAlias = "pm"
 	}
 
@@ -127,21 +151,45 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		return "", nil, err
 	}
 	conditions = append(conditions, presentConditions...)
-	specialConditions, err := hotSpecialConditions(builder, specialFilters, req.GoalDefinitions)
+	eventStartArg, eventEndArg := "", ""
+	if len(specialFilters) > 0 {
+		eventStartArg, eventEndArg = hotEventRangeArgs(builder, part)
+	}
+	specialConditions, err := hotSpecialSemiJoinConditions(builder, specialFilters, req.GoalDefinitions, siteArg, eventStartArg, eventEndArg)
 	if err != nil {
 		return "", nil, err
 	}
 	conditions = append(conditions, specialConditions...)
-	where := "s.site_id=" + builder.arg(req.SiteID) + " and s.local_day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date" + andSQL(conditions)
+	where := "s.site_id=" + siteArg + " and s.local_day between " + builder.arg(dateParam(part.From)) + "::date and " + builder.arg(dateParam(part.To)) + "::date" + andSQL(conditions)
 
 	pageviews := "s.pageviews"
 	engagement := "s.engagement_ms"
 	exits := "count(*) filter (where s.pageviews>0)::int8"
-	engagedN := `count(*) filter (where exists (
-  select 1 from events e where e.site_id=s.site_id and e.session_id=s.session_id and e.kind=2 and e.engagement_ms>0
-))::int8`
-	scrollSum := `coalesce((select sum(e.scroll_pct)::int8 from events e where e.site_id=s.site_id and e.session_id=s.session_id and e.kind=2 and e.scroll_pct>0),0)`
-	scrollN := `(select count(*)::int8 from events e where e.site_id=s.site_id and e.session_id=s.session_id and e.kind=2 and e.scroll_pct>0)`
+	engagedN := "0::int8"
+	scrollSum := "0::int8"
+	scrollN := "0::int8"
+	if pageAlias == "" && (containsMetric(req.Metrics, string(TimeOnPage)) || containsMetric(req.Metrics, string(ScrollDepth))) {
+		startArg, endArg := hotEventRangeArgs(builder, part)
+		engagedExpr, scrollSumExpr, scrollNExpr := "0::int8", "0::int8", "0::int8"
+		if containsMetric(req.Metrics, string(TimeOnPage)) {
+			engagedExpr = "case when count(*) filter (where es.kind=2 and es.engagement_ms>0)>0 then 1 else 0 end::int8"
+		}
+		if containsMetric(req.Metrics, string(ScrollDepth)) {
+			scrollSumExpr = "coalesce(sum(es.scroll_pct) filter (where es.kind=2 and es.scroll_pct>0),0)::int8"
+			scrollNExpr = "count(*) filter (where es.kind=2 and es.scroll_pct>0)::int8"
+		}
+		ctes = append(ctes, `event_session_stats as (
+  select es.site_id, es.session_id, `+engagedExpr+` as engaged_n,
+         `+scrollSumExpr+` as scroll_sum, `+scrollNExpr+` as scroll_n
+  from events es
+  where es.site_id=`+siteArg+` and es.ts>=`+startArg+` and es.ts<`+endArg+` and es.kind=2
+  group by es.site_id, es.session_id
+)`)
+		from += " left join event_session_stats es on es.site_id=s.site_id and es.session_id=s.session_id"
+		engagedN = "coalesce(sum(es.engaged_n),0)::int8"
+		scrollSum = "coalesce(es.scroll_sum,0)"
+		scrollN = "coalesce(es.scroll_n,0)"
+	}
 	if pageAlias != "" {
 		pageviews = pageAlias + ".pageviews"
 		engagement = pageAlias + ".engagement_ms"
@@ -149,7 +197,7 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		if !pageDimension {
 			// No page grouping: a session exits "on the filtered pages" when its
 			// exit page is one of the pages that matched the filter.
-			exits = "coalesce(sum(" + pageAlias + ".exits),0)::int8"
+			exits = "count(*) filter (where s.exit_path=any(" + pageAlias + ".path_ids))::int8"
 		}
 		engagedN = "coalesce(sum(" + pageAlias + ".engaged_n),0)::int8"
 		scrollSum = pageAlias + ".scroll_sum"
@@ -178,7 +226,15 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		"0::int8",
 		"0::int8",
 	}
-	return aggregateSQL(dimensions, sums, from, where), builder.args, nil
+	querySQL := aggregateSQL(dimensions, sums, from, where)
+	if len(ctes) > 0 {
+		querySQL = "with " + strings.Join(ctes, ",\n") + " " + querySQL
+	}
+	return querySQL, builder.args, nil
+}
+
+func hotEventRangeArgs(builder *sqlBuilder, part Part) (string, string) {
+	return builder.arg(part.From.AddDate(0, 0, -1)), builder.arg(part.To.AddDate(0, 0, 2))
 }
 
 func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
@@ -221,7 +277,7 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 		return "", nil, err
 	}
 	conditions = append(conditions, presentConditions...)
-	where := "e.site_id=" + builder.arg(req.SiteID) + " and e.local_day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date and e.kind=1" + andSQL(conditions)
+	where := "e.site_id=" + builder.arg(req.SiteID) + " and e.local_day between " + builder.arg(dateParam(part.From)) + "::date and " + builder.arg(dateParam(part.To)) + "::date and e.kind=1" + andSQL(conditions)
 	visitors := "count(distinct (e.local_day,e.visitor_id))::int8"
 	sums := []string{
 		visitors, "count(distinct e.session_id)::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8",
@@ -234,6 +290,50 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 		from += " join sessions s on s.site_id=e.site_id and s.session_id=e.session_id"
 	}
 	return aggregateSQL(dimensions, sums, from, where), builder.args, nil
+}
+
+func hotSpecialSemiJoinConditions(builder *sqlBuilder, filters []api.Filter, definitions map[int64]platformgoals.Goal, siteArg, startArg, endArg string) ([]string, error) {
+	conditions := make([]string, 0, len(filters))
+	for _, filter := range filters {
+		var predicate string
+		var err error
+		switch {
+		case filter.Dimension == "goal_id":
+			id, parseErr := strconv.ParseInt(filter.Values[0], 10, 64)
+			if parseErr != nil {
+				return nil, errors.New(`invalid filter "goal_id"`)
+			}
+			goal, ok := definitions[id]
+			if !ok {
+				return nil, errors.New(`invalid filter "goal_id"`)
+			}
+			predicate, err = hotGoalEventPredicate(builder, goal, "fe")
+		case filter.Dimension == "event" || filter.Dimension == "goal":
+			filter.Dimension = "event"
+			matches, matchErr := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
+				return "fe.name_id", dictionaryKind(dict.EventName), nil
+			})
+			err = matchErr
+			if err == nil {
+				predicate = "fe.kind=1 and " + matches[0]
+			}
+		case strings.HasPrefix(filter.Dimension, "prop:"):
+			key := strings.TrimPrefix(filter.Dimension, "prop:")
+			if key == "" {
+				return nil, errors.New("property filter requires a key")
+			}
+			keyArg := builder.arg(key)
+			predicate, err = textMatch(builder, "fe.props ->> "+keyArg, filter)
+			if err == nil {
+				predicate = "fe.kind=1 and fe.props ? " + keyArg + " and " + predicate
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		conditions = append(conditions, "s.session_id in (select fe.session_id from events fe where fe.site_id="+siteArg+" and fe.ts>="+startArg+" and fe.ts<"+endArg+" and "+predicate+")")
+	}
+	return conditions, nil
 }
 
 func customQueryNeedsSession(req Normalized) bool {

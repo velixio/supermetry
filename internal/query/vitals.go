@@ -178,8 +178,8 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
 
 	siteArg := builder.arg(req.siteID)
 	retentionArg := builder.arg(req.retentionClass)
-	fromArg := builder.arg(req.from)
-	toArg := builder.arg(req.to)
+	fromArg := builder.arg(dateParam(req.from))
+	toArg := builder.arg(dateParam(req.to))
 	fromTimestampArg := builder.arg(req.fromTimestamp)
 	toTimestampArg := builder.arg(req.toTimestamp)
 	where := "e.site_id=" + siteArg + " and e.retention_class=" + retentionArg +

@@ -333,7 +333,7 @@ limit ` + builder.arg(req.limit+1)
 func exploreBaseSQL(builder *sqlBuilder, req normalizedExploreRange, event string) (string, string) {
 	where := "e.site_id=" + builder.arg(req.siteID) +
 		" and e.retention_class=" + builder.arg(req.retention) +
-		" and e.local_day between " + builder.arg(req.from) + "::date and " + builder.arg(req.to) + "::date" +
+		" and e.local_day between " + builder.arg(dateParam(req.from)) + "::date and " + builder.arg(dateParam(req.to)) + "::date" +
 		" and e.ts>=" + builder.arg(req.start) + " and e.ts<" + builder.arg(req.end)
 	joins := "left join dict event_name on event_name.kind=" + strconv.Itoa(int(dict.EventName)) + " and event_name.id=e.name_id"
 	if event == "pageview" {

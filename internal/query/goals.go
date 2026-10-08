@@ -76,6 +76,35 @@ func goalCondition(b *sqlBuilder, tier tierKind, goal platformgoals.Goal) (strin
 	}
 }
 
+func hotGoalEventPredicate(b *sqlBuilder, goal platformgoals.Goal, alias string) (string, error) {
+	prefix := alias + "."
+	switch goal.Kind {
+	case "event":
+		condition := prefix + "kind=1 and " + prefix + "name_id in (select id from dict where kind=" + strconv.Itoa(int(dict.EventName)) + " and value=" + b.arg(goal.Value) + ")"
+		if goal.PropKey != "" {
+			condition += " and " + prefix + "props ->> " + b.arg(goal.PropKey) + " = " + b.arg(goal.PropValue)
+		}
+		return condition, nil
+	case "page":
+		paths, err := goalPathIDs(b, goal.Match, goal.Value)
+		if err != nil {
+			return "", err
+		}
+		return prefix + "kind=0 and " + prefix + "path_id in (" + paths + ")", nil
+	case "scroll":
+		if goal.ScrollThreshold < 1 || goal.ScrollThreshold > 100 {
+			return "", fmt.Errorf("invalid scroll threshold %d", goal.ScrollThreshold)
+		}
+		paths, err := goalPathIDs(b, goal.Match, goal.Value)
+		if err != nil {
+			return "", err
+		}
+		return prefix + "kind=2 and " + prefix + "path_id in (" + paths + ") and " + prefix + "scroll_pct >= " + b.arg(goal.ScrollThreshold), nil
+	default:
+		return "", fmt.Errorf("unknown goal kind %q", goal.Kind)
+	}
+}
+
 func eventGoalCondition(b *sqlBuilder, tier tierKind, goal platformgoals.Goal) string {
 	kind := strconv.Itoa(int(dict.EventName))
 	if tier == tierHot {

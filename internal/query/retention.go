@@ -126,7 +126,7 @@ func buildRetentionSQL(req api.RetentionRequest, retention db.RetentionClass, lo
 	startTS := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, location)
 	endTS := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, location).AddDate(0, 0, 1)
 	siteArg, retentionArg := builder.arg(req.SiteId), builder.arg(retention)
-	fromArg, toArg := builder.arg(from), builder.arg(to)
+	fromArg, toArg := builder.arg(dateParam(from)), builder.arg(dateParam(to))
 	startArg, endArg := builder.arg(startTS), builder.arg(endTS)
 	conditions = constrainReportEventTimes(conditions, startArg, endArg)
 	where := "s.site_id=" + siteArg + " and s.retention_class=" + retentionArg +

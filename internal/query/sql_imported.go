@@ -22,8 +22,8 @@ func (e *Engine) queryImported(ctx context.Context, req Normalized, firstNative 
 
 	builder := &sqlBuilder{}
 	siteArg := builder.arg(req.SiteID)
-	fromArg := builder.arg(req.From)
-	toArg := builder.arg(to)
+	fromArg := builder.arg(dateParam(req.From))
+	toArg := builder.arg(dateParam(to))
 	where := "d.site_id=" + siteArg + " and d.day between " + fromArg + "::date and " + toArg + "::date and i.site_id=d.site_id and i.status='completed'"
 	dimensions := []string(nil)
 	from := "imported_day d join imports i on i.id=d.import_id"
@@ -75,7 +75,7 @@ select exists (
   ) d
   join imports i on i.id=d.import_id and i.site_id=d.site_id
   where d.site_id=$1 and d.day between $2::date and $3::date and i.status='completed'
-)`, req.SiteID, req.From, req.To).Scan(&exists)
+)`, req.SiteID, dateParam(req.From), dateParam(req.To)).Scan(&exists)
 	})
 	if err != nil {
 		return false, fmt.Errorf("check imported aggregates: %w", err)

@@ -129,7 +129,7 @@ func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, locati
 	endTS := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, location).AddDate(0, 0, 1)
 	siteArg := builder.arg(req.SiteId)
 	retentionArg := builder.arg(retention)
-	fromArg, toArg := builder.arg(from), builder.arg(to)
+	fromArg, toArg := builder.arg(dateParam(from)), builder.arg(dateParam(to))
 	startArg, endArg := builder.arg(startTS), builder.arg(endTS)
 	endedBeforeArg := builder.arg(now.Add(-session.IdleTimeout))
 	stepsArg, limitArg := builder.arg(req.Steps), builder.arg(req.Limit)

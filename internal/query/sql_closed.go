@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/errgroup"
 
 	"panel/internal/api"
@@ -26,6 +27,18 @@ type sqlBuilder struct {
 func (b *sqlBuilder) arg(value any) string {
 	b.args = append(b.args, value)
 	return "$" + strconv.Itoa(len(b.args))
+}
+
+func dateParam(value time.Time) pgtype.Date {
+	return pgtype.Date{Time: civilDate(value), Valid: true}
+}
+
+func dateParams(values []time.Time) []pgtype.Date {
+	result := make([]pgtype.Date, len(values))
+	for index, value := range values {
+		result[index] = dateParam(value)
+	}
+	return result
 }
 
 type dimensionDef struct {
@@ -108,8 +121,8 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 	}
 	builder := &sqlBuilder{}
 	siteArg := builder.arg(req.SiteID)
-	fromArg := builder.arg(part.From)
-	toArg := builder.arg(part.To)
+	fromArg := builder.arg(dateParam(part.From))
+	toArg := builder.arg(dateParam(part.To))
 	pageDimension := containsAny(req.Dimensions, "page", "path")
 	pageFilters, remainingFilters := splitPageFilters(req.Filters)
 	specialFilters, otherFilters := splitSpecialFilters(remainingFilters)
@@ -288,7 +301,7 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 		return "", nil, err
 	}
 	conditions = append(conditions, presentConditions...)
-	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date" + andSQL(conditions)
+	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(dateParam(part.From)) + "::date and " + builder.arg(dateParam(part.To)) + "::date" + andSQL(conditions)
 	visitors := "count(distinct (c.day,c.visitor_id))::int8"
 	sums := []string{
 		visitors, "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8",
