@@ -263,3 +263,35 @@ func insertEvents(t *testing.T, pool *pgxpool.Pool, events ...testEvent) {
 		}
 	}
 }
+
+func TestStore_JobKeepsStoredMinutesWhoseRawEventsExpired(t *testing.T) {
+	pool := newTestStore(t)
+	now := time.Date(2026, 10, 8, 12, 17, 42, 0, time.UTC)
+	expired := now.Truncate(time.Minute).Add(-40 * 24 * time.Hour)
+	recent := now.Truncate(time.Minute).Add(-10 * time.Minute)
+	ensureEventPartitions(t, pool, recent, now.Truncate(time.Minute))
+	if _, err := pool.Exec(t.Context(),
+		`insert into visitors_per_minute(site_id, minute, visitors, pageviews, events) values (1, $1, 7, 9, 2)`, expired); err != nil {
+		t.Fatal(err)
+	}
+	insertEvents(t, pool, testEvent{siteID: 1, at: recent, visitorID: 1, kind: 0})
+
+	if err := NewStore(pool).Job(func() time.Time { return now }).Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	var visitors int
+	if err := pool.QueryRow(t.Context(), `select visitors from visitors_per_minute where site_id=1 and minute=$1`, expired).Scan(&visitors); err != nil {
+		t.Fatalf("expired minute was deleted by catch-up: %v", err)
+	}
+	if visitors != 7 {
+		t.Fatalf("expired minute visitors = %d, want 7", visitors)
+	}
+	var recentRows int
+	if err := pool.QueryRow(t.Context(), `select count(*) from visitors_per_minute where site_id=1 and minute=$1`, recent).Scan(&recentRows); err != nil {
+		t.Fatal(err)
+	}
+	if recentRows != 1 {
+		t.Fatalf("recent minute rows = %d, want 1", recentRows)
+	}
+}

@@ -16,6 +16,9 @@ const (
 	defaultChunkSize = 6 * time.Hour
 	defaultMaxChunks = 24
 	lateEventWindow  = 5 * time.Minute
+	// catchUpClampAfter is how far behind the job must be before it checks
+	// the oldest raw event; normal runs skip that query.
+	catchUpClampAfter = time.Hour
 )
 
 // Store reads and rebuilds persisted per-minute activity.
@@ -125,6 +128,23 @@ func (s *Store) runJob(ctx context.Context, to time.Time) error {
 			return nil
 		}
 		from = oldest
+	}
+
+	if hasStored && to.Sub(from) > catchUpClampAfter {
+		// A long catch-up may start before the oldest surviving raw event.
+		// Recomputing that range would delete stored minutes whose raw events
+		// expired, so begin at the oldest raw event instead.
+		oldest, ok, err := s.nextEventMinute(ctx, time.Time{}, to)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		if oldest.After(from) {
+			from = oldest
+		}
+		hasStored = false
 	}
 
 	for chunks := 0; chunks < s.maxChunks && from.Before(to); chunks++ {
