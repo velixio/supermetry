@@ -23,7 +23,7 @@ func TestRetentionDeletesDaysOlderThanSiteSetting(t *testing.T) {
 	if err := RunRetention(context.Background(), pool, store, now); err != nil {
 		t.Fatal(err)
 	}
-	assertBlobMissing(t, store, oldKey)
+	assertRetainedBlobMissing(t, store, oldKey)
 	assertBlobPresent(t, store, keptKey)
 	assertReplaySessions(t, pool, siteID, []int64{2})
 }
@@ -37,7 +37,7 @@ func TestQuotaDeletesOldestDaysFirst(t *testing.T) {
 	if err := RunRetention(context.Background(), pool, store, now); err != nil {
 		t.Fatal(err)
 	}
-	assertBlobMissing(t, store, oldestKey)
+	assertRetainedBlobMissing(t, store, oldestKey)
 	assertBlobPresent(t, store, middleKey)
 	assertBlobPresent(t, store, newestKey)
 	assertReplaySessions(t, pool, siteID, []int64{2, 3})
@@ -53,8 +53,8 @@ func TestQuotaDeletesOldestSessionsWithinDay(t *testing.T) {
 	if err := RunRetention(context.Background(), pool, store, now); err != nil {
 		t.Fatal(err)
 	}
-	assertBlobMissing(t, store, oldestKey)
-	assertBlobMissing(t, store, middleKey)
+	assertRetainedBlobMissing(t, store, oldestKey)
+	assertRetainedBlobMissing(t, store, middleKey)
 	assertBlobPresent(t, store, newestKey)
 	assertReplaySessions(t, pool, siteID, []int64{3})
 }
@@ -78,7 +78,7 @@ func TestRetentionEnvironmentOverridesSiteSetting(t *testing.T) {
 	if err := RunRetentionConfigured(context.Background(), pool, store, now, config.ReplayEnv{Retention: &days}); err != nil {
 		t.Fatal(err)
 	}
-	assertBlobMissing(t, store, key)
+	assertRetainedBlobMissing(t, store, key)
 	assertReplaySessions(t, pool, siteID, nil)
 }
 
@@ -90,7 +90,7 @@ func TestRetentionRetriesProfileDelete(t *testing.T) {
 	if err := RunRetention(context.Background(), pool, store, now); err != nil {
 		t.Fatal(err)
 	}
-	assertBlobMissing(t, store, key)
+	assertRetainedBlobMissing(t, store, key)
 	assertReplaySessions(t, pool, siteID, nil)
 }
 
@@ -102,8 +102,8 @@ func TestEraseSiteRemovesFilesAndRows(t *testing.T) {
 	if err := EraseSite(context.Background(), pool, store, siteID); err != nil {
 		t.Fatal(err)
 	}
-	assertBlobMissing(t, store, firstKey)
-	assertBlobMissing(t, store, secondKey)
+	assertRetainedBlobMissing(t, store, firstKey)
+	assertRetainedBlobMissing(t, store, secondKey)
 	assertReplaySessions(t, pool, siteID, nil)
 }
 
@@ -115,7 +115,7 @@ func TestEraseSessionsRemovesOnlyRequestedFilesAndRows(t *testing.T) {
 	if err := EraseSessions(context.Background(), pool, store, siteID, []int64{1}); err != nil {
 		t.Fatal(err)
 	}
-	assertBlobMissing(t, store, deletedKey)
+	assertRetainedBlobMissing(t, store, deletedKey)
 	assertBlobPresent(t, store, keptKey)
 	assertReplaySessions(t, pool, siteID, []int64{2})
 }
@@ -234,7 +234,7 @@ func assertBlobPresent(t *testing.T, store BlobStore, key string) {
 	}
 }
 
-func assertBlobMissing(t *testing.T, store BlobStore, key string) {
+func assertRetainedBlobMissing(t *testing.T, store BlobStore, key string) {
 	t.Helper()
 	reader, err := store.Open(context.Background(), key)
 	if err == nil {

@@ -125,18 +125,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := db.Migrate(ctx, pool); err != nil {
 		return err
 	}
-	replayStorage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, replay.StoredStorage{})
-	if replayStorage.Backend.V != "disk" {
-		return fmt.Errorf("replay storage backend %q is not available", replayStorage.Backend.V)
-	}
-	replayStore, err := replay.NewDiskStore(replayStorage.Dir.V)
-	if err != nil {
-		return err
-	}
-
 	platformStore := &store.Store{Pool: pool}
-	// Replay dashboard reads use the same resolved storage settings as ingest.
-	var replayBlobs replay.BlobStore
+	// One replay blob store serves ingest, dashboard reads, retention and erasure.
+	var replayStore replay.BlobStore
 	replayStorageRaw, err := store.InstanceReplayStorage(ctx, platformStore)
 	if err != nil {
 		return err
@@ -147,7 +138,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	replayStorage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, replayStored)
 	if replayStorage.Backend.V == "disk" {
-		replayBlobs, err = replay.NewDiskStore(replayStorage.Dir.V)
+		replayStore, err = replay.NewDiskStore(replayStorage.Dir.V)
 		if err != nil {
 			return err
 		}
@@ -270,7 +261,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		ProfileTombstones: profileTombstones,
 		ReplayStore:       replayStore,
 		Exporter:          exporter,
-		ReplayStore:       replayBlobs,
 		ReplayEnv:         cfg.Replay,
 		DataDir:           cfg.DataDir,
 		SecretKey:         cfg.SecretKey,
@@ -297,26 +287,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// queue so replay pressure cannot consume the analytics ingest queue.
 	var replayHandler http.Handler
 	var replayIndex *replay.IndexWriter
-	if cfg.Replay.Enabled {
-		var rawStorage []byte
-		if err := pool.QueryRow(ctx, `select coalesce(settings->'replay_storage', '{}'::jsonb) from instance_settings where id`).Scan(&rawStorage); err != nil {
-			return fmt.Errorf("load replay storage settings: %w", err)
-		}
-		storedStorage, err := replay.OpenStoredStorage(cfg.SecretKey, rawStorage)
-		if err != nil {
-			return err
-		}
-		storage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, storedStorage)
-		if storage.Backend.V != "disk" {
-			return fmt.Errorf("replay storage backend %q is not available in this build", storage.Backend.V)
-		}
-		blobStore, err := replay.NewDiskStore(storage.Dir.V)
-		if err != nil {
-			return err
-		}
+	if cfg.Replay.Enabled && replayStore != nil {
 		replayIndex = replay.NewIndexWriter(pool, 5*time.Second, func() { health.ReplayDropped.Add(1) })
 		replayHandler = replay.NewHandler(replay.HandlerDeps{
-			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: blobStore, Index: replayIndex,
+			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: replayStore, Index: replayIndex,
 			Replay: cfg.Replay, Limiter: ingest.NewTokenBuckets(250, 500), TrustedProxies: cfg.TrustedProxies,
 		}, replay.WithClock(settings.clock), replay.WithDiskGuard(func() bool { return false }))
 	}
