@@ -103,6 +103,7 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 		},
 		Mutations: noopMutations{},
 		Query:     routeQuery{},
+		Alerts:    &fakeAlertsService{},
 	})
 
 	routes := []struct {
@@ -121,6 +122,10 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 		{http.MethodGet, fmt.Sprintf("/api/public/v1/stats/summary?site_id=%d&period=7d", siteA), "", allowed("key")},
 		{http.MethodGet, fmt.Sprintf("/api/public/v1/stats/summary?site_id=%d&period=7d", siteC), "", allowed()},
 		{http.MethodGet, fmt.Sprintf("/api/private/share/demo/stats/summary?site_id=%d&period=7d", siteA), "", allowed("share")},
+		{http.MethodGet, fmt.Sprintf("/api/private/orgs/%d/channels", org1), "", allowed("owner", "admin", "editor")},
+		{http.MethodPost, fmt.Sprintf("/api/private/orgs/%d/channels", org1), `{"kind":"email","name":"Ops","config":{"recipients":["ops@example.test"]}}`, allowed("owner", "admin")},
+		{http.MethodGet, fmt.Sprintf("/api/private/sites/%d/alerts", siteA), "", allowed("owner", "admin", "editor")},
+		{http.MethodPost, fmt.Sprintf("/api/private/sites/%d/alerts", siteA), `{"kind":"traffic_spike","threshold":2,"channel_ids":[1]}`, allowed("owner", "admin", "editor")},
 	}
 
 	actors := []string{"owner", "admin", "editor", "viewer", "key", "share", "anonymous"}
@@ -441,6 +446,7 @@ func TestRoutesMountOnAnalyticsRouter(t *testing.T) {
 			10: {ID: 10, OrgID: 1, PublicID: "siteaaaaaaaa", TZ: time.UTC},
 		},
 		Mutations: noopMutations{},
+		Alerts:    &fakeAlertsService{},
 	})
 	router := api.NewRouter(api.Deps{
 		Config:      config.Config{},
@@ -453,6 +459,13 @@ func TestRoutesMountOnAnalyticsRouter(t *testing.T) {
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || response.Header().Get("X-Request-ID") == "" {
 		t.Fatalf("status=%d request-id=%q body=%s", response.Code, response.Header().Get("X-Request-ID"), response.Body.String())
+	}
+	alertRequest := httptest.NewRequest(http.MethodGet, "/api/private/sites/10/alerts", nil)
+	alertRequest.Header.Set("X-Test-Actor", "owner")
+	alertResponse := httptest.NewRecorder()
+	router.ServeHTTP(alertResponse, alertRequest)
+	if alertResponse.Code != http.StatusOK || alertResponse.Header().Get("X-Request-ID") == "" {
+		t.Fatalf("alert status=%d request-id=%q body=%s", alertResponse.Code, alertResponse.Header().Get("X-Request-ID"), alertResponse.Body.String())
 	}
 }
 
