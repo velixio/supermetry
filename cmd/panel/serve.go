@@ -48,6 +48,7 @@ import (
 	"panel/internal/profiletombstone"
 	"panel/internal/query"
 	"panel/internal/rehydrate"
+	"panel/internal/replay"
 	"panel/internal/retention"
 	"panel/internal/salts"
 	"panel/internal/scheduler"
@@ -260,10 +261,38 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Diag:              os.Getenv("PANEL_INGEST_DIAG") == "1",
 	}
 
+	// Replay owns a separate limiter, upload semaphore, blob store and index
+	// queue so replay pressure cannot consume the analytics ingest queue.
+	var replayHandler http.Handler
+	var replayIndex *replay.IndexWriter
+	if cfg.Replay.Enabled {
+		var rawStorage []byte
+		if err := pool.QueryRow(ctx, `select coalesce(settings->'replay_storage', '{}'::jsonb) from instance_settings where id`).Scan(&rawStorage); err != nil {
+			return fmt.Errorf("load replay storage settings: %w", err)
+		}
+		storedStorage, err := replay.OpenStoredStorage(cfg.SecretKey, rawStorage)
+		if err != nil {
+			return err
+		}
+		storage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, storedStorage)
+		if storage.Backend.V != "disk" {
+			return fmt.Errorf("replay storage backend %q is not available in this build", storage.Backend.V)
+		}
+		blobStore, err := replay.NewDiskStore(storage.Dir.V)
+		if err != nil {
+			return err
+		}
+		replayIndex = replay.NewIndexWriter(pool, 5*time.Second, func() { health.ReplayDropped.Add(1) })
+		replayHandler = replay.NewHandler(replay.HandlerDeps{
+			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: blobStore, Index: replayIndex,
+			Replay: cfg.Replay, Limiter: ingest.NewTokenBuckets(250, 500), TrustedProxies: cfg.TrustedProxies,
+		}, replay.WithClock(settings.clock), replay.WithDiskGuard(func() bool { return false }))
+	}
+
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
+		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})
@@ -283,6 +312,14 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	writerCtx, cancelWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
 	go func() { writerDone <- w.Run(writerCtx) }()
+	var cancelReplayIndex context.CancelFunc
+	var replayIndexDone chan error
+	if replayIndex != nil {
+		var replayIndexCtx context.Context
+		replayIndexCtx, cancelReplayIndex = context.WithCancel(context.Background())
+		replayIndexDone = make(chan error, 1)
+		go func() { replayIndexDone <- replayIndex.Run(replayIndexCtx) }()
+	}
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, settings.clock)
@@ -329,6 +366,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-writerDone:
 		cause = err
 		writerDone = nil
+	case err := <-replayIndexDone:
+		cause = err
+		replayIndexDone = nil
 	case err := <-schedulerDone:
 		cause = err
 		schedulerDone = nil
@@ -348,6 +388,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelWriter()
 	if writerDone != nil {
 		cause = errors.Join(cause, <-writerDone)
+	}
+	if cancelReplayIndex != nil {
+		cancelReplayIndex()
+	}
+	if replayIndexDone != nil {
+		cause = errors.Join(cause, <-replayIndexDone)
 	}
 	cancelScheduler()
 	if schedulerDone != nil {
