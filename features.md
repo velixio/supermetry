@@ -50,6 +50,8 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Per-site tracker settings (served script) | ✓ | – | – | ✅ (outbound, downloads, forms, 404, hash routing, clicks, Web Vitals, heatmaps) |
 | Hash-based routing, form submissions | ✓ | ✓ | ✓ | ✅ (per-site setting) |
 | Do Not Track / GPC, visitor opt-out | ✓ (opt-out) | ✓ (DNT) | – | ✅ (respected by default; `panel.optOut()`) |
+| Consent mode, manual pageviews, `beforeSend` hook | – | ✓ | ✓ (consent) | ✅ |
+| npm tracker package | ✓ | – | ✓ | ✅ |
 | Mobile SDKs | – | – | ✓ | ⏸ |
 
 ## Team, sharing and API
@@ -87,6 +89,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Minimum RAM | ~2 GB | ~150 MB | 2 GB | ⏳ (~90 MB idle, target <50 MB) |
 | Protected metrics endpoint | ✓ | ? | ? | ✅ (`PANEL_METRICS_TOKEN` or localhost only) |
 | Data retention / purge | ? | – | ? | ✅ (per site, partition drop) |
+| Automatic rollup backfill after upgrades | – | – | – | ✅ (progress on Data health) |
 | Docker image | ✓ | ✓ | ✓ | ✅ (`Dockerfile`, `deploy/docker-compose.yml`) |
 | Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/panel.service`, `deploy/README.md`) |
 | Backup and restore command | – | – | – | ✅ (`panel backup`, `panel restore`) |
@@ -125,7 +128,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 - ~~LICENSE file~~ ✅, ~~Docker image, release binaries, systemd unit, installer~~ ✅, ~~backup/restore~~ ✅
 - ~~Server-side events API docs~~ ✅ (`docs/api.md`); landing page and docs (Astro + Starlight)
 - ~~Trust fixes T1–T8~~ ✅ (see competitor-profiles/_summary.md); full security review still to do
-- Accuracy check against Plausible on real traffic; product benchmark (D25) ⏳
+- ~~Accuracy check (reference, 0 mismatches)~~ ✅; real-traffic comparison with Plausible (`bench/accuracy/compare-live.py`) and product benchmark (D25) ⏳
 - Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
 
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
