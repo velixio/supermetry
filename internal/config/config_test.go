@@ -223,3 +223,88 @@ func TestLoadAllowPrivateWebhooks(t *testing.T) {
 		t.Fatalf("Load() error = %v, want webhook boolean validation", err)
 	}
 }
+
+func TestReplayDisabledByDefault(t *testing.T) {
+	got, err := Load(env(baseEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Replay.Enabled {
+		t.Fatal("Replay.Enabled = true, want false")
+	}
+	if got.Replay.Mask != nil || got.Replay.SampleRate != nil || got.Replay.Retention != nil || got.Replay.QuotaBytes != nil || got.Replay.Dir != "" || got.Replay.S3 != nil {
+		t.Fatalf("unset replay environment = %+v, want only zero values", got.Replay)
+	}
+}
+
+func TestS3EnvRequiresAllFields(t *testing.T) {
+	values := baseEnv()
+	values["PANEL_REPLAY_S3_ENDPOINT"] = "https://s3.example.test"
+	values["PANEL_REPLAY_S3_REGION"] = "test-1"
+	values["PANEL_REPLAY_S3_ACCESS_KEY"] = "access"
+	values["PANEL_REPLAY_S3_SECRET_KEY"] = "secret"
+	values["PANEL_REPLAY_S3_PREFIX"] = "panel"
+
+	if _, err := Load(env(values)); err == nil {
+		t.Fatal("Load accepted S3 settings with a missing bucket")
+	}
+
+	values["PANEL_REPLAY_S3_BUCKET"] = "replays"
+	delete(values, "PANEL_REPLAY_S3_PREFIX")
+	got, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Replay.S3 == nil || got.Replay.S3.Prefix != "" {
+		t.Fatalf("Replay.S3 = %+v without a prefix, want S3 with an empty prefix", got.Replay.S3)
+	}
+
+	values["PANEL_REPLAY_S3_PREFIX"] = "panel"
+	got, err = Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Replay.S3 == nil || got.Replay.S3.Bucket != "replays" || got.Replay.S3.SecretKey != "secret" {
+		t.Fatalf("Replay.S3 = %+v, want complete environment", got.Replay.S3)
+	}
+}
+
+func TestLoadReplayEnvironment(t *testing.T) {
+	values := baseEnv()
+	values["PANEL_REPLAY_ENABLED"] = "true"
+	values["PANEL_REPLAY_MASK"] = "false"
+	values["PANEL_REPLAY_SAMPLE_RATE"] = "25"
+	values["PANEL_REPLAY_RETENTION_DAYS"] = "90"
+	values["PANEL_REPLAY_QUOTA"] = "500MB"
+	values["PANEL_REPLAY_DIR"] = "/srv/replay"
+
+	got, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Replay.Enabled || got.Replay.Mask == nil || *got.Replay.Mask || got.Replay.SampleRate == nil || *got.Replay.SampleRate != 25 || got.Replay.Retention == nil || *got.Replay.Retention != 90 || got.Replay.QuotaBytes == nil || *got.Replay.QuotaBytes != 500*1024*1024 || got.Replay.Dir != "/srv/replay" {
+		t.Fatalf("Replay = %+v", got.Replay)
+	}
+}
+
+func TestLoadRejectsInvalidReplayEnvironment(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{name: "PANEL_REPLAY_ENABLED", value: "sometimes"},
+		{name: "PANEL_REPLAY_MASK", value: "sometimes"},
+		{name: "PANEL_REPLAY_SAMPLE_RATE", value: "101"},
+		{name: "PANEL_REPLAY_RETENTION_DAYS", value: "0"},
+		{name: "PANEL_REPLAY_QUOTA", value: "5XB"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values := baseEnv()
+			values[tt.name] = tt.value
+			if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), tt.name) {
+				t.Fatalf("Load() error = %v, want %s validation error", err, tt.name)
+			}
+		})
+	}
+}

@@ -18,6 +18,7 @@ type Site struct {
 	AllowedHosts          []string
 	Exclusions            Exclusions
 	Tracker               TrackerSettingsInput
+	Replay                ReplaySiteInput
 	ProfilesEnabled       bool
 	HeatmapsEnabled       bool
 	RespectPrivacySignals bool
