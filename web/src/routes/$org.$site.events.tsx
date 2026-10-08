@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
 import { EventsPage } from '@/features/events/EventsPage'
+import { countryName } from '@/lib/country'
 import {
   addFilter,
   dashboardSearch,
@@ -48,11 +49,11 @@ function EventsRoute() {
           canEdit={membership.role !== 'viewer'}
           dateRange={dateRange}
           dropped={dropped}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.join(', ')}`}
+          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
           filters={filters}
           invalidNotice={en.dashboard.invalidFilter}
           orgId={membership.org.id}
-          removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.join(', ')}`}
+          removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
           siteId={site.id}
           onAdd={(filter) => void navigate({ search: { ...search, f: addFilter(search, filter).f, cursor: undefined } })}
           onApply={(next) => void navigate({ search: { ...search, f: replaceFilters(search, next).f, cursor: undefined } })}

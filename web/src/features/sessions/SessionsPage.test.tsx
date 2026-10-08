@@ -31,7 +31,7 @@ const summary = {
 }
 
 describe('SessionsPage', () => {
-  it('renders session dimensions and selects a timeline', () => {
+  it('renders full visitor dimensions and selects a timeline', () => {
     const onSelect = vi.fn()
     useSessions.mockReturnValue({
       data: { data: [summary], next_cursor: 'next-page' },
@@ -45,6 +45,14 @@ describe('SessionsPage', () => {
 
     expect(screen.getByRole('cell', { name: 'ada-42' })).toBeVisible()
     expect(screen.getByRole('cell', { name: '/ → /pricing' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'Browser' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'OS' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'Device' })).toBeVisible()
+    expect(screen.getByText('San Francisco, United States')).toBeVisible()
+    expect(screen.queryByText('US')).not.toBeInTheDocument()
+    expect(screen.getByText('Chrome')).toBeVisible()
+    expect(screen.getByText('Linux')).toBeVisible()
+    expect(screen.getByText('Desktop')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'View session 301' }))
     expect(onSelect).toHaveBeenCalledWith('301')
   })

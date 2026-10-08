@@ -173,7 +173,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
                         <span className="block min-w-0 px-2 py-2 font-medium text-muted-foreground">{display}</span>
                       ) : (
                         <button
-                          aria-label={`Filter by ${activeTab.dimension} ${label}`}
+                          aria-label={`Filter by ${activeTab.dimension} ${activeTab.dimension === 'country' ? display : label}`}
                           className="w-full min-w-0 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                           type="button"
                           onClick={() => onFilter({ dimension: activeTab.dimension, operator: 'is', values: [label] })}
@@ -212,7 +212,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
                   </div>
                 ) : (
                   <button
-                    aria-label={`Filter by ${activeTab.dimension} ${label}`}
+                    aria-label={`Filter by ${activeTab.dimension} ${activeTab.dimension === 'country' ? display : label}`}
                     className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                     type="button"
                     onClick={() =>

@@ -11,6 +11,7 @@ import {
   resolveRange,
 } from '@/lib/search'
 import { en } from '@/messages/en'
+import { countryName } from '@/lib/country'
 
 import { useMe } from './$org'
 
@@ -42,10 +43,10 @@ function VitalsRoute() {
           filters={filters}
           dropped={dropped}
           invalidNotice={en.dashboard.invalidFilter}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.join(', ')}`}
+          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
           removeLabel={(filter) => en.dashboard.filterLabel
             .replace('{dimension}', filter.dimension)
-            .replace('{value}', filter.values.join(', '))}
+            .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))}
           onApply={(nextFilters) => updateSearch(replaceFilters(search, nextFilters))}
           onRemove={(index) => updateSearch(removeFilter(search, index))}
         />

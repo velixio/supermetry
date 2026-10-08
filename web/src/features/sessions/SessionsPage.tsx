@@ -12,6 +12,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ErrorState } from '@/components/ErrorState'
 import { ReplayLink } from '@/components/replay/ReplayLink'
+import { BrowserLabel } from '@/components/visitor/BrowserLabel'
+import { DeviceLabel } from '@/components/visitor/DeviceLabel'
+import { Location } from '@/components/visitor/Location'
+import { OsLabel } from '@/components/visitor/OsLabel'
 import type { Filter } from '@/lib/search'
 
 import { useSession, useSessions } from './api'
@@ -28,14 +32,6 @@ function formatDuration(milliseconds: number): string {
   const minutes = Math.floor(seconds / 60)
   const remainder = seconds % 60
   return `${minutes}m ${remainder}s`
-}
-
-function locationLabel(session: SessionSummary): string {
-  return [session.city, session.country].filter(Boolean).join(', ') || 'Unknown'
-}
-
-function deviceLabel(session: SessionSummary): string {
-  return [session.device, session.browser, session.os].filter(Boolean).join(' · ') || 'Unknown'
 }
 
 function TimelineItem({ item }: { item: SessionTimelineItem }) {
@@ -112,6 +108,8 @@ export function SessionsPage({
                   <TableHead>Entry → exit</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Browser</TableHead>
+                  <TableHead>OS</TableHead>
                   <TableHead>Device</TableHead>
                   <TableHead>Profile</TableHead>
                   <TableHead className="text-right">Duration</TableHead>
@@ -129,8 +127,10 @@ export function SessionsPage({
                     <TableCell>{org && site ? <ReplayLink hasReplay={(session as SessionSummary & { has_replay?: boolean }).has_replay} org={org} site={site} sessionId={session.id} /> : null}</TableCell>
                     <TableCell>{session.entry_page} → {session.exit_page}</TableCell>
                     <TableCell>{session.source || 'Direct'}</TableCell>
-                    <TableCell>{locationLabel(session)}</TableCell>
-                    <TableCell>{deviceLabel(session)}</TableCell>
+                    <TableCell><Location city={session.city} country={session.country} /></TableCell>
+                    <TableCell><BrowserLabel value={session.browser} /></TableCell>
+                    <TableCell><OsLabel value={session.os} /></TableCell>
+                    <TableCell><DeviceLabel value={session.device} /></TableCell>
                     <TableCell>{session.external_id ?? 'Anonymous'}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatDuration(session.duration_ms)}</TableCell>
                     <TableCell className="text-right tabular-nums">{session.pageviews} / {session.events}</TableCell>

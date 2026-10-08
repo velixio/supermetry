@@ -10,6 +10,7 @@ import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
 import { Button } from '../components/ui/button'
 import { useShortcuts } from '../lib/shortcuts'
+import { countryName } from '../lib/country'
 import type { StatsQuery } from '../lib/stats'
 import {
   addFilter,
@@ -87,11 +88,11 @@ function DashboardStateRoute() {
           filters={filters}
           dropped={dropped}
           invalidNotice={en.dashboard.invalidFilter}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.join(', ')}`}
+          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
           removeLabel={(filter) =>
             en.dashboard.filterLabel
               .replace('{dimension}', filter.dimension)
-              .replace('{value}', filter.values.join(', '))
+              .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))
           }
           onApply={(segmentFilters) =>
             updateSearch(replaceFilters(search, segmentFilters))

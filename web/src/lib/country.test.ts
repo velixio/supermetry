@@ -26,5 +26,6 @@ describe('country', () => {
 
   it('uses the country name as its text label', () => {
     expect(countryLabel('IN')).toBe('India')
+    expect(countryLabel('XX')).not.toBe('XX')
   })
 })
