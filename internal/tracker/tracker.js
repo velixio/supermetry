@@ -174,12 +174,35 @@
 
   var panel = window.panel = window.panel || {};
   /*@full*/
+  var startReplay;
+  var replayGranted;
+  if (data.replay) {
+    startReplay = () => {
+      var connection = navigator.connection;
+      if (ignored || panel._replayDenied || panel._replay || connection?.saveData || /^(slow-)?2g$/.test(connection?.effectiveType)) return;
+      var origin = new URL(endpoint, location.href).origin;
+      panel._replay = {s: data.site, o: origin};
+      var replayScript = document.createElement("script");
+      replayScript.src = origin + "/replay.js";
+      document.head.appendChild(replayScript);
+    };
+    panel.replay = {trigger: (reason) => panel._replayTrigger = reason || "manual"};
+    replayGranted = data.replay == "never" || data.replay == "auto" && !gated;
+    if (replayGranted) startReplay();
+  }
   panel._post = post;
   /*@end*/
   // Opt-out is the only thing the tracker ever stores: a flag, no identifier.
   var opt = (value) => () => {
     ignored = value;
     try { value ? localStorage.panel_ignore = 1 : delete localStorage.panel_ignore; } catch (_) {}
+    /*@full*/
+    if (data.replay) {
+      panel._replayDenied = value;
+      if (value) panel._replayStop?.();
+      else if (replayGranted) startReplay();
+    }
+    /*@end*/
   };
   panel.optOut = opt(1);
   panel.optIn = opt(0);
@@ -195,11 +218,20 @@
     startPage(url, options?.props);
   };
   panel.consent = (granted) => {
-    if (!gated) return;
+    if (data.replay) {
+      replayGranted = granted;
+      panel._replayDenied = !granted;
+      if (!granted) panel._replayStop?.();
+    }
+    if (!gated) {
+      if (granted && startReplay) startReplay();
+      return;
+    }
     var queued = paused;
     denied = !granted;
     paused = granted ? 0 : [];
     if (granted && queued) queued.forEach(emit);
+    if (granted && startReplay) startReplay();
   };
   /*@end*/
   panel.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);

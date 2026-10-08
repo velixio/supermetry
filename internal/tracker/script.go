@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"panel/internal/config"
+	"panel/internal/replay"
 	"panel/internal/sites"
 )
 
@@ -24,10 +26,10 @@ type Script struct {
 // BuildScript prepends a site's resolved settings to the appropriate embedded
 // tracker. Snippet data attributes take precedence because the prelude uses
 // nullish assignment.
-func BuildScript(publicID string, settings sites.TrackerSettings) Script {
-	prefix := prelude(publicID, settings)
+func BuildScript(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) Script {
+	prefix := prelude(publicID, settings, replaySettings)
 	source := script
-	if settings.AnyExtension() {
+	if settings.AnyExtension() || replaySettings.Enabled {
 		source = fullScript
 	}
 	body := make([]byte, 0, len(prefix)+len(source))
@@ -38,7 +40,7 @@ func BuildScript(publicID string, settings sites.TrackerSettings) Script {
 	return Script{Body: body, ETag: etag}
 }
 
-func prelude(publicID string, settings sites.TrackerSettings) string {
+func prelude(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) string {
 	var builder strings.Builder
 	builder.WriteString(`(d=>{d.site??="`)
 	builder.WriteString(publicID)
@@ -62,6 +64,11 @@ func prelude(publicID string, settings sites.TrackerSettings) string {
 	if settings.Hash {
 		builder.WriteString(`d.hash??="true";`)
 	}
+	if replaySettings.Enabled {
+		builder.WriteString(`d.replay??="`)
+		builder.WriteString(replaySettings.Consent)
+		builder.WriteString(`";`)
+	}
 	builder.WriteString(`})(document.currentScript.dataset);` + "\n")
 	return builder.String()
 }
@@ -69,19 +76,25 @@ func prelude(publicID string, settings sites.TrackerSettings) string {
 var siteScriptBuilder = BuildScript
 
 type siteScriptCacheKey struct {
-	publicID string
-	settings sites.TrackerSettings
+	publicID      string
+	settings      sites.TrackerSettings
+	replayEnabled bool
+	replayConsent string
 }
 
 // SiteHandler serves generated tracker scripts for sites in the in-memory
 // registry. The mount prefix is deliberately not trusted when extracting the
 // final path component.
-func SiteHandler(registry sites.Registry) http.Handler {
+func SiteHandler(registry sites.Registry, replayEnvs ...config.ReplayEnv) http.Handler {
+	var replayEnv config.ReplayEnv
+	if len(replayEnvs) != 0 {
+		replayEnv = replayEnvs[0]
+	}
 	var cache sync.Map
 	var cacheEntries atomic.Int64
 	var buildMu sync.Mutex
 
-	load := func(key siteScriptCacheKey) Script {
+	load := func(key siteScriptCacheKey, replaySettings replay.SiteSettings) Script {
 		if cached, ok := cache.Load(key); ok {
 			return cached.(Script)
 		}
@@ -90,7 +103,7 @@ func SiteHandler(registry sites.Registry) http.Handler {
 		if cached, ok := cache.Load(key); ok {
 			return cached.(Script)
 		}
-		built := siteScriptBuilder(key.publicID, key.settings)
+		built := siteScriptBuilder(key.publicID, key.settings, replaySettings)
 		if cacheEntries.Load() >= maxSiteScriptCacheEntries {
 			cache.Clear()
 			cacheEntries.Store(0)
@@ -126,7 +139,11 @@ func SiteHandler(registry sites.Registry) http.Handler {
 			return
 		}
 		settings := site.Tracker.Resolve(site.HeatmapsEnabled)
-		generated := load(siteScriptCacheKey{publicID: publicID, settings: settings})
+		replaySettings := replay.ResolveSite(replayEnv, site.Replay)
+		generated := load(siteScriptCacheKey{
+			publicID: publicID, settings: settings,
+			replayEnabled: replaySettings.Enabled, replayConsent: replaySettings.Consent,
+		}, replaySettings)
 
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=60")
