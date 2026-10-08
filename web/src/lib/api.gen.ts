@@ -208,6 +208,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/annotations": {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** List chart annotations in an inclusive date range */
+        get: operations["listAnnotations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/goals/{goal_id}": {
         parameters: {
             query?: never;
@@ -397,6 +419,19 @@ export interface components {
             prop_value?: string;
             name: string;
             currency?: string | null;
+        };
+        Annotation: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            /** Format: date */
+            day: string;
+            text: string;
+            /** Format: int64 */
+            created_by?: number | null;
+            /** Format: date-time */
+            created_at: string;
         };
         SavedFunnelInput: {
             name: string;
@@ -1249,6 +1284,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Goal"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAnnotations: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Annotations ordered by day and identifier */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Annotation"][];
                 };
             };
             400: components["responses"]["BadRequest"];

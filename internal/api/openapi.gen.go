@@ -327,6 +327,16 @@ func (e UpdateSiteRequestRetentionDays) Valid() bool {
 	}
 }
 
+// Annotation defines model for Annotation.
+type Annotation struct {
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy *int64             `json:"created_by,omitempty"`
+	Day       openapi_types.Date `json:"day"`
+	Id        int64              `json:"id"`
+	SiteId    int32              `json:"site_id"`
+	Text      string             `json:"text"`
+}
+
 // ComparisonResult defines model for ComparisonResult.
 type ComparisonResult struct {
 	DateRange DateRange                `json:"date_range"`
@@ -725,6 +735,12 @@ type ListSitesParams struct {
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// ListAnnotationsParams defines parameters for ListAnnotations.
+type ListAnnotationsParams struct {
+	From openapi_types.Date `form:"from" json:"from"`
+	To   openapi_types.Date `form:"to" json:"to"`
+}
+
 // StatsBreakdownParams defines parameters for StatsBreakdown.
 type StatsBreakdownParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
@@ -868,6 +884,9 @@ type ServerInterface interface {
 	// UpdateSite Update a site
 	// (PATCH /api/public/v1/sites/{site_id})
 	UpdateSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListAnnotations List chart annotations in an inclusive date range
+	// (GET /api/public/v1/sites/{site_id}/annotations)
+	ListAnnotations(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListAnnotationsParams)
 	// ListFunnels List saved funnels
 	// (GET /api/public/v1/sites/{site_id}/funnels)
 	ListFunnels(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -1266,6 +1285,61 @@ func (siw *ServerInterfaceWrapper) UpdateSite(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateSite(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAnnotations operation middleware
+func (siw *ServerInterfaceWrapper) ListAnnotations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAnnotationsParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAnnotations(w, r, siteId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2045,6 +2119,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.UpdateSite)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.ListGoals)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.CreateGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/annotations", wrapper.ListAnnotations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.DeleteGoal)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.UpdateGoal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.ListFunnels)

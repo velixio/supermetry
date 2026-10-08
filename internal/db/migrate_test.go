@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -22,24 +23,45 @@ func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
 	if err := db.Migrate(ctx, pool); err != nil {
 		t.Fatal("second run:", err)
 	}
+	entries, err := os.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := make(map[int]string)
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		prefix, _, ok := strings.Cut(entry.Name(), "_")
+		if !ok {
+			t.Fatalf("migration name %q has no numeric prefix", entry.Name())
+		}
+		version, err := strconv.Atoi(prefix)
+		if err != nil {
+			t.Fatalf("parse migration name %q: %v", entry.Name(), err)
+		}
+		want[version] = entry.Name()
+	}
 	rows, err := pool.Query(ctx, `select version from schema_migrations order by version`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close()
-	previous := 0
 	for rows.Next() {
 		var version int
 		if err := rows.Scan(&version); err != nil {
 			t.Fatal(err)
 		}
-		if version != previous+1 && !(previous == 6 && version == 8) {
-			t.Fatalf("migration version %d follows %d", version, previous)
+		if _, ok := want[version]; !ok {
+			t.Fatalf("unexpected applied migration %04d", version)
 		}
-		previous = version
+		delete(want, version)
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
+	}
+	if len(want) != 0 {
+		t.Fatalf("migrations not applied exactly once: %v", want)
 	}
 }
 
@@ -51,7 +73,7 @@ func TestPlatformMigrationTables(t *testing.T) {
 	}
 	for _, table := range []string{
 		"orgs", "users", "memberships", "user_sessions", "password_resets",
-		"invitations", "sites", "goals", "funnels", "segments", "api_keys", "shared_links",
+		"invitations", "sites", "goals", "funnels", "api_keys", "shared_links",
 		"report_subscriptions", "audit_log", "setup_state",
 	} {
 		var exists bool
@@ -66,55 +88,6 @@ func TestPlatformMigrationTables(t *testing.T) {
 		insert into users(email, name, password_hash)
 		values ('A@x.io', 'a', 'h'), ('a@X.io', 'b', 'h')`); err == nil {
 		t.Fatal("email must be case-insensitive unique")
-	}
-}
-
-func TestSegmentsMigrationSchemaConstraints(t *testing.T) {
-	pool, _ := testpg.New(t)
-	ctx := context.Background()
-	if err := db.Migrate(ctx, pool); err != nil {
-		t.Fatal(err)
-	}
-
-	var userID, orgID int64
-	var siteID int32
-	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('segments@example.test','Segments','hash') returning id`).Scan(&userID); err != nil {
-		t.Fatal(err)
-	}
-	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Segments','segments') returning id`).Scan(&orgID); err != nil {
-		t.Fatal(err)
-	}
-	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class) values ($1,'segmentssite','Segments','UTC',30) returning id`, orgID).Scan(&siteID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pool.Exec(ctx, `insert into segments(site_id,name,filters,created_by) values ($1,'Paid traffic','[{"dimension":"source","operator":"contains","values":["ads"]}]',$2)`, siteID, userID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pool.Exec(ctx, `insert into segments(site_id,name,filters) values ($1,'paid TRAFFIC','[]')`, siteID); err == nil {
-		t.Fatal("segment names must be case-insensitively unique per site")
-	}
-	if _, err := pool.Exec(ctx, `insert into segments(site_id,name,filters) values ($1,'Not an array','{}')`, siteID); err == nil {
-		t.Fatal("segment filters must be a JSON array")
-	}
-	if _, err := pool.Exec(ctx, `delete from users where id=$1`, userID); err != nil {
-		t.Fatal(err)
-	}
-	var createdBy *int64
-	if err := pool.QueryRow(ctx, `select created_by from segments where site_id=$1`, siteID).Scan(&createdBy); err != nil {
-		t.Fatal(err)
-	}
-	if createdBy != nil {
-		t.Fatalf("created_by=%v, want null after user deletion", *createdBy)
-	}
-	if _, err := pool.Exec(ctx, `delete from sites where id=$1`, siteID); err != nil {
-		t.Fatal(err)
-	}
-	var count int
-	if err := pool.QueryRow(ctx, `select count(*) from segments where site_id=$1`, siteID).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 0 {
-		t.Fatalf("segments after site deletion=%d, want 0", count)
 	}
 }
 

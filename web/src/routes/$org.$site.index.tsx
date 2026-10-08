@@ -5,6 +5,7 @@ import { DatePicker } from '../components/DatePicker'
 import { DashboardExportMenu } from '../components/DashboardExportMenu'
 import { FilterBar } from '../components/FilterBar'
 import { MainChart } from '../components/MainChart'
+import { AnnotationManager } from '../features/annotations/AnnotationManager'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
 import { useShortcuts } from '../lib/shortcuts'
@@ -111,7 +112,23 @@ function DashboardStateRoute() {
         query={query}
         href={`/${org}/${siteSlug}/settings/installation`}
       />
-      <MainChart query={query} metric={search.metric} compare={search.compare} />
+      <AnnotationManager
+        siteId={site.id}
+        dateRange={query.dateRange}
+        canEdit={membership?.role !== 'viewer'}
+      >
+        {({ annotations, onEdit, onDelete }) => (
+          <MainChart
+            query={query}
+            metric={search.metric}
+            compare={search.compare}
+            annotations={annotations}
+            canEditAnnotations={membership?.role !== 'viewer'}
+            onEditAnnotation={onEdit}
+            onDeleteAnnotation={onDelete}
+          />
+        )}
+      </AnnotationManager>
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {breakdownCards.map((card) => (
           <BreakdownCard

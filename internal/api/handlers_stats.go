@@ -585,16 +585,21 @@ func realtimeHandler(store session.Store, now func() time.Time, dictionary dicti
 		if now != nil {
 			current = now()
 		}
-		visitors, pages, sources := realtime.Snapshot(store, siteID, current)
-		response := RealtimeResponse{ActiveVisitors: int64(visitors), TopPages: make([]TopPage, len(pages)), TopSources: make([]TopSource, len(sources))}
-		for index, page := range pages {
-			response.TopPages[index] = TopPage{Page: realtimeLabel(dictionary, dict.Path, page.Value), Visitors: int64(page.Visitors)}
-		}
-		for index, source := range sources {
-			response.TopSources[index] = TopSource{Source: realtimeLabel(dictionary, dict.Source, source.Value), Visitors: int64(source.Visitors)}
-		}
-		writeJSON(w, http.StatusOK, response)
+		writeJSON(w, http.StatusOK, realtimeResponse(store, dictionary, siteID, current))
 	}
+}
+
+// realtimeResponse builds the realtime payload shared by the HTTP API and MCP.
+func realtimeResponse(store session.Store, dictionary dictionaryResolver, siteID int32, now time.Time) RealtimeResponse {
+	visitors, pages, sources := realtime.Snapshot(store, siteID, now)
+	response := RealtimeResponse{ActiveVisitors: int64(visitors), TopPages: make([]TopPage, len(pages)), TopSources: make([]TopSource, len(sources))}
+	for index, page := range pages {
+		response.TopPages[index] = TopPage{Page: realtimeLabel(dictionary, dict.Path, page.Value), Visitors: int64(page.Visitors)}
+	}
+	for index, source := range sources {
+		response.TopSources[index] = TopSource{Source: realtimeLabel(dictionary, dict.Source, source.Value), Visitors: int64(source.Visitors)}
+	}
+	return response
 }
 
 func realtimeLabel(dictionary dictionaryResolver, kind dict.Kind, encoded string) string {

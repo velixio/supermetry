@@ -8,7 +8,16 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { FlagIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
+import {
+  Tooltip as AnnotationTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import type { Annotation } from '@/features/annotations/types'
 import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useStats, type StatsQuery } from '../lib/stats'
@@ -22,6 +31,10 @@ type MainChartProps = {
   metric: ChartMetric
   compare: Compare
   interval?: ChartInterval
+  annotations?: Annotation[]
+  canEditAnnotations?: boolean
+  onEditAnnotation?: (annotation: Annotation) => void
+  onDeleteAnnotation?: (annotation: Annotation) => void
 }
 
 type ChartPoint = {
@@ -99,7 +112,94 @@ function chronological(rows: Array<Record<string, unknown>>): Array<Record<strin
 }
 
 function ChartContainer({ children }: { children: ReactNode }) {
-  return <div className="h-64 min-h-64 w-full">{children}</div>
+  return <div className="relative h-64 min-h-64 w-full">{children}</div>
+}
+
+function AnnotationMarkers({
+  annotations,
+  range,
+  timezone,
+  canEdit,
+  onEdit,
+  onDelete,
+}: {
+  annotations: Annotation[]
+  range: StatsQuery['dateRange']
+  timezone: string
+  canEdit: boolean
+  onEdit?: (annotation: Annotation) => void
+  onDelete?: (annotation: Annotation) => void
+}) {
+  const byDay = annotations.reduce<Map<string, Annotation[]>>((groups, annotation) => {
+    const group = groups.get(annotation.day) ?? []
+    group.push(annotation)
+    groups.set(annotation.day, group)
+    return groups
+  }, new Map())
+  const from = dateAtUTC(range.from).getTime()
+  const duration = dateAtUTC(range.to).getTime() - from
+  const marked = [...byDay].map(([day, items]) => ({
+    day,
+    items,
+    left: duration === 0
+      ? 50
+      : Math.max(0, Math.min(100, ((dateAtUTC(day).getTime() - from) / duration) * 100)),
+  }))
+
+  if (marked.length === 0) return null
+
+  return (
+    <TooltipProvider>
+      <div className="pointer-events-none absolute inset-x-10 top-1 z-10 h-8" aria-label="Chart annotations">
+        {marked.map(({ day, left, items }) => {
+          const label = fmt.date(day, timezone)
+          return (
+            <AnnotationTooltip key={day}>
+              <TooltipTrigger asChild>
+                <Button
+                  className="pointer-events-auto absolute -translate-x-1/2"
+                  style={{ left: `${left}%` }}
+                  size="icon-xs"
+                  variant="secondary"
+                  aria-label={`${items.length} ${items.length === 1 ? 'annotation' : 'annotations'} on ${label}`}
+                >
+                  <FlagIcon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="flex max-w-sm flex-col items-stretch gap-2 p-2" side="bottom">
+                <p className="font-medium">{label}</p>
+                {items.map((annotation) => (
+                  <div className="flex items-center gap-2" key={annotation.id}>
+                    <span className="min-w-0 flex-1">{annotation.text}</span>
+                    {canEdit ? (
+                      <span className="flex gap-1">
+                        <Button
+                          aria-label={`Edit ${annotation.text}`}
+                          size="icon-xs"
+                          variant="secondary"
+                          onClick={() => onEdit?.(annotation)}
+                        >
+                          <PencilIcon />
+                        </Button>
+                        <Button
+                          aria-label={`Delete ${annotation.text}`}
+                          size="icon-xs"
+                          variant="destructive"
+                          onClick={() => onDelete?.(annotation)}
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </TooltipContent>
+            </AnnotationTooltip>
+          )
+        })}
+      </div>
+    </TooltipProvider>
+  )
 }
 
 export function autoInterval(from: string, to: string): ChartInterval {
@@ -118,6 +218,10 @@ export function MainChart({
   metric,
   compare,
   interval,
+  annotations = [],
+  canEditAnnotations = false,
+  onEditAnnotation,
+  onDeleteAnnotation,
 }: MainChartProps) {
   const currentQuery: StatsQuery = {
     ...query,
@@ -151,6 +255,14 @@ export function MainChart({
       className="rounded-lg border bg-card p-4 text-card-foreground"
     >
       <ChartContainer>
+        <AnnotationMarkers
+          annotations={annotations}
+          range={query.dateRange}
+          timezone={query.timezone ?? 'UTC'}
+          canEdit={canEditAnnotations}
+          onEdit={onEditAnnotation}
+          onDelete={onDeleteAnnotation}
+        />
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <AreaChart accessibilityLayer data={points}>
             <defs>
