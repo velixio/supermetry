@@ -27,6 +27,7 @@ var retentionClasses = []RetentionClass{Ret7, Ret30, Ret90, Ret365, RetForever}
 
 var monthlyDayTables = []string{
 	"heatmap_cells",
+	"replay_sessions",
 	"sessions_closed",
 	"custom_closed",
 	"cube_day",
