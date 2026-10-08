@@ -91,7 +91,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if site.RespectPrivacySignals && (r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1") {
 		health.PrivacySignalsDropped.Add(1)
-		health.IngestDropped.Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -118,7 +117,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if payload.Name == "heatmap" && !site.HeatmapsEnabled {
 		health.HeatmapDropped.Add(1)
-		health.IngestDropped.Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}

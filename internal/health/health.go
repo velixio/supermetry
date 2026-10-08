@@ -177,6 +177,7 @@ func Snapshot() map[string]float64 {
 		"ingest_dropped_total":             float64(IngestDropped.Load()),
 		"heatmap_invalid_total":            float64(HeatmapInvalid.Load()),
 		"heatmap_dropped_total":            float64(HeatmapDropped.Load()),
+		"ingest_privacy_dropped_total":     float64(PrivacySignalsDropped.Load()),
 		"writer_queue_depth":               WriterQueueDepth.Load(),
 		"copy_seconds":                     CopySeconds.Load(),
 		"close_lag_seconds":                CloseLagSeconds.Load(),
@@ -186,7 +187,6 @@ func Snapshot() map[string]float64 {
 		"alert_delivery_failures_total":    float64(AlertDeliveryFailures.Load()),
 		"query_cache_hit_ratio":            cacheHitRatio(),
 	}
-	snapshot[`ingest_dropped_total{reason="privacy_signal"}`] = float64(PrivacySignalsDropped.Load())
 	snapshot[`geoip_source{source="dbip"}`] = 0
 	snapshot[`geoip_source{source="maxmind"}`] = 0
 	snapshot[fmt.Sprintf(`geoip_source{source=%q}`, GeoIPSource())] = 1
@@ -219,6 +219,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_revenue_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_profiles_suppressed_total", "counter")
 	writeFamily(w, snapshot, "ingest_dropped_total", "counter")
+	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
 	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
 	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")

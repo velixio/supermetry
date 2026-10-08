@@ -213,6 +213,7 @@ func TestPrivacySignalsAreDroppedOnlyWhenSiteSettingIsEnabled(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
 			setRespectPrivacySignals(t, f, test.enabled)
 			before := health.PrivacySignalsDropped.Load()
+			droppedBefore := health.IngestDropped.Load()
 			req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(okBody))
 			req.Header.Set("User-Agent", testUA)
 			req.Header.Set(test.header, "1")
@@ -236,6 +237,9 @@ func TestPrivacySignalsAreDroppedOnlyWhenSiteSettingIsEnabled(t *testing.T) {
 			}
 			if got := health.PrivacySignalsDropped.Load() - before; got != wantDelta {
 				t.Fatalf("privacy signal drop delta=%d, want %d", got, wantDelta)
+			}
+			if got := health.IngestDropped.Load() - droppedBefore; got != 0 {
+				t.Fatalf("ingest_dropped_total delta=%d, want 0 (it counts 503s)", got)
 			}
 		})
 	}

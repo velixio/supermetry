@@ -129,17 +129,17 @@ func TestProfilesSuppressedIsExported(t *testing.T) {
 	}
 }
 
-func TestPrivacySignalDropsAreExportedAsAReason(t *testing.T) {
+func TestPrivacySignalDropsAreExportedSeparately(t *testing.T) {
 	before := health.PrivacySignalsDropped.Load()
 	health.PrivacySignalsDropped.Add(1)
 
 	snapshot := health.Snapshot()
-	if got := snapshot[`ingest_dropped_total{reason="privacy_signal"}`]; got != float64(before+1) {
+	if got := snapshot["ingest_privacy_dropped_total"]; got != float64(before+1) {
 		t.Fatalf("privacy signal drop metric = %v, want %d", got, before+1)
 	}
 	var b strings.Builder
 	health.WritePrometheus(&b)
-	if !strings.Contains(b.String(), `panel_ingest_dropped_total{reason="privacy_signal"}`) {
-		t.Fatalf("Prometheus output missing privacy signal reason:\n%s", b.String())
+	if !strings.Contains(b.String(), "panel_ingest_privacy_dropped_total ") {
+		t.Fatalf("Prometheus output missing privacy signal drop counter:\n%s", b.String())
 	}
 }
