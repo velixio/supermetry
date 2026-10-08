@@ -68,6 +68,28 @@ curl -fsSL https://example.invalid/path/install.sh | \
 The installer verifies the archive against `SHA256SUMS` before installing
 it and never overwrites an existing `/etc/panel/panel.env`.
 
+## Session replay
+
+Off by default. `PANEL_REPLAY_ENABLED=true` is the only switch: it turns replay on
+for every site, and the dashboard shows the status read-only. Restart panel after
+changing it.
+
+- **Tracker:** sites must use the per-site snippet from Site settings → Installation
+  (`/js/<site-id>.js`). The generic `/js/script.js` and `/js/script.full.js` never start replay.
+- **Storage:** gzipped files in `$PANEL_DATA_DIR/replay` (systemd: `/var/lib/panel/replay`;
+  Compose: the `panel-data` volume). A custom `PANEL_REPLAY_DIR` under systemd must stay
+  under `/var/lib/panel`, or be added to `ReadWritePaths`.
+- **S3:** set `PANEL_REPLAY_S3_ENDPOINT`, `_BUCKET`, `_REGION`, `_ACCESS_KEY` and
+  `_SECRET_KEY` together (`_PREFIX` optional). Uploads collect in
+  `$PANEL_DATA_DIR/replay-spill` until each session ends.
+- **Limits:** 15% of sessions sampled, 30-day retention and a 5 GB quota per site by
+  default (oldest deleted first). Any `PANEL_REPLAY_*` value set in the environment wins
+  over the dashboard; see `.env.example`.
+- **Backups:** `panel backup` leaves replay files out; back up the replay directory or
+  bucket separately if you need them.
+- **Reverse proxy:** replay uploads are at most 256 KB per chunk and 1 MiB per
+  stylesheet, so the default `client_max_body_size 1m` is enough.
+
 ## Reverse proxy
 
 Adapt the nginx example in [`deploy/nginx/`](nginx/). Set

@@ -149,6 +149,15 @@ PANEL_SECRET_KEY=
 PANEL_BASE_URL=
 PANEL_LISTEN=127.0.0.1:8787
 PANEL_TRUSTED_PROXIES=
+
+# Session replay: off unless true; this is the only switch and applies to every site.
+PANEL_REPLAY_ENABLED=false
+# Optional; when set, each wins over the dashboard (see .env.example for all keys).
+# A custom PANEL_REPLAY_DIR must stay under /var/lib/panel (systemd ReadWritePaths).
+#PANEL_REPLAY_SAMPLE_RATE=15
+#PANEL_REPLAY_RETENTION_DAYS=30
+#PANEL_REPLAY_QUOTA=5GB
+#PANEL_REPLAY_DIR=/var/lib/panel/replay
 EOF
     chown root:panel /etc/panel/panel.env
 fi
@@ -164,6 +173,7 @@ Next steps:
   1. Set PANEL_DATABASE_URL, PANEL_SECRET_KEY, and PANEL_BASE_URL in
      /etc/panel/panel.env.
   2. If using a reverse proxy, set PANEL_TRUSTED_PROXIES to its IP/CIDR.
-  3. Run: systemctl enable --now panel
-  4. Check: systemctl status panel
+  3. Optional: set PANEL_REPLAY_ENABLED=true to record session replays.
+  4. Run: systemctl enable --now panel
+  5. Check: systemctl status panel
 EOF
