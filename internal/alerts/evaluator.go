@@ -30,18 +30,27 @@ type Deliverer interface {
 	Deliver(context.Context, DeliveryChannel, Notification) error
 }
 
+// ActiveVisitorSource is the in-memory session store. traffic_spike counts
+// only visitors seen by this process, so with several instances behind a load
+// balancer each instance sees a share of the traffic (until a shared Redis
+// session store exists).
+type ActiveVisitorSource interface {
+	ActiveSince(siteID int32, since time.Time) (visitors int, topPaths []int32)
+}
+
 type DeliveryFailureFunc func(alertID, channelID int64, kind ChannelKind, err error)
 
 type Evaluator struct {
 	repository Repository
 	metrics    MetricSource
 	sites      sites.Registry
+	active     ActiveVisitorSource
 	deliverer  Deliverer
 	now        func() time.Time
 	onFailure  DeliveryFailureFunc
 }
 
-func NewEvaluator(repository Repository, metrics MetricSource, registry sites.Registry, deliverer Deliverer, now func() time.Time, failures ...DeliveryFailureFunc) *Evaluator {
+func NewEvaluator(repository Repository, metrics MetricSource, registry sites.Registry, active ActiveVisitorSource, deliverer Deliverer, now func() time.Time, failures ...DeliveryFailureFunc) *Evaluator {
 	if now == nil {
 		now = time.Now
 	}
@@ -49,7 +58,7 @@ func NewEvaluator(repository Repository, metrics MetricSource, registry sites.Re
 	if len(failures) > 0 {
 		onFailure = failures[0]
 	}
-	return &Evaluator{repository: repository, metrics: metrics, sites: registry, deliverer: deliverer, now: now, onFailure: onFailure}
+	return &Evaluator{repository: repository, metrics: metrics, sites: registry, active: active, deliverer: deliverer, now: now, onFailure: onFailure}
 }
 
 func (e *Evaluator) Job() scheduler.Job {
@@ -86,7 +95,11 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 			return nil
 		}
 		from, to = now.Add(-time.Hour), now
-		value, err = e.metrics.Visitors(ctx, site, from, to)
+		if e.active == nil {
+			return errors.New("active visitor store is unavailable")
+		}
+		visitors, _ := e.active.ActiveSince(site.ID, from)
+		value = float64(visitors)
 		fire = value >= alert.Threshold
 	case AlertTrafficDrop:
 		if withinCooldown(alert.LastFiredAt, now, trafficCooldown) {

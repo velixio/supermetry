@@ -102,6 +102,127 @@ func TestStoreFailureEndsImport(t *testing.T) {
 	}
 }
 
+func TestStoreRejectsDuplicateFilePerSite(t *testing.T) {
+	store, siteID, userID := newImportStore(t)
+	hash := [32]byte{1, 2, 3}
+	first, err := store.Create(context.Background(), CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "events.csv", CreatedBy: userID, FileHash: hash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.Create(context.Background(), CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "again.csv", CreatedBy: userID, FileHash: hash})
+	var duplicate *AlreadyImportedError
+	if !errors.As(err, &duplicate) {
+		t.Fatalf("Create duplicate error=%v, want AlreadyImportedError", err)
+	}
+	if duplicate.ImportID != first.ID || duplicate.ImportedAt.IsZero() {
+		t.Fatalf("duplicate=%+v, want import %d with date", duplicate, first.ID)
+	}
+}
+
+func TestStoreReplaceSwapsRowsAtomically(t *testing.T) {
+	store, siteID, userID := newImportStore(t)
+	ctx := context.Background()
+	hash := [32]byte{4, 5, 6}
+	old, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "events.csv", CreatedBy: userID, FileHash: hash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetRunning(ctx, old.ID); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	if err := store.Complete(ctx, old.ID, Aggregate{Days: map[time.Time]Metrics{day: {Visitors: 3}}, Dimensions: map[DimensionKey]Metrics{}}, ParseStats{Rows: 3}); err != nil {
+		t.Fatal(err)
+	}
+	replacement, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "events.csv", CreatedBy: userID, FileHash: hash, Replace: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetRunning(ctx, replacement.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Complete(ctx, replacement.ID, Aggregate{Days: map[time.Time]Metrics{day: {Visitors: 7}}, Dimensions: map[DimensionKey]Metrics{}}, ParseStats{Rows: 7}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(ctx, old.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("old import still exists: %v", err)
+	}
+	var visitors int64
+	if err := store.pool.QueryRow(ctx, `select visitors from imported_day where import_id=$1`, replacement.ID).Scan(&visitors); err != nil {
+		t.Fatal(err)
+	}
+	if visitors != 7 {
+		t.Fatalf("replacement visitors=%d, want 7", visitors)
+	}
+}
+
+func TestStoreFailedReplacePreservesPreviousRows(t *testing.T) {
+	store, siteID, userID := newImportStore(t)
+	ctx := context.Background()
+	hash := [32]byte{7, 8, 9}
+	old, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "events.csv", CreatedBy: userID, FileHash: hash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetRunning(ctx, old.ID); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	if err := store.Complete(ctx, old.ID, Aggregate{Days: map[time.Time]Metrics{day: {Visitors: 3}}, Dimensions: map[DimensionKey]Metrics{}}, ParseStats{Rows: 3}); err != nil {
+		t.Fatal(err)
+	}
+	replacement, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "events.csv", CreatedBy: userID, FileHash: hash, Replace: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetRunning(ctx, replacement.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Complete(ctx, replacement.ID, Aggregate{Days: map[time.Time]Metrics{day: {Visitors: -1}}, Dimensions: map[DimensionKey]Metrics{}}, ParseStats{}); err == nil {
+		t.Fatal("Complete invalid replacement error=nil")
+	}
+	var visitors int64
+	if err := store.pool.QueryRow(ctx, `select visitors from imported_day where import_id=$1`, old.ID).Scan(&visitors); err != nil {
+		t.Fatal(err)
+	}
+	if visitors != 3 {
+		t.Fatalf("old visitors=%d, want 3", visitors)
+	}
+}
+
+func TestStoreMarksRunningImportsFailedAtStartup(t *testing.T) {
+	store, siteID, userID := newImportStore(t)
+	ctx := context.Background()
+	created, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "events.csv", CreatedBy: userID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetRunning(ctx, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	// A pending import's job lived only in the crashed process's queue, so it
+	// can never run and would otherwise block re-uploading the same file.
+	pending, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "queued.csv", CreatedBy: userID, FileHash: [32]byte{1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.FailRunningAtStartup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []int64{created.ID, pending.ID} {
+		got, err := store.Get(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Status != StatusFailed || got.Error == nil || *got.Error != "import interrupted by server restart" {
+			t.Fatalf("recovered import=%+v", got)
+		}
+	}
+	if _, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "queued.csv", CreatedBy: userID, FileHash: [32]byte{1}}); err != nil {
+		t.Fatalf("re-upload after interrupted import: %v", err)
+	}
+}
+
 func newImportStore(t *testing.T) (*Store, int32, int64) {
 	t.Helper()
 	pool, _ := testpg.New(t)

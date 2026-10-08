@@ -179,8 +179,15 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 	// sessions, the hot session rows, sessions_closed and custom_closed.
 	// Aggregates (cube_day, visitor_day, rollups) hold counts, not rows, and
 	// are not adjusted; the audit entry records that.
+	if h.deps.ProfileTombstones == nil {
+		unavailable(w, "profile erasure")
+		return
+	}
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		ctx := r.Context()
+		if err := h.deps.ProfileTombstones.RememberTx(ctx, tx, site.ID, profile.ExternalId); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `
 			create temporary table profile_erasure on commit drop as
 			select session_id, visitor_id, local_day, min(ts) as first_ts, max(ts) as last_ts
@@ -222,6 +229,7 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 		})
 	})
 	if err != nil {
+		h.deps.ProfileTombstones.ForgetMemory(site.ID, profile.ExternalId)
 		serviceError(w, err)
 		return
 	}

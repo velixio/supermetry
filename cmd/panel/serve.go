@@ -44,6 +44,7 @@ import (
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
 	"panel/internal/platform/users"
+	"panel/internal/profiletombstone"
 	"panel/internal/query"
 	"panel/internal/rehydrate"
 	"panel/internal/retention"
@@ -165,6 +166,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("rehydrate sessions: %w", err)
 	}
 	w := writer.New(pool, sessions, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, closed)
+	profileTombstones := profiletombstone.New(pool, settings.clock)
+	if err := profileTombstones.Load(ctx); err != nil {
+		return fmt.Errorf("load profile tombstones: %w", err)
+	}
+	w.SetProfileTombstones(profileTombstones)
 	engine := query.NewEngine(pool, dictionary, registry)
 	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
@@ -190,12 +196,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	alertDispatcher := alerts.NewDispatcher(sender, webhookClient)
 	alertService := alerts.New(platformStore, alertBox, alertDispatcher)
 	alertMetrics := alerts.NewEngineSource(engine, definitionService)
-	alertEvaluator := alerts.NewEvaluator(alertService, alertMetrics, registry, alertDispatcher, settings.clock.Now,
+	alertEvaluator := alerts.NewEvaluator(alertService, alertMetrics, registry, sessions, alertDispatcher, settings.clock.Now,
 		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
 			health.AlertDeliveryFailures.Add(1)
 			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
 		})
 	importStore := imports.NewStore(pool)
+	if err := importStore.FailRunningAtStartup(ctx); err != nil {
+		return fmt.Errorf("recover interrupted imports: %w", err)
+	}
 	importManager := imports.NewManager(importStore, 1)
 	exporter := siteexport.New(pool)
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
@@ -216,19 +225,20 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			Keys:  keyService,
 			Store: platformStore,
 		},
-		Store:       platformStore,
-		Definitions: definitionService,
-		Auth:        authService,
-		Orgs:        orgService,
-		Keys:        keyService,
-		Invites:     inviteService,
-		Shares:      shareService,
-		Reports:     reportService,
-		Alerts:      alertService,
-		Query:       engine,
-		Imports:     importStore,
-		ImportQueue: importManager,
-		Exporter:    exporter,
+		Store:             platformStore,
+		Definitions:       definitionService,
+		Auth:              authService,
+		Orgs:              orgService,
+		Keys:              keyService,
+		Invites:           inviteService,
+		Shares:            shareService,
+		Reports:           reportService,
+		Alerts:            alertService,
+		Query:             engine,
+		Imports:           importStore,
+		ImportQueue:       importManager,
+		ProfileTombstones: profileTombstones,
+		Exporter:          exporter,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {
@@ -242,7 +252,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Sites: registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
 		Sessions: sessions, Writer: w, Limiter: intakeLimiter,
 		TrustedProxies: cfg.TrustedProxies, Clock: settings.clock,
-		Diag: os.Getenv("PANEL_INGEST_DIAG") == "1",
+		ProfileTombstones: profileTombstones,
+		Diag:              os.Getenv("PANEL_INGEST_DIAG") == "1",
 	}
 
 	var ready atomic.Bool
@@ -271,6 +282,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, settings.clock)
+	jobs = append(jobs, profileTombstones.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()

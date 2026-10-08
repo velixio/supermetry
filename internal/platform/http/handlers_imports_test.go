@@ -3,6 +3,7 @@ package platformhttp
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -64,9 +65,17 @@ func (s importTestSites) ByPublicID(string) (coresites.Site, bool) { return core
 func (s importTestSites) Site(id int32) (coresites.Site, bool)     { site, ok := s[id]; return site, ok }
 func (s importTestSites) All() []coresites.Site                    { return nil }
 
-type importTestStore struct{ item imports.Import }
+type importTestStore struct {
+	item  imports.Import
+	err   error
+	input imports.CreateInput
+}
 
 func (s *importTestStore) Create(_ context.Context, input imports.CreateInput) (imports.Import, error) {
+	s.input = input
+	if s.err != nil {
+		return imports.Import{}, s.err
+	}
 	s.item = imports.Import{ID: 9, SiteID: input.SiteID, Source: input.Source, Status: imports.StatusPending, FileName: input.FileName, CreatedAt: time.Now()}
 	return s.item, nil
 }
@@ -143,6 +152,53 @@ func TestImportAndExportRoutesRequireOwnerOrAdmin(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDuplicateImportReturnsConflictAndReplaceIsForwarded(t *testing.T) {
+	importedAt := time.Date(2026, 10, 7, 9, 0, 0, 0, time.UTC)
+	data := &importTestStore{err: &imports.AlreadyImportedError{ImportID: 3, ImportedAt: importedAt}}
+	handler := New(Deps{
+		Authenticator: importTestAuth{principal: authz.Principal{UserID: 1, OrgID: 4, Role: authz.RoleOwner}},
+		Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}}, Imports: data, ImportQueue: &importTestQueue{},
+	})
+	request := importUploadRequest(t, "/api/private/sites/7/imports", "same bytes")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || response.Header().Get("Content-Type") != "application/problem+json" || !strings.Contains(response.Body.String(), "this file was already imported on 2026-10-07") {
+		t.Fatalf("status=%d type=%q body=%s", response.Code, response.Header().Get("Content-Type"), response.Body.String())
+	}
+
+	data.err = nil
+	replace := importUploadRequest(t, "/api/private/sites/7/imports?replace=true", "same bytes")
+	replaced := httptest.NewRecorder()
+	handler.ServeHTTP(replaced, replace)
+	wantHash := sha256.Sum256([]byte("same bytes"))
+	if replaced.Code != http.StatusAccepted || !data.input.Replace || data.input.FileHash != wantHash {
+		t.Fatalf("status=%d replace=%t hash=%x", replaced.Code, data.input.Replace, data.input.FileHash)
+	}
+}
+
+func importUploadRequest(t *testing.T, target, contents string) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	if err := w.WriteField("source", "umami"); err != nil {
+		t.Fatal(err)
+	}
+	file, err := w.CreateFormFile("file", "events.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Write([]byte(contents)); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, target, &body)
+	request.Header.Set("Content-Type", w.FormDataContentType())
+	withCSRF(request)
+	return request
 }
 
 func TestExportRouteStreamsZIP(t *testing.T) {

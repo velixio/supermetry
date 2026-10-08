@@ -13,6 +13,13 @@ import (
 
 var ErrNotFound = errors.New("import not found")
 
+type AlreadyImportedError struct {
+	ImportID   int64
+	ImportedAt time.Time
+}
+
+func (e *AlreadyImportedError) Error() string { return "file was already imported" }
+
 type Source string
 
 const (
@@ -49,6 +56,8 @@ type CreateInput struct {
 	Source    Source
 	FileName  string
 	CreatedBy int64
+	FileHash  [32]byte
+	Replace   bool
 }
 
 type Store struct {
@@ -60,13 +69,44 @@ func NewStore(pool *pgxpool.Pool) *Store {
 }
 
 func (s *Store) Create(ctx context.Context, input CreateInput) (Import, error) {
-	row := s.pool.QueryRow(ctx, `
-		insert into imports(site_id,source,file_name,created_by)
-		values ($1,$2,$3,$4)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return Import{}, err
+	}
+	defer tx.Rollback(context.Background())
+	var hash any
+	if input.FileHash != ([32]byte{}) {
+		hash = input.FileHash[:]
+		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1,hashtext(encode($2::bytea,'hex')))`, input.SiteID, hash); err != nil {
+			return Import{}, err
+		}
+		var priorID int64
+		var importedAt time.Time
+		err := tx.QueryRow(ctx, `
+			select id,created_at from imports
+			where site_id=$1 and file_hash=$2 and status <> 'failed'
+			order by created_at desc,id desc limit 1`, input.SiteID, hash).Scan(&priorID, &importedAt)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return Import{}, err
+		}
+		if err == nil && !input.Replace {
+			return Import{}, &AlreadyImportedError{ImportID: priorID, ImportedAt: importedAt}
+		}
+	}
+	row := tx.QueryRow(ctx, `
+		insert into imports(site_id,source,file_name,created_by,file_hash,replace_existing)
+		values ($1,$2,$3,$4,$5,$6)
 		returning id,site_id,source,status,file_name,date_from,date_to,rows,error,
 		          created_by,created_at,completed_at`,
-		input.SiteID, input.Source, input.FileName, input.CreatedBy)
-	return scanImport(row)
+		input.SiteID, input.Source, input.FileName, input.CreatedBy, hash, input.Replace)
+	created, err := scanImport(row)
+	if err != nil {
+		return Import{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Import{}, err
+	}
+	return created, nil
 }
 
 func (s *Store) Get(ctx context.Context, id int64) (Import, error) {
@@ -131,6 +171,17 @@ func (s *Store) SetFailed(ctx context.Context, id int64, cause error) error {
 	return nil
 }
 
+// FailRunningAtStartup marks imports a previous process left pending or
+// running as failed: their jobs lived only in that process's in-memory queue.
+// It assumes a single application instance; a second instance starting while
+// another is importing would mark that live import failed.
+func (s *Store) FailRunningAtStartup(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `
+		update imports set status='failed',error='import interrupted by server restart',completed_at=now()
+		where status in ('pending','running')`)
+	return err
+}
+
 func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, stats ParseStats) error {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -139,10 +190,22 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 	defer tx.Rollback(context.Background())
 
 	var siteID int32
-	if err := tx.QueryRow(ctx, `select site_id from imports where id=$1 for update`, id).Scan(&siteID); errors.Is(err, pgx.ErrNoRows) {
+	var fileHash []byte
+	var replaceExisting bool
+	if err := tx.QueryRow(ctx, `select site_id,file_hash,replace_existing from imports where id=$1 for update`, id).Scan(&siteID, &fileHash, &replaceExisting); errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	} else if err != nil {
 		return err
+	}
+	if replaceExisting && len(fileHash) != 0 {
+		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1,hashtext(encode($2::bytea,'hex')))`, siteID, fileHash); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			delete from imports
+			where site_id=$1 and file_hash=$2 and id<>$3 and status='completed'`, siteID, fileHash, id); err != nil {
+			return err
+		}
 	}
 	if _, err := tx.Exec(ctx, `delete from imported_day_dim where import_id=$1`, id); err != nil {
 		return err

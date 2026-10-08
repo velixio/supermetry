@@ -195,6 +195,34 @@ func TestProfilesMigrationSchema(t *testing.T) {
 	}
 }
 
+func TestIntegrityMigrationSchema(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, check := range []struct {
+		table  string
+		column string
+	}{
+		{table: "profile_tombstones", column: "external_hash"},
+		{table: "imports", column: "file_hash"},
+	} {
+		var exists bool
+		if err := pool.QueryRow(ctx, `
+			select exists (
+				select 1 from information_schema.columns
+				where table_schema=current_schema() and table_name=$1 and column_name=$2
+			)`, check.table, check.column).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Errorf("missing %s.%s", check.table, check.column)
+		}
+	}
+}
+
 func TestMigrateConcurrentRunnersSerialize(t *testing.T) {
 	pool, _ := testpg.New(t)
 	errs := make(chan error, 4)

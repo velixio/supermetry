@@ -20,7 +20,7 @@ import (
 )
 
 // Keep this in sync with the highest embedded migration in internal/db/migrations.
-const latestMigrationVersion = 14
+const latestMigrationVersion = 16
 
 const (
 	maxManifestSize = 1 << 20
