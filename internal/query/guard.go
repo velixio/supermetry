@@ -103,19 +103,8 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 	}
 
 	filters := copyValues(req.Filters)
-	if len(filters) > maxFilters {
-		return Normalized{}, badQuery("at most 10 filters are allowed")
-	}
-	for _, filter := range filters {
-		if !knownDimension(filter.Dimension) {
-			return Normalized{}, badQuery(fmt.Sprintf("unknown filter dimension %q", filter.Dimension))
-		}
-		if !filter.Operator.Valid() {
-			return Normalized{}, badQuery(fmt.Sprintf("unknown filter operator %q", filter.Operator))
-		}
-		if len(filter.Values) == 0 {
-			return Normalized{}, badQuery(fmt.Sprintf("filter %q must contain at least one value", filter.Dimension))
-		}
+	if err := ValidateFilters(filters); err != nil {
+		return Normalized{}, badQuery(err.Error())
 	}
 
 	limit := defaultLimit
@@ -152,6 +141,27 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		Cursor:     clonePointer(req.Cursor),
 		Compare:    clonePointer(req.Compare),
 	}, nil
+}
+
+// ValidateFilters applies the shared dashboard-query rules to a filter set.
+// Saved segments call this directly so persisted filters cannot diverge from
+// filters accepted by Normalize.
+func ValidateFilters(filters []api.Filter) error {
+	if len(filters) > maxFilters {
+		return errors.New("at most 10 filters are allowed")
+	}
+	for _, filter := range filters {
+		if !knownDimension(filter.Dimension) {
+			return fmt.Errorf("unknown filter dimension %q", filter.Dimension)
+		}
+		if !filter.Operator.Valid() {
+			return fmt.Errorf("unknown filter operator %q", filter.Operator)
+		}
+		if len(filter.Values) == 0 {
+			return fmt.Errorf("filter %q must contain at least one value", filter.Dimension)
+		}
+	}
+	return nil
 }
 
 func queryLocation(requested *string, siteLocation *time.Location) (*time.Location, *api.Problem) {
