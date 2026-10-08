@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"panel/web"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -137,11 +139,25 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return err
 	}
 	replayStorage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, replayStored)
+	replayStore, err = openReplayStore(replayStorage, filepath.Join(cfg.DataDir, "replay-spill"))
+	if err != nil {
+		return fmt.Errorf("initialize replay %s storage: %w", replayStorage.Backend.V, err)
+	}
+	var replayDiskLow atomic.Bool
+	var refreshReplayDiskGuard func()
 	if replayStorage.Backend.V == "disk" {
-		replayStore, err = replay.NewDiskStore(replayStorage.Dir.V)
-		if err != nil {
-			return err
+		refreshReplayDiskGuard = func() {
+			low := replay.DiskLow(replayStorage.Dir.V)
+			replayDiskLow.Store(low)
+			if low {
+				health.ReplayDiskLow.Store(1)
+			} else {
+				health.ReplayDiskLow.Store(0)
+			}
 		}
+		refreshReplayDiskGuard()
+	} else {
+		health.ReplayDiskLow.Store(0)
 	}
 	databaseRegistry := sitesvc.NewRegistry(platformStore, 30*time.Second)
 	defer databaseRegistry.Close()
@@ -286,19 +302,24 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// Replay owns a separate limiter, upload semaphore, blob store and index
 	// queue so replay pressure cannot consume the analytics ingest queue.
 	var replayHandler http.Handler
+	var replayCSSHandler http.Handler
 	var replayIndex *replay.IndexWriter
 	if cfg.Replay.Enabled && replayStore != nil {
 		replayIndex = replay.NewIndexWriter(pool, 5*time.Second, func() { health.ReplayDropped.Add(1) })
 		replayHandler = replay.NewHandler(replay.HandlerDeps{
 			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: replayStore, Index: replayIndex,
 			Replay: cfg.Replay, Limiter: ingest.NewTokenBuckets(250, 500), TrustedProxies: cfg.TrustedProxies,
-		}, replay.WithClock(settings.clock), replay.WithDiskGuard(func() bool { return false }))
+		}, replay.WithClock(settings.clock), replay.WithDiskGuard(replayDiskLow.Load))
+		replayCSSHandler = replay.NewCSSHandler(replayStore, func(publicID string) (int32, bool) {
+			site, ok := registry.ByPublicID(publicID)
+			return site.ID, ok
+		}, make(chan struct{}, 16), func() { health.ReplayDropped.Add(1) })
 	}
 
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
+		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})
@@ -328,7 +349,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, settings.clock)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock)
 	jobs = append(jobs, profileTombstones.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
@@ -413,7 +434,23 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		cause = errors.Join(cause, <-importDone)
 	}
 	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, replayStore, settings.clock.Now()))
+	if closer, ok := replayStore.(interface{ Close(context.Context) error }); ok {
+		closeCtx, cancelReplayStore := context.WithTimeout(context.Background(), httpShutdownTimeout)
+		cause = errors.Join(cause, closer.Close(closeCtx))
+		cancelReplayStore()
+	}
 	return errors.Join(cause, httpErr)
+}
+
+func openReplayStore(settings replay.StorageSettings, spillDir string) (replay.BlobStore, error) {
+	switch settings.Backend.V {
+	case "disk":
+		return replay.NewDiskStore(settings.Dir.V)
+	case "s3":
+		return replay.NewS3Store(settings.S3.V, spillDir)
+	default:
+		return nil, fmt.Errorf("unsupported backend %q", settings.Backend.V)
+	}
 }
 
 type compatibilityMode struct {
@@ -515,6 +552,9 @@ func scheduledJobs(
 	geo *geoService,
 	replayStore replay.BlobStore,
 	replayEnvironment config.ReplayEnv,
+	dataDir string,
+	secretKey []byte,
+	refreshReplayDiskGuard func(),
 	clk clock,
 ) []scheduler.Job {
 	jobs := []scheduler.Job{
@@ -564,6 +604,20 @@ func scheduledJobs(
 		jobs = append(jobs, scheduler.Job{Name: "replay-retention", Every: time.Hour, Run: func(ctx context.Context) error {
 			return replay.RunRetentionConfigured(ctx, pool, replayStore, clk.Now(), replayEnvironment)
 		}})
+		if s3, ok := replayStore.(*replay.S3Store); ok {
+			jobs = append(jobs, scheduler.Job{Name: "replay-spill-flush", Every: time.Minute, Run: func(ctx context.Context) error {
+				return s3.CloseIdleSessions(ctx, clk.Now().Add(-session.IdleTimeout))
+			}})
+		}
+		jobs = append(jobs, scheduler.Job{Name: "replay-migration", Every: time.Minute, Run: func(ctx context.Context) error {
+			return runReplayMigration(ctx, pool, replayEnvironment, dataDir, secretKey)
+		}})
+	}
+	if refreshReplayDiskGuard != nil {
+		jobs = append(jobs, scheduler.Job{Name: "replay-disk-guard", Every: 30 * time.Second, Run: func(context.Context) error {
+			refreshReplayDiskGuard()
+			return nil
+		}})
 	}
 	if geo != nil && geo.maxMind {
 		jobs = append(jobs, scheduler.Job{Name: "geoip-update", Every: geoIPUpdateInterval, Run: func(ctx context.Context) error {
@@ -578,6 +632,44 @@ func scheduledJobs(
 		jobs = append(jobs, alertJobs.Job())
 	}
 	return jobs
+}
+
+func runReplayMigration(ctx context.Context, pool *pgxpool.Pool, environment config.ReplayEnv, dataDir string, secretKey []byte) error {
+	var raw []byte
+	if err := pool.QueryRow(ctx, `select settings->'replay_migration' from instance_settings where id`).Scan(&raw); err != nil {
+		return fmt.Errorf("load replay migration request: %w", err)
+	}
+	if len(raw) == 0 || string(raw) == "null" || string(raw) == "{}" {
+		return nil
+	}
+	var request struct {
+		From json.RawMessage `json:"from"`
+		To   json.RawMessage `json:"to"`
+	}
+	if err := json.Unmarshal(raw, &request); err != nil || len(request.From) == 0 || len(request.To) == 0 {
+		return errors.New("invalid replay migration request")
+	}
+	fromStored, err := replay.OpenStoredStorage(secretKey, request.From)
+	if err != nil {
+		return fmt.Errorf("open replay migration source settings: %w", err)
+	}
+	toStored, err := replay.OpenStoredStorage(secretKey, request.To)
+	if err != nil {
+		return fmt.Errorf("open replay migration destination settings: %w", err)
+	}
+	from, err := openReplayStore(replay.ResolveStorage(environment, dataDir, fromStored), filepath.Join(dataDir, "replay-migration-from"))
+	if err != nil {
+		return fmt.Errorf("open replay migration source: %w", err)
+	}
+	to, err := openReplayStore(replay.ResolveStorage(environment, dataDir, toStored), filepath.Join(dataDir, "replay-migration-to"))
+	if err != nil {
+		return fmt.Errorf("open replay migration destination: %w", err)
+	}
+	if err := replay.RunMigration(ctx, pool, from, to); err != nil {
+		return err
+	}
+	_, err = pool.Exec(ctx, `update instance_settings set settings=settings-'replay_migration', updated_at=now() where id`)
+	return err
 }
 
 func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore replay.BlobStore, now time.Time) error {

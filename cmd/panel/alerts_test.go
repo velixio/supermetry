@@ -20,7 +20,7 @@ func (fakeAlertJobProvider) Job() scheduler.Job {
 }
 
 func TestScheduledJobsRegistersAlertEvaluator(t *testing.T) {
-	jobs := scheduledJobs(nil, nil, nil, nil, nil, nil, nil, nil, fakeAlertJobProvider{}, nil, nil, config.ReplayEnv{}, wallClock{})
+	jobs := scheduledJobs(nil, nil, nil, nil, nil, nil, nil, nil, fakeAlertJobProvider{}, nil, nil, config.ReplayEnv{}, "", nil, nil, wallClock{})
 	for _, job := range jobs {
 		if job.Name == "alerts" {
 			if job.Every != 5*time.Minute {

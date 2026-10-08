@@ -61,6 +61,7 @@ var (
 	ReplayRejected           Counter
 	ReplayNoSession          Counter
 	ReplayBytes              Counter
+	ReplayDiskLow            Gauge
 
 	// BotsFiltered is indexed by enrich.BotReason. Index zero is the
 	// unfiltered case and is intentionally not exported as a metric.
@@ -187,6 +188,7 @@ func Snapshot() map[string]float64 {
 		"replay_rejected_total":            float64(ReplayRejected.Load()),
 		"replay_no_session_total":          float64(ReplayNoSession.Load()),
 		"replay_bytes_total":               float64(ReplayBytes.Load()),
+		"replay_disk_low":                  ReplayDiskLow.Load(),
 		"ingest_privacy_dropped_total":     float64(PrivacySignalsDropped.Load()),
 		"writer_queue_depth":               WriterQueueDepth.Load(),
 		"copy_seconds":                     CopySeconds.Load(),
@@ -236,6 +238,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "replay_rejected_total", "counter")
 	writeFamily(w, snapshot, "replay_no_session_total", "counter")
 	writeFamily(w, snapshot, "replay_bytes_total", "counter")
+	writeFamily(w, snapshot, "replay_disk_low", "gauge")
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")
 	writeFamily(w, snapshot, "ingest_excluded_total", "counter")
 	writeFamily(w, snapshot, "writer_queue_depth", "gauge")
