@@ -38,6 +38,7 @@ export const en = {
     dashboard: 'Dashboard',
     journeys: 'Journeys',
     retention: 'Retention',
+    heatmaps: 'Heatmaps',
     vitals: 'Web Vitals',
     funnels: 'Funnels',
     realtime: 'Realtime',

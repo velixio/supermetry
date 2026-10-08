@@ -46,6 +46,13 @@ describe('organization shell authentication', () => {
     expect(vitals && navigationHref(vitals, 'acme', 'blog')).toBe('/acme/blog/vitals')
   })
 
+  it('links Heatmaps at site scope for every site role', () => {
+    for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
+      const heatmaps = visibleNavigation(role).find((item) => item.label === 'Heatmaps')
+      expect(heatmaps && navigationHref(heatmaps, 'acme', 'blog')).toBe('/acme/blog/heatmaps')
+    }
+  })
+
   it('shows the organization Sites page to every role', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
       expect(visibleNavigation(role).map((item) => item.label)).toContain('Sites')

@@ -10,6 +10,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 
 import { privateRequest } from './privateApi'
 
@@ -17,13 +18,14 @@ type SiteExclusions = {
   id: number
   exclude_ips: string[]
   exclude_paths: string[]
+  heatmaps_enabled: boolean
 }
 
 function lines(value: string): string[] {
   return value.split('\n').map((entry) => entry.trim()).filter(Boolean)
 }
 
-export function ExclusionsPage({ siteId, orgId }: { siteId: number; orgId: number }) {
+export function ExclusionsPage({ siteId, orgId, canManageHeatmaps = false }: { siteId: number; orgId: number; canManageHeatmaps?: boolean }) {
   const queryClient = useQueryClient()
   const [ipRules, setIPRules] = useState<string | null>(null)
   const [pathRules, setPathRules] = useState<string | null>(null)
@@ -53,13 +55,21 @@ export function ExclusionsPage({ siteId, orgId }: { siteId: number; orgId: numbe
       })
     },
   })
+  const saveHeatmaps = useMutation({
+    mutationFn: (enabled: boolean) =>
+      privateRequest<SiteExclusions>('PATCH', `/api/private/sites/${siteId}`, {
+        orgId,
+        body: { heatmaps_enabled: enabled },
+      }),
+    onSuccess: (value) => queryClient.setQueryData(['site', siteId], value),
+  })
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     save.mutate({ exclude_ips: lines(ipRules ?? ''), exclude_paths: lines(pathRules ?? '') })
   }
 
-  const error = save.error ?? currentIP.error ?? site.error
+  const error = save.error ?? saveHeatmaps.error ?? currentIP.error ?? site.error
   const message = error instanceof Error ? error.message : ''
   const ipInvalid = message.includes('exclude_ips')
   const pathInvalid = message.includes('exclude_paths')
@@ -72,6 +82,20 @@ export function ExclusionsPage({ siteId, orgId }: { siteId: number; orgId: numbe
           Ignore your own traffic and pages that should not appear in analytics.
         </p>
       </header>
+      <section className="flex items-center justify-between gap-4 rounded-xl border bg-card p-5 text-card-foreground">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium" htmlFor="heatmaps-enabled">Collect click heatmaps</label>
+          <p className="text-sm text-muted-foreground">
+            Uses the full tracker to collect anonymous coordinates only—no text, selectors, cookies, or browser storage.
+          </p>
+        </div>
+        <Switch
+          id="heatmaps-enabled"
+          checked={site.data?.heatmaps_enabled === true}
+          disabled={!canManageHeatmaps || saveHeatmaps.isPending || !site.data}
+          onCheckedChange={(checked) => saveHeatmaps.mutate(checked)}
+        />
+      </section>
       <section className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-card-foreground">
         {ipRules !== null && pathRules !== null ? (
           <form className="flex flex-col gap-5" onSubmit={submit}>

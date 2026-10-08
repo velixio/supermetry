@@ -34,6 +34,7 @@ describe('ExclusionsPage', () => {
           id: 7,
           exclude_ips: ['203.0.113.0/24'],
           exclude_paths: ['/admin/*', '/internal'],
+		  heatmaps_enabled: false,
         },
         response: { ok: true, status: 200 },
       })
@@ -43,6 +44,7 @@ describe('ExclusionsPage', () => {
         id: 7,
         exclude_ips: ['203.0.113.0/24', '198.51.100.7/32'],
         exclude_paths: ['/preview/**', '/internal'],
+		heatmaps_enabled: false,
       },
       response: { ok: true, status: 200 },
     })
@@ -88,4 +90,21 @@ describe('ExclusionsPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('invalid exclude_ips entry "not-an-ip"')
   })
+
+	it('lets an owner enable heatmaps with a dedicated audited patch', async () => {
+		const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+		render(
+			<QueryClientProvider client={client}>
+				<ExclusionsPage orgId={3} siteId={7} canManageHeatmaps />
+			</QueryClientProvider>,
+		)
+		const toggle = await screen.findByRole('switch', { name: 'Collect click heatmaps' })
+		expect(toggle).not.toBeChecked()
+		fireEvent.pointerDown(toggle, { button: 0, ctrlKey: false })
+		fireEvent.click(toggle)
+		await waitFor(() => expect(patch).toHaveBeenCalledWith(
+			'/api/private/sites/7',
+			expect.objectContaining({ body: { heatmaps_enabled: true } }),
+		))
+	})
 })
