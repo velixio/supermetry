@@ -679,26 +679,51 @@ func realtimeLabel(dictionary dictionaryResolver, kind dict.Kind, encoded string
 	return encoded
 }
 
-func dataHealthHandler(w http.ResponseWriter, r *http.Request) {
-	if !authorizeRequest(w, r, 0, "admin:read") {
-		return
-	}
-	snapshot := health.Snapshot()
-	bots := int64(0)
-	for key, value := range snapshot {
-		if strings.HasPrefix(key, "bots_filtered_total{") {
-			bots += int64(value)
+func dataHealthHandler(progressProvider RollupBackfillProgressFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeRequest(w, r, 0, "admin:read") {
+			return
 		}
+		snapshot := health.Snapshot()
+		bots := int64(0)
+		for key, value := range snapshot {
+			if strings.HasPrefix(key, "bots_filtered_total{") {
+				bots += int64(value)
+			}
+		}
+		backfill := RollupBackfillProgress{Status: "finished"}
+		if progressProvider != nil {
+			running, done, total, err := progressProvider(r.Context())
+			if err != nil {
+				writeProblem(w, internalProblem())
+				return
+			}
+			backfill.DaysDone, backfill.TotalDays = done, total
+			if running {
+				backfill.Status = "running"
+			}
+		}
+		writeJSON(w, http.StatusOK, DataHealthResponse{
+			BotsFiltered: bots, CloseLagSeconds: snapshot["close_lag_seconds"],
+			Drops503: int64(snapshot["ingest_dropped_total"]), IngestRate: snapshot["ingest_accepted_total"],
+			QueueDepth: int64(snapshot["writer_queue_depth"]), RollupBackfill: backfill,
+		})
 	}
-	writeJSON(w, http.StatusOK, DataHealthResponse{BotsFiltered: bots, CloseLagSeconds: snapshot["close_lag_seconds"], Drops503: int64(snapshot["ingest_dropped_total"]), IngestRate: snapshot["ingest_accepted_total"], QueueDepth: int64(snapshot["writer_queue_depth"])})
 }
 
 type DataHealthResponse struct {
-	BotsFiltered    int64   `json:"bots_filtered"`
-	CloseLagSeconds float64 `json:"close_lag_seconds"`
-	Drops503        int64   `json:"drops_503"`
-	IngestRate      float64 `json:"ingest_rate"`
-	QueueDepth      int64   `json:"queue_depth"`
+	BotsFiltered    int64                  `json:"bots_filtered"`
+	CloseLagSeconds float64                `json:"close_lag_seconds"`
+	Drops503        int64                  `json:"drops_503"`
+	IngestRate      float64                `json:"ingest_rate"`
+	QueueDepth      int64                  `json:"queue_depth"`
+	RollupBackfill  RollupBackfillProgress `json:"rollup_backfill"`
+}
+
+type RollupBackfillProgress struct {
+	Status    string `json:"status"`
+	DaysDone  int    `json:"days_done"`
+	TotalDays int    `json:"total_days"`
 }
 
 func siteIDParam(r *http.Request) (int32, *Problem) {

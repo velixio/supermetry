@@ -2712,7 +2712,7 @@ components:
     DataHealthResponse:
       type: object
       additionalProperties: false
-      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds]
+      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds, rollup_backfill]
       properties:
         ingest_rate:
           type: number
@@ -2729,6 +2729,22 @@ components:
         close_lag_seconds:
           type: number
           format: double
+        rollup_backfill:
+          $ref: '#/components/schemas/RollupBackfillProgress'
+    RollupBackfillProgress:
+      type: object
+      additionalProperties: false
+      required: [status, days_done, total_days]
+      properties:
+        status:
+          type: string
+          enum: [running, finished]
+        days_done:
+          type: integer
+          minimum: 0
+        total_days:
+          type: integer
+          minimum: 0
     HealthResponse:
       type: object
       additionalProperties: false
