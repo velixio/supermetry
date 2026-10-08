@@ -467,7 +467,9 @@ func schemaDSN(t *testing.T, schema string) string {
 
 func waitReady(t *testing.T, endpoint string, command *exec.Cmd, logs *bytes.Buffer) {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	// Full-suite runs start several PostgreSQL-backed packages concurrently;
+	// allow migrations and GeoIP setup to finish under that expected load.
+	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		response, err := http.Get(endpoint)
 		if err == nil {

@@ -21,6 +21,8 @@ const (
 	maxEventNameBytes = 300
 )
 
+var webVitalCaps = map[string]uint64{"lcp": 60000, "cls": 10000, "inp": 60000}
+
 // Payload is the public event intake format. Unknown JSON fields are ignored,
 // in particular any client-supplied visitor or session identifiers.
 type Payload struct {
@@ -57,6 +59,7 @@ func ParsePayload(body []byte) (Payload, error) {
 	if len(payload.Props) > maxProps {
 		return Payload{}, errors.New("invalid payload")
 	}
+	payload.normalizeWebVitals()
 	for key, value := range payload.Props {
 		if key == "" || !validText(key, maxKeyBytes) || !validText(value, maxValueBytes) {
 			return Payload{}, errors.New("invalid payload")
@@ -69,6 +72,35 @@ func ParsePayload(body []byte) (Payload, error) {
 	}
 	payload.normalizeRevenue()
 	return payload, nil
+}
+
+func (p *Payload) normalizeWebVitals() {
+	if p.Name != "Web Vitals" {
+		return
+	}
+	for metric, cap := range webVitalCaps {
+		value, ok := p.Props[metric]
+		if !ok {
+			continue
+		}
+		if value == "" {
+			delete(p.Props, metric)
+			continue
+		}
+		for i := range len(value) {
+			if value[i] < '0' || value[i] > '9' {
+				delete(p.Props, metric)
+				break
+			}
+		}
+		if _, ok := p.Props[metric]; !ok {
+			continue
+		}
+		parsed, err := strconv.ParseUint(value, 10, 64)
+		if err != nil || parsed > cap {
+			delete(p.Props, metric)
+		}
+	}
 }
 
 func (p *Payload) normalizeRevenue() {

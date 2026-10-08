@@ -10,12 +10,19 @@ type EventPayload = {
   props: Record<string, string>
 }
 
-const tracker = [
-  readFileSync(resolve('../internal/tracker/tracker.js'), 'utf8'),
-  readFileSync(resolve('../internal/tracker/tracker.extensions.js'), 'utf8'),
-].join('\n')
+// Exercise the checked-in artifact browsers receive, including minification.
+const tracker = readFileSync(
+  resolve('../internal/tracker/tracker.full.min.js'),
+  'utf8',
+)
 
-function load(attributes = '', body = '') {
+type ObserverHarness = {
+  emit: (type: string, entries: Record<string, unknown>[]) => void
+  queue: (type: string, entries: Record<string, unknown>[]) => void
+  observed: Array<{ type?: string; buffered?: boolean; durationThreshold?: number }>
+}
+
+function load(attributes = '', body = '', withObservers = false) {
   const dom = new JSDOM(`<!doctype html><html><head>${body}</head><body></body></html>`, {
     runScripts: 'dangerously',
     url: 'https://site.example/start?private=yes',
@@ -35,6 +42,49 @@ function load(attributes = '', body = '') {
       return true
     },
   })
+  const observerHarness: ObserverHarness = { emit: () => {}, queue: () => {}, observed: [] }
+  if (withObservers) {
+    const observers: Array<{
+      callback: (list: { getEntries: () => Record<string, unknown>[] }) => void
+      disconnected: boolean
+      pending: Record<string, unknown>[]
+      type?: string
+    }> = []
+    class MockPerformanceObserver {
+      callback: (list: { getEntries: () => Record<string, unknown>[] }) => void
+      disconnected = false
+      pending: Record<string, unknown>[] = []
+      type?: string
+      constructor(callback: (list: { getEntries: () => Record<string, unknown>[] }) => void) {
+        this.callback = callback
+        observers.push(this)
+      }
+      observe(options: { type?: string; buffered?: boolean; durationThreshold?: number }) {
+        this.type = options.type
+        observerHarness.observed.push({ ...options })
+      }
+      takeRecords() { return this.pending.splice(0) }
+      disconnect() { this.disconnected = true }
+    }
+    Object.defineProperty(dom.window, 'PerformanceObserver', {
+      configurable: true,
+      value: MockPerformanceObserver,
+    })
+    observerHarness.emit = (type, entries) => {
+      for (const observer of observers) {
+        if (!observer.disconnected && observer.type === type) {
+          observer.callback({ getEntries: () => entries })
+        }
+      }
+    }
+    observerHarness.queue = (type, entries) => {
+      for (const observer of observers) {
+        if (!observer.disconnected && observer.type === type) {
+          observer.pending.push(...entries)
+        }
+      }
+    }
+  }
   const script = dom.window.document.createElement('script')
   script.setAttribute('data-site', 'site-public')
   script.setAttribute('data-allow-localhost', '')
@@ -43,7 +93,7 @@ function load(attributes = '', body = '') {
   }
   script.textContent = tracker
   dom.window.document.head.append(script)
-  return { dom, payloads }
+  return { dom, payloads, observers: observerHarness }
 }
 
 function event(payloads: EventPayload[], name: string) {
@@ -143,5 +193,140 @@ describe('full tracker', () => {
     link.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
     expect(payloads).toHaveLength(0)
+  })
+
+  it('reports LCP, maximum CLS session window, and worst observed interaction once', () => {
+    const { dom, payloads, observers } = load('', '', true)
+    expect(observers.observed).toContainEqual({
+      type: 'event',
+      buffered: true,
+      durationThreshold: 40,
+    })
+    observers.emit('largest-contentful-paint', [{ startTime: 1234 }, { startTime: 2789 }])
+    observers.emit('layout-shift', [
+      { startTime: 0, value: 0.05, hadRecentInput: false },
+      { startTime: 500, value: 0.08, hadRecentInput: false },
+      { startTime: 2000, value: 0.1, hadRecentInput: false },
+      { startTime: 2100, value: 0.9, hadRecentInput: true },
+    ])
+    observers.emit('event', [
+      { interactionId: 1, duration: 180 },
+      { interactionId: 2, duration: 540 },
+      { interactionId: 0, duration: 900 },
+    ])
+
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'))
+
+    const vitals = payloads.filter((payload) => payload.name === 'Web Vitals')
+    expect(vitals).toHaveLength(1)
+    expect(vitals[0].props).toEqual({ lcp: '2789', cls: '130', inp: '540' })
+  })
+
+  it('stops LCP at first input and omits metrics that were not observed', () => {
+    const { dom, payloads, observers } = load('', '', true)
+    observers.emit('largest-contentful-paint', [{ startTime: 1900 }])
+    dom.window.document.dispatchEvent(new dom.window.Event('pointerdown', { bubbles: true }))
+    observers.emit('largest-contentful-paint', [{ startTime: 8000 }])
+
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+
+    expect(event(payloads, 'Web Vitals')?.props).toEqual({ lcp: '1900' })
+  })
+
+  it('drains queued observer records before reporting', () => {
+    const { dom, payloads, observers } = load('', '', true)
+    observers.queue('largest-contentful-paint', [{ startTime: 2100 }])
+    observers.queue('layout-shift', [{ startTime: 400, value: 0.12, hadRecentInput: false }])
+    observers.queue('event', [{ interactionId: 1, duration: 260 }])
+
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+
+    expect(event(payloads, 'Web Vitals')?.props).toEqual({
+      lcp: '2100',
+      cls: '120',
+      inp: '260',
+    })
+  })
+
+  it('flushes and resets Web Vitals for SPA navigation without replaying buffered entries', () => {
+    const { dom, payloads, observers } = load('', '', true)
+    observers.emit('largest-contentful-paint', [{ startTime: 900 }])
+    observers.emit('layout-shift', [{ startTime: 300, value: 0.3, hadRecentInput: false }])
+
+    observers.observed.length = 0
+    dom.window.history.pushState({}, '', '/next')
+    // Soft navigations have no LCP and must not replay the previous page's entries.
+    expect(observers.observed.map((o) => o.type)).not.toContain('largest-contentful-paint')
+    expect(observers.observed.every((o) => !o.buffered)).toBe(true)
+    observers.emit('layout-shift', [{ startTime: 6000, value: 0.05, hadRecentInput: false }])
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+
+    expect(payloads.filter((payload) => payload.name === 'Web Vitals').map((payload) => payload.props)).toEqual([
+      { lcp: '900', cls: '300' },
+      { cls: '50' },
+    ])
+  })
+
+  it('stops previous observers on SPA navigation after an earlier hidden flush', () => {
+    const { dom, payloads, observers } = load('', '', true)
+    observers.emit('event', [{ interactionId: 1, duration: 300 }])
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: false })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+
+    dom.window.history.pushState({}, '', '/next')
+    observers.emit('event', [{ interactionId: 2, duration: 120 }])
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+
+    expect(payloads.filter((payload) => payload.name === 'Web Vitals').map((payload) => payload.props)).toEqual([
+      { inp: '300' },
+      { inp: '120' },
+    ])
+  })
+
+  it('sends no Web Vitals event when nothing was measured', () => {
+    const { dom, payloads } = load('', '', true)
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+
+    expect(event(payloads, 'Web Vitals')).toBeUndefined()
+  })
+
+  it('does not throw without PerformanceObserver or with unsupported entry types', () => {
+    const plain = load()
+    Object.defineProperty(plain.dom.window.document, 'hidden', { configurable: true, value: true })
+    expect(() => {
+      plain.dom.window.document.dispatchEvent(new plain.dom.window.Event('visibilitychange'))
+      plain.dom.window.history.pushState({}, '', '/next')
+    }).not.toThrow()
+    expect(event(plain.payloads, 'Web Vitals')).toBeUndefined()
+
+    const errors: unknown[] = []
+    const { dom, payloads } = load('', '', true)
+    dom.window.addEventListener('error', (e: { error: unknown }) => errors.push(e.error))
+    const PO = dom.window.PerformanceObserver as { prototype: Record<string, unknown> }
+    PO.prototype.observe = () => { throw new TypeError('unsupported') }
+    PO.prototype.takeRecords = undefined
+    dom.window.history.pushState({}, '', '/again')
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+    expect(errors).toEqual([])
+    expect(event(payloads, 'Web Vitals')).toBeUndefined()
+  })
+
+  it('does not observe or report Web Vitals when opted out', () => {
+    const { dom, payloads, observers } = load('data-vitals="false"', '', true)
+    Object.defineProperty(dom.window.document, 'hidden', { configurable: true, value: true })
+    dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+
+    expect(observers.observed).toEqual([])
+    expect(event(payloads, 'Web Vitals')).toBeUndefined()
   })
 })
