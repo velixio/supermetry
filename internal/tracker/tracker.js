@@ -18,8 +18,8 @@
   var maxScroll = 0;
   var pending = true;
 
-  function send(name, props, engagement, scroll) {
-    var body = JSON.stringify({
+  function send(name, props, engagement, scroll, revenue) {
+    var payload = {
       site: data.site,
       name: name,
       url: pageURL,
@@ -28,7 +28,11 @@
       props: props || {},
       engagement_ms: engagement || 0,
       scroll_pct: scroll || 0
-    });
+    };
+    if (revenue) {
+      payload.revenue = revenue;
+    }
+    var body = JSON.stringify(payload);
     if (navigator.sendBeacon && navigator.sendBeacon(endpoint,
         new Blob([body], {type: "text/plain"}))) {
       return;
@@ -101,6 +105,8 @@
   addEventListener("pagehide", flushEngagement);
 
   var panel = window.panel = window.panel || {};
-  panel.track = function (name, props) { send(name, props); };
+  panel.track = function (name, props, options) {
+    send(name, props, 0, 0, options && options.revenue);
+  };
   send("pageview");
 }());

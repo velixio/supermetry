@@ -15,20 +15,24 @@ const (
 	Events         Metric = "events"
 	Conversions    Metric = "conversions"
 	ConversionRate Metric = "conversion_rate"
+	TotalRevenue   Metric = "total_revenue"
+	AverageRevenue Metric = "average_revenue"
 )
 
 // Sums contains the additive values used to calculate query metrics.
 type Sums struct {
-	Visitors     int64
-	Visits       int64
-	Pageviews    int64
-	Bounces      int64
-	DurationMS   int64
-	EngagementMS int64
-	ScrollSum    int64
-	ScrollN      int64
-	Events       int64
-	Converted    int64
+	Visitors      int64
+	Visits        int64
+	Pageviews     int64
+	Bounces       int64
+	DurationMS    int64
+	EngagementMS  int64
+	ScrollSum     int64
+	ScrollN       int64
+	Events        int64
+	Converted     int64
+	RevenueMicros int64
+	RevenueEvents int64
 }
 
 // Final calculates the requested metric from additive sums. Rates are
@@ -57,6 +61,10 @@ func (m Metric) Final(sums Sums) float64 {
 		return float64(sums.Converted)
 	case ConversionRate:
 		return percentage(sums.Converted, sums.Visitors)
+	case TotalRevenue:
+		return float64(sums.RevenueMicros) / 1_000_000
+	case AverageRevenue:
+		return ratio(sums.RevenueMicros, sums.RevenueEvents) / 1_000_000
 	default:
 		return 0
 	}

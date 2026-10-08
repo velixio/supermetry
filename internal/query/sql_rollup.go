@@ -28,7 +28,7 @@ func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]
 		"coalesce(sum(visitors),0)::int8", "coalesce(sum(visits),0)::int8",
 		"coalesce(sum(pageviews),0)::int8", "coalesce(sum(bounces),0)::int8",
 		"coalesce(sum(duration_ms),0)::int8", "coalesce(sum(engagement_ms),0)::int8",
-		"coalesce(sum(scroll_sum),0)::int8", "coalesce(sum(scroll_n),0)::int8", "0::int8", "0::int8",
+		"coalesce(sum(scroll_sum),0)::int8", "coalesce(sum(scroll_n),0)::int8", "0::int8", "0::int8", "0::int8", "0::int8",
 	}
 	if len(req.Dimensions) == 0 {
 		fromArg := builder.arg(part.From)
@@ -192,7 +192,7 @@ func additiveColumnSums(alias string, hasScroll bool) []string {
 		"coalesce(sum(" + prefix + "bounces),0)::int8",
 		"coalesce(sum(" + prefix + "duration_ms),0)::int8",
 		"coalesce(sum(" + prefix + "engagement_ms),0)::int8",
-		scrollSum, scrollN, "0::int8", "0::int8",
+		scrollSum, scrollN, "0::int8", "0::int8", "0::int8", "0::int8",
 	}
 }
 

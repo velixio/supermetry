@@ -28,8 +28,8 @@ func TestGoalsAndFunnelReadCachedDefinitions(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := pool.Exec(ctx, `
-		insert into goals(site_id, kind, match, value, prop_key, prop_value, name)
-		values ($1, 'event', 'exact', 'signup', 'plan', 'pro', 'Paid signup')`, siteID); err != nil {
+		insert into goals(site_id, kind, match, value, prop_key, prop_value, name, currency)
+		values ($1, 'event', 'exact', 'signup', 'plan', 'pro', 'Paid signup', 'USD')`, siteID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := pool.Exec(ctx, `
@@ -41,7 +41,7 @@ func TestGoalsAndFunnelReadCachedDefinitions(t *testing.T) {
 	service := New(&store.Store{Pool: pool}, time.Hour)
 	t.Cleanup(service.Close)
 	got := service.Goals(siteID)
-	if len(got) != 1 || got[0].Name != "Paid signup" || got[0].PropKey != "plan" {
+	if len(got) != 1 || got[0].Name != "Paid signup" || got[0].PropKey != "plan" || got[0].Currency != "USD" {
 		t.Fatalf("Goals() = %+v", got)
 	}
 	funnel, ok := service.Funnel(siteID, 1)

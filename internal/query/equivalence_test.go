@@ -211,6 +211,47 @@ func TestCustomEventRegionFilterMatchesClosedAndHot(t *testing.T) {
 	}
 }
 
+func TestRevenueMetricsMatchHotAndClosedTiers(t *testing.T) {
+	pool, engine := setupTiny(t)
+	seedRevenueRows(t, pool)
+	tests := []struct {
+		name      string
+		currency  string
+		wantTotal float64
+		wantAvg   float64
+	}{
+		{name: "USD excludes EUR", currency: "USD", wantTotal: 10, wantAvg: 5},
+		{name: "EUR excludes USD", currency: "EUR", wantTotal: 4, wantAvg: 4},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := queryRequest(nil, []api.Filter{
+				filter("goal", api.Is, "signup"),
+				filter("revenue_currency", api.Is, tt.currency),
+			})
+			req.Metrics = []api.Metric{api.TotalRevenue, api.AverageRevenue}
+			closed := mustQuery(t, engine.WithForcedRoute(query.RouteClosed), req)
+			hot := mustQuery(t, engine.WithForcedRoute(query.RouteHot), req)
+			for route, got := range map[string]api.QueryResponse{"closed": closed, "hot": hot} {
+				if got.Totals["total_revenue"] != tt.wantTotal || got.Totals["average_revenue"] != tt.wantAvg {
+					t.Errorf("%s totals = %v, want total %v average %v", route, got.Totals, tt.wantTotal, tt.wantAvg)
+				}
+			}
+		})
+	}
+}
+
+func TestRevenueMetricsSupportEventDimension(t *testing.T) {
+	pool, engine := setupTiny(t)
+	seedRevenueRows(t, pool)
+	req := queryRequest([]string{"event"}, []api.Filter{filter("revenue_currency", api.Is, "USD")})
+	req.Metrics = []api.Metric{api.TotalRevenue, api.AverageRevenue}
+	got := mustQuery(t, engine.WithForcedRoute(query.RouteClosed), req)
+	if len(got.Rows) != 1 || got.Rows[0]["event"] != "signup" || got.Rows[0]["total_revenue"] != float64(10) || got.Rows[0]["average_revenue"] != float64(5) {
+		t.Fatalf("revenue event breakdown = %+v", got.Rows)
+	}
+}
+
 func TestFunnelMatchesTruth(t *testing.T) {
 	_, engine := setupTiny(t)
 	got, err := engine.Funnel(context.Background(), api.FunnelRequest{
@@ -300,6 +341,39 @@ values
   (1,30,'2026-10-08','2026-10-08 08:00Z',3001,301,0,0,1,10,'US',50,60,30,40,1,0,0,null),
   (1,30,'2026-10-08','2026-10-08 08:01Z',3001,301,0,0,2,10,'US',50,60,30,40,1,0,0,null),
 	  (1,30,'2026-10-08','2026-10-08 12:00Z',3002,302,0,0,4,11,'IN',0,0,31,41,2,0,0,null)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func seedRevenueRows(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(), `
+update events set revenue_micros=2500000, revenue_currency='USD'
+where site_id=1 and kind=1 and local_day='2026-10-06';
+update events set revenue_micros=7500000, revenue_currency='USD'
+where site_id=1 and kind=1 and local_day='2026-10-07';
+update custom_closed set revenue_micros=2500000, revenue_currency='USD'
+where site_id=1 and name_id=20 and day='2026-10-06';
+update custom_closed set revenue_micros=7500000, revenue_currency='USD'
+where site_id=1 and name_id=20 and day='2026-10-07';
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind,
+   name_id, path_id, source_id, country, region_id, city_id, browser_id, os_id, device,
+   engagement_ms, scroll_pct, props, revenue_micros, revenue_currency)
+values
+  (1,30,'2026-10-07','2026-10-07 11:00:30Z',2002,202,1,
+   20,3,11,'IN',51,62,31,41,2,0,0,'{"plan":"starter"}',4000000,'EUR');
+insert into custom_closed
+  (site_id, day, visitor_id, name_id, path_id, source_id, medium_id, campaign_id,
+   utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id, device,
+   entry_path, exit_path, props, revenue_micros, revenue_currency)
+select site_id, day, 2002, name_id, 3, 11, medium_id, campaign_id,
+       utm_content_id, utm_term_id, 'IN', 51, 62, 31, 41, 2,
+       3, 3, '{"plan":"starter"}'::jsonb, 4000000, 'EUR'
+from custom_closed
+where site_id=1 and name_id=20 and day='2026-10-07'
+limit 1`)
 	if err != nil {
 		t.Fatal(err)
 	}

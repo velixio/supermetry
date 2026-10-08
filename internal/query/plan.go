@@ -101,11 +101,11 @@ func metricsSupported(metrics []api.Metric, route Route) bool {
 	for _, metric := range metrics {
 		switch route {
 		case RouteRollup, RouteCube:
-			if metric == api.Events || metric == api.Conversions || metric == api.ConversionRate {
+			if metric == api.Events || metric == api.Conversions || metric == api.ConversionRate || isRevenueMetric(metric) {
 				return false
 			}
 		case RouteVisitorDay:
-			if metric == api.ScrollDepth || metric == api.Events || metric == api.Conversions || metric == api.ConversionRate {
+			if metric == api.ScrollDepth || metric == api.Events || metric == api.Conversions || metric == api.ConversionRate || isRevenueMetric(metric) {
 				return false
 			}
 		}
@@ -386,6 +386,21 @@ func (s *Sums) add(other Sums) {
 	s.ScrollN += other.ScrollN
 	s.Events += other.Events
 	s.Converted += other.Converted
+	s.RevenueMicros += other.RevenueMicros
+	s.RevenueEvents += other.RevenueEvents
+}
+
+func isRevenueMetric(metric api.Metric) bool {
+	return metric == api.TotalRevenue || metric == api.AverageRevenue
+}
+
+func hasRevenueMetric(metrics []api.Metric) bool {
+	for _, metric := range metrics {
+		if isRevenueMetric(metric) {
+			return true
+		}
+	}
+	return false
 }
 
 func problemDetail(problem *api.Problem) string {
