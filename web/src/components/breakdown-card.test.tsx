@@ -151,6 +151,12 @@ describe('BreakdownCard', () => {
           limit: 25,
         },
         headers: { Accept: 'text/csv' },
+        params: {
+          query: {
+            format: 'csv',
+            limit: 'all',
+          },
+        },
         parseAs: 'text',
       }),
     )

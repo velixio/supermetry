@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { BreakdownCard, type BreakdownTab } from '../components/BreakdownCard'
 import { DatePicker } from '../components/DatePicker'
+import { DashboardExportMenu } from '../components/DashboardExportMenu'
 import { FilterBar } from '../components/FilterBar'
 import { MainChart } from '../components/MainChart'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
@@ -86,11 +87,14 @@ function DashboardStateRoute() {
           }
           onRemove={(index) => updateSearch(removeFilter(search, index))}
         />
-        <DatePicker
-          search={search}
-          labels={en.dashboard}
-          onChange={updateSearch}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <DashboardExportMenu query={query} />
+          <DatePicker
+            search={search}
+            labels={en.dashboard}
+            onChange={updateSearch}
+          />
+        </div>
       </div>
       <StatsStrip
         query={query}

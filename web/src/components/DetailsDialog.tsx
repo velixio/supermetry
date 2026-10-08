@@ -18,8 +18,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { api } from '@/lib/api'
 import { countryLabel } from '@/lib/country'
+import { downloadStatsCSV } from '@/lib/csv'
 import { fmt } from '@/lib/format'
 import { useStats, type StatsQuery } from '@/lib/stats'
 
@@ -32,44 +32,6 @@ type DetailsDialogProps = {
   dimension: string
   query: StatsQuery
   title?: string
-}
-
-function queryBody(query: StatsQuery) {
-  return {
-    site_id: query.siteId,
-    date_range: { ...query.dateRange },
-    ...(query.timezone === undefined ? {} : { timezone: query.timezone }),
-    metrics: [...query.metrics],
-    ...(query.dimensions ? { dimensions: [...query.dimensions] } : {}),
-    filters: query.filters.map((filter) => ({
-      dimension: filter.dimension,
-      operator: filter.operator,
-      values: [...filter.values],
-    })),
-    ...(query.orderBy
-      ? { order_by: query.orderBy.map((order) => ({ ...order })) }
-      : {}),
-    ...(query.limit === undefined ? {} : { limit: query.limit }),
-    ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
-    ...(query.compare && query.compare !== 'off' ? { compare: query.compare } : {}),
-  }
-}
-
-async function downloadCSV(query: StatsQuery): Promise<void> {
-  const { data, error } = await api.POST('/api/private/query', {
-    body: queryBody(query),
-    headers: { Accept: 'text/csv' },
-    parseAs: 'text',
-  })
-  if (error) throw error
-  if (typeof data !== 'string' || typeof URL.createObjectURL !== 'function') return
-
-  const url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${query.dimensions?.[0] ?? 'analytics'}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
 }
 
 function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
@@ -150,7 +112,7 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
     setExportError(undefined)
     setExporting(true)
     try {
-      await downloadCSV(detailsQuery)
+      await downloadStatsCSV(detailsQuery)
     } catch (problem) {
       setExportError(
         typeof problem === 'object' && problem && 'detail' in problem
