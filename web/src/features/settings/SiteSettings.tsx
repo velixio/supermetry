@@ -1,7 +1,85 @@
 import { Link } from '@tanstack/react-router'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
+import { SiteIcon } from '@/components/SiteIcon'
+import type { Role } from '@/components/Sidebar'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { refetchSiteIcon } from '@/features/sites/api'
 import { TrackingSnippet } from './TrackingSnippet'
+
+type CachedMe = {
+  memberships: Array<{ sites: Array<{ id: number; icon_url?: string }> }>
+}
+
+function updateMeIcon(me: CachedMe | undefined, siteId: number, iconUrl: string): CachedMe | undefined {
+  if (!me) return me
+  return {
+    ...me,
+    memberships: me.memberships.map((membership) => ({
+      ...membership,
+      sites: membership.sites.map((site) =>
+        site.id === siteId ? { ...site, icon_url: iconUrl } : site,
+      ),
+    })),
+  }
+}
+
+export function SiteIconSettings({
+  iconUrl,
+  name,
+  orgId,
+  role,
+  siteId,
+}: {
+  iconUrl?: string
+  name: string
+  orgId: number
+  role: Role
+  siteId: number
+}) {
+  const queryClient = useQueryClient()
+  const refetch = useMutation({
+    mutationFn: () => refetchSiteIcon(siteId, orgId),
+    onSuccess: (site) => {
+      queryClient.setQueryData(['site', siteId], site)
+      queryClient.setQueriesData<CachedMe>({ queryKey: ['me'] }, (me) =>
+        updateMeIcon(me, siteId, site.icon_url ?? ''),
+      )
+      if (site.icon_url) toast.success('Icon updated')
+      else toast.info('No icon found')
+    },
+    onError: (error) => {
+      if (typeof error === 'object' && error && 'status' in error && error.status === 429) {
+        toast.error('Please wait a few seconds')
+        return
+      }
+      toast.error(error instanceof Error ? error.message : 'Icon update failed')
+    },
+  })
+  const canRefetch = role === 'owner' || role === 'admin'
+
+  return (
+    <section aria-labelledby="site-icon-heading" className="flex flex-wrap items-center gap-3 border-b pb-5">
+      <SiteIcon iconUrl={iconUrl} name={name} size={40} />
+      <div className="min-w-0 flex-1">
+        <h2 id="site-icon-heading" className="text-sm font-medium">Site icon</h2>
+        <p className="text-sm text-muted-foreground">Fetched from your site's pages</p>
+      </div>
+      {canRefetch ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={refetch.isPending}
+          onClick={() => refetch.mutate()}
+        >
+          {refetch.isPending ? 'Refetching…' : 'Refetch'}
+        </Button>
+      ) : null}
+    </section>
+  )
+}
 
 const settingsTabs = [
   ['general', 'General', '/$org/$site/settings/general'],

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { GlobeIcon, Trash2Icon } from 'lucide-react'
 
+import { SiteIcon } from '@/components/SiteIcon'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -71,9 +72,12 @@ export function SitesPage({
           const slug = siteSlug(site)
           return (
             <li key={site.id} className="flex flex-wrap items-center justify-between gap-4 border-b p-4 last:border-b-0">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{site.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{site.public_id ?? site.id}</p>
+              <div className="flex min-w-0 items-center gap-3">
+                <SiteIcon iconUrl={site.icon_url} name={site.name} size={32} />
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{site.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{site.public_id ?? site.id}</p>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {actions.includes('edit') ? <Button size="sm" variant="outline" asChild><Link to="/$org/$site/settings/general" params={{ org, site: slug }}>Edit</Link></Button> : null}

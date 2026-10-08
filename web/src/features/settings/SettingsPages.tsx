@@ -18,7 +18,7 @@ import { ApiKeySecretDialog } from "./ApiKeySecretDialog";
 import { MemberRoleSelect, type MemberRole } from "./MemberRoleSelect";
 import { privateRequest, type ListResponse } from "./privateApi";
 import { TotpQr } from "./TotpQr";
-import { InstallGuide, installationStatusInterval } from "./SiteSettings";
+import { InstallGuide, SiteIconSettings, installationStatusInterval } from "./SiteSettings";
 import { ProfilesSettings } from "./ProfilesSettings";
 import type { Role } from "@/components/Sidebar";
 
@@ -31,6 +31,7 @@ type Site = {
   retention_days: number;
   profiles_enabled: boolean;
   last_event_received_at?: string;
+  icon_url?: string;
 };
 
 type Member = {
@@ -154,8 +155,16 @@ export function SiteGeneralPage({
     >
       <Surface>
         {site.data ? (
-          <form className="flex flex-col gap-5" onSubmit={submit}>
-            <FieldGroup>
+          <>
+            <SiteIconSettings
+              iconUrl={site.data.icon_url}
+              name={site.data.name}
+              orgId={orgId}
+              role={role}
+              siteId={siteId}
+            />
+            <form className="flex flex-col gap-5" onSubmit={submit}>
+              <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="site-name">Name</FieldLabel>
                 <Input
@@ -203,16 +212,17 @@ export function SiteGeneralPage({
                 role={role}
                 onChange={(profiles_enabled) => save.mutate({ profiles_enabled })}
               />
-            </FieldGroup>
-            <Message error={save.error} />
-            <Button
-              className="self-start"
-              disabled={save.isPending}
-              type="submit"
-            >
-              Save changes
-            </Button>
-          </form>
+              </FieldGroup>
+              <Message error={save.error} />
+              <Button
+                className="self-start"
+                disabled={save.isPending}
+                type="submit"
+              >
+                Save changes
+              </Button>
+            </form>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground">
             Loading site settings…

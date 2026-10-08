@@ -57,6 +57,34 @@ type PrivatePaths = {
       }
     }
   }
+  // Temporary contract until the site-icon endpoint is added to openapi.yaml.
+  '/api/private/sites/{site}/icon/refetch': {
+    post: {
+      parameters: {
+        path: { site: number }
+        header: { 'X-Panel-Org': string }
+      }
+      responses: {
+        200: {
+          content: {
+            'application/json': {
+              id: number
+              public_id: string
+              name: string
+              timezone: string
+              retention_days?: number
+              allowed_hosts?: string[]
+              profiles_enabled?: boolean
+              last_event_received_at?: string
+              icon_url: string
+            }
+          }
+        }
+        403: { content: { 'application/problem+json': { detail?: string } } }
+        429: { content: { 'application/problem+json': { detail?: string } } }
+      }
+    }
+  }
 }
 
 type ApiOptions = {

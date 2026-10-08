@@ -13,12 +13,13 @@ import {
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { SiteIcon } from '@/components/SiteIcon'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 import type { Me, Membership } from '@/routes/$org'
 
-import { PanelSidebar } from './Sidebar'
+import { activeSite, PanelSidebar } from './Sidebar'
 
 function sidebarStartsOpen(): boolean {
   return !document.cookie
@@ -38,6 +39,7 @@ export function AppShell({
   const [sidebarOpen] = useState(sidebarStartsOpen)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const requestedSite = pathname.split('/').filter(Boolean)[1]
+  const site = activeSite(membership, requestedSite)
 
   useShortcuts({
     d: toggle,
@@ -50,7 +52,15 @@ export function AppShell({
         <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} />
         <SidebarInset>
           <header className="flex h-14 items-center justify-between border-b px-4">
-            <SidebarTrigger aria-label={en.navigation.collapse} />
+            <div className="flex min-w-0 items-center gap-2">
+              <SidebarTrigger aria-label={en.navigation.collapse} />
+              {site ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <SiteIcon iconUrl={site.icon_url} name={site.name} size={24} />
+                  <span className="truncate text-sm font-medium">{site.name}</span>
+                </div>
+              ) : null}
+            </div>
             <div className="flex items-center gap-1">
               <Button
                 type="button"

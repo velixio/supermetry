@@ -16,4 +16,5 @@ export type ManagedSite = {
   retention_days?: number
   allowed_hosts?: string[]
   last_event_received_at?: string
+  icon_url?: string
 }

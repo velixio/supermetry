@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 
+import { SiteIcon } from '@/components/SiteIcon'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,7 +110,7 @@ export function navigationIsActive(
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-function activeSite(membership: Membership, requested?: string): Site | undefined {
+export function activeSite(membership: Membership, requested?: string): Site | undefined {
   return membership.sites.find((site) => siteSlug(site) === requested) ?? membership.sites[0]
 }
 
@@ -235,6 +236,7 @@ export function PanelSidebar({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton tooltip={en.navigation.site}>
+              {site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} /> : null}
               <span className="truncate">{site?.name ?? en.navigation.site}</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -249,6 +251,7 @@ export function PanelSidebar({
                     search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
                     onClick={closeMobile}
                   >
+                    <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} />
                     {item.name}
                   </Link>
                 </DropdownMenuItem>

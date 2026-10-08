@@ -22,6 +22,7 @@ export type Site = {
   public_id?: string
   timezone?: string
   profiles_enabled?: boolean
+  icon_url?: string
 }
 
 export type Membership = {
