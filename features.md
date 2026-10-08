@@ -10,7 +10,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Feature | Plausible | Umami | OpenPanel | Panel |
 |---|---|---|---|---|
 | Visitors, pageviews, bounce rate, visit duration | ✓ | ✓ | ✓ | ✅ |
-| Realtime view | ✓ | ✓ | ✓ | ✅ |
+| Realtime view | ✓ | ✓ | ✓ | ✅ (live feed, per-minute chart) |
 | Compare with the previous period | ✓ | ✓ | ? | ✅ |
 | Filters on any dimension | ✓ | ✓ | ✓ | ✅ |
 | Page, source, country, browser, OS and device breakdowns | ✓ | ✓ | ✓ | ✅ |
@@ -27,7 +27,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | User journeys / path flow | ✓ (paid) | ✓ | ✓ | ✅ |
 | Web Vitals | – | ✓ | ? | ✅ (full script) |
 | Session replay | – | ✓ | ✓ | ⏸ |
-| Heatmaps | – | ✓ | – | ⏳ (aggregated clicks + scroll map) |
+| Heatmaps | – | ✓ | – | ✅ (aggregated clicks + scroll map, opt-in) |
 | User profiles and `identify` | – | ✓ | ✓ | ✅ (opt-in per site) |
 | AI insights | – | ? | ✓ | ⏸ |
 
@@ -35,7 +35,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 
 | Feature | Plausible | Umami | OpenPanel | Panel |
 |---|---|---|---|---|
-| Script under 1 KB gzip | ✓ | – | – | ✅ (929 B) |
+| Script under 1 KB gzip | ✓ | – | – | ✅ (936 B core; full script 2.3 KB) |
 | No cookies | ✓ | ✓ | ✓ | ✅ |
 | SPA pageviews | ✓ | ✓ | ✓ | ✅ |
 | Scroll depth and engagement time | ✓ | – | ? | ✅ |
@@ -103,7 +103,8 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 16. ~~MCP server for AI assistants~~ ✅
 17. ~~Web Vitals~~ ✅
 18. ~~User profiles and `identify`~~ ✅ (opt-in per site, D40)
-19. Heatmaps: aggregated click grid and scroll map, opt-in per site ⏳
+19. ~~Heatmaps: aggregated click grid and scroll map~~ ✅ (opt-in per site)
+20. ~~Richer realtime (live feed, per-minute chart, all breakdowns) and SVG country flags~~ ✅
 
 ### Later
 
