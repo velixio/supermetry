@@ -21,7 +21,7 @@ func TestBuildScriptDefaultsToFullTracker(t *testing.T) {
 
 	const publicID = "abc123def456"
 	got := BuildScript(publicID, (sites.TrackerSettingsInput{}).Resolve(true), noReplay())
-	wantPrelude := `(d=>{d.site??="abc123def456";d.heatmap??="true";})(document.currentScript.dataset);` + "\n"
+	wantPrelude := `(d=>{d.site??="abc123def456";d.api??=new URL(document.currentScript.src).origin+"/api/public/v1/events";d.heatmap??="true";})(document.currentScript.dataset);` + "\n"
 	if !bytes.HasPrefix(got.Body, []byte(wantPrelude)) {
 		t.Fatalf("body prefix = %q, want %q", got.Body[:min(len(got.Body), len(wantPrelude))], wantPrelude)
 	}
@@ -68,8 +68,8 @@ func TestBuildScriptEmitsOnlyNonDefaultSwitches(t *testing.T) {
 			if !strings.Contains(prelude, test.want) {
 				t.Fatalf("prelude = %q, want assignment %q", prelude, test.want)
 			}
-			if got := strings.Count(prelude, "??="); got != 2 {
-				t.Fatalf("prelude = %q, nullish assignments = %d, want site plus one switch", prelude, got)
+			if got := strings.Count(prelude, "??="); got != 3 {
+				t.Fatalf("prelude = %q, nullish assignments = %d, want site, endpoint and one switch", prelude, got)
 			}
 		})
 	}
@@ -287,5 +287,25 @@ func TestSitePath(t *testing.T) {
 
 	if got, want := SitePath("/assets/panel.js", "abc123def456"), "/assets/abc123def456.js"; got != want {
 		t.Fatalf("SitePath = %q, want %q", got, want)
+	}
+}
+
+// A site's snippet is a bare <script src>, so the generated script must point
+// events at the Panel host it was loaded from, not at the page's own origin.
+func TestBuildScriptSendsEventsToTheScriptOrigin(t *testing.T) {
+	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
+	prelude, _, _ := strings.Cut(body, "\n")
+	want := `d.api??=new URL(document.currentScript.src).origin+"/api/public/v1/events";`
+	if !strings.Contains(prelude, want) {
+		t.Fatalf("prelude %q does not set the absolute event endpoint", prelude)
+	}
+}
+
+func TestBuildScriptUsesConfiguredEventPath(t *testing.T) {
+	SetEventPath("/x/collect")
+	t.Cleanup(func() { SetEventPath("") })
+	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
+	if !strings.Contains(body, `origin+"/x/collect";`) {
+		t.Fatalf("script does not use the configured event path:\n%s", body[:200])
 	}
 }

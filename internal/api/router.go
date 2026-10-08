@@ -138,6 +138,7 @@ func NewRouter(deps Deps) http.Handler {
 		mux.Handle("GET "+deps.Config.TrackerPath, tracker.Handler())
 		mux.Handle("GET "+tracker.FullPath(deps.Config.TrackerPath), tracker.FullHandler())
 		if deps.Sites != nil {
+			tracker.SetEventPath(deps.Config.EventPath)
 			mux.Handle("GET "+path.Dir(deps.Config.TrackerPath)+"/", tracker.SiteHandler(deps.Sites, deps.Config.Replay))
 		}
 	}

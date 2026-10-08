@@ -40,11 +40,38 @@ func BuildScript(publicID string, settings sites.TrackerSettings, replaySettings
 	return Script{Body: body, ETag: etag}
 }
 
+const defaultEventPath = "/api/public/v1/events"
+
+var eventPath atomic.Value // string
+
+// SetEventPath sets the ingest path the generated scripts post to
+// (PANEL_EVENT_PATH). An empty path restores the default. Call it before
+// serving scripts; already cached scripts keep the old path.
+func SetEventPath(p string) {
+	if p == "" {
+		p = defaultEventPath
+	}
+	eventPath.Store(p)
+}
+
+func currentEventPath() string {
+	if p, ok := eventPath.Load().(string); ok && p != "" {
+		return p
+	}
+	return defaultEventPath
+}
+
 func prelude(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) string {
 	var builder strings.Builder
 	builder.WriteString(`(d=>{d.site??="`)
 	builder.WriteString(publicID)
 	builder.WriteString(`";`)
+	// The snippet is a bare <script src>: send events to the origin the script
+	// came from (the Panel host, or the site's own proxy), never to a path on
+	// the page's origin. An explicit data-api still wins.
+	builder.WriteString(`d.api??=new URL(document.currentScript.src).origin+`)
+	builder.WriteString(strconv.Quote(currentEventPath()))
+	builder.WriteString(`;`)
 	off := func(attribute string, enabled bool) {
 		if !enabled {
 			builder.WriteString(`d`)
