@@ -21,6 +21,7 @@ export type Site = {
   slug?: string
   public_id?: string
   timezone?: string
+  profiles_enabled?: boolean
 }
 
 export type Membership = {

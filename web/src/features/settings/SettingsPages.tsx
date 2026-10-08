@@ -19,6 +19,8 @@ import { MemberRoleSelect, type MemberRole } from "./MemberRoleSelect";
 import { privateRequest, type ListResponse } from "./privateApi";
 import { TotpQr } from "./TotpQr";
 import { InstallGuide, installationStatusInterval } from "./SiteSettings";
+import { ProfilesSettings } from "./ProfilesSettings";
+import type { Role } from "@/components/Sidebar";
 
 type Site = {
   id: number;
@@ -27,6 +29,7 @@ type Site = {
   allowed_hosts: string[];
   timezone: string;
   retention_days: number;
+  profiles_enabled: boolean;
   last_event_received_at?: string;
 };
 
@@ -111,9 +114,11 @@ function Message({ error }: { error: Error | null }) {
 export function SiteGeneralPage({
   siteId,
   orgId,
+  role,
 }: {
   siteId: number;
   orgId: number;
+  role: Role;
 }) {
   const queryClient = useQueryClient();
   const site = useQuery({
@@ -193,6 +198,11 @@ export function SiteGeneralPage({
                   <option value="0">Forever</option>
                 </select>
               </Field>
+              <ProfilesSettings
+                enabled={site.data.profiles_enabled}
+                role={role}
+                onChange={(profiles_enabled) => save.mutate({ profiles_enabled })}
+              />
             </FieldGroup>
             <Message error={save.error} />
             <Button
