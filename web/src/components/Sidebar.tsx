@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import {
   ActivityIcon,
   ChartNoAxesCombinedIcon,
@@ -295,39 +296,45 @@ export function PanelSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleNavigation(membership.role, Boolean(site)).map((item) => (
-                <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={navigationIsActive(
-                      item,
-                      pathname,
-                      membership.org.slug,
-                      currentSite,
-                    )}
-                    tooltip={item.label}
-                  >
-                    {navigationLink(
-                      item,
-                      membership.org.slug,
-                      currentSite,
-                      navigationIsActive(
+                <Fragment key={item.label}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={navigationIsActive(
                         item,
                         pathname,
                         membership.org.slug,
                         currentSite,
-                      ),
-                      closeMobile,
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                      )}
+                      tooltip={item.label}
+                    >
+                      {navigationLink(
+                        item,
+                        membership.org.slug,
+                        currentSite,
+                        navigationIsActive(
+                          item,
+                          pathname,
+                          membership.org.slug,
+                          currentSite,
+                        ),
+                        closeMobile,
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {item.suffix === '/sessions' && site && replayEnabled ? (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname.startsWith(`/${membership.org.slug}/${currentSite}/replays`)}
+                        tooltip="Replays"
+                      >
+                        <ReplayNavLink enabled org={membership.org.slug} site={currentSite} onClick={closeMobile} />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ) : null}
+                </Fragment>
               ))}
-              {site && replayEnabled ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(`/${membership.org.slug}/${currentSite}/replays`)} tooltip="Replays">
-                    <ReplayNavLink enabled org={membership.org.slug} site={currentSite} />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
