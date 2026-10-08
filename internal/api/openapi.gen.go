@@ -249,6 +249,57 @@ func (e QueryRequestCompare) Valid() bool {
 	}
 }
 
+// Defines values for RetentionRequestInterval.
+const (
+	RetentionDay   RetentionRequestInterval = "day"
+	RetentionMonth RetentionRequestInterval = "month"
+	RetentionWeek  RetentionRequestInterval = "week"
+)
+
+// Valid indicates whether the value is a known member of the RetentionRequestInterval enum.
+func (e RetentionRequestInterval) Valid() bool {
+	switch e {
+	case RetentionDay:
+		return true
+	case RetentionMonth:
+		return true
+	case RetentionWeek:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionResponseIdentityWindow.
+const (
+	DailyIdentityWindow RetentionResponseIdentityWindow = "day"
+)
+
+// Valid indicates whether the value is a known member of the RetentionResponseIdentityWindow enum.
+func (e RetentionResponseIdentityWindow) Valid() bool {
+	switch e {
+	case DailyIdentityWindow:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetentionResponseRetentionMode.
+const (
+	WithinDaySessionReturn RetentionResponseRetentionMode = "within_day_session_return"
+)
+
+// Valid indicates whether the value is a known member of the RetentionResponseRetentionMode enum.
+func (e RetentionResponseRetentionMode) Valid() bool {
+	switch e {
+	case WithinDaySessionReturn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateSiteRequestRetentionDays.
 const (
 	UpdateSiteRequestRetentionDaysN0   UpdateSiteRequestRetentionDays = 0
@@ -376,6 +427,40 @@ type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+// JourneyLink defines model for JourneyLink.
+type JourneyLink struct {
+	FromPath string `json:"from_path"`
+	FromStep int    `json:"from_step"`
+	ToPath   string `json:"to_path"`
+	Visitors int64  `json:"visitors"`
+}
+
+// JourneyNode defines model for JourneyNode.
+type JourneyNode struct {
+	Path     string `json:"path"`
+	Step     int    `json:"step"`
+	Visitors int64  `json:"visitors"`
+}
+
+// JourneyRequest defines model for JourneyRequest.
+type JourneyRequest struct {
+	DateRange DateRange `json:"date_range"`
+	EndPath   *string   `json:"end_path,omitempty"`
+	Filters   *[]Filter `json:"filters,omitempty"`
+
+	// Limit Maximum top page nodes per step; other and exit are supplemental buckets.
+	Limit     int     `json:"limit"`
+	SiteId    int32   `json:"site_id"`
+	StartPath *string `json:"start_path,omitempty"`
+	Steps     int     `json:"steps"`
+}
+
+// JourneyResponse defines model for JourneyResponse.
+type JourneyResponse struct {
+	Links []JourneyLink `json:"links"`
+	Nodes []JourneyNode `json:"nodes"`
+}
+
 // Metric defines model for Metric.
 type Metric string
 
@@ -441,6 +526,42 @@ type RealtimeResponse struct {
 	TopPages       []TopPage   `json:"top_pages"`
 	TopSources     []TopSource `json:"top_sources"`
 }
+
+// RetentionCohort defines model for RetentionCohort.
+type RetentionCohort struct {
+	Retained []int64            `json:"retained"`
+	Size     int64              `json:"size"`
+	Start    openapi_types.Date `json:"start"`
+}
+
+// RetentionRequest defines model for RetentionRequest.
+type RetentionRequest struct {
+	DateRange DateRange                `json:"date_range"`
+	Filters   *[]Filter                `json:"filters,omitempty"`
+	Interval  RetentionRequestInterval `json:"interval"`
+	SiteId    int32                    `json:"site_id"`
+}
+
+// RetentionRequestInterval defines model for RetentionRequest.Interval.
+type RetentionRequestInterval string
+
+// RetentionResponse defines model for RetentionResponse.
+type RetentionResponse struct {
+	// Cohorts Week and month intervals group daily cohorts without cross-day identity linkage.
+	Cohorts []RetentionCohort `json:"cohorts"`
+
+	// IdentityWindow Daily visitor IDs cannot be linked across local-day salt rotations.
+	IdentityWindow RetentionResponseIdentityWindow `json:"identity_window"`
+
+	// RetentionMode Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+	RetentionMode RetentionResponseRetentionMode `json:"retention_mode"`
+}
+
+// RetentionResponseIdentityWindow Daily visitor IDs cannot be linked across local-day salt rotations.
+type RetentionResponseIdentityWindow string
+
+// RetentionResponseRetentionMode Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+type RetentionResponseRetentionMode string
 
 // SavedFunnel defines model for SavedFunnel.
 type SavedFunnel struct {
@@ -682,8 +803,14 @@ type UpdateFunnelJSONRequestBody = SavedFunnelInput
 // UpdateGoalJSONRequestBody defines body for UpdateGoal for application/json ContentType.
 type UpdateGoalJSONRequestBody = GoalInput
 
+// JourneyQueryJSONRequestBody defines body for JourneyQuery for application/json ContentType.
+type JourneyQueryJSONRequestBody = JourneyRequest
+
 // QueryJSONRequestBody defines body for Query for application/json ContentType.
 type QueryJSONRequestBody = QueryRequest
+
+// RetentionQueryJSONRequestBody defines body for RetentionQuery for application/json ContentType.
+type RetentionQueryJSONRequestBody = RetentionRequest
 
 // CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
 type CreateSiteJSONRequestBody = CreateSiteRequest
@@ -714,12 +841,18 @@ type ServerInterface interface {
 	// UpdateGoal Update a goal
 	// (PATCH /api/public/v1/goals/{goal_id})
 	UpdateGoal(w http.ResponseWriter, r *http.Request, goalId GoalPathID)
+	// JourneyQuery Run a page journey query
+	// (POST /api/public/v1/journeys/query)
+	JourneyQuery(w http.ResponseWriter, r *http.Request)
 	// Query Run an analytics query
 	// (POST /api/public/v1/query)
 	Query(w http.ResponseWriter, r *http.Request, params QueryParams)
 	// Realtime Get active visitors, pages, and sources from the last 30 minutes
 	// (GET /api/public/v1/realtime)
 	Realtime(w http.ResponseWriter, r *http.Request, params RealtimeParams)
+	// RetentionQuery Run a retention query
+	// (POST /api/public/v1/retention/query)
+	RetentionQuery(w http.ResponseWriter, r *http.Request)
 	// ListSites List accessible sites
 	// (GET /api/public/v1/sites)
 	ListSites(w http.ResponseWriter, r *http.Request, params ListSitesParams)
@@ -897,6 +1030,20 @@ func (siw *ServerInterfaceWrapper) UpdateGoal(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// JourneyQuery operation middleware
+func (siw *ServerInterfaceWrapper) JourneyQuery(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.JourneyQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Query operation middleware
 func (siw *ServerInterfaceWrapper) Query(w http.ResponseWriter, r *http.Request) {
 
@@ -967,6 +1114,20 @@ func (siw *ServerInterfaceWrapper) Realtime(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Realtime(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetentionQuery operation middleware
+func (siw *ServerInterfaceWrapper) RetentionQuery(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetentionQuery(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1874,6 +2035,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/timeseries", wrapper.StatsTimeseries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/breakdown", wrapper.StatsBreakdown)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/funnels/query", wrapper.FunnelQuery)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/journeys/query", wrapper.JourneyQuery)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/retention/query", wrapper.RetentionQuery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/realtime", wrapper.Realtime)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites", wrapper.ListSites)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites", wrapper.CreateSite)

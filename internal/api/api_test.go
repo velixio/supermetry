@@ -37,6 +37,14 @@ func (queryStub) Funnel(context.Context, api.FunnelRequest) (api.FunnelResponse,
 	return api.FunnelResponse{}, nil
 }
 
+func (queryStub) Journey(context.Context, api.JourneyRequest) (api.JourneyResponse, error) {
+	return api.JourneyResponse{}, nil
+}
+
+func (queryStub) Retention(context.Context, api.RetentionRequest) (api.RetentionResponse, error) {
+	return api.RetentionResponse{}, nil
+}
+
 type principalAuth struct {
 	principal api.Principal
 }
@@ -261,6 +269,14 @@ func (panicQuery) Query(context.Context, api.QueryRequest) (api.QueryResponse, e
 }
 
 func (panicQuery) Funnel(context.Context, api.FunnelRequest) (api.FunnelResponse, error) {
+	panic("sensitive panic value")
+}
+
+func (panicQuery) Journey(context.Context, api.JourneyRequest) (api.JourneyResponse, error) {
+	panic("sensitive panic value")
+}
+
+func (panicQuery) Retention(context.Context, api.RetentionRequest) (api.RetentionResponse, error) {
 	panic("sensitive panic value")
 }
 

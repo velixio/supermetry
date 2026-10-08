@@ -480,3 +480,11 @@ func value(pointer *string) string {
 	}
 	return *pointer
 }
+
+func (queryFunc) Journey(context.Context, api.JourneyRequest) (api.JourneyResponse, error) {
+	return api.JourneyResponse{}, nil
+}
+
+func (queryFunc) Retention(context.Context, api.RetentionRequest) (api.RetentionResponse, error) {
+	return api.RetentionResponse{}, nil
+}

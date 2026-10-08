@@ -13,7 +13,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Run an analytics query */
+        /**
+         * Run an analytics query
+         * @description Set Accept: text/csv or format=csv for CSV. With CSV, limit=all streams cursor pages up to 100,000 rows.
+         */
         post: operations["query"];
         delete?: never;
         options?: never;
@@ -89,6 +92,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/journeys/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a page journey query
+         * @description The date range must fit within the site's raw-event retention window.
+         */
+        post: operations["journeyQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/retention/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a retention query
+         * @description Visitor identity is linkable only within one local day. Offset n counts daily identities with at least n+1 sessions on that local day; week and month intervals group daily cohorts and do not link people across days.
+         */
+        post: operations["retentionQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/realtime": {
         parameters: {
             query?: never;
@@ -96,7 +139,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get active visitors and top pages */
+        /** Get active visitors, pages, and sources from the last 30 minutes */
         get: operations["realtime"];
         put?: never;
         post?: never;
@@ -225,6 +268,28 @@ export interface paths {
         patch: operations["updateFunnel"];
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/segments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List saved segments
+         * @description Requires the stats:read API-key scope for the requested site.
+         */
+        get: operations["listSegments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -343,6 +408,20 @@ export interface components {
             /** Format: int32 */
             site_id: number;
         };
+        Segment: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            name: string;
+            filters: components["schemas"]["Filter"][];
+            /** Format: int64 */
+            created_by: number | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         /** @enum {string} */
         Period: "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "12mo" | "year" | "custom";
         DateRange: {
@@ -386,6 +465,32 @@ export interface components {
             sources_used: string[];
             cached: boolean;
         };
+        /**
+         * @example {
+         *       "columns": [
+         *         "page",
+         *         "visitors",
+         *         "pageviews"
+         *       ],
+         *       "rows": [
+         *         {
+         *           "page": "/docs",
+         *           "visitors": 42,
+         *           "pageviews": 77
+         *         }
+         *       ],
+         *       "totals": {
+         *         "visitors": 42,
+         *         "pageviews": 77
+         *       },
+         *       "meta": {
+         *         "sources_used": [
+         *           "rollup"
+         *         ],
+         *         "cached": false
+         *       }
+         *     }
+         */
         QueryResponse: {
             columns: string[];
             rows: {
@@ -396,6 +501,33 @@ export interface components {
             };
             next_cursor?: string;
             meta: components["schemas"]["QueryMeta"];
+            comparison?: components["schemas"]["ComparisonResult"];
+        };
+        /**
+         * @example {
+         *       "date_range": {
+         *         "from": "2026-08-02",
+         *         "to": "2026-08-31"
+         *       },
+         *       "rows": [
+         *         {
+         *           "time": "2026-09-01",
+         *           "visitors": 35
+         *         }
+         *       ],
+         *       "totals": {
+         *         "visitors": 35
+         *       }
+         *     }
+         */
+        ComparisonResult: {
+            date_range: components["schemas"]["DateRange"];
+            rows: {
+                [key: string]: unknown;
+            }[];
+            totals: {
+                [key: string]: number;
+            };
         };
         FunnelStep: {
             /** @enum {string} */
@@ -421,15 +553,95 @@ export interface components {
         FunnelResponse: {
             steps: components["schemas"]["FunnelStepResult"][];
         };
+        JourneyRequest: {
+            /** Format: int32 */
+            site_id: number;
+            date_range: components["schemas"]["DateRange"];
+            filters?: components["schemas"]["Filter"][];
+            start_path?: string;
+            end_path?: string;
+            steps: number;
+            /** @description Maximum top page nodes per step; other and exit are supplemental buckets. */
+            limit: number;
+        };
+        JourneyNode: {
+            step: number;
+            path: string;
+            /** Format: int64 */
+            visitors: number;
+        };
+        JourneyLink: {
+            from_step: number;
+            from_path: string;
+            to_path: string;
+            /** Format: int64 */
+            visitors: number;
+        };
+        JourneyResponse: {
+            nodes: components["schemas"]["JourneyNode"][];
+            links: components["schemas"]["JourneyLink"][];
+        };
+        RetentionRequest: {
+            /** Format: int32 */
+            site_id: number;
+            date_range: components["schemas"]["DateRange"];
+            filters?: components["schemas"]["Filter"][];
+            /** @enum {string} */
+            interval: "day" | "week" | "month";
+        };
+        RetentionCohort: {
+            /** Format: date */
+            start: string;
+            /** Format: int64 */
+            size: number;
+            retained: number[];
+        };
+        RetentionResponse: {
+            /**
+             * @description Daily visitor IDs cannot be linked across local-day salt rotations.
+             * @enum {string}
+             */
+            identity_window: "day";
+            /**
+             * @description Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+             * @enum {string}
+             */
+            retention_mode: "within_day_session_return";
+            /** @description Week and month intervals group daily cohorts without cross-day identity linkage. */
+            cohorts: components["schemas"]["RetentionCohort"][];
+        };
         TopPage: {
             page: string;
             /** Format: int64 */
             visitors: number;
         };
+        TopSource: {
+            source: string;
+            /** Format: int64 */
+            visitors: number;
+        };
+        /**
+         * @example {
+         *       "active_visitors": 12,
+         *       "top_pages": [
+         *         {
+         *           "page": "/docs",
+         *           "visitors": 7
+         *         }
+         *       ],
+         *       "top_sources": [
+         *         {
+         *           "source": "google",
+         *           "visitors": 5
+         *         }
+         *       ]
+         *     }
+         */
         RealtimeResponse: {
             /** Format: int64 */
             active_visitors: number;
             top_pages: components["schemas"]["TopPage"][];
+            top_sources: components["schemas"]["TopSource"][];
         };
         DataHealthResponse: {
             /** Format: double */
@@ -450,6 +662,14 @@ export interface components {
             field?: string;
             message: string;
         };
+        /**
+         * @example {
+         *       "type": "https://panel.dev/problems/bad-request",
+         *       "title": "Bad request",
+         *       "status": 400,
+         *       "detail": "period is required"
+         *     }
+         */
         Problem: {
             /** Format: uri-reference */
             type: string;
@@ -472,6 +692,10 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["QueryResponse"];
+                /**
+                 * @example page,visitors,pageviews
+                 *     /docs,42,77
+                 */
                 "text/csv": string;
             };
         };
@@ -550,6 +774,22 @@ export interface components {
         FunnelPathID: number;
         Period: components["schemas"]["Period"];
         Limit: number;
+        /** @description custom requires both date_from and date_to. */
+        StatsPeriod: string;
+        DateFrom: string;
+        DateTo: string;
+        /** @description IANA time zone; defaults to the site's time zone. */
+        Timezone: string;
+        /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
+        Metrics: string;
+        /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+        Filters: string[];
+        Compare: string;
+        Format: string;
+        /** @description 1-1000, or all for a CSV export capped at 100,000 rows. */
+        StatsLimit: string;
+        /** @description Set to all with CSV to stream up to 100,000 rows. */
+        ExportLimit: string;
         Cursor: string;
     };
     requestBodies: never;
@@ -569,7 +809,11 @@ export type $defs = Record<string, never>;
 export interface operations {
     query: {
         parameters: {
-            query?: never;
+            query?: {
+                format?: components["parameters"]["Format"];
+                /** @description Set to all with CSV to stream up to 100,000 rows. */
+                limit?: components["parameters"]["ExportLimit"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -595,14 +839,28 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     statsSummary: {
         parameters: {
             query: {
                 site_id: components["parameters"]["SiteID"];
-                period: components["parameters"]["Period"];
+                /** @description custom requires both date_from and date_to. */
+                period: components["parameters"]["StatsPeriod"];
+                date_from?: components["parameters"]["DateFrom"];
+                date_to?: components["parameters"]["DateTo"];
+                /** @description IANA time zone; defaults to the site's time zone. */
+                timezone?: components["parameters"]["Timezone"];
+                /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
+                metrics?: components["parameters"]["Metrics"];
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                filter?: components["parameters"]["Filters"];
+                compare?: components["parameters"]["Compare"];
+                format?: components["parameters"]["Format"];
             };
             header?: never;
             path?: never;
@@ -613,15 +871,29 @@ export interface operations {
             200: components["responses"]["QueryResult"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     statsTimeseries: {
         parameters: {
             query: {
                 site_id: components["parameters"]["SiteID"];
-                period: components["parameters"]["Period"];
-                interval?: "day";
+                /** @description custom requires both date_from and date_to. */
+                period: components["parameters"]["StatsPeriod"];
+                date_from?: components["parameters"]["DateFrom"];
+                date_to?: components["parameters"]["DateTo"];
+                /** @description IANA time zone; defaults to the site's time zone. */
+                timezone?: components["parameters"]["Timezone"];
+                /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
+                metrics?: components["parameters"]["Metrics"];
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                filter?: components["parameters"]["Filters"];
+                compare?: components["parameters"]["Compare"];
+                format?: components["parameters"]["Format"];
+                interval?: string;
             };
             header?: never;
             path?: never;
@@ -632,17 +904,31 @@ export interface operations {
             200: components["responses"]["QueryResult"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     statsBreakdown: {
         parameters: {
             query: {
                 site_id: components["parameters"]["SiteID"];
-                period: components["parameters"]["Period"];
+                /** @description custom requires both date_from and date_to. */
+                period: components["parameters"]["StatsPeriod"];
+                date_from?: components["parameters"]["DateFrom"];
+                date_to?: components["parameters"]["DateTo"];
+                /** @description IANA time zone; defaults to the site's time zone. */
+                timezone?: components["parameters"]["Timezone"];
+                /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
+                metrics?: components["parameters"]["Metrics"];
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                filter?: components["parameters"]["Filters"];
+                compare?: components["parameters"]["Compare"];
+                format?: components["parameters"]["Format"];
                 dimension: string;
-                filter?: string;
-                limit?: components["parameters"]["Limit"];
+                /** @description 1-1000, or all for a CSV export capped at 100,000 rows. */
+                limit?: components["parameters"]["StatsLimit"];
                 cursor?: components["parameters"]["Cursor"];
             };
             header?: never;
@@ -654,7 +940,10 @@ export interface operations {
             200: components["responses"]["QueryResult"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     funnelQuery: {
@@ -685,6 +974,72 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    journeyQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JourneyRequest"];
+            };
+        };
+        responses: {
+            /** @description Sankey-ready journey nodes and links */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JourneyResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    retentionQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionRequest"];
+            };
+        };
+        responses: {
+            /** @description Within-day session-return cohorts */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };
@@ -713,6 +1068,8 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };
@@ -1058,6 +1415,32 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listSegments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved segments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Segment"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
         };
     };
     healthz: {

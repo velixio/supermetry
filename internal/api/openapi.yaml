@@ -190,6 +190,79 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /api/public/v1/journeys/query:
+    post:
+      operationId: journeyQuery
+      summary: Run a page journey query
+      description: The date range must fit within the site's raw-event retention window.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JourneyRequest'
+      responses:
+        '200':
+          description: Sankey-ready journey nodes and links
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/public/v1/retention/query:
+    post:
+      operationId: retentionQuery
+      summary: Run a retention query
+      description: >-
+        Visitor identity is linkable only within one local day. Offset n counts
+        daily identities with at least n+1 sessions on that local day; week and
+        month intervals group daily cohorts and do not link people across days.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetentionRequest'
+      responses:
+        '200':
+          description: Within-day session-return cohorts
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/public/v1/realtime:
     get:
       operationId: realtime
@@ -943,6 +1016,7 @@ components:
             type: string
         filters:
           type: array
+          maxItems: 10
           items:
             $ref: '#/components/schemas/Filter'
         order_by:
@@ -1075,6 +1149,125 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FunnelStepResult'
+    JourneyRequest:
+      type: object
+      additionalProperties: false
+      required: [site_id, date_range, steps, limit]
+      properties:
+        site_id:
+          type: integer
+          format: int32
+          minimum: 1
+        date_range:
+          $ref: '#/components/schemas/DateRange'
+        filters:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Filter'
+        start_path:
+          type: string
+          minLength: 1
+        end_path:
+          type: string
+          minLength: 1
+        steps:
+          type: integer
+          minimum: 2
+          maximum: 5
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Maximum top page nodes per step; other and exit are supplemental buckets.
+    JourneyNode:
+      type: object
+      additionalProperties: false
+      required: [step, path, visitors]
+      properties:
+        step: { type: integer, minimum: 1 }
+        path: { type: string }
+        visitors: { type: integer, format: int64, minimum: 0 }
+    JourneyLink:
+      type: object
+      additionalProperties: false
+      required: [from_step, from_path, to_path, visitors]
+      properties:
+        from_step: { type: integer, minimum: 1 }
+        from_path: { type: string }
+        to_path: { type: string }
+        visitors: { type: integer, format: int64, minimum: 0 }
+    JourneyResponse:
+      type: object
+      additionalProperties: false
+      required: [nodes, links]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/JourneyNode'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/JourneyLink'
+    RetentionRequest:
+      type: object
+      additionalProperties: false
+      required: [site_id, date_range, interval]
+      properties:
+        site_id:
+          type: integer
+          format: int32
+          minimum: 1
+        date_range:
+          $ref: '#/components/schemas/DateRange'
+        filters:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Filter'
+        interval:
+          type: string
+          enum: [day, week, month]
+          x-enum-varnames: [RetentionDay, RetentionWeek, RetentionMonth]
+    RetentionCohort:
+      type: object
+      additionalProperties: false
+      required: [start, size, retained]
+      properties:
+        start:
+          type: string
+          format: date
+        size:
+          type: integer
+          format: int64
+          minimum: 0
+        retained:
+          type: array
+          items:
+            type: integer
+            format: int64
+            minimum: 0
+    RetentionResponse:
+      type: object
+      additionalProperties: false
+      required: [identity_window, retention_mode, cohorts]
+      properties:
+        identity_window:
+          type: string
+          enum: [day]
+          x-enum-varnames: [DailyIdentityWindow]
+          description: Daily visitor IDs cannot be linked across local-day salt rotations.
+        retention_mode:
+          type: string
+          enum: [within_day_session_return]
+          x-enum-varnames: [WithinDaySessionReturn]
+          description: Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+        cohorts:
+          type: array
+          description: Week and month intervals group daily cohorts without cross-day identity linkage.
+          items:
+            $ref: '#/components/schemas/RetentionCohort'
     TopPage:
       type: object
       additionalProperties: false

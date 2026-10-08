@@ -42,6 +42,14 @@ func (queryStub) Funnel(context.Context, api.FunnelRequest) (api.FunnelResponse,
 	return api.FunnelResponse{}, nil
 }
 
+func (queryStub) Journey(context.Context, api.JourneyRequest) (api.JourneyResponse, error) {
+	return api.JourneyResponse{}, nil
+}
+
+func (queryStub) Retention(context.Context, api.RetentionRequest) (api.RetentionResponse, error) {
+	return api.RetentionResponse{}, nil
+}
+
 type siteRegistry map[int32]sites.Site
 
 func (s siteRegistry) ByPublicID(string) (sites.Site, bool) { return sites.Site{}, false }
