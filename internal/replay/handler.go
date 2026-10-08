@@ -287,13 +287,12 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 		h.reject(w, http.StatusBadRequest)
 		return
 	}
+	// A new page starts at any number: a full load restarts the browser's
+	// counter at 0, while a client-side navigation keeps counting. Within a
+	// page the number must grow; gaps (dropped chunks) are fine, repeats and
+	// reordering are not.
 	newPage := page == "1"
-	if newPage {
-		if sequence != 0 {
-			h.reject(w, http.StatusBadRequest)
-			return
-		}
-	} else if !state.hasPage || sequence != state.nextSequence {
+	if !newPage && (!state.hasPage || sequence < state.nextSequence) {
 		h.reject(w, http.StatusBadRequest)
 		return
 	}

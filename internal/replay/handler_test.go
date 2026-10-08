@@ -298,14 +298,14 @@ func TestChunkRejectsOutOfOrderSequence(t *testing.T) {
 	if response := requestChunk(h, 0, true, "", body, "192.0.2.1:1234", "test-agent"); response.Code != http.StatusAccepted {
 		t.Fatalf("first status = %d, want 202", response.Code)
 	}
-	if response := requestChunk(h, 2, false, "", body, "192.0.2.1:1234", "test-agent"); response.Code != http.StatusBadRequest {
-		t.Fatalf("out-of-order status = %d, want 400", response.Code)
-	}
 	if response := requestChunk(h, 1, false, "", body, "192.0.2.1:1234", "test-agent"); response.Code != http.StatusAccepted {
 		t.Fatalf("next status = %d, want 202", response.Code)
 	}
 	if response := requestChunk(h, 1, false, "", body, "192.0.2.1:1234", "test-agent"); response.Code != http.StatusBadRequest {
 		t.Fatalf("duplicate status = %d, want 400", response.Code)
+	}
+	if response := requestChunk(h, 0, false, "", body, "192.0.2.1:1234", "test-agent"); response.Code != http.StatusBadRequest {
+		t.Fatalf("backwards status = %d, want 400", response.Code)
 	}
 	if len(blob.keys) != 2 {
 		t.Fatalf("blob appends = %d, want 2", len(blob.keys))
@@ -545,4 +545,36 @@ func itoa(value int) string {
 		value /= 10
 	}
 	return string(digits[position:])
+}
+
+// The browser keeps one sequence counter per tab, so a client-side navigation
+// starts a new page with the next number rather than 0, and a dropped chunk
+// leaves a gap. Both must be accepted; duplicates and reordering must not.
+func TestChunkSequenceAcrossSPANavigation(t *testing.T) {
+	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(100))
+	touchReplaySession(t, sessions, visitorID)
+	body := gzipBody(t, []byte("chunk"))
+	steps := []struct {
+		sequence int
+		page     bool
+		want     int
+	}{
+		{0, true, http.StatusAccepted},
+		{1, false, http.StatusAccepted},
+		{2, true, http.StatusAccepted},    // SPA navigation keeps counting
+		{3, false, http.StatusAccepted},   // continues on the new page
+		{3, false, http.StatusBadRequest}, // duplicate
+		{5, false, http.StatusAccepted},   // gap after a dropped chunk
+		{4, false, http.StatusBadRequest}, // out of order
+		{6, true, http.StatusAccepted},
+	}
+	for i, step := range steps {
+		response := requestChunk(h, step.sequence, step.page, "", body, "192.0.2.1:1234", "test-agent")
+		if response.Code != step.want {
+			t.Fatalf("step %d (q=%d p=%t): status = %d, want %d", i, step.sequence, step.page, response.Code, step.want)
+		}
+	}
+	if len(blob.keys) != 6 {
+		t.Fatalf("blob appends = %d, want 6", len(blob.keys))
+	}
 }
