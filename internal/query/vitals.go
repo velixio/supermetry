@@ -251,7 +251,7 @@ func vitalsDimensionResolver(alias string) dimensionResolver {
 			}
 			return prefix + column, dictionaryKind(dict.Path), nil
 		case "utm_source":
-			return prefix + "source_id", dictionaryKind(dict.Source), nil
+			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
 			return prefix + "medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":

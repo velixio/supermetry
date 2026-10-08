@@ -74,7 +74,7 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		case "exit":
 			return "s.exit_path", dictionaryKind(dict.Path), nil
 		case "utm_source":
-			return "s.source_id", dictionaryKind(dict.Source), nil
+			return "s.utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
 			return "s.medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":

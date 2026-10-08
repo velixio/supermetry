@@ -390,8 +390,10 @@ func reportSessionResolver(alias string) dimensionResolver {
 	prefix := alias + "."
 	return func(dimension string) (string, *dict.Kind, error) {
 		switch dimension {
-		case "source", "utm_source":
+		case "source":
 			return prefix + "source_id", dictionaryKind(dict.Source), nil
+		case "utm_source":
+			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
 			return prefix + "medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":

@@ -16,6 +16,7 @@ import (
 var rollupDimensionCodes = map[string]int16{
 	"page": 1, "path": 1, "source": 2, "country": 3, "browser": 4,
 	"os": 5, "device": 6, "entry": 7, "exit": 8, "region": 9, "city": 10,
+	"utm_source": 11,
 }
 
 func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {
@@ -79,7 +80,7 @@ where r.site_id=`+siteArg+` and r.dim=`+dimArg)
 	}
 	dimension := rollupValueText("value_id", req.Dimensions[0])
 	where := "true"
-	if req.Dimensions[0] == "region" || req.Dimensions[0] == "city" {
+	if req.Dimensions[0] == "region" || req.Dimensions[0] == "city" || req.Dimensions[0] == "utm_source" {
 		where = "value_id<>0"
 	}
 	querySQL := aggregateSQL([]string{dimension}, baseSums, "("+strings.Join(inputs, " union all ")+") r", where)
@@ -95,7 +96,7 @@ func rollupValueText(column, dimension string) string {
 	default:
 		kind := dict.Path
 		switch dimension {
-		case "source":
+		case "source", "utm_source":
 			kind = dict.Source
 		case "browser":
 			kind = dict.Browser
