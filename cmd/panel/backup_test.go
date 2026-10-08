@@ -198,9 +198,15 @@ printf 'restore argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABA
 }
 
 func TestBackupRestoreIntegration(t *testing.T) {
-	dsn := os.Getenv("PANEL_TEST_DSN")
+	// Restore runs pg_restore --clean over the whole database, and the backup
+	// dumps all of it, so this must never use the shared PANEL_TEST_DSN
+	// database other tests run against (it is large and in use).
+	dsn := os.Getenv("PANEL_TEST_BACKUP_DSN")
 	if dsn == "" {
-		t.Skip("PANEL_TEST_DSN is not set")
+		t.Skip("PANEL_TEST_BACKUP_DSN is not set (point it at an empty, disposable database)")
+	}
+	if dsn == os.Getenv("PANEL_TEST_DSN") {
+		t.Fatal("PANEL_TEST_BACKUP_DSN must not be the shared PANEL_TEST_DSN database")
 	}
 	if _, err := exec.LookPath("pg_dump"); err != nil {
 		t.Skip("pg_dump is not installed")
@@ -208,7 +214,6 @@ func TestBackupRestoreIntegration(t *testing.T) {
 	if _, err := exec.LookPath("pg_restore"); err != nil {
 		t.Skip("pg_restore is not installed")
 	}
-	// PANEL_TEST_DSN must designate a disposable database: restore uses --clean.
 	t.Setenv("PANEL_DATABASE_URL", dsn)
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
