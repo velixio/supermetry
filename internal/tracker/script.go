@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"net/http"
 	"path"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -123,7 +122,7 @@ func SiteHandler(registry sites.Registry) http.Handler {
 			http.NotFound(w, request)
 			return
 		}
-		settings := storedTrackerSettings(site).Resolve(site.HeatmapsEnabled)
+		settings := site.Tracker.Resolve(site.HeatmapsEnabled)
 		generated := load(siteScriptCacheKey{publicID: publicID, settings: settings})
 
 		w.Header().Set("Content-Type", "application/javascript")
@@ -138,18 +137,6 @@ func SiteHandler(registry sites.Registry) http.Handler {
 			_, _ = w.Write(generated.Body)
 		}
 	})
-}
-
-// storedTrackerSettings allows registries built before the optional stored
-// field existed to retain the documented default behavior.
-func storedTrackerSettings(site sites.Site) sites.TrackerSettingsInput {
-	field := reflect.ValueOf(site).FieldByName("Tracker")
-	if field.IsValid() && field.CanInterface() {
-		if settings, ok := field.Interface().(sites.TrackerSettingsInput); ok {
-			return settings
-		}
-	}
-	return sites.TrackerSettingsInput{}
 }
 
 func validPublicID(publicID string) bool {
