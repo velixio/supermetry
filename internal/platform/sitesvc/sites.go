@@ -34,12 +34,13 @@ var (
 )
 
 type SitePatch struct {
-	Name          *string
-	Hosts         *[]string
-	TZ            *string
-	RetentionDays *int
-	ExcludeIPs    *[]string
-	ExcludePaths  *[]string
+	Name            *string
+	Hosts           *[]string
+	TZ              *string
+	RetentionDays   *int
+	ExcludeIPs      *[]string
+	ExcludePaths    *[]string
+	HeatmapsEnabled *bool
 }
 
 type Sites struct {
@@ -96,6 +97,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	if !authz.Can(principal, authz.ActionSiteEdit, id) {
 		return coresites.Site{}, ErrForbidden
 	}
+	if patch.HeatmapsEnabled != nil && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+		return coresites.Site{}, ErrForbidden
+	}
 	var updated store.Site
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
 		current, err := store.SiteForUpdate(ctx, tx, principal.OrgID, id)
@@ -123,6 +127,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.ExcludePaths != nil {
 			current.ExcludePaths = append([]string(nil), (*patch.ExcludePaths)...)
 		}
+		if patch.HeatmapsEnabled != nil {
+			current.HeatmapsEnabled = *patch.HeatmapsEnabled
+		}
 		name, hosts, location, retention, err := validateSite(
 			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
 		)
@@ -143,6 +150,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		}
 		return audit.Write(ctx, tx, principal, "site.updated", "site", int64(id), map[string]any{
 			"name": name, "timezone": location.String(), "retention_days": int(retention),
+			"heatmaps_enabled": current.HeatmapsEnabled,
 		})
 	})
 	if err != nil {
@@ -296,6 +304,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 	return coresites.Site{
 		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
+		HeatmapsEnabled: row.HeatmapsEnabled,
 	}, nil
 }
 

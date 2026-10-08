@@ -8,6 +8,42 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/public/v1/heatmaps/query:
+    post:
+      operationId: heatmapQuery
+      summary: Query an aggregated click heatmap and scroll map
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeatmapRequest'
+      responses:
+        '200':
+          description: Aggregated heatmap results
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeatmapResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/public/v1/vitals/query:
     post:
       operationId: vitalsQuery
@@ -880,7 +916,7 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts]
+      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, heatmaps_enabled]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -891,6 +927,13 @@ components:
         allowed_hosts:
           type: array
           items: { type: string }
+        exclude_ips:
+          type: array
+          items: { type: string }
+        exclude_paths:
+          type: array
+          items: { type: string }
+        heatmaps_enabled: { type: boolean }
     SiteList:
       type: object
       additionalProperties: false
@@ -926,6 +969,13 @@ components:
           items: { type: string }
         timezone: { type: string }
         retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
+        exclude_ips:
+          type: array
+          items: { type: string }
+        exclude_paths:
+          type: array
+          items: { type: string }
+        heatmaps_enabled: { type: boolean }
     GoalInput:
       type: object
       additionalProperties: false
@@ -1021,6 +1071,92 @@ components:
         to:
           type: string
           format: date
+    HeatmapDevice:
+      type: string
+      enum: [desktop, mobile, tablet]
+      x-enum-varnames: [HeatmapDeviceDesktop, HeatmapDeviceMobile, HeatmapDeviceTablet]
+    HeatmapRequest:
+      type: object
+      additionalProperties: false
+      required: [site_id, date_range, path, device]
+      properties:
+        site_id:
+          type: integer
+          format: int32
+          minimum: 1
+        date_range:
+          $ref: '#/components/schemas/DateRange'
+        path:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        device:
+          $ref: '#/components/schemas/HeatmapDevice'
+    HeatmapCell:
+      type: object
+      additionalProperties: false
+      required: [gx, gy, clicks]
+      properties:
+        gx:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 99
+        gy:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 5000
+        clicks:
+          type: integer
+          format: int64
+          minimum: 1
+    ScrollBand:
+      type: object
+      additionalProperties: false
+      required: [band, share]
+      properties:
+        band:
+          type: integer
+          format: int32
+          minimum: 10
+          maximum: 100
+        share:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+    HeatmapTotals:
+      type: object
+      additionalProperties: false
+      required: [pageviews_sampled, clicks]
+      properties:
+        pageviews_sampled:
+          type: integer
+          format: int64
+          minimum: 0
+        clicks:
+          type: integer
+          format: int64
+          minimum: 0
+    HeatmapResponse:
+      type: object
+      additionalProperties: false
+      required: [cells, scroll_bands, totals]
+      properties:
+        cells:
+          type: array
+          maxItems: 20000
+          items:
+            $ref: '#/components/schemas/HeatmapCell'
+        scroll_bands:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/ScrollBand'
+        totals:
+          $ref: '#/components/schemas/HeatmapTotals'
     Metric:
       type: string
       enum:

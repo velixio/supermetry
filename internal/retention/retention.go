@@ -15,6 +15,7 @@ import (
 )
 
 var eraseTables = []string{
+	"heatmap_cells",
 	"events",
 	"sessions",
 	"sessions_closed",
@@ -48,6 +49,17 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 			if partition.To.Before(cutoff) {
 				expired = append(expired, partition)
 			}
+		}
+	}
+	heatmapPartitions, err := db.ListMonthlyPartitions(ctx, pool, "heatmap_cells")
+	if err != nil {
+		return nil, fmt.Errorf("list heatmap retention partitions: %w", err)
+	}
+	utcNow := now.UTC()
+	heatmapCutoff := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -90)
+	for _, partition := range heatmapPartitions {
+		if !partition.To.After(heatmapCutoff) {
+			expired = append(expired, partition)
 		}
 	}
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })

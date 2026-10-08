@@ -41,6 +41,7 @@ type dictionaryResolver interface {
 type Deps struct {
 	Config      config.Config
 	Query       queryService
+	Heatmaps    heatmapService
 	Ingest      http.Handler
 	PublicAuth  Authenticator
 	PrivateAuth Authenticator
@@ -67,7 +68,7 @@ func NewRouter(deps Deps) http.Handler {
 		deps.RateLimiter = ingest.NewTokenBuckets(2, 30)
 	}
 
-	h := &handlers{query: deps.Query, now: deps.Now}
+	h := &handlers{query: deps.Query, heatmaps: deps.Heatmaps, now: deps.Now}
 	mux := http.NewServeMux()
 
 	public := http.NewServeMux()
@@ -77,6 +78,7 @@ func NewRouter(deps Deps) http.Handler {
 		Dictionary: deps.Dictionary,
 	}))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
+	public.HandleFunc("POST "+publicPrefix+"/heatmaps/query", h.heatmapRequest)
 	public.HandleFunc("POST "+publicPrefix+"/vitals/query", h.vitalsRequest)
 	public.HandleFunc("POST "+publicPrefix+"/funnels/query", h.funnelRequest)
 	public.HandleFunc("POST "+publicPrefix+"/journeys/query", h.journeyRequest)
@@ -88,6 +90,7 @@ func NewRouter(deps Deps) http.Handler {
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
+	private.HandleFunc("POST "+privatePrefix+"/heatmaps/query", h.heatmapRequest)
 	private.HandleFunc("POST "+privatePrefix+"/vitals/query", h.vitalsRequest)
 	private.HandleFunc("POST "+privatePrefix+"/funnels/query", h.funnelRequest)
 	private.HandleFunc("POST "+privatePrefix+"/journeys/query", h.journeyRequest)

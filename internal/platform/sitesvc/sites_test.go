@@ -161,6 +161,55 @@ func TestUpdateExclusionsPersistsAndRefreshesRegistry(t *testing.T) {
 	}
 }
 
+func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if site.HeatmapsEnabled {
+		t.Fatal("heatmaps must default off")
+	}
+	enabled := true
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{HeatmapsEnabled: &enabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || !updated.HeatmapsEnabled || !loaded.HeatmapsEnabled {
+		t.Fatalf("heatmap setting not refreshed: updated=%+v loaded=%+v found=%t", updated, loaded, ok)
+	}
+	var stored bool
+	if err := pool.QueryRow(ctx, `select coalesce((settings->>'heatmaps_enabled')::boolean, false) from sites where id=$1`, site.ID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if !stored {
+		t.Fatal("heatmaps_enabled was not stored")
+	}
+	var details []byte
+	if err := pool.QueryRow(ctx, `select metadata from audit_log where action='site.updated' and target_id=$1 order by id desc limit 1`, site.ID).Scan(&details); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(details), `"heatmaps_enabled": true`) {
+		t.Fatalf("audit details = %s", details)
+	}
+}
+
+func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
+	service, _, principal, _ := newSites(t)
+	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	enabled := true
+	editor := principal
+	editor.Role = authz.RoleEditor
+	if _, err := service.Update(context.Background(), editor, site.ID, SitePatch{HeatmapsEnabled: &enabled}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("editor heatmap update error = %v, want ErrForbidden", err)
+	}
+}
+
 func TestUpdateExclusionsNamesInvalidEntry(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	ctx := context.Background()

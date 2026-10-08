@@ -17,15 +17,16 @@ import (
 )
 
 type siteResponse struct {
-	ID            int32    `json:"id"`
-	OrgID         int64    `json:"org_id"`
-	PublicID      string   `json:"public_id"`
-	Name          string   `json:"name"`
-	Timezone      string   `json:"timezone"`
-	RetentionDays int      `json:"retention_days"`
-	AllowedHosts  []string `json:"allowed_hosts"`
-	ExcludeIPs    []string `json:"exclude_ips"`
-	ExcludePaths  []string `json:"exclude_paths"`
+	ID              int32    `json:"id"`
+	OrgID           int64    `json:"org_id"`
+	PublicID        string   `json:"public_id"`
+	Name            string   `json:"name"`
+	Timezone        string   `json:"timezone"`
+	RetentionDays   int      `json:"retention_days"`
+	AllowedHosts    []string `json:"allowed_hosts"`
+	ExcludeIPs      []string `json:"exclude_ips"`
+	ExcludePaths    []string `json:"exclude_paths"`
+	HeatmapsEnabled bool     `json:"heatmaps_enabled"`
 }
 
 func (h *handler) listSites(w http.ResponseWriter, r *http.Request) {
@@ -94,13 +95,15 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		return nil, "", err
 	}
 	query := `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
-		coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),created_at
+		coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
+		coalesce((settings->>'heatmaps_enabled')::boolean,false),created_at
 		from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 		order by created_at,id limit $3`
 	args := []any{principal.OrgID, principal.SiteIDs, limit + 1}
 	if hasCursor {
 		query = `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
-			coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),created_at
+			coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
+			coalesce((settings->>'heatmaps_enabled')::boolean,false),created_at
 			from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 			and (created_at,id)>($3,$4) order by created_at,id limit $5`
 		args = []any{principal.OrgID, principal.SiteIDs, cursor.CreatedAt, cursor.ID, limit + 1}
@@ -121,7 +124,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		var retention int16
 		if err := rows.Scan(&item.response.ID, &item.response.OrgID, &item.response.PublicID, &item.response.Name,
 			&item.response.AllowedHosts, &timezone, &retention, &item.response.ExcludeIPs,
-			&item.response.ExcludePaths, &item.createdAt); err != nil {
+			&item.response.ExcludePaths, &item.response.HeatmapsEnabled, &item.createdAt); err != nil {
 			return nil, "", err
 		}
 		item.response.Timezone = timezone
@@ -243,12 +246,13 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Name          *string   `json:"name"`
-		Hosts         *[]string `json:"hosts"`
-		Timezone      *string   `json:"timezone"`
-		RetentionDays *int      `json:"retention_days"`
-		ExcludeIPs    *[]string `json:"exclude_ips"`
-		ExcludePaths  *[]string `json:"exclude_paths"`
+		Name            *string   `json:"name"`
+		Hosts           *[]string `json:"hosts"`
+		Timezone        *string   `json:"timezone"`
+		RetentionDays   *int      `json:"retention_days"`
+		ExcludeIPs      *[]string `json:"exclude_ips"`
+		ExcludePaths    *[]string `json:"exclude_paths"`
+		HeatmapsEnabled *bool     `json:"heatmaps_enabled"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -259,7 +263,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 	}
 	updated, err := h.deps.Mutations.UpdateSite(r.Context(), principal, site.ID, sitesvc.SitePatch{
 		Name: request.Name, Hosts: request.Hosts, TZ: request.Timezone, RetentionDays: request.RetentionDays,
-		ExcludeIPs: request.ExcludeIPs, ExcludePaths: request.ExcludePaths,
+		ExcludeIPs: request.ExcludeIPs, ExcludePaths: request.ExcludePaths, HeatmapsEnabled: request.HeatmapsEnabled,
 	})
 	if err != nil {
 		serviceError(w, err)
@@ -301,6 +305,7 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		ID: site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Timezone: timezone,
 		RetentionDays: int(site.Retention), AllowedHosts: append([]string(nil), site.AllowedHosts...),
 		ExcludeIPs: append([]string{}, site.Exclusions.IPRules...), ExcludePaths: append([]string{}, site.Exclusions.PathRules...),
+		HeatmapsEnabled: site.HeatmapsEnabled,
 	}
 	if h.deps.Store != nil {
 		_ = h.deps.Store.Pool.QueryRow(r.Context(), `select name from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).Scan(&response.Name)

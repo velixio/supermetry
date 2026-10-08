@@ -123,6 +123,27 @@ func (e GoalInputMatch) Valid() bool {
 	}
 }
 
+// Defines values for HeatmapDevice.
+const (
+	HeatmapDeviceDesktop HeatmapDevice = "desktop"
+	HeatmapDeviceMobile  HeatmapDevice = "mobile"
+	HeatmapDeviceTablet  HeatmapDevice = "tablet"
+)
+
+// Valid indicates whether the value is a known member of the HeatmapDevice enum.
+func (e HeatmapDevice) Valid() bool {
+	switch e {
+	case HeatmapDeviceDesktop:
+		return true
+	case HeatmapDeviceMobile:
+		return true
+	case HeatmapDeviceTablet:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Metric.
 const (
 	AverageRevenue Metric = "average_revenue"
@@ -461,6 +482,37 @@ type HealthResponse struct {
 	Status string `json:"status"`
 }
 
+// HeatmapCell defines model for HeatmapCell.
+type HeatmapCell struct {
+	Clicks int64 `json:"clicks"`
+	Gx     int32 `json:"gx"`
+	Gy     int32 `json:"gy"`
+}
+
+// HeatmapDevice defines model for HeatmapDevice.
+type HeatmapDevice string
+
+// HeatmapRequest defines model for HeatmapRequest.
+type HeatmapRequest struct {
+	DateRange DateRange     `json:"date_range"`
+	Device    HeatmapDevice `json:"device"`
+	Path      string        `json:"path"`
+	SiteId    int32         `json:"site_id"`
+}
+
+// HeatmapResponse defines model for HeatmapResponse.
+type HeatmapResponse struct {
+	Cells       []HeatmapCell `json:"cells"`
+	ScrollBands []ScrollBand  `json:"scroll_bands"`
+	Totals      HeatmapTotals `json:"totals"`
+}
+
+// HeatmapTotals defines model for HeatmapTotals.
+type HeatmapTotals struct {
+	Clicks           int64 `json:"clicks"`
+	PageviewsSampled int64 `json:"pageviews_sampled"`
+}
+
 // JourneyLink defines model for JourneyLink.
 type JourneyLink struct {
 	FromPath string `json:"from_path"`
@@ -613,6 +665,12 @@ type SavedFunnelInput struct {
 	Steps []FunnelStep `json:"steps"`
 }
 
+// ScrollBand defines model for ScrollBand.
+type ScrollBand struct {
+	Band  int32   `json:"band"`
+	Share float64 `json:"share"`
+}
+
 // Segment defines model for Segment.
 type Segment struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -626,13 +684,16 @@ type Segment struct {
 
 // Site defines model for Site.
 type Site struct {
-	AllowedHosts  []string `json:"allowed_hosts"`
-	Id            int32    `json:"id"`
-	Name          string   `json:"name"`
-	OrgId         int64    `json:"org_id"`
-	PublicId      string   `json:"public_id"`
-	RetentionDays int      `json:"retention_days"`
-	Timezone      string   `json:"timezone"`
+	AllowedHosts    []string `json:"allowed_hosts"`
+	ExcludeIps      []string `json:"exclude_ips"`
+	ExcludePaths    []string `json:"exclude_paths"`
+	HeatmapsEnabled bool     `json:"heatmaps_enabled"`
+	Id              int32    `json:"id"`
+	Name            string   `json:"name"`
+	OrgId           int64    `json:"org_id"`
+	PublicId        string   `json:"public_id"`
+	RetentionDays   int      `json:"retention_days"`
+	Timezone        string   `json:"timezone"`
 }
 
 // SiteList defines model for SiteList.
@@ -655,10 +716,13 @@ type TopSource struct {
 
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
-	Hosts         *[]string                       `json:"hosts,omitempty"`
-	Name          *string                         `json:"name,omitempty"`
-	RetentionDays *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
-	Timezone      *string                         `json:"timezone,omitempty"`
+	ExcludeIps      *[]string                       `json:"exclude_ips,omitempty"`
+	ExcludePaths    *[]string                       `json:"exclude_paths,omitempty"`
+	HeatmapsEnabled *bool                           `json:"heatmaps_enabled,omitempty"`
+	Hosts           *[]string                       `json:"hosts,omitempty"`
+	Name            *string                         `json:"name,omitempty"`
+	RetentionDays   *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
+	Timezone        *string                         `json:"timezone,omitempty"`
 }
 
 // UpdateSiteRequestRetentionDays defines model for UpdateSiteRequest.RetentionDays.
@@ -886,6 +950,9 @@ type UpdateFunnelJSONRequestBody = SavedFunnelInput
 // UpdateGoalJSONRequestBody defines body for UpdateGoal for application/json ContentType.
 type UpdateGoalJSONRequestBody = GoalInput
 
+// HeatmapQueryJSONRequestBody defines body for HeatmapQuery for application/json ContentType.
+type HeatmapQueryJSONRequestBody = HeatmapRequest
+
 // JourneyQueryJSONRequestBody defines body for JourneyQuery for application/json ContentType.
 type JourneyQueryJSONRequestBody = JourneyRequest
 
@@ -927,6 +994,9 @@ type ServerInterface interface {
 	// UpdateGoal Update a goal
 	// (PATCH /api/public/v1/goals/{goal_id})
 	UpdateGoal(w http.ResponseWriter, r *http.Request, goalId GoalPathID)
+	// HeatmapQuery Query an aggregated click heatmap and scroll map
+	// (POST /api/public/v1/heatmaps/query)
+	HeatmapQuery(w http.ResponseWriter, r *http.Request)
 	// JourneyQuery Run a page journey query
 	// (POST /api/public/v1/journeys/query)
 	JourneyQuery(w http.ResponseWriter, r *http.Request)
@@ -1113,6 +1183,20 @@ func (siw *ServerInterfaceWrapper) UpdateGoal(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateGoal(w, r, goalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// HeatmapQuery operation middleware
+func (siw *ServerInterfaceWrapper) HeatmapQuery(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.HeatmapQuery(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2191,6 +2275,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/query", wrapper.Query)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/summary", wrapper.StatsSummary)

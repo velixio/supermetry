@@ -51,6 +51,8 @@ var (
 	IngestInvalid        Counter
 	IngestRevenueInvalid Counter
 	IngestDropped        Counter
+	HeatmapInvalid       Counter
+	HeatmapDropped       Counter
 
 	// BotsFiltered is indexed by enrich.BotReason. Index zero is the
 	// unfiltered case and is intentionally not exported as a metric.
@@ -169,6 +171,8 @@ func Snapshot() map[string]float64 {
 		"ingest_invalid_total":           float64(IngestInvalid.Load()),
 		"ingest_revenue_invalid_total":   float64(IngestRevenueInvalid.Load()),
 		"ingest_dropped_total":           float64(IngestDropped.Load()),
+		"heatmap_invalid_total":          float64(HeatmapInvalid.Load()),
+		"heatmap_dropped_total":          float64(HeatmapDropped.Load()),
 		"writer_queue_depth":             WriterQueueDepth.Load(),
 		"copy_seconds":                   CopySeconds.Load(),
 		"close_lag_seconds":              CloseLagSeconds.Load(),
@@ -209,6 +213,8 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_revenue_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_dropped_total", "counter")
+	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
+	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")
 	writeFamily(w, snapshot, "ingest_excluded_total", "counter")
 	writeFamily(w, snapshot, "writer_queue_depth", "gauge")

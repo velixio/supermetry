@@ -26,6 +26,7 @@ const (
 var retentionClasses = []RetentionClass{Ret7, Ret30, Ret90, Ret365, RetForever}
 
 var monthlyDayTables = []string{
+	"heatmap_cells",
 	"sessions_closed",
 	"custom_closed",
 	"cube_day",
@@ -225,7 +226,7 @@ func parseRangeBound(bound string) (time.Time, time.Time, error) {
 }
 
 func parsePartitionTime(value string) (time.Time, error) {
-	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05Z07:00", "2006-01-02 15:04:05Z07"} {
+	for _, layout := range []string{time.DateOnly, time.RFC3339, "2006-01-02 15:04:05Z07:00", "2006-01-02 15:04:05Z07"} {
 		if parsed, err := time.Parse(layout, value); err == nil {
 			return parsed.UTC(), nil
 		}

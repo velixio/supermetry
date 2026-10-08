@@ -20,8 +20,9 @@ type queryService interface {
 }
 
 type handlers struct {
-	query queryService
-	now   func() time.Time
+	query    queryService
+	heatmaps heatmapService
+	now      func() time.Time
 }
 
 func (h *handlers) queryRequest(w http.ResponseWriter, r *http.Request) {
@@ -162,9 +163,9 @@ func isClientQueryError(detail string) bool {
 		"date_range.", "date_range or period", "filter ", "funnel date range",
 		"funnel step ", "invalid cursor", "invalid funnel", "invalid timezone",
 		"limit ", "order_by ", "provide either", "site_id ", "site timezone",
-		"unknown comparison", "unknown dimension", "unknown filter", "unknown metric",
+		"unknown comparison", "unknown dimension", "unknown filter", "unknown heatmap", "unknown metric",
 		"unknown order", "unknown period", "unknown site", "unsupported type",
-		"invalid filter", "journey ", "retention ", "range must be within the raw retention window",
+		"heatmap ", "invalid filter", "journey ", "retention ", "range must be within the raw retention window",
 	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(detail, prefix) {

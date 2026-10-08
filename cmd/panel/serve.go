@@ -27,6 +27,7 @@ import (
 	"panel/internal/dict"
 	"panel/internal/geoupdate"
 	"panel/internal/health"
+	"panel/internal/heatmap"
 	"panel/internal/imports"
 	"panel/internal/ingest"
 	platformauth "panel/internal/platform/auth"
@@ -165,6 +166,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	w := writer.New(pool, sessions, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, closed)
 	engine := query.NewEngine(pool, dictionary, registry)
+	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
 	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/totp/v1")
 	if err != nil {
@@ -245,7 +247,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Query: engine, Ingest: intake, Sessions: sessions, Sites: registry, Dictionary: dictionary,
+		Config: cfg, Query: engine, Heatmaps: heatmaps, Ingest: intake, Sessions: sessions, Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})
