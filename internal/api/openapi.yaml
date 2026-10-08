@@ -1800,8 +1800,8 @@ components:
       properties:
         kind:
           type: string
-          enum: [page, event]
-          x-enum-varnames: [GoalInputPage, GoalInputEvent]
+          enum: [page, event, scroll]
+          x-enum-varnames: [GoalInputPage, GoalInputEvent, GoalInputScroll]
         match: { type: string, enum: [exact, prefix, wildcard] }
         value: { type: string }
         prop_key: { type: string }
@@ -1810,6 +1810,12 @@ components:
         currency:
           type: [string, 'null']
           pattern: '^[A-Z]{3}$'
+        scroll_threshold:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          description: Required when kind is scroll and absent for every other kind.
     Goal:
       type: object
       additionalProperties: false
@@ -1817,7 +1823,10 @@ components:
       properties:
         id: { type: integer, format: int64 }
         site_id: { type: integer, format: int32 }
-        kind: { type: string }
+        kind:
+          type: string
+          enum: [page, event, scroll]
+          x-enum-varnames: [GoalPage, GoalEvent, GoalScroll]
         match: { type: string }
         value: { type: string }
         prop_key: { type: string }
@@ -1826,6 +1835,12 @@ components:
         currency:
           type: [string, 'null']
           pattern: '^[A-Z]{3}$'
+        scroll_threshold:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          description: Present only for scroll goals.
     Annotation:
       type: object
       additionalProperties: false
@@ -2000,6 +2015,7 @@ components:
       properties:
         dimension:
           type: string
+          description: Analytics dimension to filter. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
         operator:
           type: string
           enum: [is, is_not, contains, starts_with]

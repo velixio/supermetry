@@ -14,13 +14,14 @@ import (
 )
 
 type goalInput struct {
-	Kind      string `json:"kind"`
-	Match     string `json:"match"`
-	Value     string `json:"value"`
-	PropKey   string `json:"prop_key,omitempty"`
-	PropValue string `json:"prop_value,omitempty"`
-	Name      string `json:"name"`
-	Currency  string `json:"currency,omitempty"`
+	Kind            string `json:"kind"`
+	Match           string `json:"match"`
+	Value           string `json:"value"`
+	PropKey         string `json:"prop_key,omitempty"`
+	PropValue       string `json:"prop_value,omitempty"`
+	Name            string `json:"name"`
+	Currency        string `json:"currency,omitempty"`
+	ScrollThreshold *int16 `json:"scroll_threshold,omitempty"`
 }
 
 type goalResponse struct {
@@ -64,7 +65,7 @@ func (h *handler) listGoals(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "goal")
 		return
 	}
-	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,site_id,kind,match,value,coalesce(prop_key,''),coalesce(prop_value,''),name,coalesce(currency,'') from goals where site_id=$1 order by id`, site.ID)
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,site_id,kind,match,value,coalesce(prop_key,''),coalesce(prop_value,''),name,coalesce(currency,''),scroll_threshold from goals where site_id=$1 order by id`, site.ID)
 	if err != nil {
 		serviceError(w, err)
 		return
@@ -73,7 +74,7 @@ func (h *handler) listGoals(w http.ResponseWriter, r *http.Request) {
 	result := make([]goalResponse, 0)
 	for rows.Next() {
 		var goal goalResponse
-		if err := rows.Scan(&goal.ID, &goal.SiteID, &goal.Kind, &goal.Match, &goal.Value, &goal.PropKey, &goal.PropValue, &goal.Name, &goal.Currency); err != nil {
+		if err := rows.Scan(&goal.ID, &goal.SiteID, &goal.Kind, &goal.Match, &goal.Value, &goal.PropKey, &goal.PropValue, &goal.Name, &goal.Currency, &goal.ScrollThreshold); err != nil {
 			serviceError(w, err)
 			return
 		}
@@ -106,7 +107,7 @@ func (h *handler) createGoal(w http.ResponseWriter, r *http.Request) {
 	var created goalResponse
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		created.SiteID, created.goalInput = site.ID, input
-		if err := tx.QueryRow(r.Context(), `insert into goals(site_id,kind,match,value,prop_key,prop_value,name,currency) values($1,$2,$3,$4,nullif($5,''),nullif($6,''),$7,nullif($8,'')) returning id`, site.ID, input.Kind, input.Match, input.Value, input.PropKey, input.PropValue, input.Name, input.Currency).Scan(&created.ID); err != nil {
+		if err := tx.QueryRow(r.Context(), `insert into goals(site_id,kind,match,value,prop_key,prop_value,name,currency,scroll_threshold) values($1,$2,$3,$4,nullif($5,''),nullif($6,''),$7,nullif($8,''),$9) returning id`, site.ID, input.Kind, input.Match, input.Value, input.PropKey, input.PropValue, input.Name, input.Currency, input.ScrollThreshold).Scan(&created.ID); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, principal, "goal.created", "goal", created.ID, map[string]any{"site_id": site.ID})
@@ -133,7 +134,7 @@ func (h *handler) updateGoal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
-		if _, err := tx.Exec(r.Context(), `update goals set kind=$2,match=$3,value=$4,prop_key=nullif($5,''),prop_value=nullif($6,''),name=$7,currency=nullif($8,'') where id=$1`, goal.ID, input.Kind, input.Match, input.Value, input.PropKey, input.PropValue, input.Name, input.Currency); err != nil {
+		if _, err := tx.Exec(r.Context(), `update goals set kind=$2,match=$3,value=$4,prop_key=nullif($5,''),prop_value=nullif($6,''),name=$7,currency=nullif($8,''),scroll_threshold=$9 where id=$1`, goal.ID, input.Kind, input.Match, input.Value, input.PropKey, input.PropValue, input.Name, input.Currency, input.ScrollThreshold); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, principal, "goal.updated", "goal", goal.ID, map[string]any{"site_id": goal.SiteID})
@@ -177,7 +178,7 @@ func (h *handler) goalPrincipal(w http.ResponseWriter, r *http.Request, action a
 		return authz.Principal{}, goalResponse{}, false
 	}
 	var goal goalResponse
-	err = h.deps.Store.Pool.QueryRow(r.Context(), `select id,site_id,kind,match,value,coalesce(prop_key,''),coalesce(prop_value,''),name,coalesce(currency,'') from goals where id=$1`, id).Scan(&goal.ID, &goal.SiteID, &goal.Kind, &goal.Match, &goal.Value, &goal.PropKey, &goal.PropValue, &goal.Name, &goal.Currency)
+	err = h.deps.Store.Pool.QueryRow(r.Context(), `select id,site_id,kind,match,value,coalesce(prop_key,''),coalesce(prop_value,''),name,coalesce(currency,''),scroll_threshold from goals where id=$1`, id).Scan(&goal.ID, &goal.SiteID, &goal.Kind, &goal.Match, &goal.Value, &goal.PropKey, &goal.PropValue, &goal.Name, &goal.Currency, &goal.ScrollThreshold)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeProblem(w, http.StatusNotFound, "Not found", "goal not found")
 		return authz.Principal{}, goalResponse{}, false
@@ -197,8 +198,13 @@ func (h *handler) goalPrincipal(w http.ResponseWriter, r *http.Request, action a
 }
 
 func validGoal(input goalInput) bool {
-	return (input.Kind == "page" || input.Kind == "event") &&
-		(input.Match == "exact" || input.Match == "prefix" || input.Match == "wildcard") &&
+	kinds := input.Kind == "page" || input.Kind == "event" || input.Kind == "scroll"
+	matches := input.Match == "exact" || input.Match == "prefix" || input.Match == "wildcard"
+	threshold := input.ScrollThreshold == nil
+	if input.Kind == "scroll" {
+		threshold = input.ScrollThreshold != nil && *input.ScrollThreshold >= 1 && *input.ScrollThreshold <= 100
+	}
+	return kinds && matches && threshold &&
 		strings.TrimSpace(input.Value) != "" && strings.TrimSpace(input.Name) != "" &&
 		validGoalCurrency(input.Kind, input.Currency)
 }

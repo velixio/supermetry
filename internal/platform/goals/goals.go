@@ -13,15 +13,16 @@ import (
 )
 
 type Goal struct {
-	ID        int64
-	SiteID    int32
-	Kind      string
-	Match     string
-	Value     string
-	PropKey   string
-	PropValue string
-	Name      string
-	Currency  string
+	ID              int64
+	SiteID          int32
+	Kind            string
+	Match           string
+	Value           string
+	PropKey         string
+	PropValue       string
+	Name            string
+	Currency        string
+	ScrollThreshold int16
 }
 
 type Step struct {
@@ -120,7 +121,7 @@ func (g *Goals) refresh(ctx context.Context) error {
 		next.goals[goal.SiteID] = append(next.goals[goal.SiteID], Goal{
 			ID: goal.ID, SiteID: goal.SiteID, Kind: goal.Kind, Match: goal.Match,
 			Value: goal.Value, PropKey: goal.PropKey, PropValue: goal.PropValue, Name: goal.Name,
-			Currency: goal.Currency,
+			Currency: goal.Currency, ScrollThreshold: goal.ScrollThreshold,
 		})
 	}
 	for _, funnel := range storedFunnels {

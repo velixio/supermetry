@@ -45,6 +45,9 @@ func TestNormalizeRejectsWithProblems(t *testing.T) {
 		{name: "unknown metric", req: func() api.QueryRequest { r := requestPeriod(api.N7d); r.Metrics = []api.Metric{"money"}; return r }()},
 		{name: "unknown operator", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "country", Operator: "matches", Values: []string{"US"}})},
 		{name: "filter without values", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "country", Operator: api.Is})},
+		{name: "goal id wrong operator", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "goal_id", Operator: api.Contains, Values: []string{"1"}})},
+		{name: "goal id multiple values", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "goal_id", Operator: api.Is, Values: []string{"1", "2"}})},
+		{name: "goal id not numeric", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "goal_id", Operator: api.Is, Values: []string{"signup"}})},
 		{name: "invalid timezone", req: func() api.QueryRequest { r := requestPeriod(api.N7d); tz := "Mars/Olympus"; r.Timezone = &tz; return r }()},
 	}
 

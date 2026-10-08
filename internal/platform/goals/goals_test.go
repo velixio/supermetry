@@ -33,6 +33,11 @@ func TestGoalsAndFunnelReadCachedDefinitions(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := pool.Exec(ctx, `
+		insert into goals(site_id, kind, match, value, name, scroll_threshold)
+		values ($1, 'scroll', 'wildcard', '/docs/*', 'Read docs', 75)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
 		insert into funnels(site_id, name, steps)
 		values ($1, 'Signup', '[{"kind":"page","match":"exact","value":"/pricing"},{"kind":"event","match":"exact","value":"signup"}]')`, siteID); err != nil {
 		t.Fatal(err)
@@ -41,7 +46,7 @@ func TestGoalsAndFunnelReadCachedDefinitions(t *testing.T) {
 	service := New(&store.Store{Pool: pool}, time.Hour)
 	t.Cleanup(service.Close)
 	got := service.Goals(siteID)
-	if len(got) != 1 || got[0].Name != "Paid signup" || got[0].PropKey != "plan" || got[0].Currency != "USD" {
+	if len(got) != 2 || got[0].Name != "Paid signup" || got[0].PropKey != "plan" || got[0].Currency != "USD" || got[1].ScrollThreshold != 75 {
 		t.Fatalf("Goals() = %+v", got)
 	}
 	funnel, ok := service.Funnel(siteID, 1)

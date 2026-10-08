@@ -31,3 +31,50 @@ func TestValidGoalRevenueCurrency(t *testing.T) {
 		})
 	}
 }
+
+func TestValidGoalScrollThreshold(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input goalInput
+		want  bool
+	}{
+		{
+			name:  "scroll goal",
+			input: goalInput{Kind: "scroll", Match: "exact", Value: "/pricing", Name: "Read pricing", ScrollThreshold: int16Pointer(75)},
+			want:  true,
+		},
+		{
+			name:  "scroll goal missing threshold",
+			input: goalInput{Kind: "scroll", Match: "exact", Value: "/pricing", Name: "Read pricing"},
+		},
+		{
+			name:  "scroll goal threshold zero",
+			input: goalInput{Kind: "scroll", Match: "exact", Value: "/pricing", Name: "Read pricing", ScrollThreshold: int16Pointer(0)},
+		},
+		{
+			name:  "scroll goal threshold above maximum",
+			input: goalInput{Kind: "scroll", Match: "exact", Value: "/pricing", Name: "Read pricing", ScrollThreshold: int16Pointer(101)},
+		},
+		{
+			name:  "page goal with threshold",
+			input: goalInput{Kind: "page", Match: "exact", Value: "/pricing", Name: "Pricing", ScrollThreshold: int16Pointer(75)},
+		},
+		{
+			name:  "scroll goal with currency",
+			input: goalInput{Kind: "scroll", Match: "exact", Value: "/pricing", Name: "Read pricing", ScrollThreshold: int16Pointer(75), Currency: "USD"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := validGoal(tt.input); got != tt.want {
+				t.Fatalf("validGoal(%+v) = %t, want %t", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func int16Pointer(value int16) *int16 { return &value }

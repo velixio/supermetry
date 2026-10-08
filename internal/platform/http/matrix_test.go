@@ -533,6 +533,29 @@ func TestGoalAndFunnelMutationsWriteAudit(t *testing.T) {
 	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"page","match":"exact","value":"/done","name":"Purchase","currency":"USD"}`, http.StatusBadRequest)
 	requestOK(t, handler, http.MethodDelete, fmt.Sprintf("/api/private/goals/%d", goalID), "", http.StatusNoContent)
 
+	scrollResponse := requestOK(t, handler, http.MethodPost, fmt.Sprintf("/api/private/sites/%d/goals", site.ID), `{"kind":"scroll","match":"exact","value":"/pricing","name":"Read pricing","scroll_threshold":75}`, http.StatusCreated)
+	var scrollGoal struct {
+		ID              int64  `json:"id"`
+		Kind            string `json:"kind"`
+		ScrollThreshold int16  `json:"scroll_threshold"`
+	}
+	if err := json.NewDecoder(scrollResponse.Body).Decode(&scrollGoal); err != nil {
+		t.Fatal(err)
+	}
+	if scrollGoal.ID == 0 || scrollGoal.Kind != "scroll" || scrollGoal.ScrollThreshold != 75 {
+		t.Fatalf("created scroll goal = %+v", scrollGoal)
+	}
+	for _, body := range []string{
+		`{"kind":"scroll","match":"exact","value":"/pricing","name":"Missing"}`,
+		`{"kind":"scroll","match":"exact","value":"/pricing","name":"Zero","scroll_threshold":0}`,
+		`{"kind":"scroll","match":"exact","value":"/pricing","name":"High","scroll_threshold":101}`,
+		`{"kind":"page","match":"exact","value":"/pricing","name":"Page","scroll_threshold":75}`,
+		`{"kind":"scroll","match":"exact","value":"/pricing","name":"Money","scroll_threshold":75,"currency":"USD"}`,
+	} {
+		requestOK(t, handler, http.MethodPost, fmt.Sprintf("/api/private/sites/%d/goals", site.ID), body, http.StatusBadRequest)
+	}
+	requestOK(t, handler, http.MethodDelete, fmt.Sprintf("/api/private/goals/%d", scrollGoal.ID), "", http.StatusNoContent)
+
 	funnelID := mutationID(t, handler, http.MethodPost, fmt.Sprintf("/api/private/sites/%d/funnels", site.ID), `{"name":"Signup","steps":[{"type":"page","match":"exact","value":"/"},{"type":"page","match":"exact","value":"/thanks"}]}`)
 	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/funnels/%d", funnelID), `{"name":"Signup v2","steps":[{"type":"page","match":"exact","value":"/"},{"type":"page","match":"prefix","value":"/done"}]}`, http.StatusOK)
 	requestOK(t, handler, http.MethodDelete, fmt.Sprintf("/api/private/funnels/%d", funnelID), "", http.StatusNoContent)
@@ -541,8 +564,8 @@ func TestGoalAndFunnelMutationsWriteAudit(t *testing.T) {
 	if err := pool.QueryRow(ctx, `select count(*) from audit_log`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 6 {
-		t.Fatalf("audit count=%d, want 6", count)
+	if count != 8 {
+		t.Fatalf("audit count=%d, want 8", count)
 	}
 }
 

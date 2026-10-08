@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"panel/internal/api"
+	platformgoals "panel/internal/platform/goals"
 	"panel/internal/sites"
 )
 
@@ -62,6 +63,7 @@ type Normalized struct {
 	Cursor          *string
 	Compare         *api.QueryRequestCompare
 	IncludeImported bool
+	GoalDefinitions map[int64]platformgoals.Goal
 }
 
 // Normalize validates req and resolves its date range in the requested time
@@ -115,6 +117,15 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		return Normalized{}, badQuery(err.Error())
 	}
 	for _, filter := range filters {
+		if filter.Dimension == "goal_id" {
+			if filter.Operator != api.Is || len(filter.Values) != 1 {
+				return Normalized{}, badQuery("goal_id requires operator is and exactly one value")
+			}
+			id, err := strconv.ParseInt(filter.Values[0], 10, 64)
+			if err != nil || id <= 0 {
+				return Normalized{}, badQuery("goal_id requires one positive numeric value")
+			}
+		}
 		if filter.Dimension == "revenue_currency" {
 			if filter.Operator != api.Is || len(filter.Values) != 1 || !validCurrency(filter.Values[0]) {
 				return Normalized{}, badQuery("revenue_currency requires operator is and one uppercase 3-letter value")
@@ -286,7 +297,7 @@ func knownDimension(dimension string) bool {
 }
 
 func knownFilterDimension(dimension string) bool {
-	return dimension == "revenue_currency" || knownDimension(dimension)
+	return dimension == "goal_id" || dimension == "revenue_currency" || knownDimension(dimension)
 }
 
 func validCurrency(value string) bool {

@@ -6,15 +6,16 @@ import (
 )
 
 type Goal struct {
-	ID        int64
-	SiteID    int32
-	Kind      string
-	Match     string
-	Value     string
-	PropKey   string
-	PropValue string
-	Name      string
-	Currency  string
+	ID              int64
+	SiteID          int32
+	Kind            string
+	Match           string
+	Value           string
+	PropKey         string
+	PropValue       string
+	Name            string
+	Currency        string
+	ScrollThreshold int16
 }
 
 type Funnel struct {
@@ -28,7 +29,7 @@ func ActiveGoals(ctx context.Context, data *Store) ([]Goal, error) {
 	rows, err := data.Pool.Query(ctx, `
 		select g.id, g.site_id, g.kind, g.match, g.value,
 		       coalesce(g.prop_key, ''), coalesce(g.prop_value, ''), g.name,
-		       coalesce(g.currency, '')
+		       coalesce(g.currency, ''), coalesce(g.scroll_threshold, 0)
 		from goals g
 		join sites s on s.id = g.site_id
 		where s.deleted_at is null
@@ -43,7 +44,7 @@ func ActiveGoals(ctx context.Context, data *Store) ([]Goal, error) {
 		var goal Goal
 		if err := rows.Scan(
 			&goal.ID, &goal.SiteID, &goal.Kind, &goal.Match, &goal.Value,
-			&goal.PropKey, &goal.PropValue, &goal.Name, &goal.Currency,
+			&goal.PropKey, &goal.PropValue, &goal.Name, &goal.Currency, &goal.ScrollThreshold,
 		); err != nil {
 			return nil, fmt.Errorf("scan goal: %w", err)
 		}

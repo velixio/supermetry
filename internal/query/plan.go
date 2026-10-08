@@ -127,13 +127,18 @@ type Engine struct {
 	pool        *pgxpool.Pool
 	dict        *dict.Dict
 	registry    sites.Registry
+	goals       GoalLookup
 	forcedRoute *Route
 	now         func() time.Time
 }
 
 // NewEngine constructs a query engine.
-func NewEngine(pool *pgxpool.Pool, dictionary *dict.Dict, registry sites.Registry) *Engine {
-	return &Engine{pool: pool, dict: dictionary, registry: registry, now: time.Now}
+func NewEngine(pool *pgxpool.Pool, dictionary *dict.Dict, registry sites.Registry, definitions ...GoalLookup) *Engine {
+	var lookup GoalLookup
+	if len(definitions) > 0 {
+		lookup = definitions[0]
+	}
+	return &Engine{pool: pool, dict: dictionary, registry: registry, goals: lookup, now: time.Now}
 }
 
 // WithForcedRoute returns a shallow test engine that reads the entire range
@@ -166,6 +171,9 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	normalized, problem := Normalize(req, site, now)
 	if problem != nil {
 		return api.QueryResponse{}, errors.New(problemDetail(problem))
+	}
+	if err := e.resolveGoalFilters(&normalized); err != nil {
+		return api.QueryResponse{}, err
 	}
 	closedThrough, err := e.closedThrough(ctx, normalized.SiteID, normalized.From, normalized.To)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 
 	"panel/internal/api"
 	"panel/internal/dict"
+	platformgoals "panel/internal/platform/goals"
 )
 
 func (e *Engine) queryHot(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {
@@ -114,7 +115,7 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		return "", nil, err
 	}
 	conditions = append(conditions, presentConditions...)
-	specialConditions, err := hotSpecialConditions(builder, specialFilters)
+	specialConditions, err := hotSpecialConditions(builder, specialFilters, req.GoalDefinitions)
 	if err != nil {
 		return "", nil, err
 	}
@@ -208,10 +209,20 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 	return aggregateSQL(dimensions, sums, "events e", where), builder.args, nil
 }
 
-func hotSpecialConditions(builder *sqlBuilder, filters []api.Filter) ([]string, error) {
+func hotSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefinitions ...map[int64]platformgoals.Goal) ([]string, error) {
 	conditions := make([]string, 0, len(filters))
+	var definitions map[int64]platformgoals.Goal
+	if len(goalDefinitions) > 0 {
+		definitions = goalDefinitions[0]
+	}
 	for _, filter := range filters {
 		switch {
+		case filter.Dimension == "goal_id":
+			condition, err := goalFilterCondition(builder, filter, tierHot, definitions)
+			if err != nil {
+				return nil, err
+			}
+			conditions = append(conditions, condition)
 		case filter.Dimension == "event" || filter.Dimension == "goal":
 			filter.Dimension = "event"
 			matches, err := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {

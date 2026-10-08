@@ -14,6 +14,7 @@ import (
 
 	"panel/internal/api"
 	"panel/internal/dict"
+	platformgoals "panel/internal/platform/goals"
 )
 
 const queryTimeout = 10 * time.Second
@@ -199,7 +200,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		return "", nil, err
 	}
 	conditions = append(conditions, presentConditions...)
-	specialConditions, err := closedSpecialConditions(builder, specialFilters)
+	specialConditions, err := closedSpecialConditions(builder, specialFilters, req.GoalDefinitions)
 	if err != nil {
 		return "", nil, err
 	}
@@ -433,7 +434,7 @@ func splitPageFilters(filters []api.Filter) (page, other []api.Filter) {
 
 func splitSpecialFilters(filters []api.Filter) (special, other []api.Filter) {
 	for _, filter := range filters {
-		if filter.Dimension == "event" || filter.Dimension == "goal" || strings.HasPrefix(filter.Dimension, "prop:") {
+		if filter.Dimension == "event" || filter.Dimension == "goal" || filter.Dimension == "goal_id" || strings.HasPrefix(filter.Dimension, "prop:") {
 			special = append(special, filter)
 		} else {
 			other = append(other, filter)
@@ -442,10 +443,20 @@ func splitSpecialFilters(filters []api.Filter) (special, other []api.Filter) {
 	return special, other
 }
 
-func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter) ([]string, error) {
+func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefinitions ...map[int64]platformgoals.Goal) ([]string, error) {
 	conditions := make([]string, 0, len(filters))
+	var definitions map[int64]platformgoals.Goal
+	if len(goalDefinitions) > 0 {
+		definitions = goalDefinitions[0]
+	}
 	for _, filter := range filters {
 		switch {
+		case filter.Dimension == "goal_id":
+			condition, err := goalFilterCondition(builder, filter, tierClosed, definitions)
+			if err != nil {
+				return nil, err
+			}
+			conditions = append(conditions, condition)
 		case filter.Dimension == "event" || filter.Dimension == "goal":
 			filter.Dimension = "event"
 			matches, err := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
@@ -472,7 +483,7 @@ func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter) ([]strin
 
 func hasEventFilter(filters []api.Filter) bool {
 	for _, filter := range filters {
-		if filter.Dimension == "event" || filter.Dimension == "goal" {
+		if filter.Dimension == "event" || filter.Dimension == "goal" || filter.Dimension == "goal_id" {
 			return true
 		}
 	}

@@ -103,10 +103,32 @@ func (e FunnelStepType) Valid() bool {
 	}
 }
 
+// Defines values for GoalKind.
+const (
+	GoalEvent  GoalKind = "event"
+	GoalPage   GoalKind = "page"
+	GoalScroll GoalKind = "scroll"
+)
+
+// Valid indicates whether the value is a known member of the GoalKind enum.
+func (e GoalKind) Valid() bool {
+	switch e {
+	case GoalEvent:
+		return true
+	case GoalPage:
+		return true
+	case GoalScroll:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GoalInputKind.
 const (
-	GoalInputEvent GoalInputKind = "event"
-	GoalInputPage  GoalInputKind = "page"
+	GoalInputEvent  GoalInputKind = "event"
+	GoalInputPage   GoalInputKind = "page"
+	GoalInputScroll GoalInputKind = "scroll"
 )
 
 // Valid indicates whether the value is a known member of the GoalInputKind enum.
@@ -115,6 +137,8 @@ func (e GoalInputKind) Valid() bool {
 	case GoalInputEvent:
 		return true
 	case GoalInputPage:
+		return true
+	case GoalInputScroll:
 		return true
 	default:
 		return false
@@ -171,8 +195,10 @@ const (
 	Conversions    Metric = "conversions"
 	EngagementTime Metric = "engagement_time"
 	Events         Metric = "events"
+	ExitRate       Metric = "exit_rate"
 	Pageviews      Metric = "pageviews"
 	ScrollDepth    Metric = "scroll_depth"
+	TimeOnPage     Metric = "time_on_page"
 	TotalRevenue   Metric = "total_revenue"
 	ViewsPerVisit  Metric = "views_per_visit"
 	VisitDuration  Metric = "visit_duration"
@@ -195,9 +221,13 @@ func (e Metric) Valid() bool {
 		return true
 	case Events:
 		return true
+	case ExitRate:
+		return true
 	case Pageviews:
 		return true
 	case ScrollDepth:
+		return true
+	case TimeOnPage:
 		return true
 	case TotalRevenue:
 		return true
@@ -577,6 +607,7 @@ type EventPayload_Revenue_Amount struct {
 
 // Filter defines model for Filter.
 type Filter struct {
+	// Dimension Analytics dimension to filter. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
 	Dimension string         `json:"dimension"`
 	Operator  FilterOperator `json:"operator"`
 	Values    []string       `json:"values"`
@@ -618,16 +649,22 @@ type FunnelStepResult struct {
 
 // Goal defines model for Goal.
 type Goal struct {
-	Currency  *string `json:"currency,omitempty"`
-	Id        int64   `json:"id"`
-	Kind      string  `json:"kind"`
-	Match     string  `json:"match"`
-	Name      string  `json:"name"`
-	PropKey   *string `json:"prop_key,omitempty"`
-	PropValue *string `json:"prop_value,omitempty"`
-	SiteId    int32   `json:"site_id"`
-	Value     string  `json:"value"`
+	Currency  *string  `json:"currency,omitempty"`
+	Id        int64    `json:"id"`
+	Kind      GoalKind `json:"kind"`
+	Match     string   `json:"match"`
+	Name      string   `json:"name"`
+	PropKey   *string  `json:"prop_key,omitempty"`
+	PropValue *string  `json:"prop_value,omitempty"`
+
+	// ScrollThreshold Present only for scroll goals.
+	ScrollThreshold *int32 `json:"scroll_threshold,omitempty"`
+	SiteId          int32  `json:"site_id"`
+	Value           string `json:"value"`
 }
+
+// GoalKind defines model for Goal.Kind.
+type GoalKind string
 
 // GoalInput defines model for GoalInput.
 type GoalInput struct {
@@ -637,7 +674,10 @@ type GoalInput struct {
 	Name      string         `json:"name"`
 	PropKey   *string        `json:"prop_key,omitempty"`
 	PropValue *string        `json:"prop_value,omitempty"`
-	Value     string         `json:"value"`
+
+	// ScrollThreshold Required when kind is scroll and absent for every other kind.
+	ScrollThreshold *int32 `json:"scroll_threshold,omitempty"`
+	Value           string `json:"value"`
 }
 
 // GoalInputKind defines model for GoalInput.Kind.
@@ -716,7 +756,7 @@ type JourneyResponse struct {
 	Nodes []JourneyNode `json:"nodes"`
 }
 
-// Metric defines model for Metric.
+// Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 type Metric string
 
 // OrderBy defines model for OrderBy.

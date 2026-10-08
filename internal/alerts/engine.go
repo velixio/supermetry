@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"panel/internal/api"
 	"panel/internal/platform/goals"
+	queryengine "panel/internal/query"
 	"panel/internal/sites"
 )
 
@@ -31,6 +33,9 @@ type EngineSource struct {
 }
 
 func NewEngineSource(query Queryer, definitions GoalLookup) *EngineSource {
+	if configurable, ok := query.(interface{ SetGoalLookup(queryengine.GoalLookup) }); ok {
+		configurable.SetGoalLookup(definitions)
+	}
 	return &EngineSource{query: query, goals: definitions}
 }
 
@@ -46,17 +51,17 @@ func (s *EngineSource) Conversions(ctx context.Context, site sites.Site, goalID 
 	if s.goals == nil {
 		return 0, errors.New("goal definitions are unavailable")
 	}
-	var value string
+	found := false
 	for _, goal := range s.goals.Goals(site.ID) {
 		if goal.ID == goalID {
-			value = goal.Value
+			found = true
 			break
 		}
 	}
-	if value == "" {
+	if !found {
 		return 0, fmt.Errorf("goal %d is unavailable for site %d", goalID, site.ID)
 	}
-	filters := []api.Filter{{Dimension: "goal", Operator: api.Is, Values: []string{value}}}
+	filters := []api.Filter{{Dimension: "goal_id", Operator: api.Is, Values: []string{strconv.FormatInt(goalID, 10)}}}
 	response, err := s.query.Query(ctx, metricRequest(site, from, to, api.Conversions, &filters))
 	if err != nil {
 		return 0, err

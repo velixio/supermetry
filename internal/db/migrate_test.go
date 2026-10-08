@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -222,6 +223,108 @@ func TestIntegrityMigrationSchema(t *testing.T) {
 		}
 	}
 }
+
+func TestScrollGoalsMigration(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+
+	entries, err := os.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		prefix, _, ok := strings.Cut(entry.Name(), "_")
+		if entry.IsDir() || !ok || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		version, err := strconv.Atoi(prefix)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if version >= 19 {
+			continue
+		}
+		contents, err := os.ReadFile(filepath.Join("migrations", entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(ctx, string(contents)); err != nil {
+			_ = tx.Rollback(ctx)
+			t.Fatalf("apply prerequisite migration %s: %v", entry.Name(), err)
+		}
+		if _, err := tx.Exec(ctx, `insert into schema_migrations(version) values ($1)`, version); err != nil {
+			_ = tx.Rollback(ctx)
+			t.Fatal(err)
+		}
+		if err := tx.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var constraintName string
+	if err := pool.QueryRow(ctx, `
+		select conname from pg_constraint
+		where conrelid='goals'::regclass and contype='c'
+		  and pg_get_constraintdef(oid) like '%kind%page%event%'`).Scan(&constraintName); err != nil {
+		t.Fatalf("find pre-migration goals kind constraint: %v", err)
+	}
+	if constraintName != "goals_kind_check" {
+		t.Fatalf("pre-migration goals kind constraint = %q, want goals_kind_check", constraintName)
+	}
+
+	var orgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Scroll goals','scroll-goals') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class) values ($1,'scrollgoal01','Scroll goals','UTC',30) returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	var existingID int64
+	if err := pool.QueryRow(ctx, `insert into goals(site_id,kind,match,value,name) values ($1,'page','exact','/existing','Existing') returning id`, siteID).Scan(&existingID); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	var kind string
+	var threshold *int16
+	if err := pool.QueryRow(ctx, `select kind,scroll_threshold from goals where id=$1`, existingID).Scan(&kind, &threshold); err != nil {
+		t.Fatal(err)
+	}
+	if kind != "page" || threshold != nil {
+		t.Fatalf("existing goal after migration = kind %q threshold %v", kind, threshold)
+	}
+
+	tests := []struct {
+		name      string
+		kind      string
+		threshold *int16
+		wantOK    bool
+	}{
+		{name: "scroll with threshold", kind: "scroll", threshold: int16Ptr(50), wantOK: true},
+		{name: "scroll without threshold", kind: "scroll"},
+		{name: "page with threshold", kind: "page", threshold: int16Ptr(50)},
+		{name: "zero threshold", kind: "scroll", threshold: int16Ptr(0)},
+		{name: "threshold above maximum", kind: "scroll", threshold: int16Ptr(101)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := pool.Exec(ctx, `insert into goals(site_id,kind,match,value,name,scroll_threshold) values ($1,$2,'exact','/pricing',$3,$4)`, siteID, tt.kind, tt.name, tt.threshold)
+			if (err == nil) != tt.wantOK {
+				t.Fatalf("insert error = %v, want success %v", err, tt.wantOK)
+			}
+		})
+	}
+}
+
+func int16Ptr(value int16) *int16 { return &value }
 
 func TestMigrateConcurrentRunnersSerialize(t *testing.T) {
 	pool, _ := testpg.New(t)

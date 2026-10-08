@@ -2,11 +2,14 @@ package alerts
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"panel/internal/api"
 	"panel/internal/platform/goals"
+	queryengine "panel/internal/query"
 	"panel/internal/sites"
 )
 
@@ -14,6 +17,9 @@ func TestEngineSourceMapsExactInstantsToInclusiveSiteCivilDates(t *testing.T) {
 	kathmandu := mustLocation(t, "Asia/Kathmandu")
 	query := &fakeQueryer{responses: []api.QueryResponse{{Totals: map[string]float64{"visitors": 42}}}}
 	source := NewEngineSource(query, staticGoals{})
+	if query.goals == nil {
+		t.Fatal("NewEngineSource did not attach goal definitions to query engine")
+	}
 	from := time.Date(2026, 10, 7, 17, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 10, 8, 18, 14, 59, 0, time.UTC)
 
@@ -33,31 +39,56 @@ func TestEngineSourceMapsExactInstantsToInclusiveSiteCivilDates(t *testing.T) {
 	}
 }
 
-func TestEngineSourceFiltersConversionsByGoalValue(t *testing.T) {
-	query := &fakeQueryer{responses: []api.QueryResponse{{Totals: map[string]float64{"conversions": 5}}}}
-	source := NewEngineSource(query, staticGoals{values: []goals.Goal{{ID: 7, SiteID: 9, Value: "signup"}}})
+func TestEngineSourceFiltersConversionsByGoalIDForEveryGoalKind(t *testing.T) {
+	for _, goal := range []goals.Goal{
+		{ID: 7, SiteID: 9, Kind: "event", Value: "signup"},
+		{ID: 8, SiteID: 9, Kind: "page", Value: "/pricing"},
+		{ID: 9, SiteID: 9, Kind: "scroll", Value: "/pricing", ScrollThreshold: 75},
+	} {
+		t.Run(goal.Kind, func(t *testing.T) {
+			query := &fakeQueryer{responses: []api.QueryResponse{{Totals: map[string]float64{"conversions": 5}}}}
+			source := NewEngineSource(query, staticGoals{values: []goals.Goal{goal}})
 
-	got, err := source.Conversions(context.Background(), sites.Site{ID: 9, TZ: time.UTC}, 7, time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != 5 {
-		t.Fatalf("Conversions() = %v, want 5", got)
-	}
-	request := query.requests[0]
-	if len(request.Metrics) != 1 || request.Metrics[0] != api.Conversions || request.Filters == nil || len(*request.Filters) != 1 {
-		t.Fatalf("request = %+v", request)
-	}
-	filter := (*request.Filters)[0]
-	if filter.Dimension != "goal" || filter.Operator != api.Is || len(filter.Values) != 1 || filter.Values[0] != "signup" {
-		t.Fatalf("goal filter = %+v", filter)
+			got, err := source.Conversions(context.Background(), sites.Site{ID: 9, TZ: time.UTC}, goal.ID, time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != 5 {
+				t.Fatalf("Conversions() = %v, want 5", got)
+			}
+			request := query.requests[0]
+			if len(request.Metrics) != 1 || request.Metrics[0] != api.Conversions || request.Filters == nil || len(*request.Filters) != 1 {
+				t.Fatalf("request = %+v", request)
+			}
+			filter := (*request.Filters)[0]
+			if filter.Dimension != "goal_id" || filter.Operator != api.Is || len(filter.Values) != 1 || filter.Values[0] != stringInt(goal.ID) {
+				t.Fatalf("goal filter = %+v", filter)
+			}
+		})
 	}
 }
+
+func TestEngineSourceReportsDeletedGoalUnavailableWithoutQuerying(t *testing.T) {
+	query := &fakeQueryer{}
+	source := NewEngineSource(query, staticGoals{})
+	_, err := source.Conversions(context.Background(), sites.Site{ID: 9, TZ: time.UTC}, 77, time.Now(), time.Now())
+	if err == nil || !strings.Contains(err.Error(), "goal 77 is unavailable") {
+		t.Fatalf("Conversions() error = %v", err)
+	}
+	if len(query.requests) != 0 {
+		t.Fatalf("deleted goal issued requests: %+v", query.requests)
+	}
+}
+
+func stringInt(value int64) string { return strconv.FormatInt(value, 10) }
 
 type fakeQueryer struct {
 	requests  []api.QueryRequest
 	responses []api.QueryResponse
+	goals     queryengine.GoalLookup
 }
+
+func (f *fakeQueryer) SetGoalLookup(definitions queryengine.GoalLookup) { f.goals = definitions }
 
 func (f *fakeQueryer) Query(_ context.Context, request api.QueryRequest) (api.QueryResponse, error) {
 	f.requests = append(f.requests, request)
