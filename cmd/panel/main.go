@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|backup|restore|version}")
 		os.Exit(2)
 	}
 
@@ -62,8 +62,18 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "backup":
+		if err := backupCommand(context.Background(), os.Args[2:], os.Stdout, os.Getenv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "restore":
+		if err := restoreCommand(context.Background(), os.Args[2:], os.Stdout, os.Getenv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|backup|restore|version}")
 		os.Exit(2)
 	}
 }
