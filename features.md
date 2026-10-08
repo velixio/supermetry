@@ -22,10 +22,10 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |
 | Revenue goals | ✓ (paid) | ✓ | ✓ ||| ✅ |
 | Saved segments | ✓ | ✓ | ✓ ||| ✅ |
-| Annotations on the chart | – | ✓ | – || ⏳ |
-| Retention (cohort) report | – | ✓ | ✓ || ⏳ |
-| User journeys / path flow | ✓ (paid) | ✓ | ✓ || ⏳ |
-| Web Vitals | – | ✓ | ? | ❌ |
+| Annotations on the chart | – | ✓ | – | ✅ |
+| Retention (cohort) report | – | ✓ | ✓ | ✅ (same-day only) |
+| User journeys / path flow | ✓ (paid) | ✓ | ✓ | ✅ |
+| Web Vitals | – | ✓ | ? | ✅ (full script) |
 | Session replay | – | ✓ | ✓ | ⏸ |
 | Heatmaps | – | ✓ | – | ⏸ |
 | User profiles and `identify` | – | ✓ | ✓ | ⏸ |
@@ -55,14 +55,14 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Audit log | ? | – | – | ✅ |
 | Public share links | ✓ | ✓ | ✓ | ✅ |
 | Email reports | ✓ | – | ? | ✅ |
-| Alerts: traffic spike or drop, goal hit | ✓ (email, traffic spike) | – | ✓ || ⏳ |
-| Webhooks, Slack, Discord | – | – | ✓ || ⏳ |
+| Alerts: traffic spike or drop, goal hit | ✓ (email, traffic spike) | – | ✓ | ✅ |
+| Webhooks, Slack, Discord | – | – | ✓ | ✅ |
 | CSV export | ✓ | ✓ | ? | ✅ (every report, streamed) |
-| Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ❌ |
+| Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ✅ (GA4 import not yet) |
 | Stats API: summary | ✓ | ✓ | ✓ | ✅ |
 | Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ ||| ✅ |
 | Sites / goals / funnels API | ✓ (not in CE) | ✓ | ✓ | ✅ |
-| MCP server for AI assistants | ? | ✓ | ✓ || ⏳ |
+| MCP server for AI assistants | ? | ✓ | ✓ | ✅ |
 | SSO / OIDC | ✓ (enterprise) | ? | ? | ⏸ |
 
 ## Self-hosting
@@ -94,14 +94,14 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 7. ~~Revenue goals~~ ✅
 8. ~~Stats API: timeseries, breakdowns, realtime~~ ✅
 9. ~~Full CSV export of every report~~ ✅
-10. User journeys / path flow ⏳
-11. Retention (cohort) report ⏳
-12. Alerts: traffic spike or drop, goal hit (email) ⏳
-13. Annotations on the chart ⏳
-14. Importers from Plausible, Umami and GA4
-15. Webhooks, Slack and Discord ⏳
-16. MCP server for AI assistants ⏳
-17. Web Vitals
+10. ~~User journeys / path flow~~ ✅
+11. ~~Retention report~~ ✅ (same-day return only: visitor IDs rotate daily by design)
+12. ~~Alerts: traffic spike or drop, goal hit~~ ✅ (spike window is the whole local day for now)
+13. ~~Annotations on the chart~~ ✅
+14. ~~Importers from Plausible and Umami~~ ✅ (GA4 not yet)
+15. ~~Webhooks, Slack and Discord~~ ✅
+16. ~~MCP server for AI assistants~~ ✅
+17. ~~Web Vitals~~ ✅
 
 ### Later
 
