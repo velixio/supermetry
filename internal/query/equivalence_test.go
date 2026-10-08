@@ -153,6 +153,49 @@ func TestQueryPaginatesAndOrdersDimensions(t *testing.T) {
 	}
 }
 
+func TestHourlyTimeseriesUsesSiteTimezoneWithMinuteOffset(t *testing.T) {
+	pool, _ := setupTiny(t)
+	kolkata, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	engine := query.NewEngine(pool, dictionary, registry{site: sites.Site{
+		ID: 1, PublicID: "tiny", TZ: kolkata, Retention: db.Ret30,
+	}})
+	req := queryRequestRange("2026-10-06", "2026-10-06", []string{"hour"}, nil)
+	response := mustQuery(t, engine, req)
+	if len(response.Rows) != 3 {
+		t.Fatalf("rows=%+v, want three local-hour buckets", response.Rows)
+	}
+	want := []string{"2026-10-06T15:00:00", "2026-10-06T16:00:00", "2026-10-06T17:00:00"}
+	for i, label := range want {
+		if response.Rows[i]["hour"] != label {
+			t.Fatalf("row %d hour=%v, want %s", i, response.Rows[i]["hour"], label)
+		}
+	}
+}
+
+func TestQueryAddsPreviousPeriodComparison(t *testing.T) {
+	_, engine := setupTiny(t)
+	req := queryRequestRange("2026-10-08", "2026-10-08", nil, nil)
+	compare := api.PreviousPeriod
+	req.Compare = &compare
+	response := mustQuery(t, engine, req)
+	if response.Comparison == nil {
+		t.Fatal("comparison is nil")
+	}
+	if got := response.Comparison.DateRange.From.Format("2006-01-02"); got != "2026-10-07" {
+		t.Fatalf("comparison from=%s, want 2026-10-07", got)
+	}
+	if response.Comparison.Totals["visitors"] != 2 || response.Comparison.Totals["visits"] != 2 || response.Comparison.Totals["pageviews"] != 3 {
+		t.Fatalf("comparison totals=%v", response.Comparison.Totals)
+	}
+}
+
 func TestEventAndPropertyFilters(t *testing.T) {
 	_, engine := setupTiny(t)
 	tests := []struct {

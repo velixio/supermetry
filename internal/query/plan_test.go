@@ -70,6 +70,14 @@ func TestPlanUsesClosedForUnsupportedRollupShape(t *testing.T) {
 	}
 }
 
+func TestPlanReadsRawSessionsForHourlyTimeseries(t *testing.T) {
+	parts := query.Plan(normalized("2026-10-01", "2026-10-07", []string{"hour"}, nil), day("2026-10-07"))
+	want := []query.Part{{Route: query.RouteHot, From: day("2026-10-01"), To: day("2026-10-07")}}
+	if !reflect.DeepEqual(parts, want) {
+		t.Fatalf("Plan() = %+v, want %+v", parts, want)
+	}
+}
+
 func normalized(from, to string, dimensions []string, filters []api.Filter, metrics ...api.Metric) query.Normalized {
 	if len(metrics) == 0 {
 		metrics = []api.Metric{api.Visitors, api.Visits, api.Pageviews}

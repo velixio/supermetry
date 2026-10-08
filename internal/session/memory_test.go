@@ -207,6 +207,36 @@ func TestActiveSinceCountsVisitorsAndRanksExitPaths(t *testing.T) {
 	}
 }
 
+func TestActiveBreakdownsSinceRanksPagesAndSourcesWithCounts(t *testing.T) {
+	m := session.NewMemory(8, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	for visitor, hit := range map[int64]struct {
+		path   int32
+		source int32
+	}{
+		1: {path: 5, source: 8},
+		2: {path: 5, source: 7},
+		3: {path: 2, source: 8},
+	} {
+		m.Touch(session.Hit{
+			SiteID: 1, TS: t0.Add(time.Duration(visitor) * time.Minute), LocalDay: t0,
+			VisitorID: visitor, Kind: 0, PathID: hit.path, Source: hit.source,
+		})
+	}
+	m.Touch(session.Hit{SiteID: 1, TS: t0.Add(-time.Minute), LocalDay: t0, VisitorID: 4, Kind: 0, PathID: 1, Source: 6})
+	m.Touch(session.Hit{SiteID: 2, TS: t0.Add(4 * time.Minute), LocalDay: t0, VisitorID: 5, Kind: 0, PathID: 9, Source: 9})
+
+	visitors, pages, sources := m.ActiveBreakdownsSince(1, t0)
+	if visitors != 3 {
+		t.Fatalf("active visitors=%d, want 3", visitors)
+	}
+	wantPages := []session.ActiveValue{{ID: 5, Visitors: 2}, {ID: 2, Visitors: 1}}
+	wantSources := []session.ActiveValue{{ID: 8, Visitors: 2}, {ID: 7, Visitors: 1}}
+	if !slices.Equal(pages, wantPages) || !slices.Equal(sources, wantSources) {
+		t.Fatalf("pages=%v sources=%v, want %v and %v", pages, sources, wantPages, wantSources)
+	}
+}
+
 func TestCountersRemainExactPastCompactRange(t *testing.T) {
 	m := session.NewMemory(1, realClock{})
 	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)

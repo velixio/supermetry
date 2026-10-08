@@ -202,9 +202,21 @@ func (m *Memory) Dirty(max int) []Snapshot {
 // ActiveSince reports active visitors and unique exit paths ordered by active
 // visitor count descending, then path ID ascending for deterministic ties.
 func (m *Memory) ActiveSince(siteID int32, since time.Time) (int, []int32) {
+	visitors, ranked, _ := m.ActiveBreakdownsSince(siteID, since)
+	paths := make([]int32, len(ranked))
+	for i := range ranked {
+		paths[i] = ranked[i].ID
+	}
+	return visitors, paths
+}
+
+// ActiveBreakdownsSince reports active visitors plus ranked exit paths and
+// first-touch sources. Ties are ordered by ID for deterministic responses.
+func (m *Memory) ActiveBreakdownsSince(siteID int32, since time.Time) (int, []ActiveValue, []ActiveValue) {
 	sinceNS := since.UnixNano()
 	visitors := 0
 	pathCounts := make(map[int32]int)
+	sourceCounts := make(map[int32]int)
 	for i := range m.shards {
 		sh := &m.shards[i]
 		sh.mu.Lock()
@@ -216,29 +228,28 @@ func (m *Memory) ActiveSince(siteID int32, since time.Time) (int, []int32) {
 			if s.exit != 0 {
 				pathCounts[s.exit]++
 			}
+			if s.source != 0 {
+				sourceCounts[s.source]++
+			}
 		}
 		sh.mu.Unlock()
 	}
 
-	type rankedPath struct {
-		id    int32
-		count int
-	}
-	ranked := make([]rankedPath, 0, len(pathCounts))
-	for id, count := range pathCounts {
-		ranked = append(ranked, rankedPath{id: id, count: count})
+	return visitors, rankActiveValues(pathCounts), rankActiveValues(sourceCounts)
+}
+
+func rankActiveValues(counts map[int32]int) []ActiveValue {
+	ranked := make([]ActiveValue, 0, len(counts))
+	for id, count := range counts {
+		ranked = append(ranked, ActiveValue{ID: id, Visitors: count})
 	}
 	sort.Slice(ranked, func(i, j int) bool {
-		if ranked[i].count != ranked[j].count {
-			return ranked[i].count > ranked[j].count
+		if ranked[i].Visitors != ranked[j].Visitors {
+			return ranked[i].Visitors > ranked[j].Visitors
 		}
-		return ranked[i].id < ranked[j].id
+		return ranked[i].ID < ranked[j].ID
 	})
-	paths := make([]int32, len(ranked))
-	for i := range ranked {
-		paths[i] = ranked[i].id
-	}
-	return visitors, paths
+	return ranked
 }
 
 // Restore installs persisted open-session state without marking it dirty. If

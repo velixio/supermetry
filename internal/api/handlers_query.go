@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const maxQueryBodyBytes = 1 << 20
@@ -18,6 +19,7 @@ type queryService interface {
 
 type handlers struct {
 	query queryService
+	now   func() time.Time
 }
 
 func (h *handlers) queryRequest(w http.ResponseWriter, r *http.Request) {
@@ -33,12 +35,25 @@ func (h *handlers) queryRequest(w http.ResponseWriter, r *http.Request) {
 	if !authorizeRequest(w, r, request.SiteId, "stats:read") {
 		return
 	}
+	if problem := validateFormat(r); problem != nil {
+		writeProblem(w, *problem)
+		return
+	}
+	if all, problem := csvAllRequested(r); problem != nil {
+		writeProblem(w, *problem)
+		return
+	} else if all {
+		from, to := queryRangeLabels(r, request, h.currentTime())
+		streamQueryCSV(w, r, h.query, request, csvFilename(csvSite(r, request.SiteId), "query", from, to))
+		return
+	}
 	response, err := h.query.Query(r.Context(), request)
 	if err != nil {
 		writeQueryError(w, err)
 		return
 	}
-	writeQueryResponse(w, r, response)
+	from, to := queryRangeLabels(r, request, h.currentTime())
+	writeQueryResponse(w, r, response, csvFilename(csvSite(r, request.SiteId), "query", from, to))
 }
 
 func (h *handlers) funnelRequest(w http.ResponseWriter, r *http.Request) {
@@ -78,9 +93,9 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) *Problem {
 	return nil
 }
 
-func writeQueryResponse(w http.ResponseWriter, r *http.Request, response QueryResponse) {
-	if acceptsCSV(r) {
-		writeCSV(w, response)
+func writeQueryResponse(w http.ResponseWriter, r *http.Request, response QueryResponse, filename string) {
+	if wantsCSV(r) {
+		writeCSV(w, response, filename)
 		return
 	}
 	writeJSON(w, http.StatusOK, response)
@@ -93,6 +108,37 @@ func acceptsCSV(r *http.Request) bool {
 		}
 	}
 	return false
+}
+
+func wantsCSV(r *http.Request) bool {
+	return acceptsCSV(r) || r.URL.Query().Get("format") == "csv"
+}
+
+func validateFormat(r *http.Request) *Problem {
+	format := r.URL.Query().Get("format")
+	if format == "" || format == "json" || format == "csv" {
+		return nil
+	}
+	problem := badRequest("format must be json or csv")
+	return &problem
+}
+
+func csvAllRequested(r *http.Request) (bool, *Problem) {
+	if r.URL.Query().Get("limit") != "all" {
+		return false, nil
+	}
+	if !wantsCSV(r) {
+		problem := badRequest("limit=all requires a CSV response")
+		return false, &problem
+	}
+	return true, nil
+}
+
+func (h *handlers) currentTime() time.Time {
+	if h.now != nil {
+		return h.now()
+	}
+	return time.Now()
 }
 
 func writeQueryError(w http.ResponseWriter, err error) {

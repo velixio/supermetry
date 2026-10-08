@@ -105,13 +105,16 @@ func TestNormalizeResolvesPeriodsAndDefaults(t *testing.T) {
 		wantTo   string
 	}{
 		{name: "today", period: api.Today, wantFrom: "2026-10-08", wantTo: "2026-10-08"},
+		{name: "day alias", period: api.Period("day"), wantFrom: "2026-10-08", wantTo: "2026-10-08"},
 		{name: "yesterday", period: api.Yesterday, wantFrom: "2026-10-07", wantTo: "2026-10-07"},
 		{name: "seven days", period: api.N7d, wantFrom: "2026-10-02", wantTo: "2026-10-08"},
 		{name: "thirty days", period: api.N30d, wantFrom: "2026-09-09", wantTo: "2026-10-08"},
 		{name: "month", period: api.Month, wantFrom: "2026-10-01", wantTo: "2026-10-08"},
 		{name: "last month", period: api.LastMonth, wantFrom: "2026-09-01", wantTo: "2026-09-30"},
 		{name: "year", period: api.Year, wantFrom: "2026-01-01", wantTo: "2026-10-08"},
+		{name: "six months", period: api.Period("6mo"), wantFrom: "2026-04-09", wantTo: "2026-10-08"},
 		{name: "twelve months", period: api.N12mo, wantFrom: "2025-10-09", wantTo: "2026-10-08"},
+		{name: "all", period: api.Period("all"), wantFrom: "1970-01-01", wantTo: "2026-10-08"},
 	}
 
 	for _, tt := range tests {

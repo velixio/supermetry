@@ -221,7 +221,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Query: engine, Ingest: intake, Sessions: sessions, Sites: registry,
+		Config: cfg, Query: engine, Ingest: intake, Sessions: sessions, Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})

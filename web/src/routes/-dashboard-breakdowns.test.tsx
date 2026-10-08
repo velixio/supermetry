@@ -12,6 +12,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
 }))
 
 import { routeTree } from '@/routeTree.gen'
+import { parseSearch, stringifySearch } from '@/router'
 
 const me = {
   user: { id: 1, name: 'Owner', email: 'owner@example.com' },
@@ -80,7 +81,7 @@ describe('dashboard breakdown route', () => {
         '/acme/example?period=custom&from=2026-09-28&to=2026-09-30',
       ],
     })
-    const router = createRouter({ routeTree, history })
+    const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
@@ -143,5 +144,69 @@ describe('dashboard breakdown route', () => {
     await waitFor(() =>
       expect(router.state.location.search.f).toEqual(['country:is:IN']),
     )
+  })
+
+  it('exports every dashboard CSV with the current range and filters', async () => {
+    const history = createMemoryHistory({
+      initialEntries: [
+        '/acme/example?period=custom&from=2026-09-28&to=2026-09-30&f=country%3Ais%3AIN',
+      ],
+    })
+    const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+
+    await screen.findByRole('region', { name: 'Pages' })
+    post.mockClear()
+
+    const exports = [
+      ['Timeseries', 'time', 'visitors'],
+      ['Pages', 'page', 'visitors'],
+      ['Entry', 'entry', 'visitors'],
+      ['Exit', 'exit', 'visitors'],
+      ['Sources', 'source', 'visitors'],
+      ['UTM', 'utm_campaign', 'visitors'],
+      ['Countries', 'country', 'visitors'],
+      ['Regions', 'region', 'visitors'],
+      ['Cities', 'city', 'visitors'],
+      ['Browsers', 'browser', 'visitors'],
+      ['OS', 'os', 'visitors'],
+      ['Devices', 'device', 'visitors'],
+      ['Events', 'event', 'events'],
+    ] as const
+
+    for (const [label, dimension, metric] of exports) {
+      fireEvent.pointerDown(screen.getByRole('button', { name: 'Export CSV' }), {
+        button: 0,
+        ctrlKey: false,
+      })
+      fireEvent.click(await screen.findByRole('menuitem', { name: label }))
+
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith('/api/private/query', {
+          body: {
+            site_id: 7,
+            date_range: { from: '2026-09-28', to: '2026-09-30' },
+            timezone: 'UTC',
+            metrics: [metric],
+            dimensions: [dimension],
+            filters: [
+              { dimension: 'country', operator: 'is', values: ['IN'] },
+            ],
+          },
+          headers: { Accept: 'text/csv' },
+          params: { query: { format: 'csv', limit: 'all' } },
+          parseAs: 'text',
+        }),
+      )
+    }
+
+    expect(post).toHaveBeenCalledTimes(exports.length)
   })
 })
