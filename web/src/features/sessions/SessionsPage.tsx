@@ -11,6 +11,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ErrorState } from '@/components/ErrorState'
+import { ReplayLink } from '@/components/replay/ReplayLink'
 import type { Filter } from '@/lib/search'
 
 import { useSession, useSessions } from './api'
@@ -62,6 +63,9 @@ export function SessionsPage({
   selectedSessionId,
   onCursorChange,
   onSelect,
+  hasReplayOnly = false,
+  org,
+  site,
 }: {
   siteId: number
   dateRange: { from: string; to: string }
@@ -70,8 +74,11 @@ export function SessionsPage({
   selectedSessionId?: string
   onCursorChange: (cursor?: string) => void
   onSelect: (sessionId?: string) => void
+  hasReplayOnly?: boolean
+  org?: string
+  site?: string
 }) {
-  const sessions = useSessions(siteId, dateRange, filters, cursor)
+  const sessions = useSessions(siteId, dateRange, filters, cursor, hasReplayOnly)
   const detail = useSession(siteId, selectedSessionId)
 
   return (
@@ -101,6 +108,7 @@ export function SessionsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Started</TableHead>
+                  <TableHead>Replay</TableHead>
                   <TableHead>Entry → exit</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Location</TableHead>
@@ -118,6 +126,7 @@ export function SessionsPage({
                         <time dateTime={session.started_at}>{formatDate(session.started_at)}</time>
                       </Button>
                     </TableCell>
+                    <TableCell>{org && site ? <ReplayLink hasReplay={(session as SessionSummary & { has_replay?: boolean }).has_replay} org={org} site={site} sessionId={session.id} /> : null}</TableCell>
                     <TableCell>{session.entry_page} → {session.exit_page}</TableCell>
                     <TableCell>{session.source || 'Direct'}</TableCell>
                     <TableCell>{locationLabel(session)}</TableCell>

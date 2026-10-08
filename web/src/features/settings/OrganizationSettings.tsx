@@ -7,13 +7,14 @@ const organizationSettingsTabs = [
   ['api', 'API reference', '/$org/settings/api'],
   ['audit', 'Audit log', '/$org/settings/audit'],
   ['notifications', 'Notifications', '/$org/settings/notifications'],
+  ['replay-storage', 'Replay storage', '/$org/settings/replay-storage'],
 ] as const
 
-export function OrganizationSettingsTabs({ org, current }: { org: string; current: string }) {
+export function OrganizationSettingsTabs({ org, current, showReplay = false }: { org: string; current: string; showReplay?: boolean }) {
   return (
     <nav aria-label="Organization settings" className="overflow-x-auto border-b">
       <div role="tablist" className="flex min-w-max gap-5">
-        {organizationSettingsTabs.map(([value, label, to]) => (
+        {organizationSettingsTabs.filter(([value]) => value !== 'replay-storage' || showReplay).map(([value, label, to]) => (
           <Link
             key={value}
             aria-current={current === value ? 'page' : undefined}
