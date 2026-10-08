@@ -118,6 +118,7 @@ func TestWebhookRejectsPrivateOrMixedDNSAnswersBeforeDial(t *testing.T) {
 		{name: "ipv4 mapped loopback", addrs: []netip.Addr{netip.MustParseAddr("::ffff:127.0.0.1")}},
 		{name: "ipv4 mapped metadata", addrs: []netip.Addr{netip.MustParseAddr("::ffff:169.254.169.254")}},
 		{name: "nat64 private", addrs: []netip.Addr{netip.MustParseAddr("64:ff9b::10.0.0.1")}},
+		{name: "nat64 public", addrs: []netip.Addr{netip.MustParseAddr("64:ff9b::5db8:d822")}},
 		{name: "mixed rebinding", addrs: []netip.Addr{netip.MustParseAddr("93.184.216.34"), netip.MustParseAddr("10.0.0.1")}},
 	}
 	for _, tt := range tests {
@@ -198,7 +199,7 @@ func testNotification() Notification {
 }
 
 func TestBlockedAddressAllowsPublicDestinations(t *testing.T) {
-	for _, raw := range []string{"93.184.216.34", "2606:2800:220:1::1", "64:ff9b::5db8:d822", "::ffff:93.184.216.34"} {
+	for _, raw := range []string{"93.184.216.34", "2606:2800:220:1::1", "::ffff:93.184.216.34"} {
 		if blockedAddress(netip.MustParseAddr(raw)) {
 			t.Errorf("blockedAddress(%s) = true, want false", raw)
 		}

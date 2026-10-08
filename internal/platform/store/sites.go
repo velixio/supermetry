@@ -164,10 +164,9 @@ func scanSite(row siteScanner) (Site, error) {
 func SetSiteIcon(ctx context.Context, data *Store, orgID int64, id int32, iconURL string, checkedAt time.Time) (Site, error) {
 	row := data.Pool.QueryRow(ctx, `
 		update sites
-		set settings = settings || jsonb_build_object(
-			'icon_url', $3::text,
-			'icon_checked_at', $4::text
-		)
+		set settings = settings ||
+			case when $3::text = '' then '{}'::jsonb else jsonb_build_object('icon_url', $3::text) end ||
+			jsonb_build_object('icon_checked_at', $4::text)
 		where id = $1 and org_id = $2 and deleted_at is null
 		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),

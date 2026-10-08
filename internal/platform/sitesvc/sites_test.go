@@ -105,6 +105,50 @@ func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
 	}
 }
 
+func TestRefreshIconKeepsStoredIconWhenDiscoveryFindsNothing(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Icons", []string{"example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const (
+		storedIcon = "https://example.com/icon.svg"
+		oldChecked = "2000-01-01T00:00:00Z"
+	)
+	if _, err := pool.Exec(ctx, `
+		update sites set settings = settings || jsonb_build_object(
+			'icon_url', $2::text, 'icon_checked_at', $3::text
+		) where id = $1`, site.ID, storedIcon, oldChecked); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	service.discoverIcon = func(context.Context, string) string { return "" }
+
+	updated, err := service.RefreshIcon(ctx, principal, site.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.IconURL != storedIcon {
+		t.Fatalf("updated icon_url=%q, want stored icon %q", updated.IconURL, storedIcon)
+	}
+	var iconURL, checkedAt string
+	if err := pool.QueryRow(ctx, `select settings->>'icon_url', settings->>'icon_checked_at' from sites where id=$1`, site.ID).Scan(&iconURL, &checkedAt); err != nil {
+		t.Fatal(err)
+	}
+	if iconURL != storedIcon {
+		t.Fatalf("stored icon_url=%q, want %q", iconURL, storedIcon)
+	}
+	if checkedAt == oldChecked {
+		t.Fatalf("stored icon_checked_at=%q, want refreshed timestamp", checkedAt)
+	}
+	if _, err := time.Parse(time.RFC3339, checkedAt); err != nil {
+		t.Fatalf("stored icon_checked_at=%q: %v", checkedAt, err)
+	}
+}
+
 func TestUpdateProfilesEnabledPersistsRefreshesAndAudits(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()

@@ -122,16 +122,22 @@ type CreatedAPIKey struct {
 }
 
 type handler struct {
-	deps          Deps
-	iconRefetchMu sync.Mutex
-	iconRefetched map[int32]time.Time
+	deps            Deps
+	iconDiscoveries chan struct{}
+	iconDiscoveryWG sync.WaitGroup
+	iconRefetchMu   sync.Mutex
+	iconRefetched   map[int32]time.Time
 }
 
 // New returns the platform route set. It owns platform authentication so the
 // complete authz.Principal is available; the analytics router may mount this
 // handler as a fallback under its public and private route trees.
 func New(deps Deps) http.Handler {
-	h := &handler{deps: deps, iconRefetched: make(map[int32]time.Time)}
+	h := &handler{
+		deps:            deps,
+		iconDiscoveries: make(chan struct{}, 4),
+		iconRefetched:   make(map[int32]time.Time),
+	}
 	mux := http.NewServeMux()
 	h.registerPrivate(mux)
 	h.registerAuth(mux)

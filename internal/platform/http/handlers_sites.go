@@ -335,7 +335,16 @@ func (h *handler) startIconDiscovery(principal authz.Principal, siteID int32) {
 	if !ok {
 		return
 	}
+	select {
+	case h.iconDiscoveries <- struct{}{}:
+	default:
+		slog.Debug("site icon discovery skipped; capacity reached", "site_id", siteID)
+		return
+	}
+	h.iconDiscoveryWG.Add(1)
 	go func() {
+		defer h.iconDiscoveryWG.Done()
+		defer func() { <-h.iconDiscoveries }()
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if _, err := service.RefreshSiteIcon(ctx, principal, siteID); err != nil {

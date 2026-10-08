@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -295,6 +296,57 @@ func TestCreateSiteReturnsBeforeIconDiscoveryFinishes(t *testing.T) {
 	}
 }
 
+func TestCreateSiteLimitsConcurrentIconDiscovery(t *testing.T) {
+	principal := authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}
+	release := make(chan struct{})
+	mutations := &concurrentIconMutations{started: make(chan struct{}, 10), release: release}
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"owner": principal},
+		Mutations:     mutations,
+	})
+
+	var requests sync.WaitGroup
+	for index := 0; index < 10; index++ {
+		requests.Add(1)
+		go func() {
+			defer requests.Done()
+			request := authenticatedRequest(http.MethodPost, "/api/private/sites", `{"name":"Example","hosts":["example.test"],"timezone":"UTC","retention_days":30}`)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusCreated {
+				t.Errorf("create status=%d body=%s", response.Code, response.Body.String())
+			}
+		}()
+	}
+	requests.Wait()
+	for index := 0; index < 4; index++ {
+		select {
+		case <-mutations.started:
+		case <-time.After(time.Second):
+			t.Fatalf("started discoveries=%d, want 4", index)
+		}
+	}
+	select {
+	case <-mutations.started:
+		t.Fatal("more than 4 icon discoveries started")
+	case <-time.After(50 * time.Millisecond):
+	}
+	if calls := mutations.calls.Load(); calls != 4 {
+		t.Fatalf("icon discovery calls=%d, want 4", calls)
+	}
+	if maximum := mutations.maximum.Load(); maximum > 4 {
+		t.Fatalf("maximum concurrent icon discoveries=%d, want at most 4", maximum)
+	}
+	close(release)
+}
+
 type iconMutations struct {
 	noopSiteMutations
 	calls atomic.Int32
@@ -312,6 +364,36 @@ type blockingIconMutations struct {
 	noopSiteMutations
 	started chan struct{}
 	release chan struct{}
+}
+
+type concurrentIconMutations struct {
+	noopSiteMutations
+	created atomic.Int32
+	calls   atomic.Int32
+	active  atomic.Int32
+	maximum atomic.Int32
+	started chan struct{}
+	release chan struct{}
+}
+
+func (m *concurrentIconMutations) CreateSite(context.Context, authz.Principal, platformhttp.CreateSiteRequest) (coresites.Site, error) {
+	id := m.created.Add(1)
+	return coresites.Site{ID: id, OrgID: 1, PublicID: "abcdefgh2345", TZ: time.UTC, AllowedHosts: []string{"example.test"}}, nil
+}
+
+func (m *concurrentIconMutations) RefreshSiteIcon(ctx context.Context, _ authz.Principal, _ int32) (coresites.Site, error) {
+	m.calls.Add(1)
+	active := m.active.Add(1)
+	for maximum := m.maximum.Load(); active > maximum && !m.maximum.CompareAndSwap(maximum, active); maximum = m.maximum.Load() {
+	}
+	m.started <- struct{}{}
+	defer m.active.Add(-1)
+	select {
+	case <-m.release:
+		return coresites.Site{}, nil
+	case <-ctx.Done():
+		return coresites.Site{}, ctx.Err()
+	}
 }
 
 func (m *blockingIconMutations) CreateSite(context.Context, authz.Principal, platformhttp.CreateSiteRequest) (coresites.Site, error) {

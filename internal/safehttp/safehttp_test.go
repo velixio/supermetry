@@ -32,6 +32,26 @@ func TestGuardedDialRejectsBlockedAddressesBeforeDial(t *testing.T) {
 	}
 }
 
+func TestBlockedAddressRejectsIPv6TransitionRanges(t *testing.T) {
+	tests := []struct {
+		name string
+		addr string
+	}{
+		{name: "IPv4 compatible", addr: "::7f00:1"},
+		{name: "6to4", addr: "2002:7f00:1::1"},
+		{name: "Teredo", addr: "2001:0:4136:e378:8000:63bf:3fff:fdd2"},
+		{name: "local use NAT64", addr: "64:ff9b:1::1"},
+		{name: "well known NAT64", addr: "64:ff9b::808:808"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if address := netip.MustParseAddr(tt.addr); !BlockedAddress(address) {
+				t.Fatalf("BlockedAddress(%s) = false, want true", address)
+			}
+		})
+	}
+}
+
 type fakeResolver struct {
 	addresses []netip.Addr
 }

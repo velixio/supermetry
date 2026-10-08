@@ -53,19 +53,18 @@ var blockedPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("192.0.0.0/24"),
 	netip.MustParsePrefix("198.18.0.0/15"),
 	netip.MustParsePrefix("240.0.0.0/4"),
+	netip.MustParsePrefix("::/96"),
+	netip.MustParsePrefix("64:ff9b::/96"),
+	netip.MustParsePrefix("64:ff9b:1::/48"),
+	netip.MustParsePrefix("2001::/32"),
+	netip.MustParsePrefix("2002::/16"),
 	netip.MustParsePrefix("fec0::/10"),
 }
-
-var nat64Prefix = netip.MustParsePrefix("64:ff9b::/96")
 
 // BlockedAddress reports whether an address is private or otherwise unsafe
 // for a server-side request target.
 func BlockedAddress(address netip.Addr) bool {
 	address = address.Unmap()
-	if address.Is6() && nat64Prefix.Contains(address) {
-		value := address.As16()
-		return BlockedAddress(netip.AddrFrom4([4]byte{value[12], value[13], value[14], value[15]}))
-	}
 	if !address.IsValid() || address.IsPrivate() || address.IsLoopback() || address.IsLinkLocalUnicast() ||
 		address.IsLinkLocalMulticast() || address.IsInterfaceLocalMulticast() || address.IsMulticast() || address.IsUnspecified() {
 		return true

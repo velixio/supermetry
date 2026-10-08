@@ -22,7 +22,10 @@ const (
 	maxIconBytes   = 512 << 10
 	maxIconURL     = 2048
 	maxRedirects   = 3
+	maxCandidates  = 5
 )
+
+type candidatePagePortKey struct{}
 
 type Options struct {
 	Resolver    safehttp.Resolver
@@ -54,6 +57,9 @@ func New(options Options) *Discoverer {
 		Transport: transport,
 		CheckRedirect: func(request *http.Request, via []*http.Request) error {
 			if len(via) > maxRedirects || !validURL(request.URL) {
+				return http.ErrUseLastResponse
+			}
+			if pagePort, ok := request.Context().Value(candidatePagePortKey{}).(string); ok && !allowedPort(request.URL, pagePort) {
 				return http.ErrUseLastResponse
 			}
 			return nil
@@ -94,9 +100,17 @@ func (d *Discoverer) discoverPage(ctx context.Context, rawURL string) string {
 			body, readErr := io.ReadAll(io.LimitReader(response.Body, maxPageBytes+1))
 			_ = response.Body.Close()
 			if readErr == nil && len(body) <= maxPageBytes {
+				attempts := 0
 				for _, href := range preferredHrefs(body) {
 					candidate, resolveErr := base.Parse(strings.TrimSpace(href))
-					if resolveErr == nil && validURL(candidate) && len(candidate.String()) <= maxIconURL && d.isImage(ctx, candidate.String()) {
+					if resolveErr != nil || !validURL(candidate) || !allowedPort(candidate, base.Port()) || len(candidate.String()) > maxIconURL {
+						continue
+					}
+					if attempts == maxCandidates-1 {
+						break
+					}
+					attempts++
+					if d.isImage(ctx, candidate.String(), base.Port()) {
 						return candidate.String()
 					}
 				}
@@ -106,13 +120,14 @@ func (d *Discoverer) discoverPage(ctx context.Context, rawURL string) string {
 		}
 	}
 	fallback := base.ResolveReference(&url.URL{Path: "/favicon.ico"})
-	if validURL(fallback) && len(fallback.String()) <= maxIconURL && d.isImage(ctx, fallback.String()) {
+	if validURL(fallback) && allowedPort(fallback, base.Port()) && len(fallback.String()) <= maxIconURL && d.isImage(ctx, fallback.String(), base.Port()) {
 		return fallback.String()
 	}
 	return ""
 }
 
-func (d *Discoverer) isImage(ctx context.Context, rawURL string) bool {
+func (d *Discoverer) isImage(ctx context.Context, rawURL, pagePort string) bool {
+	ctx = context.WithValue(ctx, candidatePagePortKey{}, pagePort)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return false
@@ -177,4 +192,9 @@ func hasToken(tokens []string, want string) bool {
 
 func validURL(candidate *url.URL) bool {
 	return candidate != nil && (candidate.Scheme == "http" || candidate.Scheme == "https") && candidate.Hostname() != "" && candidate.User == nil
+}
+
+func allowedPort(candidate *url.URL, pagePort string) bool {
+	port := candidate.Port()
+	return port == "" || port == "80" || port == "443" || port == pagePort
 }

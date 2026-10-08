@@ -9,8 +9,10 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"panel/internal/safehttp"
@@ -70,6 +72,138 @@ func TestDiscoverPrefersIconRelations(t *testing.T) {
 	}
 	if strings.Join(requested, ",") != "/,/preferred.svg" {
 		t.Fatalf("requested = %v, want preferred icon only", requested)
+	}
+}
+
+func TestDiscoverTriesAtMostFiveCandidatesIncludingFallback(t *testing.T) {
+	var requested atomic.Int32
+	var page strings.Builder
+	addresses := map[string][]netip.Addr{"example.test": {netip.MustParseAddr("93.184.216.34")}}
+	for index := 0; index < 50; index++ {
+		host := "icon-" + strconv.Itoa(index) + ".test"
+		addresses[host] = []netip.Addr{netip.MustParseAddr("93.184.216.35")}
+		page.WriteString(`<link rel="icon" href="http://` + host + `/icon.png">`)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			_, _ = io.WriteString(w, page.String())
+			return
+		}
+		requested.Add(1)
+		if r.URL.Path == "/favicon.ico" {
+			w.Header().Set("Content-Type", "image/x-icon")
+			_, _ = io.WriteString(w, "icon")
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = io.WriteString(w, "not an image")
+	}))
+	defer server.Close()
+	discoverer := testDiscoverer(t, server.URL, addresses)
+
+	if got := discoverer.discoverPage(context.Background(), "http://example.test/"); got != "http://example.test/favicon.ico" {
+		t.Fatalf("discoverPage() = %q, want fallback", got)
+	}
+	if got := requested.Load(); got != 5 {
+		t.Fatalf("icon candidate requests = %d, want 5", got)
+	}
+}
+
+func TestDiscoverRejectsCandidatePortsOutsideAllowlist(t *testing.T) {
+	var page strings.Builder
+	addresses := map[string][]netip.Addr{"example.test": {netip.MustParseAddr("93.184.216.34")}}
+	for index := 0; index < 50; index++ {
+		host := "odd-" + strconv.Itoa(index) + ".test"
+		addresses[host] = []netip.Addr{netip.MustParseAddr("93.184.216.35")}
+		page.WriteString(`<link rel="icon" href="http://` + host + `:` + strconv.Itoa(3001+index*2) + `/icon.png">`)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			_, _ = io.WriteString(w, page.String())
+		case "/favicon.ico":
+			w.Header().Set("Content-Type", "image/x-icon")
+			_, _ = io.WriteString(w, "icon")
+		default:
+			http.Error(w, "unexpected candidate request", http.StatusInternalServerError)
+		}
+	}))
+	defer server.Close()
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var ports []string
+	dialer := func(ctx context.Context, network, address string) (net.Conn, error) {
+		_, port, splitErr := net.SplitHostPort(address)
+		if splitErr != nil {
+			return nil, splitErr
+		}
+		mu.Lock()
+		ports = append(ports, port)
+		mu.Unlock()
+		return (&net.Dialer{}).DialContext(ctx, network, serverURL.Host)
+	}
+	discoverer := New(Options{Resolver: mapResolver{addresses: addresses}, DialContext: dialer})
+
+	if got := discoverer.discoverPage(context.Background(), "http://example.test:8080/"); got != "http://example.test:8080/favicon.ico" {
+		t.Fatalf("discoverPage() = %q, want same-port fallback", got)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(ports) == 0 || len(ports) > 2 {
+		t.Fatalf("dialed ports = %v, want only page/fallback connections", ports)
+	}
+	for _, port := range ports {
+		if port != "8080" {
+			t.Fatalf("dialed disallowed port %q in %v", port, ports)
+		}
+	}
+}
+
+func TestDiscoverRejectsRedirectToDisallowedPort(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/":
+			_, _ = io.WriteString(w, `<link rel="icon" href="/icon.png">`)
+		case r.URL.Path == "/icon.png" && strings.HasPrefix(r.Host, "redirect.test:"):
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = io.WriteString(w, "icon")
+		case r.URL.Path == "/icon.png":
+			http.Redirect(w, r, "http://redirect.test:4444/icon.png", http.StatusFound)
+		case r.URL.Path == "/favicon.ico":
+			w.Header().Set("Content-Type", "image/x-icon")
+			_, _ = io.WriteString(w, "icon")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dialedDisallowed atomic.Bool
+	dialer := func(ctx context.Context, network, address string) (net.Conn, error) {
+		if _, port, splitErr := net.SplitHostPort(address); splitErr == nil && port == "4444" {
+			dialedDisallowed.Store(true)
+		}
+		return (&net.Dialer{}).DialContext(ctx, network, serverURL.Host)
+	}
+	discoverer := New(Options{
+		Resolver: mapResolver{addresses: map[string][]netip.Addr{
+			"example.test":  {netip.MustParseAddr("93.184.216.34")},
+			"redirect.test": {netip.MustParseAddr("93.184.216.35")},
+		}},
+		DialContext: dialer,
+	})
+
+	if got := discoverer.discoverPage(context.Background(), "http://example.test/"); got != "http://example.test/favicon.ico" {
+		t.Fatalf("discoverPage() = %q, want fallback", got)
+	}
+	if dialedDisallowed.Load() {
+		t.Fatal("redirect dialed disallowed port 4444")
 	}
 }
 
