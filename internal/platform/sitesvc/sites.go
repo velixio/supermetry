@@ -35,14 +35,15 @@ var (
 )
 
 type SitePatch struct {
-	Name            *string
-	Hosts           *[]string
-	TZ              *string
-	RetentionDays   *int
-	ExcludeIPs      *[]string
-	ExcludePaths    *[]string
-	ProfilesEnabled *bool
-	HeatmapsEnabled *bool
+	Name                  *string
+	Hosts                 *[]string
+	TZ                    *string
+	RetentionDays         *int
+	ExcludeIPs            *[]string
+	ExcludePaths          *[]string
+	ProfilesEnabled       *bool
+	HeatmapsEnabled       *bool
+	RespectPrivacySignals *bool
 }
 
 type Sites struct {
@@ -74,6 +75,7 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 			created, err = store.CreateSite(ctx, tx, store.Site{
 				OrgID: principal.OrgID, PublicID: publicID, Name: name,
 				AllowedHosts: hosts, Timezone: location.String(), RetentionClass: int16(retention),
+				RespectPrivacySignals: true,
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
 				continue
@@ -136,6 +138,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.HeatmapsEnabled != nil {
 			current.HeatmapsEnabled = *patch.HeatmapsEnabled
 		}
+		if patch.RespectPrivacySignals != nil {
+			current.RespectPrivacySignals = *patch.RespectPrivacySignals
+		}
 		name, hosts, location, retention, err := validateSite(
 			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
 		)
@@ -156,7 +161,8 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		}
 		metadata := map[string]any{
 			"name": name, "timezone": location.String(), "retention_days": int(retention),
-			"heatmaps_enabled": current.HeatmapsEnabled,
+			"heatmaps_enabled":        current.HeatmapsEnabled,
+			"respect_privacy_signals": current.RespectPrivacySignals,
 		}
 		if patch.ProfilesEnabled != nil {
 			metadata["profiles_enabled"] = current.ProfilesEnabled
@@ -341,9 +347,10 @@ func coreSite(row store.Site) (coresites.Site, error) {
 	return coresites.Site{
 		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
-		ProfilesEnabled: row.ProfilesEnabled,
-		HeatmapsEnabled: row.HeatmapsEnabled,
-		IconURL:         row.IconURL,
+		ProfilesEnabled:       row.ProfilesEnabled,
+		HeatmapsEnabled:       row.HeatmapsEnabled,
+		RespectPrivacySignals: row.RespectPrivacySignals,
+		IconURL:               row.IconURL,
 	}, nil
 }
 

@@ -69,6 +69,28 @@ func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
 	}
 }
 
+func TestRegistryDefaultsPrivacySignalsOnAndLoadsOverride(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !site.RespectPrivacySignals {
+		t.Fatal("privacy signals must default on")
+	}
+	if _, err := pool.Exec(ctx, `update sites set settings = settings || '{"respect_privacy_signals": false}'::jsonb where id = $1`, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || loaded.RespectPrivacySignals {
+		t.Fatalf("registry site = (%+v, %t), want privacy signals disabled", loaded, ok)
+	}
+}
+
 func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
@@ -339,6 +361,31 @@ func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
 	}
 }
 
+func TestUpdatePrivacySignalsPersistsAndRefreshesRegistry(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	disabled := false
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{RespectPrivacySignals: &disabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || updated.RespectPrivacySignals || loaded.RespectPrivacySignals {
+		t.Fatalf("privacy setting not refreshed: updated=%+v loaded=%+v found=%t", updated, loaded, ok)
+	}
+	var stored bool
+	if err := pool.QueryRow(ctx, `select (settings->>'respect_privacy_signals')::boolean from sites where id=$1`, site.ID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored {
+		t.Fatal("respect_privacy_signals was not stored as false")
+	}
+}
+
 func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
@@ -388,7 +435,7 @@ func TestCrossOrgAndForbiddenWritesAreHiddenOrDenied(t *testing.T) {
 }
 
 func TestSnippet(t *testing.T) {
-	got := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", `abc123"unsafe`, false)
+	got := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", `abc123"unsafe`, false, false)
 	for _, want := range []string{
 		`data-site="abc123&#34;unsafe"`,
 		`data-api="https://stats.example.com/api/public/v1/events"`,
@@ -399,9 +446,15 @@ func TestSnippet(t *testing.T) {
 			t.Fatalf("Snippet() = %q, missing %q", got, want)
 		}
 	}
-	full := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", "abc123", true)
+	full := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", "abc123", true, true)
 	if !strings.Contains(full, `src="https://stats.example.com/js/p.full.js"`) {
 		t.Fatalf("full Snippet() = %q, missing full tracker path", full)
+	}
+	if !strings.Contains(full, `data-heatmap="true"`) {
+		t.Fatalf("full Snippet() = %q, missing enabled heatmap attribute", full)
+	}
+	if strings.Contains(got, `data-heatmap`) {
+		t.Fatalf("core disabled Snippet() = %q, unexpectedly includes heatmap attribute", got)
 	}
 }
 

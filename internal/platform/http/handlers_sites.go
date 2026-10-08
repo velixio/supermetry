@@ -18,18 +18,19 @@ import (
 )
 
 type siteResponse struct {
-	ID              int32    `json:"id"`
-	OrgID           int64    `json:"org_id"`
-	PublicID        string   `json:"public_id"`
-	Name            string   `json:"name"`
-	Timezone        string   `json:"timezone"`
-	RetentionDays   int      `json:"retention_days"`
-	AllowedHosts    []string `json:"allowed_hosts"`
-	ExcludeIPs      []string `json:"exclude_ips"`
-	ExcludePaths    []string `json:"exclude_paths"`
-	ProfilesEnabled bool     `json:"profiles_enabled"`
-	HeatmapsEnabled bool     `json:"heatmaps_enabled"`
-	IconURL         string   `json:"icon_url"`
+	ID                    int32    `json:"id"`
+	OrgID                 int64    `json:"org_id"`
+	PublicID              string   `json:"public_id"`
+	Name                  string   `json:"name"`
+	Timezone              string   `json:"timezone"`
+	RetentionDays         int      `json:"retention_days"`
+	AllowedHosts          []string `json:"allowed_hosts"`
+	ExcludeIPs            []string `json:"exclude_ips"`
+	ExcludePaths          []string `json:"exclude_paths"`
+	ProfilesEnabled       bool     `json:"profiles_enabled"`
+	HeatmapsEnabled       bool     `json:"heatmaps_enabled"`
+	RespectPrivacySignals bool     `json:"respect_privacy_signals"`
+	IconURL               string   `json:"icon_url"`
 }
 
 func (h *handler) listSites(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +102,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 		coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
+		coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
 		coalesce(settings->>'icon_url',''),created_at
 		from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 		order by created_at,id limit $3`
@@ -110,6 +112,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 			coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 			coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
+			coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
 			coalesce(settings->>'icon_url',''),created_at
 			from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 			and (created_at,id)>($3,$4) order by created_at,id limit $5`
@@ -132,6 +135,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		if err := rows.Scan(&item.response.ID, &item.response.OrgID, &item.response.PublicID, &item.response.Name,
 			&item.response.AllowedHosts, &timezone, &retention, &item.response.ExcludeIPs,
 			&item.response.ExcludePaths, &item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
+			&item.response.RespectPrivacySignals,
 			&item.response.IconURL, &item.createdAt); err != nil {
 			return nil, "", err
 		}
@@ -255,14 +259,15 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Name            *string   `json:"name"`
-		Hosts           *[]string `json:"hosts"`
-		Timezone        *string   `json:"timezone"`
-		RetentionDays   *int      `json:"retention_days"`
-		ExcludeIPs      *[]string `json:"exclude_ips"`
-		ExcludePaths    *[]string `json:"exclude_paths"`
-		ProfilesEnabled *bool     `json:"profiles_enabled"`
-		HeatmapsEnabled *bool     `json:"heatmaps_enabled"`
+		Name                  *string   `json:"name"`
+		Hosts                 *[]string `json:"hosts"`
+		Timezone              *string   `json:"timezone"`
+		RetentionDays         *int      `json:"retention_days"`
+		ExcludeIPs            *[]string `json:"exclude_ips"`
+		ExcludePaths          *[]string `json:"exclude_paths"`
+		ProfilesEnabled       *bool     `json:"profiles_enabled"`
+		HeatmapsEnabled       *bool     `json:"heatmaps_enabled"`
+		RespectPrivacySignals *bool     `json:"respect_privacy_signals"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -279,6 +284,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		Name: request.Name, Hosts: request.Hosts, TZ: request.Timezone, RetentionDays: request.RetentionDays,
 		ExcludeIPs: request.ExcludeIPs, ExcludePaths: request.ExcludePaths,
 		ProfilesEnabled: request.ProfilesEnabled, HeatmapsEnabled: request.HeatmapsEnabled,
+		RespectPrivacySignals: request.RespectPrivacySignals,
 	})
 	if err != nil {
 		serviceError(w, err)
@@ -320,9 +326,10 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		ID: site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Timezone: timezone,
 		RetentionDays: int(site.Retention), AllowedHosts: append([]string(nil), site.AllowedHosts...),
 		ExcludeIPs: append([]string{}, site.Exclusions.IPRules...), ExcludePaths: append([]string{}, site.Exclusions.PathRules...),
-		ProfilesEnabled: site.ProfilesEnabled,
-		HeatmapsEnabled: site.HeatmapsEnabled,
-		IconURL:         site.IconURL,
+		ProfilesEnabled:       site.ProfilesEnabled,
+		HeatmapsEnabled:       site.HeatmapsEnabled,
+		RespectPrivacySignals: site.RespectPrivacySignals,
+		IconURL:               site.IconURL,
 	}
 	if h.deps.Store != nil {
 		_ = h.deps.Store.Pool.QueryRow(r.Context(), `select name,coalesce(settings->>'icon_url','') from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).Scan(&response.Name, &response.IconURL)
@@ -407,7 +414,7 @@ func (h *handler) siteSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
-		"snippet":      h.deps.Snippet(site.PublicID, false),
-		"full_snippet": h.deps.Snippet(site.PublicID, true),
+		"snippet":      h.deps.Snippet(site.PublicID, false, site.HeatmapsEnabled),
+		"full_snippet": h.deps.Snippet(site.PublicID, true, site.HeatmapsEnabled),
 	})
 }

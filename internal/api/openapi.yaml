@@ -1604,7 +1604,7 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled]
+      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -1623,6 +1623,10 @@ components:
           type: array
           items: { type: string }
         heatmaps_enabled: { type: boolean }
+        respect_privacy_signals:
+          type: boolean
+          default: true
+          description: When true, event ingestion drops requests carrying Sec-GPC 1 or DNT 1.
     SiteList:
       type: object
       additionalProperties: false
@@ -1666,6 +1670,9 @@ components:
           type: array
           items: { type: string }
         heatmaps_enabled: { type: boolean }
+        respect_privacy_signals:
+          type: boolean
+          description: Respect Sec-GPC 1 and DNT 1 request headers during event ingestion.
     GoalInput:
       type: object
       additionalProperties: false

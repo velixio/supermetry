@@ -62,7 +62,7 @@ type Deps struct {
 	SecureCookies bool
 	// Snippet returns the tracking snippet (absolute script and event URLs built
 	// from PANEL_BASE_URL) for a site's public ID.
-	Snippet        func(publicID string, full bool) string
+	Snippet        func(publicID string, full, heatmaps bool) string
 	Signup         string
 	TrustedProxies []netip.Prefix
 	Authenticator  Authenticator
