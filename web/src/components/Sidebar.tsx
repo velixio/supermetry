@@ -12,6 +12,7 @@ import {
   RouteIcon,
   Rows3Icon,
   SettingsIcon,
+  Building2Icon,
   TablePropertiesIcon,
   UserRoundIcon,
 } from 'lucide-react'
@@ -61,6 +62,7 @@ const managementNavigation = [
   { label: en.navigation.settings, suffix: '/settings/general', icon: SettingsIcon, scope: 'site' },
   { label: en.navigation.sites, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
   { label: en.navigation.health, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
+  { label: en.navigation.organizationSettings, suffix: '/settings/members', icon: Building2Icon, scope: 'org' },
 ] as const
 
 export type NavigationItem =
@@ -110,6 +112,9 @@ export function navigationIsActive(
   if (item.suffix === '') return pathname === href || pathname === `${href}/`
   if (item.suffix === '/settings/general') {
     return pathname.startsWith(`/${org}/${site}/settings/`)
+  }
+  if (item.suffix === '/settings/members') {
+    return pathname.startsWith(`/${org}/settings/`)
   }
   return pathname === href || pathname.startsWith(`${href}/`)
 }
@@ -183,6 +188,8 @@ function navigationLink(
       return <Link to="/$org/sites" params={{ org }} {...props}>{content}</Link>
     case '/health':
       return <Link to="/$org/health" params={{ org }} {...props}>{content}</Link>
+    case '/settings/members':
+      return <Link to="/$org/settings/members" params={{ org }} {...props}>{content}</Link>
   }
 
   const unreachable: never = item
