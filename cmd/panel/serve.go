@@ -30,6 +30,7 @@ import (
 	"panel/internal/heatmap"
 	"panel/internal/imports"
 	"panel/internal/ingest"
+	"panel/internal/minutes"
 	platformauth "panel/internal/platform/auth"
 	"panel/internal/platform/authn"
 	platformcrypto "panel/internal/platform/crypto"
@@ -262,7 +263,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Sessions: sessions, Sites: registry, Dictionary: dictionary,
+		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 	})
@@ -463,6 +464,7 @@ func scheduledJobs(
 	clk clock,
 ) []scheduler.Job {
 	jobs := []scheduler.Job{
+		minutes.NewStore(pool).Job(clk.Now),
 		{Name: "close-days", Every: time.Minute, Run: func(ctx context.Context) error {
 			return closeDueDays(ctx, pool, registry, closed, clk.Now())
 		}},
