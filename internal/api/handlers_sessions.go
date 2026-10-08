@@ -63,6 +63,14 @@ func (h *handlers) listSessions(w http.ResponseWriter, r *http.Request) {
 		value := Cursor(raw)
 		params.Cursor = &value
 	}
+	if raw := r.URL.Query().Get("has_replay"); raw != "" {
+		value, parseErr := strconv.ParseBool(raw)
+		if parseErr != nil {
+			writeProblem(w, badRequest("has_replay must be true or false"))
+			return
+		}
+		params.HasReplay = &value
+	}
 	filters, problem := parseStatsFilters(r.URL.Query()["filter"])
 	if problem != nil {
 		writeProblem(w, *problem)

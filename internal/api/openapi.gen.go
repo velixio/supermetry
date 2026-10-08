@@ -319,6 +319,66 @@ func (e QueryRequestCompare) Valid() bool {
 	}
 }
 
+// Defines values for ReplaySiteSettingsConsent.
+const (
+	ReplaySiteSettingsConsentAlways ReplaySiteSettingsConsent = "always"
+	ReplaySiteSettingsConsentAuto   ReplaySiteSettingsConsent = "auto"
+	ReplaySiteSettingsConsentNever  ReplaySiteSettingsConsent = "never"
+)
+
+// Valid indicates whether the value is a known member of the ReplaySiteSettingsConsent enum.
+func (e ReplaySiteSettingsConsent) Valid() bool {
+	switch e {
+	case ReplaySiteSettingsConsentAlways:
+		return true
+	case ReplaySiteSettingsConsentAuto:
+		return true
+	case ReplaySiteSettingsConsentNever:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReplaySiteSettingsInputConsent.
+const (
+	ReplaySiteSettingsInputConsentAlways ReplaySiteSettingsInputConsent = "always"
+	ReplaySiteSettingsInputConsentAuto   ReplaySiteSettingsInputConsent = "auto"
+	ReplaySiteSettingsInputConsentNever  ReplaySiteSettingsInputConsent = "never"
+)
+
+// Valid indicates whether the value is a known member of the ReplaySiteSettingsInputConsent enum.
+func (e ReplaySiteSettingsInputConsent) Valid() bool {
+	switch e {
+	case ReplaySiteSettingsInputConsentAlways:
+		return true
+	case ReplaySiteSettingsInputConsentAuto:
+		return true
+	case ReplaySiteSettingsInputConsentNever:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReplayStorageInputBackend.
+const (
+	Disk ReplayStorageInputBackend = "disk"
+	S3   ReplayStorageInputBackend = "s3"
+)
+
+// Valid indicates whether the value is a known member of the ReplayStorageInputBackend enum.
+func (e ReplayStorageInputBackend) Valid() bool {
+	switch e {
+	case Disk:
+		return true
+	case S3:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RetentionRequestIdentity.
 const (
 	AnonymousRetentionIdentity RetentionRequestIdentity = "anonymous"
@@ -546,15 +606,16 @@ type DateRange struct {
 
 // EventExploreItem defines model for EventExploreItem.
 type EventExploreItem struct {
-	Browser string               `json:"browser"`
-	Country string               `json:"country"`
-	Device  string               `json:"device"`
-	Kind    EventExploreItemKind `json:"kind"`
-	Name    string               `json:"name"`
-	Page    string               `json:"page"`
-	Props   *map[string]string   `json:"props,omitempty"`
-	Source  string               `json:"source"`
-	Ts      time.Time            `json:"ts"`
+	Browser   string               `json:"browser"`
+	Country   string               `json:"country"`
+	Device    string               `json:"device"`
+	HasReplay bool                 `json:"has_replay"`
+	Kind      EventExploreItemKind `json:"kind"`
+	Name      string               `json:"name"`
+	Page      string               `json:"page"`
+	Props     *map[string]string   `json:"props,omitempty"`
+	Source    string               `json:"source"`
+	Ts        time.Time            `json:"ts"`
 }
 
 // EventExploreItemKind defines model for EventExploreItem.Kind.
@@ -786,6 +847,7 @@ type Profile struct {
 	Events      int64             `json:"events"`
 	ExternalId  string            `json:"external_id"`
 	FirstSeenAt time.Time         `json:"first_seen_at"`
+	HasReplay   bool              `json:"has_replay"`
 	Id          int64             `json:"id"`
 	LastSeenAt  time.Time         `json:"last_seen_at"`
 	Sessions    int64             `json:"sessions"`
@@ -798,6 +860,7 @@ type ProfileDetail struct {
 	Events      int64             `json:"events"`
 	ExternalId  string            `json:"external_id"`
 	FirstSeenAt time.Time         `json:"first_seen_at"`
+	HasReplay   bool              `json:"has_replay"`
 	Id          int64             `json:"id"`
 	LastSeenAt  time.Time         `json:"last_seen_at"`
 	NextCursor  *string           `json:"next_cursor,omitempty"`
@@ -939,6 +1002,122 @@ type RecentActivity struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
+// ReplayList defines model for ReplayList.
+type ReplayList struct {
+	Data       []ReplaySummary `json:"data"`
+	NextCursor *string         `json:"next_cursor,omitempty"`
+}
+
+// ReplaySiteSettings defines model for ReplaySiteSettings.
+type ReplaySiteSettings struct {
+	Consent       ReplaySiteSettingsConsent `json:"consent"`
+	Enabled       bool                      `json:"enabled"`
+	Mask          ReplayValueBoolean        `json:"mask"`
+	QuotaBytes    ReplayValueInteger        `json:"quota_bytes"`
+	RetentionDays ReplayValueInteger        `json:"retention_days"`
+	SampleRate    ReplayValueInteger        `json:"sample_rate"`
+	Triggers      ReplayTriggers            `json:"triggers"`
+}
+
+// ReplaySiteSettingsConsent defines model for ReplaySiteSettings.Consent.
+type ReplaySiteSettingsConsent string
+
+// ReplaySiteSettingsInput defines model for ReplaySiteSettingsInput.
+type ReplaySiteSettingsInput struct {
+	Consent       *ReplaySiteSettingsInputConsent `json:"consent,omitempty"`
+	Enabled       *bool                           `json:"enabled,omitempty"`
+	Mask          *bool                           `json:"mask,omitempty"`
+	QuotaBytes    *int64                          `json:"quota_bytes,omitempty"`
+	RetentionDays *int                            `json:"retention_days,omitempty"`
+	SampleRate    *int                            `json:"sample_rate,omitempty"`
+	Triggers      *ReplayTriggers                 `json:"triggers,omitempty"`
+}
+
+// ReplaySiteSettingsInputConsent defines model for ReplaySiteSettingsInput.Consent.
+type ReplaySiteSettingsInputConsent string
+
+// ReplayStorageInput defines model for ReplayStorageInput.
+type ReplayStorageInput struct {
+	Backend *ReplayStorageInputBackend `json:"backend,omitempty"`
+	Dir     *string                    `json:"dir,omitempty"`
+	Migrate bool                       `json:"migrate"`
+	S3      *ReplayStorageS3Input      `json:"s3,omitempty"`
+}
+
+// ReplayStorageInputBackend defines model for ReplayStorageInput.Backend.
+type ReplayStorageInputBackend string
+
+// ReplayStorageS3 defines model for ReplayStorageS3.
+type ReplayStorageS3 struct {
+	AccessKey    string `json:"access_key"`
+	Bucket       string `json:"bucket"`
+	Endpoint     string `json:"endpoint"`
+	Prefix       string `json:"prefix"`
+	Region       string `json:"region"`
+	SecretKeySet bool   `json:"secret_key_set"`
+}
+
+// ReplayStorageS3Input defines model for ReplayStorageS3Input.
+type ReplayStorageS3Input struct {
+	AccessKey *string `json:"access_key,omitempty"`
+	Bucket    *string `json:"bucket,omitempty"`
+	Endpoint  *string `json:"endpoint,omitempty"`
+	Prefix    *string `json:"prefix,omitempty"`
+	Region    *string `json:"region,omitempty"`
+	SecretKey *string `json:"secret_key,omitempty"`
+}
+
+// ReplayStorageS3Value defines model for ReplayStorageS3Value.
+type ReplayStorageS3Value struct {
+	Locked bool            `json:"locked"`
+	Value  ReplayStorageS3 `json:"value"`
+}
+
+// ReplayStorageSettings defines model for ReplayStorageSettings.
+type ReplayStorageSettings struct {
+	Backend ReplayValueString    `json:"backend"`
+	Dir     ReplayValueString    `json:"dir"`
+	S3      ReplayStorageS3Value `json:"s3"`
+}
+
+// ReplaySummary defines model for ReplaySummary.
+type ReplaySummary struct {
+	Bytes     int64     `json:"bytes"`
+	DurationS int64     `json:"duration_s"`
+	Pages     int32     `json:"pages"`
+	ProfileId *int64    `json:"profile_id,omitempty"`
+	SessionId int64     `json:"session_id"`
+	StartedAt time.Time `json:"started_at"`
+	Trigger   string    `json:"trigger"`
+}
+
+// ReplayTriggers defines model for ReplayTriggers.
+type ReplayTriggers struct {
+	Error       bool     `json:"error"`
+	Manual      bool     `json:"manual"`
+	RageClick   bool     `json:"rage_click"`
+	Url         bool     `json:"url"`
+	UrlPatterns []string `json:"url_patterns"`
+}
+
+// ReplayValueBoolean defines model for ReplayValueBoolean.
+type ReplayValueBoolean struct {
+	Locked bool `json:"locked"`
+	Value  bool `json:"value"`
+}
+
+// ReplayValueInteger defines model for ReplayValueInteger.
+type ReplayValueInteger struct {
+	Locked bool  `json:"locked"`
+	Value  int64 `json:"value"`
+}
+
+// ReplayValueString defines model for ReplayValueString.
+type ReplayValueString struct {
+	Locked bool   `json:"locked"`
+	Value  string `json:"value"`
+}
+
 // RetentionCohort defines model for RetentionCohort.
 type RetentionCohort struct {
 	Retained []int64            `json:"retained"`
@@ -1039,6 +1218,7 @@ type SessionSummary struct {
 	Events     int32     `json:"events"`
 	ExitPage   string    `json:"exit_page"`
 	ExternalId *string   `json:"external_id,omitempty"`
+	HasReplay  bool      `json:"has_replay"`
 	Id         string    `json:"id"`
 	Os         string    `json:"os"`
 	Pageviews  int32     `json:"pageviews"`
@@ -1270,6 +1450,14 @@ type ChangeCurrentUserPasswordJSONBody struct {
 	NewPassword     string `json:"new_password"`
 }
 
+// ListReplaysParams defines parameters for ListReplays.
+type ListReplaysParams struct {
+	From   openapi_types.Date `form:"from" json:"from"`
+	To     openapi_types.Date `form:"to" json:"to"`
+	Limit  *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *Cursor            `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // GetProfileParams defines parameters for GetProfile.
 type GetProfileParams struct {
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
@@ -1345,9 +1533,10 @@ type ListSessionsParams struct {
 	To   openapi_types.Date `form:"to" json:"to"`
 
 	// Filter Repeatable dimension:operator:value filter.
-	Filter *[]string `form:"filter,omitempty" json:"filter,omitempty"`
-	Limit  *Limit    `form:"limit,omitempty" json:"limit,omitempty"`
-	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Filter    *[]string `form:"filter,omitempty" json:"filter,omitempty"`
+	HasReplay *bool     `form:"has_replay,omitempty" json:"has_replay,omitempty"`
+	Limit     *Limit    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor    *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // ListSuggestionsParams defines parameters for ListSuggestions.
@@ -1432,6 +1621,9 @@ type StatsTimeseriesParams struct {
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
 type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
 
+// UpdateReplayStorageJSONRequestBody defines body for UpdateReplayStorage for application/json ContentType.
+type UpdateReplayStorageJSONRequestBody = ReplayStorageInput
+
 // DeleteCurrentUserJSONRequestBody defines body for DeleteCurrentUser for application/json ContentType.
 type DeleteCurrentUserJSONRequestBody DeleteCurrentUserJSONBody
 
@@ -1443,6 +1635,9 @@ type StartCurrentUserEmailChangeJSONRequestBody StartCurrentUserEmailChangeJSONB
 
 // ChangeCurrentUserPasswordJSONRequestBody defines body for ChangeCurrentUserPassword for application/json ContentType.
 type ChangeCurrentUserPasswordJSONRequestBody ChangeCurrentUserPasswordJSONBody
+
+// UpdateReplaySettingsJSONRequestBody defines body for UpdateReplaySettings for application/json ContentType.
+type UpdateReplaySettingsJSONRequestBody = ReplaySiteSettingsInput
 
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
@@ -1571,6 +1766,12 @@ type ServerInterface interface {
 	// ConfirmCurrentUserEmailChange Confirm an email change
 	// (POST /api/private/auth/email-change/confirm)
 	ConfirmCurrentUserEmailChange(w http.ResponseWriter, r *http.Request)
+	// GetReplayStorage Get instance replay storage settings
+	// (GET /api/private/instance/replay-storage)
+	GetReplayStorage(w http.ResponseWriter, r *http.Request)
+	// UpdateReplayStorage Replace instance replay storage settings
+	// (PUT /api/private/instance/replay-storage)
+	UpdateReplayStorage(w http.ResponseWriter, r *http.Request)
 	// DeleteCurrentUser Delete the signed-in account
 	// (DELETE /api/private/me)
 	DeleteCurrentUser(w http.ResponseWriter, r *http.Request)
@@ -1586,6 +1787,21 @@ type ServerInterface interface {
 	// ChangeCurrentUserPassword Change the signed-in user's password
 	// (POST /api/private/me/password)
 	ChangeCurrentUserPassword(w http.ResponseWriter, r *http.Request)
+	// GetReplaySettings Get site replay settings
+	// (GET /api/private/sites/{site_id}/replay-settings)
+	GetReplaySettings(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// UpdateReplaySettings Replace site replay settings
+	// (PUT /api/private/sites/{site_id}/replay-settings)
+	UpdateReplaySettings(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListReplays List session replays
+	// (GET /api/private/sites/{site_id}/replays)
+	ListReplays(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListReplaysParams)
+	// GetReplayCSS Download a replay stylesheet
+	// (GET /api/private/sites/{site_id}/replays/css/{hash})
+	GetReplayCSS(w http.ResponseWriter, r *http.Request, siteId SitePathID, hash string)
+	// GetReplayData Download replay events
+	// (GET /api/private/sites/{site_id}/replays/{session_id}/data)
+	GetReplayData(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId int64)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -1782,6 +1998,34 @@ func (siw *ServerInterfaceWrapper) ConfirmCurrentUserEmailChange(w http.Response
 	handler.ServeHTTP(w, r)
 }
 
+// GetReplayStorage operation middleware
+func (siw *ServerInterfaceWrapper) GetReplayStorage(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReplayStorage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateReplayStorage operation middleware
+func (siw *ServerInterfaceWrapper) UpdateReplayStorage(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateReplayStorage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteCurrentUser operation middleware
 func (siw *ServerInterfaceWrapper) DeleteCurrentUser(w http.ResponseWriter, r *http.Request) {
 
@@ -1843,6 +2087,209 @@ func (siw *ServerInterfaceWrapper) ChangeCurrentUserPassword(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeCurrentUserPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReplaySettings operation middleware
+func (siw *ServerInterfaceWrapper) GetReplaySettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReplaySettings(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateReplaySettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateReplaySettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateReplaySettings(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListReplays operation middleware
+func (siw *ServerInterfaceWrapper) ListReplays(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListReplaysParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListReplays(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReplayCSS operation middleware
+func (siw *ServerInterfaceWrapper) GetReplayCSS(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "hash" -------------
+	var hash string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hash", r.PathValue("hash"), &hash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hash", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReplayCSS(w, r, siteId, hash)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReplayData operation middleware
+func (siw *ServerInterfaceWrapper) GetReplayData(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReplayData(w, r, siteId, sessionId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3112,6 +3559,19 @@ func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// ------------- Optional query parameter "has_replay" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "has_replay", r.URL.Query(), &params.HasReplay, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "has_replay"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "has_replay", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "limit" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -3876,6 +4336,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChangeLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChange)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/password", wrapper.ChangeCurrentUserPassword)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays", wrapper.ListReplays)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/{session_id}/data", wrapper.GetReplayData)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/css/{hash}", wrapper.GetReplayCSS)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replay-settings", wrapper.GetReplaySettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site_id}/replay-settings", wrapper.UpdateReplaySettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/instance/replay-storage", wrapper.GetReplayStorage)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/instance/replay-storage", wrapper.UpdateReplayStorage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/events", wrapper.SubmitEvent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)

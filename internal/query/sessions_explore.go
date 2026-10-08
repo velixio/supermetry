@@ -70,7 +70,7 @@ func (e *Engine) Sessions(ctx context.Context, siteID int32, params api.ListSess
 		cursor = &parsed
 	}
 
-	querySQL, args, err := buildSessionsSQL(siteID, site.Retention, site.TZ, site.ProfilesEnabled, from, to, filters, cursor, limit+1)
+	querySQL, args, err := buildSessionsSQL(siteID, site.Retention, site.TZ, site.ProfilesEnabled, from, to, filters, params.HasReplay, cursor, limit+1)
 	if err != nil {
 		return api.SessionList{}, err
 	}
@@ -189,7 +189,7 @@ limit `+strconv.Itoa(maxSessionEvents), siteID, site.Retention, sessionID, dict.
 	return detail, nil
 }
 
-func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.Location, profilesEnabled bool, from, to time.Time, filters []api.Filter, cursor *sessionCursor, limit int) (string, []any, error) {
+func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.Location, profilesEnabled bool, from, to time.Time, filters []api.Filter, hasReplay *bool, cursor *sessionCursor, limit int) (string, []any, error) {
 	if location == nil {
 		location = time.UTC
 	}
@@ -211,6 +211,14 @@ func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.
 		startedArg, idArg := builder.arg(cursor.startedAt), builder.arg(cursor.id)
 		closedConditions = append(closedConditions, "(s.started_at,s.session_id) < ("+startedArg+","+idArg+")")
 		hotConditions = append(hotConditions, "(s.start,s.session_id) < ("+startedArg+","+idArg+")")
+	}
+	if hasReplay != nil {
+		condition := "exists (select 1 from replay_sessions rr where rr.site_id=s.site_id and rr.session_id=s.session_id)"
+		if !*hasReplay {
+			condition = "not " + condition
+		}
+		closedConditions = append(closedConditions, condition)
+		hotConditions = append(hotConditions, condition)
 	}
 	profilesArg := builder.arg(profilesEnabled)
 	limitArg := builder.arg(limit)
@@ -249,7 +257,8 @@ select c.session_id,c.started_at,c.duration_ms,c.pageviews,c.events,
        case c.device when 0 then 'desktop' when 1 then 'mobile' when 2 then 'tablet' else 'unknown' end,
        coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Browser)) + ` and id=c.browser_id),''),
        coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.OS)) + ` and id=c.os_id),''),
-       p.external_id
+       p.external_id,
+       exists (select 1 from replay_sessions rr where rr.site_id=` + siteArg + ` and rr.session_id=c.session_id)
 from (select * from combined order by started_at desc,session_id desc limit ` + limitArg + `) c
 left join lateral (
   select case when not c.hot then c.profile_id else (
@@ -321,6 +330,7 @@ func sessionSummarySQL(table string, profilesEnabled bool) string {
        case when ` + profileExpr + ` then (select p.external_id from events e join profiles p on p.site_id=e.site_id and p.id=e.profile_id
          where e.site_id=s.site_id and e.retention_class=s.retention_class and e.local_day=s.local_day and e.session_id=s.session_id
            and e.ts>=s.start and e.ts<s.last+interval '30 minutes' and e.profile_id is not null order by e.ts limit 1) end,
+       exists (select 1 from replay_sessions rr where rr.site_id=s.site_id and rr.session_id=s.session_id),
        s.start,s.last,s.local_day
 from ` + table + ` s`
 }
@@ -336,7 +346,7 @@ func scanSessionSummary(row sessionSummaryScanner, extra ...any) (api.SessionSum
 	var id int64
 	dest := append([]any{&id, &item.StartedAt, &item.DurationMs, &item.Pageviews, &item.Events,
 		&item.EntryPage, &item.ExitPage, &item.Source, &item.Country, &item.City,
-		&item.Device, &item.Browser, &item.Os, &item.ExternalId}, extra...)
+		&item.Device, &item.Browser, &item.Os, &item.ExternalId, &item.HasReplay}, extra...)
 	err := row.Scan(dest...)
 	item.Id = strconv.FormatInt(id, 10)
 	return item, err
