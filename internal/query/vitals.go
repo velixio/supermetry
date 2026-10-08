@@ -151,22 +151,21 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
 	builder := &sqlBuilder{}
 	resolver := vitalsDimensionResolver("e")
 	directFilters, sessionFilters, specialFilters := splitVitalsFilters(req.filters)
+	siteArg := builder.arg(req.siteID)
+	retentionArg := builder.arg(req.retentionClass)
+	fromArg := builder.arg(dateParam(req.from))
+	toArg := builder.arg(dateParam(req.to))
+	fromTimestampArg := builder.arg(req.fromTimestamp)
+	toTimestampArg := builder.arg(req.toTimestamp)
 	conditions, err := filterConditions(builder, directFilters, resolver)
 	if err != nil {
 		return "", nil, err
 	}
-	sessionConditions, err := filterConditions(builder, sessionFilters, vitalsSessionDimensionResolver("s"))
+	filterCTEs, filterConditions, err := vitalsFilterRelations(builder, req, sessionFilters, specialFilters, siteArg, retentionArg)
 	if err != nil {
 		return "", nil, err
 	}
-	if len(sessionConditions) > 0 {
-		conditions = append(conditions, "exists (select 1 from sessions s where s.site_id=e.site_id and s.retention_class=e.retention_class and s.session_id=e.session_id"+andSQL(sessionConditions)+")")
-	}
-	specialConditions, err := vitalsSpecialConditions(builder, specialFilters)
-	if err != nil {
-		return "", nil, err
-	}
-	conditions = append(conditions, specialConditions...)
+	conditions = append(conditions, filterConditions...)
 	dimensionExpr := ""
 	if dimension != nil {
 		column, kind, err := resolver(string(*dimension))
@@ -176,12 +175,6 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
 		dimensionExpr = dimensionText(column, kind, string(*dimension))
 	}
 
-	siteArg := builder.arg(req.siteID)
-	retentionArg := builder.arg(req.retentionClass)
-	fromArg := builder.arg(dateParam(req.from))
-	toArg := builder.arg(dateParam(req.to))
-	fromTimestampArg := builder.arg(req.fromTimestamp)
-	toTimestampArg := builder.arg(req.toTimestamp)
 	where := "e.site_id=" + siteArg + " and e.retention_class=" + retentionArg +
 		" and e.ts>=" + fromTimestampArg + "::timestamptz and e.ts<" + toTimestampArg + "::timestamptz" +
 		" and e.local_day between " + fromArg + "::date and " + toArg + "::date" +
@@ -192,7 +185,11 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
 		dimensionSelect = dimensionExpr + " as dimension,"
 		dimensionColumn = "dimension,"
 	}
-	cte := `with raw_vitals as (
+	ctePrefix := ""
+	if len(filterCTEs) > 0 {
+		ctePrefix = strings.Join(filterCTEs, ",\n") + ",\n"
+	}
+	cte := `with ` + ctePrefix + `raw_vitals as (
   select ` + dimensionSelect + `
     e.props->>'lcp' as lcp_raw,
     e.props->>'cls' as cls_raw,
@@ -293,27 +290,61 @@ func splitVitalsFilters(filters []api.Filter) (direct, session, special []api.Fi
 	return direct, session, special
 }
 
-func vitalsSpecialConditions(builder *sqlBuilder, filters []api.Filter) ([]string, error) {
-	conditions := make([]string, 0, len(filters))
-	for _, filter := range filters {
+func vitalsFilterRelations(builder *sqlBuilder, req normalizedVitals, sessionFilters, specialFilters []api.Filter, siteArg, retentionArg string) ([]string, []string, error) {
+	ctes := make([]string, 0, len(sessionFilters)+len(specialFilters))
+	conditions := make([]string, 0, len(sessionFilters)+len(specialFilters))
+	filterFrom := req.from.AddDate(0, 0, -1)
+	filterTo := req.to.AddDate(0, 0, 1)
+	filterFromTimestamp := req.fromTimestamp.AddDate(0, 0, -1)
+	filterToTimestamp := req.toTimestamp.AddDate(0, 0, 1)
+
+	if len(sessionFilters) > 0 {
+		matches, err := filterConditions(builder, sessionFilters, vitalsSessionDimensionResolver("s"))
+		if err != nil {
+			return nil, nil, err
+		}
+		name := "matched_filter_0"
+		ctes = append(ctes, name+` as materialized (
+  select distinct s.site_id,s.retention_class,s.session_id
+  from sessions s
+  where s.site_id=`+siteArg+` and s.retention_class=`+retentionArg+`
+    and s.local_day between `+builder.arg(dateParam(filterFrom))+`::date and `+builder.arg(dateParam(filterTo))+`::date
+    and s.start>=`+builder.arg(filterFromTimestamp)+`::timestamptz and s.start<`+builder.arg(filterToTimestamp)+`::timestamptz`+andSQL(matches)+`
+)`)
+		conditions = append(conditions, "(e.site_id,e.retention_class,e.session_id) in (select site_id,retention_class,session_id from "+name+")")
+	}
+
+	for _, filter := range specialFilters {
+		alias := "ce"
+		var predicate string
 		switch {
 		case filter.Dimension == "event" || filter.Dimension == "goal":
 			filter.Dimension = "event"
-			matches, err := filterConditions(builder, []api.Filter{filter}, customResolver("ce"))
+			matches, err := filterConditions(builder, []api.Filter{filter}, customResolver(alias))
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			conditions = append(conditions, "exists (select 1 from events ce where ce.site_id=e.site_id and ce.retention_class=e.retention_class and ce.session_id=e.session_id and ce.kind=1 and "+matches[0]+")")
+			predicate = alias + ".kind=1 and " + matches[0]
 		case strings.HasPrefix(filter.Dimension, "prop:"):
 			key := strings.TrimPrefix(filter.Dimension, "prop:")
-			match, err := textMatch(builder, "ce.props ->> "+builder.arg(key), filter)
+			match, err := textMatch(builder, alias+".props ->> "+builder.arg(key), filter)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			conditions = append(conditions, "exists (select 1 from events ce where ce.site_id=e.site_id and ce.retention_class=e.retention_class and ce.session_id=e.session_id and ce.kind=1 and ce.props ? "+builder.arg(key)+" and "+match+")")
+			predicate = alias + ".kind=1 and " + alias + ".props ? " + builder.arg(key) + " and " + match
 		}
+		name := fmt.Sprintf("matched_filter_%d", len(ctes))
+		ctes = append(ctes, name+` as materialized (
+  select distinct ce.site_id,ce.retention_class,ce.session_id
+  from events ce
+  where ce.site_id=`+siteArg+` and ce.retention_class=`+retentionArg+`
+    and ce.local_day between `+builder.arg(dateParam(filterFrom))+`::date and `+builder.arg(dateParam(filterTo))+`::date
+    and ce.ts>=`+builder.arg(filterFromTimestamp)+`::timestamptz and ce.ts<`+builder.arg(filterToTimestamp)+`::timestamptz
+    and `+predicate+`
+)`)
+		conditions = append(conditions, "(e.site_id,e.retention_class,e.session_id) in (select site_id,retention_class,session_id from "+name+")")
 	}
-	return conditions, nil
+	return ctes, conditions, nil
 }
 
 type vitalsScanner interface {

@@ -2,7 +2,9 @@ package query
 
 import (
 	"context"
+	"fmt"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -41,13 +43,13 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertVitalMetric(t, "lcp", response.Overall.Lcp, 3500, 4, .5, .25, .25)
-	assertVitalMetric(t, "cls", response.Overall.Cls, 225, 4, .5, .25, .25)
-	assertVitalMetric(t, "inp", response.Overall.Inp, 450, 4, .5, .25, .25)
+	assertVitalMetric(t, "lcp", response.Overall.Lcp, 3000, 5, .6, .2, .2)
+	assertVitalMetric(t, "cls", response.Overall.Cls, 200, 5, .6, .2, .2)
+	assertVitalMetric(t, "inp", response.Overall.Inp, 400, 5, .6, .2, .2)
 	if len(response.Breakdown) != 2 || response.Breakdown[0].Value != "/" || response.Breakdown[1].Value != "/pricing" {
 		t.Fatalf("breakdown = %+v", response.Breakdown)
 	}
-	assertVitalMetric(t, "page lcp", response.Breakdown[0].Lcp, 1750, 2, 1, 0, 0)
+	assertVitalMetric(t, "page lcp", response.Breakdown[0].Lcp, 1750, 3, 1, 0, 0)
 
 	filters := []api.Filter{{Dimension: "country", Operator: api.Is, Values: []string{"US"}}}
 	filtered, err := engine.Vitals(context.Background(), api.VitalsRequest{
@@ -62,7 +64,7 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 	if len(filtered.Breakdown) != 1 || filtered.Breakdown[0].Value != "/" {
 		t.Fatalf("filtered breakdown = %+v", filtered.Breakdown)
 	}
-	assertVitalMetric(t, "filtered lcp", filtered.Overall.Lcp, 1750, 2, 1, 0, 0)
+	assertVitalMetric(t, "filtered lcp", filtered.Overall.Lcp, 1750, 3, 1, 0, 0)
 
 	sharedFilters := []api.Filter{
 		{Dimension: "entry", Operator: api.Is, Values: []string{"/"}},
@@ -77,7 +79,7 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertVitalMetric(t, "shared-filter lcp", shared.Overall.Lcp, 1000, 1, 1, 0, 0)
+	assertVitalMetric(t, "shared-filter lcp", shared.Overall.Lcp, 1375, 2, 1, 0, 0)
 }
 
 func TestEngine_VitalsRejectsRangesOutsideRawRetention(t *testing.T) {
@@ -140,6 +142,223 @@ func TestBuildVitalsSQLPrunesHotPartitions(t *testing.T) {
 	}
 }
 
+func TestBuildVitalsSQLUsesSetBasedFilteredEvents(t *testing.T) {
+	tests := []struct {
+		name   string
+		filter api.Filter
+	}{
+		{name: "property", filter: api.Filter{Dimension: "prop:plan", Operator: api.Is, Values: []string{"pro"}}},
+		{name: "event", filter: api.Filter{Dimension: "event", Operator: api.Is, Values: []string{"signup"}}},
+		{name: "goal", filter: api.Filter{Dimension: "goal", Operator: api.Is, Values: []string{"signup"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			querySQL, _, err := buildVitalsSQL(normalizedVitals{
+				siteID: 1, retentionClass: db.Ret30,
+				from: vitalsDay("2026-10-06"), to: vitalsDay("2026-10-07"),
+				fromTimestamp: vitalsDay("2026-10-06"), toTimestamp: vitalsDay("2026-10-08"),
+				filters: []api.Filter{tt.filter},
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			compact := strings.NewReplacer(" ", "", "\n", "", "\t", "").Replace(strings.ToLower(querySQL))
+			if strings.Contains(compact, "select1fromeventscewherece.site_id=e.site_id") {
+				t.Fatalf("SQL contains per-vital correlated event access:\n%s", querySQL)
+			}
+			for _, fragment := range []string{"matched_filter_", "ce.retention_class=", "ce.local_daybetween", "ce.ts>=", "ce.ts<"} {
+				if !strings.Contains(compact, fragment) {
+					t.Errorf("SQL missing %q:\n%s", fragment, querySQL)
+				}
+			}
+		})
+	}
+}
+
+func TestEngine_VitalsFilteredQueriesMatchLegacyAcrossTiers(t *testing.T) {
+	pool, engine := setupVitals(t, db.Ret30)
+	seedVitals(t, pool)
+	if err := engine.dict.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name   string
+		day    string
+		filter api.Filter
+	}{
+		{name: "closed property", day: "2026-10-06", filter: api.Filter{Dimension: "prop:plan", Operator: api.Is, Values: []string{"pro"}}},
+		{name: "closed event", day: "2026-10-06", filter: api.Filter{Dimension: "event", Operator: api.Is, Values: []string{"signup"}}},
+		{name: "closed goal", day: "2026-10-06", filter: api.Filter{Dimension: "goal", Operator: api.Is, Values: []string{"signup"}}},
+		{name: "closed page", day: "2026-10-06", filter: api.Filter{Dimension: "page", Operator: api.Is, Values: []string{"/"}}},
+		{name: "hot property crossing midnight", day: "2026-10-07", filter: api.Filter{Dimension: "prop:plan", Operator: api.Is, Values: []string{"pro"}}},
+		{name: "hot event crossing midnight", day: "2026-10-07", filter: api.Filter{Dimension: "event", Operator: api.Is, Values: []string{"signup"}}},
+		{name: "hot goal crossing midnight", day: "2026-10-07", filter: api.Filter{Dimension: "goal", Operator: api.Is, Values: []string{"signup"}}},
+		{name: "hot page crossing midnight", day: "2026-10-07", filter: api.Filter{Dimension: "page", Operator: api.Is, Values: []string{"/"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filters := []api.Filter{tt.filter}
+			req := api.VitalsRequest{
+				SiteId: 1, DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay(tt.day)}, To: openapi_types.Date{Time: vitalsDay(tt.day)}},
+				Filters: &filters,
+			}
+			normalized, err := normalizeVitals(req, engine.registry.(vitalsRegistry).site, engine.now())
+			if err != nil {
+				t.Fatal(err)
+			}
+			legacySQL, legacyArgs, err := buildLegacyVitalsSQL(normalized)
+			if err != nil {
+				t.Fatal(err)
+			}
+			legacy, err := scanVitalsMetrics(pool.QueryRow(context.Background(), legacySQL, legacyArgs...))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := engine.Vitals(context.Background(), req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got.Overall, legacy) {
+				t.Fatalf("new metrics differ from legacy: new=%+v legacy=%+v", got.Overall, legacy)
+			}
+		})
+	}
+}
+
+func TestEngine_VitalsFilteredQueryTiming(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping database timing guard in short mode")
+	}
+	pool, engine := setupVitals(t, db.Ret30)
+	ctx := context.Background()
+	_, err := pool.Exec(ctx, `
+insert into dict(kind,id,value) values (0,1,'/'),(7,10,'Web Vitals'),(7,11,'signup');
+insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,pageviews,events,engagement_ms,bounce)
+select 1,30,n,n,'2026-10-07 10:00Z'::timestamptz + n * interval '1 millisecond',
+       '2026-10-07 10:01Z'::timestamptz + n * interval '1 millisecond','2026-10-07',1,1,1,6,0,false
+from generate_series(1,3000) n;
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,props)
+select 1,30,'2026-10-07','2026-10-07 10:00Z'::timestamptz + n * interval '1 millisecond',n,n,1,10,1,
+       '{"lcp":"2000","cls":"100","inp":"200"}'::jsonb
+from generate_series(1,3000) n;
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,props)
+select 1,30,'2026-10-07','2026-10-07 10:00:10Z'::timestamptz + (n * 10 + x) * interval '1 millisecond',n,n,1,11,1,
+       jsonb_build_object('plan',case when n <= 1500 then 'pro' else 'starter' end)
+from generate_series(1,3000) n cross join generate_series(1,5) x;
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,props)
+select 1,30,'2026-10-07','2026-10-07 10:01Z'::timestamptz + n * interval '1 millisecond',n,n,1,11,1,
+       jsonb_build_object('plan',case when n <= 1500 then 'pro' else 'starter' end)
+from generate_series(1,2000) n;
+analyze events;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filters := []api.Filter{{Dimension: "prop:plan", Operator: api.Is, Values: []string{"pro"}}}
+	req := api.VitalsRequest{
+		SiteId: 1, DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay("2026-10-07")}, To: openapi_types.Date{Time: vitalsDay("2026-10-07")}}, Filters: &filters,
+	}
+	if _, err := engine.Vitals(ctx, req); err != nil { // warm caches and prepared plans
+		t.Fatal(err)
+	}
+	started := time.Now()
+	got, err := engine.Vitals(ctx, req)
+	elapsed := time.Since(started)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Overall.Lcp.Samples != 1500 {
+		t.Fatalf("LCP samples = %d, want 1500", got.Overall.Lcp.Samples)
+	}
+	if elapsed >= 100*time.Millisecond {
+		t.Fatalf("filtered Web Vitals query took %s, want under 100ms", elapsed)
+	}
+}
+
+// buildLegacyVitalsSQL preserves the former correlated-filter query so the
+// set-based query can be checked against its observable results.
+func buildLegacyVitalsSQL(req normalizedVitals) (string, []any, error) {
+	builder := &sqlBuilder{}
+	direct, session, special := splitVitalsFilters(req.filters)
+	conditions, err := filterConditions(builder, direct, vitalsDimensionResolver("e"))
+	if err != nil {
+		return "", nil, err
+	}
+	sessionConditions, err := filterConditions(builder, session, vitalsSessionDimensionResolver("s"))
+	if err != nil {
+		return "", nil, err
+	}
+	if len(sessionConditions) > 0 {
+		conditions = append(conditions, "exists (select 1 from sessions s where s.site_id=e.site_id and s.retention_class=e.retention_class and s.session_id=e.session_id"+andSQL(sessionConditions)+")")
+	}
+	for _, filter := range special {
+		switch {
+		case filter.Dimension == "event" || filter.Dimension == "goal":
+			filter.Dimension = "event"
+			matches, matchErr := filterConditions(builder, []api.Filter{filter}, customResolver("ce"))
+			if matchErr != nil {
+				return "", nil, matchErr
+			}
+			conditions = append(conditions, "exists (select 1 from events ce where ce.site_id=e.site_id and ce.retention_class=e.retention_class and ce.session_id=e.session_id and ce.kind=1 and "+matches[0]+")")
+		case strings.HasPrefix(filter.Dimension, "prop:"):
+			key := strings.TrimPrefix(filter.Dimension, "prop:")
+			match, matchErr := textMatch(builder, "ce.props ->> "+builder.arg(key), filter)
+			if matchErr != nil {
+				return "", nil, matchErr
+			}
+			conditions = append(conditions, "exists (select 1 from events ce where ce.site_id=e.site_id and ce.retention_class=e.retention_class and ce.session_id=e.session_id and ce.kind=1 and ce.props ? "+builder.arg(key)+" and "+match+")")
+		}
+	}
+	siteArg := builder.arg(req.siteID)
+	retentionArg := builder.arg(req.retentionClass)
+	fromArg := builder.arg(dateParam(req.from))
+	toArg := builder.arg(dateParam(req.to))
+	fromTimestampArg := builder.arg(req.fromTimestamp)
+	toTimestampArg := builder.arg(req.toTimestamp)
+	where := "e.site_id=" + siteArg + " and e.retention_class=" + retentionArg +
+		" and e.ts>=" + fromTimestampArg + "::timestamptz and e.ts<" + toTimestampArg + "::timestamptz" +
+		" and e.local_day between " + fromArg + "::date and " + toArg + "::date" +
+		" and e.kind=1 and e.name_id in (select id from dict where kind=" + fmt.Sprint(dict.EventName) + " and value='" + webVitalsEventName + "')" + andSQL(conditions)
+	return vitalsAggregateSQL(where), builder.args, nil
+}
+
+func vitalsAggregateSQL(where string) string {
+	return `with raw_vitals as (
+  select e.props->>'lcp' as lcp_raw,e.props->>'cls' as cls_raw,e.props->>'inp' as inp_raw
+  from events e where ` + where + `
+), parsed_vitals as (
+  select case when length(lcp_raw) between 1 and 5 and lcp_raw ~ '^[0-9]+$' then lcp_raw::int end as lcp,
+         case when length(cls_raw) between 1 and 5 and cls_raw ~ '^[0-9]+$' then cls_raw::int end as cls,
+         case when length(inp_raw) between 1 and 5 and inp_raw ~ '^[0-9]+$' then inp_raw::int end as inp
+  from raw_vitals
+), vitals as (
+  select case when lcp <= 60000 then lcp end as lcp,
+         case when cls <= 10000 then cls end as cls,
+         case when inp <= 60000 then inp end as inp
+  from parsed_vitals
+)
+select
+  percentile_cont(0.75) within group (order by lcp) filter (where lcp is not null)::float8,
+  count(lcp)::int8,
+  coalesce(avg((lcp <= 2500)::int) filter (where lcp is not null),0)::float8,
+  coalesce(avg((lcp > 2500 and lcp <= 4000)::int) filter (where lcp is not null),0)::float8,
+  coalesce(avg((lcp > 4000)::int) filter (where lcp is not null),0)::float8,
+  percentile_cont(0.75) within group (order by cls) filter (where cls is not null)::float8,
+  count(cls)::int8,
+  coalesce(avg((cls <= 100)::int) filter (where cls is not null),0)::float8,
+  coalesce(avg((cls > 100 and cls <= 250)::int) filter (where cls is not null),0)::float8,
+  coalesce(avg((cls > 250)::int) filter (where cls is not null),0)::float8,
+  percentile_cont(0.75) within group (order by inp) filter (where inp is not null)::float8,
+  count(inp)::int8,
+  coalesce(avg((inp <= 200)::int) filter (where inp is not null),0)::float8,
+  coalesce(avg((inp > 200 and inp <= 500)::int) filter (where inp is not null),0)::float8,
+  coalesce(avg((inp > 500)::int) filter (where inp is not null),0)::float8
+from vitals`
+}
+
 func setupVitals(t *testing.T, retention db.RetentionClass) (*pgxpool.Pool, *Engine) {
 	t.Helper()
 	pool, _ := testpg.New(t)
@@ -161,6 +380,7 @@ func seedVitals(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
 insert into dict(kind,id,value) values (0,1,'/'),(0,2,'/pricing'),(7,10,'Web Vitals'),(7,11,'signup');
+insert into day_close(site_id,day,status) values (1,'2026-10-06','done'),(1,'2026-10-07','pending');
 insert into sessions
   (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,pageviews,events,engagement_ms,bounce)
 values
@@ -169,7 +389,8 @@ values
   (1,30,3,3,'2026-10-07 10:00Z','2026-10-07 10:00Z','2026-10-07',2,2,1,0,0,true),
   (1,30,4,4,'2026-10-07 11:00Z','2026-10-07 11:00Z','2026-10-07',2,2,1,0,0,true),
   (1,30,5,5,'2026-10-07 12:00Z','2026-10-07 12:00Z','2026-10-07',2,2,1,0,0,true),
-  (1,30,6,6,'2026-10-07 13:00Z','2026-10-07 13:00Z','2026-10-07',2,2,1,0,0,true);
+  (1,30,6,6,'2026-10-07 13:00Z','2026-10-07 13:00Z','2026-10-07',2,2,1,0,0,true),
+  (1,30,7,7,'2026-10-06 23:59Z','2026-10-07 00:01Z','2026-10-06',1,1,1,1,0,true);
 insert into events
   (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,country,browser_id,device,props)
 values
@@ -180,7 +401,9 @@ values
 	(1,30,'2026-10-07','2026-10-07 12:00Z',5,5,1,10,2,'IN',0,1,'{"lcp":"invalid"}'),
 	(1,30,'2026-10-07','2026-10-07 13:00Z',6,6,1,10,2,'IN',0,1,'{"lcp":"999999999999999999999999999999"}'),
 	(1,30,'2026-10-06','2026-10-06 10:00:01Z',1,1,1,11,1,'US',0,0,'{"plan":"pro"}'),
-	(1,30,'2026-10-06','2026-10-06 11:00:01Z',2,2,1,11,2,'US',0,1,'{"plan":"starter"}')`)
+	(1,30,'2026-10-06','2026-10-06 11:00:01Z',2,2,1,11,2,'US',0,1,'{"plan":"starter"}'),
+	(1,30,'2026-10-06','2026-10-06 23:59:30Z',7,7,1,11,1,'US',0,0,'{"plan":"pro"}'),
+	(1,30,'2026-10-07','2026-10-07 00:01:00Z',7,7,1,10,1,'US',0,0,'{"lcp":"1500","cls":"75","inp":"150"}')`)
 	if err != nil {
 		t.Fatal(err)
 	}
