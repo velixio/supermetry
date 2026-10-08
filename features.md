@@ -30,7 +30,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Retention (cohort) report | – | ✓ | ✓ | ✅ (cross-day with profiles; same-day for anonymous) |
 | User journeys / path flow | ✓ (paid) | ✓ | ✓ | ✅ |
 | Web Vitals | – | ✓ | ? | ✅ (full script) |
-| Session replay | – | ✓ | ✓ | ⏸ |
+| Session replay | – | ✓ | ✓ | ✓ |
 | Heatmaps | – | ✓ | – | ✅ (aggregated clicks + scroll map, opt-in) |
 | User profiles and `identify` | – | ✓ | ✓ | ✅ (opt-in per site) |
 | AI insights | – | ? | ✓ | ⏸ |
@@ -130,4 +130,4 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
 
-Deferred: session replay (lean design discussed: sampled, files on disk), AI insights, mobile SDKs, SSO/OIDC.
+Deferred: AI insights, mobile SDKs, SSO/OIDC.
