@@ -53,9 +53,9 @@ describe('site settings', () => {
     return queryClient
   }
 
-  it('shows all settings tabs including Exclusions', async () => {
+  it('shows all settings tabs including Tracking', async () => {
     renderWithRouter(<SiteSettingsTabs org="acme" site="docs" current="installation" />)
-    for (const label of ['General', 'Installation', 'Exclusions', 'Goals', 'Funnels', 'Shares', 'Reports', 'Alerts', 'Imports & export']) {
+    for (const label of ['General', 'Installation', 'Tracking', 'Goals', 'Funnels', 'Shares', 'Reports', 'Alerts', 'Imports & export']) {
       expect(await screen.findByRole('link', { name: label })).toBeVisible()
     }
     expect(screen.getByRole('link', { name: 'Installation' })).toHaveAttribute(
@@ -83,9 +83,8 @@ describe('site settings', () => {
     expect(setup).toHaveTextContent(/currency: 'USD'/)
     expect(setup).toHaveTextContent(/panel\.identify\('user-123'/)
     expect(setup).toHaveTextContent(/name="panel:404"/)
-    expect(setup).toHaveTextContent(/Site settings → Exclusions/)
+    expect(setup).toHaveTextContent(/Site settings → Tracking/)
     expect(setup).toHaveTextContent(/Site settings → General/)
-    expect(setup).toHaveTextContent(/data-heatmap="true"/)
     expect(setup).toHaveTextContent(/panel\.optOut\(\)/)
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js / React' }), {
       button: 0,

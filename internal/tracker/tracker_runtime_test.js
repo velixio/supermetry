@@ -9,7 +9,7 @@ function buildSource(full) {
   return source.replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "");
 }
 
-function loadTracker({full = false, dataset = {}, withExtensions = false, globalPrivacyControl = false, ignored = false} = {}) {
+function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, ignored = false} = {}) {
   const events = new Map();
   const listeners = new Map();
   const payloads = [];
@@ -49,7 +49,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, global
   const document = {
     body: {scrollHeight: 1000},
     currentScript: {
-      dataset: {site: "site-1", ...dataset},
+      dataset: {...(includeSite ? {site: "site-1"} : {}), ...dataset},
       hasAttribute: () => false,
     },
     documentElement: {scrollHeight: 1000},
@@ -120,7 +120,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, global
     scrollY: 0,
     window,
   };
-  vm.runInNewContext(buildSource(full), context, {filename: "tracker.js"});
+  vm.runInNewContext(prelude + buildSource(full), context, {filename: "tracker.js"});
   if (withExtensions) {
     vm.runInNewContext(extensions, context, {filename: "tracker.extensions.js"});
   }
@@ -550,6 +550,35 @@ function testHeatmapIsOffByDefaultAndExplicitlyEnabled() {
   on.events.get("document:click")({button: 0, pageX: 20, pageY: 30, target: element()});
   on.events.get("window:pagehide")();
   assert.equal(on.payloads.some((payload) => payload.name == "heatmap"), true);
+
+  const generated = loadTracker({
+    full: true,
+    withExtensions: true,
+    prelude: `(d=>{d.heatmap??="true";})(document.currentScript.dataset);\n`,
+  });
+  generated.events.get("document:click")({button: 0, pageX: 20, pageY: 30, target: element()});
+  generated.events.get("window:pagehide")();
+  assert.equal(generated.payloads.some((payload) => payload.name == "heatmap"), true);
+}
+
+function testGeneratedPreludeAppliesDefaultsWithoutOverridingAttributes() {
+  const defaults = loadTracker({
+    full: true,
+    withExtensions: true,
+    dataset: {},
+    includeSite: false,
+    prelude: `(d=>{d.site??="abc123def456";d.outbound??="false";})(document.currentScript.dataset);\n`,
+  });
+  assert.equal(defaults.context.document.currentScript.dataset.site, "abc123def456");
+  assert.equal(defaults.context.document.currentScript.dataset.outbound, "false");
+
+  const attributeWins = loadTracker({
+    full: true,
+    withExtensions: true,
+    dataset: {outbound: "true"},
+    prelude: `(d=>{d.outbound??="false";})(document.currentScript.dataset);\n`,
+  });
+  assert.equal(attributeWins.context.document.currentScript.dataset.outbound, "true");
 }
 
 testIdentifyAndSubsequentEvents();
@@ -582,3 +611,4 @@ testCoreBuildExcludesFullRoutingFeatures();
 testOptOutStopsSendsAndOptInResumes();
 testStoredOptOutSuppressesInitialPageview();
 testHeatmapIsOffByDefaultAndExplicitlyEnabled();
+testGeneratedPreludeAppliesDefaultsWithoutOverridingAttributes();

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -18,19 +19,22 @@ import (
 )
 
 type siteResponse struct {
-	ID                    int32    `json:"id"`
-	OrgID                 int64    `json:"org_id"`
-	PublicID              string   `json:"public_id"`
-	Name                  string   `json:"name"`
-	Timezone              string   `json:"timezone"`
-	RetentionDays         int      `json:"retention_days"`
-	AllowedHosts          []string `json:"allowed_hosts"`
-	ExcludeIPs            []string `json:"exclude_ips"`
-	ExcludePaths          []string `json:"exclude_paths"`
-	ProfilesEnabled       bool     `json:"profiles_enabled"`
-	HeatmapsEnabled       bool     `json:"heatmaps_enabled"`
-	RespectPrivacySignals bool     `json:"respect_privacy_signals"`
-	IconURL               string   `json:"icon_url"`
+	ID                    int32                     `json:"id"`
+	OrgID                 int64                     `json:"org_id"`
+	PublicID              string                    `json:"public_id"`
+	Name                  string                    `json:"name"`
+	Timezone              string                    `json:"timezone"`
+	RetentionDays         int                       `json:"retention_days"`
+	AllowedHosts          []string                  `json:"allowed_hosts"`
+	ExcludeIPs            []string                  `json:"exclude_ips"`
+	ExcludePaths          []string                  `json:"exclude_paths"`
+	ExcludeCountries      []string                  `json:"exclude_countries"`
+	Tracker               coresites.TrackerSettings `json:"tracker"`
+	TrackerURL            string                    `json:"tracker_url"`
+	ProfilesEnabled       bool                      `json:"profiles_enabled"`
+	HeatmapsEnabled       bool                      `json:"heatmaps_enabled"`
+	RespectPrivacySignals bool                      `json:"respect_privacy_signals"`
+	IconURL               string                    `json:"icon_url"`
 }
 
 func (h *handler) listSites(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +104,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 	}
 	query := `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
 		coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
+		coalesce(settings->'exclude_countries','[]'::jsonb),coalesce(settings->'tracker','{}'::jsonb),
 		coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 		coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
@@ -110,6 +115,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 	if hasCursor {
 		query = `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
 			coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
+			coalesce(settings->'exclude_countries','[]'::jsonb),coalesce(settings->'tracker','{}'::jsonb),
 			coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 			coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 			coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
@@ -132,15 +138,20 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		var item row
 		var timezone string
 		var retention int16
+		var trackerRaw []byte
 		if err := rows.Scan(&item.response.ID, &item.response.OrgID, &item.response.PublicID, &item.response.Name,
 			&item.response.AllowedHosts, &timezone, &retention, &item.response.ExcludeIPs,
-			&item.response.ExcludePaths, &item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
+			&item.response.ExcludePaths, &item.response.ExcludeCountries, &trackerRaw,
+			&item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
 			&item.response.RespectPrivacySignals,
 			&item.response.IconURL, &item.createdAt); err != nil {
 			return nil, "", err
 		}
 		item.response.Timezone = timezone
 		item.response.RetentionDays = int(db.RetentionClass(retention))
+		tracker := sitesvc.ParseStoredTracker(item.response.ID, trackerRaw)
+		item.response.Tracker = tracker.Resolve(item.response.HeatmapsEnabled)
+		item.response.TrackerURL = h.trackerURL(item.response.PublicID)
 		if !authz.Can(principal, authz.ActionStatsRead, item.response.ID) && !authz.Can(principal, authz.ActionSiteEdit, item.response.ID) {
 			continue
 		}
@@ -259,15 +270,17 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Name                  *string   `json:"name"`
-		Hosts                 *[]string `json:"hosts"`
-		Timezone              *string   `json:"timezone"`
-		RetentionDays         *int      `json:"retention_days"`
-		ExcludeIPs            *[]string `json:"exclude_ips"`
-		ExcludePaths          *[]string `json:"exclude_paths"`
-		ProfilesEnabled       *bool     `json:"profiles_enabled"`
-		HeatmapsEnabled       *bool     `json:"heatmaps_enabled"`
-		RespectPrivacySignals *bool     `json:"respect_privacy_signals"`
+		Name                  *string         `json:"name"`
+		Hosts                 *[]string       `json:"hosts"`
+		Timezone              *string         `json:"timezone"`
+		RetentionDays         *int            `json:"retention_days"`
+		ExcludeIPs            *[]string       `json:"exclude_ips"`
+		ExcludePaths          *[]string       `json:"exclude_paths"`
+		ExcludeCountries      *[]string       `json:"exclude_countries"`
+		Tracker               json.RawMessage `json:"tracker"`
+		ProfilesEnabled       *bool           `json:"profiles_enabled"`
+		HeatmapsEnabled       *bool           `json:"heatmaps_enabled"`
+		RespectPrivacySignals *bool           `json:"respect_privacy_signals"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -276,6 +289,23 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "only owners and admins can change profiles")
 		return
 	}
+	if (request.Tracker != nil || request.ExcludeCountries != nil) && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "only owners and admins can change tracker settings and country exclusions")
+		return
+	}
+	var tracker *coresites.TrackerSettingsInput
+	if request.Tracker != nil {
+		if len(request.Tracker) == 0 || request.Tracker[0] != '{' {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "tracker must be a JSON object of booleans")
+			return
+		}
+		parsed, err := coresites.ParseTrackerSettings(request.Tracker)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "tracker settings are invalid")
+			return
+		}
+		tracker = &parsed
+	}
 	if h.deps.Mutations == nil {
 		unavailable(w, "site")
 		return
@@ -283,6 +313,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 	updated, err := h.deps.Mutations.UpdateSite(r.Context(), principal, site.ID, sitesvc.SitePatch{
 		Name: request.Name, Hosts: request.Hosts, TZ: request.Timezone, RetentionDays: request.RetentionDays,
 		ExcludeIPs: request.ExcludeIPs, ExcludePaths: request.ExcludePaths,
+		ExcludeCountries: request.ExcludeCountries, Tracker: tracker,
 		ProfilesEnabled: request.ProfilesEnabled, HeatmapsEnabled: request.HeatmapsEnabled,
 		RespectPrivacySignals: request.RespectPrivacySignals,
 	})
@@ -326,6 +357,8 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		ID: site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Timezone: timezone,
 		RetentionDays: int(site.Retention), AllowedHosts: append([]string(nil), site.AllowedHosts...),
 		ExcludeIPs: append([]string{}, site.Exclusions.IPRules...), ExcludePaths: append([]string{}, site.Exclusions.PathRules...),
+		ExcludeCountries: append([]string{}, site.Exclusions.CountryRules...),
+		Tracker:          site.Tracker.Resolve(site.HeatmapsEnabled), TrackerURL: h.trackerURL(site.PublicID),
 		ProfilesEnabled:       site.ProfilesEnabled,
 		HeatmapsEnabled:       site.HeatmapsEnabled,
 		RespectPrivacySignals: site.RespectPrivacySignals,
@@ -335,6 +368,11 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		_ = h.deps.Store.Pool.QueryRow(r.Context(), `select name,coalesce(settings->>'icon_url','') from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).Scan(&response.Name, &response.IconURL)
 	}
 	return response
+}
+
+func (h *handler) trackerURL(publicID string) string {
+	dir := path.Dir("/" + strings.TrimLeft(h.deps.TrackerPath, "/"))
+	return strings.TrimRight(h.deps.BaseURL, "/") + dir + "/" + publicID + ".js"
 }
 
 func (h *handler) startIconDiscovery(principal authz.Principal, siteID int32) {
@@ -414,7 +452,7 @@ func (h *handler) siteSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
-		"snippet":      h.deps.Snippet(site.PublicID, false, site.HeatmapsEnabled),
-		"full_snippet": h.deps.Snippet(site.PublicID, true, site.HeatmapsEnabled),
+		"snippet":      h.deps.Snippet(site.PublicID, false),
+		"full_snippet": h.deps.Snippet(site.PublicID, true),
 	})
 }

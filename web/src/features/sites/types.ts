@@ -7,6 +7,24 @@ export type SiteInput = {
   retention_days: RetentionDays
 }
 
+export type TrackerSettings = {
+  outbound: boolean
+  downloads: boolean
+  forms: boolean
+  vitals: boolean
+  not_found: boolean
+  hash: boolean
+  clicks: boolean
+}
+
+export type SiteUpdate = {
+  tracker?: Partial<TrackerSettings>
+  exclude_ips?: string[]
+  exclude_paths?: string[]
+  exclude_countries?: string[]
+  heatmaps_enabled?: boolean
+}
+
 export type ManagedSite = {
   id: number
   org_id?: number
@@ -17,4 +35,10 @@ export type ManagedSite = {
   allowed_hosts?: string[]
   last_event_received_at?: string
   icon_url?: string
+  tracker?: TrackerSettings
+  tracker_url?: string
+  exclude_ips?: string[]
+  exclude_paths?: string[]
+  exclude_countries?: string[]
+  heatmaps_enabled?: boolean
 }

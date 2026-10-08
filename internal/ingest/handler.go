@@ -42,16 +42,19 @@ type Clock interface {
 // or in-memory stores on the normal path; the bounded Writer applies the final
 // nonblocking backpressure decision.
 type Handler struct {
-	Sites          sites.Registry
-	Enricher       *enrich.Enricher
-	Salts          *salts.Store
-	Dict           *dict.Dict
-	Sessions       session.Store
-	Writer         *writer.Writer
-	Limiter        RateLimiter
-	TrustedProxies []netip.Prefix
-	Clock          Clock
-	Diag           bool // log how each client address was resolved (PANEL_INGEST_DIAG=1)
+	Sites             sites.Registry
+	Enricher          *enrich.Enricher
+	Salts             *salts.Store
+	Dict              *dict.Dict
+	Sessions          session.Store
+	Writer            *writer.Writer
+	Limiter           RateLimiter
+	TrustedProxies    []netip.Prefix
+	Clock             Clock
+	Diag              bool // log how each client address was resolved (PANEL_INGEST_DIAG=1)
+	ProfileTombstones interface {
+		Contains(siteID int32, externalID string) bool
+	}
 }
 
 // ServeHTTP validates, enriches and queues one analytics event.
@@ -97,6 +100,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	if profileID != "" && h.ProfileTombstones != nil && h.ProfileTombstones.Contains(site.ID, profileID) {
+		profileID = ""
+		profileTraits = nil
+	}
 	if !site.ProfilesEnabled && payload.Name == identifyEvent {
 		// The tracker sends identify only for opted-in use; on other sites
 		// it would just add one anonymous custom event per page load.
@@ -133,6 +140,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		health.ExclusionsFiltered[health.ExclusionPath].Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
+	}
+	if len(site.Exclusions.Countries) != 0 {
+		country := h.Enricher.Country(ip)
+		if country != "" && site.Exclusions.ExcludesCountry(country) {
+			health.ExclusionsFiltered[health.ExclusionCountry].Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
 	}
 	if h.Limiter != nil && (!h.Limiter.Allow("site:"+strconv.FormatInt(int64(site.ID), 10)) || !h.Limiter.Allow(ipRateKey(ip))) {
 		w.Header().Set("Retry-After", "1")

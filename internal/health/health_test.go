@@ -80,6 +80,7 @@ func TestPrometheusTextFormat(t *testing.T) {
 	health.HeatmapDropped.Add(2)
 	health.BotsFiltered[1].Add(2)
 	health.ExclusionsFiltered[health.ExclusionPath].Add(4)
+	health.ExclusionsFiltered[health.ExclusionCountry].Add(5)
 	var b bytes.Buffer
 	health.WritePrometheus(&b)
 	for _, want := range []string{
@@ -91,6 +92,7 @@ func TestPrometheusTextFormat(t *testing.T) {
 		"# TYPE panel_heatmap_dropped_total counter",
 		`panel_bots_filtered_total{reason="ua"} 2`,
 		`panel_ingest_excluded_total{reason="path"} 4`,
+		`panel_ingest_excluded_total{reason="country"} 5`,
 	} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("missing %q in\n%s", want, b.String())

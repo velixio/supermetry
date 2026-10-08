@@ -6,14 +6,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addFilter, dashboardSearch, type Filter } from '@/lib/search'
 import type { StatsQuery } from '@/lib/stats'
 
-const { post, refetch, useStats } = vi.hoisted(() => ({
+const { post, refetch, useStats, worldMapLoads } = vi.hoisted(() => ({
   post: vi.fn(),
   refetch: vi.fn(),
   useStats: vi.fn(),
+  worldMapLoads: { value: 0 },
 }))
 
 vi.mock('@/lib/api', () => ({ api: { POST: post } }))
 vi.mock('@/lib/stats', () => ({ useStats }))
+vi.mock('./WorldMap', () => {
+  worldMapLoads.value += 1
+  return {
+    WorldMap: ({ rows, onSelect }: { rows: { country: string; visitors: number }[]; onSelect(code: string): void }) => (
+      <svg aria-label="World map" role="group">
+        {rows.map((row) => (
+          <path
+            key={row.country}
+            aria-label={`India: ${row.visitors} visitors`}
+            role="button"
+            onClick={() => onSelect(row.country)}
+          />
+        ))}
+      </svg>
+    ),
+  }
+})
 
 import { BreakdownCard, type BreakdownTab } from './BreakdownCard'
 
@@ -148,6 +166,50 @@ describe('BreakdownCard', () => {
     render(<FilterHarness />)
     fireEvent.click(screen.getByRole('button', { name: /filter by country IN/i }))
     expect(screen.getByLabelText('URL filters')).toHaveTextContent('country:is:IN')
+  })
+
+  it('defaults a map-enabled country breakdown to its list and switches to the lazy map', async () => {
+    useStats.mockReturnValue(result({ data: data('country', 'IN', 5) }))
+
+    render(
+      <BreakdownCard
+        title="Countries"
+        tabs={tabs('country')}
+        query={baseQuery}
+        onFilter={vi.fn()}
+        map
+      />,
+    )
+
+    expect(screen.getByRole('list')).toBeVisible()
+    expect(screen.queryByRole('group', { name: /world map/i })).not.toBeInTheDocument()
+    expect(worldMapLoads.value).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }))
+
+    expect(await screen.findByRole('group', { name: /world map/i })).toBeVisible()
+    expect(worldMapLoads.value).toBe(1)
+    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 250 }))
+  })
+
+  it('selecting a country on the map emits the same country filter as a list row', async () => {
+    useStats.mockReturnValue(result({ data: data('country', 'IN', 5) }))
+    const onFilter = vi.fn()
+
+    render(
+      <BreakdownCard
+        title="Countries"
+        tabs={tabs('country')}
+        query={baseQuery}
+        onFilter={onFilter}
+        map
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'India: 5 visitors' }))
+
+    expect(onFilter).toHaveBeenCalledWith({ dimension: 'country', operator: 'is', values: ['IN'] })
   })
 
   it('long labels truncate with a tooltip and big numbers compact', () => {

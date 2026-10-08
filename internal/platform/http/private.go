@@ -56,13 +56,15 @@ type siteIconMutationService interface {
 }
 
 type Deps struct {
+	BaseURL     string
+	TrackerPath string
 	// SecureCookies forces the Secure flag on every cookie. Set it when
 	// PANEL_BASE_URL is https so production never downgrades, even behind a
 	// proxy that omits X-Forwarded-Proto.
 	SecureCookies bool
 	// Snippet returns the tracking snippet (absolute script and event URLs built
 	// from PANEL_BASE_URL) for a site's public ID.
-	Snippet        func(publicID string, full, heatmaps bool) string
+	Snippet        func(publicID string, full bool) string
 	Signup         string
 	TrustedProxies []netip.Prefix
 	Authenticator  Authenticator
@@ -86,6 +88,10 @@ type Deps struct {
 		List(context.Context, int32) ([]imports.Import, error)
 		Delete(context.Context, int64) (bool, error)
 		SetFailed(context.Context, int64, error) error
+	}
+	ProfileTombstones interface {
+		RememberTx(context.Context, pgx.Tx, int32, string) error
+		ForgetMemory(int32, string)
 	}
 	ImportQueue interface {
 		Queue(imports.Job) error

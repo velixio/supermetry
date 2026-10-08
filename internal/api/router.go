@@ -9,18 +9,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"panel/internal/dict"
-	"panel/internal/sites"
-	"panel/internal/tracker"
+	"path"
 	"strconv"
 	"time"
 
 	"go.yaml.in/yaml/v3"
 
 	"panel/internal/config"
+	"panel/internal/dict"
 	"panel/internal/health"
 	"panel/internal/ingest"
 	"panel/internal/session"
+	"panel/internal/sites"
+	"panel/internal/tracker"
 )
 
 const (
@@ -117,6 +118,9 @@ func NewRouter(deps Deps) http.Handler {
 	if deps.Config.TrackerPath != "" {
 		mux.Handle("GET "+deps.Config.TrackerPath, tracker.Handler())
 		mux.Handle("GET "+tracker.FullPath(deps.Config.TrackerPath), tracker.FullHandler())
+		if deps.Sites != nil {
+			mux.Handle("GET "+path.Dir(deps.Config.TrackerPath)+"/", tracker.SiteHandler(deps.Sites))
+		}
 	}
 	mux.HandleFunc("GET /api/public/openapi.json", serveOpenAPI)
 	if deps.UI != nil {

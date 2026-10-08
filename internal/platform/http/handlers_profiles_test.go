@@ -18,6 +18,7 @@ import (
 	platformhttp "panel/internal/platform/http"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	"panel/internal/profiletombstone"
 	"panel/internal/testpg"
 )
 
@@ -28,6 +29,7 @@ type profileFixture struct {
 	disabledID  int32
 	foreignSite int32
 	profileID   int64
+	tombstones  *profiletombstone.Store
 }
 
 func newProfileFixture(t *testing.T) profileFixture {
@@ -89,9 +91,11 @@ func newProfileFixture(t *testing.T) profileFixture {
 		"key":          {KeyID: 11, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"stats:read"}},
 		"key-no-scope": {KeyID: 12, OrgID: orgID, Role: authz.RoleKey},
 	}
+	tombstones := profiletombstone.New(pool, nil)
 	return profileFixture{
-		handler: platformhttp.New(platformhttp.Deps{Authenticator: authenticator, Sites: registry, Store: data}),
+		handler: platformhttp.New(platformhttp.Deps{Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones}),
 		pool:    pool, siteID: siteID, disabledID: disabledID, foreignSite: foreignSite, profileID: profileID,
+		tombstones: tombstones,
 	}
 }
 
@@ -216,6 +220,16 @@ func TestDeleteProfileErasesEventsAndAuditsTransactionally(t *testing.T) {
 	}
 	if profiles != 0 || events != 0 || audits != 1 {
 		t.Fatalf("profiles=%d events=%d audits=%d", profiles, events, audits)
+	}
+	if !f.tombstones.Contains(f.siteID, "user-123") {
+		t.Fatal("profile erasure did not publish a tombstone")
+	}
+	var storedID string
+	if err := f.pool.QueryRow(ctx, `select encode(external_hash,'hex') from profile_tombstones where site_id=$1`, f.siteID).Scan(&storedID); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(storedID, "user-123") || len(storedID) != 64 {
+		t.Fatalf("stored tombstone hash=%q", storedID)
 	}
 }
 

@@ -58,9 +58,10 @@ type Writer struct {
 	heatmapSlots chan struct{}
 	sess         session.Store
 
-	flushEvery   time.Duration
-	sessionFlush time.Duration
-	closed       ClosedDays
+	flushEvery        time.Duration
+	sessionFlush      time.Duration
+	closed            ClosedDays
+	profileTombstones ProfileTombstones
 
 	poolMu sync.RWMutex
 	pool   *pgxpool.Pool
@@ -351,6 +352,7 @@ func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
 	if pool == nil {
 		return errors.New("writer: database pool is nil")
 	}
+	w.suppressTombstonedProfiles(events)
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if err := upsertProfiles(ctx, tx, events); err != nil {
 			return err

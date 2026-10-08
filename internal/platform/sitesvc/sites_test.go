@@ -13,6 +13,7 @@ import (
 	"panel/internal/db"
 	"panel/internal/platform/authz"
 	"panel/internal/platform/store"
+	"panel/internal/sites"
 	"panel/internal/testpg"
 )
 
@@ -326,6 +327,83 @@ func TestUpdateExclusionsPersistsAndRefreshesRegistry(t *testing.T) {
 	}
 }
 
+func TestUpdateTrackerAndCountryExclusionsRoundTripsAndOmittedPatchPreserves(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := true
+	tracker := sites.TrackerSettingsInput{Hash: &hash}
+	countries := []string{"ru", " RU "}
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{
+		Tracker: &tracker, ExcludeCountries: &countries,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Tracker.Hash == nil || !*updated.Tracker.Hash || strings.Join(updated.Exclusions.CountryRules, ",") != "RU" {
+		t.Fatalf("updated tracker/countries = %+v/%v", updated.Tracker, updated.Exclusions.CountryRules)
+	}
+	forms := false
+	partial := sites.TrackerSettingsInput{Forms: &forms}
+	updated, err = service.Update(ctx, principal, site.ID, SitePatch{Tracker: &partial})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Tracker.Hash == nil || !*updated.Tracker.Hash || updated.Tracker.Forms == nil || *updated.Tracker.Forms {
+		t.Fatalf("partial tracker PATCH reset or lost fields: %+v", updated.Tracker)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || loaded.Tracker.Hash == nil || !*loaded.Tracker.Hash || !loaded.Exclusions.ExcludesCountry("RU") {
+		t.Fatalf("registry tracker/countries = %+v/%+v, found=%t", loaded.Tracker, loaded.Exclusions, ok)
+	}
+	*loaded.Tracker.Hash = false
+	loaded.Exclusions.Countries["US"] = struct{}{}
+	immutable, ok := registry.Site(site.ID)
+	if !ok || immutable.Tracker.Hash == nil || !*immutable.Tracker.Hash || immutable.Exclusions.ExcludesCountry("US") {
+		t.Fatalf("registry returned mutable tracker/exclusions: %+v/%+v", immutable.Tracker, immutable.Exclusions)
+	}
+
+	name := "Renamed"
+	if _, err := service.Update(ctx, principal, site.ID, SitePatch{Name: &name}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok = registry.Site(site.ID)
+	if !ok || loaded.Tracker.Hash == nil || !*loaded.Tracker.Hash || !loaded.Exclusions.ExcludesCountry("RU") {
+		t.Fatalf("omitted patch replaced tracker/countries: %+v/%+v", loaded.Tracker, loaded.Exclusions)
+	}
+
+	var storedTrackerMatches bool
+	var storedCountries string
+	if err := pool.QueryRow(ctx, `select settings->'tracker'='{"hash":true,"forms":false}'::jsonb, settings->'exclude_countries' from sites where id=$1`, site.ID).Scan(&storedTrackerMatches, &storedCountries); err != nil {
+		t.Fatal(err)
+	}
+	if !storedTrackerMatches || storedCountries != `["RU"]` {
+		t.Fatalf("stored tracker match/countries = %t/%s", storedTrackerMatches, storedCountries)
+	}
+}
+
+func TestRegistryMalformedTrackerUsesDefaults(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update sites set settings=jsonb_set(settings,'{tracker}','[]'::jsonb) where id=$1`, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatalf("Invalidate() error = %v, want malformed tracker to fall back", err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || !loaded.Tracker.Resolve(false).Outbound {
+		t.Fatalf("registry site = %+v, found=%t, want tracker defaults", loaded, ok)
+	}
+}
+
 func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
@@ -400,6 +478,33 @@ func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
 	}
 }
 
+func TestUpdateTrackerAndCountryExclusionsRejectsEditor(t *testing.T) {
+	service, _, principal, _ := newSites(t)
+	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	editor := principal
+	editor.Role = authz.RoleEditor
+	hash := true
+	tracker := sites.TrackerSettingsInput{Hash: &hash}
+	countries := []string{"RU"}
+	tests := []struct {
+		name  string
+		patch SitePatch
+	}{
+		{name: "tracker", patch: SitePatch{Tracker: &tracker}},
+		{name: "countries", patch: SitePatch{ExcludeCountries: &countries}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := service.Update(context.Background(), editor, site.ID, test.patch); !errors.Is(err, ErrForbidden) {
+				t.Fatalf("Update error = %v, want ErrForbidden", err)
+			}
+		})
+	}
+}
+
 func TestUpdateExclusionsNamesInvalidEntry(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	ctx := context.Background()
@@ -435,26 +540,11 @@ func TestCrossOrgAndForbiddenWritesAreHiddenOrDenied(t *testing.T) {
 }
 
 func TestSnippet(t *testing.T) {
-	got := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", `abc123"unsafe`, false, false)
-	for _, want := range []string{
-		`data-site="abc123&#34;unsafe"`,
-		`data-api="https://stats.example.com/api/public/v1/events"`,
-		`src="https://stats.example.com/js/p.js"`,
-		" defer",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("Snippet() = %q, missing %q", got, want)
+	want := `<script defer src="https://stats.example.com/js/abc123def456.js"></script>`
+	for _, full := range []bool{false, true} {
+		if got := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", "abc123def456", full); got != want {
+			t.Fatalf("Snippet(full=%t) = %q, want %q", full, got, want)
 		}
-	}
-	full := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", "abc123", true, true)
-	if !strings.Contains(full, `src="https://stats.example.com/js/p.full.js"`) {
-		t.Fatalf("full Snippet() = %q, missing full tracker path", full)
-	}
-	if !strings.Contains(full, `data-heatmap="true"`) {
-		t.Fatalf("full Snippet() = %q, missing enabled heatmap attribute", full)
-	}
-	if strings.Contains(got, `data-heatmap`) {
-		t.Fatalf("core disabled Snippet() = %q, unexpectedly includes heatmap attribute", got)
 	}
 }
 

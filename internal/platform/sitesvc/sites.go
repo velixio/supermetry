@@ -7,10 +7,13 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -41,6 +44,8 @@ type SitePatch struct {
 	RetentionDays         *int
 	ExcludeIPs            *[]string
 	ExcludePaths          *[]string
+	ExcludeCountries      *[]string
+	Tracker               *coresites.TrackerSettingsInput
 	ProfilesEnabled       *bool
 	HeatmapsEnabled       *bool
 	RespectPrivacySignals *bool
@@ -51,6 +56,8 @@ type Sites struct {
 	registry     *Registry
 	discoverIcon func(context.Context, string) string
 }
+
+var malformedTrackerLogged sync.Map
 
 func New(data *store.Store, registry *Registry) *Sites {
 	return &Sites{store: data, registry: registry, discoverIcon: siteicon.Discover}
@@ -102,7 +109,8 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	if !authz.Can(principal, authz.ActionSiteEdit, id) {
 		return coresites.Site{}, ErrForbidden
 	}
-	if patch.HeatmapsEnabled != nil && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+	if (patch.HeatmapsEnabled != nil || patch.Tracker != nil || patch.ExcludeCountries != nil) &&
+		principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
 		return coresites.Site{}, ErrForbidden
 	}
 	var updated store.Site
@@ -132,6 +140,16 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.ExcludePaths != nil {
 			current.ExcludePaths = append([]string(nil), (*patch.ExcludePaths)...)
 		}
+		if patch.ExcludeCountries != nil {
+			current.ExcludeCountries = append([]string(nil), (*patch.ExcludeCountries)...)
+		}
+		if patch.Tracker != nil {
+			merged := mergeTrackerSettings(ParseStoredTracker(current.ID, current.Tracker), *patch.Tracker)
+			current.Tracker, err = json.Marshal(merged)
+			if err != nil {
+				return fmt.Errorf("encode tracker settings: %w", err)
+			}
+		}
 		if patch.ProfilesEnabled != nil {
 			current.ProfilesEnabled = *patch.ProfilesEnabled
 		}
@@ -149,12 +167,13 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		}
 		current.Name, current.AllowedHosts = name, hosts
 		current.Timezone, current.RetentionClass = location.String(), int16(retention)
-		exclusions, err := coresites.CompileExclusions(current.ExcludeIPs, current.ExcludePaths)
+		exclusions, err := coresites.CompileExclusions(current.ExcludeIPs, current.ExcludePaths, current.ExcludeCountries)
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalid, err)
 		}
 		current.ExcludeIPs = append([]string(nil), exclusions.IPRules...)
 		current.ExcludePaths = append([]string(nil), exclusions.PathRules...)
+		current.ExcludeCountries = append([]string(nil), exclusions.CountryRules...)
 		updated, err = store.UpdateSite(ctx, tx, current)
 		if err != nil {
 			return err
@@ -166,6 +185,12 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		}
 		if patch.ProfilesEnabled != nil {
 			metadata["profiles_enabled"] = current.ProfilesEnabled
+		}
+		if patch.Tracker != nil {
+			metadata["tracker"] = patch.Tracker
+		}
+		if patch.ExcludeCountries != nil {
+			metadata["exclude_countries"] = current.ExcludeCountries
 		}
 		return audit.Write(ctx, tx, principal, "site.updated", "site", int64(id), metadata)
 	})
@@ -340,18 +365,58 @@ func coreSite(row store.Site) (coresites.Site, error) {
 	if !ok {
 		return coresites.Site{}, fmt.Errorf("site %d has invalid retention class %d", row.ID, row.RetentionClass)
 	}
-	exclusions, err := coresites.CompileExclusions(row.ExcludeIPs, row.ExcludePaths)
+	exclusions, err := coresites.CompileExclusions(row.ExcludeIPs, row.ExcludePaths, row.ExcludeCountries)
 	if err != nil {
 		return coresites.Site{}, fmt.Errorf("load exclusions for site %d: %w", row.ID, err)
 	}
+	tracker := ParseStoredTracker(row.ID, row.Tracker)
 	return coresites.Site{
 		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
+		Tracker:               tracker,
 		ProfilesEnabled:       row.ProfilesEnabled,
 		HeatmapsEnabled:       row.HeatmapsEnabled,
 		RespectPrivacySignals: row.RespectPrivacySignals,
 		IconURL:               row.IconURL,
 	}, nil
+}
+
+// ParseStoredTracker returns strict stored settings or defaults, logging a
+// malformed value once per site without including the stored body.
+func ParseStoredTracker(siteID int32, raw []byte) coresites.TrackerSettingsInput {
+	tracker, err := coresites.ParseTrackerSettings(raw)
+	if err != nil {
+		if _, loaded := malformedTrackerLogged.LoadOrStore(siteID, struct{}{}); !loaded {
+			slog.Warn("invalid stored tracker settings; using defaults", "site_id", siteID, "error", err)
+		}
+		tracker = coresites.TrackerSettingsInput{}
+	}
+	return tracker
+}
+
+func mergeTrackerSettings(current, patch coresites.TrackerSettingsInput) coresites.TrackerSettingsInput {
+	if patch.Outbound != nil {
+		current.Outbound = patch.Outbound
+	}
+	if patch.Downloads != nil {
+		current.Downloads = patch.Downloads
+	}
+	if patch.Forms != nil {
+		current.Forms = patch.Forms
+	}
+	if patch.Vitals != nil {
+		current.Vitals = patch.Vitals
+	}
+	if patch.NotFound != nil {
+		current.NotFound = patch.NotFound
+	}
+	if patch.Hash != nil {
+		current.Hash = patch.Hash
+	}
+	if patch.Clicks != nil {
+		current.Clicks = patch.Clicks
+	}
+	return current
 }
 
 func newPublicID() (string, error) {

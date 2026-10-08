@@ -148,6 +148,7 @@ function DashboardStateRoute() {
         {breakdownCards.map((card) => (
           <BreakdownCard
             key={card.title}
+            map={card.map}
             title={card.title}
             tabs={card.tabs}
             query={query}
@@ -159,7 +160,7 @@ function DashboardStateRoute() {
   )
 }
 
-const breakdownCards: { title: string; tabs: BreakdownTab[] }[] = [
+const breakdownCards: { title: string; tabs: BreakdownTab[]; map?: boolean }[] = [
   {
     title: 'Pages',
     tabs: [
@@ -178,6 +179,7 @@ const breakdownCards: { title: string; tabs: BreakdownTab[] }[] = [
   },
   {
     title: 'Countries',
+    map: true,
     tabs: [
       { key: 'country', label: 'Countries', dimension: 'country', metric: 'visitors' },
       { key: 'region', label: 'Regions', dimension: 'region', metric: 'visitors' },

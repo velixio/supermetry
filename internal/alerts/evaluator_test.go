@@ -16,20 +16,23 @@ func TestEvaluatorUsesExactTrafficWindowsAndCooldown(t *testing.T) {
 		{ID: 2, SiteID: 10, Kind: AlertTrafficDrop, Threshold: 50, ChannelIDs: []int64{1}, Enabled: true},
 		{ID: 3, SiteID: 10, Kind: AlertTrafficSpike, Threshold: 1, ChannelIDs: []int64{1}, Enabled: true, LastFiredAt: &lastFired},
 	}}
-	source := &fakeMetricSource{visitorValues: []float64{120, 40, 100}}
+	source := &fakeMetricSource{visitorValues: []float64{40, 100}}
 	deliverer := &fakeDeliverer{}
-	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, deliverer, func() time.Time { return now })
+	active := &fakeActiveVisitors{visitors: 120}
+	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, active, deliverer, func() time.Time { return now })
 
 	if err := evaluator.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if len(source.visitorCalls) != 3 {
-		t.Fatalf("visitor calls = %d, want 3", len(source.visitorCalls))
+	if len(source.visitorCalls) != 2 {
+		t.Fatalf("visitor calls = %d, want 2", len(source.visitorCalls))
 	}
 	want := []metricCall{
-		{siteID: 10, from: now.Add(-time.Hour), to: now},
 		{siteID: 10, from: now.Add(-24 * time.Hour), to: now},
 		{siteID: 10, from: now.Add(-8 * 24 * time.Hour), to: now.Add(-7 * 24 * time.Hour)},
+	}
+	if active.siteID != 10 || !active.since.Equal(now.Add(-time.Hour)) {
+		t.Fatalf("active visitor window = site %d since %v", active.siteID, active.since)
 	}
 	for i := range want {
 		if source.visitorCalls[i] != want[i] {
@@ -56,7 +59,7 @@ func TestEvaluatorUsesSiteLocalDayForGoalAndCooldown(t *testing.T) {
 	}}
 	source := &fakeMetricSource{conversionValues: []float64{3}}
 	deliverer := &fakeDeliverer{}
-	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: kathmandu}}, deliverer, func() time.Time { return now })
+	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: kathmandu}}, &fakeActiveVisitors{}, deliverer, func() time.Time { return now })
 
 	if err := evaluator.Run(context.Background()); err != nil {
 		t.Fatal(err)
@@ -79,7 +82,7 @@ func TestEvaluatorMarksFiredAfterAllDeliveriesAreAttempted(t *testing.T) {
 	repo := &fakeRepository{alerts: []Alert{{ID: 7, SiteID: 10, Kind: AlertTrafficSpike, Threshold: 1, ChannelIDs: []int64{1, 2}, Enabled: true}}}
 	source := &fakeMetricSource{visitorValues: []float64{2}}
 	deliverer := &fakeDeliverer{failAt: 1}
-	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, deliverer, func() time.Time { return now })
+	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, &fakeActiveVisitors{visitors: 2}, deliverer, func() time.Time { return now })
 
 	if err := evaluator.Run(context.Background()); err == nil {
 		t.Fatal("Run() error = nil, want delivery failure")
@@ -98,7 +101,7 @@ func TestEvaluatorReportsDeliveryFailureOnceWithoutChannelSecrets(t *testing.T) 
 	source := &fakeMetricSource{visitorValues: []float64{2}}
 	deliverer := &fakeDeliverer{failAt: 1}
 	var failures []deliveryFailure
-	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, deliverer, func() time.Time { return now }, func(alertID, channelID int64, kind ChannelKind, err error) {
+	evaluator := NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, &fakeActiveVisitors{visitors: 2}, deliverer, func() time.Time { return now }, func(alertID, channelID int64, kind ChannelKind, err error) {
 		failures = append(failures, deliveryFailure{alertID: alertID, channelID: channelID, kind: kind, err: err})
 	})
 
@@ -111,7 +114,7 @@ func TestEvaluatorReportsDeliveryFailureOnceWithoutChannelSecrets(t *testing.T) 
 }
 
 func TestEvaluatorJobRunsEveryFiveMinutes(t *testing.T) {
-	evaluator := NewEvaluator(&fakeRepository{}, &fakeMetricSource{}, staticRegistry{}, &fakeDeliverer{}, time.Now)
+	evaluator := NewEvaluator(&fakeRepository{}, &fakeMetricSource{}, staticRegistry{}, &fakeActiveVisitors{}, &fakeDeliverer{}, time.Now)
 	job := evaluator.Job()
 	if job.Name != "alerts" || job.Every != 5*time.Minute {
 		t.Fatalf("Job() = name %q every %v", job.Name, job.Every)
@@ -130,6 +133,18 @@ type fakeMetricSource struct {
 	conversionValues []float64
 	visitorCalls     []metricCall
 	conversionCalls  []metricCall
+}
+
+type fakeActiveVisitors struct {
+	siteID   int32
+	since    time.Time
+	visitors int
+}
+
+func (f *fakeActiveVisitors) ActiveSince(siteID int32, since time.Time) (int, []int32) {
+	f.siteID = siteID
+	f.since = since
+	return f.visitors, nil
 }
 
 func (f *fakeMetricSource) Visitors(_ context.Context, site sites.Site, from, to time.Time) (float64, error) {

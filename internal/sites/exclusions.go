@@ -15,24 +15,31 @@ const MaxExclusionRules = 50
 type Exclusions struct {
 	IPRules      []string
 	PathRules    []string
+	CountryRules []string
 	IPPrefixes   []netip.Prefix
+	Countries    map[string]struct{}
 	pathMatchers []*regexp.Regexp
 }
 
 // CompileExclusions validates, normalizes, and compiles a site's exclusion
 // rules. A bare address is represented as a host prefix.
-func CompileExclusions(ipRules, pathRules []string) (Exclusions, error) {
+func CompileExclusions(ipRules, pathRules, countryRules []string) (Exclusions, error) {
 	if len(ipRules) > MaxExclusionRules {
 		return Exclusions{}, fmt.Errorf("exclude_ips must contain at most %d entries", MaxExclusionRules)
 	}
 	if len(pathRules) > MaxExclusionRules {
 		return Exclusions{}, fmt.Errorf("exclude_paths must contain at most %d entries", MaxExclusionRules)
 	}
+	if len(countryRules) > MaxExclusionRules {
+		return Exclusions{}, fmt.Errorf("exclude_countries must contain at most %d entries", MaxExclusionRules)
+	}
 
 	result := Exclusions{
 		IPRules:      make([]string, 0, len(ipRules)),
 		PathRules:    make([]string, 0, len(pathRules)),
+		CountryRules: make([]string, 0, len(countryRules)),
 		IPPrefixes:   make([]netip.Prefix, 0, len(ipRules)),
+		Countries:    make(map[string]struct{}, len(countryRules)),
 		pathMatchers: make([]*regexp.Regexp, 0, len(pathRules)),
 	}
 	seenIPs := make(map[string]struct{}, len(ipRules))
@@ -64,6 +71,17 @@ func CompileExclusions(ipRules, pathRules []string) (Exclusions, error) {
 		seenPaths[rule] = struct{}{}
 		result.PathRules = append(result.PathRules, rule)
 		result.pathMatchers = append(result.pathMatchers, matcher)
+	}
+	for _, raw := range countryRules {
+		rule := strings.ToUpper(strings.TrimSpace(raw))
+		if len(rule) != 2 || rule[0] < 'A' || rule[0] > 'Z' || rule[1] < 'A' || rule[1] > 'Z' {
+			return Exclusions{}, fmt.Errorf("invalid exclude_countries entry %q", raw)
+		}
+		if _, exists := result.Countries[rule]; exists {
+			continue
+		}
+		result.Countries[rule] = struct{}{}
+		result.CountryRules = append(result.CountryRules, rule)
 	}
 	return result, nil
 }
@@ -144,11 +162,26 @@ func (e Exclusions) ExcludesPath(path string) bool {
 	return false
 }
 
+// ExcludesCountry reports whether a non-empty ISO country code is blocked.
+func (e Exclusions) ExcludesCountry(code string) bool {
+	if code == "" {
+		return false
+	}
+	_, excluded := e.Countries[code]
+	return excluded
+}
+
 // Clone returns an independent slice view of immutable compiled exclusions.
 func (e Exclusions) Clone() Exclusions {
+	countries := make(map[string]struct{}, len(e.Countries))
+	for country := range e.Countries {
+		countries[country] = struct{}{}
+	}
 	e.IPRules = append([]string(nil), e.IPRules...)
 	e.PathRules = append([]string(nil), e.PathRules...)
+	e.CountryRules = append([]string(nil), e.CountryRules...)
 	e.IPPrefixes = append([]netip.Prefix(nil), e.IPPrefixes...)
+	e.Countries = countries
 	e.pathMatchers = append([]*regexp.Regexp(nil), e.pathMatchers...)
 	return e
 }

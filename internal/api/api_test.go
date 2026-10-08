@@ -310,7 +310,8 @@ func (panicQuery) Retention(context.Context, api.RetentionRequest) (api.Retentio
 }
 
 func TestRouterOperationalAndConfiguredRoutes(t *testing.T) {
-	router := newTestRouter()
+	registry := routerScriptSites{"abc123def456": {PublicID: "abc123def456", HeatmapsEnabled: true}}
+	router := newTestRouterWithSites(registry)
 	tests := []struct {
 		name   string
 		method string
@@ -319,6 +320,9 @@ func TestRouterOperationalAndConfiguredRoutes(t *testing.T) {
 	}{
 		{name: "event path", method: http.MethodPost, path: "/api/public/v1/events", want: http.StatusAccepted},
 		{name: "tracker", method: http.MethodGet, path: "/js/script.js", want: http.StatusOK},
+		{name: "full tracker", method: http.MethodGet, path: "/js/script.full.js", want: http.StatusOK},
+		{name: "site tracker", method: http.MethodGet, path: "/js/abc123def456.js", want: http.StatusOK},
+		{name: "site tracker traversal", method: http.MethodGet, path: "/js/..%2fabc123def456.js", want: http.StatusNotFound},
 		{name: "health", method: http.MethodGet, path: "/healthz", want: http.StatusOK},
 		{name: "ready", method: http.MethodGet, path: "/readyz", want: http.StatusOK},
 		{name: "metrics", method: http.MethodGet, path: "/metrics", want: http.StatusOK},
@@ -334,6 +338,15 @@ func TestRouterOperationalAndConfiguredRoutes(t *testing.T) {
 		})
 	}
 }
+
+type routerScriptSites map[string]sites.Site
+
+func (r routerScriptSites) ByPublicID(id string) (sites.Site, bool) {
+	site, ok := r[id]
+	return site, ok
+}
+func (r routerScriptSites) Site(id int32) (sites.Site, bool) { return sites.Site{}, false }
+func (r routerScriptSites) All() []sites.Site                { return nil }
 
 func TestConfigDefaultsToPublicEventPath(t *testing.T) {
 	values := map[string]string{
@@ -351,6 +364,10 @@ func TestConfigDefaultsToPublicEventPath(t *testing.T) {
 }
 
 func newTestRouter() http.Handler {
+	return newTestRouterWithSites(nil)
+}
+
+func newTestRouterWithSites(registry sites.Registry) http.Handler {
 	return api.NewRouter(api.Deps{
 		Config: config.Config{
 			AdminAPIKey: "test-key",
@@ -362,6 +379,7 @@ func newTestRouter() http.Handler {
 			w.WriteHeader(http.StatusAccepted)
 		}),
 		RateLimiter: ingest.NewTokenBuckets(0, 30),
+		Sites:       registry,
 	})
 }
 

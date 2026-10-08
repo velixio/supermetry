@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,11 +24,16 @@ type BreakdownCardProps = {
   tabs: BreakdownTab[]
   query: StatsQuery
   onFilter: (filter: Filter) => void
+  map?: boolean
 }
 
-export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardProps) {
+const WorldMap = lazy(() => import('./WorldMap').then((module) => ({ default: module.WorldMap })))
+
+export function BreakdownCard({ title, tabs, query, onFilter, map = false }: BreakdownCardProps) {
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
+  const [view, setView] = useState<'list' | 'map'>('list')
   const activeTab = tabs.find((tab) => tab.key === activeKey) ?? tabs[0]
+  const mapActive = map && activeTab?.dimension === 'country' && view === 'map'
   const cardQuery: StatsQuery = {
     ...query,
     metrics: activeTab ? [activeTab.metric] : query.metrics,
@@ -40,7 +45,7 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
     orderBy: activeTab
       ? [{ column: activeTab.metric, direction: 'desc' }]
       : query.orderBy,
-    limit: 10,
+    limit: mapActive ? 250 : 10,
   }
   const result = useStats(cardQuery)
   const rows = result.data?.rows ?? []
@@ -64,7 +69,10 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
                   size="xs"
                   type="button"
                   variant={tab.key === activeTab?.key ? 'secondary' : 'ghost'}
-                  onClick={() => setActiveKey(tab.key)}
+                  onClick={() => {
+                    setActiveKey(tab.key)
+                    if (tab.dimension !== 'country') setView('list')
+                  }}
                 >
                   {tab.label ?? tab.key}
                 </Button>
@@ -72,7 +80,31 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
             </div>
           ) : null}
         </div>
-        {activeTab ? <DetailsDialog dimension={activeTab.dimension} query={cardQuery} title={title} /> : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {map && activeTab?.dimension === 'country' ? (
+            <div aria-label={`${title} view`} className="flex items-center gap-1" role="group">
+              <Button
+                aria-pressed={view === 'list'}
+                size="xs"
+                type="button"
+                variant={view === 'list' ? 'secondary' : 'ghost'}
+                onClick={() => setView('list')}
+              >
+                List
+              </Button>
+              <Button
+                aria-pressed={view === 'map'}
+                size="xs"
+                type="button"
+                variant={view === 'map' ? 'secondary' : 'ghost'}
+                onClick={() => setView('map')}
+              >
+                Map
+              </Button>
+            </div>
+          ) : null}
+          {activeTab ? <DetailsDialog dimension={activeTab.dimension} query={cardQuery} title={title} /> : null}
+        </div>
       </header>
       {result.isError ? (
         <ErrorState detail={result.error?.detail} onRetry={() => void result.refetch()} />
@@ -84,6 +116,22 @@ export function BreakdownCard({ title, tabs, query, onFilter }: BreakdownCardPro
         </div>
       ) : rows.length === 0 || !activeTab ? (
         <EmptyState />
+      ) : mapActive ? (
+        <Suspense
+          fallback={
+            <div className="min-h-36 p-4" aria-label={`Loading ${title} map`}>
+              <Skeleton className="h-32 w-full" />
+            </div>
+          }
+        >
+          <WorldMap
+            rows={rows.map((row) => ({
+              country: String(row.country ?? ''),
+              visitors: Number(row.visitors ?? 0),
+            }))}
+            onSelect={(code) => onFilter({ dimension: 'country', operator: 'is', values: [code] })}
+          />
+        </Suspense>
       ) : (
         <ol className="flex min-w-0 flex-col p-2">
           {rows.map((row, index) => {

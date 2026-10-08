@@ -60,6 +60,10 @@ func (denyLimiter) Allow(string) bool { return false }
 
 type recordingLimiter struct{ keys []string }
 
+type allProfilesTombstoned struct{}
+
+func (allProfilesTombstoned) Contains(int32, string) bool { return true }
+
 func (l *recordingLimiter) Allow(key string) bool {
 	l.keys = append(l.keys, key)
 	return true
@@ -332,6 +336,35 @@ func TestExcludedPathCountedNotStored(t *testing.T) {
 	}
 	if events != 0 || health.ExclusionsFiltered[health.ExclusionPath].Load() != before+1 {
 		t.Fatalf("events=%d excluded_path_delta=%d", events, health.ExclusionsFiltered[health.ExclusionPath].Load()-before)
+	}
+}
+
+func TestExcludedCountryCountedAndUnresolvedCountryAccepted(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	cityPath := writeCityMMDB(t)
+	enricher, err := enrich.NewWithGeo(enrich.GeoPaths{City: cityPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = enricher.Close() })
+	f.h.Enricher = enricher
+	setCountryExclusions(t, f, []string{"US"})
+	before := health.ExclusionsFiltered[health.ExclusionCountry].Load()
+
+	if response := post(t, f.h, okBody, testUA, "192.0.2.42:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("excluded country status = %d, want 202", response.Code)
+	}
+	if response := post(t, f.h, okBody, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("unresolved country status = %d, want 202", response.Code)
+	}
+	f.stop(t)
+
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 || health.ExclusionsFiltered[health.ExclusionCountry].Load() != before+1 {
+		t.Fatalf("events=%d excluded_country_delta=%d, want 1/1", events, health.ExclusionsFiltered[health.ExclusionCountry].Load()-before)
 	}
 }
 
@@ -636,6 +669,26 @@ func TestEnabledIdentifyWithoutTraitsUpsertsAndLinks(t *testing.T) {
 	}
 }
 
+func TestTombstonedProfileIsRemovedBeforeQueueing(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	setProfilesEnabled(t, f, true)
+	f.h.ProfileTombstones = allProfilesTombstoned{}
+	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	var profiles, linked int
+	if err := f.pool.QueryRow(context.Background(), `select (select count(*) from profiles), count(profile_id) from events`).Scan(&profiles, &linked); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 0 || linked != 0 {
+		t.Fatalf("profiles=%d linked=%d, want anonymous queued event", profiles, linked)
+	}
+}
+
 func TestEnabledProfilesUpsertTraitsAndLinkEvents(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	seedProfileSite(t, f.pool)
@@ -773,7 +826,21 @@ func setExclusions(t *testing.T, fixture *handlerFixture, ips, paths []string) {
 	if !ok {
 		t.Fatal("fixture site missing")
 	}
-	exclusions, err := sites.CompileExclusions(ips, paths)
+	exclusions, err := sites.CompileExclusions(ips, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	site.Exclusions = exclusions
+	fixture.h.Sites = siteRegistry{site: site}
+}
+
+func setCountryExclusions(t *testing.T, fixture *handlerFixture, countries []string) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	exclusions, err := sites.CompileExclusions(nil, nil, countries)
 	if err != nil {
 		t.Fatal(err)
 	}

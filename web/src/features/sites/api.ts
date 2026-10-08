@@ -1,7 +1,7 @@
 import { privateRequest } from '@/features/settings/privateApi'
 import { api } from '@/lib/api'
 
-import type { ManagedSite, SiteInput } from './types'
+import type { ManagedSite, SiteInput, SiteUpdate } from './types'
 
 export function createSite(input: SiteInput, orgId: number): Promise<ManagedSite> {
   return privateRequest<ManagedSite>('POST', '/api/private/sites', {
@@ -12,6 +12,21 @@ export function createSite(input: SiteInput, orgId: number): Promise<ManagedSite
 
 export function deleteSite(siteId: number, orgId: number): Promise<void> {
   return privateRequest<void>('DELETE', `/api/private/sites/${siteId}`, { orgId })
+}
+
+export function getSite(siteId: number, orgId: number): Promise<ManagedSite> {
+  return privateRequest<ManagedSite>('GET', `/api/private/sites/${siteId}`, { orgId })
+}
+
+export function updateSite(
+  siteId: number,
+  orgId: number,
+  input: SiteUpdate,
+): Promise<ManagedSite> {
+  return privateRequest<ManagedSite>('PATCH', `/api/private/sites/${siteId}`, {
+    orgId,
+    body: input,
+  })
 }
 
 export class SiteIconRefetchError extends Error {

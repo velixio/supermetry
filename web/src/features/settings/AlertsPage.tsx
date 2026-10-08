@@ -18,7 +18,7 @@ const labels: Record<AlertKind, string> = {
   goal_reached: 'Goal reached',
 }
 const thresholdDescriptions: Record<AlertKind, string> = {
-  traffic_spike: 'Visitors in the last 60 minutes.',
+  traffic_spike: 'Active visitors in this process during the last 60 minutes.',
   traffic_drop: 'Percentage of visitors in the same 24-hour window seven days earlier.',
   goal_reached: 'Conversions in the current local day.',
 }

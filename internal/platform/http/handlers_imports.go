@@ -2,6 +2,7 @@ package platformhttp
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ type importUpload struct {
 	Source   string
 	FileName string
 	Path     string
+	FileHash [sha256.Size]byte
 }
 
 func copyUpload(dst io.Writer, src io.Reader, max int64) error {
@@ -81,7 +83,8 @@ func saveImportMultipart(r *http.Request, tempDir string, max int64) (upload imp
 			}
 			upload.Path = file.Name()
 			upload.FileName = filepath.Base(part.FileName())
-			copyErr := copyUpload(file, part, max)
+			hasher := sha256.New()
+			copyErr := copyUpload(io.MultiWriter(file, hasher), part, max)
 			closeErr := file.Close()
 			if copyErr != nil {
 				part.Close()
@@ -91,6 +94,7 @@ func saveImportMultipart(r *http.Request, tempDir string, max int64) (upload imp
 				part.Close()
 				return upload, fmt.Errorf("close import temp file: %w", closeErr)
 			}
+			copy(upload.FileHash[:], hasher.Sum(nil))
 		default:
 			if _, err := io.Copy(io.Discard, part); err != nil {
 				part.Close()
@@ -129,11 +133,23 @@ func (h *handler) createImport(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, status, http.StatusText(status), err.Error())
 		return
 	}
+	replaceValue := r.URL.Query().Get("replace")
+	if replaceValue != "" && replaceValue != "true" && replaceValue != "false" {
+		_ = os.Remove(upload.Path)
+		writeProblem(w, http.StatusBadRequest, "Bad request", "replace must be true or false")
+		return
+	}
 	created, err := h.deps.Imports.Create(r.Context(), imports.CreateInput{
 		SiteID: site.ID, Source: imports.Source(upload.Source), FileName: upload.FileName, CreatedBy: principal.UserID,
+		FileHash: upload.FileHash, Replace: replaceValue == "true",
 	})
 	if err != nil {
 		_ = os.Remove(upload.Path)
+		var duplicate *imports.AlreadyImportedError
+		if errors.As(err, &duplicate) {
+			writeProblem(w, http.StatusConflict, "Conflict", "this file was already imported on "+duplicate.ImportedAt.UTC().Format(time.DateOnly))
+			return
+		}
 		serviceError(w, err)
 		return
 	}
