@@ -2,12 +2,75 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
+
+func SiteReplaySettings(ctx context.Context, data *Store, orgID int64, id int32) ([]byte, error) {
+	var raw []byte
+	err := data.Pool.QueryRow(ctx, `
+		select coalesce(settings->'replay', '{}'::jsonb)
+		from sites where id=$1 and org_id=$2 and deleted_at is null`, id, orgID).Scan(&raw)
+	if err != nil {
+		return nil, fmt.Errorf("load site replay settings: %w", err)
+	}
+	return raw, nil
+}
+
+func SetSiteReplaySettings(ctx context.Context, data *Store, orgID int64, id int32, settings []byte) error {
+	tag, err := data.Pool.Exec(ctx, `
+		update sites
+		set settings=jsonb_set(settings, '{replay}', $3::jsonb)
+		where id=$1 and org_id=$2 and deleted_at is null`, id, orgID, settings)
+	if err != nil {
+		return fmt.Errorf("update site replay settings: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func InstanceReplayStorage(ctx context.Context, data *Store) ([]byte, error) {
+	var raw []byte
+	err := data.Pool.QueryRow(ctx, `select coalesce(settings->'replay_storage', '{}'::jsonb) from instance_settings where id=true`).Scan(&raw)
+	if err != nil {
+		return nil, fmt.Errorf("load instance replay storage: %w", err)
+	}
+	return raw, nil
+}
+
+func SetInstanceReplayStorage(ctx context.Context, data *Store, settings []byte, migration any) error {
+	if migration == nil {
+		_, err := data.Pool.Exec(ctx, `
+			update instance_settings
+			set settings=jsonb_set(settings, '{replay_storage}', $1::jsonb), updated_at=now()
+			where id=true`, settings)
+		if err != nil {
+			return fmt.Errorf("update instance replay storage: %w", err)
+		}
+		return nil
+	}
+	migrationJSON, err := json.Marshal(migration)
+	if err != nil {
+		return fmt.Errorf("encode replay migration request: %w", err)
+	}
+	_, err = data.Pool.Exec(ctx, `
+		update instance_settings
+		set settings=jsonb_set(
+			jsonb_set(settings, '{replay_storage}', $1::jsonb),
+			'{replay_migration}', $2::jsonb
+		), updated_at=now()
+		where id=true`, settings, migrationJSON)
+	if err != nil {
+		return fmt.Errorf("update instance replay storage: %w", err)
+	}
+	return nil
+}
 
 type Site struct {
 	ID                    int32
