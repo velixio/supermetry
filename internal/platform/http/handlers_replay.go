@@ -198,7 +198,9 @@ func (h *handler) getReplaySettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) putReplaySettings(w http.ResponseWriter, r *http.Request) {
-	_, site, ok := h.replaySitePrincipal(w, r)
+	// Changing replay settings can start recording visitors, so only site
+	// managers may do it; viewers and editors keep read access.
+	_, site, ok := h.sitePrincipal(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin)
 	if !ok {
 		return
 	}

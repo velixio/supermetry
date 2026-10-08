@@ -78,6 +78,8 @@ func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv) replayFixture {
 		Authenticator: actorAuthenticator{
 			"owner":   {UserID: ownerID, OrgID: orgID, Role: authz.RoleOwner},
 			"foreign": {UserID: foreignID, OrgID: foreignOrgID, Role: authz.RoleOwner},
+			"viewer":  {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer},
+			"editor":  {UserID: ownerID, OrgID: orgID, Role: authz.RoleEditor},
 		},
 		Sites: registry, Store: data, ReplayStore: blobs, ReplayEnv: replayEnv,
 		DataDir: t.TempDir(), SecretKey: bytes.Repeat([]byte{7}, 32), AdminAPIKey: "instance-admin-key",
@@ -104,6 +106,22 @@ func TestReplaySettingsLockedFieldRejected(t *testing.T) {
 	response := f.request(t, "owner", http.MethodPut, fmt.Sprintf("/api/private/sites/%d/replay-settings", f.siteID), `{"mask":false}`)
 	if response.Code != http.StatusConflict {
 		t.Fatalf("status=%d body=%s, want 409", response.Code, response.Body.String())
+	}
+}
+
+func TestReplaySettingsUpdateRequiresOwnerOrAdmin(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
+	path := fmt.Sprintf("/api/private/sites/%d/replay-settings", f.siteID)
+	for _, actor := range []string{"viewer", "editor"} {
+		if response := f.request(t, actor, http.MethodPut, path, `{"enabled":true}`); response.Code != http.StatusForbidden {
+			t.Fatalf("%s PUT status=%d body=%s, want 403", actor, response.Code, response.Body.String())
+		}
+		if response := f.request(t, actor, http.MethodGet, path, ""); response.Code != http.StatusOK {
+			t.Fatalf("%s GET status=%d body=%s, want 200", actor, response.Code, response.Body.String())
+		}
+	}
+	if response := f.request(t, "owner", http.MethodPut, path, `{"enabled":true}`); response.Code != http.StatusOK {
+		t.Fatalf("owner PUT status=%d body=%s, want 200", response.Code, response.Body.String())
 	}
 }
 
