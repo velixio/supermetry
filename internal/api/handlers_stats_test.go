@@ -446,17 +446,99 @@ func TestRealtimeUsesThirtyMinuteWindowAndIncludesSourcesShape(t *testing.T) {
 	if len(pages) != 2 || pages[0].(map[string]any)["page"] != "/docs" {
 		t.Fatalf("top_pages=%#v", pages)
 	}
+	for _, field := range []string{
+		"visitors_per_minute", "pageviews_last_30m", "top_entry_pages",
+		"countries", "regions", "cities", "devices", "browsers",
+		"operating_systems", "events", "recent_activity",
+	} {
+		if _, ok := body[field]; !ok {
+			t.Fatalf("%s missing: %s", field, response.Body.String())
+		}
+	}
 }
 
 type realtimeLabels struct{}
 
 func (realtimeLabels) Value(kind dict.Kind, id int32) (string, bool) {
 	values := map[dict.Kind]map[int32]string{
-		dict.Path:   {12: "/docs", 34: "/pricing"},
-		dict.Source: {56: "Google"},
+		dict.Path:      {12: "/docs", 34: "/pricing"},
+		dict.Source:    {56: "Google"},
+		dict.Region:    {70: "California"},
+		dict.City:      {71: "San Francisco"},
+		dict.Browser:   {72: "Firefox"},
+		dict.OS:        {73: "Linux"},
+		dict.EventName: {74: "Signup"},
 	}
 	value, ok := values[kind][id]
 	return value, ok
+}
+
+type richRealtimeStore struct{ *realtimeStore }
+
+func (s richRealtimeStore) RealtimeSnapshot(_ int32, now time.Time) session.RealtimeSnapshot {
+	minutes := make([]session.MinuteVisitors, 30)
+	for i := range minutes {
+		minutes[i] = session.MinuteVisitors{Minute: now.Add(time.Duration(i-29) * time.Minute), Visitors: i}
+	}
+	return session.RealtimeSnapshot{
+		ActiveVisitors: 3, Pages: []session.ActiveValue{{ID: 12, Visitors: 3}}, Sources: []session.ActiveValue{{ID: 56, Visitors: 2}},
+		EntryPages: []session.ActiveValue{{ID: 34, Visitors: 2}}, Countries: []session.ActiveCountry{{CountryCode: "US", Visitors: 3}},
+		Regions: []session.ActiveLocation{{ID: 70, CountryCode: "US", Visitors: 2}}, Cities: []session.ActiveLocation{{ID: 71, CountryCode: "US", Visitors: 1}},
+		Devices: []session.ActiveValue{{ID: 0, Visitors: 2}}, Browsers: []session.ActiveValue{{ID: 72, Visitors: 2}}, OperatingSystems: []session.ActiveValue{{ID: 73, Visitors: 2}},
+		VisitorsPerMinute: minutes, Pageviews: 9, Events: []session.ActiveEvent{{NameID: 74, Count: 4}},
+		RecentActivity: []session.RecentActivity{{Kind: 1, PathID: 12, NameID: 74, CountryCode: "US", CityID: 71, Device: 0, BrowserID: 72, SourceID: 56, Timestamp: now}},
+	}
+}
+
+func TestRealtimeResolvesRichSnapshotLabels(t *testing.T) {
+	router := statsTestRouter(queryFunc{query: func(api.QueryRequest) (api.QueryResponse, error) { return emptyQueryResponse(), nil }}, richRealtimeStore{&realtimeStore{}})
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/realtime?site_id=1", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		VisitorsPerMinute []api.RealtimeMinute `json:"visitors_per_minute"`
+		Pageviews         int64                `json:"pageviews_last_30m"`
+		Devices           []api.RealtimeLabel  `json:"devices"`
+		Events            []api.RealtimeEvent  `json:"events"`
+		Recent            []api.RecentActivity `json:"recent_activity"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.VisitorsPerMinute) != 30 || body.Pageviews != 9 || body.Devices[0].Label != "Desktop" || body.Events[0].Name != "Signup" {
+		t.Fatalf("rich response=%+v body=%s", body, response.Body.String())
+	}
+	if len(body.Recent) != 1 || body.Recent[0].Kind != "custom" || body.Recent[0].City != "San Francisco" || body.Recent[0].EventName != "Signup" {
+		t.Fatalf("recent=%+v", body.Recent)
+	}
+}
+
+func TestRealtimeAuthorization(t *testing.T) {
+	tests := []struct {
+		name      string
+		principal api.Principal
+		want      int
+	}{
+		{name: "missing stats read scope", principal: api.Principal{OrgID: 1, Scopes: []string{"sites:read"}, SiteIDs: []int32{1}}, want: http.StatusForbidden},
+		{name: "foreign site is hidden", principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{1}}, want: http.StatusNotFound},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := api.NewRouter(api.Deps{
+				Config: config.Config{}, Query: queryFunc{}, Sessions: session.NewMemory(1, nil),
+				PublicAuth: principalAuth{principal: test.principal}, RateLimiter: ingest.NewTokenBuckets(0, 1000),
+				Sites: orgSites{1: sites.Site{ID: 1, OrgID: 1, PublicID: "tiny", TZ: time.UTC}},
+			})
+			request := httptest.NewRequest(http.MethodGet, "/api/public/v1/realtime?site_id=1", nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			assertRecorderProblem(t, response, test.want)
+		})
+	}
 }
 
 func statsTestRouter(query queryFunc, store session.Store) http.Handler {

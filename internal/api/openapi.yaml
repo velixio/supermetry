@@ -1566,10 +1566,60 @@ components:
         visitors:
           type: integer
           format: int64
+    RealtimeMinute:
+      type: object
+      additionalProperties: false
+      required: [minute, visitors]
+      properties:
+        minute: { type: string, format: date-time }
+        visitors: { type: integer, format: int64 }
+    RealtimeCountry:
+      type: object
+      additionalProperties: false
+      required: [country_code, visitors]
+      properties:
+        country_code: { type: string }
+        visitors: { type: integer, format: int64 }
+    RealtimeLocation:
+      type: object
+      additionalProperties: false
+      required: [label, country_code, visitors]
+      properties:
+        label: { type: string }
+        country_code: { type: string }
+        visitors: { type: integer, format: int64 }
+    RealtimeLabel:
+      type: object
+      additionalProperties: false
+      required: [label, visitors]
+      properties:
+        label: { type: string }
+        visitors: { type: integer, format: int64 }
+    RealtimeEvent:
+      type: object
+      additionalProperties: false
+      required: [name, count]
+      properties:
+        name: { type: string }
+        count: { type: integer, format: int64 }
+    RecentActivity:
+      type: object
+      additionalProperties: false
+      required: [kind, page, event_name, country_code, city, device, browser, source, timestamp]
+      properties:
+        kind: { type: string }
+        page: { type: string }
+        event_name: { type: string }
+        country_code: { type: string }
+        city: { type: string }
+        device: { type: string }
+        browser: { type: string }
+        source: { type: string }
+        timestamp: { type: string, format: date-time }
     RealtimeResponse:
       type: object
       additionalProperties: false
-      required: [active_visitors, top_pages, top_sources]
+      required: [active_visitors, top_pages, top_sources, visitors_per_minute, pageviews_last_30m, top_entry_pages, countries, regions, cities, devices, browsers, operating_systems, events, recent_activity]
       properties:
         active_visitors:
           type: integer
@@ -1582,6 +1632,48 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TopSource'
+        visitors_per_minute:
+          type: array
+          minItems: 30
+          maxItems: 30
+          items: { $ref: '#/components/schemas/RealtimeMinute' }
+        pageviews_last_30m: { type: integer, format: int64 }
+        top_entry_pages:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/TopPage' }
+        countries:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RealtimeCountry' }
+        regions:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RealtimeLocation' }
+        cities:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RealtimeLocation' }
+        devices:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RealtimeLabel' }
+        browsers:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RealtimeLabel' }
+        operating_systems:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RealtimeLabel' }
+        events:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RealtimeEvent' }
+        recent_activity:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/RecentActivity' }
       example:
         active_visitors: 12
         top_pages: [{ page: /docs, visitors: 7 }]

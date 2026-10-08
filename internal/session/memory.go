@@ -76,8 +76,9 @@ type memoryShard struct {
 // Memory is a sharded in-memory Store. A session is owned by exactly one
 // shard at a time, including its dirty-queue and overflow-count state.
 type Memory struct {
-	shards []memoryShard
-	clock  Clock
+	shards   []memoryShard
+	clock    Clock
+	activity activityIndex
 
 	rngMu sync.Mutex
 	rng   *mathrand.ChaCha8
@@ -86,6 +87,9 @@ type Memory struct {
 }
 
 var _ Store = (*Memory)(nil)
+var _ RealtimeStore = (*Memory)(nil)
+var _ RichRealtimeStore = (*Memory)(nil)
+var _ ActivityRecorder = (*Memory)(nil)
 
 // NewMemory returns an empty store. Non-positive shard counts are normalized
 // to one so configuration mistakes do not cause divide-by-zero panics.
@@ -102,6 +106,7 @@ func NewMemory(shards int, clk Clock) *Memory {
 		clock:  clk,
 		rng:    mathrand.NewChaCha8(seed),
 	}
+	m.activity.init()
 	for i := range m.shards {
 		m.shards[i].sessions = make(map[sessionKey]*memorySession)
 	}
@@ -292,6 +297,7 @@ func (m *Memory) Expire(now time.Time) int {
 		}
 		sh.mu.Unlock()
 	}
+	m.activity.prune(now.Add(-IdleTimeout).UnixNano())
 	return expired
 }
 

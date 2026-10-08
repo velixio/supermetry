@@ -591,15 +591,81 @@ func realtimeHandler(store session.Store, now func() time.Time, dictionary dicti
 
 // realtimeResponse builds the realtime payload shared by the HTTP API and MCP.
 func realtimeResponse(store session.Store, dictionary dictionaryResolver, siteID int32, now time.Time) RealtimeResponse {
-	visitors, pages, sources := realtime.Snapshot(store, siteID, now)
-	response := RealtimeResponse{ActiveVisitors: int64(visitors), TopPages: make([]TopPage, len(pages)), TopSources: make([]TopSource, len(sources))}
-	for index, page := range pages {
-		response.TopPages[index] = TopPage{Page: realtimeLabel(dictionary, dict.Path, page.Value), Visitors: int64(page.Visitors)}
+	snapshot := realtime.RichSnapshot(store, siteID, now)
+	response := RealtimeResponse{
+		ActiveVisitors: int64(snapshot.ActiveVisitors), PageviewsLast30m: int64(snapshot.Pageviews),
+		TopPages: make([]TopPage, len(snapshot.Pages)), TopSources: make([]TopSource, len(snapshot.Sources)),
+		TopEntryPages: make([]TopPage, len(snapshot.EntryPages)), Countries: make([]RealtimeCountry, len(snapshot.Countries)),
+		Regions: make([]RealtimeLocation, len(snapshot.Regions)), Cities: make([]RealtimeLocation, len(snapshot.Cities)),
+		Devices: make([]RealtimeLabel, len(snapshot.Devices)), Browsers: make([]RealtimeLabel, len(snapshot.Browsers)),
+		OperatingSystems: make([]RealtimeLabel, len(snapshot.OperatingSystems)), Events: make([]RealtimeEvent, len(snapshot.Events)),
+		RecentActivity: make([]RecentActivity, len(snapshot.RecentActivity)), VisitorsPerMinute: make([]RealtimeMinute, len(snapshot.VisitorsPerMinute)),
 	}
-	for index, source := range sources {
-		response.TopSources[index] = TopSource{Source: realtimeLabel(dictionary, dict.Source, source.Value), Visitors: int64(source.Visitors)}
+	for index, page := range snapshot.Pages {
+		response.TopPages[index] = TopPage{Page: dictLabel(dictionary, dict.Path, page.ID), Visitors: int64(page.Visitors)}
+	}
+	for index, page := range snapshot.EntryPages {
+		response.TopEntryPages[index] = TopPage{Page: dictLabel(dictionary, dict.Path, page.ID), Visitors: int64(page.Visitors)}
+	}
+	for index, source := range snapshot.Sources {
+		response.TopSources[index] = TopSource{Source: dictLabel(dictionary, dict.Source, source.ID), Visitors: int64(source.Visitors)}
+	}
+	for index, value := range snapshot.Countries {
+		response.Countries[index] = RealtimeCountry{CountryCode: value.CountryCode, Visitors: int64(value.Visitors)}
+	}
+	for index, value := range snapshot.Regions {
+		response.Regions[index] = RealtimeLocation{Label: dictLabel(dictionary, dict.Region, value.ID), CountryCode: value.CountryCode, Visitors: int64(value.Visitors)}
+	}
+	for index, value := range snapshot.Cities {
+		response.Cities[index] = RealtimeLocation{Label: dictLabel(dictionary, dict.City, value.ID), CountryCode: value.CountryCode, Visitors: int64(value.Visitors)}
+	}
+	for index, value := range snapshot.Devices {
+		response.Devices[index] = RealtimeLabel{Label: deviceLabel(int16(value.ID)), Visitors: int64(value.Visitors)}
+	}
+	for index, value := range snapshot.Browsers {
+		response.Browsers[index] = RealtimeLabel{Label: dictLabel(dictionary, dict.Browser, value.ID), Visitors: int64(value.Visitors)}
+	}
+	for index, value := range snapshot.OperatingSystems {
+		response.OperatingSystems[index] = RealtimeLabel{Label: dictLabel(dictionary, dict.OS, value.ID), Visitors: int64(value.Visitors)}
+	}
+	for index, value := range snapshot.Events {
+		response.Events[index] = RealtimeEvent{Name: dictLabel(dictionary, dict.EventName, value.NameID), Count: int64(value.Count)}
+	}
+	for index, value := range snapshot.VisitorsPerMinute {
+		response.VisitorsPerMinute[index] = RealtimeMinute{Minute: value.Minute, Visitors: int64(value.Visitors)}
+	}
+	for index, value := range snapshot.RecentActivity {
+		kind := "custom"
+		if value.Kind == 0 {
+			kind = "pageview"
+		}
+		response.RecentActivity[index] = RecentActivity{
+			Kind: kind, Page: dictLabel(dictionary, dict.Path, value.PathID), EventName: dictLabel(dictionary, dict.EventName, value.NameID),
+			CountryCode: value.CountryCode, City: dictLabel(dictionary, dict.City, value.CityID), Device: deviceLabel(value.Device),
+			Browser: dictLabel(dictionary, dict.Browser, value.BrowserID), Source: dictLabel(dictionary, dict.Source, value.SourceID), Timestamp: value.Timestamp,
+		}
 	}
 	return response
+}
+
+func dictLabel(dictionary dictionaryResolver, kind dict.Kind, id int32) string {
+	if id == 0 {
+		return ""
+	}
+	return realtimeLabel(dictionary, kind, strconv.FormatInt(int64(id), 10))
+}
+
+func deviceLabel(device int16) string {
+	switch device {
+	case 0:
+		return "Desktop"
+	case 1:
+		return "Mobile"
+	case 2:
+		return "Tablet"
+	default:
+		return "Unknown"
+	}
 }
 
 func realtimeLabel(dictionary dictionaryResolver, kind dict.Kind, encoded string) string {

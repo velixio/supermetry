@@ -44,6 +44,17 @@ func (mcpSessionStub) Dirty(int) []session.Snapshot                { return nil 
 func (mcpSessionStub) ActiveSince(int32, time.Time) (int, []int32) { return 2, []int32{7} }
 func (mcpSessionStub) Restore([]session.Snapshot)                  {}
 func (mcpSessionStub) Expire(time.Time) int                        { return 0 }
+func (mcpSessionStub) RealtimeSnapshot(_ int32, now time.Time) session.RealtimeSnapshot {
+	minutes := make([]session.MinuteVisitors, 30)
+	for i := range minutes {
+		minutes[i] = session.MinuteVisitors{Minute: now.Add(time.Duration(i-29) * time.Minute), Visitors: i}
+	}
+	return session.RealtimeSnapshot{
+		ActiveVisitors: 2, Pages: []session.ActiveValue{{ID: 7, Visitors: 2}},
+		VisitorsPerMinute: minutes, Pageviews: 3,
+		RecentActivity: []session.RecentActivity{{Kind: 0, PathID: 7, Timestamp: now}},
+	}
+}
 
 type mcpRegistry map[int32]sites.Site
 
@@ -121,6 +132,11 @@ func TestMCPHandler_ProtocolMethods(t *testing.T) {
 		if len(want) != 0 {
 			t.Fatalf("missing tools: %v", want)
 		}
+		for _, tool := range envelope.Result.Tools {
+			if tool.Name == "get_realtime" && !strings.Contains(tool.Description, "30 minutes") {
+				t.Fatalf("get_realtime description=%q, want 30 minute window", tool.Description)
+			}
+		}
 	})
 
 	t.Run("notification is accepted without a response body", func(t *testing.T) {
@@ -150,7 +166,7 @@ func TestMCPHandler_ToolsCall(t *testing.T) {
 		{name: "summary", tool: "get_summary", arguments: `{"site":1,"period":"30d","filters":[{"dimension":"country","operator":"is","values":["IN"]}]}`, contains: `visitors`},
 		{name: "timeseries", tool: "get_timeseries", arguments: `{"site":1,"period":"7d","interval":"day","metrics":["visitors","pageviews"],"filters":[]}`, contains: `visitors`},
 		{name: "breakdown", tool: "get_breakdown", arguments: `{"site":1,"dimension":"page","metrics":["visitors"],"period":"month","filters":[],"limit":5}`, contains: `visitors`},
-		{name: "realtime", tool: "get_realtime", arguments: `{"site":1}`, contains: `active_visitors`},
+		{name: "realtime", tool: "get_realtime", arguments: `{"site":1}`, contains: `pageviews_last_30m\":3`},
 		{name: "list goals", tool: "list_goals", arguments: `{"site":1}`, contains: `Signup`},
 		{name: "run funnel", tool: "run_funnel", arguments: `{"site":1,"funnel_id":11,"period":"7d"}`, contains: `conversion`},
 	}

@@ -39,6 +39,37 @@ func Snapshot(store session.Store, siteID int32, now time.Time) (visitors int, t
 	return visitors, topPages, nil
 }
 
+// RichSnapshot returns the optional full snapshot, falling back to the legacy
+// active visitor/page/source view for alternative Store implementations.
+func RichSnapshot(store session.Store, siteID int32, now time.Time) session.RealtimeSnapshot {
+	if store == nil {
+		return session.RealtimeSnapshot{VisitorsPerMinute: emptyMinutes(now)}
+	}
+	if rich, ok := store.(session.RichRealtimeStore); ok {
+		return rich.RealtimeSnapshot(siteID, now)
+	}
+	visitors, pages, sources := Snapshot(store, siteID, now)
+	result := session.RealtimeSnapshot{ActiveVisitors: visitors, VisitorsPerMinute: emptyMinutes(now)}
+	for _, page := range pages {
+		id, _ := strconv.ParseInt(page.Value, 10, 32)
+		result.Pages = append(result.Pages, session.ActiveValue{ID: int32(id), Visitors: page.Visitors})
+	}
+	for _, source := range sources {
+		id, _ := strconv.ParseInt(source.Value, 10, 32)
+		result.Sources = append(result.Sources, session.ActiveValue{ID: int32(id), Visitors: source.Visitors})
+	}
+	return result
+}
+
+func emptyMinutes(now time.Time) []session.MinuteVisitors {
+	current := now.UTC().Truncate(time.Minute)
+	minutes := make([]session.MinuteVisitors, 30)
+	for i := range minutes {
+		minutes[i].Minute = current.Add(time.Duration(i-29) * time.Minute)
+	}
+	return minutes
+}
+
 func render(values []session.ActiveValue) []Item {
 	items := make([]Item, len(values))
 	for i, value := range values {

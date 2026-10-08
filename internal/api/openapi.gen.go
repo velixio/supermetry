@@ -622,11 +622,66 @@ type QueryResponse struct {
 	Totals     map[string]float64       `json:"totals"`
 }
 
+// RealtimeCountry defines model for RealtimeCountry.
+type RealtimeCountry struct {
+	CountryCode string `json:"country_code"`
+	Visitors    int64  `json:"visitors"`
+}
+
+// RealtimeEvent defines model for RealtimeEvent.
+type RealtimeEvent struct {
+	Count int64  `json:"count"`
+	Name  string `json:"name"`
+}
+
+// RealtimeLabel defines model for RealtimeLabel.
+type RealtimeLabel struct {
+	Label    string `json:"label"`
+	Visitors int64  `json:"visitors"`
+}
+
+// RealtimeLocation defines model for RealtimeLocation.
+type RealtimeLocation struct {
+	CountryCode string `json:"country_code"`
+	Label       string `json:"label"`
+	Visitors    int64  `json:"visitors"`
+}
+
+// RealtimeMinute defines model for RealtimeMinute.
+type RealtimeMinute struct {
+	Minute   time.Time `json:"minute"`
+	Visitors int64     `json:"visitors"`
+}
+
 // RealtimeResponse defines model for RealtimeResponse.
 type RealtimeResponse struct {
-	ActiveVisitors int64       `json:"active_visitors"`
-	TopPages       []TopPage   `json:"top_pages"`
-	TopSources     []TopSource `json:"top_sources"`
+	ActiveVisitors    int64              `json:"active_visitors"`
+	Browsers          []RealtimeLabel    `json:"browsers"`
+	Cities            []RealtimeLocation `json:"cities"`
+	Countries         []RealtimeCountry  `json:"countries"`
+	Devices           []RealtimeLabel    `json:"devices"`
+	Events            []RealtimeEvent    `json:"events"`
+	OperatingSystems  []RealtimeLabel    `json:"operating_systems"`
+	PageviewsLast30m  int64              `json:"pageviews_last_30m"`
+	RecentActivity    []RecentActivity   `json:"recent_activity"`
+	Regions           []RealtimeLocation `json:"regions"`
+	TopEntryPages     []TopPage          `json:"top_entry_pages"`
+	TopPages          []TopPage          `json:"top_pages"`
+	TopSources        []TopSource        `json:"top_sources"`
+	VisitorsPerMinute []RealtimeMinute   `json:"visitors_per_minute"`
+}
+
+// RecentActivity defines model for RecentActivity.
+type RecentActivity struct {
+	Browser     string    `json:"browser"`
+	City        string    `json:"city"`
+	CountryCode string    `json:"country_code"`
+	Device      string    `json:"device"`
+	EventName   string    `json:"event_name"`
+	Kind        string    `json:"kind"`
+	Page        string    `json:"page"`
+	Source      string    `json:"source"`
+	Timestamp   time.Time `json:"timestamp"`
 }
 
 // RetentionCohort defines model for RetentionCohort.
