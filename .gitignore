@@ -45,3 +45,6 @@ web/playwright-report/
 !.env.example
 /bin/
 web/node_modules
+
+# JS wrapper dependencies
+sdk/js/node_modules/
