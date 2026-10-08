@@ -50,7 +50,8 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
          coalesce(sum(e.engagement_ms) filter (where e.kind=2),0)::int8 as engagement_ms,
          count(distinct e.session_id) filter (where e.kind=2 and e.engagement_ms>0)::int8 as engaged_n,
          coalesce(sum(e.scroll_pct) filter (where e.kind=2 and e.scroll_pct>0),0)::int8 as scroll_sum,
-         count(*) filter (where e.kind=2 and e.scroll_pct>0)::int8 as scroll_n
+         count(*) filter (where e.kind=2 and e.scroll_pct>0)::int8 as scroll_n,
+         max(case when e.kind=0 and e.path_id=s.exit_path then 1 else 0 end)::int8 as exits
   from events e where e.site_id=s.site_id and e.session_id=s.session_id` + andSQL(conditions) + group + `
   having count(*) filter (where e.kind=0) > 0
 ) pm`
@@ -132,6 +133,11 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		pageviews = pageAlias + ".pageviews"
 		engagement = pageAlias + ".engagement_ms"
 		exits = "count(*) filter (where s.exit_path=" + pageAlias + ".path_id)::int8"
+		if !pageDimension {
+			// No page grouping: a session exits "on the filtered pages" when its
+			// exit page is one of the pages that matched the filter.
+			exits = "coalesce(sum(" + pageAlias + ".exits),0)::int8"
+		}
 		engagedN = "coalesce(sum(" + pageAlias + ".engaged_n),0)::int8"
 		scrollSum = pageAlias + ".scroll_sum"
 		scrollN = pageAlias + ".scroll_n"

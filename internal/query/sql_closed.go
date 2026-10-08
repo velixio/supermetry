@@ -109,6 +109,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 
 	from := "sessions_closed s"
 	pageAlias := ""
+	pageFilterOnly := false
 	if pageDimension {
 		conditions, err := filterConditions(builder, pageFilters, func(string) (string, *dict.Kind, error) {
 			return "u.code >> 2", dictionaryKind(dict.Path), nil
@@ -138,12 +139,14 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
          coalesce(sum(u.engagement),0)::int8 as engagement_ms,
          case when count(*) filter (where u.engagement>0)>0 then 1 else 0 end::int8 as engaged_n,
          coalesce(sum(u.scroll) filter (where u.scroll > 0),0)::int8 as scroll_sum,
-         count(*) filter (where u.scroll > 0)::int8 as scroll_n
+         count(*) filter (where u.scroll > 0)::int8 as scroll_n,
+         max(case when (u.code >> 2) = s.exit_path then 1 else 0 end)::int8 as exits
   from unnest(s.seq, s.seq_engage, s.seq_scroll) as u(code, engagement, scroll)
   where u.code > 0` + andSQL(conditions) + `
   having count(*) > 0
 ) pm`
 		pageAlias = "pm"
+		pageFilterOnly = true
 	}
 
 	resolver := func(dimension string) (string, *dict.Kind, error) {
@@ -215,6 +218,11 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		pageviews = pageAlias + ".pageviews"
 		engagement = pageAlias + ".engagement_ms"
 		exits = "count(*) filter (where s.exit_path=" + pageAlias + ".path_id)::int8"
+		if pageFilterOnly {
+			// No page grouping: a session exits "on the filtered pages" when its
+			// exit page is one of the pages that matched the filter.
+			exits = "coalesce(sum(" + pageAlias + ".exits),0)::int8"
+		}
 		engagedN = "coalesce(sum(" + pageAlias + ".engaged_n),0)::int8"
 		scrollSum = pageAlias + ".scroll_sum"
 		scrollN = pageAlias + ".scroll_n"
