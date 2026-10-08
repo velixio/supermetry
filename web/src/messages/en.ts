@@ -31,7 +31,7 @@ export const en = {
     createAccount: 'Create account',
     creatingAccount: 'Creating account…',
     signupError: 'Account creation failed. Check your details and try again.',
-    inviteOnly: 'Public signup is available by invitation only.',
+    inviteOnly: 'Signups are invite-only.',
     backToLogin: 'Sign in',
   },
   navigation: {

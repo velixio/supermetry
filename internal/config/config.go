@@ -19,7 +19,7 @@ const (
 	defaultFlushEvery   = time.Second
 	defaultSessionFlush = 10 * time.Second
 	defaultQueryTimeout = 10 * time.Second
-	defaultSignup       = "open"
+	defaultSignup       = "invite"
 	defaultSMTPPort     = 587
 	defaultDataDir      = "./data"
 	defaultMaxMind      = "GeoLite2-City,GeoLite2-ASN"
