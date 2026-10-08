@@ -23,7 +23,9 @@ import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
 import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
+import { Route as OrgSiteJourneysRouteImport } from './routes/$org.$site.journeys'
 import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
+import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retention'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
 import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
@@ -111,9 +113,19 @@ const OrgSiteGoalsRoute = OrgSiteGoalsRouteImport.update({
   path: '/$site/goals',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSiteJourneysRoute = OrgSiteJourneysRouteImport.update({
+  id: '/$site/journeys',
+  path: '/$site/journeys',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSiteRealtimeRoute = OrgSiteRealtimeRouteImport.update({
   id: '/$site/realtime',
   path: '/$site/realtime',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteRetentionRoute = OrgSiteRetentionRouteImport.update({
+  id: '/$site/retention',
+  path: '/$site/retention',
   getParentRoute: () => OrgRoute,
 } as any)
 const OrgSiteSettingsRoute = OrgSiteSettingsRouteImport.update({
@@ -212,7 +224,9 @@ export interface FileRoutesByFullPath {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
+  '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
@@ -245,7 +259,9 @@ export interface FileRoutesByTo {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
+  '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
@@ -279,7 +295,9 @@ export interface FileRoutesById {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
+  '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
   '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
@@ -314,7 +332,9 @@ export interface FileRouteTypes {
     | '/reset/$token'
     | '/share/$slug'
     | '/$org/$site/goals'
+    | '/$org/$site/journeys'
     | '/$org/$site/realtime'
+    | '/$org/$site/retention'
     | '/$org/$site/settings'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
@@ -347,7 +367,9 @@ export interface FileRouteTypes {
     | '/reset/$token'
     | '/share/$slug'
     | '/$org/$site/goals'
+    | '/$org/$site/journeys'
     | '/$org/$site/realtime'
+    | '/$org/$site/retention'
     | '/$org/$site/settings'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
@@ -380,7 +402,9 @@ export interface FileRouteTypes {
     | '/reset/$token'
     | '/share/$slug'
     | '/$org/$site/goals'
+    | '/$org/$site/journeys'
     | '/$org/$site/realtime'
+    | '/$org/$site/retention'
     | '/$org/$site/settings'
     | '/$org/settings/api-keys'
     | '/$org/settings/audit'
@@ -514,11 +538,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteGoalsRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/$site/journeys': {
+      id: '/$org/$site/journeys'
+      path: '/$site/journeys'
+      fullPath: '/$org/$site/journeys'
+      preLoaderRoute: typeof OrgSiteJourneysRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/$site/realtime': {
       id: '/$org/$site/realtime'
       path: '/$site/realtime'
       fullPath: '/$org/$site/realtime'
       preLoaderRoute: typeof OrgSiteRealtimeRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/retention': {
+      id: '/$org/$site/retention'
+      path: '/$site/retention'
+      fullPath: '/$org/$site/retention'
+      preLoaderRoute: typeof OrgSiteRetentionRouteImport
       parentRoute: typeof OrgRoute
     }
     '/$org/$site/settings': {
@@ -663,7 +701,9 @@ const OrgSiteSettingsRouteWithChildren = OrgSiteSettingsRoute._addFileChildren(
 interface OrgRouteChildren {
   OrgHealthRoute: typeof OrgHealthRoute
   OrgSiteGoalsRoute: typeof OrgSiteGoalsRoute
+  OrgSiteJourneysRoute: typeof OrgSiteJourneysRoute
   OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
+  OrgSiteRetentionRoute: typeof OrgSiteRetentionRoute
   OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
   OrgSettingsApiKeysRoute: typeof OrgSettingsApiKeysRoute
   OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
@@ -679,7 +719,9 @@ interface OrgRouteChildren {
 const OrgRouteChildren: OrgRouteChildren = {
   OrgHealthRoute: OrgHealthRoute,
   OrgSiteGoalsRoute: OrgSiteGoalsRoute,
+  OrgSiteJourneysRoute: OrgSiteJourneysRoute,
   OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
+  OrgSiteRetentionRoute: OrgSiteRetentionRoute,
   OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,
   OrgSettingsApiKeysRoute: OrgSettingsApiKeysRoute,
   OrgSettingsAuditRoute: OrgSettingsAuditRoute,

@@ -6,7 +6,9 @@ import {
   GoalIcon,
   Globe2Icon,
   PlusIcon,
+  RouteIcon,
   SettingsIcon,
+  TablePropertiesIcon,
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 
@@ -37,6 +39,8 @@ export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
 const coreNavigation = [
   { label: en.navigation.dashboard, suffix: '', icon: ChartNoAxesCombinedIcon, scope: 'site' },
+  { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
+  { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
   { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
   { label: en.navigation.goals, suffix: '/goals', icon: GoalIcon, scope: 'site' },
@@ -135,6 +139,10 @@ function navigationLink(
       )
     case '/funnels':
       return <Link to="/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
+    case '/journeys':
+      return <Link to="/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
+    case '/retention':
+      return <Link to="/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', interval: 'day' }} {...props}>{content}</Link>
     case '/realtime':
       return <Link to="/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':
