@@ -201,6 +201,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := h.Sessions.Touch(hit)
+	if hit.JoinOnly && result.SessionID == 0 {
+		// A background ping from a tab whose session already ended is not a
+		// visit: storing it would add a phantom session and visitor.
+		health.IngestStalePings.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 	event.Hit = hit
 	event.VisitorID = result.VisitorID
 	event.SessionID = result.SessionID
@@ -336,7 +343,8 @@ func (h *Handler) buildEvent(
 	hit := session.Hit{
 		SiteID: site.ID, Retention: site.Retention, TS: now, LocalDay: localDay,
 		VisitorID: visitorID, PrevVisitorID: previousVisitorID, Kind: kind,
-		PathID: pathID, NameID: nameID, Source: sourceID, Medium: mediumID,
+		JoinOnly: kind == 2 || payload.Name == "Web Vitals",
+		PathID:   pathID, NameID: nameID, Source: sourceID, Medium: mediumID,
 		Campaign: campaignID, Country: location.Country, Region: regionID, City: cityID,
 		Browser: browserID, OS: osID,
 		Device: client.Device, EngagementMS: int32(payload.EngagementMS), ScrollPct: int16(payload.ScrollPct),

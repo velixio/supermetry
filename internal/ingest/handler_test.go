@@ -937,3 +937,39 @@ func TestEnabledProfilesCapMergedTraits(t *testing.T) {
 		t.Fatalf("traits keys=%d latest=%t, want <= 20 with latest kept", keys, hasLatest)
 	}
 }
+
+func TestBackgroundPingsAfterIdleDoNotStartSessions(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	if rr := post(t, f.h, okBody, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("pageview code=%d", rr.Code)
+	}
+	f.clock.now = f.clock.now.Add(session.IdleTimeout + time.Minute)
+	for _, body := range []string{
+		`{"site":"abc123","name":"engagement","url":"https://example.com/","engagement_ms":9000}`,
+		`{"site":"abc123","name":"Web Vitals","url":"https://example.com/","props":{"lcp":"1200"}}`,
+	} {
+		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+			t.Fatalf("body=%s code=%d", body, rr.Code)
+		}
+	}
+	snapshot := f.h.Sessions.(session.RichRealtimeStore).RealtimeSnapshot(1, f.clock.Now())
+	if snapshot.ActiveVisitors != 0 {
+		t.Fatalf("stale pings made the visitor active: %+v", snapshot)
+	}
+	// A real custom event (for example from the server-side API) still counts.
+	if rr := post(t, f.h, `{"site":"abc123","name":"Signup","url":"https://example.com/"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("signup code=%d", rr.Code)
+	}
+	f.stop(t)
+
+	var sessions, events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from sessions`).Scan(&sessions); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if sessions != 2 || events != 2 {
+		t.Fatalf("sessions=%d events=%d, want 2 sessions (pageview, signup) and 2 stored events", sessions, events)
+	}
+}

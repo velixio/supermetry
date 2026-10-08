@@ -53,6 +53,7 @@ var (
 	IngestRevenueInvalid     Counter
 	IngestProfilesSuppressed Counter
 	IngestDropped            Counter
+	IngestStalePings         Counter
 	HeatmapInvalid           Counter
 	HeatmapDropped           Counter
 
@@ -174,6 +175,7 @@ func Snapshot() map[string]float64 {
 		"ingest_revenue_invalid_total":     float64(IngestRevenueInvalid.Load()),
 		"ingest_profiles_suppressed_total": float64(IngestProfilesSuppressed.Load()),
 		"ingest_dropped_total":             float64(IngestDropped.Load()),
+		"ingest_stale_pings_total":         float64(IngestStalePings.Load()),
 		"heatmap_invalid_total":            float64(HeatmapInvalid.Load()),
 		"heatmap_dropped_total":            float64(HeatmapDropped.Load()),
 		"writer_queue_depth":               WriterQueueDepth.Load(),
