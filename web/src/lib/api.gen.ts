@@ -294,6 +294,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List sessions
+         * @description Requires stats:read. Returns anonymous sessions newest first from the hot
+         *     and closed storage tiers. Anonymous session IDs are scoped to one site and
+         *     local day and cannot link a visitor across days.
+         */
+        get: operations["listSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a session timeline
+         * @description Requires stats:read. The event timeline is available only while the session remains in the site's raw-data retention window.
+         */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/profiles/{profile_id}": {
         parameters: {
             query?: never;
@@ -911,6 +957,45 @@ export interface components {
             sessions: number;
             /** Format: int64 */
             events: number;
+        };
+        SessionSummary: {
+            id: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: int64 */
+            duration_ms: number;
+            /** Format: int32 */
+            pageviews: number;
+            /** Format: int32 */
+            events: number;
+            entry_page: string;
+            exit_page: string;
+            source: string;
+            country: string;
+            city: string;
+            device: string;
+            browser: string;
+            os: string;
+            external_id?: string;
+        };
+        SessionList: {
+            data: components["schemas"]["SessionSummary"][];
+            next_cursor?: string | null;
+        };
+        SessionTimelineItem: {
+            /** Format: date-time */
+            ts: string;
+            /** @enum {string} */
+            kind: "pageview" | "event";
+            name: string;
+            page: string;
+            props?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        SessionDetail: {
+            session: components["schemas"]["SessionSummary"];
+            timeline: components["schemas"]["SessionTimelineItem"][];
         };
         ProfileList: {
             profiles_enabled: boolean;
@@ -1769,6 +1854,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listSessions: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                /** @description Repeatable dimension:operator:value filter. */
+                filter?: string[];
+                limit?: components["parameters"]["Limit"];
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session page */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "data": [
+                     *         {
+                     *           "id": "684991205703028112",
+                     *           "started_at": "2026-10-08T08:00:00Z",
+                     *           "duration_ms": 120000,
+                     *           "pageviews": 3,
+                     *           "events": 1,
+                     *           "entry_page": "/",
+                     *           "exit_page": "/pricing",
+                     *           "source": "Google",
+                     *           "country": "US",
+                     *           "city": "San Francisco",
+                     *           "device": "desktop",
+                     *           "browser": "Chrome",
+                     *           "os": "Linux"
+                     *         }
+                     *       ],
+                     *       "next_cursor": null
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SessionList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getSession: {
+        parameters: {
+            query: {
+                site_id: number;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session detail and chronological event timeline */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDetail"];
                 };
             };
             400: components["responses"]["BadRequest"];
