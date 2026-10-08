@@ -37,6 +37,14 @@ describe('site settings', () => {
     expect(screen.getByText(/proxy the script through your own domain/i)).toBeVisible()
     expect(screen.getByText('Track custom clicks')).toBeVisible()
     expect(screen.getByText(/data-panel-event="Signup"/)).toBeVisible()
+    const setup = screen.getByRole('region', { name: 'Feature setup' })
+    expect(setup).toHaveTextContent(/Web Vitals/)
+    expect(setup).toHaveTextContent(/panel\.track\('Purchase'/)
+    expect(setup).toHaveTextContent(/currency: 'USD'/)
+    expect(setup).toHaveTextContent(/panel\.identify\('user-123'/)
+    expect(setup).toHaveTextContent(/name="panel:404"/)
+    expect(setup).toHaveTextContent(/Site settings → Exclusions/)
+    expect(setup).toHaveTextContent(/Site settings → General/)
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js / React' }), {
       button: 0,
       ctrlKey: false,

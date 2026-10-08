@@ -51,6 +51,44 @@ function relativeTime(value: string, now: Date): string {
   return formatter.format(Math.round(hours / 24), 'day')
 }
 
+const featureSetup: { feature: string; needs: string; code?: string }[] = [
+  { feature: 'Pageviews, sources, countries, devices', needs: 'Either script. Nothing else to do.' },
+  { feature: 'Outbound links, file downloads, data-panel-event clicks', needs: 'Full script.' },
+  { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Full script. Sent when a visitor leaves the page, so data appears after a few minutes.' },
+  { feature: '404 pages', needs: 'Full script, plus this tag on your 404 page:', code: '<meta name="panel:404">' },
+  { feature: 'Custom events', needs: 'Either script. Call from your code:', code: "panel.track('Signup', { plan: 'pro' })" },
+  {
+    feature: 'Revenue',
+    needs: 'Either script. Send an amount and currency with an event, then add a revenue goal:',
+    code: "panel.track('Purchase', { plan: 'pro' }, { revenue: { amount: '49.90', currency: 'USD' } })",
+  },
+  { feature: 'Heatmaps', needs: 'Full script, and turn on heatmaps in Site settings → Exclusions.' },
+  {
+    feature: 'User profiles',
+    needs: 'Either script. Turn on profiles in Site settings → General (needs your users\' consent), then on every page load call:',
+    code: "panel.identify('user-123', { plan: 'pro' })",
+  },
+]
+
+function FeatureSetup() {
+  return (
+    <section aria-label="Feature setup" className="flex flex-col gap-3">
+      <h3 className="text-sm font-medium">Feature setup</h3>
+      <ul className="divide-y rounded-lg border text-sm">
+        {featureSetup.map((item) => (
+          <li key={item.feature} className="flex flex-col gap-1 p-3">
+            <span className="font-medium">{item.feature}</span>
+            <span className="text-muted-foreground">{item.needs}</span>
+            {item.code ? (
+              <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs select-all"><code>{item.code}</code></pre>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceivedAt, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; lastEventReceivedAt?: string; now?: Date }) {
   return (
     <div className="flex flex-col gap-6">
@@ -83,6 +121,7 @@ export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceived
           </ol>
         </TabsContent>
       </Tabs>
+      <FeatureSetup />
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Track custom clicks</p>
         <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>
