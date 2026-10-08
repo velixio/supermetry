@@ -72,8 +72,18 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 			return channelSQL("s.source_id", "s.medium_id"), nil, nil
 		case "browser":
 			return "s.browser_id", dictionaryKind(dict.Browser), nil
+		case "browser_version":
+			return "s.browser_ver_id", dictionaryKind(dict.BrowserVersion), nil
 		case "os":
 			return "s.os_id", dictionaryKind(dict.OS), nil
+		case "os_version":
+			return "s.os_ver_id", dictionaryKind(dict.OSVersion), nil
+		case "screen_size":
+			return "s.screen_bucket", nil, nil
+		case "language":
+			return "s.language_id", dictionaryKind(dict.Language), nil
+		case "hostname":
+			return "s.hostname_id", dictionaryKind(dict.Hostname), nil
 		case "entry":
 			return "s.entry_path", dictionaryKind(dict.Path), nil
 		case "exit":
@@ -175,17 +185,28 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 	builder := &sqlBuilder{}
 	baseResolver := customResolver("e")
 	resolver := func(dimension string) (string, *dict.Kind, error) {
-		if dimension == "time" {
+		switch dimension {
+		case "browser_version":
+			return "s.browser_ver_id", dictionaryKind(dict.BrowserVersion), nil
+		case "os_version":
+			return "s.os_ver_id", dictionaryKind(dict.OSVersion), nil
+		case "screen_size":
+			return "s.screen_bucket", nil, nil
+		case "language":
+			return "s.language_id", dictionaryKind(dict.Language), nil
+		case "hostname":
+			return "s.hostname_id", dictionaryKind(dict.Hostname), nil
+		case "time":
 			return "e.local_day", nil, nil
-		}
-		if dimension == "hour" {
+		case "hour":
 			location := "UTC"
 			if req.Location != nil {
 				location = req.Location.String()
 			}
 			return "to_char(date_trunc('hour', e.ts at time zone " + builder.arg(location) + "), 'YYYY-MM-DD\"T\"HH24:00:00')", nil, nil
+		default:
+			return baseResolver(dimension)
 		}
-		return baseResolver(dimension)
 	}
 	dimensions, err := dimensionExpressions(req.Dimensions, resolver)
 	if err != nil {
@@ -208,7 +229,34 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 		"coalesce(sum(e.revenue_micros),0)::int8",
 		"count(*) filter (where e.revenue_micros>0)::int8",
 	}
-	return aggregateSQL(dimensions, sums, "events e", where), builder.args, nil
+	from := "events e"
+	if customQueryNeedsSession(req) {
+		from += " join sessions s on s.site_id=e.site_id and s.session_id=e.session_id"
+	}
+	return aggregateSQL(dimensions, sums, from, where), builder.args, nil
+}
+
+func customQueryNeedsSession(req Normalized) bool {
+	for _, dimension := range req.Dimensions {
+		if isSessionOnlyDimension(dimension) {
+			return true
+		}
+	}
+	for _, filter := range req.Filters {
+		if isSessionOnlyDimension(filter.Dimension) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSessionOnlyDimension(dimension string) bool {
+	switch dimension {
+	case "browser_version", "os_version", "screen_size", "language", "hostname":
+		return true
+	default:
+		return false
+	}
 }
 
 func hotSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefinitions ...map[int64]platformgoals.Goal) ([]string, error) {

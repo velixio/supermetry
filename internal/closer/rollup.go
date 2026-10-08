@@ -43,7 +43,12 @@ cross join lateral (values
   (8::smallint, s.exit_path, 8::smallint),
   (9::smallint, s.region_id, 1::smallint),
   (10::smallint, s.city_id, 1::smallint),
-  (11::smallint, s.utm_source_id, 16::smallint)
+  (11::smallint, s.utm_source_id, 16::smallint),
+  (12::smallint, s.browser_ver_id, 1::smallint),
+  (13::smallint, s.os_ver_id, 1::smallint),
+  (14::smallint, s.screen_bucket::integer, 32::smallint),
+  (15::smallint, s.language_id, 64::smallint),
+  (16::smallint, s.hostname_id, 128::smallint)
 ) dimensions(dim, value_id, visitor_flag)
 where not (dim = 11 and value_id = 0)
   and not (dim in (7, 8) and s.pageviews = 0)

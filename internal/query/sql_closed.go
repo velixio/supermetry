@@ -35,24 +35,29 @@ type dimensionDef struct {
 func dictionaryKind(kind dict.Kind) *dict.Kind { return &kind }
 
 var dimensionDefs = map[string]dimensionDef{
-	"page":         {kind: dictionaryKind(dict.Path)},
-	"path":         {kind: dictionaryKind(dict.Path)},
-	"source":       {kind: dictionaryKind(dict.Source)},
-	"channel":      {},
-	"browser":      {kind: dictionaryKind(dict.Browser)},
-	"os":           {kind: dictionaryKind(dict.OS)},
-	"entry":        {kind: dictionaryKind(dict.Path)},
-	"exit":         {kind: dictionaryKind(dict.Path)},
-	"utm_source":   {kind: dictionaryKind(dict.Source)},
-	"utm_medium":   {kind: dictionaryKind(dict.Medium)},
-	"utm_campaign": {kind: dictionaryKind(dict.Campaign)},
-	"event":        {kind: dictionaryKind(dict.EventName)},
-	"goal":         {kind: dictionaryKind(dict.EventName)},
-	"region":       {kind: dictionaryKind(dict.Region)},
-	"city":         {kind: dictionaryKind(dict.City)},
-	"country":      {},
-	"device":       {},
-	"time":         {},
+	"page":            {kind: dictionaryKind(dict.Path)},
+	"path":            {kind: dictionaryKind(dict.Path)},
+	"source":          {kind: dictionaryKind(dict.Source)},
+	"channel":         {},
+	"browser":         {kind: dictionaryKind(dict.Browser)},
+	"browser_version": {kind: dictionaryKind(dict.BrowserVersion)},
+	"os":              {kind: dictionaryKind(dict.OS)},
+	"os_version":      {kind: dictionaryKind(dict.OSVersion)},
+	"screen_size":     {},
+	"language":        {kind: dictionaryKind(dict.Language)},
+	"hostname":        {kind: dictionaryKind(dict.Hostname)},
+	"entry":           {kind: dictionaryKind(dict.Path)},
+	"exit":            {kind: dictionaryKind(dict.Path)},
+	"utm_source":      {kind: dictionaryKind(dict.Source)},
+	"utm_medium":      {kind: dictionaryKind(dict.Medium)},
+	"utm_campaign":    {kind: dictionaryKind(dict.Campaign)},
+	"event":           {kind: dictionaryKind(dict.EventName)},
+	"goal":            {kind: dictionaryKind(dict.EventName)},
+	"region":          {kind: dictionaryKind(dict.Region)},
+	"city":            {kind: dictionaryKind(dict.City)},
+	"country":         {},
+	"device":          {},
+	"time":            {},
 }
 
 func (e *Engine) queryClosed(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {
@@ -164,8 +169,18 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 			return channelSQL("s.source_id", "s.medium_id"), nil, nil
 		case "browser":
 			return "s.browser_id", dictionaryKind(dict.Browser), nil
+		case "browser_version":
+			return "s.browser_ver_id", dictionaryKind(dict.BrowserVersion), nil
 		case "os":
 			return "s.os_id", dictionaryKind(dict.OS), nil
+		case "os_version":
+			return "s.os_ver_id", dictionaryKind(dict.OSVersion), nil
+		case "screen_size":
+			return "s.screen_bucket", nil, nil
+		case "language":
+			return "s.language_id", dictionaryKind(dict.Language), nil
+		case "hostname":
+			return "s.hostname_id", dictionaryKind(dict.Hostname), nil
 		case "entry":
 			return "s.entry_path", dictionaryKind(dict.Path), nil
 		case "exit":
@@ -308,8 +323,18 @@ func customResolver(alias string) dimensionResolver {
 			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case dimension == "browser":
 			return prefix + "browser_id", dictionaryKind(dict.Browser), nil
+		case dimension == "browser_version":
+			return prefix + "browser_ver_id", dictionaryKind(dict.BrowserVersion), nil
 		case dimension == "os":
 			return prefix + "os_id", dictionaryKind(dict.OS), nil
+		case dimension == "os_version":
+			return prefix + "os_ver_id", dictionaryKind(dict.OSVersion), nil
+		case dimension == "screen_size":
+			return prefix + "screen_bucket", nil, nil
+		case dimension == "language":
+			return prefix + "language_id", dictionaryKind(dict.Language), nil
+		case dimension == "hostname":
+			return prefix + "hostname_id", dictionaryKind(dict.Hostname), nil
 		case dimension == "entry":
 			return prefix + "entry_path", dictionaryKind(dict.Path), nil
 		case dimension == "exit":
@@ -360,6 +385,8 @@ func dimensionText(column string, kind *dict.Kind, dimension string) string {
 	switch dimension {
 	case "device":
 		return "case " + column + " when 0 then 'desktop' when 1 then 'mobile' when 2 then 'tablet' else " + column + "::text end"
+	case "screen_size":
+		return "case " + column + " when 1 then 'mobile' when 2 then 'tablet' when 3 then 'laptop' when 4 then 'desktop' when 5 then 'large' else '' end"
 	case "time":
 		return "to_char(" + column + ", 'YYYY-MM-DD')"
 	default:
@@ -592,6 +619,9 @@ func (e *Engine) decodeDimension(dimension, value string) string {
 	id, err := strconv.ParseInt(value, 10, 32)
 	if err != nil {
 		return value
+	}
+	if id == 0 {
+		return ""
 	}
 	if decoded, found := e.dict.Value(*definition.kind, int32(id)); found {
 		return decoded

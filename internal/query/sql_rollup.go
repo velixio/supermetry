@@ -16,7 +16,8 @@ import (
 var rollupDimensionCodes = map[string]int16{
 	"page": 1, "path": 1, "source": 2, "country": 3, "browser": 4,
 	"os": 5, "device": 6, "entry": 7, "exit": 8, "region": 9, "city": 10,
-	"utm_source": 11,
+	"utm_source":      11,
+	"browser_version": 12, "os_version": 13, "screen_size": 14, "language": 15, "hostname": 16,
 }
 
 func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {
@@ -125,6 +126,8 @@ func rollupValueText(column, dimension string) string {
 		return "case when " + column + "=0 then '' else chr(" + column + " / 256) || chr(" + column + " % 256) end"
 	case "device":
 		return dimensionText(column, nil, "device")
+	case "screen_size":
+		return dimensionText(column, nil, "screen_size")
 	default:
 		kind := dict.Path
 		switch dimension {
@@ -132,8 +135,16 @@ func rollupValueText(column, dimension string) string {
 			kind = dict.Source
 		case "browser":
 			kind = dict.Browser
+		case "browser_version":
+			kind = dict.BrowserVersion
 		case "os":
 			kind = dict.OS
+		case "os_version":
+			kind = dict.OSVersion
+		case "language":
+			kind = dict.Language
+		case "hostname":
+			kind = dict.Hostname
 		case "region":
 			kind = dict.Region
 		case "city":
