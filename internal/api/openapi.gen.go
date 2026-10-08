@@ -249,6 +249,24 @@ func (e QueryRequestCompare) Valid() bool {
 	}
 }
 
+// Defines values for RetentionRequestIdentity.
+const (
+	AnonymousRetentionIdentity RetentionRequestIdentity = "anonymous"
+	ProfileRetentionIdentity   RetentionRequestIdentity = "profile"
+)
+
+// Valid indicates whether the value is a known member of the RetentionRequestIdentity enum.
+func (e RetentionRequestIdentity) Valid() bool {
+	switch e {
+	case AnonymousRetentionIdentity:
+		return true
+	case ProfileRetentionIdentity:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RetentionRequestInterval.
 const (
 	RetentionDay   RetentionRequestInterval = "day"
@@ -272,13 +290,16 @@ func (e RetentionRequestInterval) Valid() bool {
 
 // Defines values for RetentionResponseIdentityWindow.
 const (
-	DailyIdentityWindow RetentionResponseIdentityWindow = "day"
+	DailyIdentityWindow   RetentionResponseIdentityWindow = "day"
+	ProfileIdentityWindow RetentionResponseIdentityWindow = "profile"
 )
 
 // Valid indicates whether the value is a known member of the RetentionResponseIdentityWindow enum.
 func (e RetentionResponseIdentityWindow) Valid() bool {
 	switch e {
 	case DailyIdentityWindow:
+		return true
+	case ProfileIdentityWindow:
 		return true
 	default:
 		return false
@@ -287,12 +308,15 @@ func (e RetentionResponseIdentityWindow) Valid() bool {
 
 // Defines values for RetentionResponseRetentionMode.
 const (
+	ClassicProfileReturn   RetentionResponseRetentionMode = "classic_profile_return"
 	WithinDaySessionReturn RetentionResponseRetentionMode = "within_day_session_return"
 )
 
 // Valid indicates whether the value is a known member of the RetentionResponseRetentionMode enum.
 func (e RetentionResponseRetentionMode) Valid() bool {
 	switch e {
+	case ClassicProfileReturn:
+		return true
 	case WithinDaySessionReturn:
 		return true
 	default:
@@ -520,6 +544,48 @@ type Problem struct {
 	Type     string             `json:"type"`
 }
 
+// Profile defines model for Profile.
+type Profile struct {
+	Events      int64             `json:"events"`
+	ExternalId  string            `json:"external_id"`
+	FirstSeenAt time.Time         `json:"first_seen_at"`
+	Id          int64             `json:"id"`
+	LastSeenAt  time.Time         `json:"last_seen_at"`
+	Sessions    int64             `json:"sessions"`
+	SiteId      int32             `json:"site_id"`
+	Traits      map[string]string `json:"traits"`
+}
+
+// ProfileDetail defines model for ProfileDetail.
+type ProfileDetail struct {
+	Events      int64             `json:"events"`
+	ExternalId  string            `json:"external_id"`
+	FirstSeenAt time.Time         `json:"first_seen_at"`
+	Id          int64             `json:"id"`
+	LastSeenAt  time.Time         `json:"last_seen_at"`
+	NextCursor  *string           `json:"next_cursor,omitempty"`
+	Sessions    int64             `json:"sessions"`
+	SiteId      int32             `json:"site_id"`
+	Timeline    []ProfileEvent    `json:"timeline"`
+	Traits      map[string]string `json:"traits"`
+}
+
+// ProfileEvent defines model for ProfileEvent.
+type ProfileEvent struct {
+	Kind  int                     `json:"kind"`
+	Name  string                  `json:"name"`
+	Path  string                  `json:"path"`
+	Props *map[string]interface{} `json:"props,omitempty"`
+	Ts    time.Time               `json:"ts"`
+}
+
+// ProfileList defines model for ProfileList.
+type ProfileList struct {
+	Data            []Profile `json:"data"`
+	NextCursor      *string   `json:"next_cursor,omitempty"`
+	ProfilesEnabled bool      `json:"profiles_enabled"`
+}
+
 // QueryMeta defines model for QueryMeta.
 type QueryMeta struct {
 	Cached           bool     `json:"cached"`
@@ -572,11 +638,15 @@ type RetentionCohort struct {
 
 // RetentionRequest defines model for RetentionRequest.
 type RetentionRequest struct {
-	DateRange DateRange                `json:"date_range"`
-	Filters   *[]Filter                `json:"filters,omitempty"`
-	Interval  RetentionRequestInterval `json:"interval"`
-	SiteId    int32                    `json:"site_id"`
+	DateRange DateRange                 `json:"date_range"`
+	Filters   *[]Filter                 `json:"filters,omitempty"`
+	Identity  *RetentionRequestIdentity `json:"identity,omitempty"`
+	Interval  RetentionRequestInterval  `json:"interval"`
+	SiteId    int32                     `json:"site_id"`
 }
+
+// RetentionRequestIdentity defines model for RetentionRequest.Identity.
+type RetentionRequestIdentity string
 
 // RetentionRequestInterval defines model for RetentionRequest.Interval.
 type RetentionRequestInterval string
@@ -586,17 +656,17 @@ type RetentionResponse struct {
 	// Cohorts Week and month intervals group daily cohorts without cross-day identity linkage.
 	Cohorts []RetentionCohort `json:"cohorts"`
 
-	// IdentityWindow Daily visitor IDs cannot be linked across local-day salt rotations.
+	// IdentityWindow Anonymous identities last one local day; opted-in profiles link activity across days.
 	IdentityWindow RetentionResponseIdentityWindow `json:"identity_window"`
 
-	// RetentionMode Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+	// RetentionMode Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
 	RetentionMode RetentionResponseRetentionMode `json:"retention_mode"`
 }
 
-// RetentionResponseIdentityWindow Daily visitor IDs cannot be linked across local-day salt rotations.
+// RetentionResponseIdentityWindow Anonymous identities last one local day; opted-in profiles link activity across days.
 type RetentionResponseIdentityWindow string
 
-// RetentionResponseRetentionMode Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+// RetentionResponseRetentionMode Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
 type RetentionResponseRetentionMode string
 
 // SavedFunnel defines model for SavedFunnel.
@@ -626,13 +696,14 @@ type Segment struct {
 
 // Site defines model for Site.
 type Site struct {
-	AllowedHosts  []string `json:"allowed_hosts"`
-	Id            int32    `json:"id"`
-	Name          string   `json:"name"`
-	OrgId         int64    `json:"org_id"`
-	PublicId      string   `json:"public_id"`
-	RetentionDays int      `json:"retention_days"`
-	Timezone      string   `json:"timezone"`
+	AllowedHosts    []string `json:"allowed_hosts"`
+	Id              int32    `json:"id"`
+	Name            string   `json:"name"`
+	OrgId           int64    `json:"org_id"`
+	ProfilesEnabled bool     `json:"profiles_enabled"`
+	PublicId        string   `json:"public_id"`
+	RetentionDays   int      `json:"retention_days"`
+	Timezone        string   `json:"timezone"`
 }
 
 // SiteList defines model for SiteList.
@@ -655,10 +726,11 @@ type TopSource struct {
 
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
-	Hosts         *[]string                       `json:"hosts,omitempty"`
-	Name          *string                         `json:"name,omitempty"`
-	RetentionDays *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
-	Timezone      *string                         `json:"timezone,omitempty"`
+	Hosts           *[]string                       `json:"hosts,omitempty"`
+	Name            *string                         `json:"name,omitempty"`
+	ProfilesEnabled *bool                           `json:"profiles_enabled,omitempty"`
+	RetentionDays   *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
+	Timezone        *string                         `json:"timezone,omitempty"`
 }
 
 // UpdateSiteRequestRetentionDays defines model for UpdateSiteRequest.RetentionDays.
@@ -783,6 +855,12 @@ type ServiceUnavailable = Problem
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Problem
 
+// GetProfileParams defines parameters for GetProfile.
+type GetProfileParams struct {
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // QueryParams defines parameters for Query.
 type QueryParams struct {
 	Format *Format `form:"format,omitempty" json:"format,omitempty"`
@@ -806,6 +884,13 @@ type ListSitesParams struct {
 type ListAnnotationsParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
 	To   openapi_types.Date `form:"to" json:"to"`
+}
+
+// ListProfilesParams defines parameters for ListProfiles.
+type ListProfilesParams struct {
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // StatsBreakdownParams defines parameters for StatsBreakdown.
@@ -930,6 +1015,9 @@ type ServerInterface interface {
 	// JourneyQuery Run a page journey query
 	// (POST /api/public/v1/journeys/query)
 	JourneyQuery(w http.ResponseWriter, r *http.Request)
+	// GetProfile Get an identified profile and its raw event timeline
+	// (GET /api/public/v1/profiles/{profile_id})
+	GetProfile(w http.ResponseWriter, r *http.Request, profileId int64, params GetProfileParams)
 	// Query Run an analytics query
 	// (POST /api/public/v1/query)
 	Query(w http.ResponseWriter, r *http.Request, params QueryParams)
@@ -969,6 +1057,9 @@ type ServerInterface interface {
 	// CreateGoal Create a goal
 	// (POST /api/public/v1/sites/{site_id}/goals)
 	CreateGoal(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListProfiles List identified profiles
+	// (GET /api/public/v1/sites/{site_id}/profiles)
+	ListProfiles(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListProfilesParams)
 	// ListSegments List saved segments
 	// (GET /api/public/v1/sites/{site_id}/segments)
 	ListSegments(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -1127,6 +1218,61 @@ func (siw *ServerInterfaceWrapper) JourneyQuery(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.JourneyQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProfile operation middleware
+func (siw *ServerInterfaceWrapper) GetProfile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "profile_id" -------------
+	var profileId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "profile_id", r.PathValue("profile_id"), &profileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "profile_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetProfileParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProfile(w, r, profileId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1517,6 +1663,74 @@ func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateGoal(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListProfiles operation middleware
+func (siw *ServerInterfaceWrapper) ListProfiles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListProfilesParams
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "search", r.URL.Query(), &params.Search, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "search"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "search", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListProfiles(w, r, siteId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2207,6 +2421,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.UpdateSite)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.ListGoals)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.CreateGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/profiles", wrapper.ListProfiles)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/profiles/{profile_id}", wrapper.GetProfile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/annotations", wrapper.ListAnnotations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.DeleteGoal)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.UpdateGoal)

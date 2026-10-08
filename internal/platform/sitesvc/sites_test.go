@@ -44,6 +44,69 @@ func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 	}
 }
 
+func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Profiles", []string{"profiles.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if site.ProfilesEnabled {
+		t.Fatal("profiles must default off")
+	}
+	if _, err := pool.Exec(ctx, `
+		update sites
+		set settings = jsonb_set(settings, '{profiles_enabled}', 'true'::jsonb)
+		where id = $1`, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || !loaded.ProfilesEnabled {
+		t.Fatalf("registry site = (%+v, %t), want profiles enabled", loaded, ok)
+	}
+}
+
+func TestUpdateProfilesEnabledPersistsRefreshesAndAudits(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Profiles", []string{"profiles.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	enabled := true
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{ProfilesEnabled: &enabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !updated.ProfilesEnabled || !ok || !loaded.ProfilesEnabled {
+		t.Fatalf("updated=%t registry=(%t,%t), want enabled", updated.ProfilesEnabled, ok, loaded.ProfilesEnabled)
+	}
+	var stored bool
+	if err := pool.QueryRow(ctx, `
+		select settings->'profiles_enabled' = 'true'::jsonb
+		from sites where id = $1`, site.ID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if !stored {
+		t.Fatal("profiles_enabled was not persisted")
+	}
+	var audited *bool
+	if err := pool.QueryRow(ctx, `
+		select (metadata->>'profiles_enabled')::boolean
+		from audit_log
+		where target_type = 'site' and target_id = $1 and action = 'site.updated'
+		order by id desc limit 1`, site.ID).Scan(&audited); err != nil {
+		t.Fatal(err)
+	}
+	if audited == nil || !*audited {
+		t.Fatalf("audit profiles_enabled = %v, want true", audited)
+	}
+}
+
 func TestListFiltersRestrictedPrincipal(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	ctx := context.Background()

@@ -112,6 +112,11 @@ func TestRetentionReport(t *testing.T) {
 			assertRecorderProblem(t, response, http.StatusBadRequest)
 		})
 	}
+
+	t.Run("rejects invalid identity", func(t *testing.T) {
+		response := reportRequest(t, reportsQueryStub{}, "/api/public/v1/retention/query", `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"interval":"day","identity":"cookie"}`)
+		assertRecorderProblem(t, response, http.StatusBadRequest)
+	})
 }
 
 func TestReportsAuthorization(t *testing.T) {

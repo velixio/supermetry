@@ -34,12 +34,13 @@ var (
 )
 
 type SitePatch struct {
-	Name          *string
-	Hosts         *[]string
-	TZ            *string
-	RetentionDays *int
-	ExcludeIPs    *[]string
-	ExcludePaths  *[]string
+	Name            *string
+	Hosts           *[]string
+	TZ              *string
+	RetentionDays   *int
+	ExcludeIPs      *[]string
+	ExcludePaths    *[]string
+	ProfilesEnabled *bool
 }
 
 type Sites struct {
@@ -123,6 +124,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.ExcludePaths != nil {
 			current.ExcludePaths = append([]string(nil), (*patch.ExcludePaths)...)
 		}
+		if patch.ProfilesEnabled != nil {
+			current.ProfilesEnabled = *patch.ProfilesEnabled
+		}
 		name, hosts, location, retention, err := validateSite(
 			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
 		)
@@ -141,9 +145,13 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if err != nil {
 			return err
 		}
-		return audit.Write(ctx, tx, principal, "site.updated", "site", int64(id), map[string]any{
+		metadata := map[string]any{
 			"name": name, "timezone": location.String(), "retention_days": int(retention),
-		})
+		}
+		if patch.ProfilesEnabled != nil {
+			metadata["profiles_enabled"] = current.ProfilesEnabled
+		}
+		return audit.Write(ctx, tx, principal, "site.updated", "site", int64(id), metadata)
 	})
 	if err != nil {
 		return coresites.Site{}, err
@@ -296,6 +304,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 	return coresites.Site{
 		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
+		ProfilesEnabled: row.ProfilesEnabled,
 	}, nil
 }
 

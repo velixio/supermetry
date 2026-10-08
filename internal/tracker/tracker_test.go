@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -95,7 +96,7 @@ func TestScriptContract(t *testing.T) {
 		`"pagehide"`,
 		`document.addEventListener("visibilitychange"`,
 		`window.panel`,
-		`options.revenue`,
+		`options?.revenue`,
 		`engagement_ms`,
 		`scroll_pct`,
 		`function updateScroll()`,
@@ -125,6 +126,18 @@ func TestScriptContract(t *testing.T) {
 		if strings.Contains(text, forbidden) || strings.Contains(fullText, forbidden) {
 			t.Errorf("tracker source contains forbidden browser API %q", forbidden)
 		}
+	}
+}
+
+func TestTrackerRuntimeContract(t *testing.T) {
+	t.Parallel()
+
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is required to execute the browser tracker contract")
+	}
+	command := exec.Command("node", "tracker_runtime_test.js")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("tracker runtime contract: %v\n%s", err, output)
 	}
 }
 

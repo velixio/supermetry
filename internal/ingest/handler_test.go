@@ -459,6 +459,116 @@ func TestPageviewRevenueIsIgnoredWithoutHealthError(t *testing.T) {
 	}
 }
 
+func TestDisabledProfilesAreSuppressedAndCounted(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	before := health.IngestProfilesSuppressed.Load()
+	for _, body := range []string{
+		`{"site":"abc123","name":"pageview","url":"https://example.com/profile","profile_id":123}`,
+		`{"site":"abc123","name":"pageview","url":"https://example.com/traits","traits":{"nested":{"plan":"pro"}}}`,
+	} {
+		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+			t.Fatalf("code=%d, want 202", rr.Code)
+		}
+	}
+	f.stop(t)
+
+	var events, identified, profiles int
+	if err := f.pool.QueryRow(context.Background(), `
+		select count(*), count(profile_id), (select count(*) from profiles)
+		from events`).Scan(&events, &identified, &profiles); err != nil {
+		t.Fatal(err)
+	}
+	if events != 2 || identified != 0 || profiles != 0 {
+		t.Fatalf("events=%d identified=%d profiles=%d, want 2/0/0", events, identified, profiles)
+	}
+	if got := health.IngestProfilesSuppressed.Load(); got != before+2 {
+		t.Fatalf("suppressed profile delta=%d, want 2", got-before)
+	}
+}
+
+func TestEnabledProfilesRejectTraitsOutsideIdentify(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	setProfilesEnabled(t, f, true)
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusBadRequest {
+		t.Fatalf("code=%d, want 400", rr.Code)
+	}
+}
+
+func TestEnabledIdentifyWithoutTraitsUpsertsAndLinks(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	setProfilesEnabled(t, f, true)
+	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1"}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	var profiles, linked int
+	if err := f.pool.QueryRow(context.Background(), `
+		select (select count(*) from profiles), count(profile_id) from events`).Scan(&profiles, &linked); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 1 || linked != 1 {
+		t.Fatalf("profiles=%d linked=%d, want 1/1", profiles, linked)
+	}
+}
+
+func TestEnabledProfilesUpsertTraitsAndLinkEvents(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	setProfilesEnabled(t, f, true)
+	first := `{"site":"abc123","name":"identify","url":"https://example.com/first","profile_id":"customer-1","traits":{"plan":"free","region":"apac"}}`
+	second := `{"site":"abc123","name":"identify","url":"https://example.com/second","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	if rr := post(t, f.h, first, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("first code=%d, want 202", rr.Code)
+	}
+	f.clock.now = f.clock.now.Add(time.Minute)
+	if rr := post(t, f.h, second, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("second code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	var profileID int64
+	var externalID, traits string
+	var firstSeen, lastSeen time.Time
+	if err := f.pool.QueryRow(context.Background(), `
+		select id, external_id, traits::text, first_seen_at, last_seen_at
+		from profiles`).Scan(&profileID, &externalID, &traits, &firstSeen, &lastSeen); err != nil {
+		t.Fatal(err)
+	}
+	if profileID == 0 || externalID != "customer-1" || traits != `{"plan": "pro", "region": "apac"}` {
+		t.Fatalf("profile=%d external=%q traits=%s", profileID, externalID, traits)
+	}
+	if !firstSeen.Equal(fakeNow()) || !lastSeen.Equal(fakeNow().Add(time.Minute)) {
+		t.Fatalf("seen range=%s..%s", firstSeen, lastSeen)
+	}
+	var linked, distinct int
+	if err := f.pool.QueryRow(context.Background(), `
+		select count(profile_id), count(distinct profile_id) from events`).Scan(&linked, &distinct); err != nil {
+		t.Fatal(err)
+	}
+	if linked != 2 || distinct != 1 {
+		t.Fatalf("linked=%d distinct=%d, want 2/1", linked, distinct)
+	}
+}
+
+func seedProfileSite(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	ctx := context.Background()
+	var orgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name, slug) values ('Profiles', 'profiles') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into sites(id, org_id, public_id, name, allowed_hosts, timezone, retention_class)
+		overriding system value
+		values (1, $1, 'profiles0001', 'Profiles', '{example.com}', 'UTC', 30)`, orgID); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *handlerFixture {
 	t.Helper()
 	pool, _ := testpg.New(t)
@@ -550,6 +660,16 @@ func setExclusions(t *testing.T, fixture *handlerFixture, ips, paths []string) {
 	fixture.h.Sites = siteRegistry{site: site}
 }
 
+func setProfilesEnabled(t *testing.T, fixture *handlerFixture, enabled bool) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	site.ProfilesEnabled = enabled
+	fixture.h.Sites = siteRegistry{site: site}
+}
+
 func post(t *testing.T, h http.Handler, body, ua, remote string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(body))
@@ -601,4 +721,65 @@ func writeCityMMDB(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+// A site that has not opted in must not record the tracker's identify calls
+// as custom events: they would add one "identify" event per page load.
+func TestDisabledProfilesDropIdentifyEvents(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	before := health.IngestProfilesSuppressed.Load()
+	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 0 {
+		t.Fatalf("events=%d, want identify dropped", events)
+	}
+	if got := health.IngestProfilesSuppressed.Load(); got != before+1 {
+		t.Fatalf("suppressed delta=%d, want 1", got-before)
+	}
+}
+
+// Traits merge across identify calls, so the stored object needs the same cap
+// as one request or a client could grow it without bound by rotating keys.
+func TestEnabledProfilesCapMergedTraits(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	setProfilesEnabled(t, f, true)
+	const siteID = 1 // seedProfileSite
+	stored := make([]string, 15)
+	for i := range stored {
+		stored[i] = fmt.Sprintf(`"old%d":"v"`, i)
+	}
+	if _, err := f.pool.Exec(context.Background(), `
+		insert into profiles(site_id, external_id, traits, first_seen_at, last_seen_at)
+		values ($1, 'customer-1', $2::jsonb, $3, $3)`, siteID, "{"+strings.Join(stored, ",")+"}", fakeNow()); err != nil {
+		t.Fatal(err)
+	}
+	for _, prefix := range []string{"a", "b"} {
+		traits := make([]string, 15)
+		for i := range traits {
+			traits[i] = fmt.Sprintf(`"%s%d":"v"`, prefix, i)
+		}
+		body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{` + strings.Join(traits, ",") + `}}`
+		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+			t.Fatalf("code=%d, want 202", rr.Code)
+		}
+	}
+	f.stop(t)
+	var keys int
+	var hasLatest bool
+	if err := f.pool.QueryRow(context.Background(), `
+		select (select count(*) from jsonb_object_keys(traits)), traits ? 'b14'
+		from profiles where external_id='customer-1'`).Scan(&keys, &hasLatest); err != nil {
+		t.Fatal(err)
+	}
+	if keys > 20 || !hasLatest {
+		t.Fatalf("traits keys=%d latest=%t, want <= 20 with latest kept", keys, hasLatest)
+	}
 }

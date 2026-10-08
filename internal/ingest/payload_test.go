@@ -182,3 +182,95 @@ func TestParsePayloadIgnoresMalformedRevenueShapeOnPageview(t *testing.T) {
 		t.Fatal("pageview revenue was validated instead of ignored")
 	}
 }
+
+func TestParsePayloadDefersProfileIdentityValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		profile string
+		traits  string
+	}{
+		{name: "empty profile", profile: `""`},
+		{name: "non-string profile", profile: `123`},
+		{name: "long profile", profile: fmt.Sprintf("%q", strings.Repeat("p", 129))},
+		{name: "too many traits", profile: `"customer-1"`, traits: traitObject(21)},
+		{name: "nested traits", profile: `"customer-1"`, traits: `{"nested":{"key":"value"}}`},
+		{name: "empty trait key", profile: `"customer-1"`, traits: `{"":"value"}`},
+		{name: "long trait key", profile: `"customer-1"`, traits: fmt.Sprintf(`{%q:"value"}`, strings.Repeat("k", 65))},
+		{name: "long trait value", profile: `"customer-1"`, traits: fmt.Sprintf(`{"key":%q}`, strings.Repeat("v", 257))},
+		{name: "traits without profile", traits: `{"plan":"pro"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			identity := ""
+			if tt.profile != "" {
+				identity = `,"profile_id":` + tt.profile
+			}
+			if tt.traits != "" {
+				identity += `,"traits":` + tt.traits
+			}
+			eventName := "pageview"
+			if tt.traits != "" {
+				eventName = "identify"
+			}
+			body := fmt.Sprintf(`{"site":"abc123","name":%q,"url":"https://example.com/"%s}`, eventName, identity)
+			payload, err := ingest.ParsePayload([]byte(body))
+			if err != nil {
+				t.Fatalf("structural payload rejected before site policy: %v", err)
+			}
+			if _, _, _, err := payload.Identity(true); err == nil {
+				t.Fatal("enabled site accepted invalid identity")
+			}
+			if id, traits, supplied, err := payload.Identity(false); err != nil || id != "" || traits != nil || !supplied {
+				t.Fatalf("disabled identity = %q/%v/%t/%v, want suppressed", id, traits, supplied, err)
+			}
+		})
+	}
+}
+
+func TestParsePayloadAcceptsBoundedProfileIdentity(t *testing.T) {
+	body := fmt.Sprintf(
+		`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":%q,"traits":{%q:%q}}`,
+		strings.Repeat("p", 128), strings.Repeat("k", 64), strings.Repeat("v", 256),
+	)
+	payload, err := ingest.ParsePayload([]byte(body))
+	if err != nil {
+		t.Fatalf("bounded profile identity rejected: %v", err)
+	}
+	id, traits, supplied, err := payload.Identity(true)
+	if err != nil || id != strings.Repeat("p", 128) || len(traits) != 1 || !supplied {
+		t.Fatalf("identity = %q/%v/%t/%v", id, traits, supplied, err)
+	}
+}
+
+func traitObject(count int) string {
+	parts := make([]string, count)
+	for i := range count {
+		parts[i] = fmt.Sprintf(`"k%d":"v"`, i)
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+// The tracker and the profiles.external_id CHECK count characters, so the
+// ingest caps must count characters too; a byte cap would reject every later
+// event from a page that identified a user with a non-ASCII identifier.
+func TestParsePayloadCountsProfileCharactersNotBytes(t *testing.T) {
+	body := fmt.Sprintf(
+		`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":%q,"traits":{%q:%q}}`,
+		strings.Repeat("é", 128), strings.Repeat("ключ", 16), strings.Repeat("ü", 256),
+	)
+	payload, err := ingest.ParsePayload([]byte(body))
+	if err != nil {
+		t.Fatalf("payload rejected: %v", err)
+	}
+	if _, _, _, err := payload.Identity(true); err != nil {
+		t.Fatalf("multibyte identity within character caps rejected: %v", err)
+	}
+	long := fmt.Sprintf(`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":%q}`, strings.Repeat("é", 129))
+	payload, err = ingest.ParsePayload([]byte(long))
+	if err != nil {
+		t.Fatalf("payload rejected: %v", err)
+	}
+	if _, _, _, err := payload.Identity(true); err == nil {
+		t.Fatal("129-character identifier accepted")
+	}
+}

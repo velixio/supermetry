@@ -1,19 +1,18 @@
-(function () {
+(() => {
   var s = document.currentScript, d = s.dataset;
-  var t = window.panel && window.panel.track;
+  var t = window.panel?.track;
   if (!t) return;
 
   function link(e) {
     if (e.button > 1) return;
-    var a = e.target.closest && e.target.closest("a");
+    var a = e.target.closest?.("a");
     if (!a) return;
-    var u = a;
-    var p = {url: (u.origin + u.pathname + u.hash).slice(0, 500)};
-    if (d.outbound != "false" && u.protocol.indexOf("http") == 0 && u.host != location.host) {
+    var p = {url: (a.origin + a.pathname + a.hash).slice(0, 500)};
+    if (d.outbound != "false" && a.protocol.indexOf("http") == 0 && a.host != location.host) {
       t("Outbound Link: Click", p);
     }
     var x = (d.downloadExt || "pdf,xlsx,docx,csv,txt,zip,rar,7z,gz,dmg,exe,msi,pkg,apk,mp3,mp4,mov,avi,wav,key,pptx,ppt,xls,doc,epub,iso").toLowerCase().split(",");
-    if (d.downloads != "false" && x.indexOf(u.pathname.toLowerCase().split(".").pop()) >= 0) {
+    if (d.downloads != "false" && x.indexOf(a.pathname.toLowerCase().split(".").pop()) >= 0) {
       t("File Download", p);
     }
   }
@@ -22,7 +21,7 @@
     if (d.clicks == "false") return;
     var a = e.target;
     for (var l = 0; a && l < 4; l++, a = a.parentElement) {
-      var n = a.getAttribute && a.getAttribute("data-panel-event");
+      var n = a.getAttribute?.("data-panel-event");
       if (!n) continue;
       var p = {};
       for (var i = 0, c = 0, b = 0; i < a.attributes.length && c < 30; i++) {
@@ -74,9 +73,7 @@
 
     function observe(type, kind, buffered) {
       try {
-        var observer = new PerformanceObserver(function (list) {
-          run(observer, list.getEntries());
-        });
+        var observer = new PerformanceObserver((list) => run(observer, list.getEntries()));
         observer.kind = kind;
         // durationThreshold only applies to "event"; other types ignore it.
         observer.observe({type: type, buffered: buffered, durationThreshold: 40});
@@ -86,9 +83,7 @@
 
     function stop(observer) {
       if (!observer) return;
-      try {
-        run(observer, observer.takeRecords());
-      } catch (_) {}
+      if (observer.takeRecords) run(observer, observer.takeRecords());
       observer.disconnect();
     }
 
@@ -120,30 +115,25 @@
       if (sent) return;
       sent = true;
       stopAll();
-      var props = {}, k;
+      var props = {};
       if (largest != null) props.lcp = "" + Math.round(largest);
       if (cls) props.cls = "" + Math.round(cls * 1000);
       if (inp) props.inp = "" + Math.round(inp);
-      for (k in props) return t("Web Vitals", props);
+      if (largest != null || cls || inp) t("Web Vitals", props);
     }
 
     document.addEventListener("pointerdown", stopLCP, true);
     document.addEventListener("keydown", stopLCP, true);
-    document.addEventListener("visibilitychange", function () {
-      if (document.hidden) sendVitals();
-    });
+    document.addEventListener("visibilitychange", () => document.hidden && sendVitals());
     addEventListener("pagehide", sendVitals);
 
     var navigate = history.pushState;
-    history.pushState = function () {
+    history.pushState = (...args) => {
+      navigate.apply(history, args);
       sendVitals();
       start(1);
-      return navigate.apply(history, arguments);
     };
-    addEventListener("popstate", function () {
-      sendVitals();
-      start(1);
-    }, true);
+    addEventListener("popstate", () => sendVitals() || start(1));
     start();
   }
-}());
+})();

@@ -462,6 +462,66 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/profiles:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listProfiles
+      summary: List identified profiles
+      description: Requires stats:read. profiles_enabled reports the site setting; profiles stored while it was on stay listed after it is turned off so they can still be erased.
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Profile page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/public/v1/profiles/{profile_id}:
+    parameters:
+      - name: profile_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    get:
+      operationId: getProfile
+      summary: Get an identified profile and its raw event timeline
+      description: Requires stats:read. The timeline is limited to the site's raw-data retention window.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Profile detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/public/v1/sites/{site_id}/annotations:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -880,7 +940,7 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts]
+      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, profiles_enabled]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -888,6 +948,7 @@ components:
         name: { type: string }
         timezone: { type: string }
         retention_days: { type: integer }
+        profiles_enabled: { type: boolean, default: false }
         allowed_hosts:
           type: array
           items: { type: string }
@@ -919,6 +980,7 @@ components:
       additionalProperties: false
       minProperties: 1
       properties:
+        profiles_enabled: { type: boolean }
         name: { type: string }
         hosts:
           type: array
@@ -1393,6 +1455,11 @@ components:
           type: string
           enum: [day, week, month]
           x-enum-varnames: [RetentionDay, RetentionWeek, RetentionMonth]
+        identity:
+          type: string
+          default: anonymous
+          enum: [anonymous, profile]
+          x-enum-varnames: [AnonymousRetentionIdentity, ProfileRetentionIdentity]
     RetentionCohort:
       type: object
       additionalProperties: false
@@ -1418,19 +1485,67 @@ components:
       properties:
         identity_window:
           type: string
-          enum: [day]
-          x-enum-varnames: [DailyIdentityWindow]
-          description: Daily visitor IDs cannot be linked across local-day salt rotations.
+          enum: [day, profile]
+          x-enum-varnames: [DailyIdentityWindow, ProfileIdentityWindow]
+          description: Anonymous identities last one local day; opted-in profiles link activity across days.
         retention_mode:
           type: string
-          enum: [within_day_session_return]
-          x-enum-varnames: [WithinDaySessionReturn]
-          description: Offset n counts daily identities with at least n+1 sessions on that local day, up to ten session occurrences.
+          enum: [within_day_session_return, classic_profile_return]
+          x-enum-varnames: [WithinDaySessionReturn, ClassicProfileReturn]
+          description: Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
         cohorts:
           type: array
           description: Week and month intervals group daily cohorts without cross-day identity linkage.
           items:
             $ref: '#/components/schemas/RetentionCohort'
+    Profile:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, external_id, traits, first_seen_at, last_seen_at, sessions, events]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        external_id: { type: string, minLength: 1, maxLength: 128 }
+        traits:
+          type: object
+          additionalProperties: { type: string }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        sessions: { type: integer, format: int64, minimum: 0 }
+        events: { type: integer, format: int64, minimum: 0 }
+    ProfileList:
+      type: object
+      additionalProperties: false
+      required: [profiles_enabled, data]
+      properties:
+        profiles_enabled: { type: boolean }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Profile' }
+        next_cursor: { type: [string, 'null'] }
+    ProfileEvent:
+      type: object
+      additionalProperties: false
+      required: [ts, kind, name, path]
+      properties:
+        ts: { type: string, format: date-time }
+        kind: { type: integer }
+        name: { type: string }
+        path: { type: string }
+        props:
+          type: [object, 'null']
+          additionalProperties: true
+    ProfileDetail:
+      allOf:
+        - $ref: '#/components/schemas/Profile'
+        - type: object
+          additionalProperties: false
+          required: [timeline]
+          properties:
+            timeline:
+              type: array
+              items: { $ref: '#/components/schemas/ProfileEvent' }
+            next_cursor: { type: [string, 'null'] }
     TopPage:
       type: object
       additionalProperties: false

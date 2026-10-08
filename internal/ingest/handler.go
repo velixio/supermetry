@@ -83,6 +83,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	profileID, profileTraits, profileSupplied, err := payload.Identity(site.ProfilesEnabled)
+	if err != nil {
+		h.invalid(w)
+		return
+	}
+	if !site.ProfilesEnabled && payload.Name == identifyEvent {
+		// The tracker sends identify only for opted-in use; on other sites
+		// it would just add one anonymous custom event per page load.
+		health.IngestProfilesSuppressed.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 	pageURL, err := parsePageURL(payload.URL)
 	if err != nil || !site.Allows(strings.ToLower(pageURL.Hostname())) {
 		h.invalid(w)
@@ -157,11 +169,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	event.Hit = hit
 	event.VisitorID = result.VisitorID
 	event.SessionID = result.SessionID
+	event.ProfileExternalID = profileID
+	event.ProfileTraits = profileTraits
 	if !h.Writer.Enqueue(event) {
 		health.IngestDropped.Add(1)
 		w.Header().Set("Retry-After", "1")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
+	}
+	if !site.ProfilesEnabled && profileSupplied {
+		health.IngestProfilesSuppressed.Add(1)
 	}
 	if payload.RevenueInvalid {
 		health.IngestRevenueInvalid.Add(1)

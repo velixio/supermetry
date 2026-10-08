@@ -91,6 +91,110 @@ func TestPlatformMigrationTables(t *testing.T) {
 	}
 }
 
+func TestProfilesMigrationSchema(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	var profileColumn bool
+	if err := pool.QueryRow(ctx, `
+		select exists (
+			select 1 from information_schema.columns
+			where table_schema = current_schema()
+			  and table_name = 'events'
+			  and column_name = 'profile_id'
+			  and data_type = 'bigint'
+			  and is_nullable = 'YES'
+		)`).Scan(&profileColumn); err != nil {
+		t.Fatal(err)
+	}
+	if !profileColumn {
+		t.Fatal("events.profile_id nullable bigint column is missing")
+	}
+	var eventProfileFKs int
+	if err := pool.QueryRow(ctx, `
+		select count(*)
+		from pg_constraint constraint_row
+		join pg_attribute attribute_row
+		  on attribute_row.attrelid = constraint_row.conrelid
+		 and attribute_row.attnum = any(constraint_row.conkey)
+		where constraint_row.conrelid = 'events'::regclass
+		  and constraint_row.contype = 'f'
+		  and attribute_row.attname = 'profile_id'`).Scan(&eventProfileFKs); err != nil {
+		t.Fatal(err)
+	}
+	if eventProfileFKs != 0 {
+		t.Fatalf("events.profile_id foreign keys = %d, want 0", eventProfileFKs)
+	}
+
+	var definition string
+	if err := pool.QueryRow(ctx, `select pg_get_indexdef(indexrelid)
+		from pg_index
+		where indrelid = 'events'::regclass
+		  and indexprs is null
+		  and pg_get_expr(indpred, indrelid) = '(profile_id IS NOT NULL)'`).Scan(&definition); err != nil {
+		t.Fatalf("profile timeline partial index: %v", err)
+	}
+	for _, fragment := range []string{"site_id", "profile_id", "ts DESC", "WHERE (profile_id IS NOT NULL)"} {
+		if !strings.Contains(definition, fragment) {
+			t.Fatalf("profile timeline index = %q, missing %q", definition, fragment)
+		}
+	}
+
+	var orgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name, slug) values ('Profiles', 'profiles') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `
+		insert into sites(org_id, public_id, name, allowed_hosts, timezone, retention_class)
+		values ($1, 'profiles0001', 'Profiles', '{}', 'UTC', 30)
+		returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	var profilesEnabled bool
+	if err := pool.QueryRow(ctx, `
+		select (settings->>'profiles_enabled')::boolean
+		from sites where id = $1`, siteID).Scan(&profilesEnabled); err != nil {
+		t.Fatalf("profiles_enabled default: %v", err)
+	}
+	if profilesEnabled {
+		t.Fatal("profiles_enabled must default false")
+	}
+	var profileID int64
+	if err := pool.QueryRow(ctx, `
+		insert into profiles(site_id, external_id, traits, first_seen_at, last_seen_at)
+		values ($1, 'customer-1', '{"plan":"pro"}', '2026-10-01', '2026-10-02')
+		returning id`, siteID).Scan(&profileID); err != nil {
+		t.Fatal(err)
+	}
+	if profileID == 0 {
+		t.Fatal("profile identity was not generated")
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into profiles(site_id, external_id, traits, first_seen_at, last_seen_at)
+		values ($1, 'customer-1', '{}', '2026-10-01', '2026-10-02')`, siteID); err == nil {
+		t.Fatal("duplicate site/external profile was accepted")
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into profiles(site_id, external_id, traits, first_seen_at, last_seen_at)
+		values ($1, 'bad-traits', '[]', '2026-10-01', '2026-10-02')`, siteID); err == nil {
+		t.Fatal("non-object profile traits were accepted")
+	}
+	if _, err := pool.Exec(ctx, `delete from sites where id = $1`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	var remaining int
+	if err := pool.QueryRow(ctx, `select count(*) from profiles where site_id = $1`, siteID).Scan(&remaining); err != nil {
+		t.Fatal(err)
+	}
+	if remaining != 0 {
+		t.Fatalf("profiles after site delete = %d, want 0", remaining)
+	}
+}
+
 func TestMigrateConcurrentRunnersSerialize(t *testing.T) {
 	pool, _ := testpg.New(t)
 	errs := make(chan error, 4)

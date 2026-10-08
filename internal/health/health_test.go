@@ -109,3 +109,16 @@ func TestDeliveryFailuresAreExported(t *testing.T) {
 		t.Fatalf("Prometheus output missing alert delivery failures:\n%s", b.String())
 	}
 }
+
+func TestProfilesSuppressedIsExported(t *testing.T) {
+	snapshot := health.Snapshot()
+	if _, ok := snapshot["ingest_profiles_suppressed_total"]; !ok {
+		t.Fatal("snapshot missing ingest_profiles_suppressed_total")
+	}
+
+	var b strings.Builder
+	health.WritePrometheus(&b)
+	if !strings.Contains(b.String(), "# TYPE panel_ingest_profiles_suppressed_total counter") {
+		t.Fatalf("Prometheus output missing suppressed profile counter:\n%s", b.String())
+	}
+}
