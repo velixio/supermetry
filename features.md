@@ -11,14 +11,16 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 |---|---|---|---|---|
 | Visitors, pageviews, bounce rate, visit duration | ✓ | ✓ | ✓ | ✅ |
 | Realtime view | ✓ | ✓ | ✓ | ✅ (live feed, per-minute chart) |
-| Compare with the previous period | ✓ | ✓ | ? | ✅ |
+| Compare with the previous period | ✓ | ✓ | ? | ✅ (previous period, previous year) |
+| Periods incl. 28d, 91d, 6mo | ✓ | ✓ | ? | ✅ |
+| Time on page and exit rate | ✓ | – | ? | ✅ |
 | Filters on any dimension | ✓ | ✓ | ✓ | ✅ (Add-filter picker with value suggestions) |
 | Sessions explorer and session timeline | – | ✓ | ✓ | ✅ |
 | Events and properties explorer | – | ✓ | ✓ | ✅ |
 | Page, source, country, browser, OS and device breakdowns | ✓ | ✓ | ✓ | ✅ |
-| UTM breakdowns | ✓ | ✓ | ✓ | ✅ |
+| UTM breakdowns | ✓ | ✓ | ✓ | ✅ (raw `utm_source` stored separately from the blended source) |
 | Entry and exit pages | ✓ | ✓ | ✓ | ✅ |
-| Region and city | ✓ | ✓ | ✓ | ✅ |
+| Region and city | ✓ | ✓ | ✓ | ✅ (world map on the Countries card) |
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |
@@ -43,8 +45,11 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Scroll depth and engagement time | ✓ | – | ? | ✅ |
 | Automatic outbound-link, file-download and 404 tracking | ✓ | ✓ | ✓ | ✅ (full script, 1.5 KB gz) |
 | Click tracking from HTML attributes | ✓ | ✓ | ✓ | ✅ (`data-panel-event`) |
-| Server-side events API, with examples | ✓ | ✓ | ✓ | ❌ (API exists, no docs) |
-| Bot filtering; IP and path exclusion | ✓ | ✓ | ✓ | ✅ |
+| Server-side events API, with examples | ✓ | ✓ | ✓ | ✅ (`docs/api.md`) |
+| Bot filtering; IP, path and country exclusion | ✓ | ✓ | ✓ | ✅ |
+| Per-site tracker settings (served script) | ✓ | – | – | ✅ (outbound, downloads, forms, 404, hash routing, clicks, Web Vitals, heatmaps) |
+| Hash-based routing, form submissions | ✓ | ✓ | ✓ | ✅ (per-site setting) |
+| Do Not Track / GPC, visitor opt-out | ✓ (opt-out) | ✓ (DNT) | – | ✅ (respected by default; `panel.optOut()`) |
 | Mobile SDKs | – | – | ✓ | ⏸ |
 
 ## Team, sharing and API
@@ -54,6 +59,8 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Teams / orgs with roles | ✓ | ✓ | ✓ | ✅ |
 | Per-site access | ✓ | ✓ | ? | ✅ |
 | Two-factor auth (TOTP) | ✓ | ✓ | ? | ✅ |
+| Account self-service: edit name, change email or password, delete account | ✓ | ✓ | ✓ | ✅ |
+| Invite-only signup by default | ✓ (`DISABLE_REGISTRATION`) | – | – | ✅ (`PANEL_SIGNUP=open` to allow) |
 | Audit log | ? | – | – | ✅ |
 | Public share links | ✓ | ✓ | ✓ | ✅ |
 | Email reports | ✓ | – | ? | ✅ |
@@ -78,10 +85,12 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Single binary | – | – | – | ✅ |
 | Database | PG + ClickHouse | PG / MySQL | PG + ClickHouse + Redis | PG only |
 | Minimum RAM | ~2 GB | ~150 MB | 2 GB | ⏳ (~90 MB idle, target <50 MB) |
+| Protected metrics endpoint | ✓ | ? | ? | ✅ (`PANEL_METRICS_TOKEN` or localhost only) |
 | Data retention / purge | ? | – | ? | ✅ (per site, partition drop) |
-| Docker image | ✓ | ✓ | ✓ | ❌ |
-| Release binaries, systemd unit, install docs | – | – | – | ❌ |
-| License | AGPL-3.0 | MIT | AGPL-3.0 | ❌ (Apache-2.0 decided, LICENSE file missing) |
+| Docker image | ✓ | ✓ | ✓ | ✅ (`Dockerfile`, `deploy/docker-compose.yml`) |
+| Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/panel.service`, `deploy/README.md`) |
+| Backup and restore command | – | – | – | ✅ (`panel backup`, `panel restore`) |
+| License | AGPL-3.0 | MIT | AGPL-3.0 | ✅ (Apache-2.0, `LICENSE`) |
 
 ## Priority
 
@@ -113,10 +122,10 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 
 ### Later
 
-- LICENSE file (Apache-2.0)
-- Docker image, release binaries, systemd unit, install docs
-- Server-side events API docs; landing page and docs (Astro + Starlight)
-- Security review
+- ~~LICENSE file~~ ✅, ~~Docker image, release binaries, systemd unit, installer~~ ✅, ~~backup/restore~~ ✅
+- ~~Server-side events API docs~~ ✅ (`docs/api.md`); landing page and docs (Astro + Starlight)
+- ~~Trust fixes T1–T8~~ ✅ (see competitor-profiles/_summary.md); full security review still to do
+- Accuracy check against Plausible on real traffic; product benchmark (D25) ⏳
 - Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
 
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).

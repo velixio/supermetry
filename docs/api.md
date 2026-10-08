@@ -105,4 +105,4 @@ Connection instructions for common clients are under **Organization settings →
 
 ## Operations endpoints
 
-`GET /healthz` (process alive), `GET /readyz` (ready to serve) and `GET /metrics` (Prometheus) are outside `/api` and need no key. Restrict `/metrics` at your proxy if your instance is public.
+`GET /healthz` (process alive) and `GET /readyz` (ready to serve) are outside `/api` and need no key. `GET /metrics` (Prometheus) needs `Authorization: Bearer <PANEL_METRICS_TOKEN>` when that variable is set; without it, only clients on the same machine (loopback) can read it, and everyone else gets 404.
