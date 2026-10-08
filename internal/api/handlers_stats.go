@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -571,7 +572,7 @@ func queryRangeLabels(r *http.Request, request QueryRequest, now time.Time) (str
 	return from.Format("2006-01-02"), today.Format("2006-01-02")
 }
 
-func realtimeHandler(store session.Store, now func() time.Time, dictionary dictionaryResolver) http.HandlerFunc {
+func realtimeHandler(store session.Store, minutes realtime.MinuteSource, now func() time.Time, dictionary dictionaryResolver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		siteID, problem := siteIDParam(r)
 		if problem != nil {
@@ -585,13 +586,13 @@ func realtimeHandler(store session.Store, now func() time.Time, dictionary dicti
 		if now != nil {
 			current = now()
 		}
-		writeJSON(w, http.StatusOK, realtimeResponse(store, dictionary, siteID, current))
+		writeJSON(w, http.StatusOK, realtimeResponse(r.Context(), store, minutes, dictionary, siteID, current))
 	}
 }
 
 // realtimeResponse builds the realtime payload shared by the HTTP API and MCP.
-func realtimeResponse(store session.Store, dictionary dictionaryResolver, siteID int32, now time.Time) RealtimeResponse {
-	snapshot := realtime.RichSnapshot(store, siteID, now)
+func realtimeResponse(ctx context.Context, store session.Store, minutes realtime.MinuteSource, dictionary dictionaryResolver, siteID int32, now time.Time) RealtimeResponse {
+	snapshot := realtime.RichSnapshotWithMinutes(ctx, store, minutes, siteID, now)
 	response := RealtimeResponse{
 		ActiveVisitors: int64(snapshot.ActiveVisitors), VisitorsLast30m: int64(snapshot.VisitorsLast30m), PageviewsLast30m: int64(snapshot.Pageviews),
 		TopPages: make([]TopPage, len(snapshot.Pages)), TopSources: make([]TopSource, len(snapshot.Sources)),

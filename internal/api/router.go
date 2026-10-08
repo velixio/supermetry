@@ -18,6 +18,7 @@ import (
 	"panel/internal/config"
 	"panel/internal/dict"
 	"panel/internal/ingest"
+	"panel/internal/realtime"
 	"panel/internal/session"
 	"panel/internal/sites"
 	"panel/internal/tracker"
@@ -50,6 +51,7 @@ type Deps struct {
 	UI             http.Handler   // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter    ingest.RateLimiter
 	Sessions       session.Store
+	MinuteSource   realtime.MinuteSource
 	Dictionary     dictionaryResolver
 	// Platform serves the application routes implemented under
 	// internal/platform/http. Those handlers resolve the complete platform
@@ -81,7 +83,7 @@ func NewRouter(deps Deps) http.Handler {
 	registerSessionExplore(public, publicPrefix, h)
 	public.Handle("POST "+publicPrefix+"/mcp", NewMCPHandler(MCPDeps{
 		Query: deps.Query, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
-		Dictionary: deps.Dictionary,
+		Dictionary: deps.Dictionary, MinuteSource: deps.MinuteSource,
 	}))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
 	public.HandleFunc("POST "+publicPrefix+"/heatmaps/query", h.heatmapRequest)
@@ -89,7 +91,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("POST "+publicPrefix+"/funnels/query", h.funnelRequest)
 	public.HandleFunc("POST "+publicPrefix+"/journeys/query", h.journeyRequest)
 	public.HandleFunc("POST "+publicPrefix+"/retention/query", h.retentionRequest)
-	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now, deps.Dictionary))
+	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, public)))
 
@@ -105,7 +107,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("POST "+privatePrefix+"/funnels/query", h.funnelRequest)
 	private.HandleFunc("POST "+privatePrefix+"/journeys/query", h.journeyRequest)
 	private.HandleFunc("POST "+privatePrefix+"/retention/query", h.retentionRequest)
-	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now, deps.Dictionary))
+	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler)
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))
