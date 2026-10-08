@@ -26,3 +26,20 @@ func TestSnapshotUsesThirtyMinuteWindowAndIncludesRankedSources(t *testing.T) {
 		t.Fatalf("sources=%+v, want deterministic source ranking", sources)
 	}
 }
+
+func TestRichSnapshotLiveCountUsesFiveMinutes(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	store := session.NewMemory(2, nil)
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-2 * time.Minute), LocalDay: now, VisitorID: 1, Kind: 0, PathID: 11})
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-5 * time.Minute), LocalDay: now, VisitorID: 2, Kind: 0, PathID: 11})
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-20 * time.Minute), LocalDay: now, VisitorID: 3, Kind: 0, PathID: 12})
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-31 * time.Minute), LocalDay: now, VisitorID: 4, Kind: 0, PathID: 12})
+
+	snapshot := realtime.RichSnapshot(store, 1, now)
+	if snapshot.ActiveVisitors != 2 {
+		t.Fatalf("ActiveVisitors=%d, want 2 (activity within the last 5 minutes)", snapshot.ActiveVisitors)
+	}
+	if snapshot.VisitorsLast30m != 3 {
+		t.Fatalf("VisitorsLast30m=%d, want 3", snapshot.VisitorsLast30m)
+	}
+}

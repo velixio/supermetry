@@ -126,7 +126,10 @@ type RecentActivity struct {
 }
 
 type RealtimeSnapshot struct {
+	// ActiveVisitors counts visitors seen in the last LiveWindow (5 min);
+	// VisitorsLast30m counts the whole realtime window.
 	ActiveVisitors    int
+	VisitorsLast30m   int
 	Pages             []ActiveValue
 	Sources           []ActiveValue
 	EntryPages        []ActiveValue

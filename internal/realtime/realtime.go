@@ -10,6 +10,11 @@ import (
 
 const window = 30 * time.Minute
 
+// LiveWindow is how recently a visitor must have been active to count as
+// "live now", matching the 5 minutes Plausible, Umami and OpenPanel use. The
+// charts and breakdowns keep the 30-minute window.
+const LiveWindow = 5 * time.Minute
+
 // Item is a ranked realtime dimension value.
 type Item struct {
 	Value    string
@@ -45,11 +50,15 @@ func RichSnapshot(store session.Store, siteID int32, now time.Time) session.Real
 	if store == nil {
 		return session.RealtimeSnapshot{VisitorsPerMinute: emptyMinutes(now)}
 	}
+	live, _ := store.ActiveSince(siteID, now.Add(-LiveWindow))
 	if rich, ok := store.(session.RichRealtimeStore); ok {
-		return rich.RealtimeSnapshot(siteID, now)
+		result := rich.RealtimeSnapshot(siteID, now)
+		result.VisitorsLast30m = result.ActiveVisitors
+		result.ActiveVisitors = live
+		return result
 	}
 	visitors, pages, sources := Snapshot(store, siteID, now)
-	result := session.RealtimeSnapshot{ActiveVisitors: visitors, VisitorsPerMinute: emptyMinutes(now)}
+	result := session.RealtimeSnapshot{ActiveVisitors: live, VisitorsLast30m: visitors, VisitorsPerMinute: emptyMinutes(now)}
 	for _, page := range pages {
 		id, _ := strconv.ParseInt(page.Value, 10, 32)
 		result.Pages = append(result.Pages, session.ActiveValue{ID: int32(id), Visitors: page.Visitors})
