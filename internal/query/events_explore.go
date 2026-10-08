@@ -370,8 +370,10 @@ func eventExploreResolver(alias string) dimensionResolver {
 		switch dimension {
 		case "page", "path":
 			return prefix + "path_id", dictionaryKind(dict.Path), nil
-		case "source", "utm_source":
+		case "source":
 			return prefix + "source_id", dictionaryKind(dict.Source), nil
+		case "utm_source":
+			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
 			return prefix + "medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":

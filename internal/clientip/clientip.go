@@ -34,6 +34,43 @@ func Resolve(r *http.Request, trusted []netip.Prefix) (netip.Addr, bool) {
 	return peer, true
 }
 
+// ResolveAccessClient resolves the client address for access-control
+// decisions. Unlike Resolve, which skips non-public hops to find a useful
+// geolocation address, it treats the nearest untrusted hop of any kind as the
+// client, so a private client cannot hide behind a spoofed loopback hop. A
+// malformed hop in a trusted chain is rejected rather than skipped.
+func ResolveAccessClient(r *http.Request, trusted []netip.Prefix) (netip.Addr, bool) {
+	peer, ok := parseRemoteAddr(r.RemoteAddr)
+	if !ok {
+		return netip.Addr{}, false
+	}
+	peer = peer.Unmap()
+	if !contains(trusted, peer) {
+		return peer, true
+	}
+	client := peer
+	values := r.Header.Values("X-Forwarded-For")
+	for valueIndex := len(values) - 1; valueIndex >= 0; valueIndex-- {
+		hops := strings.Split(values[valueIndex], ",")
+		for index := len(hops) - 1; index >= 0; index-- {
+			text := strings.TrimSpace(hops[index])
+			if text == "" {
+				continue
+			}
+			hop, err := netip.ParseAddr(text)
+			if err != nil {
+				return netip.Addr{}, false
+			}
+			hop = hop.Unmap()
+			if !contains(trusted, hop) {
+				return hop, true
+			}
+			client = hop
+		}
+	}
+	return client, true
+}
+
 func parseRemoteAddr(remote string) (netip.Addr, bool) {
 	host, _, err := net.SplitHostPort(remote)
 	if err != nil {

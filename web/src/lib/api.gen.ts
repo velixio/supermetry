@@ -757,7 +757,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Prometheus metrics */
+        /**
+         * Get Prometheus metrics
+         * @description When PANEL_METRICS_TOKEN is set, requires Authorization: Bearer <token> and returns 401 for missing or invalid credentials. When the token is unset, only loopback clients (resolved through PANEL_TRUSTED_PROXIES) can access metrics; other clients receive 404. Health and readiness endpoints remain public.
+         */
         get: operations["metrics"];
         put?: never;
         post?: never;
@@ -3184,6 +3187,8 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     listApiKeys: {

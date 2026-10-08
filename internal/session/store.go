@@ -30,6 +30,7 @@ type Hit struct {
 	PathID        int32
 	NameID        int32
 	Source        int32
+	UTMSource     int32
 	Medium        int32
 	Campaign      int32
 	Country       string
@@ -166,6 +167,7 @@ type Snapshot struct {
 	EngagementMS int32
 	Bounce       bool
 	Source       int32
+	UTMSource    int32
 	Medium       int32
 	Campaign     int32
 	Country      string

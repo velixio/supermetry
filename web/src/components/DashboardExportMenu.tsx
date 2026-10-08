@@ -25,7 +25,7 @@ const exportOptions: ExportOption[] = [
   { label: 'Entry', dimension: 'entry', metric: 'visitors' },
   { label: 'Exit', dimension: 'exit', metric: 'visitors' },
   { label: 'Sources', dimension: 'source', metric: 'visitors' },
-  { label: 'UTM', dimension: 'utm_campaign', metric: 'visitors' },
+  { label: 'UTM', dimension: 'utm_source', metric: 'visitors' },
   { label: 'Countries', dimension: 'country', metric: 'visitors' },
   { label: 'Regions', dimension: 'region', metric: 'visitors' },
   { label: 'Cities', dimension: 'city', metric: 'visitors' },

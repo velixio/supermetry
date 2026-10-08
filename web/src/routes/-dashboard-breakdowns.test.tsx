@@ -105,6 +105,11 @@ describe('dashboard breakdown route', () => {
 
     const sources = screen.getByRole('region', { name: 'Sources' })
     expect(within(sources).queryByRole('tab', { name: 'Referrer' })).not.toBeInTheDocument()
+    expect(
+      within(sources)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Source', 'UTM Source', 'Medium', 'Campaign'])
   })
 
   it.each([
@@ -171,7 +176,7 @@ describe('dashboard breakdown route', () => {
       ['Entry', 'entry', 'visitors'],
       ['Exit', 'exit', 'visitors'],
       ['Sources', 'source', 'visitors'],
-      ['UTM', 'utm_campaign', 'visitors'],
+      ['UTM', 'utm_source', 'visitors'],
       ['Countries', 'country', 'visitors'],
       ['Regions', 'region', 'visitors'],
       ['Cities', 'city', 'visitors'],

@@ -1272,6 +1272,11 @@ paths:
       operationId: metrics
       security: []
       summary: Get Prometheus metrics
+      description: >-
+        When PANEL_METRICS_TOKEN is set, requires Authorization: Bearer <token> and
+        returns 401 for missing or invalid credentials. When the token is unset,
+        only loopback clients (resolved through PANEL_TRUSTED_PROXIES) can access
+        metrics; other clients receive 404. Health and readiness endpoints remain public.
       responses:
         '200':
           description: Prometheus text exposition
@@ -1279,6 +1284,10 @@ paths:
             text/plain:
               schema:
                 type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/public/v1/api-keys:
     get:
       operationId: listApiKeys

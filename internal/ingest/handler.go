@@ -306,6 +306,10 @@ func (h *Handler) buildEvent(
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
+	utmSourceID, err := h.dimensionID(ctx, dict.Source, utm.Source)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
 	mediumID, err := h.dimensionID(ctx, dict.Medium, medium)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
@@ -348,7 +352,7 @@ func (h *Handler) buildEvent(
 		SiteID: site.ID, Retention: site.Retention, TS: now, LocalDay: localDay,
 		VisitorID: visitorID, PrevVisitorID: previousVisitorID, Kind: kind,
 		JoinOnly: kind == 2 || payload.Name == "Web Vitals",
-		PathID:   pathID, NameID: nameID, Source: sourceID, Medium: mediumID,
+		PathID:   pathID, NameID: nameID, Source: sourceID, UTMSource: utmSourceID, Medium: mediumID,
 		Campaign: campaignID, Country: location.Country, Region: regionID, City: cityID,
 		Browser: browserID, OS: osID,
 		Device: client.Device, EngagementMS: int32(payload.EngagementMS), ScrollPct: int16(payload.ScrollPct),

@@ -57,6 +57,7 @@ type Config struct {
 	SessionFlush         time.Duration
 	QueryTimeout         time.Duration
 	AdminAPIKey          string
+	MetricsToken         string
 	TrustedProxies       []netip.Prefix
 	SecretKey            []byte
 	Signup               string
@@ -83,6 +84,7 @@ func Load(getenv func(string) string) (Config, error) {
 		SessionFlush:         defaultSessionFlush,
 		QueryTimeout:         defaultQueryTimeout,
 		AdminAPIKey:          getenv("PANEL_ADMIN_API_KEY"),
+		MetricsToken:         getenv("PANEL_METRICS_TOKEN"),
 		Signup:               valueOrDefault(getenv("PANEL_SIGNUP"), defaultSignup),
 		AllowPrivateWebhooks: false,
 		SMTP: SMTP{

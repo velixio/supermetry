@@ -167,7 +167,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		case "exit":
 			return "s.exit_path", dictionaryKind(dict.Path), nil
 		case "utm_source":
-			return "s.source_id", dictionaryKind(dict.Source), nil
+			return "s.utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
 			return "s.medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":
@@ -298,6 +298,8 @@ func customResolver(alias string) dimensionResolver {
 			return prefix + "path_id", dictionaryKind(dict.Path), nil
 		case dimension == "source":
 			return prefix + "source_id", dictionaryKind(dict.Source), nil
+		case dimension == "utm_source":
+			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case dimension == "browser":
 			return prefix + "browser_id", dictionaryKind(dict.Browser), nil
 		case dimension == "os":
@@ -385,7 +387,7 @@ func filterConditions(builder *sqlBuilder, filters []api.Filter, resolver dimens
 func presentDimensionConditions(dimensions []string, resolver dimensionResolver) ([]string, error) {
 	conditions := make([]string, 0, len(dimensions))
 	for _, dimension := range dimensions {
-		if dimension != "region" && dimension != "city" {
+		if dimension != "region" && dimension != "city" && dimension != "utm_source" {
 			continue
 		}
 		column, _, err := resolver(dimension)

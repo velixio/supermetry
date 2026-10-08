@@ -143,6 +143,28 @@ func TestBackpressureReturns503Fast(t *testing.T) {
 	}
 }
 
+func TestUTMSourcePersistsRawValueSeparatelyFromBlendedSource(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/?utm_source=google"}`
+	if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	f.stop(t)
+
+	var source, utmSource string
+	err := f.pool.QueryRow(context.Background(), `
+		select source.value, utm.value
+		from events e
+		join dict source on source.kind=$1 and source.id=e.source_id
+		join dict utm on utm.kind=$1 and utm.id=e.utm_source_id`, dict.Source).Scan(&source, &utmSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if source != "Google" || utmSource != "google" {
+		t.Fatalf("source=%q utm_source=%q, want canonical blended source and raw UTM source", source, utmSource)
+	}
+}
+
 func TestRealtimeRecordsQueuedPageviewsAndCustomEventsOnly(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	for _, body := range []string{
