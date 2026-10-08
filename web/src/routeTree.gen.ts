@@ -28,7 +28,6 @@ import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
 import { Route as OrgSiteHeatmapsRouteImport } from './routes/$org.$site.heatmaps'
 import { Route as OrgSiteJourneysRouteImport } from './routes/$org.$site.journeys'
 import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
-import { Route as OrgSiteReplaysRouteImport } from './routes/$org.$site.replays'
 import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retention'
 import { Route as OrgSiteSessionsRouteImport } from './routes/$org.$site.sessions'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
@@ -46,6 +45,7 @@ import { Route as OrgSiteFunnelsIndexRouteImport } from './routes/$org.$site.fun
 import { Route as OrgSiteFunnelsIdRouteImport } from './routes/$org.$site.funnels.$id'
 import { Route as OrgSiteProfilesIndexRouteImport } from './routes/$org.$site.profiles.index'
 import { Route as OrgSiteProfilesIdRouteImport } from './routes/$org.$site.profiles.$id'
+import { Route as OrgSiteReplaysIndexRouteImport } from './routes/$org.$site.replays.index'
 import { Route as OrgSiteReplaysIdRouteImport } from './routes/$org.$site.replays.$id'
 import { Route as OrgSiteSettingsAlertsRouteImport } from './routes/$org.$site.settings.alerts'
 import { Route as OrgSiteSettingsFunnelsRouteImport } from './routes/$org.$site.settings.funnels'
@@ -153,11 +153,6 @@ const OrgSiteRealtimeRoute = OrgSiteRealtimeRouteImport.update({
   path: '/$site/realtime',
   getParentRoute: () => OrgRoute,
 } as any)
-const OrgSiteReplaysRoute = OrgSiteReplaysRouteImport.update({
-  id: '/$site/replays',
-  path: '/$site/replays',
-  getParentRoute: () => OrgRoute,
-} as any)
 const OrgSiteRetentionRoute = OrgSiteRetentionRouteImport.update({
   id: '/$site/retention',
   path: '/$site/retention',
@@ -245,10 +240,15 @@ const OrgSiteProfilesIdRoute = OrgSiteProfilesIdRouteImport.update({
   path: '/$site/profiles/$id',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSiteReplaysIndexRoute = OrgSiteReplaysIndexRouteImport.update({
+  id: '/$site/replays/',
+  path: '/$site/replays/',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSiteReplaysIdRoute = OrgSiteReplaysIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => OrgSiteReplaysRoute,
+  id: '/$site/replays/$id',
+  path: '/$site/replays/$id',
+  getParentRoute: () => OrgRoute,
 } as any)
 const OrgSiteSettingsAlertsRoute = OrgSiteSettingsAlertsRouteImport.update({
   id: '/alerts',
@@ -321,7 +321,6 @@ export interface FileRoutesByFullPath {
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
-  '/$org/$site/replays': typeof OrgSiteReplaysRouteWithChildren
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
@@ -351,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
   '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
   '/$org/$site/profiles/': typeof OrgSiteProfilesIndexRoute
+  '/$org/$site/replays/': typeof OrgSiteReplaysIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -371,7 +371,6 @@ export interface FileRoutesByTo {
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
-  '/$org/$site/replays': typeof OrgSiteReplaysRouteWithChildren
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
@@ -401,6 +400,7 @@ export interface FileRoutesByTo {
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
   '/$org/$site/funnels': typeof OrgSiteFunnelsIndexRoute
   '/$org/$site/profiles': typeof OrgSiteProfilesIndexRoute
+  '/$org/$site/replays': typeof OrgSiteReplaysIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -422,7 +422,6 @@ export interface FileRoutesById {
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
-  '/$org/$site/replays': typeof OrgSiteReplaysRouteWithChildren
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
@@ -452,6 +451,7 @@ export interface FileRoutesById {
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
   '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
   '/$org/$site/profiles/': typeof OrgSiteProfilesIndexRoute
+  '/$org/$site/replays/': typeof OrgSiteReplaysIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -474,7 +474,6 @@ export interface FileRouteTypes {
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
-    | '/$org/$site/replays'
     | '/$org/$site/retention'
     | '/$org/$site/sessions'
     | '/$org/$site/settings'
@@ -504,6 +503,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/tracking'
     | '/$org/$site/funnels/'
     | '/$org/$site/profiles/'
+    | '/$org/$site/replays/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -524,7 +524,6 @@ export interface FileRouteTypes {
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
-    | '/$org/$site/replays'
     | '/$org/$site/retention'
     | '/$org/$site/sessions'
     | '/$org/$site/settings'
@@ -554,6 +553,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/tracking'
     | '/$org/$site/funnels'
     | '/$org/$site/profiles'
+    | '/$org/$site/replays'
   id:
     | '__root__'
     | '/'
@@ -574,7 +574,6 @@ export interface FileRouteTypes {
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
-    | '/$org/$site/replays'
     | '/$org/$site/retention'
     | '/$org/$site/sessions'
     | '/$org/$site/settings'
@@ -604,6 +603,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/tracking'
     | '/$org/$site/funnels/'
     | '/$org/$site/profiles/'
+    | '/$org/$site/replays/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -755,13 +755,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteRealtimeRouteImport
       parentRoute: typeof OrgRoute
     }
-    '/$org/$site/replays': {
-      id: '/$org/$site/replays'
-      path: '/$site/replays'
-      fullPath: '/$org/$site/replays'
-      preLoaderRoute: typeof OrgSiteReplaysRouteImport
-      parentRoute: typeof OrgRoute
-    }
     '/$org/$site/retention': {
       id: '/$org/$site/retention'
       path: '/$site/retention'
@@ -881,12 +874,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteProfilesIdRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/$site/replays/': {
+      id: '/$org/$site/replays/'
+      path: '/$site/replays'
+      fullPath: '/$org/$site/replays/'
+      preLoaderRoute: typeof OrgSiteReplaysIndexRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/$site/replays/$id': {
       id: '/$org/$site/replays/$id'
-      path: '/$id'
+      path: '/$site/replays/$id'
       fullPath: '/$org/$site/replays/$id'
       preLoaderRoute: typeof OrgSiteReplaysIdRouteImport
-      parentRoute: typeof OrgSiteReplaysRoute
+      parentRoute: typeof OrgRoute
     }
     '/$org/$site/settings/alerts': {
       id: '/$org/$site/settings/alerts'
@@ -985,18 +985,6 @@ const OrgSettingsRouteWithChildren = OrgSettingsRoute._addFileChildren(
   OrgSettingsRouteChildren,
 )
 
-interface OrgSiteReplaysRouteChildren {
-  OrgSiteReplaysIdRoute: typeof OrgSiteReplaysIdRoute
-}
-
-const OrgSiteReplaysRouteChildren: OrgSiteReplaysRouteChildren = {
-  OrgSiteReplaysIdRoute: OrgSiteReplaysIdRoute,
-}
-
-const OrgSiteReplaysRouteWithChildren = OrgSiteReplaysRoute._addFileChildren(
-  OrgSiteReplaysRouteChildren,
-)
-
 interface OrgSiteSettingsRouteChildren {
   OrgSiteSettingsAlertsRoute: typeof OrgSiteSettingsAlertsRoute
   OrgSiteSettingsFunnelsRoute: typeof OrgSiteSettingsFunnelsRoute
@@ -1035,7 +1023,6 @@ interface OrgRouteChildren {
   OrgSiteHeatmapsRoute: typeof OrgSiteHeatmapsRoute
   OrgSiteJourneysRoute: typeof OrgSiteJourneysRoute
   OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
-  OrgSiteReplaysRoute: typeof OrgSiteReplaysRouteWithChildren
   OrgSiteRetentionRoute: typeof OrgSiteRetentionRoute
   OrgSiteSessionsRoute: typeof OrgSiteSessionsRoute
   OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
@@ -1045,8 +1032,10 @@ interface OrgRouteChildren {
   OrgSitesIndexRoute: typeof OrgSitesIndexRoute
   OrgSiteFunnelsIdRoute: typeof OrgSiteFunnelsIdRoute
   OrgSiteProfilesIdRoute: typeof OrgSiteProfilesIdRoute
+  OrgSiteReplaysIdRoute: typeof OrgSiteReplaysIdRoute
   OrgSiteFunnelsIndexRoute: typeof OrgSiteFunnelsIndexRoute
   OrgSiteProfilesIndexRoute: typeof OrgSiteProfilesIndexRoute
+  OrgSiteReplaysIndexRoute: typeof OrgSiteReplaysIndexRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
@@ -1057,7 +1046,6 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgSiteHeatmapsRoute: OrgSiteHeatmapsRoute,
   OrgSiteJourneysRoute: OrgSiteJourneysRoute,
   OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
-  OrgSiteReplaysRoute: OrgSiteReplaysRouteWithChildren,
   OrgSiteRetentionRoute: OrgSiteRetentionRoute,
   OrgSiteSessionsRoute: OrgSiteSessionsRoute,
   OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,
@@ -1067,8 +1055,10 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgSitesIndexRoute: OrgSitesIndexRoute,
   OrgSiteFunnelsIdRoute: OrgSiteFunnelsIdRoute,
   OrgSiteProfilesIdRoute: OrgSiteProfilesIdRoute,
+  OrgSiteReplaysIdRoute: OrgSiteReplaysIdRoute,
   OrgSiteFunnelsIndexRoute: OrgSiteFunnelsIndexRoute,
   OrgSiteProfilesIndexRoute: OrgSiteProfilesIndexRoute,
+  OrgSiteReplaysIndexRoute: OrgSiteReplaysIndexRoute,
 }
 
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)

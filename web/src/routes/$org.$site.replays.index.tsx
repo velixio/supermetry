@@ -11,7 +11,7 @@ import { useMe } from './$org'
 
 const replaySearch = dashboardSearch.extend({ cursor: z.string().optional() })
 
-export const Route = createFileRoute('/$org/$site/replays')({
+export const Route = createFileRoute('/$org/$site/replays/')({
   validateSearch: (search) => replaySearch.parse(search),
   component: ReplaysRoute,
 })
