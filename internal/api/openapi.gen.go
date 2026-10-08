@@ -6,6 +6,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -396,6 +397,25 @@ func (e VitalsDimension) Valid() bool {
 	}
 }
 
+// APIKey defines model for APIKey.
+type APIKey struct {
+	CreatedAt  time.Time  `json:"created_at"`
+	ExpiresAt  *time.Time `json:"expires_at"`
+	Id         int64      `json:"id"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	Name       string     `json:"name"`
+	Revoked    bool       `json:"revoked"`
+	Scopes     []string   `json:"scopes"`
+
+	// SiteIds Null grants every site in the organization; an empty array grants none.
+	SiteIds *[]int32 `json:"site_ids"`
+}
+
+// APIKeyList defines model for APIKeyList.
+type APIKeyList struct {
+	Data []APIKey `json:"data"`
+}
+
 // Annotation defines model for Annotation.
 type Annotation struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -413,6 +433,14 @@ type ComparisonResult struct {
 	Totals    map[string]float64       `json:"totals"`
 }
 
+// CreateAPIKeyRequest defines model for CreateAPIKeyRequest.
+type CreateAPIKeyRequest struct {
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Name      string     `json:"name"`
+	Scopes    []string   `json:"scopes"`
+	SiteIds   *[]int32   `json:"site_ids,omitempty"`
+}
+
 // CreateSiteRequest defines model for CreateSiteRequest.
 type CreateSiteRequest struct {
 	Hosts         []string                       `json:"hosts"`
@@ -424,10 +452,57 @@ type CreateSiteRequest struct {
 // CreateSiteRequestRetentionDays defines model for CreateSiteRequest.RetentionDays.
 type CreateSiteRequestRetentionDays int
 
+// CreatedAPIKey defines model for CreatedAPIKey.
+type CreatedAPIKey struct {
+	Id int64 `json:"id"`
+
+	// Key The secret value. It is shown once and cannot be retrieved later.
+	Key string `json:"key"`
+}
+
 // DateRange defines model for DateRange.
 type DateRange struct {
 	From openapi_types.Date `json:"from"`
 	To   openapi_types.Date `json:"to"`
+}
+
+// EventPayload defines model for EventPayload.
+type EventPayload struct {
+	EngagementMs *int `json:"engagement_ms,omitempty"`
+
+	// Name Event name, such as pageview or a custom event name.
+	Name string `json:"name"`
+
+	// ProfileId External profile identifier for a profiles-enabled site.
+	ProfileId *string            `json:"profile_id,omitempty"`
+	Props     *map[string]string `json:"props,omitempty"`
+	Referrer  *string            `json:"referrer,omitempty"`
+	Revenue   *struct {
+		Amount   EventPayload_Revenue_Amount `json:"amount"`
+		Currency string                      `json:"currency"`
+	} `json:"revenue,omitempty"`
+	ScreenWidth *int `json:"screen_width,omitempty"`
+	ScrollPct   *int `json:"scroll_pct,omitempty"`
+
+	// Site Public site identifier.
+	Site string `json:"site"`
+
+	// Traits Profile traits for an identify event on a profiles-enabled site.
+	Traits *map[string]string `json:"traits,omitempty"`
+
+	// Url Full page URL. Required by the event intake handler.
+	Url *string `json:"url,omitempty"`
+}
+
+// EventPayloadRevenueAmount0 defines model for EventPayload.Revenue.Amount.0.
+type EventPayloadRevenueAmount0 = float32
+
+// EventPayloadRevenueAmount1 defines model for EventPayload.Revenue.Amount.1.
+type EventPayloadRevenueAmount1 = string
+
+// EventPayload_Revenue_Amount defines model for EventPayload.Revenue.Amount.
+type EventPayload_Revenue_Amount struct {
+	union json.RawMessage
 }
 
 // Filter defines model for Filter.
@@ -1085,6 +1160,15 @@ type StatsTimeseriesParams struct {
 	Interval *string  `form:"interval,omitempty" json:"interval,omitempty"`
 }
 
+// CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
+type CreateApiKeyJSONRequestBody = CreateAPIKeyRequest
+
+// SubmitEventJSONRequestBody defines body for SubmitEvent for application/json ContentType.
+type SubmitEventJSONRequestBody = EventPayload
+
+// SubmitEventTextRequestBody defines body for SubmitEvent for text/plain ContentType.
+type SubmitEventTextRequestBody = EventPayload
+
 // FunnelQueryJSONRequestBody defines body for FunnelQuery for application/json ContentType.
 type FunnelQueryJSONRequestBody = FunnelRequest
 
@@ -1121,8 +1205,82 @@ type CreateGoalJSONRequestBody = GoalInput
 // VitalsQueryJSONRequestBody defines body for VitalsQuery for application/json ContentType.
 type VitalsQueryJSONRequestBody = VitalsRequest
 
+// AsEventPayloadRevenueAmount0 returns the union data inside the EventPayload_Revenue_Amount as a EventPayloadRevenueAmount0
+func (t EventPayload_Revenue_Amount) AsEventPayloadRevenueAmount0() (EventPayloadRevenueAmount0, error) {
+	var body EventPayloadRevenueAmount0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEventPayloadRevenueAmount0 overwrites any union data inside the EventPayload_Revenue_Amount as the provided EventPayloadRevenueAmount0
+func (t *EventPayload_Revenue_Amount) FromEventPayloadRevenueAmount0(v EventPayloadRevenueAmount0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEventPayloadRevenueAmount0 performs a merge with any union data inside the EventPayload_Revenue_Amount, using the provided EventPayloadRevenueAmount0
+func (t *EventPayload_Revenue_Amount) MergeEventPayloadRevenueAmount0(v EventPayloadRevenueAmount0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEventPayloadRevenueAmount1 returns the union data inside the EventPayload_Revenue_Amount as a EventPayloadRevenueAmount1
+func (t EventPayload_Revenue_Amount) AsEventPayloadRevenueAmount1() (EventPayloadRevenueAmount1, error) {
+	var body EventPayloadRevenueAmount1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEventPayloadRevenueAmount1 overwrites any union data inside the EventPayload_Revenue_Amount as the provided EventPayloadRevenueAmount1
+func (t *EventPayload_Revenue_Amount) FromEventPayloadRevenueAmount1(v EventPayloadRevenueAmount1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEventPayloadRevenueAmount1 performs a merge with any union data inside the EventPayload_Revenue_Amount, using the provided EventPayloadRevenueAmount1
+func (t *EventPayload_Revenue_Amount) MergeEventPayloadRevenueAmount1(v EventPayloadRevenueAmount1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EventPayload_Revenue_Amount) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EventPayload_Revenue_Amount) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListApiKeys List API keys for the caller's organization
+	// (GET /api/public/v1/api-keys)
+	ListApiKeys(w http.ResponseWriter, r *http.Request)
+	// CreateApiKey Create a narrower API key
+	// (POST /api/public/v1/api-keys)
+	CreateApiKey(w http.ResponseWriter, r *http.Request)
+	// RevokeApiKey Revoke an API key
+	// (DELETE /api/public/v1/api-keys/{key_id})
+	RevokeApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
+	// SubmitEvent Submit an analytics event
+	// (POST /api/public/v1/events)
+	SubmitEvent(w http.ResponseWriter, r *http.Request)
 	// FunnelQuery Run a funnel query
 	// (POST /api/public/v1/funnels/query)
 	FunnelQuery(w http.ResponseWriter, r *http.Request)
@@ -1223,6 +1381,74 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListApiKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListApiKeys(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListApiKeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateApiKey operation middleware
+func (siw *ServerInterfaceWrapper) CreateApiKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateApiKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeApiKey operation middleware
+func (siw *ServerInterfaceWrapper) RevokeApiKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key_id" -------------
+	var keyId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key_id", r.PathValue("key_id"), &keyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeApiKey(w, r, keyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitEvent operation middleware
+func (siw *ServerInterfaceWrapper) SubmitEvent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitEvent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // FunnelQuery operation middleware
 func (siw *ServerInterfaceWrapper) FunnelQuery(w http.ResponseWriter, r *http.Request) {
@@ -2548,6 +2774,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/events", wrapper.SubmitEvent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/query", wrapper.Query)
@@ -2575,6 +2802,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.DeleteFunnel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.UpdateFunnel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.ListSegments)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.ListApiKeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.CreateApiKey)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}", wrapper.RevokeApiKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

@@ -798,6 +798,97 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /api/public/v1/api-keys:
+    get:
+      operationId: listApiKeys
+      summary: List API keys for the caller's organization
+      description: Requires keys:manage. Secret values and hashes are never returned.
+      responses:
+        '200':
+          description: API keys in the caller's organization
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      operationId: createApiKey
+      summary: Create a narrower API key
+      description: Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKeyRequest'
+      responses:
+        '201':
+          description: API key created; the secret is returned only in this response.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedAPIKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/public/v1/api-keys/{key_id}:
+    parameters:
+      - name: key_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    delete:
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      description: Requires keys:manage. A key may revoke itself. IDs outside the caller's organization return 404.
+      responses:
+        '204':
+          description: API key revoked
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /healthz:
     get:
       operationId: healthz
@@ -1037,6 +1128,55 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    APIKey:
+      type: object
+      additionalProperties: false
+      required: [id, name, scopes, site_ids, created_at, expires_at, last_used_at, revoked]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+        site_ids:
+          type: [array, 'null']
+          items: { type: integer, format: int32 }
+          description: Null grants every site in the organization; an empty array grants none.
+        created_at: { type: string, format: date-time }
+        expires_at: { type: [string, 'null'], format: date-time }
+        last_used_at: { type: [string, 'null'], format: date-time }
+        revoked: { type: boolean }
+    APIKeyList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+    CreateAPIKeyRequest:
+      type: object
+      additionalProperties: false
+      required: [name, scopes]
+      properties:
+        name: { type: string, minLength: 1 }
+        scopes:
+          type: array
+          items: { type: string }
+        site_ids:
+          type: array
+          items: { type: integer, format: int32 }
+        expires_at: { type: string, format: date-time }
+    CreatedAPIKey:
+      type: object
+      additionalProperties: false
+      required: [id, key]
+      properties:
+        id: { type: integer, format: int64 }
+        key:
+          type: string
+          description: The secret value. It is shown once and cannot be retrieved later.
     EventPayload:
       type: object
       required: [site, name]
