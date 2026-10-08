@@ -48,6 +48,7 @@ type Deps struct {
 	Heatmaps       heatmapService
 	Ingest         http.Handler
 	Replay         http.Handler
+	ReplayCSS      http.Handler
 	PublicAuth     Authenticator
 	PrivateAuth    Authenticator
 	Sites          sites.Registry // resolves site ownership for every site-scoped request
@@ -124,6 +125,10 @@ func NewRouter(deps Deps) http.Handler {
 		mux.Handle("OPTIONS /api/replay/start", deps.Replay)
 		mux.Handle("POST /api/replay/chunk", deps.Replay)
 		mux.Handle("OPTIONS /api/replay/chunk", deps.Replay)
+	}
+	if deps.Config.Replay.Enabled && deps.ReplayCSS != nil {
+		mux.Handle("PUT /api/replay/css/{hash}", deps.ReplayCSS)
+		mux.Handle("OPTIONS /api/replay/css/{hash}", deps.ReplayCSS)
 	}
 	if deps.Config.TrackerPath != "" {
 		mux.Handle("GET "+deps.Config.TrackerPath, tracker.Handler())
