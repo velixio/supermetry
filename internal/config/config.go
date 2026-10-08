@@ -41,48 +41,50 @@ type SMTP struct {
 }
 
 type Config struct {
-	DatabaseURL       string
-	Listen            string
-	BaseURL           string
-	EventPath         string
-	TrackerPath       string
-	GeoIPPath         string
-	DataDir           string
-	MaxMindAccountID  string
-	MaxMindLicenseKey string
-	MaxMindEditions   []string
-	SitesFile         string
-	QueueSize         int
-	FlushEvery        time.Duration
-	SessionFlush      time.Duration
-	QueryTimeout      time.Duration
-	AdminAPIKey       string
-	TrustedProxies    []netip.Prefix
-	SecretKey         []byte
-	Signup            string
-	SMTP              SMTP
+	DatabaseURL          string
+	Listen               string
+	BaseURL              string
+	EventPath            string
+	TrackerPath          string
+	GeoIPPath            string
+	DataDir              string
+	MaxMindAccountID     string
+	MaxMindLicenseKey    string
+	MaxMindEditions      []string
+	SitesFile            string
+	QueueSize            int
+	FlushEvery           time.Duration
+	SessionFlush         time.Duration
+	QueryTimeout         time.Duration
+	AdminAPIKey          string
+	TrustedProxies       []netip.Prefix
+	SecretKey            []byte
+	Signup               string
+	SMTP                 SMTP
+	AllowPrivateWebhooks bool
 }
 
 func Load(getenv func(string) string) (Config, error) {
 	geo, geoErr := LoadGeoIP(getenv)
 	c := Config{
-		DatabaseURL:       getenv("PANEL_DATABASE_URL"),
-		Listen:            valueOrDefault(getenv("PANEL_LISTEN"), defaultListen),
-		BaseURL:           getenv("PANEL_BASE_URL"),
-		EventPath:         valueOrDefault(getenv("PANEL_EVENT_PATH"), defaultEventPath),
-		TrackerPath:       valueOrDefault(getenv("PANEL_TRACKER_PATH"), defaultTrackerPath),
-		GeoIPPath:         geo.GeoIPPath,
-		DataDir:           geo.DataDir,
-		MaxMindAccountID:  geo.MaxMindAccountID,
-		MaxMindLicenseKey: geo.MaxMindLicenseKey,
-		MaxMindEditions:   geo.MaxMindEditions,
-		SitesFile:         getenv("PANEL_SITES_FILE"),
-		QueueSize:         defaultQueueSize,
-		FlushEvery:        defaultFlushEvery,
-		SessionFlush:      defaultSessionFlush,
-		QueryTimeout:      defaultQueryTimeout,
-		AdminAPIKey:       getenv("PANEL_ADMIN_API_KEY"),
-		Signup:            valueOrDefault(getenv("PANEL_SIGNUP"), defaultSignup),
+		DatabaseURL:          getenv("PANEL_DATABASE_URL"),
+		Listen:               valueOrDefault(getenv("PANEL_LISTEN"), defaultListen),
+		BaseURL:              getenv("PANEL_BASE_URL"),
+		EventPath:            valueOrDefault(getenv("PANEL_EVENT_PATH"), defaultEventPath),
+		TrackerPath:          valueOrDefault(getenv("PANEL_TRACKER_PATH"), defaultTrackerPath),
+		GeoIPPath:            geo.GeoIPPath,
+		DataDir:              geo.DataDir,
+		MaxMindAccountID:     geo.MaxMindAccountID,
+		MaxMindLicenseKey:    geo.MaxMindLicenseKey,
+		MaxMindEditions:      geo.MaxMindEditions,
+		SitesFile:            getenv("PANEL_SITES_FILE"),
+		QueueSize:            defaultQueueSize,
+		FlushEvery:           defaultFlushEvery,
+		SessionFlush:         defaultSessionFlush,
+		QueryTimeout:         defaultQueryTimeout,
+		AdminAPIKey:          getenv("PANEL_ADMIN_API_KEY"),
+		Signup:               valueOrDefault(getenv("PANEL_SIGNUP"), defaultSignup),
+		AllowPrivateWebhooks: false,
 		SMTP: SMTP{
 			Host:     getenv("PANEL_SMTP_HOST"),
 			Port:     defaultSMTPPort,
@@ -116,6 +118,14 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if c.Signup != "invite" && c.Signup != "open" {
 		errs = append(errs, errors.New("PANEL_SIGNUP must be invite or open"))
+	}
+	if raw := getenv("PANEL_ALLOW_PRIVATE_WEBHOOKS"); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			errs = append(errs, errors.New("PANEL_ALLOW_PRIVATE_WEBHOOKS must be a boolean"))
+		} else {
+			c.AllowPrivateWebhooks = value
+		}
 	}
 
 	for name, path := range map[string]string{
