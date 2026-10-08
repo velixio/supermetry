@@ -320,3 +320,49 @@ func TestConcurrentTouchesAreRaceFreeAndExact(t *testing.T) {
 		t.Fatalf("pageviews = %d, want %d", snapshot.Pageviews, touches)
 	}
 }
+
+func TestJoinOnlyHitDoesNotStartSession(t *testing.T) {
+	m := session.NewMemory(4, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	first := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1})
+	m.Dirty(10)
+
+	// A ping that arrives after the idle timeout belongs to a session that has
+	// already ended, so it must not open a new one.
+	late := t0.Add(session.IdleTimeout + time.Minute)
+	got := m.Touch(session.Hit{SiteID: 1, TS: late, LocalDay: t0, VisitorID: 7, Kind: 2, JoinOnly: true, EngagementMS: 9000})
+	if got.SessionID != 0 || got.New {
+		t.Fatalf("join-only hit started or joined a session: %+v", got)
+	}
+	if dirty := m.Dirty(10); len(dirty) != 0 {
+		t.Fatalf("join-only hit changed session state: %+v", dirty)
+	}
+	if visitors, _ := m.ActiveSince(1, late.Add(-5*time.Minute)); visitors != 0 {
+		t.Fatalf("join-only hit made the visitor active: %d", visitors)
+	}
+
+	// A visitor with no session at all behaves the same way.
+	if got := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 99, Kind: 1, JoinOnly: true}); got.SessionID != 0 {
+		t.Fatalf("join-only hit for unknown visitor started a session: %+v", got)
+	}
+
+	// The expired session stays expired: a real pageview starts a new one.
+	next := m.Touch(session.Hit{SiteID: 1, TS: late, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1})
+	if !next.New || next.SessionID == first.SessionID {
+		t.Fatalf("pageview after idle did not start a new session: %+v", next)
+	}
+}
+
+func TestJoinOnlyHitJoinsLiveSession(t *testing.T) {
+	m := session.NewMemory(4, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	first := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1})
+	got := m.Touch(session.Hit{SiteID: 1, TS: t0.Add(time.Minute), LocalDay: t0, VisitorID: 7, Kind: 2, JoinOnly: true, EngagementMS: 5000})
+	if got.SessionID != first.SessionID || got.New {
+		t.Fatalf("join-only hit did not join the live session: %+v", got)
+	}
+	snapshot := findSnap(t, m.Dirty(10), first.SessionID)
+	if snapshot.EngagementMS != 5000 || snapshot.Pageviews != 1 {
+		t.Fatalf("bad snapshot after join: %+v", snapshot)
+	}
+}

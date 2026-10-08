@@ -167,6 +167,9 @@ func (m *Memory) Touch(h Hit) Result {
 		}
 	}
 
+	if h.JoinOnly {
+		return Result{}
+	}
 	if replaced := currentShard.sessions[currentKey]; replaced != nil {
 		m.deactivate(currentShard, currentKey, replaced)
 	}

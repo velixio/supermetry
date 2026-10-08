@@ -40,6 +40,11 @@ type Hit struct {
 	Device        int16
 	EngagementMS  int32
 	ScrollPct     int16
+	// JoinOnly marks a hit that only has meaning inside a live session, such
+	// as a background engagement or Web Vitals ping. Touch attaches it to a
+	// continuable session, or does nothing and returns a zero Result; it never
+	// starts a session.
+	JoinOnly bool
 }
 
 // Result identifies the session selected for a hit. VisitorID is the
