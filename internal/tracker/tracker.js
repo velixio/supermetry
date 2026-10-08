@@ -10,12 +10,17 @@
     return;
   }
 
+  /*@full*/
+  var manual = data.manual == "true";
+  var viewStarted = !manual;
+  var lastLocation = location.href;
+  /*@end*/
   var endpoint = data.api || "/api/public/v1/events";
   var pageURL = location.href;
   var active = 0;
-  var started = document.hidden ? 0 : Date.now();
+  var started = /*@full*/ manual ? 0 : /*@end*/ document.hidden ? 0 : Date.now();
   var maxScroll = 0;
-  var pending = true;
+  var pending = /*@full*/ !manual && /*@end*/ true;
   var profileID;
 
   function post(payload) {
@@ -29,7 +34,6 @@
   }
 
   /*@full*/
-  var manual = data.manual == "true";
   function key(url) {
     return data.hash == "true" ? url : url.split("#")[0];
   }
@@ -61,8 +65,11 @@
   function emit(payload) {
     if (denied) return true;
     if (paused) {
+      if (paused.length == 20) {
+        var drop = paused.findIndex((event) => event.name != "pageview");
+        paused.splice(drop < 0 ? 0 : drop, 1);
+      }
       paused.push(payload);
-      if (paused.length > 20) paused.shift();
       return true;
     }
     payload = run(payload);
@@ -103,6 +110,9 @@
   }
 
   function flushEngagement() {
+    /*@full*/
+    if (!viewStarted) return;
+    /*@end*/
     stopTimer();
     updateScroll();
     if (pending) {
@@ -122,6 +132,10 @@
   }
 
   function startPage(url, props) {
+    /*@full*/
+    viewStarted = true;
+    lastLocation = location.href;
+    /*@end*/
     pageURL = url || location.href;
     active = maxScroll = 0;
     started = document.hidden ? 0 : Date.now();
@@ -131,7 +145,7 @@
 
   function navigate() {
     /*@full*/
-    if (manual || key(location.href) == key(pageURL)) return;
+    if (manual || key(location.href) == key(lastLocation)) return;
     /*@end*/
     flushEngagement();
     startPage();
@@ -152,18 +166,26 @@
   };
   /*@end*/
   addEventListener("scroll", () => {
+    /*@full*/ if (!viewStarted) return; /*@end*/
     updateScroll();
     pending = true;
   }, {passive: true});
-  document.addEventListener("visibilitychange", () => document.hidden ?
+  document.addEventListener("visibilitychange", () =>
+    /*@full*/ !viewStarted ? 0 : /*@end*/ document.hidden ?
     flushEngagement() : (started = Date.now(), pending = true));
   addEventListener("pagehide", flushEngagement);
 
   var panel = window.panel = window.panel || {};
   /*@full*/
   panel.pageview = (options) => {
+    var url = options?.url;
+    try {
+      url = url ? new URL(url, location.href).href : location.href;
+    } catch (error) {
+      return;
+    }
     flushEngagement();
-    startPage(options?.url, options?.props);
+    startPage(url, options?.props);
   };
   panel.consent = (granted) => {
     if (!gated) return;

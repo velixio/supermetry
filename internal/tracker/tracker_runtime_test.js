@@ -60,6 +60,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false} = {}) 
     Math,
     Object,
     JSON,
+    URL,
     addEventListener(name, listener) {
       const key = `window:${name}`;
       const registered = listeners.get(key) || [];
@@ -185,9 +186,36 @@ function testManualPageviews() {
   assert.deepEqual(tracker.payloads, [], "manual mode must suppress pushState pageviews");
 
   tracker.panel.pageview({url: "https://example.com/a", props: {k: "v"}});
-  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["engagement", "pageview"]);
-  assert.equal(tracker.payloads[1].url, "https://example.com/a");
-  assert.deepEqual(tracker.payloads[1].props, {k: "v"});
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
+  assert.equal(tracker.payloads[0].url, "https://example.com/a");
+  assert.deepEqual(tracker.payloads[0].props, {k: "v"});
+}
+
+function testManualEngagementRequiresStartedView() {
+  const tracker = loadTracker({full: true, dataset: {manual: "true"}});
+
+  tracker.events.get("window:scroll")();
+  tracker.context.document.hidden = true;
+  tracker.events.get("document:visibilitychange")();
+  tracker.events.get("window:pagehide")();
+  assert.deepEqual(tracker.payloads, [], "manual activity before a pageview must be ignored");
+
+  tracker.context.document.hidden = false;
+  tracker.panel.pageview();
+  tracker.events.get("window:scroll")();
+  tracker.events.get("window:pagehide")();
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "engagement"]);
+}
+
+function testManualPageviewResolvesRelativeURLAndIgnoresInvalidURL() {
+  const relative = loadTracker({full: true, dataset: {manual: "true"}});
+  relative.panel.pageview({url: "/virtual"});
+  assert.deepEqual(relative.payloads.map((payload) => payload.name), ["pageview"]);
+  assert.equal(relative.payloads[0].url, "https://example.com/virtual");
+
+  const invalid = loadTracker({full: true, dataset: {manual: "true"}});
+  assert.doesNotThrow(() => invalid.panel.pageview({url: "http://"}));
+  assert.deepEqual(invalid.payloads, []);
 }
 
 function testHashRouting() {
@@ -225,6 +253,23 @@ function testDuplicateNavigationIsDropped() {
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
     "pageview", "engagement", "pageview",
   ]);
+}
+
+function testSameLocationDedupeIgnoresVirtualPageviewURL() {
+  const tracker = loadTracker({full: true});
+  tracker.panel.pageview({url: "/virtual"});
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
+    "pageview", "engagement", "pageview",
+  ]);
+
+  tracker.context.history.replaceState({}, "", "/start");
+  assert.equal(tracker.payloads.length, 3, "same-location replaceState must not navigate");
+
+  tracker.context.history.replaceState({}, "", "/real");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
+    "pageview", "engagement", "pageview", "engagement", "pageview",
+  ]);
+  assert.equal(tracker.payloads.at(-1).url, "https://example.com/real");
 }
 
 function testBeforeSend() {
@@ -283,6 +328,21 @@ function testConsentQueueKeepsNewestTwentyEvents() {
     Array.from({length: 20}, (_, index) => `Event ${index + 6}`));
 }
 
+function testConsentQueueOverflowKeepsPageview() {
+  const tracker = loadTracker({full: true, dataset: {consent: "required"}});
+  for (let index = 1; index <= 25; index++) {
+    tracker.panel.track(`Event ${index}`);
+  }
+
+  tracker.panel.consent(true);
+
+  assert.equal(tracker.payloads.length, 20);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
+    "pageview",
+    ...Array.from({length: 19}, (_, index) => `Event ${index + 7}`),
+  ]);
+}
+
 function testConsentDenialClearsQueueAndDropsUntilGranted() {
   const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
   tracker.panel.track("Before denial");
@@ -309,7 +369,7 @@ function testConsentQueuesManualPageview() {
   assert.deepEqual(tracker.payloads, []);
 
   tracker.panel.consent(true);
-  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["engagement", "pageview"]);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
   assert.equal(tracker.payloads.at(-1).url, "https://example.com/consented");
 }
 
@@ -431,13 +491,17 @@ testClear();
 testOmittedTraits();
 testValidationBoundaries();
 testManualPageviews();
+testManualEngagementRequiresStartedView();
+testManualPageviewResolvesRelativeURLAndIgnoresInvalidURL();
 testHashRouting();
 testReplaceStateRouting();
 testDuplicateNavigationIsDropped();
+testSameLocationDedupeIgnoresVirtualPageviewURL();
 testBeforeSend();
 testNamedBeforeSendIsResolvedAtSendTime();
 testConsentGrantFlushesInOrderThroughBeforeSend();
 testConsentQueueKeepsNewestTwentyEvents();
+testConsentQueueOverflowKeepsPageview();
 testConsentDenialClearsQueueAndDropsUntilGranted();
 testConsentGrantIsIdempotent();
 testConsentQueuesManualPageview();
