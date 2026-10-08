@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"golang.org/x/sync/semaphore"
 
 	"panel/internal/api"
@@ -52,6 +53,11 @@ var (
 func Plan(req Normalized, closedThrough time.Time) []Part {
 	if req.From.After(req.To) {
 		return nil
+	}
+	// Hour buckets are intentionally limited by the API to seven days and are
+	// read from retained raw sessions because the closed tier stores civil days.
+	if containsDimension(req.Dimensions, "hour") {
+		return []Part{{Route: RouteHot, From: req.From, To: req.To}}
 	}
 	closedThrough = civilDate(closedThrough)
 	var parts []Part
@@ -220,7 +226,41 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 		}
 		response.Rows = append(response.Rows, item)
 	}
+	if normalized.Compare != nil {
+		comparisonFrom, comparisonTo := comparisonRange(normalized.From, normalized.To, *normalized.Compare)
+		comparisonRequest := req
+		comparisonRequest.Period = nil
+		comparisonRequest.Compare = nil
+		comparisonRequest.DateRange = &api.DateRange{
+			From: openapi_types.Date{Time: comparisonFrom},
+			To:   openapi_types.Date{Time: comparisonTo},
+		}
+		comparisonResponse, comparisonErr := e.Query(ctx, comparisonRequest)
+		if comparisonErr != nil {
+			return api.QueryResponse{}, comparisonErr
+		}
+		response.Comparison = &api.ComparisonResult{
+			DateRange: *comparisonRequest.DateRange,
+			Rows:      comparisonResponse.Rows,
+			Totals:    comparisonResponse.Totals,
+		}
+	}
 	return response, nil
+}
+
+func comparisonRange(from, to time.Time, compare api.QueryRequestCompare) (time.Time, time.Time) {
+	if compare == api.PreviousYear {
+		return previousYearDay(from), previousYearDay(to)
+	}
+	days := daysInclusive(from, to)
+	previousTo := from.AddDate(0, 0, -1)
+	return previousTo.AddDate(0, 0, 1-days), previousTo
+}
+
+func previousYearDay(day time.Time) time.Time {
+	year := day.Year() - 1
+	lastDay := time.Date(year, day.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	return time.Date(year, day.Month(), min(day.Day(), lastDay), 0, 0, 0, 0, time.UTC)
 }
 
 func (e *Engine) queryParts(ctx context.Context, req Normalized, parts []Part) ([]resultRow, []string, error) {

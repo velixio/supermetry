@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"panel/internal/dict"
 	"panel/internal/sites"
 	"panel/internal/tracker"
 	"strconv"
@@ -32,6 +33,10 @@ var contractFS embed.FS
 
 type principalContextKey struct{}
 
+type dictionaryResolver interface {
+	Value(dict.Kind, int32) (string, bool)
+}
+
 // Deps contains the services exposed by the analytics HTTP router.
 type Deps struct {
 	Config      config.Config
@@ -43,6 +48,7 @@ type Deps struct {
 	UI          http.Handler   // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter ingest.RateLimiter
 	Sessions    session.Store
+	Dictionary  dictionaryResolver
 	// Platform serves the application routes implemented under
 	// internal/platform/http. Those handlers resolve the complete platform
 	// principal required by authz.Can and transactional audit records.
@@ -61,22 +67,24 @@ func NewRouter(deps Deps) http.Handler {
 		deps.RateLimiter = ingest.NewTokenBuckets(2, 30)
 	}
 
-	h := &handlers{query: deps.Query}
+	h := &handlers{query: deps.Query, now: deps.Now}
 	mux := http.NewServeMux()
 
 	public := http.NewServeMux()
 	registerStats(public, publicPrefix, h)
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
 	public.HandleFunc("POST "+publicPrefix+"/funnels/query", h.funnelRequest)
-	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
+	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now, deps.Dictionary))
+	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, public)))
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
 	private.HandleFunc("POST "+privatePrefix+"/funnels/query", h.funnelRequest)
-	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now))
+	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.Now, deps.Dictionary))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler)
+	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))
 	registerPlatformRoutes(mux, deps.Platform, deps.RateLimiter)
 

@@ -33,6 +33,7 @@ var validDimensions = map[string]struct{}{
 	"event":        {},
 	"exit":         {},
 	"goal":         {},
+	"hour":         {},
 	"os":           {},
 	"page":         {},
 	"path":         {},
@@ -88,7 +89,8 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 	if from.After(to) {
 		return Normalized{}, badQuery("date_range.from must not be after date_range.to")
 	}
-	if daysInclusive(from, to) > maxRangeDays {
+	allPeriod := req.Period != nil && *req.Period == api.Period("all")
+	if !allPeriod && daysInclusive(from, to) > maxRangeDays {
 		return Normalized{}, badQuery("date range must not exceed 366 days")
 	}
 
@@ -183,13 +185,15 @@ func normalizeRange(req api.QueryRequest, location *time.Location, now time.Time
 	if req.Period == nil {
 		return time.Time{}, time.Time{}, badQuery("date_range or period is required")
 	}
-	if !req.Period.Valid() || *req.Period == api.Custom {
+	period := *req.Period
+	statsPeriod := period == api.Period("day") || period == api.Period("6mo") || period == api.Period("all")
+	if (!period.Valid() && !statsPeriod) || period == api.Custom {
 		return time.Time{}, time.Time{}, badQuery(fmt.Sprintf("unknown period %q", *req.Period))
 	}
 
 	today := civilDate(now.In(location))
-	switch *req.Period {
-	case api.Today:
+	switch period {
+	case api.Today, api.Period("day"):
 		return today, today, nil
 	case api.Yesterday:
 		yesterday := today.AddDate(0, 0, -1)
@@ -203,10 +207,14 @@ func normalizeRange(req api.QueryRequest, location *time.Location, now time.Time
 	case api.LastMonth:
 		startThisMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC)
 		return startThisMonth.AddDate(0, -1, 0), startThisMonth.AddDate(0, 0, -1), nil
+	case api.Period("6mo"):
+		return today.AddDate(0, -6, 1), today, nil
 	case api.N12mo:
 		return today.AddDate(-1, 0, 1), today, nil
 	case api.Year:
 		return time.Date(today.Year(), time.January, 1, 0, 0, 0, 0, time.UTC), today, nil
+	case api.Period("all"):
+		return time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), today, nil
 	default:
 		return time.Time{}, time.Time{}, badQuery(fmt.Sprintf("unknown period %q", *req.Period))
 	}

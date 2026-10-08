@@ -12,6 +12,10 @@ paths:
     post:
       operationId: query
       summary: Run an analytics query
+      description: "Set Accept: text/csv or format=csv for CSV. With CSV, limit=all streams cursor pages up to 100,000 rows."
+      parameters:
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/ExportLimit'
       requestBody:
         required: true
         content:
@@ -39,15 +43,28 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/public/v1/stats/summary:
     get:
       operationId: statsSummary
       summary: Get summary metrics
       parameters:
         - $ref: '#/components/parameters/SiteID'
-        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/StatsPeriod'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Timezone'
+        - $ref: '#/components/parameters/Metrics'
+        - $ref: '#/components/parameters/Filters'
+        - $ref: '#/components/parameters/Compare'
+        - $ref: '#/components/parameters/Format'
       responses:
         '200':
           $ref: '#/components/responses/QueryResult'
@@ -55,21 +72,35 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/public/v1/stats/timeseries:
     get:
       operationId: statsTimeseries
       summary: Get a metrics time series
       parameters:
         - $ref: '#/components/parameters/SiteID'
-        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/StatsPeriod'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Timezone'
+        - $ref: '#/components/parameters/Metrics'
+        - $ref: '#/components/parameters/Filters'
+        - $ref: '#/components/parameters/Compare'
+        - $ref: '#/components/parameters/Format'
         - name: interval
           in: query
           schema:
             type: string
-            enum: [day]
+            pattern: '^(hour|day|week|month)$'
             default: day
+            example: day
       responses:
         '200':
           $ref: '#/components/responses/QueryResult'
@@ -77,25 +108,35 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/public/v1/stats/breakdown:
     get:
       operationId: statsBreakdown
       summary: Get a dimension breakdown
       parameters:
         - $ref: '#/components/parameters/SiteID'
-        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/StatsPeriod'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/Timezone'
+        - $ref: '#/components/parameters/Metrics'
+        - $ref: '#/components/parameters/Filters'
+        - $ref: '#/components/parameters/Compare'
+        - $ref: '#/components/parameters/Format'
         - name: dimension
           in: query
           required: true
           schema:
             type: string
-        - name: filter
-          in: query
-          schema:
-            type: string
-        - $ref: '#/components/parameters/Limit'
+            example: page
+        - $ref: '#/components/parameters/StatsLimit'
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
@@ -104,8 +145,14 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/public/v1/funnels/query:
     post:
       operationId: funnelQuery
@@ -137,12 +184,16 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
   /api/public/v1/realtime:
     get:
       operationId: realtime
-      summary: Get active visitors and top pages
+      summary: Get active visitors, pages, and sources from the last 30 minutes
       parameters:
         - $ref: '#/components/parameters/SiteID'
       responses:
@@ -163,6 +214,10 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
   /api/public/v1/sites:
@@ -468,6 +523,7 @@ components:
         type: integer
         format: int32
         minimum: 1
+        example: 42
     SitePathID:
       name: site_id
       in: path
@@ -504,11 +560,71 @@ components:
       schema:
         type: integer
         minimum: 1
+        maximum: 1000
+    StatsPeriod:
+      name: period
+      in: query
+      required: true
+      description: "custom requires both date_from and date_to."
+      schema:
+        type: string
+        pattern: '^(day|today|yesterday|7d|30d|month|last_month|6mo|12mo|year|all|custom)$'
+        example: 30d
+    DateFrom:
+      name: date_from
+      in: query
+      schema: { type: string, format: date, example: '2026-09-01' }
+    DateTo:
+      name: date_to
+      in: query
+      schema: { type: string, format: date, example: '2026-09-30' }
+    Timezone:
+      name: timezone
+      in: query
+      description: IANA time zone; defaults to the site's time zone.
+      schema: { type: string, example: Asia/Kolkata }
+    Metrics:
+      name: metrics
+      in: query
+      description: Comma-separated metric names. Endpoint defaults apply when omitted.
+      schema: { type: string, example: visitors,pageviews }
+    Filters:
+      name: filter
+      in: query
+      description: "Repeat up to ten times as dimension:operator:value1,value2."
+      style: form
+      explode: true
+      schema:
+        type: array
+        maxItems: 10
+        items: { type: string, example: 'country:is:US,CA' }
+    Compare:
+      name: compare
+      in: query
+      schema: { type: string, pattern: '^previous_period$', example: previous_period }
+    Format:
+      name: format
+      in: query
+      schema: { type: string, pattern: '^(json|csv)$', default: json, example: csv }
+    StatsLimit:
+      name: limit
+      in: query
+      description: "1-1000, or all for a CSV export capped at 100,000 rows."
+      schema:
+        type: string
+        pattern: '^(all|[1-9][0-9]{0,2}|1000)$'
+        example: '100'
+    ExportLimit:
+      name: limit
+      in: query
+      description: "Set to all with CSV to stream up to 100,000 rows."
+      schema: { type: string, pattern: '^all$', example: all }
     Cursor:
       name: cursor
       in: query
       schema:
         type: string
+        example: eyJ2IjoxLCJrIjpbNDJdfQ
   headers:
     RateLimitLimit:
       description: Maximum requests allowed in the current window.
@@ -545,6 +661,9 @@ components:
           schema:
             $ref: '#/components/schemas/QueryResponse'
         text/csv:
+          example: |-
+            page,visitors,pageviews
+            /docs,42,77
           schema:
             type: string
     BadRequest:
@@ -822,6 +941,35 @@ components:
           type: string
         meta:
           $ref: '#/components/schemas/QueryMeta'
+        comparison:
+          $ref: '#/components/schemas/ComparisonResult'
+      example:
+        columns: [page, visitors, pageviews]
+        rows:
+          - { page: /docs, visitors: 42, pageviews: 77 }
+        totals: { visitors: 42, pageviews: 77 }
+        meta: { sources_used: [rollup], cached: false }
+    ComparisonResult:
+      type: object
+      additionalProperties: false
+      required: [date_range, rows, totals]
+      properties:
+        date_range:
+          $ref: '#/components/schemas/DateRange'
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        totals:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      example:
+        date_range: { from: '2026-08-02', to: '2026-08-31' }
+        rows: [{ time: '2026-09-01', visitors: 35 }]
+        totals: { visitors: 35 }
     FunnelStep:
       type: object
       additionalProperties: false
@@ -887,10 +1035,20 @@ components:
         visitors:
           type: integer
           format: int64
+    TopSource:
+      type: object
+      additionalProperties: false
+      required: [source, visitors]
+      properties:
+        source:
+          type: string
+        visitors:
+          type: integer
+          format: int64
     RealtimeResponse:
       type: object
       additionalProperties: false
-      required: [active_visitors, top_pages]
+      required: [active_visitors, top_pages, top_sources]
       properties:
         active_visitors:
           type: integer
@@ -899,6 +1057,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TopPage'
+        top_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopSource'
+      example:
+        active_visitors: 12
+        top_pages: [{ page: /docs, visitors: 7 }]
+        top_sources: [{ source: google, visitors: 5 }]
     DataHealthResponse:
       type: object
       additionalProperties: false
@@ -958,3 +1124,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ValidationError'
+      example:
+        type: https://panel.dev/problems/bad-request
+        title: Bad request
+        status: 400
+        detail: period is required

@@ -269,19 +269,11 @@ func (e UpdateSiteRequestRetentionDays) Valid() bool {
 	}
 }
 
-// Defines values for StatsTimeseriesParamsInterval.
-const (
-	Day StatsTimeseriesParamsInterval = "day"
-)
-
-// Valid indicates whether the value is a known member of the StatsTimeseriesParamsInterval enum.
-func (e StatsTimeseriesParamsInterval) Valid() bool {
-	switch e {
-	case Day:
-		return true
-	default:
-		return false
-	}
+// ComparisonResult defines model for ComparisonResult.
+type ComparisonResult struct {
+	DateRange DateRange                `json:"date_range"`
+	Rows      []map[string]interface{} `json:"rows"`
+	Totals    map[string]float64       `json:"totals"`
 }
 
 // CreateSiteRequest defines model for CreateSiteRequest.
@@ -427,6 +419,7 @@ type QueryRequestCompare string
 // QueryResponse defines model for QueryResponse.
 type QueryResponse struct {
 	Columns    []string                 `json:"columns"`
+	Comparison *ComparisonResult        `json:"comparison,omitempty"`
 	Meta       QueryMeta                `json:"meta"`
 	NextCursor *string                  `json:"next_cursor,omitempty"`
 	Rows       []map[string]interface{} `json:"rows"`
@@ -435,8 +428,9 @@ type QueryResponse struct {
 
 // RealtimeResponse defines model for RealtimeResponse.
 type RealtimeResponse struct {
-	ActiveVisitors int64     `json:"active_visitors"`
-	TopPages       []TopPage `json:"top_pages"`
+	ActiveVisitors int64       `json:"active_visitors"`
+	TopPages       []TopPage   `json:"top_pages"`
+	TopSources     []TopSource `json:"top_sources"`
 }
 
 // SavedFunnel defines model for SavedFunnel.
@@ -476,6 +470,12 @@ type TopPage struct {
 	Visitors int64  `json:"visitors"`
 }
 
+// TopSource defines model for TopSource.
+type TopSource struct {
+	Source   string `json:"source"`
+	Visitors int64  `json:"visitors"`
+}
+
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
 	Hosts         *[]string                       `json:"hosts,omitempty"`
@@ -493,8 +493,26 @@ type ValidationError struct {
 	Message string  `json:"message"`
 }
 
+// Compare defines model for Compare.
+type Compare = string
+
 // Cursor defines model for Cursor.
 type Cursor = string
+
+// DateFrom defines model for DateFrom.
+type DateFrom = openapi_types.Date
+
+// DateTo defines model for DateTo.
+type DateTo = openapi_types.Date
+
+// ExportLimit defines model for ExportLimit.
+type ExportLimit = string
+
+// Filters defines model for Filters.
+type Filters = []string
+
+// Format defines model for Format.
+type Format = string
 
 // FunnelPathID defines model for FunnelPathID.
 type FunnelPathID = int64
@@ -505,11 +523,23 @@ type GoalPathID = int64
 // Limit defines model for Limit.
 type Limit = int
 
+// Metrics defines model for Metrics.
+type Metrics = string
+
 // SiteID defines model for SiteID.
 type SiteID = int32
 
 // SitePathID defines model for SitePathID.
 type SitePathID = int32
+
+// StatsLimit defines model for StatsLimit.
+type StatsLimit = string
+
+// StatsPeriod defines model for StatsPeriod.
+type StatsPeriod = string
+
+// Timezone defines model for Timezone.
+type Timezone = string
 
 // BadRequest defines model for BadRequest.
 type BadRequest = Problem
@@ -535,6 +565,14 @@ type ServiceUnavailable = Problem
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Problem
 
+// QueryParams defines parameters for Query.
+type QueryParams struct {
+	Format *Format `form:"format,omitempty" json:"format,omitempty"`
+
+	// Limit Set to all with CSV to stream up to 100,000 rows.
+	Limit *ExportLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // RealtimeParams defines parameters for Realtime.
 type RealtimeParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
@@ -548,29 +586,72 @@ type ListSitesParams struct {
 
 // StatsBreakdownParams defines parameters for StatsBreakdown.
 type StatsBreakdownParams struct {
-	SiteId    SiteID  `form:"site_id" json:"site_id"`
-	Period    Period  `form:"period" json:"period"`
-	Dimension string  `form:"dimension" json:"dimension"`
-	Filter    *string `form:"filter,omitempty" json:"filter,omitempty"`
-	Limit     *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
-	Cursor    *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	SiteId SiteID `form:"site_id" json:"site_id"`
+
+	// Period custom requires both date_from and date_to.
+	Period   StatsPeriod `form:"period" json:"period"`
+	DateFrom *DateFrom   `form:"date_from,omitempty" json:"date_from,omitempty"`
+	DateTo   *DateTo     `form:"date_to,omitempty" json:"date_to,omitempty"`
+
+	// Timezone IANA time zone; defaults to the site's time zone.
+	Timezone *Timezone `form:"timezone,omitempty" json:"timezone,omitempty"`
+
+	// Metrics Comma-separated metric names. Endpoint defaults apply when omitted.
+	Metrics *Metrics `form:"metrics,omitempty" json:"metrics,omitempty"`
+
+	// Filter Repeat up to ten times as dimension:operator:value1,value2.
+	Filter    *Filters `form:"filter,omitempty" json:"filter,omitempty"`
+	Compare   *Compare `form:"compare,omitempty" json:"compare,omitempty"`
+	Format    *Format  `form:"format,omitempty" json:"format,omitempty"`
+	Dimension string   `form:"dimension" json:"dimension"`
+
+	// Limit 1-1000, or all for a CSV export capped at 100,000 rows.
+	Limit  *StatsLimit `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *Cursor     `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // StatsSummaryParams defines parameters for StatsSummary.
 type StatsSummaryParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
-	Period Period `form:"period" json:"period"`
+
+	// Period custom requires both date_from and date_to.
+	Period   StatsPeriod `form:"period" json:"period"`
+	DateFrom *DateFrom   `form:"date_from,omitempty" json:"date_from,omitempty"`
+	DateTo   *DateTo     `form:"date_to,omitempty" json:"date_to,omitempty"`
+
+	// Timezone IANA time zone; defaults to the site's time zone.
+	Timezone *Timezone `form:"timezone,omitempty" json:"timezone,omitempty"`
+
+	// Metrics Comma-separated metric names. Endpoint defaults apply when omitted.
+	Metrics *Metrics `form:"metrics,omitempty" json:"metrics,omitempty"`
+
+	// Filter Repeat up to ten times as dimension:operator:value1,value2.
+	Filter  *Filters `form:"filter,omitempty" json:"filter,omitempty"`
+	Compare *Compare `form:"compare,omitempty" json:"compare,omitempty"`
+	Format  *Format  `form:"format,omitempty" json:"format,omitempty"`
 }
 
 // StatsTimeseriesParams defines parameters for StatsTimeseries.
 type StatsTimeseriesParams struct {
-	SiteId   SiteID                         `form:"site_id" json:"site_id"`
-	Period   Period                         `form:"period" json:"period"`
-	Interval *StatsTimeseriesParamsInterval `form:"interval,omitempty" json:"interval,omitempty"`
-}
+	SiteId SiteID `form:"site_id" json:"site_id"`
 
-// StatsTimeseriesParamsInterval defines parameters for StatsTimeseries.
-type StatsTimeseriesParamsInterval string
+	// Period custom requires both date_from and date_to.
+	Period   StatsPeriod `form:"period" json:"period"`
+	DateFrom *DateFrom   `form:"date_from,omitempty" json:"date_from,omitempty"`
+	DateTo   *DateTo     `form:"date_to,omitempty" json:"date_to,omitempty"`
+
+	// Timezone IANA time zone; defaults to the site's time zone.
+	Timezone *Timezone `form:"timezone,omitempty" json:"timezone,omitempty"`
+
+	// Metrics Comma-separated metric names. Endpoint defaults apply when omitted.
+	Metrics *Metrics `form:"metrics,omitempty" json:"metrics,omitempty"`
+
+	// Filter Repeat up to ten times as dimension:operator:value1,value2.
+	Filter   *Filters `form:"filter,omitempty" json:"filter,omitempty"`
+	Compare  *Compare `form:"compare,omitempty" json:"compare,omitempty"`
+	Format   *Format  `form:"format,omitempty" json:"format,omitempty"`
+	Interval *string  `form:"interval,omitempty" json:"interval,omitempty"`
+}
 
 // FunnelQueryJSONRequestBody defines body for FunnelQuery for application/json ContentType.
 type FunnelQueryJSONRequestBody = FunnelRequest
@@ -615,8 +696,8 @@ type ServerInterface interface {
 	UpdateGoal(w http.ResponseWriter, r *http.Request, goalId GoalPathID)
 	// Query Run an analytics query
 	// (POST /api/public/v1/query)
-	Query(w http.ResponseWriter, r *http.Request)
-	// Realtime Get active visitors and top pages
+	Query(w http.ResponseWriter, r *http.Request, params QueryParams)
+	// Realtime Get active visitors, pages, and sources from the last 30 minutes
 	// (GET /api/public/v1/realtime)
 	Realtime(w http.ResponseWriter, r *http.Request, params RealtimeParams)
 	// ListSites List accessible sites
@@ -796,8 +877,40 @@ func (siw *ServerInterfaceWrapper) UpdateGoal(w http.ResponseWriter, r *http.Req
 // Query operation middleware
 func (siw *ServerInterfaceWrapper) Query(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params QueryParams
+
+	// ------------- Optional query parameter "format" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "format", r.URL.Query(), &params.Format, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "format"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "format", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Query(w, r)
+		siw.Handler.Query(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1117,6 +1230,97 @@ func (siw *ServerInterfaceWrapper) StatsBreakdown(w http.ResponseWriter, r *http
 		return
 	}
 
+	// ------------- Optional query parameter "date_from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_from", r.URL.Query(), &params.DateFrom, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "date_to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_to", r.URL.Query(), &params.DateTo, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "timezone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "timezone", r.URL.Query(), &params.Timezone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "timezone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "timezone", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "metrics" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "metrics", r.URL.Query(), &params.Metrics, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "metrics"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "metrics", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "compare" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "compare", r.URL.Query(), &params.Compare, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "compare"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "compare", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "format" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "format", r.URL.Query(), &params.Format, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "format"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "format", Err: err})
+		}
+		return
+	}
+
 	// ------------- Required query parameter "dimension" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, true, "dimension", r.URL.Query(), &params.Dimension, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
@@ -1130,22 +1334,9 @@ func (siw *ServerInterfaceWrapper) StatsBreakdown(w http.ResponseWriter, r *http
 		return
 	}
 
-	// ------------- Optional query parameter "filter" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
-		}
-		return
-	}
-
 	// ------------- Optional query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
@@ -1215,6 +1406,97 @@ func (siw *ServerInterfaceWrapper) StatsSummary(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// ------------- Optional query parameter "date_from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_from", r.URL.Query(), &params.DateFrom, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "date_to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_to", r.URL.Query(), &params.DateTo, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "timezone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "timezone", r.URL.Query(), &params.Timezone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "timezone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "timezone", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "metrics" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "metrics", r.URL.Query(), &params.Metrics, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "metrics"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "metrics", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "compare" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "compare", r.URL.Query(), &params.Compare, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "compare"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "compare", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "format" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "format", r.URL.Query(), &params.Format, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "format"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "format", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StatsSummary(w, r, params)
 	}))
@@ -1257,6 +1539,97 @@ func (siw *ServerInterfaceWrapper) StatsTimeseries(w http.ResponseWriter, r *htt
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "period"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "period", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "date_from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_from", r.URL.Query(), &params.DateFrom, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "date_to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "date_to", r.URL.Query(), &params.DateTo, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "date_to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date_to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "timezone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "timezone", r.URL.Query(), &params.Timezone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "timezone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "timezone", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "metrics" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "metrics", r.URL.Query(), &params.Metrics, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "metrics"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "metrics", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "compare" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "compare", r.URL.Query(), &params.Compare, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "compare"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "compare", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "format" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "format", r.URL.Query(), &params.Format, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "format"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "format", Err: err})
 		}
 		return
 	}

@@ -5,22 +5,82 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
-func writeCSV(w http.ResponseWriter, response QueryResponse) {
+const (
+	csvPageSize = 1000
+	csvMaxRows  = 100000
+)
+
+func writeCSV(w http.ResponseWriter, response QueryResponse, filename string) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="panel-export.csv"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	writer := csv.NewWriter(w)
 	writer.UseCRLF = true
-	_ = writer.Write(response.Columns)
-	for _, row := range response.Rows {
-		record := make([]string, len(response.Columns))
-		for index, column := range response.Columns {
+	writeCSVRows(writer, response.Columns, response.Rows, true)
+	writer.Flush()
+}
+
+func streamQueryCSV(w http.ResponseWriter, r *http.Request, service queryService, request QueryRequest, filename string) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	writer := csv.NewWriter(w)
+	writer.UseCRLF = true
+	written := 0
+	header := true
+	limit := csvPageSize
+	request.Limit = &limit
+	for written < csvMaxRows {
+		response, err := service.Query(r.Context(), request)
+		if err != nil {
+			if written == 0 {
+				writeQueryError(w, err)
+			}
+			return
+		}
+		rows := response.Rows
+		if remaining := csvMaxRows - written; len(rows) > remaining {
+			rows = rows[:remaining]
+		}
+		writeCSVRows(writer, response.Columns, rows, header)
+		header = false
+		written += len(rows)
+		writer.Flush()
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		if response.NextCursor == nil || len(rows) == 0 {
+			return
+		}
+		request.Cursor = response.NextCursor
+	}
+}
+
+func writeCSVRows(writer *csv.Writer, columns []string, rows []map[string]any, header bool) {
+	if header {
+		_ = writer.Write(columns)
+	}
+	record := make([]string, len(columns))
+	for _, row := range rows {
+		for index, column := range columns {
 			record[index] = csvValue(row[column])
 		}
 		_ = writer.Write(record)
 	}
-	writer.Flush()
+}
+
+func csvFilename(site, endpoint, from, to string) string {
+	return filenamePart(site) + "-" + endpoint + "-" + from + "-" + to + ".csv"
+}
+
+func filenamePart(value string) string {
+	return strings.Map(func(char rune) rune {
+		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("._-", char) {
+			return char
+		}
+		return '_'
+	}, value)
 }
 
 func csvValue(value any) string {
@@ -28,6 +88,11 @@ func csvValue(value any) string {
 	case nil:
 		return ""
 	case string:
+		// Spreadsheets run cells starting with these as formulas; values such
+		// as page paths and referrers come from visitors, so prefix a quote.
+		if typed != "" && strings.ContainsRune("=+-@\t\r", rune(typed[0])) {
+			return "'" + typed
+		}
 		return typed
 	case float64:
 		return strconv.FormatFloat(typed, 'f', -1, 64)

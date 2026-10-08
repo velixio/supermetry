@@ -51,6 +51,19 @@ type Result struct {
 	New       bool
 }
 
+// ActiveValue is one ranked dimension value in a realtime snapshot.
+type ActiveValue struct {
+	ID       int32
+	Visitors int
+}
+
+// RealtimeStore exposes the richer process-local snapshot used by the
+// realtime API. Store remains backward compatible for lightweight test
+// doubles and alternative implementations.
+type RealtimeStore interface {
+	ActiveBreakdownsSince(siteID int32, t time.Time) (visitors int, pages, sources []ActiveValue)
+}
+
 // Snapshot is the durable state needed to upsert or restore an open session.
 type Snapshot struct {
 	SiteID       int32
