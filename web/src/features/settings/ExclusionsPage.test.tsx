@@ -36,6 +36,7 @@ describe('ExclusionsPage', () => {
           exclude_paths: ['/admin/*', '/internal'],
           exclude_countries: ['RU'],
           heatmaps_enabled: false,
+          respect_privacy_signals: true,
         },
         response: { ok: true, status: 200 },
       })
@@ -47,6 +48,7 @@ describe('ExclusionsPage', () => {
         exclude_paths: ['/preview/**', '/internal'],
         exclude_countries: ['RU'],
         heatmaps_enabled: false,
+        respect_privacy_signals: true,
       },
       response: { ok: true, status: 200 },
     })
@@ -114,6 +116,19 @@ describe('ExclusionsPage', () => {
         expect.objectContaining({ body: { heatmaps_enabled: true } }),
       ),
     )
+  })
+
+
+  it('lets a site editor disable privacy signal handling', async () => {
+    renderPage()
+    const toggle = await screen.findByRole('switch', { name: 'Respect browser privacy signals' })
+    await waitFor(() => expect(toggle).toBeEnabled())
+    expect(toggle).toBeChecked()
+    fireEvent.click(toggle)
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(
+      '/api/private/sites/7',
+      expect.objectContaining({ body: { respect_privacy_signals: false } }),
+    ))
   })
 
   it('searches, adds, removes, and saves blocked countries', async () => {

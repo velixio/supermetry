@@ -927,6 +927,11 @@ export interface components {
             exclude_ips: string[];
             exclude_paths: string[];
             heatmaps_enabled: boolean;
+            /**
+             * @description When true, event ingestion drops requests carrying Sec-GPC 1 or DNT 1.
+             * @default true
+             */
+            respect_privacy_signals: boolean;
         };
         SiteList: {
             data: components["schemas"]["Site"][];
@@ -949,6 +954,8 @@ export interface components {
             exclude_ips?: string[];
             exclude_paths?: string[];
             heatmaps_enabled?: boolean;
+            /** @description Respect Sec-GPC 1 and DNT 1 request headers during event ingestion. */
+            respect_privacy_signals?: boolean;
         };
         GoalInput: {
             /** @enum {string} */

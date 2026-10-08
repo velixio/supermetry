@@ -70,6 +70,28 @@ func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
 	}
 }
 
+func TestRegistryDefaultsPrivacySignalsOnAndLoadsOverride(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !site.RespectPrivacySignals {
+		t.Fatal("privacy signals must default on")
+	}
+	if _, err := pool.Exec(ctx, `update sites set settings = settings || '{"respect_privacy_signals": false}'::jsonb where id = $1`, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || loaded.RespectPrivacySignals {
+		t.Fatalf("registry site = (%+v, %t), want privacy signals disabled", loaded, ok)
+	}
+}
+
 func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
@@ -414,6 +436,31 @@ func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
 	}
 	if !strings.Contains(string(details), `"heatmaps_enabled": true`) {
 		t.Fatalf("audit details = %s", details)
+	}
+}
+
+func TestUpdatePrivacySignalsPersistsAndRefreshesRegistry(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	disabled := false
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{RespectPrivacySignals: &disabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || updated.RespectPrivacySignals || loaded.RespectPrivacySignals {
+		t.Fatalf("privacy setting not refreshed: updated=%+v loaded=%+v found=%t", updated, loaded, ok)
+	}
+	var stored bool
+	if err := pool.QueryRow(ctx, `select (settings->>'respect_privacy_signals')::boolean from sites where id=$1`, site.ID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored {
+		t.Fatal("respect_privacy_signals was not stored as false")
 	}
 }
 

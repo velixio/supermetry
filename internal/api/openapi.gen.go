@@ -1027,8 +1027,11 @@ type Site struct {
 	OrgId           int64    `json:"org_id"`
 	ProfilesEnabled bool     `json:"profiles_enabled"`
 	PublicId        string   `json:"public_id"`
-	RetentionDays   int      `json:"retention_days"`
-	Timezone        string   `json:"timezone"`
+
+	// RespectPrivacySignals When true, event ingestion drops requests carrying Sec-GPC 1 or DNT 1.
+	RespectPrivacySignals bool   `json:"respect_privacy_signals"`
+	RetentionDays         int    `json:"retention_days"`
+	Timezone              string `json:"timezone"`
 }
 
 // SiteList defines model for SiteList.
@@ -1057,14 +1060,17 @@ type TopSource struct {
 
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
-	ExcludeIps      *[]string                       `json:"exclude_ips,omitempty"`
-	ExcludePaths    *[]string                       `json:"exclude_paths,omitempty"`
-	HeatmapsEnabled *bool                           `json:"heatmaps_enabled,omitempty"`
-	Hosts           *[]string                       `json:"hosts,omitempty"`
-	Name            *string                         `json:"name,omitempty"`
-	ProfilesEnabled *bool                           `json:"profiles_enabled,omitempty"`
-	RetentionDays   *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
-	Timezone        *string                         `json:"timezone,omitempty"`
+	ExcludeIps      *[]string `json:"exclude_ips,omitempty"`
+	ExcludePaths    *[]string `json:"exclude_paths,omitempty"`
+	HeatmapsEnabled *bool     `json:"heatmaps_enabled,omitempty"`
+	Hosts           *[]string `json:"hosts,omitempty"`
+	Name            *string   `json:"name,omitempty"`
+	ProfilesEnabled *bool     `json:"profiles_enabled,omitempty"`
+
+	// RespectPrivacySignals Respect Sec-GPC 1 and DNT 1 request headers during event ingestion.
+	RespectPrivacySignals *bool                           `json:"respect_privacy_signals,omitempty"`
+	RetentionDays         *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
+	Timezone              *string                         `json:"timezone,omitempty"`
 }
 
 // UpdateSiteRequestRetentionDays defines model for UpdateSiteRequest.RetentionDays.

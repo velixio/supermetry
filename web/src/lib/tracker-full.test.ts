@@ -106,7 +106,7 @@ function event(payloads: EventPayload[], name: string) {
 
 describe('full tracker', () => {
   it('captures normalized click coordinates and page dimensions on pagehide', () => {
-    const { dom, payloads } = load()
+    const { dom, payloads } = load('data-heatmap="true"')
     Object.defineProperty(dom.window.document.documentElement, 'scrollWidth', { configurable: true, value: 2000 })
     Object.defineProperty(dom.window.document.documentElement, 'scrollHeight', { configurable: true, value: 4321 })
     Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 1280 })
@@ -124,7 +124,7 @@ describe('full tracker', () => {
   })
 
   it('clamps horizontal coordinates and captures at most 200 clicks per page', () => {
-    const { dom, payloads } = load()
+    const { dom, payloads } = load('data-heatmap="true"')
     Object.defineProperty(dom.window.document.documentElement, 'scrollWidth', { configurable: true, value: 1000 })
     for (let index = 0; index < 205; index++) {
       const click = new dom.window.MouseEvent('click', { bubbles: true, clientX: index === 0 ? -20 : 1200 })
@@ -144,7 +144,7 @@ describe('full tracker', () => {
   })
 
   it('bounds document and viewport dimensions for ingestion', () => {
-    const { dom, payloads } = load()
+    const { dom, payloads } = load('data-heatmap="true"')
     Object.defineProperty(dom.window.document.documentElement, 'scrollHeight', { configurable: true, value: 123456 })
     Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 12345 })
     dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -155,7 +155,7 @@ describe('full tracker', () => {
   })
 
   it('uses the core transport fallback when sendBeacon is unavailable', () => {
-    const { dom, payloads } = load()
+    const { dom, payloads } = load('data-heatmap="true"')
     Object.defineProperty(dom.window.navigator, 'sendBeacon', { configurable: true, value: undefined })
     Object.defineProperty(dom.window, 'fetch', {
       configurable: true,
@@ -172,7 +172,7 @@ describe('full tracker', () => {
   })
 
   it('flushes each page heatmap once across SPA navigation and pagehide', () => {
-    const { dom, payloads } = load()
+    const { dom, payloads } = load('data-heatmap="true"')
     Object.defineProperty(dom.window.document.documentElement, 'scrollWidth', { configurable: true, value: 1000 })
     dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 100 }))
 
@@ -190,8 +190,8 @@ describe('full tracker', () => {
     expect(heatmaps.map((payload) => payload.clicks)).toEqual([[[100, 0]], [[900, 0]]])
   })
 
-  it('honors data-heatmap=false', () => {
-    const { dom, payloads } = load('data-heatmap="false"')
+  it('does not capture heatmaps by default', () => {
+    const { dom, payloads } = load()
     dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 100 }))
     dom.window.dispatchEvent(new dom.window.Event('pagehide'))
 

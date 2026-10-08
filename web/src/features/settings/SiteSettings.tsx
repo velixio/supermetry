@@ -142,6 +142,11 @@ const featureSetup: { feature: string; needs: string; code?: string }[] = [
   },
   { feature: 'Heatmaps', needs: 'Turn on heatmaps and click tracking in Site settings → Tracking.' },
   {
+    feature: 'Visitor opt-out',
+    needs: 'Use this in an opt-out link or button. It stores only panel_ignore="1" in localStorage; call panel.optIn() to resume:',
+    code: 'panel.optOut()',
+  },
+  {
     feature: 'User profiles',
     needs: 'Either script. Turn on profiles in Site settings → General (needs your users\' consent), then on every page load call:',
     code: "panel.identify('user-123', { plan: 'pro' })",

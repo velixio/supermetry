@@ -54,6 +54,7 @@ var (
 	IngestProfilesSuppressed Counter
 	IngestDropped            Counter
 	IngestStalePings         Counter
+	PrivacySignalsDropped    Counter
 	HeatmapInvalid           Counter
 	HeatmapDropped           Counter
 
@@ -178,6 +179,7 @@ func Snapshot() map[string]float64 {
 		"ingest_stale_pings_total":         float64(IngestStalePings.Load()),
 		"heatmap_invalid_total":            float64(HeatmapInvalid.Load()),
 		"heatmap_dropped_total":            float64(HeatmapDropped.Load()),
+		"ingest_privacy_dropped_total":     float64(PrivacySignalsDropped.Load()),
 		"writer_queue_depth":               WriterQueueDepth.Load(),
 		"copy_seconds":                     CopySeconds.Load(),
 		"close_lag_seconds":                CloseLagSeconds.Load(),
@@ -219,6 +221,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_revenue_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_profiles_suppressed_total", "counter")
 	writeFamily(w, snapshot, "ingest_dropped_total", "counter")
+	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
 	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
 	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")

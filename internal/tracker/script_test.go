@@ -17,7 +17,7 @@ func TestBuildScriptDefaultsToFullTracker(t *testing.T) {
 
 	const publicID = "abc123def456"
 	got := BuildScript(publicID, (sites.TrackerSettingsInput{}).Resolve(true))
-	wantPrelude := `(d=>{d.site??="abc123def456";})(document.currentScript.dataset);` + "\n"
+	wantPrelude := `(d=>{d.site??="abc123def456";d.heatmap??="true";})(document.currentScript.dataset);` + "\n"
 	if !bytes.HasPrefix(got.Body, []byte(wantPrelude)) {
 		t.Fatalf("body prefix = %q, want %q", got.Body[:min(len(got.Body), len(wantPrelude))], wantPrelude)
 	}
@@ -45,13 +45,13 @@ func TestBuildScriptEmitsOnlyNonDefaultSwitches(t *testing.T) {
 		settings sites.TrackerSettings
 		want     string
 	}{
-		{name: "outbound off", settings: sites.TrackerSettings{Downloads: true, Forms: true, Vitals: true, NotFound: true, Clicks: true}, want: `d.outbound??="false";`},
-		{name: "downloads off", settings: sites.TrackerSettings{Outbound: true, Forms: true, Vitals: true, NotFound: true, Clicks: true}, want: `d.downloads??="false";`},
-		{name: "forms off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Vitals: true, NotFound: true, Clicks: true}, want: `d.forms??="false";`},
-		{name: "vitals off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, NotFound: true, Clicks: true}, want: `d.vitals??="false";`},
-		{name: "not found off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true, Clicks: true}, want: `d[404]??="false";`},
-		{name: "clicks off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true, NotFound: true}, want: `d.heatmap??="false";`},
-		{name: "hash on", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true, NotFound: true, Hash: true, Clicks: true}, want: `d.hash??="true";`},
+		{name: "outbound off", settings: sites.TrackerSettings{Downloads: true, Forms: true, Vitals: true, NotFound: true}, want: `d.outbound??="false";`},
+		{name: "downloads off", settings: sites.TrackerSettings{Outbound: true, Forms: true, Vitals: true, NotFound: true}, want: `d.downloads??="false";`},
+		{name: "forms off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Vitals: true, NotFound: true}, want: `d.forms??="false";`},
+		{name: "vitals off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, NotFound: true}, want: `d.vitals??="false";`},
+		{name: "not found off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true}, want: `d[404]??="false";`},
+		{name: "clicks on", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true, NotFound: true, Clicks: true}, want: `d.heatmap??="true";`},
+		{name: "hash on", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true, NotFound: true, Hash: true}, want: `d.hash??="true";`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

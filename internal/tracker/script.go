@@ -55,7 +55,10 @@ func prelude(publicID string, settings sites.TrackerSettings) string {
 	off(".forms", settings.Forms)
 	off(".vitals", settings.Vitals)
 	off("[404]", settings.NotFound)
-	off(".heatmap", settings.Clicks)
+	// Heatmap capture is opt-in in the tracker, so it is switched on here.
+	if settings.Clicks {
+		builder.WriteString(`d.heatmap??="true";`)
+	}
 	if settings.Hash {
 		builder.WriteString(`d.hash??="true";`)
 	}

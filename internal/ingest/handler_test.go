@@ -197,6 +197,54 @@ func TestHeatmapEnabledAggregatesWithoutRawEvent(t *testing.T) {
 	}
 }
 
+func TestPrivacySignalsAreDroppedOnlyWhenSiteSettingIsEnabled(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		header  string
+		enabled bool
+		want    int
+	}{
+		{name: "GPC enabled", header: "Sec-GPC", enabled: true, want: 0},
+		{name: "DNT enabled", header: "DNT", enabled: true, want: 0},
+		{name: "GPC disabled", header: "Sec-GPC", enabled: false, want: 1},
+		{name: "DNT disabled", header: "DNT", enabled: false, want: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			f := newHandlerFixture(t, 32, nil)
+			setRespectPrivacySignals(t, f, test.enabled)
+			before := health.PrivacySignalsDropped.Load()
+			droppedBefore := health.IngestDropped.Load()
+			req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(okBody))
+			req.Header.Set("User-Agent", testUA)
+			req.Header.Set(test.header, "1")
+			req.RemoteAddr = "198.51.100.7:5555"
+			rr := httptest.NewRecorder()
+			f.h.ServeHTTP(rr, req)
+			if rr.Code != http.StatusAccepted {
+				t.Fatalf("code=%d, want 202", rr.Code)
+			}
+			f.stop(t)
+			var events int
+			if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+				t.Fatal(err)
+			}
+			if events != test.want {
+				t.Fatalf("events=%d, want %d", events, test.want)
+			}
+			wantDelta := uint64(0)
+			if test.enabled {
+				wantDelta = 1
+			}
+			if got := health.PrivacySignalsDropped.Load() - before; got != wantDelta {
+				t.Fatalf("privacy signal drop delta=%d, want %d", got, wantDelta)
+			}
+			if got := health.IngestDropped.Load() - droppedBefore; got != 0 {
+				t.Fatalf("ingest_dropped_total delta=%d, want 0 (it counts 503s)", got)
+			}
+		})
+	}
+}
+
 func TestHeatmapFromBotIsNotAggregated(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setHeatmapsEnabled(t, f, true)
@@ -821,6 +869,16 @@ func setHeatmapsEnabled(t *testing.T, fixture *handlerFixture, enabled bool) {
 		t.Fatal("fixture site missing")
 	}
 	site.HeatmapsEnabled = enabled
+	fixture.h.Sites = siteRegistry{site: site}
+}
+
+func setRespectPrivacySignals(t *testing.T, fixture *handlerFixture, enabled bool) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	site.RespectPrivacySignals = enabled
 	fixture.h.Sites = siteRegistry{site: site}
 }
 

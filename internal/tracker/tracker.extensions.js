@@ -1,6 +1,6 @@
 (() => {
   var s = document.currentScript, d = s.dataset;
-  var t = window.panel?.track;
+  var p = window.panel, t = p?.track;
   if (!t) return;
 
   function link(e) {
@@ -81,13 +81,13 @@
   }
 
   if (d.vitals != "false" && window.PerformanceObserver) {
-    var lcp, shift, interaction, largest, cls, inp, first, last, sum, sent;
+    var observers, values, first, last, sum, cls, sent;
 
     function run(observer, entries) {
       for (var i = 0, entry; i < entries.length; i++) {
         entry = entries[i];
         if (observer.kind == 1) {
-          largest = entry.startTime;
+          values.lcp = "" + Math.round(entry.startTime);
         } else if (observer.kind == 2) {
           if (entry.hadRecentInput) continue;
           if (entry.startTime - last >= 1000 || entry.startTime - first >= 5000) {
@@ -97,9 +97,10 @@
           sum += entry.value;
           last = entry.startTime;
           cls = Math.max(cls, sum);
+          values.cls = "" + Math.round(cls * 1000);
         } else if (entry.interactionId) {
           // INP approximation: retain the worst observed interaction latency.
-          inp = Math.max(inp, entry.duration);
+          values.inp = "" + Math.max(values.inp || 0, Math.round(entry.duration));
         }
       }
     }
@@ -110,53 +111,42 @@
         observer.kind = kind;
         // durationThreshold only applies to "event"; other types ignore it.
         observer.observe({type: type, buffered: buffered, durationThreshold: 40});
+        observers.push(observer);
         return observer;
       } catch (_) {}
     }
 
-    function stop(observer) {
-      if (!observer) return;
-      if (observer.takeRecords) run(observer, observer.takeRecords());
-      observer.disconnect();
-    }
-
-    function stopLCP() {
-      stop(lcp);
-      lcp = 0;
-    }
-
-    function stopAll() {
-      stopLCP();
-      stop(shift);
-      stop(interaction);
-      shift = interaction = 0;
+    function stop(kind) {
+      observers.forEach((observer, index) => {
+        if (!observer || kind && observer.kind != kind) return;
+        if (observer.takeRecords) run(observer, observer.takeRecords());
+        observer.disconnect();
+        observers[index] = 0;
+      });
     }
 
     // soft: SPA navigation. LCP only exists for the document load, and
     // buffered entries would replay the previous page's shifts and inputs.
     function start(soft) {
-      stopAll();
-      largest = null;
-      cls = inp = first = last = sum = 0;
+      if (observers) stop();
+      observers = [];
+      values = {};
+      cls = first = last = sum = 0;
       sent = false;
-      if (!soft) lcp = observe("largest-contentful-paint", 1, true);
-      shift = observe("layout-shift", 2, !soft);
-      interaction = observe("event", 3, !soft);
+      if (!soft) observe("largest-contentful-paint", 1, true);
+      observe("layout-shift", 2, !soft);
+      observe("event", 3, !soft);
     }
 
     function sendVitals() {
       if (sent) return;
       sent = true;
-      stopAll();
-      var props = {};
-      if (largest != null) props.lcp = "" + Math.round(largest);
-      if (cls) props.cls = "" + Math.round(cls * 1000);
-      if (inp) props.inp = "" + Math.round(inp);
-      if (largest != null || cls || inp) t("Web Vitals", props);
+      stop();
+      if (values.lcp || values.cls || values.inp) t("Web Vitals", values);
     }
 
-    document.addEventListener("pointerdown", stopLCP, true);
-    document.addEventListener("keydown", stopLCP, true);
+    document.addEventListener("pointerdown", () => stop(1), true);
+    document.addEventListener("keydown", () => stop(1), true);
     document.addEventListener("visibilitychange", () => document.hidden && sendVitals());
     addEventListener("pagehide", sendVitals);
 
@@ -170,7 +160,7 @@
     start();
   }
 
-  if (d.heatmap != "false") {
+  if (d.heatmap == "true") {
     let points = [];
     const root = document.documentElement;
 
@@ -188,7 +178,7 @@
 
     function sendHeatmap() {
       if (!points.length) return;
-      const body = JSON.stringify({
+      const payload = {
         site: d.site,
         name: "heatmap",
         url: location.href,
@@ -196,12 +186,10 @@
         clicks: points,
         doc_h: bound(root.scrollHeight, 100000),
         vw: bound(innerWidth, 10000)
-      });
-      const endpoint = d.api || "/api/public/v1/events";
+      };
       points = [];
-      if (!(navigator.sendBeacon && navigator.sendBeacon(endpoint, new Blob([body], {type: "text/plain"})))) {
-        fetch(endpoint, {method: "POST", headers: {"Content-Type": "text/plain"}, body: body, keepalive: true}).catch(function () {});
-      }
+      // _post honours the visitor opt-out.
+      p._post(payload);
     }
 
     document.addEventListener("click", heatClick);
