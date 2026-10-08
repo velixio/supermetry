@@ -104,6 +104,7 @@ func withListen(value func(network, address string) (net.Listener, error)) serve
 }
 
 func serve(ctx context.Context, cfg config.Config, options ...serveOption) error {
+	warnPublicSignup(ctx, slog.Default(), cfg.Signup)
 	settings := serveOptions{clock: wallClock{}, geoUpdate: geoupdate.Update, listen: net.Listen}
 	for _, option := range options {
 		option(&settings)

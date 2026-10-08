@@ -40,14 +40,14 @@ func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
 	return scanUser(s.Pool.QueryRow(ctx, `
 		select id,email,name,password_hash,totp_secret_enc,totp_enabled,
 		       totp_recovery,created_at,last_login_at
-		from users where lower(email)=lower($1)`, email))
+		from users where lower(email)=lower($1) and deleted_at is null`, email))
 }
 
 func (s *Store) UserByID(ctx context.Context, id int64) (User, error) {
 	return scanUser(s.Pool.QueryRow(ctx, `
 		select id,email,name,password_hash,totp_secret_enc,totp_enabled,
 		       totp_recovery,created_at,last_login_at
-		from users where id=$1`, id))
+		from users where id=$1 and deleted_at is null`, id))
 }
 
 func scanUser(row pgx.Row) (User, error) {

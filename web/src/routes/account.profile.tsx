@@ -1,18 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { AccountProfilePage } from "@/features/settings/SettingsPages";
-import { privateRequest } from "@/features/settings/privateApi";
+import { AccountProfilePage } from "@/features/settings/AccountProfilePage";
+import { useMe } from "./$org";
 
 export const Route = createFileRoute("/account/profile")({
   component: ProfileRoute,
 });
 function ProfileRoute() {
-  const me = useQuery({
-    queryKey: ["account"],
-    queryFn: () =>
-      privateRequest<{ name: string; email: string }>("GET", "/api/private/me"),
-  });
+  const me = useMe();
   return me.data ? (
-    <AccountProfilePage name={me.data.name} email={me.data.email} />
+    <AccountProfilePage name={me.data.user.name} email={me.data.user.email} totpEnabled={Boolean(me.data.user.totp_enabled)} onDeleted={() => window.location.assign('/login')} />
   ) : null;
 }

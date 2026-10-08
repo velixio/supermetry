@@ -1189,6 +1189,39 @@ type ServiceUnavailable = Problem
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Problem
 
+// ConfirmCurrentUserEmailChangeLinkParams defines parameters for ConfirmCurrentUserEmailChangeLink.
+type ConfirmCurrentUserEmailChangeLinkParams struct {
+	Token string `form:"token" json:"token"`
+}
+
+// ConfirmCurrentUserEmailChangeJSONBody defines parameters for ConfirmCurrentUserEmailChange.
+type ConfirmCurrentUserEmailChangeJSONBody struct {
+	Token string `json:"token"`
+}
+
+// DeleteCurrentUserJSONBody defines parameters for DeleteCurrentUser.
+type DeleteCurrentUserJSONBody struct {
+	Password string  `json:"password"`
+	TotpCode *string `json:"totp_code,omitempty"`
+}
+
+// UpdateCurrentUserJSONBody defines parameters for UpdateCurrentUser.
+type UpdateCurrentUserJSONBody struct {
+	Name string `json:"name"`
+}
+
+// StartCurrentUserEmailChangeJSONBody defines parameters for StartCurrentUserEmailChange.
+type StartCurrentUserEmailChangeJSONBody struct {
+	NewEmail openapi_types.Email `json:"new_email"`
+	Password string              `json:"password"`
+}
+
+// ChangeCurrentUserPasswordJSONBody defines parameters for ChangeCurrentUserPassword.
+type ChangeCurrentUserPasswordJSONBody struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 // GetProfileParams defines parameters for GetProfile.
 type GetProfileParams struct {
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
@@ -1346,6 +1379,21 @@ type StatsTimeseriesParams struct {
 	Interval *string  `form:"interval,omitempty" json:"interval,omitempty"`
 }
 
+// ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
+type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
+
+// DeleteCurrentUserJSONRequestBody defines body for DeleteCurrentUser for application/json ContentType.
+type DeleteCurrentUserJSONRequestBody DeleteCurrentUserJSONBody
+
+// UpdateCurrentUserJSONRequestBody defines body for UpdateCurrentUser for application/json ContentType.
+type UpdateCurrentUserJSONRequestBody UpdateCurrentUserJSONBody
+
+// StartCurrentUserEmailChangeJSONRequestBody defines body for StartCurrentUserEmailChange for application/json ContentType.
+type StartCurrentUserEmailChangeJSONRequestBody StartCurrentUserEmailChangeJSONBody
+
+// ChangeCurrentUserPasswordJSONRequestBody defines body for ChangeCurrentUserPassword for application/json ContentType.
+type ChangeCurrentUserPasswordJSONRequestBody ChangeCurrentUserPasswordJSONBody
+
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
 
@@ -1467,6 +1515,27 @@ func (t *EventPayload_Revenue_Amount) UnmarshalJSON(b []byte) error {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ConfirmCurrentUserEmailChangeLink Confirm an email change from a link
+	// (GET /api/private/auth/email-change/confirm)
+	ConfirmCurrentUserEmailChangeLink(w http.ResponseWriter, r *http.Request, params ConfirmCurrentUserEmailChangeLinkParams)
+	// ConfirmCurrentUserEmailChange Confirm an email change
+	// (POST /api/private/auth/email-change/confirm)
+	ConfirmCurrentUserEmailChange(w http.ResponseWriter, r *http.Request)
+	// DeleteCurrentUser Delete the signed-in account
+	// (DELETE /api/private/me)
+	DeleteCurrentUser(w http.ResponseWriter, r *http.Request)
+	// GetCurrentUser Get the signed-in user and memberships
+	// (GET /api/private/me)
+	GetCurrentUser(w http.ResponseWriter, r *http.Request)
+	// UpdateCurrentUser Update the display name
+	// (PATCH /api/private/me)
+	UpdateCurrentUser(w http.ResponseWriter, r *http.Request)
+	// StartCurrentUserEmailChange Send an email-change confirmation
+	// (POST /api/private/me/email)
+	StartCurrentUserEmailChange(w http.ResponseWriter, r *http.Request)
+	// ChangeCurrentUserPassword Change the signed-in user's password
+	// (POST /api/private/me/password)
+	ChangeCurrentUserPassword(w http.ResponseWriter, r *http.Request)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -1615,6 +1684,123 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ConfirmCurrentUserEmailChangeLink operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmCurrentUserEmailChangeLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConfirmCurrentUserEmailChangeLinkParams
+
+	// ------------- Required query parameter "token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "token", r.URL.Query(), &params.Token, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmCurrentUserEmailChangeLink(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmCurrentUserEmailChange operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmCurrentUserEmailChange(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmCurrentUserEmailChange(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteCurrentUser operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCurrentUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCurrentUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCurrentUser operation middleware
+func (siw *ServerInterfaceWrapper) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCurrentUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCurrentUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCurrentUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartCurrentUserEmailChange operation middleware
+func (siw *ServerInterfaceWrapper) StartCurrentUserEmailChange(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartCurrentUserEmailChange(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeCurrentUserPassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangeCurrentUserPassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeCurrentUserPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // DeleteAnnotation operation middleware
 func (siw *ServerInterfaceWrapper) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
@@ -3633,6 +3819,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/me", wrapper.DeleteCurrentUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me", wrapper.GetCurrentUser)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/me", wrapper.UpdateCurrentUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/email", wrapper.StartCurrentUserEmailChange)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChangeLink)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChange)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/password", wrapper.ChangeCurrentUserPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/events", wrapper.SubmitEvent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)

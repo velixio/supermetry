@@ -141,8 +141,14 @@ func TestAPIConventions(t *testing.T) {
 		if _, ok := document.Paths["/api/public/v1/profiles/{profile_id}"]["post"]; ok {
 			t.Fatal("profile detail path unexpectedly publishes POST")
 		}
+		privateAccountPaths := map[string]bool{
+			"/api/private/me":                        true,
+			"/api/private/me/email":                  true,
+			"/api/private/me/password":               true,
+			"/api/private/auth/email-change/confirm": true,
+		}
 		for path := range document.Paths {
-			if strings.HasPrefix(path, "/api/v1/") || strings.HasPrefix(path, "/api/private/") {
+			if strings.HasPrefix(path, "/api/v1/") || (strings.HasPrefix(path, "/api/private/") && !privateAccountPaths[path]) {
 				t.Fatalf("non-public path published: %s", path)
 			}
 		}

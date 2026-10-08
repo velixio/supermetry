@@ -22,6 +22,8 @@ func (h *handler) registerAuth(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/auth/logout", h.logout)
 	mux.HandleFunc("POST /api/private/auth/password-reset", h.startPasswordReset)
 	mux.HandleFunc("POST /api/private/auth/password-reset/confirm", h.finishPasswordReset)
+	mux.HandleFunc("GET /api/private/auth/email-change/confirm", h.confirmEmailChange)
+	mux.HandleFunc("POST /api/private/auth/email-change/confirm", h.confirmEmailChange)
 	mux.HandleFunc("POST /api/private/setup", h.setup)
 }
 
