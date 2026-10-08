@@ -53,6 +53,50 @@ func TestStoreLifecyclePersistsAggregate(t *testing.T) {
 	}
 }
 
+func TestStoreCompleteAndDeleteAdvanceCloseVersionAndInvalidate(t *testing.T) {
+	store, siteID, userID := newImportStore(t)
+	ctx := context.Background()
+	day := date(t, "2026-01-03")
+	if _, err := store.pool.Exec(ctx, `insert into day_close(site_id,day,status,version) values ($1,$2,'done',1)`, siteID, day); err != nil {
+		t.Fatal(err)
+	}
+	invalidated := make(chan int32, 2)
+	store.invalidateSite = func(got int32) { invalidated <- got }
+	created, err := store.Create(ctx, CreateInput{SiteID: siteID, Source: SourceUmami, FileName: "events.csv", CreatedBy: userID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	aggregate := Aggregate{Days: map[time.Time]Metrics{day: {Visitors: 2}}, Dimensions: map[DimensionKey]Metrics{}}
+	if err := store.Complete(ctx, created.ID, aggregate, ParseStats{Rows: 1}); err != nil {
+		t.Fatal(err)
+	}
+	assertCloseVersionAndInvalidation(t, store, siteID, day, 2, invalidated)
+	deleted, err := store.Delete(ctx, created.ID)
+	if err != nil || !deleted {
+		t.Fatalf("Delete()=(%t,%v), want (true,nil)", deleted, err)
+	}
+	assertCloseVersionAndInvalidation(t, store, siteID, day, 3, invalidated)
+}
+
+func assertCloseVersionAndInvalidation(t *testing.T, store *Store, siteID int32, day time.Time, wantVersion int64, invalidated <-chan int32) {
+	t.Helper()
+	var version int64
+	if err := store.pool.QueryRow(context.Background(), `select version from day_close where site_id=$1 and day=$2`, siteID, day).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != wantVersion {
+		t.Fatalf("close version=%d, want %d", version, wantVersion)
+	}
+	select {
+	case got := <-invalidated:
+		if got != siteID {
+			t.Fatalf("invalidated site=%d, want %d", got, siteID)
+		}
+	default:
+		t.Fatal("site was not invalidated")
+	}
+}
+
 func TestStoreListAndDeleteAreSiteScoped(t *testing.T) {
 	store, siteID, userID := newImportStore(t)
 	ctx := context.Background()

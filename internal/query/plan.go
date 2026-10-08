@@ -226,24 +226,34 @@ func (e *Engine) queryNormalized(ctx context.Context, req api.QueryRequest, site
 		return e.executeNormalized(ctx, req, site, normalized, now, metadata, parts)
 	}
 
-	value, err, _ := e.cache.resultSF.Do(fmt.Sprintf("%x", cacheKey), func() (any, error) {
+	result := e.cache.resultSF.DoChan(fmt.Sprintf("%x", cacheKey), func() (any, error) {
 		if response, ok := e.cache.Get(cacheKey); ok {
 			return cachedQueryResult{response: response, cached: true}, nil
 		}
-		response, queryErr := e.executeNormalized(ctx, req, site, normalized, now, metadata, parts)
+		sharedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), queryTimeout)
+		defer cancel()
+		response, queryErr := e.executeNormalized(sharedCtx, req, site, normalized, now, metadata, parts)
 		if queryErr != nil {
 			return cachedQueryResult{}, queryErr
 		}
 		e.cache.Put(cacheKey, response)
 		return cachedQueryResult{response: response}, nil
 	})
-	if err != nil {
-		return api.QueryResponse{}, err
+	select {
+	case <-ctx.Done():
+		return api.QueryResponse{}, ctx.Err()
+	case completed := <-result:
+		if err := ctx.Err(); err != nil {
+			return api.QueryResponse{}, err
+		}
+		if completed.Err != nil {
+			return api.QueryResponse{}, completed.Err
+		}
+		cached := completed.Val.(cachedQueryResult)
+		response := cloneResponse(cached.response)
+		response.Meta.Cached = cached.cached
+		return response, nil
 	}
-	result := value.(cachedQueryResult)
-	response := cloneResponse(result.response)
-	response.Meta.Cached = result.cached
-	return response, nil
 }
 
 type cachedQueryResult struct {

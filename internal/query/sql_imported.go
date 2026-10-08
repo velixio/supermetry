@@ -109,8 +109,6 @@ func (e *Engine) firstNativeDay(ctx context.Context, siteID int32) (*time.Time, 
 		return tx.QueryRow(ctx, `
 select min(day)::date
 from (
-  select min(day) as day from day_close where site_id=$1 and status='done'
-  union all
   select min(day) as day from rollup_day where site_id=$1
   union all
   select min(local_day) as day from sessions where site_id=$1

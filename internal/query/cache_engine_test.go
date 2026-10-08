@@ -3,11 +3,13 @@ package query_test
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
 	"panel/internal/api"
 	"panel/internal/closer"
+	panelimports "panel/internal/imports"
 	"panel/internal/query"
 )
 
@@ -72,6 +74,97 @@ func TestEngineCacheMissesAfterCloseVersionChanges(t *testing.T) {
 	engine.InvalidateSite(1)
 	if got := mustQuery(t, engine, req); got.Meta.Cached {
 		t.Fatal("re-closing a day did not miss the old cache entry")
+	}
+}
+
+func TestEngineCacheMissesAfterImportCompletes(t *testing.T) {
+	pool, engine := setupTinyDims(t)
+	engine.SetCache(query.NewCache(16))
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `insert into day_close(site_id,day,status,version) values (1,'2026-10-05','done',1)`); err != nil {
+		t.Fatal(err)
+	}
+	req := queryRequestRange("2026-10-05", "2026-10-05", nil, nil)
+	if got := mustQuery(t, engine, req); got.Totals["visitors"] != 0 {
+		t.Fatalf("initial visitors=%v, want 0", got.Totals["visitors"])
+	}
+	if got := mustQuery(t, engine, req); !got.Meta.Cached {
+		t.Fatal("primed imported response did not hit cache")
+	}
+
+	importID := insertImport(t, pool, "running")
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	store := panelimports.NewStore(pool, engine.InvalidateSite)
+	aggregate := panelimports.Aggregate{
+		Days:       map[time.Time]panelimports.Metrics{day: {Visitors: 9, Visits: 10, Pageviews: 11}},
+		Dimensions: map[panelimports.DimensionKey]panelimports.Metrics{},
+	}
+	if err := store.Complete(ctx, importID, aggregate, panelimports.ParseStats{Rows: 1}); err != nil {
+		t.Fatal(err)
+	}
+	got := mustQuery(t, engine, req)
+	if got.Meta.Cached {
+		t.Fatal("query after import completion was served from stale cache")
+	}
+	if got.Totals["visitors"] != 9 || got.Totals["visits"] != 10 || got.Totals["pageviews"] != 11 {
+		t.Fatalf("totals after import=%v, want imported totals", got.Totals)
+	}
+}
+
+func TestEngineSingleflightCallerCancellationIsIsolated(t *testing.T) {
+	pool, engine := setupTinyDims(t)
+	engine.SetCache(query.NewCache(16))
+	req := queryRequestRange("2026-10-06", "2026-10-07", nil, nil)
+
+	lock, err := pool.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Rollback(context.Background())
+	if _, err := lock.Exec(context.Background(), `lock table rollup_day in access exclusive mode`); err != nil {
+		t.Fatal(err)
+	}
+
+	leaderCtx, cancelLeader := context.WithCancel(context.Background())
+	defer cancelLeader()
+	type result struct {
+		response api.QueryResponse
+		err      error
+	}
+	results := make(chan result, 2)
+	var started sync.WaitGroup
+	started.Add(1)
+	go func() {
+		started.Done()
+		response, err := engine.Query(leaderCtx, req)
+		results <- result{response: response, err: err}
+	}()
+	started.Wait()
+	time.Sleep(50 * time.Millisecond)
+	go func() {
+		response, err := engine.Query(context.Background(), req)
+		results <- result{response: response, err: err}
+	}()
+	time.Sleep(50 * time.Millisecond)
+	cancelLeader()
+	if err := lock.Commit(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	var canceled, succeeded bool
+	for range 2 {
+		got := <-results
+		if got.err == context.Canceled {
+			canceled = true
+			continue
+		}
+		if got.err != nil {
+			t.Fatalf("query error=%v, want one cancellation and one success", got.err)
+		}
+		succeeded = true
+	}
+	if !canceled || !succeeded {
+		t.Fatalf("canceled=%t succeeded=%t, want both true", canceled, succeeded)
 	}
 }
 

@@ -240,7 +240,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			health.AlertDeliveryFailures.Add(1)
 			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
 		})
-	importStore := imports.NewStore(pool)
+	importStore := imports.NewStore(pool, engine.InvalidateSite)
 	if err := importStore.FailRunningAtStartup(ctx); err != nil {
 		return fmt.Errorf("recover interrupted imports: %w", err)
 	}

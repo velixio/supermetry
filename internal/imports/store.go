@@ -61,11 +61,16 @@ type CreateInput struct {
 }
 
 type Store struct {
-	pool *pgxpool.Pool
+	pool           *pgxpool.Pool
+	invalidateSite func(int32)
 }
 
-func NewStore(pool *pgxpool.Pool) *Store {
-	return &Store{pool: pool}
+func NewStore(pool *pgxpool.Pool, invalidators ...func(int32)) *Store {
+	store := &Store{pool: pool}
+	if len(invalidators) > 0 {
+		store.invalidateSite = invalidators[0]
+	}
+	return store
 }
 
 func (s *Store) Create(ctx context.Context, input CreateInput) (Import, error) {
@@ -141,8 +146,32 @@ func (s *Store) List(ctx context.Context, siteID int32) ([]Import, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) (bool, error) {
-	tag, err := s.pool.Exec(ctx, `delete from imports where id=$1`, id)
-	return tag.RowsAffected() == 1, err
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(context.Background())
+	var siteID int32
+	if err := tx.QueryRow(ctx, `select site_id from imports where id=$1 for update`, id).Scan(&siteID); errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	days, err := importDays(ctx, tx, id)
+	if err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(ctx, `delete from imports where id=$1`, id); err != nil {
+		return false, err
+	}
+	if err := bumpCloseVersions(ctx, tx, siteID, days); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	s.invalidate(siteID)
+	return true, nil
 }
 
 func (s *Store) SetRunning(ctx context.Context, id int64) error {
@@ -197,10 +226,19 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 	} else if err != nil {
 		return err
 	}
+	affectedDays, err := importDays(ctx, tx, id)
+	if err != nil {
+		return err
+	}
 	if replaceExisting && len(fileHash) != 0 {
 		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1,hashtext(encode($2::bytea,'hex')))`, siteID, fileHash); err != nil {
 			return err
 		}
+		replacedDays, err := importDaysForFile(ctx, tx, siteID, fileHash, id)
+		if err != nil {
+			return err
+		}
+		affectedDays = append(affectedDays, replacedDays...)
 		if _, err := tx.Exec(ctx, `
 			delete from imports
 			where site_id=$1 and file_hash=$2 and id<>$3 and status='completed'`, siteID, fileHash, id); err != nil {
@@ -215,6 +253,7 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 	}
 
 	days := sortedDays(aggregate.Days)
+	affectedDays = append(affectedDays, days...)
 	if len(days) > 0 {
 		_, err = tx.CopyFrom(ctx, pgx.Identifier{"imported_day"},
 			[]string{"site_id", "import_id", "day", "visitors", "visits", "pageviews", "bounces", "visit_duration_s"},
@@ -228,6 +267,9 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 		}
 	}
 	dimensions := sortedDimensions(aggregate.Dimensions)
+	for _, key := range dimensions {
+		affectedDays = append(affectedDays, key.Day)
+	}
 	if len(dimensions) > 0 {
 		_, err = tx.CopyFrom(ctx, pgx.Identifier{"imported_day_dim"},
 			[]string{"site_id", "import_id", "day", "dim", "value", "visitors", "visits", "pageviews", "bounces", "visit_duration_s", "events"},
@@ -252,7 +294,73 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 		where id=$1`, id, from, to, stats.Rows, warning); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	if err := bumpCloseVersions(ctx, tx, siteID, affectedDays); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	s.invalidate(siteID)
+	return nil
+}
+
+func importDays(ctx context.Context, tx pgx.Tx, importID int64) ([]time.Time, error) {
+	rows, err := tx.Query(ctx, `
+		select day from imported_day where import_id=$1
+		union
+		select day from imported_day_dim where import_id=$1`, importID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var days []time.Time
+	for rows.Next() {
+		var day time.Time
+		if err := rows.Scan(&day); err != nil {
+			return nil, err
+		}
+		days = append(days, day)
+	}
+	return days, rows.Err()
+}
+
+func importDaysForFile(ctx context.Context, tx pgx.Tx, siteID int32, fileHash []byte, exceptID int64) ([]time.Time, error) {
+	rows, err := tx.Query(ctx, `
+		select d.day from (
+			select import_id,day from imported_day
+			union
+			select import_id,day from imported_day_dim
+		) d join imports i on i.id=d.import_id
+		where i.site_id=$1 and i.file_hash=$2 and i.id<>$3 and i.status='completed'
+		group by d.day`, siteID, fileHash, exceptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var days []time.Time
+	for rows.Next() {
+		var day time.Time
+		if err := rows.Scan(&day); err != nil {
+			return nil, err
+		}
+		days = append(days, day)
+	}
+	return days, rows.Err()
+}
+
+func bumpCloseVersions(ctx context.Context, tx pgx.Tx, siteID int32, days []time.Time) error {
+	if len(days) == 0 {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `update day_close set version=version+1,closed_at=clock_timestamp()
+		where site_id=$1 and day=any($2) and status='done'`, siteID, days)
+	return err
+}
+
+func (s *Store) invalidate(siteID int32) {
+	if s.invalidateSite != nil {
+		s.invalidateSite(siteID)
+	}
 }
 
 func scanImport(row pgx.Row) (Import, error) {
