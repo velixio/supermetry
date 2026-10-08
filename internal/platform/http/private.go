@@ -95,6 +95,7 @@ type Deps struct {
 		RememberTx(context.Context, pgx.Tx, int32, string) error
 		ForgetMemory(int32, string)
 	}
+	ReplayStore replay.BlobStore
 	ImportQueue interface {
 		Queue(imports.Job) error
 	}

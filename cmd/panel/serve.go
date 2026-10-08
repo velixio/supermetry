@@ -125,6 +125,14 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := db.Migrate(ctx, pool); err != nil {
 		return err
 	}
+	replayStorage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, replay.StoredStorage{})
+	if replayStorage.Backend.V != "disk" {
+		return fmt.Errorf("replay storage backend %q is not available", replayStorage.Backend.V)
+	}
+	replayStore, err := replay.NewDiskStore(replayStorage.Dir.V)
+	if err != nil {
+		return err
+	}
 
 	platformStore := &store.Store{Pool: pool}
 	// Replay dashboard reads use the same resolved storage settings as ingest.
@@ -260,6 +268,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Imports:           importStore,
 		ImportQueue:       importManager,
 		ProfileTombstones: profileTombstones,
+		ReplayStore:       replayStore,
 		Exporter:          exporter,
 		ReplayStore:       replayBlobs,
 		ReplayEnv:         cfg.Replay,
@@ -345,7 +354,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, settings.clock)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, settings.clock)
 	jobs = append(jobs, profileTombstones.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
@@ -429,7 +438,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if importDone != nil {
 		cause = errors.Join(cause, <-importDone)
 	}
-	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, settings.clock.Now()))
+	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, replayStore, settings.clock.Now()))
 	return errors.Join(cause, httpErr)
 }
 
@@ -530,6 +539,8 @@ func scheduledJobs(
 	reportService *reports.Reports,
 	alertJobs interface{ Job() scheduler.Job },
 	geo *geoService,
+	replayStore replay.BlobStore,
+	replayEnvironment config.ReplayEnv,
 	clk clock,
 ) []scheduler.Job {
 	jobs := []scheduler.Job{
@@ -563,7 +574,7 @@ func scheduledJobs(
 			return refreshRegistry()
 		}},
 		{Name: "site-erasure", Every: time.Minute, Run: func(ctx context.Context) error {
-			return eraseDeletedSites(ctx, pool, clk.Now())
+			return eraseDeletedSites(ctx, pool, replayStore, clk.Now())
 		}},
 		{Name: "user-session-cleanup", Every: time.Hour, Run: func(ctx context.Context) error {
 			now := clk.Now()
@@ -574,6 +585,11 @@ func scheduledJobs(
 			_, err := pool.Exec(ctx, `delete from invitations where expires_at <= $1 or accepted_at is not null or revoked_at is not null`, clk.Now())
 			return err
 		}},
+	}
+	if replayStore != nil {
+		jobs = append(jobs, scheduler.Job{Name: "replay-retention", Every: time.Hour, Run: func(ctx context.Context) error {
+			return replay.RunRetentionConfigured(ctx, pool, replayStore, clk.Now(), replayEnvironment)
+		}})
 	}
 	if geo != nil && geo.maxMind {
 		jobs = append(jobs, scheduler.Job{Name: "geoip-update", Every: geoIPUpdateInterval, Run: func(ctx context.Context) error {
@@ -590,7 +606,7 @@ func scheduledJobs(
 	return jobs
 }
 
-func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore replay.BlobStore, now time.Time) error {
 	rows, err := pool.Query(ctx, `select id from sites where deleted_at is not null order by id`)
 	if err != nil {
 		return fmt.Errorf("load sites pending erasure: %w", err)
@@ -610,6 +626,11 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, now time.Time) e
 	}
 	rows.Close()
 	for _, siteID := range siteIDs {
+		if replayStore != nil {
+			if err := replay.EraseSite(ctx, pool, replayStore, siteID); err != nil {
+				return err
+			}
+		}
 		if err := retention.Erase(ctx, pool, siteID, 10_000, 10*time.Millisecond); err != nil {
 			return err
 		}

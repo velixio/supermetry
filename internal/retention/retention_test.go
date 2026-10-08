@@ -59,6 +59,37 @@ func TestRunDropsOnlyExpiredPerClass(t *testing.T) {
 	}
 }
 
+func TestRunDropsEmptyExpiredReplayPartitions(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`create table replay_sessions_202608 partition of replay_sessions for values from ('2026-08-01') to ('2026-09-01')`,
+		`create table replay_sessions_202610 partition of replay_sessions for values from ('2026-10-01') to ('2026-11-01')`,
+	} {
+		if _, err := pool.Exec(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	dropped, err := retention.Run(ctx, pool, time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsPrefix(dropped, "replay_sessions_202608") {
+		t.Fatalf("dropped partitions = %v, want expired replay partition", dropped)
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "replay_sessions")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(partitions) != 1 || partitions[0].Name != "replay_sessions_202610" {
+		t.Fatalf("remaining replay partitions = %+v, want current month", partitions)
+	}
+}
+
 func TestEraseRemovesSiteRowsEverywhere(t *testing.T) {
 	pool, _ := testpg.New(t)
 	loadFixture(t, pool)

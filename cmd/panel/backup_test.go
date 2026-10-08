@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -18,6 +19,17 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+func TestBackupHelpDocumentsReplayExclusion(t *testing.T) {
+	t.Parallel()
+	var output bytes.Buffer
+	if err := backupCommandWithRuntime(context.Background(), []string{"--help"}, &output, testGetenv, defaultBackupRuntime()); err != nil {
+		t.Fatal(err)
+	}
+	if got := output.String(); !strings.Contains(got, "Replay files are excluded") || !strings.Contains(got, "back them up separately") {
+		t.Fatalf("backup help = %q", got)
+	}
+}
 
 func TestPostgresEnvironment(t *testing.T) {
 	t.Parallel()
