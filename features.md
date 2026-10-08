@@ -23,12 +23,12 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Revenue goals | ✓ (paid) | ✓ | ✓ | ✅ |
 | Saved segments | ✓ | ✓ | ✓ | ✅ |
 | Annotations on the chart | – | ✓ | – | ✅ |
-| Retention (cohort) report | – | ✓ | ✓ | ✅ (same-day only) |
+| Retention (cohort) report | – | ✓ | ✓ | ✅ (cross-day with profiles; same-day for anonymous) |
 | User journeys / path flow | ✓ (paid) | ✓ | ✓ | ✅ |
 | Web Vitals | – | ✓ | ? | ✅ (full script) |
 | Session replay | – | ✓ | ✓ | ⏸ |
 | Heatmaps | – | ✓ | – | ⏳ (aggregated clicks + scroll map) |
-| User profiles and `identify` | – | ✓ | ✓ | ⏳ (opt-in per site) |
+| User profiles and `identify` | – | ✓ | ✓ | ✅ (opt-in per site) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
@@ -102,7 +102,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 15. ~~Webhooks, Slack and Discord~~ ✅
 16. ~~MCP server for AI assistants~~ ✅
 17. ~~Web Vitals~~ ✅
-18. User profiles and `identify` (opt-in per site, D40) ⏳
+18. ~~User profiles and `identify`~~ ✅ (opt-in per site, D40)
 19. Heatmaps: aggregated click grid and scroll map, opt-in per site ⏳
 
 ### Later
