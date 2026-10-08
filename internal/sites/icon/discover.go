@@ -122,8 +122,8 @@ func (d *Discoverer) isImage(ctx context.Context, rawURL string) bool {
 		return false
 	}
 	defer response.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxIconBytes))
-	return response.StatusCode == http.StatusOK && strings.HasPrefix(strings.ToLower(response.Header.Get("Content-Type")), "image/")
+	size, readErr := io.Copy(io.Discard, io.LimitReader(response.Body, maxIconBytes+1))
+	return readErr == nil && size <= maxIconBytes && response.StatusCode == http.StatusOK && strings.HasPrefix(strings.ToLower(response.Header.Get("Content-Type")), "image/")
 }
 
 func preferredHrefs(body []byte) []string {

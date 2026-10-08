@@ -139,6 +139,26 @@ func TestDiscoverHandlesPageAndIconFailures(t *testing.T) {
 	}
 }
 
+func TestDiscoverRejectsOversizedIcon(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			_, _ = io.WriteString(w, `<link rel="icon" href="/oversized.png">`)
+		case "/oversized.png":
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = io.WriteString(w, strings.Repeat("x", maxIconBytes+1))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	discoverer := testDiscoverer(t, server.URL, map[string][]netip.Addr{"example.test": {netip.MustParseAddr("93.184.216.34")}})
+
+	if got := discoverer.discoverPage(context.Background(), "http://example.test/"); got != "" {
+		t.Fatalf("discoverPage() = %q, want oversized icon rejected", got)
+	}
+}
+
 func TestDiscoverFallsBackWhenPageIsUnavailable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/favicon.ico" {
