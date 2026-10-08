@@ -45,7 +45,7 @@ func (e *Engine) queryImported(ctx context.Context, req Normalized, firstNative 
 		"coalesce(sum(d.pageviews),0)::int8",
 		"coalesce(sum(d.bounces),0)::int8",
 		"coalesce(sum(d.visit_duration_s),0)::int8 * 1000",
-		"0::int8", "0::int8", "0::int8", events,
+		"0::int8", "0::int8", "0::int8", "0::int8", "0::int8", events,
 		"0::int8", "0::int8", "0::int8",
 	}
 	querySQL := aggregateSQL(dimensions, sums, from, where)

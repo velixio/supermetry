@@ -167,6 +167,38 @@ func TestNormalizeAcceptsRegionAndCityDimensionsAndFilters(t *testing.T) {
 	}
 }
 
+func TestNormalizeRestrictsPageMetricsToSupportedDimensions(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	site := sites.Site{ID: 1, TZ: time.UTC}
+	tests := []struct {
+		name       string
+		metric     query.Metric
+		dimensions []string
+		wantBad    bool
+	}{
+		{name: "exit rate on page", metric: query.ExitRate, dimensions: []string{"page"}},
+		{name: "exit rate on entry", metric: query.ExitRate, dimensions: []string{"entry"}},
+		{name: "exit rate on exit", metric: query.ExitRate, dimensions: []string{"exit"}},
+		{name: "time on page", metric: query.TimeOnPage, dimensions: []string{"page"}},
+		{name: "exit rate without dimension", metric: query.ExitRate, wantBad: true},
+		{name: "time on page by country", metric: query.TimeOnPage, dimensions: []string{"country"}, wantBad: true},
+		{name: "time on page on exit", metric: query.TimeOnPage, dimensions: []string{"exit"}, wantBad: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req := withDimensions(requestPeriod(api.N7d), tt.dimensions...)
+			req.Metrics = []api.Metric{api.Metric(tt.metric)}
+			_, problem := query.Normalize(req, site, now)
+			if (problem != nil) != tt.wantBad {
+				t.Fatalf("Normalize() problem = %+v, wantBad %v", problem, tt.wantBad)
+			}
+		})
+	}
+}
+
 func TestNormalizeDefaultsImportedDataOnAndHonorsOptOut(t *testing.T) {
 	t.Parallel()
 	site := sites.Site{ID: 1, TZ: time.UTC}

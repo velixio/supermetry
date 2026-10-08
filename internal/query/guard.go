@@ -78,7 +78,7 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		return Normalized{}, badQuery("at least one metric is required")
 	}
 	for _, metric := range req.Metrics {
-		if !metric.Valid() {
+		if !metric.Valid() && metric != api.Metric(ExitRate) && metric != api.Metric(TimeOnPage) {
 			return Normalized{}, badQuery(fmt.Sprintf("unknown metric %q", metric))
 		}
 	}
@@ -102,6 +102,11 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 	for _, dimension := range dimensions {
 		if !knownDimension(dimension) {
 			return Normalized{}, badQuery(fmt.Sprintf("unknown dimension %q", dimension))
+		}
+	}
+	for _, metric := range req.Metrics {
+		if !pageMetricSupportsDimensions(metric, dimensions) {
+			return Normalized{}, badQuery(fmt.Sprintf("metric %q is unsupported for the requested dimensions", metric))
 		}
 	}
 
@@ -160,6 +165,19 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		Compare:         clonePointer(req.Compare),
 		IncludeImported: includeImported,
 	}, nil
+}
+
+func pageMetricSupportsDimensions(metric api.Metric, dimensions []string) bool {
+	if metric != api.Metric(ExitRate) && metric != api.Metric(TimeOnPage) {
+		return true
+	}
+	if len(dimensions) != 1 {
+		return false
+	}
+	if metric == api.Metric(TimeOnPage) {
+		return dimensions[0] == "page" || dimensions[0] == "path"
+	}
+	return containsAny(dimensions, "page", "path", "entry", "exit")
 }
 
 // ValidateFilters applies the shared dashboard-query rules to a filter set.

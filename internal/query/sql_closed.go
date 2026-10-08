@@ -119,6 +119,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		from += ` cross join lateral (
   select u.code >> 2 as path_id, count(*)::int8 as pageviews,
          coalesce(sum(u.engagement),0)::int8 as engagement_ms,
+         case when count(*) filter (where u.engagement>0)>0 then 1 else 0 end::int8 as engaged_n,
          coalesce(sum(u.scroll) filter (where u.scroll > 0),0)::int8 as scroll_sum,
          count(*) filter (where u.scroll > 0)::int8 as scroll_n
   from unnest(s.seq, s.seq_engage, s.seq_scroll) with ordinality as u(code, engagement, scroll, ord)
@@ -135,6 +136,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		from += ` cross join lateral (
   select count(*)::int8 as pageviews,
          coalesce(sum(u.engagement),0)::int8 as engagement_ms,
+         case when count(*) filter (where u.engagement>0)>0 then 1 else 0 end::int8 as engaged_n,
          coalesce(sum(u.scroll) filter (where u.scroll > 0),0)::int8 as scroll_sum,
          count(*) filter (where u.scroll > 0)::int8 as scroll_n
   from unnest(s.seq, s.seq_engage, s.seq_scroll) as u(code, engagement, scroll)
@@ -203,13 +205,22 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 
 	pageviews := "s.pageviews"
 	engagement := "s.engagement_ms"
+	exits := "count(*) filter (where s.pageviews>0)::int8"
+	engagedN := `count(*) filter (where exists (
+  select 1 from unnest(s.seq_engage) engagement where engagement>0
+))::int8`
 	scrollSum := `coalesce((select sum(value)::int8 from unnest(s.seq_scroll) value where value > 0),0)`
 	scrollN := `(select count(*)::int8 from unnest(s.seq_scroll) value where value > 0)`
 	if pageAlias != "" {
 		pageviews = pageAlias + ".pageviews"
 		engagement = pageAlias + ".engagement_ms"
+		exits = "count(*) filter (where s.exit_path=" + pageAlias + ".path_id)::int8"
+		engagedN = "coalesce(sum(" + pageAlias + ".engaged_n),0)::int8"
 		scrollSum = pageAlias + ".scroll_sum"
 		scrollN = pageAlias + ".scroll_n"
+	}
+	if pageAlias == "" && containsAny(req.Dimensions, "entry") {
+		exits = "count(*) filter (where s.exit_path=s.entry_path)::int8"
 	}
 	converted := "0::int8"
 	if hasEventFilter(specialFilters) {
@@ -222,6 +233,8 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		"count(*) filter (where s.pageviews=1 and s.custom=0)::int8",
 		"coalesce(sum(s.duration_ms),0)::int8",
 		"coalesce(sum(" + engagement + "),0)::int8",
+		exits,
+		engagedN,
 		"coalesce(sum(" + scrollSum + "),0)::int8",
 		"coalesce(sum(" + scrollN + "),0)::int8",
 		"coalesce(sum(s.custom),0)::int8",
@@ -251,7 +264,7 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date" + andSQL(conditions)
 	visitors := "count(distinct (c.day,c.visitor_id))::int8"
 	sums := []string{
-		visitors, "0::int8", "0::int8", "0::int8", "0::int8", "0::int8",
+		visitors, "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8",
 		"0::int8", "0::int8", "count(*)::int8", visitors,
 		"coalesce(sum(c.revenue_micros),0)::int8",
 		"count(*) filter (where c.revenue_micros>0)::int8",
@@ -514,8 +527,8 @@ func (e *Engine) executeAggregate(ctx context.Context, querySQL string, args []a
 			if err != nil {
 				return err
 			}
-			if len(values) != dimensionCount+12 {
-				return fmt.Errorf("aggregate returned %d columns, want %d", len(values), dimensionCount+12)
+			if len(values) != dimensionCount+14 {
+				return fmt.Errorf("aggregate returned %d columns, want %d", len(values), dimensionCount+14)
 			}
 			row := resultRow{dimensions: make([]string, dimensionCount)}
 			for i := range dimensionCount {
@@ -529,12 +542,14 @@ func (e *Engine) executeAggregate(ctx context.Context, querySQL string, args []a
 				Bounces:       asInt64(metrics[3]),
 				DurationMS:    asInt64(metrics[4]),
 				EngagementMS:  asInt64(metrics[5]),
-				ScrollSum:     asInt64(metrics[6]),
-				ScrollN:       asInt64(metrics[7]),
-				Events:        asInt64(metrics[8]),
-				Converted:     asInt64(metrics[9]),
-				RevenueMicros: asInt64(metrics[10]),
-				RevenueEvents: asInt64(metrics[11]),
+				Exits:         asInt64(metrics[6]),
+				EngagedN:      asInt64(metrics[7]),
+				ScrollSum:     asInt64(metrics[8]),
+				ScrollN:       asInt64(metrics[9]),
+				Events:        asInt64(metrics[10]),
+				Converted:     asInt64(metrics[11]),
+				RevenueMicros: asInt64(metrics[12]),
+				RevenueEvents: asInt64(metrics[13]),
 			}
 			result = append(result, row)
 		}

@@ -48,6 +48,7 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		from += ` cross join lateral (
   select ` + selectPath + `count(*) filter (where e.kind=0)::int8 as pageviews,
          coalesce(sum(e.engagement_ms) filter (where e.kind=2),0)::int8 as engagement_ms,
+         count(distinct e.session_id) filter (where e.kind=2 and e.engagement_ms>0)::int8 as engaged_n,
          coalesce(sum(e.scroll_pct) filter (where e.kind=2 and e.scroll_pct>0),0)::int8 as scroll_sum,
          count(*) filter (where e.kind=2 and e.scroll_pct>0)::int8 as scroll_n
   from events e where e.site_id=s.site_id and e.session_id=s.session_id` + andSQL(conditions) + group + `
@@ -121,13 +122,22 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 
 	pageviews := "s.pageviews"
 	engagement := "s.engagement_ms"
+	exits := "count(*) filter (where s.pageviews>0)::int8"
+	engagedN := `count(*) filter (where exists (
+  select 1 from events e where e.site_id=s.site_id and e.session_id=s.session_id and e.kind=2 and e.engagement_ms>0
+))::int8`
 	scrollSum := `coalesce((select sum(e.scroll_pct)::int8 from events e where e.site_id=s.site_id and e.session_id=s.session_id and e.kind=2 and e.scroll_pct>0),0)`
 	scrollN := `(select count(*)::int8 from events e where e.site_id=s.site_id and e.session_id=s.session_id and e.kind=2 and e.scroll_pct>0)`
 	if pageAlias != "" {
 		pageviews = pageAlias + ".pageviews"
 		engagement = pageAlias + ".engagement_ms"
+		exits = "count(*) filter (where s.exit_path=" + pageAlias + ".path_id)::int8"
+		engagedN = "coalesce(sum(" + pageAlias + ".engaged_n),0)::int8"
 		scrollSum = pageAlias + ".scroll_sum"
 		scrollN = pageAlias + ".scroll_n"
+	}
+	if pageAlias == "" && containsAny(req.Dimensions, "entry") {
+		exits = "count(*) filter (where s.exit_path=s.entry_path)::int8"
 	}
 	converted := "0::int8"
 	if hasEventFilter(specialFilters) {
@@ -140,6 +150,8 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		"count(*) filter (where s.bounce)::int8",
 		"coalesce(sum(round(extract(epoch from (s.last-s.start))*1000)),0)::int8",
 		"coalesce(sum(" + engagement + "),0)::int8",
+		exits,
+		engagedN,
 		"coalesce(sum(" + scrollSum + "),0)::int8",
 		"coalesce(sum(" + scrollN + "),0)::int8",
 		"coalesce(sum(s.events),0)::int8",
@@ -182,7 +194,7 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 	where := "e.site_id=" + builder.arg(req.SiteID) + " and e.local_day between " + builder.arg(part.From) + "::date and " + builder.arg(part.To) + "::date and e.kind=1" + andSQL(conditions)
 	visitors := "count(distinct (e.local_day,e.visitor_id))::int8"
 	sums := []string{
-		visitors, "count(distinct e.session_id)::int8", "0::int8", "0::int8", "0::int8", "0::int8",
+		visitors, "count(distinct e.session_id)::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8", "0::int8",
 		"0::int8", "0::int8", "count(*)::int8", visitors,
 		"coalesce(sum(e.revenue_micros),0)::int8",
 		"count(*) filter (where e.revenue_micros>0)::int8",

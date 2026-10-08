@@ -2,9 +2,11 @@ package closer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const rollupDaySQL = sessionMetricsCTE + `
@@ -48,7 +50,7 @@ group by site_id, dim, value_id`
 const rollupPathSQL = `
 insert into rollup_day_dim (
   site_id, day, dim, value_id, visitors, visits, pageviews, bounces,
-  duration_ms, engagement_ms, scroll_sum, scroll_n
+  duration_ms, engagement_ms, engaged_n, scroll_sum, scroll_n
 )
 select site_id, $1, 1, code >> 2,
        count(*) filter (where code & 1 <> 0),
@@ -57,10 +59,11 @@ select site_id, $1, 1, code >> 2,
        count(*) filter (where code & 2 <> 0 and bounce),
        coalesce(sum(duration_ms) filter (where code & 2 <> 0), 0),
        sum(engagement_ms),
+       count(distinct session_id) filter (where engagement_ms > 0),
        coalesce(sum(scroll_pct) filter (where scroll_pct > 0), 0),
        count(*) filter (where scroll_pct > 0)
 from (
-  select s.site_id, s.pageviews = 1 and s.custom = 0 as bounce, s.duration_ms,
+  select s.site_id, s.session_id, s.pageviews = 1 and s.custom = 0 as bounce, s.duration_ms,
          sequence.code, sequence.engagement_ms, sequence.scroll_pct
   from sessions_closed s
   cross join lateral unnest(s.seq, s.seq_engage, s.seq_scroll)
@@ -108,11 +111,12 @@ with eligible as (
 ), inserted as (
   insert into rollup_month_dim (
     site_id, month, dim, value_id, visitors, visits, pageviews, bounces,
-    duration_ms, engagement_ms, scroll_sum, scroll_n
+    duration_ms, engagement_ms, engaged_n, scroll_sum, scroll_n
   )
   select daily.site_id, $1, daily.dim, daily.value_id,
          sum(daily.visitors), sum(daily.visits), sum(daily.pageviews), sum(daily.bounces),
-         sum(daily.duration_ms), sum(daily.engagement_ms), sum(daily.scroll_sum), sum(daily.scroll_n)
+         sum(daily.duration_ms), sum(daily.engagement_ms), sum(daily.engaged_n),
+         sum(daily.scroll_sum), sum(daily.scroll_n)
   from rollup_day_dim daily
   join eligible using (site_id)
   where daily.day >= $1 and daily.day < ($1::date + interval '1 month')
@@ -129,4 +133,72 @@ func refreshMonth(ctx context.Context, tx pgx.Tx, siteIDs []int32, day time.Time
 	}
 	_, err := tx.Exec(ctx, refreshMonthInsertSQL, month, siteIDs)
 	return err
+}
+
+// RecomputeRollups rebuilds every completed day's additive rollups from the
+// closed-session tier. It is idempotent and does not require retained raw data.
+func RecomputeRollups(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	rows, err := pool.Query(ctx, `
+select closed.day, array_agg(closed.site_id order by closed.site_id)::int[]
+from day_close closed
+where closed.status='done'
+  and exists (
+    select 1 from sessions_closed sessions
+    where sessions.site_id=closed.site_id and sessions.day=closed.day
+  )
+group by closed.day
+order by closed.day`)
+	if err != nil {
+		return 0, fmt.Errorf("load completed days for rollup recompute: %w", err)
+	}
+	type batch struct {
+		day     time.Time
+		siteIDs []int32
+	}
+	var batches []batch
+	for rows.Next() {
+		var item batch
+		if err := rows.Scan(&item.day, &item.siteIDs); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan completed day for rollup recompute: %w", err)
+		}
+		batches = append(batches, item)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("iterate completed days for rollup recompute: %w", err)
+	}
+	rows.Close()
+
+	for _, item := range batches {
+		if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			for _, table := range []string{"rollup_day", "rollup_day_dim"} {
+				if _, err := tx.Exec(ctx, `delete from `+table+` where day=$1 and site_id=any($2)`, item.day, item.siteIDs); err != nil {
+					return fmt.Errorf("delete %s: %w", table, err)
+				}
+			}
+			for _, derived := range []struct {
+				name string
+				sql  string
+			}{
+				{name: "rollup_day", sql: rollupDaySQL},
+				{name: "session rollups", sql: rollupSessionDimensionsSQL},
+				{name: "path rollups", sql: rollupPathSQL},
+			} {
+				if _, err := tx.Exec(ctx, derived.sql, item.day, item.siteIDs); err != nil {
+					return fmt.Errorf("build %s: %w", derived.name, err)
+				}
+			}
+			if err := refreshDayBlocks(ctx, tx, item.siteIDs, item.day); err != nil {
+				return fmt.Errorf("refresh day blocks: %w", err)
+			}
+			if err := refreshMonth(ctx, tx, item.siteIDs, item.day); err != nil {
+				return fmt.Errorf("refresh month: %w", err)
+			}
+			return nil
+		}); err != nil {
+			return 0, fmt.Errorf("recompute rollups for %s: %w", item.day.Format(time.DateOnly), err)
+		}
+	}
+	return len(batches), nil
 }

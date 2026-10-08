@@ -28,18 +28,23 @@ func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]
 		"coalesce(sum(visitors),0)::int8", "coalesce(sum(visits),0)::int8",
 		"coalesce(sum(pageviews),0)::int8", "coalesce(sum(bounces),0)::int8",
 		"coalesce(sum(duration_ms),0)::int8", "coalesce(sum(engagement_ms),0)::int8",
+		"coalesce(sum(exits),0)::int8", "coalesce(sum(engaged_n),0)::int8",
 		"coalesce(sum(scroll_sum),0)::int8", "coalesce(sum(scroll_n),0)::int8", "0::int8", "0::int8", "0::int8", "0::int8",
 	}
 	if len(req.Dimensions) == 0 {
 		fromArg := builder.arg(part.From)
 		toArg := builder.arg(part.To)
-		querySQL := aggregateSQL(nil, baseSums, "rollup_day", "site_id="+siteArg+" and day between "+fromArg+"::date and "+toArg+"::date")
+		totalSums := append([]string(nil), baseSums...)
+		totalSums[6], totalSums[7] = "0::int8", "0::int8"
+		querySQL := aggregateSQL(nil, totalSums, "rollup_day", "site_id="+siteArg+" and day between "+fromArg+"::date and "+toArg+"::date")
 		return e.executeAggregate(ctx, querySQL, builder.args, nil)
 	}
 	if req.Dimensions[0] == "time" {
 		fromArg := builder.arg(part.From)
 		toArg := builder.arg(part.To)
-		querySQL := aggregateSQL([]string{"to_char(day, 'YYYY-MM-DD')"}, baseSums, "rollup_day", "site_id="+siteArg+" and day between "+fromArg+"::date and "+toArg+"::date")
+		timeSums := append([]string(nil), baseSums...)
+		timeSums[6], timeSums[7] = "0::int8", "0::int8"
+		querySQL := aggregateSQL([]string{"to_char(day, 'YYYY-MM-DD')"}, timeSums, "rollup_day", "site_id="+siteArg+" and day between "+fromArg+"::date and "+toArg+"::date")
 		return e.executeAggregate(ctx, querySQL, builder.args, req.Dimensions)
 	}
 	code, ok := rollupDimensionCodes[req.Dimensions[0]]
@@ -62,27 +67,54 @@ func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]
 		starts = append(starts, block.start)
 	}
 	dimArg := builder.arg(code)
-	const columns = "value_id, visitors, visits, pageviews, bounces, duration_ms, engagement_ms, scroll_sum, scroll_n"
+	const columns = "value_id, visitors, visits, pageviews, bounces, duration_ms, engagement_ms, engaged_n, scroll_sum, scroll_n"
 	var inputs []string
+	dimension := req.Dimensions[0]
 	if len(daily) > 0 {
-		inputs = append(inputs, "select "+columns+" from rollup_day_dim where site_id="+siteArg+" and dim="+dimArg+" and day=any("+builder.arg(daily)+"::date[])")
+		daysArg := builder.arg(daily)
+		switch dimension {
+		case "page", "path", "entry":
+			inputs = append(inputs, `select p.`+strings.ReplaceAll(columns, ", ", ", p.")+`, coalesce(x.visits,0)::int8 as exits
+from rollup_day_dim p
+left join rollup_day_dim x on x.site_id=p.site_id and x.day=p.day and x.dim=8 and x.value_id=p.value_id
+where p.site_id=`+siteArg+` and p.dim=`+dimArg+` and p.day=any(`+daysArg+`::date[])`)
+		case "exit":
+			inputs = append(inputs, "select "+columns+", visits::int8 as exits from rollup_day_dim where site_id="+siteArg+" and dim="+dimArg+" and day=any("+daysArg+"::date[])")
+		default:
+			inputs = append(inputs, "select "+columns+", 0::int8 as exits from rollup_day_dim where site_id="+siteArg+" and dim="+dimArg+" and day=any("+daysArg+"::date[])")
+		}
 	}
 	if len(starts) > 0 {
 		levelArg, startArg := builder.arg(levels), builder.arg(starts)
-		inputs = append(inputs, `select `+columns+` from rollup_block_dim r
+		switch dimension {
+		case "page", "path", "entry":
+			inputs = append(inputs, `select p.`+strings.ReplaceAll(columns, ", ", ", p.")+`, coalesce(x.visits,0)::int8 as exits
+from rollup_block_dim p
+join unnest(`+levelArg+`::int2[], `+startArg+`::date[]) wanted(k,start_day)
+	  on p.k=wanted.k and p.start_day=wanted.start_day
+left join rollup_block_dim x on x.site_id=p.site_id and x.k=p.k and x.start_day=p.start_day and x.dim=8 and x.value_id=p.value_id
+where p.site_id=`+siteArg+` and p.dim=`+dimArg)
+		case "exit":
+			inputs = append(inputs, `select `+columns+`, visits::int8 as exits from rollup_block_dim r
 join unnest(`+levelArg+`::int2[], `+startArg+`::date[]) wanted(k,start_day)
   on r.k=wanted.k and r.start_day=wanted.start_day
 where r.site_id=`+siteArg+` and r.dim=`+dimArg)
+		default:
+			inputs = append(inputs, `select `+columns+`, 0::int8 as exits from rollup_block_dim r
+join unnest(`+levelArg+`::int2[], `+startArg+`::date[]) wanted(k,start_day)
+  on r.k=wanted.k and r.start_day=wanted.start_day
+where r.site_id=`+siteArg+` and r.dim=`+dimArg)
+		}
 	}
 	if len(inputs) == 0 {
-		inputs = append(inputs, "select "+columns+" from rollup_day_dim where false")
+		inputs = append(inputs, "select "+columns+", 0::int8 as exits from rollup_day_dim where false")
 	}
-	dimension := rollupValueText("value_id", req.Dimensions[0])
+	dimensionText := rollupValueText("value_id", req.Dimensions[0])
 	where := "true"
 	if req.Dimensions[0] == "region" || req.Dimensions[0] == "city" {
 		where = "value_id<>0"
 	}
-	querySQL := aggregateSQL([]string{dimension}, baseSums, "("+strings.Join(inputs, " union all ")+") r", where)
+	querySQL := aggregateSQL([]string{dimensionText}, baseSums, "("+strings.Join(inputs, " union all ")+") r", where)
 	return e.executeAggregate(ctx, querySQL, builder.args, req.Dimensions)
 }
 
@@ -192,7 +224,7 @@ func additiveColumnSums(alias string, hasScroll bool) []string {
 		"coalesce(sum(" + prefix + "bounces),0)::int8",
 		"coalesce(sum(" + prefix + "duration_ms),0)::int8",
 		"coalesce(sum(" + prefix + "engagement_ms),0)::int8",
-		scrollSum, scrollN, "0::int8", "0::int8", "0::int8", "0::int8",
+		"0::int8", "0::int8", scrollSum, scrollN, "0::int8", "0::int8", "0::int8", "0::int8",
 	}
 }
 

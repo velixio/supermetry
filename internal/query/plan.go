@@ -110,8 +110,11 @@ func metricsSupported(metrics []api.Metric, route Route) bool {
 			if metric == api.Events || metric == api.Conversions || metric == api.ConversionRate || isRevenueMetric(metric) {
 				return false
 			}
+			if route == RouteCube && isPageMetric(metric) {
+				return false
+			}
 		case RouteVisitorDay:
-			if metric == api.ScrollDepth || metric == api.Events || metric == api.Conversions || metric == api.ConversionRate || isRevenueMetric(metric) {
+			if metric == api.ScrollDepth || metric == api.Events || metric == api.Conversions || metric == api.ConversionRate || isRevenueMetric(metric) || isPageMetric(metric) {
 				return false
 			}
 		}
@@ -200,7 +203,7 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 		sources = append(sources, "imported")
 	}
 	totalSums, totalImported := Sums{}, Sums{}
-	if len(normalized.Dimensions) == 0 {
+	if len(normalized.Dimensions) == 0 || hasPageMetric(normalized.Metrics) {
 		for _, row := range rows {
 			totalSums.add(row.sums)
 			totalImported.add(row.imported)
@@ -485,12 +488,27 @@ func (s *Sums) add(other Sums) {
 	s.Bounces += other.Bounces
 	s.DurationMS += other.DurationMS
 	s.EngagementMS += other.EngagementMS
+	s.Exits += other.Exits
+	s.EngagedN += other.EngagedN
 	s.ScrollSum += other.ScrollSum
 	s.ScrollN += other.ScrollN
 	s.Events += other.Events
 	s.Converted += other.Converted
 	s.RevenueMicros += other.RevenueMicros
 	s.RevenueEvents += other.RevenueEvents
+}
+
+func isPageMetric(metric api.Metric) bool {
+	return metric == api.Metric(ExitRate) || metric == api.Metric(TimeOnPage)
+}
+
+func hasPageMetric(metrics []api.Metric) bool {
+	for _, metric := range metrics {
+		if isPageMetric(metric) {
+			return true
+		}
+	}
+	return false
 }
 
 func isRevenueMetric(metric api.Metric) bool {

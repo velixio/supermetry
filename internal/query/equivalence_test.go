@@ -64,6 +64,77 @@ func TestRouteEquivalence(t *testing.T) {
 	}
 }
 
+func TestPageMetricsMatchHotClosedAndRollupTiers(t *testing.T) {
+	_, engine := setupPageMetricFixture(t)
+	req := pageMetricRequest(nil)
+
+	want := map[string]struct {
+		pageviews  float64
+		exitRate   float64
+		timeOnPage float64
+	}{
+		"/a":      {pageviews: 3, exitRate: 100.0 / 3.0, timeOnPage: 30},
+		"/b":      {pageviews: 2, exitRate: 100, timeOnPage: 0},
+		"/repeat": {pageviews: 2, exitRate: 50, timeOnPage: 30},
+	}
+	for _, route := range []query.Route{query.RouteHot, query.RouteClosed, query.RouteRollup} {
+		response := mustQuery(t, engine.WithForcedRoute(route), req)
+		assertPageMetrics(t, route.String(), response, want)
+	}
+}
+
+func TestFilteredPageMetricsMatchHotAndClosedTiers(t *testing.T) {
+	_, engine := setupPageMetricFixture(t)
+	req := pageMetricRequest([]api.Filter{filter("country", api.Is, "IN")})
+
+	want := mustQuery(t, engine.WithForcedRoute(query.RouteClosed), req)
+	got := mustQuery(t, engine.WithForcedRoute(query.RouteHot), req)
+	if !equivalent(got, want) {
+		t.Fatalf("filtered page metrics differ: hot=%+v closed=%+v", got, want)
+	}
+	normalized, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC}, day("2026-10-10"))
+	if problem != nil {
+		t.Fatal(problem.Title)
+	}
+	parts := query.Plan(normalized, day("2026-10-09"))
+	if len(parts) != 1 || parts[0].Route != query.RouteClosed {
+		t.Fatalf("filtered page metric plan = %+v, want closed route", parts)
+	}
+}
+
+func TestExitRateMatchesPageLikeDimensionsAcrossTiers(t *testing.T) {
+	_, engine := setupPageMetricFixture(t)
+	tests := []struct {
+		name      string
+		dimension string
+		want      map[string]float64
+	}{
+		{name: "entry", dimension: "entry", want: map[string]float64{"/a": 20, "/repeat": 50}},
+		{name: "exit", dimension: "exit", want: map[string]float64{"/a": 100, "/b": 50, "/repeat": 50}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dimensions := []string{tt.dimension}
+			req := api.QueryRequest{
+				SiteId: 1, DateRange: ptr(dateRange("2026-10-09", "2026-10-09")),
+				Metrics: []api.Metric{api.Metric(query.ExitRate)}, Dimensions: &dimensions,
+			}
+			for _, route := range []query.Route{query.RouteHot, query.RouteClosed, query.RouteRollup} {
+				response := mustQuery(t, engine.WithForcedRoute(route), req)
+				if len(response.Rows) != len(tt.want) {
+					t.Fatalf("%s rows = %+v, want %d", route.String(), response.Rows, len(tt.want))
+				}
+				for _, row := range response.Rows {
+					value := row[tt.dimension].(string)
+					if got := row["exit_rate"].(float64); math.Abs(got-tt.want[value]) > 1e-9 {
+						t.Errorf("%s %s=%s exit_rate=%v, want %v", route.String(), tt.dimension, value, got, tt.want[value])
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestRegionAndCityBreakdownsUseLabelsAndExcludeUnknown(t *testing.T) {
 	_, engine := setupTiny(t)
 	tests := []struct {
@@ -340,6 +411,92 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
 	return pool, query.NewEngine(pool, dictionary, reg)
+}
+
+func setupPageMetricFixture(t *testing.T) (*pgxpool.Pool, *query.Engine) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	fixtureDay := day("2026-10-09")
+	if err := db.EnsurePartitions(ctx, pool, fixtureDay, fixtureDay.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	_, err := pool.Exec(ctx, `
+insert into dict(kind, id, value) values (0, 101, '/a'), (0, 102, '/b'), (0, 103, '/repeat');
+
+insert into sessions
+  (site_id, retention_class, session_id, visitor_id, start, last, local_day,
+   entry_path, exit_path, country, pageviews, events, engagement_ms, bounce)
+values
+  (1,30,1,11,'2026-10-09 10:00Z','2026-10-09 10:04Z','2026-10-09',101,102,'IN',2,0,30000,false),
+  (1,30,2,12,'2026-10-09 11:00Z','2026-10-09 11:01Z','2026-10-09',101,101,'IN',1,0,30000,true),
+  (1,30,3,13,'2026-10-09 12:00Z','2026-10-09 12:01Z','2026-10-09',101,102,'US',2,0,0,false),
+  (1,30,4,14,'2026-10-09 13:00Z','2026-10-09 13:03Z','2026-10-09',103,103,'CA',2,0,30000,false);
+
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind,
+   path_id, country, engagement_ms)
+values
+  (1,30,'2026-10-09','2026-10-09 10:00Z',11,1,0,101,'IN',0),
+  (1,30,'2026-10-09','2026-10-09 10:01Z',11,1,2,101,'IN',10000),
+  (1,30,'2026-10-09','2026-10-09 10:02Z',11,1,2,101,'IN',20000),
+  (1,30,'2026-10-09','2026-10-09 10:03Z',11,1,0,102,'IN',0),
+  (1,30,'2026-10-09','2026-10-09 10:04Z',11,1,2,102,'IN',0),
+  (1,30,'2026-10-09','2026-10-09 11:00Z',12,2,0,101,'IN',0),
+  (1,30,'2026-10-09','2026-10-09 11:01Z',12,2,2,101,'IN',30000),
+  (1,30,'2026-10-09','2026-10-09 12:00Z',13,3,0,101,'US',0),
+  (1,30,'2026-10-09','2026-10-09 12:01Z',13,3,0,102,'US',0),
+  (1,30,'2026-10-09','2026-10-09 13:00Z',14,4,0,103,'CA',0),
+  (1,30,'2026-10-09','2026-10-09 13:01Z',14,4,2,103,'CA',10000),
+  (1,30,'2026-10-09','2026-10-09 13:02Z',14,4,0,103,'CA',0),
+  (1,30,'2026-10-09','2026-10-09 13:03Z',14,4,2,103,'CA',20000)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closer.CloseDay(ctx, pool, []int32{1}, fixtureDay); err != nil {
+		t.Fatal(err)
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := registry{site: sites.Site{ID: 1, PublicID: "pages", TZ: time.UTC, Retention: db.Ret30}}
+	return pool, query.NewEngine(pool, dictionary, reg)
+}
+
+func pageMetricRequest(filters []api.Filter) api.QueryRequest {
+	dimensions := []string{"page"}
+	return api.QueryRequest{
+		SiteId:     1,
+		DateRange:  ptr(dateRange("2026-10-09", "2026-10-09")),
+		Metrics:    []api.Metric{api.Pageviews, api.Metric(query.ExitRate), api.Metric(query.TimeOnPage)},
+		Dimensions: &dimensions,
+		Filters:    ptr(filters),
+	}
+}
+
+func assertPageMetrics(t *testing.T, route string, response api.QueryResponse, want map[string]struct {
+	pageviews  float64
+	exitRate   float64
+	timeOnPage float64
+}) {
+	t.Helper()
+	if len(response.Rows) != len(want) {
+		t.Fatalf("%s rows = %+v, want %d", route, response.Rows, len(want))
+	}
+	for _, row := range response.Rows {
+		path, _ := row["page"].(string)
+		expected, ok := want[path]
+		if !ok {
+			t.Fatalf("%s returned unexpected page row %+v", route, row)
+		}
+		if row["pageviews"] != expected.pageviews || math.Abs(row["exit_rate"].(float64)-expected.exitRate) > 1e-9 || row["time_on_page"] != expected.timeOnPage {
+			t.Errorf("%s %s = %+v, want pageviews=%v exit_rate=%v time_on_page=%v", route, path, row, expected.pageviews, expected.exitRate, expected.timeOnPage)
+		}
+	}
 }
 
 func loadTinyRows(t *testing.T, pool *pgxpool.Pool) {

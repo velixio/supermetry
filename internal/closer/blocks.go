@@ -102,11 +102,12 @@ with wanted as (
 )
 insert into rollup_block_dim (
   site_id, k, start_day, dim, value_id, visitors, visits, pageviews, bounces,
-  duration_ms, engagement_ms, scroll_sum, scroll_n
+  duration_ms, engagement_ms, engaged_n, scroll_sum, scroll_n
 )
 select ready.site_id, 1, ready.start_day, daily.dim, daily.value_id,
        sum(daily.visitors), sum(daily.visits), sum(daily.pageviews), sum(daily.bounces),
-       sum(daily.duration_ms), sum(daily.engagement_ms), sum(daily.scroll_sum), sum(daily.scroll_n)
+       sum(daily.duration_ms), sum(daily.engagement_ms), sum(daily.engaged_n),
+       sum(daily.scroll_sum), sum(daily.scroll_n)
 from ready
 join rollup_day_dim daily
   on daily.site_id = ready.site_id
@@ -127,11 +128,12 @@ with wanted as (
 )
 insert into rollup_block_dim (
   site_id, k, start_day, dim, value_id, visitors, visits, pageviews, bounces,
-  duration_ms, engagement_ms, scroll_sum, scroll_n
+  duration_ms, engagement_ms, engaged_n, scroll_sum, scroll_n
 )
 select ready.site_id, $3, ready.start_day, child.dim, child.value_id,
        sum(child.visitors), sum(child.visits), sum(child.pageviews), sum(child.bounces),
-       sum(child.duration_ms), sum(child.engagement_ms), sum(child.scroll_sum), sum(child.scroll_n)
+       sum(child.duration_ms), sum(child.engagement_ms), sum(child.engaged_n),
+       sum(child.scroll_sum), sum(child.scroll_n)
 from ready
 join rollup_block_dim child
   on child.site_id = ready.site_id and child.k = $3 - 1

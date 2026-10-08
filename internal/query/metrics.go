@@ -1,5 +1,7 @@
 package query
 
+import "math"
+
 // Metric identifies a value that can be requested from the query engine.
 type Metric string
 
@@ -11,6 +13,8 @@ const (
 	BounceRate     Metric = "bounce_rate"
 	VisitDuration  Metric = "visit_duration"
 	EngagementTime Metric = "engagement_time"
+	ExitRate       Metric = "exit_rate"
+	TimeOnPage     Metric = "time_on_page"
 	ScrollDepth    Metric = "scroll_depth"
 	Events         Metric = "events"
 	Conversions    Metric = "conversions"
@@ -27,6 +31,8 @@ type Sums struct {
 	Bounces       int64
 	DurationMS    int64
 	EngagementMS  int64
+	Exits         int64
+	EngagedN      int64
 	ScrollSum     int64
 	ScrollN       int64
 	Events        int64
@@ -53,6 +59,10 @@ func (m Metric) Final(sums Sums) float64 {
 		return ratio(sums.DurationMS, sums.Visits) / 1000
 	case EngagementTime:
 		return ratio(sums.EngagementMS, sums.Visits) / 1000
+	case ExitRate:
+		return math.Min(percentage(sums.Exits, sums.Pageviews), 100)
+	case TimeOnPage:
+		return ratio(sums.EngagementMS, sums.EngagedN) / 1000
 	case ScrollDepth:
 		return ratio(sums.ScrollSum, sums.ScrollN)
 	case Events:

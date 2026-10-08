@@ -1849,6 +1849,7 @@ components:
           $ref: '#/components/schemas/HeatmapTotals'
     Metric:
       type: string
+      description: exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
       enum:
         - visitors
         - visits
@@ -1857,6 +1858,8 @@ components:
         - bounce_rate
         - visit_duration
         - engagement_time
+        - exit_rate
+        - time_on_page
         - scroll_depth
         - events
         - conversions
