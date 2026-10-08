@@ -19,13 +19,13 @@ const query: StatsQuery = {
   timezone: 'UTC',
 }
 
-function result(totals: Record<string, number>) {
+function result(totals: Record<string, number>, importedIncluded = false) {
   return {
     data: {
       columns: Object.keys(totals),
       rows: [],
       totals,
-      meta: { sources_used: ['daily'], cached: false },
+      meta: { sources_used: ['daily'], cached: false, imported_included: importedIncluded },
     },
     isLoading: false,
     isError: false,
@@ -103,5 +103,15 @@ describe('StatsStrip', () => {
     const engagement = screen.getByRole('button', { name: /engagement time/i })
     expect(engagement).toHaveTextContent('—')
     expect(engagement).not.toHaveTextContent('0s')
+  })
+
+  it('marks summaries that include imported data', () => {
+    useStats
+      .mockReturnValueOnce(result({ visitors: 110 }, true))
+      .mockReturnValueOnce(result({ visitors: 100 }))
+
+    render(<StatsStrip query={query} compare="off" onSelectMetric={vi.fn()} />)
+
+    expect(screen.getByText('Includes imported data')).toBeVisible()
   })
 })

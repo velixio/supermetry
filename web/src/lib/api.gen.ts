@@ -225,6 +225,28 @@ export interface paths {
         patch: operations["updateFunnel"];
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/segments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List saved segments
+         * @description Requires the stats:read API-key scope for the requested site.
+         */
+        get: operations["listSegments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -343,6 +365,20 @@ export interface components {
             /** Format: int32 */
             site_id: number;
         };
+        Segment: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            name: string;
+            filters: components["schemas"]["Filter"][];
+            /** Format: int64 */
+            created_by: number | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         /** @enum {string} */
         Period: "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "12mo" | "year" | "custom";
         DateRange: {
@@ -373,6 +409,8 @@ export interface components {
             date_range?: components["schemas"]["DateRange"];
             period?: components["schemas"]["Period"];
             timezone?: string;
+            /** @default true */
+            include_imported: boolean;
             metrics: components["schemas"]["Metric"][];
             dimensions?: string[];
             filters?: components["schemas"]["Filter"][];
@@ -385,6 +423,7 @@ export interface components {
         QueryMeta: {
             sources_used: string[];
             cached: boolean;
+            imported_included: boolean;
         };
         QueryResponse: {
             columns: string[];
@@ -1058,6 +1097,32 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listSegments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved segments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Segment"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
         };
     };
     healthz: {

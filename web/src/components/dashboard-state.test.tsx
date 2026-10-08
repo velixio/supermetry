@@ -120,3 +120,11 @@ describe('LiveBadge', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 })
+
+describe('imported data search state', () => {
+  it('includes imported data by default and preserves an explicit toggle', () => {
+    expect(dashboardSearch.parse({}).include_imported).toBe(true)
+    expect(dashboardSearch.parse({ include_imported: false }).include_imported).toBe(false)
+    expect(dashboardSearch.parse({ include_imported: 'false' }).include_imported).toBe(false)
+  })
+})

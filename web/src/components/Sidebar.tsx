@@ -127,7 +127,7 @@ function navigationLink(
         <Link
           to="/$org/$site"
           params={{ org, site }}
-          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
           {...props}
         >
           {content}
@@ -184,7 +184,7 @@ export function PanelSidebar({
                     <Link
                       to="/$org/$site"
                       params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
-                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
                       onClick={closeMobile}
                     >
                       {item.org.name}
@@ -217,7 +217,7 @@ export function PanelSidebar({
                   <Link
                     to="/$org/$site"
                     params={{ org: membership.org.slug, site: siteSlug(item) }}
-                    search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+                    search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
                     onClick={closeMobile}
                   >
                     {item.name}

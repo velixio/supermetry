@@ -11,6 +11,7 @@ const settingsTabs = [
   ['funnels', 'Funnels', '/$org/$site/settings/funnels'],
   ['shares', 'Shares', '/$org/$site/settings/shares'],
   ['reports', 'Reports', '/$org/$site/settings/reports'],
+  ['imports', 'Imports & export', '/$org/$site/settings/imports'],
 ] as const
 
 export function SiteSettingsTabs({ org, site, current }: { org: string; site: string; current: string }) {
