@@ -12,7 +12,9 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Visitors, pageviews, bounce rate, visit duration | ✓ | ✓ | ✓ | ✅ |
 | Realtime view | ✓ | ✓ | ✓ | ✅ (live feed, per-minute chart) |
 | Compare with the previous period | ✓ | ✓ | ? | ✅ |
-| Filters on any dimension | ✓ | ✓ | ✓ | ⏳ (by clicking a row; no filter picker yet) |
+| Filters on any dimension | ✓ | ✓ | ✓ | ✅ (Add-filter picker with value suggestions) |
+| Sessions explorer and session timeline | – | ✓ | ✓ | ✅ |
+| Events and properties explorer | – | ✓ | ✓ | ✅ |
 | Page, source, country, browser, OS and device breakdowns | ✓ | ✓ | ✓ | ✅ |
 | UTM breakdowns | ✓ | ✓ | ✓ | ✅ |
 | Entry and exit pages | ✓ | ✓ | ✓ | ✅ |
@@ -61,6 +63,9 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ✅ (GA4 import not yet) |
 | Stats API: summary | ✓ | ✓ | ✓ | ✅ |
 | Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ | ✅ |
+| API: sessions, raw events, properties, suggestions | – | ✓ | ✓ | ✅ |
+| API key management through the API, scoped keys | ✓ (scopes) | ✓ | – | ✅ (`keys:manage`, no escalation) |
+| API reference in the app + typed client | ✓ (docs) | ✓ (client) | ✓ | ✅ |
 | Sites / goals / funnels API | ✓ (not in CE) | ✓ | ✓ | ✅ |
 | MCP server for AI assistants | ? | ✓ | ✓ | ✅ |
 | SSO / OIDC | ✓ (enterprise) | ? | ? | ⏸ |
