@@ -507,6 +507,8 @@ export interface components {
             date_range?: components["schemas"]["DateRange"];
             period?: components["schemas"]["Period"];
             timezone?: string;
+            /** @default true */
+            include_imported: boolean;
             metrics: components["schemas"]["Metric"][];
             dimensions?: string[];
             filters?: components["schemas"]["Filter"][];
@@ -519,6 +521,7 @@ export interface components {
         QueryMeta: {
             sources_used: string[];
             cached: boolean;
+            imported_included: boolean;
         };
         /**
          * @example {

@@ -42,6 +42,7 @@ import { Route as OrgSiteSettingsAlertsRouteImport } from './routes/$org.$site.s
 import { Route as OrgSiteSettingsFunnelsRouteImport } from './routes/$org.$site.settings.funnels'
 import { Route as OrgSiteSettingsGeneralRouteImport } from './routes/$org.$site.settings.general'
 import { Route as OrgSiteSettingsGoalsRouteImport } from './routes/$org.$site.settings.goals'
+import { Route as OrgSiteSettingsImportsRouteImport } from './routes/$org.$site.settings.imports'
 import { Route as OrgSiteSettingsInstallationRouteImport } from './routes/$org.$site.settings.installation'
 import { Route as OrgSiteSettingsReportsRouteImport } from './routes/$org.$site.settings.reports'
 import { Route as OrgSiteSettingsSharesRouteImport } from './routes/$org.$site.settings.shares'
@@ -213,6 +214,11 @@ const OrgSiteSettingsGoalsRoute = OrgSiteSettingsGoalsRouteImport.update({
   path: '/goals',
   getParentRoute: () => OrgSiteSettingsRoute,
 } as any)
+const OrgSiteSettingsImportsRoute = OrgSiteSettingsImportsRouteImport.update({
+  id: '/imports',
+  path: '/imports',
+  getParentRoute: () => OrgSiteSettingsRoute,
+} as any)
 const OrgSiteSettingsInstallationRoute =
   OrgSiteSettingsInstallationRouteImport.update({
     id: '/installation',
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
+  '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
   '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByTo {
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
+  '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
   '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
@@ -347,6 +355,7 @@ export interface FileRoutesById {
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
+  '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
   '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
@@ -388,6 +397,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
+    | '/$org/$site/settings/imports'
     | '/$org/$site/settings/installation'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
@@ -427,6 +437,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
+    | '/$org/$site/settings/imports'
     | '/$org/$site/settings/installation'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
@@ -466,6 +477,7 @@ export interface FileRouteTypes {
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
+    | '/$org/$site/settings/imports'
     | '/$org/$site/settings/installation'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
@@ -720,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteSettingsGoalsRouteImport
       parentRoute: typeof OrgSiteSettingsRoute
     }
+    '/$org/$site/settings/imports': {
+      id: '/$org/$site/settings/imports'
+      path: '/imports'
+      fullPath: '/$org/$site/settings/imports'
+      preLoaderRoute: typeof OrgSiteSettingsImportsRouteImport
+      parentRoute: typeof OrgSiteSettingsRoute
+    }
     '/$org/$site/settings/installation': {
       id: '/$org/$site/settings/installation'
       path: '/installation'
@@ -776,6 +795,7 @@ interface OrgSiteSettingsRouteChildren {
   OrgSiteSettingsFunnelsRoute: typeof OrgSiteSettingsFunnelsRoute
   OrgSiteSettingsGeneralRoute: typeof OrgSiteSettingsGeneralRoute
   OrgSiteSettingsGoalsRoute: typeof OrgSiteSettingsGoalsRoute
+  OrgSiteSettingsImportsRoute: typeof OrgSiteSettingsImportsRoute
   OrgSiteSettingsInstallationRoute: typeof OrgSiteSettingsInstallationRoute
   OrgSiteSettingsReportsRoute: typeof OrgSiteSettingsReportsRoute
   OrgSiteSettingsSharesRoute: typeof OrgSiteSettingsSharesRoute
@@ -787,6 +807,7 @@ const OrgSiteSettingsRouteChildren: OrgSiteSettingsRouteChildren = {
   OrgSiteSettingsFunnelsRoute: OrgSiteSettingsFunnelsRoute,
   OrgSiteSettingsGeneralRoute: OrgSiteSettingsGeneralRoute,
   OrgSiteSettingsGoalsRoute: OrgSiteSettingsGoalsRoute,
+  OrgSiteSettingsImportsRoute: OrgSiteSettingsImportsRoute,
   OrgSiteSettingsInstallationRoute: OrgSiteSettingsInstallationRoute,
   OrgSiteSettingsReportsRoute: OrgSiteSettingsReportsRoute,
   OrgSiteSettingsSharesRoute: OrgSiteSettingsSharesRoute,

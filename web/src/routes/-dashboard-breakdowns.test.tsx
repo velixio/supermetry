@@ -199,6 +199,7 @@ describe('dashboard breakdown route', () => {
             filters: [
               { dimension: 'country', operator: 'is', values: ['IN'] },
             ],
+            include_imported: true,
           },
           headers: { Accept: 'text/csv' },
           params: { query: { format: 'csv', limit: 'all' } },

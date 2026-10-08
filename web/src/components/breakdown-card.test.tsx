@@ -147,6 +147,7 @@ describe('BreakdownCard', () => {
           metrics: ['visitors'],
           dimensions: ['page'],
           filters: [],
+          include_imported: true,
           order_by: [{ column: 'visitors', direction: 'desc' }],
           limit: 25,
         },

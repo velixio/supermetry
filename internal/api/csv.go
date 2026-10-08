@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"panel/internal/csvsafe"
 )
 
 const (
@@ -88,12 +90,7 @@ func csvValue(value any) string {
 	case nil:
 		return ""
 	case string:
-		// Spreadsheets run cells starting with these as formulas; values such
-		// as page paths and referrers come from visitors, so prefix a quote.
-		if typed != "" && strings.ContainsRune("=+-@\t\r", rune(typed[0])) {
-			return "'" + typed
-		}
-		return typed
+		return csvsafe.Cell(typed)
 	case float64:
 		return strconv.FormatFloat(typed, 'f', -1, 64)
 	case float32:

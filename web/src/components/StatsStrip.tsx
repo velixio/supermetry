@@ -121,9 +121,16 @@ export function StatsStrip({
   }
   const current = useStats(currentQuery)
   const comparison = useStats(comparisonQuery)
+  const importedIncluded = current.data?.meta.imported_included
 
   return (
-    <section
+    <div className="flex flex-col gap-2">
+      {importedIncluded ? (
+        <p className="self-start rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+          Includes imported data
+        </p>
+      ) : null}
+      <section
       aria-busy={current.isLoading || comparison.isLoading}
       className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7"
     >
@@ -151,6 +158,7 @@ export function StatsStrip({
           </Button>
         )
       })}
-    </section>
+      </section>
+    </div>
   )
 }

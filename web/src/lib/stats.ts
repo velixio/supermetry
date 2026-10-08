@@ -25,6 +25,7 @@ export type StatsQuery = {
   compare?: Compare
   timezone?: string
   live?: boolean
+  includeImported?: boolean
 }
 
 type QueryBody = components['schemas']['QueryRequest']
@@ -49,6 +50,7 @@ function normalizedBody(query: StatsQuery): QueryBody {
       ? { compare: query.compare }
       : {}),
     ...(query.timezone === undefined ? {} : { timezone: query.timezone }),
+    include_imported: query.includeImported !== false,
   }
 }
 

@@ -133,7 +133,7 @@ function navigationLink(
         <Link
           to="/$org/$site"
           params={{ org, site }}
-          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
           {...props}
         >
           {content}
@@ -142,15 +142,15 @@ function navigationLink(
     case '/funnels':
       return <Link to="/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
     case '/journeys':
-      return <Link to="/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
+      return <Link to="/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
     case '/retention':
-      return <Link to="/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', interval: 'day' }} {...props}>{content}</Link>
+      return <Link to="/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, interval: 'day' }} {...props}>{content}</Link>
     case '/vitals':
       return (
         <Link
           to="/$org/$site/vitals"
           params={{ org, site }}
-          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
           {...props}
         >
           {content}
@@ -205,7 +205,7 @@ export function PanelSidebar({
                     <Link
                       to="/$org/$site"
                       params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
-                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
                       onClick={closeMobile}
                     >
                       {item.org.name}
@@ -238,7 +238,7 @@ export function PanelSidebar({
                   <Link
                     to="/$org/$site"
                     params={{ org: membership.org.slug, site: siteSlug(item) }}
-                    search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+                    search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
                     onClick={closeMobile}
                   >
                     {item.name}

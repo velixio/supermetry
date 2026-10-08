@@ -13,6 +13,7 @@ function queryBody(query: StatsQuery) {
       operator: filter.operator,
       values: [...filter.values],
     })),
+    include_imported: query.includeImported !== false,
     ...(query.orderBy
       ? { order_by: query.orderBy.map((order) => ({ ...order })) }
       : {}),

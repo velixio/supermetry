@@ -144,6 +144,7 @@ func (e *Engine) WithForcedRoute(route Route) *Engine {
 type resultRow struct {
 	dimensions []string
 	sums       Sums
+	imported   Sums
 }
 
 // Query runs a typed analytics query and returns finalized metric values.
@@ -176,10 +177,33 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	if err != nil {
 		return api.QueryResponse{}, err
 	}
-	totalSums := Sums{}
+	importsAvailable := false
+	var firstNative *time.Time
+	if importedQueryEligible(normalized) {
+		importsAvailable, err = e.importedDaysExist(ctx, normalized)
+		if err != nil {
+			return api.QueryResponse{}, err
+		}
+		if importsAvailable {
+			firstNative, err = e.firstNativeDay(ctx, normalized.SiteID)
+			if err != nil {
+				return api.QueryResponse{}, err
+			}
+		}
+	}
+	importedRows, importedIncluded, err := e.queryImported(ctx, normalized, firstNative, importsAvailable)
+	if err != nil {
+		return api.QueryResponse{}, err
+	}
+	rows = append(rows, importedRows...)
+	if importedIncluded {
+		sources = append(sources, "imported")
+	}
+	totalSums, totalImported := Sums{}, Sums{}
 	if len(normalized.Dimensions) == 0 {
 		for _, row := range rows {
 			totalSums.add(row.sums)
+			totalImported.add(row.imported)
 		}
 	} else {
 		totalReq := normalized
@@ -191,6 +215,17 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 		for _, row := range totalRows {
 			totalSums.add(row.sums)
 		}
+		importedTotals, totalsIncluded, queryErr := e.queryImported(ctx, totalReq, firstNative, importsAvailable)
+		if queryErr != nil {
+			return api.QueryResponse{}, queryErr
+		}
+		for _, row := range importedTotals {
+			totalImported.add(row.imported)
+		}
+		importedIncluded = importedIncluded || totalsIncluded
+	}
+	if importedIncluded && !containsStringValue(sources, "imported") {
+		sources = append(sources, "imported")
 	}
 
 	rows = mergeRows(rows)
@@ -212,8 +247,8 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	response := api.QueryResponse{
 		Columns:    append(append([]string(nil), normalized.Dimensions...), metricNames(normalized.Metrics)...),
 		Rows:       make([]map[string]interface{}, 0, len(rows)),
-		Totals:     finalMetrics(normalized.Metrics, totalSums),
-		Meta:       api.QueryMeta{SourcesUsed: sources, Cached: false},
+		Totals:     finalMetrics(normalized.Metrics, totalSums, totalImported, nil),
+		Meta:       api.QueryMeta{SourcesUsed: sources, Cached: false, ImportedIncluded: importedIncluded},
 		NextCursor: nextCursor,
 	}
 	for _, row := range rows {
@@ -221,7 +256,7 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 		for i, dimension := range normalized.Dimensions {
 			item[dimension] = row.dimensions[i]
 		}
-		for metric, value := range finalMetrics(normalized.Metrics, row.sums) {
+		for metric, value := range finalMetrics(normalized.Metrics, row.sums, row.imported, normalized.Dimensions) {
 			item[metric] = value
 		}
 		response.Rows = append(response.Rows, item)
@@ -261,6 +296,15 @@ func previousYearDay(day time.Time) time.Time {
 	year := day.Year() - 1
 	lastDay := time.Date(year, day.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
 	return time.Date(year, day.Month(), min(day.Day(), lastDay), 0, 0, 0, 0, time.UTC)
+}
+
+func containsStringValue(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Engine) queryParts(ctx context.Context, req Normalized, parts []Part) ([]resultRow, []string, error) {
@@ -331,6 +375,7 @@ func mergeRows(rows []resultRow) []resultRow {
 			order = append(order, key)
 		}
 		current.sums.add(row.sums)
+		current.imported.add(row.imported)
 	}
 	result := make([]resultRow, 0, len(merged))
 	for _, key := range order {
@@ -360,8 +405,8 @@ func sortResultRows(rows []resultRow, req Normalized) {
 			}
 		}
 		if len(req.Metrics) > 0 {
-			left := Metric(req.Metrics[0]).Final(rows[i].sums)
-			right := Metric(req.Metrics[0]).Final(rows[j].sums)
+			left := finalMetric(req.Metrics[0], rows[i].sums, rows[i].imported, req.Dimensions)
+			right := finalMetric(req.Metrics[0], rows[j].sums, rows[j].imported, req.Dimensions)
 			if left != right {
 				return left > right
 			}
@@ -373,7 +418,7 @@ func sortResultRows(rows []resultRow, req Normalized) {
 func orderValues(left, right resultRow, req Normalized, column string) (string, string, bool) {
 	for _, metric := range req.Metrics {
 		if string(metric) == column {
-			return strconv.FormatFloat(Metric(metric).Final(left.sums), 'g', -1, 64), strconv.FormatFloat(Metric(metric).Final(right.sums), 'g', -1, 64), true
+			return strconv.FormatFloat(finalMetric(metric, left.sums, left.imported, req.Dimensions), 'g', -1, 64), strconv.FormatFloat(finalMetric(metric, right.sums, right.imported, req.Dimensions), 'g', -1, 64), true
 		}
 	}
 	for i, dimension := range req.Dimensions {
@@ -399,12 +444,30 @@ func cursorOffset(cursor *string) (int, error) {
 	return offset, nil
 }
 
-func finalMetrics(metrics []api.Metric, sums Sums) map[string]float64 {
+func finalMetrics(metrics []api.Metric, sums, imported Sums, dimensions []string) map[string]float64 {
 	result := make(map[string]float64, len(metrics))
 	for _, metric := range metrics {
-		result[string(metric)] = Metric(metric).Final(sums)
+		result[string(metric)] = finalMetric(metric, sums, imported, dimensions)
 	}
 	return result
+}
+
+func finalMetric(metric api.Metric, sums, imported Sums, dimensions []string) float64 {
+	if metricSupportsImported(metric, dimensions) {
+		sums.add(imported)
+	}
+	return Metric(metric).Final(sums)
+}
+
+func metricSupportsImported(metric api.Metric, dimensions []string) bool {
+	switch metric {
+	case api.Visitors, api.Visits, api.Pageviews, api.ViewsPerVisit, api.BounceRate, api.VisitDuration:
+		return true
+	case api.Events:
+		return len(dimensions) == 1 && dimensions[0] != "time"
+	default:
+		return false
+	}
 }
 
 func metricNames(metrics []api.Metric) []string {

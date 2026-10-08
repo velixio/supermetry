@@ -224,6 +224,10 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"POST " + privatePrefix + "/sites/{site}/segments",
 		"PATCH " + privatePrefix + "/segments/{segment}",
 		"DELETE " + privatePrefix + "/segments/{segment}",
+		"POST " + privatePrefix + "/sites/{site}/imports",
+		"GET " + privatePrefix + "/sites/{site}/imports",
+		"DELETE " + privatePrefix + "/imports/{import}",
+		"GET " + privatePrefix + "/sites/{site}/export",
 	} {
 		mux.Handle(pattern, platform)
 	}

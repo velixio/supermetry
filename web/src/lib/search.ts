@@ -68,6 +68,10 @@ export const dashboardSearch = z.object({
   f: z.array(z.string()).catch([]),
   metric: Metric.catch('visitors'),
   live: z.coerce.boolean().optional(),
+  include_imported: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .optional()
+    .transform((value) => value === undefined || value === true || value === 'true'),
 })
 
 export type Period = z.infer<typeof Period>

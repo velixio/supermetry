@@ -8,6 +8,7 @@ import { MainChart } from '../components/MainChart'
 import { AnnotationManager } from '../features/annotations/AnnotationManager'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
+import { Button } from '../components/ui/button'
 import { useShortcuts } from '../lib/shortcuts'
 import type { StatsQuery } from '../lib/stats'
 import {
@@ -69,6 +70,7 @@ function DashboardStateRoute() {
     compare: search.compare,
     timezone,
     live: search.live,
+    includeImported: search.include_imported,
   }
   const onFilter = (filter: Filter) => {
     void navigate({ search: addFilter(search, filter) })
@@ -103,6 +105,16 @@ function DashboardStateRoute() {
           />
         </div>
       </div>
+      <Button
+        className="self-start"
+        type="button"
+        size="sm"
+        variant="outline"
+        aria-pressed={search.include_imported}
+        onClick={() => updateSearch({ ...search, include_imported: !search.include_imported })}
+      >
+        Include imported data
+      </Button>
       <StatsStrip
         query={query}
         compare={search.compare}

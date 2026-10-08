@@ -63,6 +63,7 @@ describe('useStats', () => {
         metrics: ['visitors'],
         filters: [],
         timezone: 'UTC',
+        include_imported: true,
       },
     })
     const query = client.getQueryCache().getAll()[0]
@@ -75,6 +76,7 @@ describe('useStats', () => {
         metrics: ['visitors'],
         filters: [],
         timezone: 'UTC',
+        include_imported: true,
       },
     ])
     expect(query.observers[0]?.options.staleTime).toBe(300_000)

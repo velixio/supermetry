@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"panel/internal/api"
+	"panel/internal/imports"
 	"panel/internal/platform/audit"
 	platformauth "panel/internal/platform/auth"
 	"panel/internal/platform/authz"
@@ -73,6 +74,19 @@ type Deps struct {
 	Alerts         AlertsService
 	Query          interface {
 		Query(context.Context, api.QueryRequest) (api.QueryResponse, error)
+	}
+	Imports interface {
+		Create(context.Context, imports.CreateInput) (imports.Import, error)
+		Get(context.Context, int64) (imports.Import, error)
+		List(context.Context, int32) ([]imports.Import, error)
+		Delete(context.Context, int64) (bool, error)
+		SetFailed(context.Context, int64, error) error
+	}
+	ImportQueue interface {
+		Queue(imports.Job) error
+	}
+	Exporter interface {
+		Write(context.Context, io.Writer, int32, time.Time, time.Time) error
 	}
 }
 
@@ -145,6 +159,10 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/segments", h.createSegment)
 	mux.HandleFunc("PATCH /api/private/segments/{segment}", h.updateSegment)
 	mux.HandleFunc("DELETE /api/private/segments/{segment}", h.deleteSegment)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports", h.createImport)
+	mux.HandleFunc("GET /api/private/sites/{site}/imports", h.listImports)
+	mux.HandleFunc("DELETE /api/private/imports/{import}", h.deleteImport)
+	mux.HandleFunc("GET /api/private/sites/{site}/export", h.exportSite)
 	mux.HandleFunc("GET /api/private/me", h.me)
 	mux.HandleFunc("GET /api/private/me/ip", h.currentIP)
 	mux.HandleFunc("GET /api/private/me/sessions", h.listSessions)
