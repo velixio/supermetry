@@ -13,9 +13,11 @@ const uaCacheSize = 10_000
 // Client contains the durable, non-identifying dimensions derived from a
 // User-Agent. Device is 0 for desktop, 1 for mobile and 2 for tablet.
 type Client struct {
-	Browser string
-	OS      string
-	Device  int16
+	Browser        string
+	BrowserVersion string
+	OS             string
+	OSVersion      string
+	Device         int16
 }
 
 type uaCacheEntry struct {
@@ -82,6 +84,8 @@ func (e *Enricher) Client(ua string) Client {
 		Browser: browserName(parsed.Name),
 		OS:      parsed.OS,
 	}
+	client.BrowserVersion = browserVersionLabel(client.Browser, parsed.Version)
+	client.OSVersion = osVersionLabel(client.OS, parsed.OSVersion)
 	switch {
 	case parsed.Tablet:
 		client.Device = 2
@@ -94,4 +98,44 @@ func (e *Enricher) Client(ua string) Client {
 
 func browserName(name string) string {
 	return strings.TrimPrefix(name, "Mobile ")
+}
+
+func majorVersion(version string) string {
+	major, _, _ := strings.Cut(strings.ReplaceAll(version, "_", "."), ".")
+	if major == "" || len(major) > 4 || strings.Trim(major, "0123456789") != "" {
+		return ""
+	}
+	return major
+}
+
+func browserVersionLabel(name, version string) string {
+	if major := majorVersion(version); name != "" && major != "" {
+		return name + " " + major
+	}
+	return ""
+}
+
+var windowsNT = map[string]string{
+	"10.0": "Windows 10/11",
+	"6.3":  "Windows 8.1",
+	"6.2":  "Windows 8",
+	"6.1":  "Windows 7",
+}
+
+func osVersionLabel(os, version string) string {
+	switch os {
+	case "Windows":
+		return windowsNT[version]
+	case "macOS":
+		parts := strings.Split(strings.ReplaceAll(version, "_", "."), ".")
+		if majorVersion(parts[0]) == "" {
+			return ""
+		}
+		if parts[0] == "10" && len(parts) > 1 && majorVersion(parts[1]) != "" {
+			return "macOS 10." + parts[1]
+		}
+		return "macOS " + parts[0]
+	default:
+		return browserVersionLabel(os, version)
+	}
 }

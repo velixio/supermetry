@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -52,6 +53,8 @@ type Handler struct {
 	TrustedProxies    []netip.Prefix
 	Clock             Clock
 	Diag              bool // log how each client address was resolved (PANEL_INGEST_DIAG=1)
+	capsOnce          sync.Once
+	caps              *valueCap
 	ProfileTombstones interface {
 		Contains(siteID int32, externalID string) bool
 	}
@@ -199,7 +202,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	event, hit, err := h.buildEvent(r.Context(), payload, pageURL, site, location, ua, now, localDay, visitorID, previousVisitorID)
+	event, hit, err := h.buildEvent(
+		r.Context(), payload, pageURL, site, location, ua,
+		r.Header.Get("Accept-Language"), payload.ScreenWidth,
+		now, localDay, visitorID, previousVisitorID,
+	)
 	if err != nil {
 		h.unavailable(w)
 		return
@@ -282,7 +289,8 @@ func (h *Handler) buildEvent(
 	pageURL *url.URL,
 	site sites.Site,
 	location enrich.CityInfo,
-	ua string,
+	ua, acceptLanguage string,
+	screenWidth int,
 	now, localDay time.Time,
 	visitorID, previousVisitorID int64,
 ) (writer.Event, session.Hit, error) {
@@ -293,6 +301,15 @@ func (h *Handler) buildEvent(
 	utm := enrich.ParseUTM(payload.URL)
 	source, medium := h.Enricher.Source(payload.Referrer, payload.URL, utm)
 	client := h.Enricher.Client(ua)
+	language := enrich.PrimaryLanguage(acceptLanguage)
+	hostname := ""
+	if multiHost(site) {
+		hostname = enrich.HostLabel(pageURL.Host)
+	}
+	client.BrowserVersion = h.capValue(site.ID, localDay, dict.BrowserVersion, client.BrowserVersion)
+	client.OSVersion = h.capValue(site.ID, localDay, dict.OSVersion, client.OSVersion)
+	language = h.capValue(site.ID, localDay, dict.Language, language)
+	hostname = h.capValue(site.ID, localDay, dict.Hostname, hostname)
 
 	pathID, err := h.dimensionID(ctx, dict.Path, path)
 	if err != nil {
@@ -334,6 +351,22 @@ func (h *Handler) buildEvent(
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
+	browserVersionID, err := h.dimensionID(ctx, dict.BrowserVersion, client.BrowserVersion)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
+	osVersionID, err := h.dimensionID(ctx, dict.OSVersion, client.OSVersion)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
+	languageID, err := h.dimensionID(ctx, dict.Language, language)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
+	hostnameID, err := h.dimensionID(ctx, dict.Hostname, hostname)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
 
 	kind := int16(1)
 	var nameID int32
@@ -354,7 +387,8 @@ func (h *Handler) buildEvent(
 		JoinOnly: kind == 2 || payload.Name == "Web Vitals",
 		PathID:   pathID, NameID: nameID, Source: sourceID, UTMSource: utmSourceID, Medium: mediumID,
 		Campaign: campaignID, Country: location.Country, Region: regionID, City: cityID,
-		Browser: browserID, OS: osID,
+		Browser: browserID, OS: osID, BrowserVer: browserVersionID, OSVer: osVersionID,
+		Language: languageID, Hostname: hostnameID, ScreenBucket: enrich.ScreenBucket(screenWidth),
 		Device: client.Device, EngagementMS: int32(payload.EngagementMS), ScrollPct: int16(payload.ScrollPct),
 	}
 	props := payload.Props
@@ -362,9 +396,26 @@ func (h *Handler) buildEvent(
 		props = nil
 	}
 	return writer.Event{
-		Props: props, Screen: int16(payload.ScreenWidth), ReferrerID: referrerID,
+		Props: props, Screen: int16(screenWidth), ReferrerID: referrerID,
 		RevenueMicros: payload.RevenueMicros, RevenueCurrency: payload.RevenueCurrency,
 	}, hit, nil
+}
+
+func (h *Handler) capValue(siteID int32, localDay time.Time, kind dict.Kind, value string) string {
+	h.capsOnce.Do(func() { h.caps = newValueCap(200) })
+	return h.caps.Admit(siteID, localDay, kind, value)
+}
+
+func multiHost(site sites.Site) bool {
+	if len(site.AllowedHosts) > 1 {
+		return true
+	}
+	for _, host := range site.AllowedHosts {
+		if strings.HasPrefix(host, "*.") {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handler) dimensionID(ctx context.Context, kind dict.Kind, value string) (int32, error) {

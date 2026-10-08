@@ -20,7 +20,7 @@ const (
 	maxCompactCount            = 1<<16 - 1
 )
 
-// memorySession is kept at 88 bytes because one instance lives for every
+// memorySession is kept at 112 bytes because one instance lives for every
 // active visitor. Counts spill into the owning shard only for the exceptional
 // case of a session exceeding 65,535 pageviews or custom events.
 type memorySession struct {
@@ -40,19 +40,24 @@ type memorySession struct {
 	city         int32
 	browser      int32
 	os           int32
+	browserVer   int32
+	osVer        int32
+	language     int32
+	hostname     int32
 	counts       uint32
 
 	day     uint16
 	country uint16
 	device  int16
+	screen  int16
 	status  uint16
 }
 
 const memorySessionSize = unsafe.Sizeof(memorySession{})
 
 var (
-	_ [88 - memorySessionSize]byte
-	_ [memorySessionSize - 88]byte
+	_ [112 - memorySessionSize]byte
+	_ [memorySessionSize - 112]byte
 )
 
 type sessionKey struct {
@@ -318,22 +323,27 @@ func (m *Memory) canContinue(s *memorySession, at time.Time) bool {
 
 func (m *Memory) newSession(h Hit) *memorySession {
 	return &memorySession{
-		visitorID: h.VisitorID,
-		sessionID: m.nextSessionID(),
-		startNS:   h.TS.UnixNano(),
-		lastNS:    h.TS.UnixNano(),
-		siteID:    h.SiteID,
-		source:    h.Source,
-		medium:    h.Medium,
-		campaign:  h.Campaign,
-		region:    h.Region,
-		city:      h.City,
-		browser:   h.Browser,
-		os:        h.OS,
-		day:       encodeDay(h.LocalDay),
-		country:   encodeCountry(h.Country),
-		device:    h.Device,
-		status:    uint16(h.Retention)&statusRetentionMask | statusActive,
+		visitorID:  h.VisitorID,
+		sessionID:  m.nextSessionID(),
+		startNS:    h.TS.UnixNano(),
+		lastNS:     h.TS.UnixNano(),
+		siteID:     h.SiteID,
+		source:     h.Source,
+		medium:     h.Medium,
+		campaign:   h.Campaign,
+		region:     h.Region,
+		city:       h.City,
+		browser:    h.Browser,
+		os:         h.OS,
+		browserVer: h.BrowserVer,
+		osVer:      h.OSVer,
+		language:   h.Language,
+		hostname:   h.Hostname,
+		day:        encodeDay(h.LocalDay),
+		country:    encodeCountry(h.Country),
+		device:     h.Device,
+		screen:     h.ScreenBucket,
+		status:     uint16(h.Retention)&statusRetentionMask | statusActive,
 	}
 }
 
@@ -354,9 +364,14 @@ func restoredSession(snapshot Snapshot) *memorySession {
 		city:         snapshot.City,
 		browser:      snapshot.Browser,
 		os:           snapshot.OS,
+		browserVer:   snapshot.BrowserVer,
+		osVer:        snapshot.OSVer,
+		language:     snapshot.Language,
+		hostname:     snapshot.Hostname,
 		day:          encodeDay(snapshot.LocalDay),
 		country:      encodeCountry(snapshot.Country),
 		device:       snapshot.Device,
+		screen:       snapshot.ScreenBucket,
 		status:       uint16(snapshot.Retention)&statusRetentionMask | statusActive,
 	}
 }
@@ -448,6 +463,11 @@ func (m *Memory) snapshot(sh *memoryShard, s *memorySession) Snapshot {
 		City:         s.city,
 		Browser:      s.browser,
 		OS:           s.os,
+		BrowserVer:   s.browserVer,
+		OSVer:        s.osVer,
+		Language:     s.language,
+		Hostname:     s.hostname,
+		ScreenBucket: s.screen,
 		Device:       s.device,
 	}
 }

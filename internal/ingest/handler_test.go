@@ -165,6 +165,73 @@ func TestUTMSourcePersistsRawValueSeparatelyFromBlendedSource(t *testing.T) {
 	}
 }
 
+func TestVisitorDimensionsPersistDerivedLabelsAndMultiHostOnly(t *testing.T) {
+	const chrome126 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.6478.127 Safari/537.36"
+
+	t.Run("multi-host site", func(t *testing.T) {
+		f := newHandlerFixture(t, 32, nil)
+		site, ok := f.h.Sites.ByPublicID("abc123")
+		if !ok {
+			t.Fatal("fixture site missing")
+		}
+		site.AllowedHosts = []string{"example.com", "docs.example.com"}
+		f.h.Sites = siteRegistry{site: site}
+
+		body := `{"site":"abc123","name":"pageview","url":"https://Docs.Example.com:443/","screen_width":1280}`
+		req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(body))
+		req.Header.Set("User-Agent", chrome126)
+		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+		req.RemoteAddr = "198.51.100.7:5555"
+		rr := httptest.NewRecorder()
+		f.h.ServeHTTP(rr, req)
+		if rr.Code != http.StatusAccepted {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		f.stop(t)
+
+		var browserVersion, osVersion, language, hostname string
+		var screenBucket int16
+		err := f.pool.QueryRow(context.Background(), `
+			select bv.value, ov.value, lang.value, host.value, s.screen_bucket
+			from events e
+			join dict bv on bv.kind=$1 and bv.id=e.browser_ver_id
+			join dict ov on ov.kind=$2 and ov.id=e.os_ver_id
+			join dict lang on lang.kind=$3 and lang.id=e.language_id
+			join dict host on host.kind=$4 and host.id=e.hostname_id
+			join sessions s on s.site_id=e.site_id and s.session_id=e.session_id`,
+			dict.BrowserVersion, dict.OSVersion, dict.Language, dict.Hostname,
+		).Scan(&browserVersion, &osVersion, &language, &hostname, &screenBucket)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if browserVersion != "Chrome 126" || osVersion != "Windows 10/11" || language != "en" || hostname != "docs.example.com" || screenBucket != 3 {
+			t.Fatalf("dimensions=%q/%q/%q/%q bucket=%d", browserVersion, osVersion, language, hostname, screenBucket)
+		}
+	})
+
+	t.Run("single-host site", func(t *testing.T) {
+		f := newHandlerFixture(t, 32, nil)
+		req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(`{"site":"abc123","name":"pageview","url":"https://example.com/"}`))
+		req.Header.Set("User-Agent", chrome126)
+		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+		req.RemoteAddr = "198.51.100.7:5555"
+		rr := httptest.NewRecorder()
+		f.h.ServeHTTP(rr, req)
+		if rr.Code != http.StatusAccepted {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		f.stop(t)
+
+		var hostnameID int32
+		if err := f.pool.QueryRow(context.Background(), `select hostname_id from events`).Scan(&hostnameID); err != nil {
+			t.Fatal(err)
+		}
+		if hostnameID != 0 {
+			t.Fatalf("hostname_id=%d, want 0 for single-host site", hostnameID)
+		}
+	})
+}
+
 func TestRealtimeRecordsQueuedPageviewsAndCustomEventsOnly(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	for _, body := range []string{

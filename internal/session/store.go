@@ -38,6 +38,11 @@ type Hit struct {
 	City          int32
 	Browser       int32
 	OS            int32
+	BrowserVer    int32
+	OSVer         int32
+	Language      int32
+	Hostname      int32
+	ScreenBucket  int16
 	Device        int16
 	EngagementMS  int32
 	ScrollPct     int16
@@ -175,6 +180,11 @@ type Snapshot struct {
 	City         int32
 	Browser      int32
 	OS           int32
+	BrowserVer   int32
+	OSVer        int32
+	Language     int32
+	Hostname     int32
+	ScreenBucket int16
 	Device       int16
 }
 
