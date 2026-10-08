@@ -1,0 +1,27 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { createPanelClient } from "./index";
+
+describe("createPanelClient", () => {
+  it("sends the API key as a bearer token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const client = createPanelClient({
+      apiKey: "panel_secret",
+      baseUrl: "https://analytics.example.com",
+      fetch: fetchMock,
+    });
+
+    await client.GET("/api/public/v1/sites");
+
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe(
+      "https://analytics.example.com/api/public/v1/sites",
+    );
+    expect(request.headers.get("Authorization")).toBe("Bearer panel_secret");
+  });
+});

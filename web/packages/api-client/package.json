@@ -1,0 +1,38 @@
+{
+  "name": "@panel/api-client",
+  "version": "0.1.0",
+  "description": "Typed TypeScript client for the Panel Analytics API",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "gen": "openapi-typescript ../../../internal/api/openapi.yaml -o src/schema.ts",
+    "prepack": "bun run gen && bun run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0"
+}
