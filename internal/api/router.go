@@ -39,17 +39,18 @@ type dictionaryResolver interface {
 
 // Deps contains the services exposed by the analytics HTTP router.
 type Deps struct {
-	Config      config.Config
-	Query       queryService
-	Heatmaps    heatmapService
-	Ingest      http.Handler
-	PublicAuth  Authenticator
-	PrivateAuth Authenticator
-	Sites       sites.Registry // resolves site ownership for every site-scoped request
-	UI          http.Handler   // the embedded dashboard; serves every GET that no API route claims
-	RateLimiter ingest.RateLimiter
-	Sessions    session.Store
-	Dictionary  dictionaryResolver
+	Config         config.Config
+	Query          queryService
+	SessionExplore sessionExploreService
+	Heatmaps       heatmapService
+	Ingest         http.Handler
+	PublicAuth     Authenticator
+	PrivateAuth    Authenticator
+	Sites          sites.Registry // resolves site ownership for every site-scoped request
+	UI             http.Handler   // the embedded dashboard; serves every GET that no API route claims
+	RateLimiter    ingest.RateLimiter
+	Sessions       session.Store
+	Dictionary     dictionaryResolver
 	// Platform serves the application routes implemented under
 	// internal/platform/http. Those handlers resolve the complete platform
 	// principal required by authz.Can and transactional audit records.
@@ -68,11 +69,12 @@ func NewRouter(deps Deps) http.Handler {
 		deps.RateLimiter = ingest.NewTokenBuckets(2, 30)
 	}
 
-	h := &handlers{query: deps.Query, heatmaps: deps.Heatmaps, now: deps.Now}
+	h := &handlers{query: deps.Query, sessions: deps.SessionExplore, heatmaps: deps.Heatmaps, now: deps.Now}
 	mux := http.NewServeMux()
 
 	public := http.NewServeMux()
 	registerStats(public, publicPrefix, h)
+	registerSessionExplore(public, publicPrefix, h)
 	public.Handle("POST "+publicPrefix+"/mcp", NewMCPHandler(MCPDeps{
 		Query: deps.Query, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
 		Dictionary: deps.Dictionary,
@@ -89,6 +91,7 @@ func NewRouter(deps Deps) http.Handler {
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
+	registerSessionExplore(private, privatePrefix, h)
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
 	private.HandleFunc("POST "+privatePrefix+"/heatmaps/query", h.heatmapRequest)
 	private.HandleFunc("POST "+privatePrefix+"/vitals/query", h.vitalsRequest)
@@ -247,6 +250,11 @@ func registerStats(mux *http.ServeMux, prefix string, h *handlers) {
 	mux.HandleFunc("GET "+prefix+"/stats/summary", h.statsSummary)
 	mux.HandleFunc("GET "+prefix+"/stats/timeseries", h.statsTimeseries)
 	mux.HandleFunc("GET "+prefix+"/stats/breakdown", h.statsBreakdown)
+}
+
+func registerSessionExplore(mux *http.ServeMux, prefix string, h *handlers) {
+	mux.HandleFunc("GET "+prefix+"/sites/{site}/sessions", h.listSessions)
+	mux.HandleFunc("GET "+prefix+"/sessions/{session}", h.getSession)
 }
 
 func requestID(next http.Handler) http.Handler {

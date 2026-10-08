@@ -592,6 +592,95 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /api/public/v1/sites/{site_id}/sessions:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listSessions
+      summary: List sessions
+      description: |
+        Requires stats:read. Returns anonymous sessions newest first from the hot
+        and closed storage tiers. Anonymous session IDs are scoped to one site and
+        local day and cannot link a visitor across days.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: filter
+          in: query
+          description: Repeatable dimension:operator:value filter.
+          schema:
+            type: array
+            maxItems: 10
+            items: { type: string }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Session page
+          headers:
+            RateLimit-Limit: { $ref: '#/components/headers/RateLimitLimit' }
+            RateLimit-Remaining: { $ref: '#/components/headers/RateLimitRemaining' }
+            RateLimit-Reset: { $ref: '#/components/headers/RateLimitReset' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionList' }
+              example:
+                data:
+                  - id: '684991205703028112'
+                    started_at: '2026-10-08T08:00:00Z'
+                    duration_ms: 120000
+                    pageviews: 3
+                    events: 1
+                    entry_page: /
+                    exit_page: /pricing
+                    source: Google
+                    country: US
+                    city: San Francisco
+                    device: desktop
+                    browser: Chrome
+                    os: Linux
+                next_cursor: null
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/public/v1/sessions/{session_id}:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[1-9][0-9]*$' }
+    get:
+      operationId: getSession
+      summary: Get a session timeline
+      description: Requires stats:read. The event timeline is available only while the session remains in the site's raw-data retention window.
+      parameters:
+        - name: site_id
+          in: query
+          required: true
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        '200':
+          description: Session detail and chronological event timeline
+          headers:
+            RateLimit-Limit: { $ref: '#/components/headers/RateLimitLimit' }
+            RateLimit-Remaining: { $ref: '#/components/headers/RateLimitRemaining' }
+            RateLimit-Reset: { $ref: '#/components/headers/RateLimitReset' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/public/v1/profiles/{profile_id}:
     parameters:
       - name: profile_id
@@ -1779,6 +1868,59 @@ components:
         last_seen_at: { type: string, format: date-time }
         sessions: { type: integer, format: int64, minimum: 0 }
         events: { type: integer, format: int64, minimum: 0 }
+    SessionSummary:
+      type: object
+      additionalProperties: false
+      required: [id, started_at, duration_ms, pageviews, events, entry_page, exit_page, source, country, city, device, browser, os]
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        started_at: { type: string, format: date-time }
+        duration_ms: { type: integer, format: int64, minimum: 0 }
+        pageviews: { type: integer, format: int32, minimum: 0 }
+        events: { type: integer, format: int32, minimum: 0 }
+        entry_page: { type: string }
+        exit_page: { type: string }
+        source: { type: string }
+        country: { type: string }
+        city: { type: string }
+        device: { type: string }
+        browser: { type: string }
+        os: { type: string }
+        external_id: { type: string }
+    SessionList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/SessionSummary' }
+        next_cursor: { type: [string, 'null'] }
+    SessionTimelineItem:
+      type: object
+      additionalProperties: false
+      required: [ts, kind, name, page]
+      properties:
+        ts: { type: string, format: date-time }
+        kind:
+          type: string
+          enum: [pageview, event]
+          x-enum-varnames: [SessionPageview, SessionEvent]
+        name: { type: string }
+        page: { type: string }
+        props:
+          type: [object, 'null']
+          additionalProperties: true
+    SessionDetail:
+      type: object
+      additionalProperties: false
+      required: [session, timeline]
+      properties:
+        session: { $ref: '#/components/schemas/SessionSummary' }
+        timeline:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/SessionTimelineItem' }
     ProfileList:
       type: object
       additionalProperties: false

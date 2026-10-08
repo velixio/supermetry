@@ -3,6 +3,7 @@ package api_test
 import (
 	"os"
 	"slices"
+	"strings"
 	"testing"
 
 	"go.yaml.in/yaml/v3"
@@ -68,6 +69,53 @@ func TestOpenAPIEventsEndpoint(t *testing.T) {
 	for _, property := range wantProperties {
 		if _, ok := schema.Properties[property]; !ok {
 			t.Errorf("property %q is missing", property)
+		}
+	}
+}
+
+func TestOpenAPISessionsEndpoints(t *testing.T) {
+	source, err := os.ReadFile("openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var document struct {
+		Paths map[string]struct {
+			Get *struct {
+				Description string         `yaml:"description"`
+				Responses   map[string]any `yaml:"responses"`
+			} `yaml:"get"`
+		} `yaml:"paths"`
+		Components struct {
+			Schemas map[string]any `yaml:"schemas"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(source, &document); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, path := range []string{
+		"/api/public/v1/sites/{site_id}/sessions",
+		"/api/public/v1/sessions/{session_id}",
+	} {
+		operation := document.Paths[path].Get
+		if operation == nil {
+			t.Errorf("GET %s is missing", path)
+			continue
+		}
+		for _, status := range []string{"200", "400", "401", "403", "404", "429"} {
+			if _, ok := operation.Responses[status]; !ok {
+				t.Errorf("GET %s response %s is missing", path, status)
+			}
+		}
+	}
+	if operation := document.Paths["/api/public/v1/sites/{site_id}/sessions"].Get; operation != nil &&
+		!strings.Contains(operation.Description, "cannot link") {
+		t.Error("sessions endpoint must document that anonymous IDs cannot link visitors across days")
+	}
+	for _, schema := range []string{"SessionSummary", "SessionList", "SessionTimelineItem", "SessionDetail"} {
+		if _, ok := document.Components.Schemas[schema]; !ok {
+			t.Errorf("schema %s is missing", schema)
 		}
 	}
 }

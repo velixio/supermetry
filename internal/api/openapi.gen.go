@@ -6,6 +6,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -345,6 +346,24 @@ func (e RetentionResponseRetentionMode) Valid() bool {
 	}
 }
 
+// Defines values for SessionTimelineItemKind.
+const (
+	SessionEvent    SessionTimelineItemKind = "event"
+	SessionPageview SessionTimelineItemKind = "pageview"
+)
+
+// Valid indicates whether the value is a known member of the SessionTimelineItemKind enum.
+func (e SessionTimelineItemKind) Valid() bool {
+	switch e {
+	case SessionEvent:
+		return true
+	case SessionPageview:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateSiteRequestRetentionDays.
 const (
 	UpdateSiteRequestRetentionDaysN0   UpdateSiteRequestRetentionDays = 0
@@ -428,6 +447,45 @@ type CreateSiteRequestRetentionDays int
 type DateRange struct {
 	From openapi_types.Date `json:"from"`
 	To   openapi_types.Date `json:"to"`
+}
+
+// EventPayload defines model for EventPayload.
+type EventPayload struct {
+	EngagementMs *int `json:"engagement_ms,omitempty"`
+
+	// Name Event name, such as pageview or a custom event name.
+	Name string `json:"name"`
+
+	// ProfileId External profile identifier for a profiles-enabled site.
+	ProfileId *string            `json:"profile_id,omitempty"`
+	Props     *map[string]string `json:"props,omitempty"`
+	Referrer  *string            `json:"referrer,omitempty"`
+	Revenue   *struct {
+		Amount   EventPayload_Revenue_Amount `json:"amount"`
+		Currency string                      `json:"currency"`
+	} `json:"revenue,omitempty"`
+	ScreenWidth *int `json:"screen_width,omitempty"`
+	ScrollPct   *int `json:"scroll_pct,omitempty"`
+
+	// Site Public site identifier.
+	Site string `json:"site"`
+
+	// Traits Profile traits for an identify event on a profiles-enabled site.
+	Traits *map[string]string `json:"traits,omitempty"`
+
+	// Url Full page URL. Required by the event intake handler.
+	Url *string `json:"url,omitempty"`
+}
+
+// EventPayloadRevenueAmount0 defines model for EventPayload.Revenue.Amount.0.
+type EventPayloadRevenueAmount0 = float32
+
+// EventPayloadRevenueAmount1 defines model for EventPayload.Revenue.Amount.1.
+type EventPayloadRevenueAmount1 = string
+
+// EventPayload_Revenue_Amount defines model for EventPayload.Revenue.Amount.
+type EventPayload_Revenue_Amount struct {
+	union json.RawMessage
 }
 
 // Filter defines model for Filter.
@@ -811,6 +869,48 @@ type Segment struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// SessionDetail defines model for SessionDetail.
+type SessionDetail struct {
+	Session  SessionSummary        `json:"session"`
+	Timeline []SessionTimelineItem `json:"timeline"`
+}
+
+// SessionList defines model for SessionList.
+type SessionList struct {
+	Data       []SessionSummary `json:"data"`
+	NextCursor *string          `json:"next_cursor,omitempty"`
+}
+
+// SessionSummary defines model for SessionSummary.
+type SessionSummary struct {
+	Browser    string    `json:"browser"`
+	City       string    `json:"city"`
+	Country    string    `json:"country"`
+	Device     string    `json:"device"`
+	DurationMs int64     `json:"duration_ms"`
+	EntryPage  string    `json:"entry_page"`
+	Events     int32     `json:"events"`
+	ExitPage   string    `json:"exit_page"`
+	ExternalId *string   `json:"external_id,omitempty"`
+	Id         string    `json:"id"`
+	Os         string    `json:"os"`
+	Pageviews  int32     `json:"pageviews"`
+	Source     string    `json:"source"`
+	StartedAt  time.Time `json:"started_at"`
+}
+
+// SessionTimelineItem defines model for SessionTimelineItem.
+type SessionTimelineItem struct {
+	Kind  SessionTimelineItemKind `json:"kind"`
+	Name  string                  `json:"name"`
+	Page  string                  `json:"page"`
+	Props *map[string]interface{} `json:"props,omitempty"`
+	Ts    time.Time               `json:"ts"`
+}
+
+// SessionTimelineItemKind defines model for SessionTimelineItem.Kind.
+type SessionTimelineItemKind string
+
 // Site defines model for Site.
 type Site struct {
 	AllowedHosts    []string `json:"allowed_hosts"`
@@ -997,6 +1097,11 @@ type RealtimeParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
 }
 
+// GetSessionParams defines parameters for GetSession.
+type GetSessionParams struct {
+	SiteId int32 `form:"site_id" json:"site_id"`
+}
+
 // ListSitesParams defines parameters for ListSites.
 type ListSitesParams struct {
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
@@ -1014,6 +1119,17 @@ type ListProfilesParams struct {
 	Search *string `form:"search,omitempty" json:"search,omitempty"`
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListSessionsParams defines parameters for ListSessions.
+type ListSessionsParams struct {
+	From openapi_types.Date `form:"from" json:"from"`
+	To   openapi_types.Date `form:"to" json:"to"`
+
+	// Filter Repeatable dimension:operator:value filter.
+	Filter *[]string `form:"filter,omitempty" json:"filter,omitempty"`
+	Limit  *Limit    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // StatsBreakdownParams defines parameters for StatsBreakdown.
@@ -1085,6 +1201,12 @@ type StatsTimeseriesParams struct {
 	Interval *string  `form:"interval,omitempty" json:"interval,omitempty"`
 }
 
+// SubmitEventJSONRequestBody defines body for SubmitEvent for application/json ContentType.
+type SubmitEventJSONRequestBody = EventPayload
+
+// SubmitEventTextRequestBody defines body for SubmitEvent for text/plain ContentType.
+type SubmitEventTextRequestBody = EventPayload
+
 // FunnelQueryJSONRequestBody defines body for FunnelQuery for application/json ContentType.
 type FunnelQueryJSONRequestBody = FunnelRequest
 
@@ -1121,8 +1243,73 @@ type CreateGoalJSONRequestBody = GoalInput
 // VitalsQueryJSONRequestBody defines body for VitalsQuery for application/json ContentType.
 type VitalsQueryJSONRequestBody = VitalsRequest
 
+// AsEventPayloadRevenueAmount0 returns the union data inside the EventPayload_Revenue_Amount as a EventPayloadRevenueAmount0
+func (t EventPayload_Revenue_Amount) AsEventPayloadRevenueAmount0() (EventPayloadRevenueAmount0, error) {
+	var body EventPayloadRevenueAmount0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEventPayloadRevenueAmount0 overwrites any union data inside the EventPayload_Revenue_Amount as the provided EventPayloadRevenueAmount0
+func (t *EventPayload_Revenue_Amount) FromEventPayloadRevenueAmount0(v EventPayloadRevenueAmount0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEventPayloadRevenueAmount0 performs a merge with any union data inside the EventPayload_Revenue_Amount, using the provided EventPayloadRevenueAmount0
+func (t *EventPayload_Revenue_Amount) MergeEventPayloadRevenueAmount0(v EventPayloadRevenueAmount0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEventPayloadRevenueAmount1 returns the union data inside the EventPayload_Revenue_Amount as a EventPayloadRevenueAmount1
+func (t EventPayload_Revenue_Amount) AsEventPayloadRevenueAmount1() (EventPayloadRevenueAmount1, error) {
+	var body EventPayloadRevenueAmount1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEventPayloadRevenueAmount1 overwrites any union data inside the EventPayload_Revenue_Amount as the provided EventPayloadRevenueAmount1
+func (t *EventPayload_Revenue_Amount) FromEventPayloadRevenueAmount1(v EventPayloadRevenueAmount1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEventPayloadRevenueAmount1 performs a merge with any union data inside the EventPayload_Revenue_Amount, using the provided EventPayloadRevenueAmount1
+func (t *EventPayload_Revenue_Amount) MergeEventPayloadRevenueAmount1(v EventPayloadRevenueAmount1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EventPayload_Revenue_Amount) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EventPayload_Revenue_Amount) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// SubmitEvent Submit an analytics event
+	// (POST /api/public/v1/events)
+	SubmitEvent(w http.ResponseWriter, r *http.Request)
 	// FunnelQuery Run a funnel query
 	// (POST /api/public/v1/funnels/query)
 	FunnelQuery(w http.ResponseWriter, r *http.Request)
@@ -1156,6 +1343,9 @@ type ServerInterface interface {
 	// RetentionQuery Run a retention query
 	// (POST /api/public/v1/retention/query)
 	RetentionQuery(w http.ResponseWriter, r *http.Request)
+	// GetSession Get a session timeline
+	// (GET /api/public/v1/sessions/{session_id})
+	GetSession(w http.ResponseWriter, r *http.Request, sessionId string, params GetSessionParams)
 	// ListSites List accessible sites
 	// (GET /api/public/v1/sites)
 	ListSites(w http.ResponseWriter, r *http.Request, params ListSitesParams)
@@ -1192,6 +1382,9 @@ type ServerInterface interface {
 	// ListSegments List saved segments
 	// (GET /api/public/v1/sites/{site_id}/segments)
 	ListSegments(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListSessions List sessions
+	// (GET /api/public/v1/sites/{site_id}/sessions)
+	ListSessions(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListSessionsParams)
 	// StatsBreakdown Get a dimension breakdown
 	// (GET /api/public/v1/stats/breakdown)
 	StatsBreakdown(w http.ResponseWriter, r *http.Request, params StatsBreakdownParams)
@@ -1223,6 +1416,20 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// SubmitEvent operation middleware
+func (siw *ServerInterfaceWrapper) SubmitEvent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitEvent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // FunnelQuery operation middleware
 func (siw *ServerInterfaceWrapper) FunnelQuery(w http.ResponseWriter, r *http.Request) {
@@ -1509,6 +1716,48 @@ func (siw *ServerInterfaceWrapper) RetentionQuery(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetentionQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSession operation middleware
+func (siw *ServerInterfaceWrapper) GetSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSessionParams
+
+	// ------------- Required query parameter "site_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "site_id", r.URL.Query(), &params.SiteId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "site_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSession(w, r, sessionId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1900,6 +2149,100 @@ func (siw *ServerInterfaceWrapper) ListSegments(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListSegments(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSessions operation middleware
+func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSessionsParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessions(w, r, siteId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2548,6 +2891,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/events", wrapper.SubmitEvent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/query", wrapper.Query)
@@ -2566,6 +2910,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.ListGoals)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.CreateGoal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/profiles", wrapper.ListProfiles)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/sessions", wrapper.ListSessions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sessions/{session_id}", wrapper.GetSession)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/profiles/{profile_id}", wrapper.GetProfile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/annotations", wrapper.ListAnnotations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.DeleteGoal)
