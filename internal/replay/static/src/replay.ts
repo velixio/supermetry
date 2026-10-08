@@ -70,6 +70,8 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   let cancelUploads = false;
   let interval: ReturnType<typeof setInterval> | undefined;
   let lastActivity = recordedAt;
+  let eventChain = Promise.resolve();
+  const sentCSS = new Set<string>();
 
   const maskInputFn = (text: string, element: HTMLElement) => {
     const input = element as HTMLInputElement;
@@ -82,41 +84,10 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   stop = record({
     emit(event) {
       if (stopped) return;
-      if (Date.now() - recordedAt >= 30 * 60_000 || Date.now() - lastActivity >= 2 * 60_000 || totalBytes >= 5 * 1024 * 1024) {
-        halt(true);
-        return;
-      }
-
-      const size = JSON.stringify(event).length + 1;
-      if (mode === "trigger") {
-        if (size > 5 * 1024 * 1024) {
-          halt(false, true);
-          return;
-        }
-        if (event.type === 4) ringMeta = event;
-        const ringBytes = ringSizes.reduce((sum, bytes) => sum + bytes, 0);
-        if (!checkpointing && (Date.now() - ringStarted >= 60_000 || ringBytes + size > 5 * 1024 * 1024)) {
-          checkpointing = true;
-          ringStarted = Date.now();
-          ringSegments.push([]);
-          ringSizes.push(0);
-          if (ringMeta) addToRing({ ...ringMeta, timestamp: event.timestamp });
-          record.takeFullSnapshot();
-          checkpointing = false;
-          while (ringSegments.length > 2 || ringSegments.length > 1 && ringSizes.reduce((sum, bytes) => sum + bytes, 0) > 5 * 1024 * 1024) {
-            ringSegments.shift();
-            ringSizes.shift();
-          }
-          if (ringSizes.reduce((sum, bytes) => sum + bytes, 0) > 5 * 1024 * 1024) halt(false, true);
-          return;
-        }
-        addToRing(event, size);
-        return;
-      }
-
-      pending.push(event);
-      pendingBytes += size;
-      if (pendingBytes >= 64 * 1024) queueFlush(false);
+      eventChain = eventChain.then(async () => {
+        await deduplicateSnapshotCSS(event, sentCSS, config);
+        acceptEvent(event);
+      });
     },
     sampling: { mousemove: 100, scroll: 150, input: "last" },
     recordCanvas: false,
@@ -137,24 +108,62 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
     return;
   }
 
+  function acceptEvent(event: eventWithTime) {
+    if (Date.now() - recordedAt >= 30 * 60_000 || Date.now() - lastActivity >= 2 * 60_000 || totalBytes >= 5 * 1024 * 1024) {
+      halt(true);
+      return;
+    }
+
+    const size = JSON.stringify(event).length + 1;
+    if (mode === "trigger") {
+      if (size > 5 * 1024 * 1024) {
+        halt(false, true);
+        return;
+      }
+      if (event.type === 4) ringMeta = event;
+      const ringBytes = ringSizes.reduce((sum, bytes) => sum + bytes, 0);
+      if (!checkpointing && (Date.now() - ringStarted >= 60_000 || ringBytes + size > 5 * 1024 * 1024)) {
+        checkpointing = true;
+        ringStarted = Date.now();
+        ringSegments.push([]);
+        ringSizes.push(0);
+        if (ringMeta) addToRing({ ...ringMeta, timestamp: event.timestamp });
+        record.takeFullSnapshot();
+        checkpointing = false;
+        while (ringSegments.length > 2 || ringSegments.length > 1 && ringSizes.reduce((sum, bytes) => sum + bytes, 0) > 5 * 1024 * 1024) {
+          ringSegments.shift();
+          ringSizes.shift();
+        }
+        if (ringSizes.reduce((sum, bytes) => sum + bytes, 0) > 5 * 1024 * 1024) halt(false, true);
+        return;
+      }
+      addToRing(event, size);
+      return;
+    }
+
+    pending.push(event);
+    pendingBytes += size;
+    if (pendingBytes >= 64 * 1024) queueFlush(false);
+  }
+
   function addToRing(event: eventWithTime, size = JSON.stringify(event).length + 1) {
     ringSegments[ringSegments.length - 1].push(event);
     ringSizes[ringSizes.length - 1] += size;
   }
 
   function queueFlush(keepalive: boolean, trigger?: string, events?: eventWithTime[]) {
-    const batch = events ?? pending;
-    if (!events) {
-      pending = [];
-      pendingBytes = 0;
-    }
-    if (!batch.length || stopped && !keepalive) return;
+    const readyEvents = eventChain;
     const startsPage = firstChunk;
     firstChunk = false;
-    const plain = batch.map((event) => JSON.stringify(event)).join("\n") + "\n";
-    const compressedBatch = gzip(plain);
-    flushChain = flushChain.then(async () => {
-      const compressed = await compressedBatch;
+    flushChain = Promise.all([flushChain, readyEvents]).then(async () => {
+      const batch = events ?? pending;
+      if (!events) {
+        pending = [];
+        pendingBytes = 0;
+      }
+      if (!batch.length) return;
+      const plain = batch.map((event) => JSON.stringify(event)).join("\n") + "\n";
+      const compressed = await gzip(plain);
       if (cancelUploads) return;
       if (totalBytes + compressed.byteLength > 5 * 1024 * 1024) {
         halt(false, true);
@@ -198,8 +207,10 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
     if (flush && mode === "full") queueFlush(true);
     if (discard) cancelUploads = true;
     stopped = true;
-    pending = [];
-    pendingBytes = 0;
+    if (discard) {
+      pending = [];
+      pendingBytes = 0;
+    }
     ringSegments = [[]];
     ringSizes = [0];
     stop?.();
@@ -289,6 +300,45 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
 async function gzip(text: string): Promise<Uint8Array> {
   const stream = new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+type SnapshotNode = {
+  attributes?: Record<string, unknown>;
+  childNodes?: SnapshotNode[];
+};
+
+async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, config: ReplayConfig) {
+  if (event.type !== 2) return;
+  const root = (event.data as { node?: SnapshotNode }).node;
+  if (!root) return;
+  const nodes: SnapshotNode[] = [root];
+  while (nodes.length) {
+    const node = nodes.pop()!;
+    if (node.childNodes) nodes.push(...node.childNodes);
+    const css = node.attributes?._cssText;
+    if (typeof css !== "string" || css.length <= 1024) continue;
+    try {
+      const hash = await sha256hex(css);
+      if (!sent.has(hash)) {
+        const response = await fetch(config.o + "/api/replay/css/" + hash + "?s=" + encodeURIComponent(config.s), {
+          method: "PUT",
+          headers: { "Content-Type": "application/gzip" },
+          body: await gzip(css),
+        });
+        if (!response.ok) continue;
+        sent.add(hash);
+      }
+      node.attributes!._cssRef = hash;
+      delete node.attributes!._cssText;
+    } catch {
+      // Keep the stylesheet inline so recording remains playable.
+    }
+  }
+}
+
+async function sha256hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function glob(pattern: string): RegExp {
