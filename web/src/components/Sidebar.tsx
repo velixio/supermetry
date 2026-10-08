@@ -2,6 +2,7 @@ import {
   ActivityIcon,
   ChartNoAxesCombinedIcon,
   CircleGaugeIcon,
+  CodeXmlIcon,
   FilterIcon,
   GoalIcon,
   Globe2Icon,
@@ -43,6 +44,7 @@ export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
 const coreNavigation = [
   { label: en.navigation.dashboard, suffix: '', icon: ChartNoAxesCombinedIcon, scope: 'site' },
+  { label: en.navigation.events, suffix: '/events', icon: CodeXmlIcon, scope: 'site' },
   { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { label: en.navigation.profiles, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
@@ -146,6 +148,8 @@ function navigationLink(
       )
     case '/funnels':
       return <Link to="/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
+    case '/events':
+      return <Link to="/$org/$site/events" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, name: '', property: '' }} {...props}>{content}</Link>
     case '/journeys':
       return <Link to="/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
     case '/retention':

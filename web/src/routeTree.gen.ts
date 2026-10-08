@@ -23,6 +23,7 @@ import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
+import { Route as OrgSiteEventsRouteImport } from './routes/$org.$site.events'
 import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
 import { Route as OrgSiteHeatmapsRouteImport } from './routes/$org.$site.heatmaps'
 import { Route as OrgSiteJourneysRouteImport } from './routes/$org.$site.journeys'
@@ -119,6 +120,11 @@ const ShareSlugRoute = ShareSlugRouteImport.update({
 const OrgSiteIndexRoute = OrgSiteIndexRouteImport.update({
   id: '/$site/',
   path: '/$site/',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteEventsRoute = OrgSiteEventsRouteImport.update({
+  id: '/$site/events',
+  path: '/$site/events',
   getParentRoute: () => OrgRoute,
 } as any)
 const OrgSiteGoalsRoute = OrgSiteGoalsRouteImport.update({
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
+  '/$org/$site/events': typeof OrgSiteEventsRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
@@ -316,6 +323,7 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
+  '/$org/$site/events': typeof OrgSiteEventsRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
@@ -360,6 +368,7 @@ export interface FileRoutesById {
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
+  '/$org/$site/events': typeof OrgSiteEventsRoute
   '/$org/$site/goals': typeof OrgSiteGoalsRoute
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
@@ -405,6 +414,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
+    | '/$org/$site/events'
     | '/$org/$site/goals'
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
@@ -448,6 +458,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
+    | '/$org/$site/events'
     | '/$org/$site/goals'
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
@@ -491,6 +502,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
+    | '/$org/$site/events'
     | '/$org/$site/goals'
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
@@ -633,6 +645,13 @@ declare module '@tanstack/react-router' {
       path: '/$site'
       fullPath: '/$org/$site/'
       preLoaderRoute: typeof OrgSiteIndexRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/events': {
+      id: '/$org/$site/events'
+      path: '/$site/events'
+      fullPath: '/$org/$site/events'
+      preLoaderRoute: typeof OrgSiteEventsRouteImport
       parentRoute: typeof OrgRoute
     }
     '/$org/$site/goals': {
@@ -878,6 +897,7 @@ const OrgSiteSettingsRouteWithChildren = OrgSiteSettingsRoute._addFileChildren(
 interface OrgRouteChildren {
   OrgHealthRoute: typeof OrgHealthRoute
   OrgSettingsRoute: typeof OrgSettingsRouteWithChildren
+  OrgSiteEventsRoute: typeof OrgSiteEventsRoute
   OrgSiteGoalsRoute: typeof OrgSiteGoalsRoute
   OrgSiteHeatmapsRoute: typeof OrgSiteHeatmapsRoute
   OrgSiteJourneysRoute: typeof OrgSiteJourneysRoute
@@ -897,6 +917,7 @@ interface OrgRouteChildren {
 const OrgRouteChildren: OrgRouteChildren = {
   OrgHealthRoute: OrgHealthRoute,
   OrgSettingsRoute: OrgSettingsRouteWithChildren,
+  OrgSiteEventsRoute: OrgSiteEventsRoute,
   OrgSiteGoalsRoute: OrgSiteGoalsRoute,
   OrgSiteHeatmapsRoute: OrgSiteHeatmapsRoute,
   OrgSiteJourneysRoute: OrgSiteJourneysRoute,
