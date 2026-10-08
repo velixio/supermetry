@@ -17,6 +17,7 @@ import (
 	"panel/internal/db"
 	"panel/internal/dict"
 	"panel/internal/ingest"
+	"panel/internal/realtime"
 	"panel/internal/session"
 	"panel/internal/sites"
 )
@@ -489,6 +490,45 @@ func (s richRealtimeStore) RealtimeSnapshot(_ int32, now time.Time) session.Real
 		RecentActivity: []session.RecentActivity{{Kind: 1, PathID: 12, NameID: 74, CountryCode: "US", CityID: 71, Device: 0, BrowserID: 72, SourceID: 56, Timestamp: now}},
 	}
 }
+
+type apiMinuteSource struct {
+	minutes []session.MinuteVisitors
+}
+
+func (s apiMinuteSource) Minutes(context.Context, int32, time.Time, time.Time) ([]session.MinuteVisitors, error) {
+	return s.minutes, nil
+}
+
+func TestRealtimeUsesConfiguredMinuteSource(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 45, 0, time.UTC)
+	router := api.NewRouter(api.Deps{
+		Config: config.Config{AdminAPIKey: "test-key"}, Query: queryFunc{query: func(api.QueryRequest) (api.QueryResponse, error) { return emptyQueryResponse(), nil }},
+		RateLimiter: ingest.NewTokenBuckets(0, 1000), Sessions: session.NewMemory(1, nil),
+		MinuteSource: apiMinuteSource{minutes: []session.MinuteVisitors{{Minute: time.Date(2026, 10, 8, 11, 59, 0, 0, time.UTC), Visitors: 6}}},
+		Sites:        orgSites{1: sites.Site{ID: 1, OrgID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30}},
+		Now:          func() time.Time { return now },
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/realtime?site_id=1", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		VisitorsPerMinute []api.RealtimeMinute `json:"visitors_per_minute"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if got := body.VisitorsPerMinute[28].Visitors; got != 6 {
+		t.Fatalf("stored visitors=%d, want 6", got)
+	}
+}
+
+var _ realtime.MinuteSource = apiMinuteSource{}
 
 func TestRealtimeResolvesRichSnapshotLabels(t *testing.T) {
 	router := statsTestRouter(queryFunc{query: func(api.QueryRequest) (api.QueryResponse, error) { return emptyQueryResponse(), nil }}, richRealtimeStore{&realtimeStore{}})

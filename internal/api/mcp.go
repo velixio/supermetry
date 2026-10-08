@@ -16,6 +16,7 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
+	"panel/internal/realtime"
 	"panel/internal/session"
 	"panel/internal/sites"
 )
@@ -28,11 +29,12 @@ const mcpLegacyProtocolVersion = "2025-03-26"
 // Resources is the platform HTTP handler used for sites, goals, and saved
 // funnels so those tools retain the public API's authorization and behavior.
 type MCPDeps struct {
-	Query      queryService
-	Resources  http.Handler
-	Sessions   session.Store
-	Dictionary dictionaryResolver
-	Now        func() time.Time
+	Query        queryService
+	Resources    http.Handler
+	Sessions     session.Store
+	MinuteSource realtime.MinuteSource
+	Dictionary   dictionaryResolver
+	Now          func() time.Time
 }
 
 // MCPTool is the tools/list representation of one Panel operation.
@@ -253,7 +255,7 @@ func (h *mcpHandler) runTool(ctx context.Context, r *http.Request, name string, 
 		if h.deps.Now != nil {
 			now = h.deps.Now()
 		}
-		return realtimeResponse(h.deps.Sessions, h.deps.Dictionary, input.Site, now), nil
+		return realtimeResponse(ctx, h.deps.Sessions, h.deps.MinuteSource, h.deps.Dictionary, input.Site, now), nil
 	case "list_goals":
 		var input mcpSiteInput
 		if err := decodeMCPParams(arguments, &input); err != nil || input.Site < 1 {
