@@ -55,6 +55,18 @@ func TestLoadTrustedProxies(t *testing.T) {
 	}
 }
 
+func TestLoadMetricsToken(t *testing.T) {
+	values := baseEnv()
+	values["PANEL_METRICS_TOKEN"] = "metrics-secret"
+	c, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.MetricsToken != "metrics-secret" {
+		t.Fatalf("MetricsToken = %q, want configured token", c.MetricsToken)
+	}
+}
+
 func TestLoadDefaultsAndRequired(t *testing.T) {
 	_, err := Load(env(map[string]string{}))
 	if err == nil {

@@ -18,7 +18,6 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"panel/internal/config"
-	"panel/internal/health"
 	"panel/internal/ingest"
 	"panel/internal/session"
 )
@@ -139,10 +138,7 @@ func NewRouter(deps Deps) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
 	})
-	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-		health.WritePrometheus(w)
-	})
+	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
 	return requestID(recoverProblems(mux))
 }

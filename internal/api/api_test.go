@@ -326,6 +326,9 @@ func TestRouterOperationalAndConfiguredRoutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.path, nil)
+			if tt.path == "/metrics" {
+				request.RemoteAddr = "127.0.0.1:1234"
+			}
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
 			if response.Code != tt.want {
