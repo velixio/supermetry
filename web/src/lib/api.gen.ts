@@ -902,6 +902,7 @@ export interface components {
         /**
          * @example {
          *       "active_visitors": 12,
+         *       "visitors_last_30m": 41,
          *       "top_pages": [
          *         {
          *           "page": "/docs",
@@ -917,8 +918,16 @@ export interface components {
          *     }
          */
         RealtimeResponse: {
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Unique visitors active in the last 5 minutes ("live now").
+             */
             active_visitors: number;
+            /**
+             * Format: int64
+             * @description Unique visitors active in the last 30 minutes, the window used by the charts and breakdowns.
+             */
+            visitors_last_30m: number;
             top_pages: components["schemas"]["TopPage"][];
             top_sources: components["schemas"]["TopSource"][];
             visitors_per_minute: components["schemas"]["RealtimeMinute"][];

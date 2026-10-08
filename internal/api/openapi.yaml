@@ -1755,9 +1755,14 @@ components:
     RealtimeResponse:
       type: object
       additionalProperties: false
-      required: [active_visitors, top_pages, top_sources, visitors_per_minute, pageviews_last_30m, top_entry_pages, countries, regions, cities, devices, browsers, operating_systems, events, recent_activity]
+      required: [active_visitors, visitors_last_30m, top_pages, top_sources, visitors_per_minute, pageviews_last_30m, top_entry_pages, countries, regions, cities, devices, browsers, operating_systems, events, recent_activity]
       properties:
         active_visitors:
+          description: Unique visitors active in the last 5 minutes ("live now").
+          type: integer
+          format: int64
+        visitors_last_30m:
+          description: Unique visitors active in the last 30 minutes, the window used by the charts and breakdowns.
           type: integer
           format: int64
         top_pages:
@@ -1812,6 +1817,7 @@ components:
           items: { $ref: '#/components/schemas/RecentActivity' }
       example:
         active_visitors: 12
+        visitors_last_30m: 41
         top_pages: [{ page: /docs, visitors: 7 }]
         top_sources: [{ source: google, visitors: 5 }]
     DataHealthResponse:

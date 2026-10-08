@@ -707,20 +707,24 @@ type RealtimeMinute struct {
 
 // RealtimeResponse defines model for RealtimeResponse.
 type RealtimeResponse struct {
-	ActiveVisitors    int64              `json:"active_visitors"`
-	Browsers          []RealtimeLabel    `json:"browsers"`
-	Cities            []RealtimeLocation `json:"cities"`
-	Countries         []RealtimeCountry  `json:"countries"`
-	Devices           []RealtimeLabel    `json:"devices"`
-	Events            []RealtimeEvent    `json:"events"`
-	OperatingSystems  []RealtimeLabel    `json:"operating_systems"`
-	PageviewsLast30m  int64              `json:"pageviews_last_30m"`
-	RecentActivity    []RecentActivity   `json:"recent_activity"`
-	Regions           []RealtimeLocation `json:"regions"`
-	TopEntryPages     []TopPage          `json:"top_entry_pages"`
-	TopPages          []TopPage          `json:"top_pages"`
-	TopSources        []TopSource        `json:"top_sources"`
-	VisitorsPerMinute []RealtimeMinute   `json:"visitors_per_minute"`
+	// ActiveVisitors Unique visitors active in the last 5 minutes ("live now").
+	ActiveVisitors   int64              `json:"active_visitors"`
+	Browsers         []RealtimeLabel    `json:"browsers"`
+	Cities           []RealtimeLocation `json:"cities"`
+	Countries        []RealtimeCountry  `json:"countries"`
+	Devices          []RealtimeLabel    `json:"devices"`
+	Events           []RealtimeEvent    `json:"events"`
+	OperatingSystems []RealtimeLabel    `json:"operating_systems"`
+	PageviewsLast30m int64              `json:"pageviews_last_30m"`
+	RecentActivity   []RecentActivity   `json:"recent_activity"`
+	Regions          []RealtimeLocation `json:"regions"`
+	TopEntryPages    []TopPage          `json:"top_entry_pages"`
+	TopPages         []TopPage          `json:"top_pages"`
+	TopSources       []TopSource        `json:"top_sources"`
+
+	// VisitorsLast30m Unique visitors active in the last 30 minutes, the window used by the charts and breakdowns.
+	VisitorsLast30m   int64            `json:"visitors_last_30m"`
+	VisitorsPerMinute []RealtimeMinute `json:"visitors_per_minute"`
 }
 
 // RecentActivity defines model for RecentActivity.

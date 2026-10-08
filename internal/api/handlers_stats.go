@@ -593,7 +593,7 @@ func realtimeHandler(store session.Store, now func() time.Time, dictionary dicti
 func realtimeResponse(store session.Store, dictionary dictionaryResolver, siteID int32, now time.Time) RealtimeResponse {
 	snapshot := realtime.RichSnapshot(store, siteID, now)
 	response := RealtimeResponse{
-		ActiveVisitors: int64(snapshot.ActiveVisitors), PageviewsLast30m: int64(snapshot.Pageviews),
+		ActiveVisitors: int64(snapshot.ActiveVisitors), VisitorsLast30m: int64(snapshot.VisitorsLast30m), PageviewsLast30m: int64(snapshot.Pageviews),
 		TopPages: make([]TopPage, len(snapshot.Pages)), TopSources: make([]TopSource, len(snapshot.Sources)),
 		TopEntryPages: make([]TopPage, len(snapshot.EntryPages)), Countries: make([]RealtimeCountry, len(snapshot.Countries)),
 		Regions: make([]RealtimeLocation, len(snapshot.Regions)), Cities: make([]RealtimeLocation, len(snapshot.Cities)),
