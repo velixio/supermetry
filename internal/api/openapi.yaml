@@ -625,17 +625,19 @@ paths:
   /api/public/v1/sites/{site_id}/annotations:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
-      - name: from
-        in: query
-        required: true
-        schema: { type: string, format: date }
-      - name: to
-        in: query
-        required: true
-        schema: { type: string, format: date }
     get:
       operationId: listAnnotations
       summary: List chart annotations in an inclusive date range
+      description: Requires stats:read.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
       responses:
         '200':
           description: Annotations ordered by day and identifier
@@ -653,6 +655,59 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createAnnotation
+      summary: Create a chart annotation
+      description: Requires annotations:write or sites:write. The mutation is recorded in the organization audit log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnnotationInput' }
+      responses:
+        '201':
+          description: Annotation created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Annotation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/annotations/{annotation_id}:
+    parameters:
+      - name: annotation_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    patch:
+      operationId: updateAnnotation
+      summary: Update a chart annotation
+      description: Requires annotations:write or sites:write. The mutation is recorded in the organization audit log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnnotationPatch' }
+      responses:
+        '200':
+          description: Annotation updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Annotation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteAnnotation
+      summary: Delete a chart annotation
+      description: Requires annotations:write or sites:write. The mutation is recorded in the organization audit log.
+      responses:
+        '204': { description: Annotation deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/public/v1/goals/{goal_id}:
     parameters:
       - $ref: '#/components/parameters/GoalPathID'
@@ -798,6 +853,206 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+    post:
+      operationId: createSegment
+      summary: Create a saved segment
+      description: Requires segments:write or sites:write. The mutation is recorded in the organization audit log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SegmentInput' }
+      responses:
+        '201':
+          description: Segment created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Segment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: A segment with the same name already exists. }
+  /api/public/v1/segments/{segment_id}:
+    parameters:
+      - name: segment_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    patch:
+      operationId: updateSegment
+      summary: Update a saved segment
+      description: Requires segments:write or sites:write. The mutation is recorded in the organization audit log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SegmentInput' }
+      responses:
+        '200':
+          description: Segment updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Segment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: A segment with the same name already exists. }
+    delete:
+      operationId: deleteSegment
+      summary: Delete a saved segment
+      description: Requires segments:write or sites:write. The mutation is recorded in the organization audit log.
+      responses:
+        '204': { description: Segment deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/sites/{site_id}/events:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - name: from
+        in: query
+        required: true
+        schema: { type: string, format: date, example: '2026-10-01' }
+      - name: to
+        in: query
+        required: true
+        schema: { type: string, format: date, example: '2026-10-08' }
+      - name: name
+        in: query
+        schema: { type: string, maxLength: 2000, example: signup }
+      - $ref: '#/components/parameters/Filters'
+      - $ref: '#/components/parameters/Cursor'
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    get:
+      operationId: listEvents
+      summary: Explore raw pageviews and custom events
+      description: Requires stats:read. Results are newest first and limited to the site's raw-data retention window. Visitor identifiers, IP addresses, and user agents are never returned.
+      responses:
+        '200':
+          description: A page of raw events
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventExploreList' }
+              example:
+                data:
+                  - { ts: '2026-10-08T12:30:00Z', kind: event, name: signup, page: /pricing, props: { plan: pro }, country: US, device: desktop, browser: Chrome, source: Google }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/public/v1/sites/{site_id}/properties:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - name: from
+        in: query
+        required: true
+        schema: { type: string, format: date }
+      - name: to
+        in: query
+        required: true
+        schema: { type: string, format: date }
+      - name: event
+        in: query
+        schema: { type: string, maxLength: 2000 }
+    get:
+      operationId: listProperties
+      summary: List property keys and event counts
+      description: Requires stats:read. Returns at most 100 keys from raw events.
+      responses:
+        '200':
+          description: Property keys ordered by event count
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items: { $ref: '#/components/schemas/PropertyKeyCount' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/public/v1/sites/{site_id}/properties/{property_key}/values:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - name: property_key
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 2000 }
+      - name: from
+        in: query
+        required: true
+        schema: { type: string, format: date }
+      - name: to
+        in: query
+        required: true
+        schema: { type: string, format: date }
+      - name: event
+        in: query
+        schema: { type: string, maxLength: 2000 }
+    get:
+      operationId: listPropertyValues
+      summary: List top property values and event counts
+      description: Requires stats:read. Returns at most 100 values from raw events.
+      responses:
+        '200':
+          description: Property values ordered by event count
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items: { $ref: '#/components/schemas/PropertyValueCount' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/public/v1/sites/{site_id}/suggestions:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - name: dimension
+        in: query
+        required: true
+        schema: { type: string, example: page }
+      - name: q
+        in: query
+        schema: { type: string, maxLength: 2000 }
+      - name: from
+        in: query
+        required: true
+        schema: { type: string, format: date }
+      - name: to
+        in: query
+        required: true
+        schema: { type: string, format: date }
+    get:
+      operationId: listSuggestions
+      summary: Suggest filter values
+      description: Requires stats:read. Prefix matches rank ahead of substring matches; the response is capped at 20 values.
+      responses:
+        '200':
+          description: Matching values
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 20
+                items: { $ref: '#/components/schemas/Suggestion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /healthz:
     get:
       operationId: healthz
@@ -1037,6 +1292,20 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    AnnotationInput:
+      type: object
+      additionalProperties: false
+      required: [day, text]
+      properties:
+        day: { type: string, format: date }
+        text: { type: string, minLength: 1, maxLength: 200 }
+    AnnotationPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        day: { type: string, format: date }
+        text: { type: string, minLength: 1, maxLength: 200 }
     EventPayload:
       type: object
       required: [site, name]
@@ -1812,6 +2081,66 @@ components:
               type: array
               items: { $ref: '#/components/schemas/ProfileEvent' }
             next_cursor: { type: [string, 'null'] }
+    EventExploreItem:
+      type: object
+      additionalProperties: false
+      required: [ts, kind, name, page, country, device, browser, source]
+      properties:
+        ts: { type: string, format: date-time }
+        kind:
+          type: string
+          enum: [pageview, event]
+          x-enum-varnames: [ExplorePageview, ExploreEvent]
+        name: { type: string }
+        page: { type: string }
+        props:
+          type: [object, 'null']
+          additionalProperties: { type: string }
+        country: { type: string }
+        device: { type: string }
+        browser: { type: string }
+        source: { type: string }
+    EventExploreList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/EventExploreItem' }
+        next_cursor: { type: [string, 'null'] }
+    PropertyKeyCount:
+      type: object
+      additionalProperties: false
+      required: [key, events]
+      properties:
+        key: { type: string }
+        events: { type: integer, format: int64, minimum: 0 }
+    PropertyValueCount:
+      type: object
+      additionalProperties: false
+      required: [value, events]
+      properties:
+        value: { type: string }
+        events: { type: integer, format: int64, minimum: 0 }
+    SegmentInput:
+      type: object
+      additionalProperties: false
+      required: [name, filters]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        filters:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/Filter' }
+    Suggestion:
+      type: object
+      additionalProperties: false
+      required: [value, count]
+      properties:
+        value: { type: string }
+        count: { type: integer, format: int64, minimum: 0 }
     TopPage:
       type: object
       additionalProperties: false

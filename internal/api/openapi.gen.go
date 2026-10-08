@@ -6,6 +6,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -36,6 +37,24 @@ func (e CreateSiteRequestRetentionDays) Valid() bool {
 	case CreateSiteRequestRetentionDaysN7:
 		return true
 	case CreateSiteRequestRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EventExploreItemKind.
+const (
+	ExploreEvent    EventExploreItemKind = "event"
+	ExplorePageview EventExploreItemKind = "pageview"
+)
+
+// Valid indicates whether the value is a known member of the EventExploreItemKind enum.
+func (e EventExploreItemKind) Valid() bool {
+	switch e {
+	case ExploreEvent:
+		return true
+	case ExplorePageview:
 		return true
 	default:
 		return false
@@ -406,6 +425,18 @@ type Annotation struct {
 	Text      string             `json:"text"`
 }
 
+// AnnotationInput defines model for AnnotationInput.
+type AnnotationInput struct {
+	Day  openapi_types.Date `json:"day"`
+	Text string             `json:"text"`
+}
+
+// AnnotationPatch defines model for AnnotationPatch.
+type AnnotationPatch struct {
+	Day  *openapi_types.Date `json:"day,omitempty"`
+	Text *string             `json:"text,omitempty"`
+}
+
 // ComparisonResult defines model for ComparisonResult.
 type ComparisonResult struct {
 	DateRange DateRange                `json:"date_range"`
@@ -428,6 +459,67 @@ type CreateSiteRequestRetentionDays int
 type DateRange struct {
 	From openapi_types.Date `json:"from"`
 	To   openapi_types.Date `json:"to"`
+}
+
+// EventExploreItem defines model for EventExploreItem.
+type EventExploreItem struct {
+	Browser string               `json:"browser"`
+	Country string               `json:"country"`
+	Device  string               `json:"device"`
+	Kind    EventExploreItemKind `json:"kind"`
+	Name    string               `json:"name"`
+	Page    string               `json:"page"`
+	Props   *map[string]string   `json:"props,omitempty"`
+	Source  string               `json:"source"`
+	Ts      time.Time            `json:"ts"`
+}
+
+// EventExploreItemKind defines model for EventExploreItem.Kind.
+type EventExploreItemKind string
+
+// EventExploreList defines model for EventExploreList.
+type EventExploreList struct {
+	Data       []EventExploreItem `json:"data"`
+	NextCursor *string            `json:"next_cursor,omitempty"`
+}
+
+// EventPayload defines model for EventPayload.
+type EventPayload struct {
+	EngagementMs *int `json:"engagement_ms,omitempty"`
+
+	// Name Event name, such as pageview or a custom event name.
+	Name string `json:"name"`
+
+	// ProfileId External profile identifier for a profiles-enabled site.
+	ProfileId *string            `json:"profile_id,omitempty"`
+	Props     *map[string]string `json:"props,omitempty"`
+	Referrer  *string            `json:"referrer,omitempty"`
+	Revenue   *struct {
+		Amount   EventPayload_Revenue_Amount `json:"amount"`
+		Currency string                      `json:"currency"`
+	} `json:"revenue,omitempty"`
+	ScreenWidth *int `json:"screen_width,omitempty"`
+	ScrollPct   *int `json:"scroll_pct,omitempty"`
+
+	// Site Public site identifier.
+	Site string `json:"site"`
+
+	// Traits Profile traits for an identify event on a profiles-enabled site.
+	Traits *map[string]string `json:"traits,omitempty"`
+
+	// Url Full page URL. Required by the event intake handler.
+	Url *string `json:"url,omitempty"`
+}
+
+// EventPayloadRevenueAmount0 defines model for EventPayload.Revenue.Amount.0.
+type EventPayloadRevenueAmount0 = float32
+
+// EventPayloadRevenueAmount1 defines model for EventPayload.Revenue.Amount.1.
+type EventPayloadRevenueAmount1 = string
+
+// EventPayload_Revenue_Amount defines model for EventPayload.Revenue.Amount.
+type EventPayload_Revenue_Amount struct {
+	union json.RawMessage
 }
 
 // Filter defines model for Filter.
@@ -638,6 +730,18 @@ type ProfileList struct {
 	ProfilesEnabled bool      `json:"profiles_enabled"`
 }
 
+// PropertyKeyCount defines model for PropertyKeyCount.
+type PropertyKeyCount struct {
+	Events int64  `json:"events"`
+	Key    string `json:"key"`
+}
+
+// PropertyValueCount defines model for PropertyValueCount.
+type PropertyValueCount struct {
+	Events int64  `json:"events"`
+	Value  string `json:"value"`
+}
+
 // QueryMeta defines model for QueryMeta.
 type QueryMeta struct {
 	Cached           bool     `json:"cached"`
@@ -811,6 +915,12 @@ type Segment struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// SegmentInput defines model for SegmentInput.
+type SegmentInput struct {
+	Filters []Filter `json:"filters"`
+	Name    string   `json:"name"`
+}
+
 // Site defines model for Site.
 type Site struct {
 	AllowedHosts    []string `json:"allowed_hosts"`
@@ -830,6 +940,12 @@ type Site struct {
 type SiteList struct {
 	Data       []Site  `json:"data"`
 	NextCursor *string `json:"next_cursor,omitempty"`
+}
+
+// Suggestion defines model for Suggestion.
+type Suggestion struct {
+	Count int64  `json:"count"`
+	Value string `json:"value"`
 }
 
 // TopPage defines model for TopPage.
@@ -1009,11 +1125,45 @@ type ListAnnotationsParams struct {
 	To   openapi_types.Date `form:"to" json:"to"`
 }
 
+// ListEventsParams defines parameters for ListEvents.
+type ListEventsParams struct {
+	From openapi_types.Date `form:"from" json:"from"`
+	To   openapi_types.Date `form:"to" json:"to"`
+	Name *string            `form:"name,omitempty" json:"name,omitempty"`
+
+	// Filter Repeat up to ten times as dimension:operator:value1,value2.
+	Filter *Filters `form:"filter,omitempty" json:"filter,omitempty"`
+	Cursor *Cursor  `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *int     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListProfilesParams defines parameters for ListProfiles.
 type ListProfilesParams struct {
 	Search *string `form:"search,omitempty" json:"search,omitempty"`
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListPropertiesParams defines parameters for ListProperties.
+type ListPropertiesParams struct {
+	From  openapi_types.Date `form:"from" json:"from"`
+	To    openapi_types.Date `form:"to" json:"to"`
+	Event *string            `form:"event,omitempty" json:"event,omitempty"`
+}
+
+// ListPropertyValuesParams defines parameters for ListPropertyValues.
+type ListPropertyValuesParams struct {
+	From  openapi_types.Date `form:"from" json:"from"`
+	To    openapi_types.Date `form:"to" json:"to"`
+	Event *string            `form:"event,omitempty" json:"event,omitempty"`
+}
+
+// ListSuggestionsParams defines parameters for ListSuggestions.
+type ListSuggestionsParams struct {
+	Dimension string             `form:"dimension" json:"dimension"`
+	Q         *string            `form:"q,omitempty" json:"q,omitempty"`
+	From      openapi_types.Date `form:"from" json:"from"`
+	To        openapi_types.Date `form:"to" json:"to"`
 }
 
 // StatsBreakdownParams defines parameters for StatsBreakdown.
@@ -1085,6 +1235,15 @@ type StatsTimeseriesParams struct {
 	Interval *string  `form:"interval,omitempty" json:"interval,omitempty"`
 }
 
+// UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
+type UpdateAnnotationJSONRequestBody = AnnotationPatch
+
+// SubmitEventJSONRequestBody defines body for SubmitEvent for application/json ContentType.
+type SubmitEventJSONRequestBody = EventPayload
+
+// SubmitEventTextRequestBody defines body for SubmitEvent for text/plain ContentType.
+type SubmitEventTextRequestBody = EventPayload
+
 // FunnelQueryJSONRequestBody defines body for FunnelQuery for application/json ContentType.
 type FunnelQueryJSONRequestBody = FunnelRequest
 
@@ -1106,11 +1265,17 @@ type QueryJSONRequestBody = QueryRequest
 // RetentionQueryJSONRequestBody defines body for RetentionQuery for application/json ContentType.
 type RetentionQueryJSONRequestBody = RetentionRequest
 
+// UpdateSegmentJSONRequestBody defines body for UpdateSegment for application/json ContentType.
+type UpdateSegmentJSONRequestBody = SegmentInput
+
 // CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
 type CreateSiteJSONRequestBody = CreateSiteRequest
 
 // UpdateSiteJSONRequestBody defines body for UpdateSite for application/json ContentType.
 type UpdateSiteJSONRequestBody = UpdateSiteRequest
+
+// CreateAnnotationJSONRequestBody defines body for CreateAnnotation for application/json ContentType.
+type CreateAnnotationJSONRequestBody = AnnotationInput
 
 // CreateFunnelJSONRequestBody defines body for CreateFunnel for application/json ContentType.
 type CreateFunnelJSONRequestBody = SavedFunnelInput
@@ -1118,11 +1283,85 @@ type CreateFunnelJSONRequestBody = SavedFunnelInput
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalInput
 
+// CreateSegmentJSONRequestBody defines body for CreateSegment for application/json ContentType.
+type CreateSegmentJSONRequestBody = SegmentInput
+
 // VitalsQueryJSONRequestBody defines body for VitalsQuery for application/json ContentType.
 type VitalsQueryJSONRequestBody = VitalsRequest
 
+// AsEventPayloadRevenueAmount0 returns the union data inside the EventPayload_Revenue_Amount as a EventPayloadRevenueAmount0
+func (t EventPayload_Revenue_Amount) AsEventPayloadRevenueAmount0() (EventPayloadRevenueAmount0, error) {
+	var body EventPayloadRevenueAmount0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEventPayloadRevenueAmount0 overwrites any union data inside the EventPayload_Revenue_Amount as the provided EventPayloadRevenueAmount0
+func (t *EventPayload_Revenue_Amount) FromEventPayloadRevenueAmount0(v EventPayloadRevenueAmount0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEventPayloadRevenueAmount0 performs a merge with any union data inside the EventPayload_Revenue_Amount, using the provided EventPayloadRevenueAmount0
+func (t *EventPayload_Revenue_Amount) MergeEventPayloadRevenueAmount0(v EventPayloadRevenueAmount0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsEventPayloadRevenueAmount1 returns the union data inside the EventPayload_Revenue_Amount as a EventPayloadRevenueAmount1
+func (t EventPayload_Revenue_Amount) AsEventPayloadRevenueAmount1() (EventPayloadRevenueAmount1, error) {
+	var body EventPayloadRevenueAmount1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromEventPayloadRevenueAmount1 overwrites any union data inside the EventPayload_Revenue_Amount as the provided EventPayloadRevenueAmount1
+func (t *EventPayload_Revenue_Amount) FromEventPayloadRevenueAmount1(v EventPayloadRevenueAmount1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeEventPayloadRevenueAmount1 performs a merge with any union data inside the EventPayload_Revenue_Amount, using the provided EventPayloadRevenueAmount1
+func (t *EventPayload_Revenue_Amount) MergeEventPayloadRevenueAmount1(v EventPayloadRevenueAmount1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t EventPayload_Revenue_Amount) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *EventPayload_Revenue_Amount) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// DeleteAnnotation Delete a chart annotation
+	// (DELETE /api/public/v1/annotations/{annotation_id})
+	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
+	// UpdateAnnotation Update a chart annotation
+	// (PATCH /api/public/v1/annotations/{annotation_id})
+	UpdateAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
+	// SubmitEvent Submit an analytics event
+	// (POST /api/public/v1/events)
+	SubmitEvent(w http.ResponseWriter, r *http.Request)
 	// FunnelQuery Run a funnel query
 	// (POST /api/public/v1/funnels/query)
 	FunnelQuery(w http.ResponseWriter, r *http.Request)
@@ -1156,6 +1395,12 @@ type ServerInterface interface {
 	// RetentionQuery Run a retention query
 	// (POST /api/public/v1/retention/query)
 	RetentionQuery(w http.ResponseWriter, r *http.Request)
+	// DeleteSegment Delete a saved segment
+	// (DELETE /api/public/v1/segments/{segment_id})
+	DeleteSegment(w http.ResponseWriter, r *http.Request, segmentId int64)
+	// UpdateSegment Update a saved segment
+	// (PATCH /api/public/v1/segments/{segment_id})
+	UpdateSegment(w http.ResponseWriter, r *http.Request, segmentId int64)
 	// ListSites List accessible sites
 	// (GET /api/public/v1/sites)
 	ListSites(w http.ResponseWriter, r *http.Request, params ListSitesParams)
@@ -1174,6 +1419,12 @@ type ServerInterface interface {
 	// ListAnnotations List chart annotations in an inclusive date range
 	// (GET /api/public/v1/sites/{site_id}/annotations)
 	ListAnnotations(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListAnnotationsParams)
+	// CreateAnnotation Create a chart annotation
+	// (POST /api/public/v1/sites/{site_id}/annotations)
+	CreateAnnotation(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListEvents Explore raw pageviews and custom events
+	// (GET /api/public/v1/sites/{site_id}/events)
+	ListEvents(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListEventsParams)
 	// ListFunnels List saved funnels
 	// (GET /api/public/v1/sites/{site_id}/funnels)
 	ListFunnels(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -1189,9 +1440,21 @@ type ServerInterface interface {
 	// ListProfiles List identified profiles
 	// (GET /api/public/v1/sites/{site_id}/profiles)
 	ListProfiles(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListProfilesParams)
+	// ListProperties List property keys and event counts
+	// (GET /api/public/v1/sites/{site_id}/properties)
+	ListProperties(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListPropertiesParams)
+	// ListPropertyValues List top property values and event counts
+	// (GET /api/public/v1/sites/{site_id}/properties/{property_key}/values)
+	ListPropertyValues(w http.ResponseWriter, r *http.Request, siteId SitePathID, propertyKey string, params ListPropertyValuesParams)
 	// ListSegments List saved segments
 	// (GET /api/public/v1/sites/{site_id}/segments)
 	ListSegments(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// CreateSegment Create a saved segment
+	// (POST /api/public/v1/sites/{site_id}/segments)
+	CreateSegment(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListSuggestions Suggest filter values
+	// (GET /api/public/v1/sites/{site_id}/suggestions)
+	ListSuggestions(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListSuggestionsParams)
 	// StatsBreakdown Get a dimension breakdown
 	// (GET /api/public/v1/stats/breakdown)
 	StatsBreakdown(w http.ResponseWriter, r *http.Request, params StatsBreakdownParams)
@@ -1223,6 +1486,72 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// DeleteAnnotation operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "annotation_id" -------------
+	var annotationId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "annotation_id", r.PathValue("annotation_id"), &annotationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "annotation_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAnnotation(w, r, annotationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAnnotation operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "annotation_id" -------------
+	var annotationId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "annotation_id", r.PathValue("annotation_id"), &annotationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "annotation_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAnnotation(w, r, annotationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitEvent operation middleware
+func (siw *ServerInterfaceWrapper) SubmitEvent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitEvent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // FunnelQuery operation middleware
 func (siw *ServerInterfaceWrapper) FunnelQuery(w http.ResponseWriter, r *http.Request) {
@@ -1518,6 +1847,58 @@ func (siw *ServerInterfaceWrapper) RetentionQuery(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteSegment operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSegment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "segment_id" -------------
+	var segmentId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "segment_id", r.PathValue("segment_id"), &segmentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSegment(w, r, segmentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSegment operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSegment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "segment_id" -------------
+	var segmentId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "segment_id", r.PathValue("segment_id"), &segmentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSegment(w, r, segmentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSites operation middleware
 func (siw *ServerInterfaceWrapper) ListSites(w http.ResponseWriter, r *http.Request) {
 
@@ -1711,6 +2092,139 @@ func (siw *ServerInterfaceWrapper) ListAnnotations(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// CreateAnnotation operation middleware
+func (siw *ServerInterfaceWrapper) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAnnotation(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEventsParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "name" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "name", r.URL.Query(), &params.Name, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "name"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEvents(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListFunnels operation middleware
 func (siw *ServerInterfaceWrapper) ListFunnels(w http.ResponseWriter, r *http.Request) {
 
@@ -1883,6 +2397,151 @@ func (siw *ServerInterfaceWrapper) ListProfiles(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListProperties operation middleware
+func (siw *ServerInterfaceWrapper) ListProperties(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPropertiesParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "event" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "event", r.URL.Query(), &params.Event, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "event"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "event", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListProperties(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPropertyValues operation middleware
+func (siw *ServerInterfaceWrapper) ListPropertyValues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "property_key" -------------
+	var propertyKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "property_key", r.PathValue("property_key"), &propertyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "property_key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPropertyValuesParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "event" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "event", r.URL.Query(), &params.Event, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "event"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "event", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPropertyValues(w, r, siteId, propertyKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSegments operation middleware
 func (siw *ServerInterfaceWrapper) ListSegments(w http.ResponseWriter, r *http.Request) {
 
@@ -1900,6 +2559,113 @@ func (siw *ServerInterfaceWrapper) ListSegments(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListSegments(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSegment operation middleware
+func (siw *ServerInterfaceWrapper) CreateSegment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSegment(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSuggestions operation middleware
+func (siw *ServerInterfaceWrapper) ListSuggestions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSuggestionsParams
+
+	// ------------- Required query parameter "dimension" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "dimension", r.URL.Query(), &params.Dimension, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "dimension"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dimension", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSuggestions(w, r, siteId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2548,6 +3314,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/events", wrapper.SubmitEvent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/query", wrapper.Query)
@@ -2568,6 +3335,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/profiles", wrapper.ListProfiles)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/profiles/{profile_id}", wrapper.GetProfile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/annotations", wrapper.ListAnnotations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/annotations", wrapper.CreateAnnotation)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/annotations/{annotation_id}", wrapper.DeleteAnnotation)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/annotations/{annotation_id}", wrapper.UpdateAnnotation)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.DeleteGoal)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/goals/{goal_id}", wrapper.UpdateGoal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.ListFunnels)
@@ -2575,6 +3345,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.DeleteFunnel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.UpdateFunnel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.ListSegments)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.CreateSegment)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/segments/{segment_id}", wrapper.DeleteSegment)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/segments/{segment_id}", wrapper.UpdateSegment)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/events", wrapper.ListEvents)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties", wrapper.ListProperties)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties/{property_key}/values", wrapper.ListPropertyValues)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/suggestions", wrapper.ListSuggestions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

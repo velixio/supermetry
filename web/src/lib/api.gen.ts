@@ -318,24 +318,54 @@ export interface paths {
     };
     "/api/public/v1/sites/{site_id}/annotations": {
         parameters: {
-            query: {
-                from: string;
-                to: string;
-            };
+            query?: never;
             header?: never;
             path: {
                 site_id: components["parameters"]["SitePathID"];
             };
             cookie?: never;
         };
-        /** List chart annotations in an inclusive date range */
+        /**
+         * List chart annotations in an inclusive date range
+         * @description Requires stats:read.
+         */
         get: operations["listAnnotations"];
         put?: never;
-        post?: never;
+        /**
+         * Create a chart annotation
+         * @description Requires annotations:write or sites:write. The mutation is recorded in the organization audit log.
+         */
+        post: operations["createAnnotation"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/annotations/{annotation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                annotation_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a chart annotation
+         * @description Requires annotations:write or sites:write. The mutation is recorded in the organization audit log.
+         */
+        delete: operations["deleteAnnotation"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a chart annotation
+         * @description Requires annotations:write or sites:write. The mutation is recorded in the organization audit log.
+         */
+        patch: operations["updateAnnotation"];
         trace?: never;
     };
     "/api/public/v1/goals/{goal_id}": {
@@ -413,6 +443,146 @@ export interface paths {
          */
         get: operations["listSegments"];
         put?: never;
+        /**
+         * Create a saved segment
+         * @description Requires segments:write or sites:write. The mutation is recorded in the organization audit log.
+         */
+        post: operations["createSegment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/segments/{segment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                segment_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved segment
+         * @description Requires segments:write or sites:write. The mutation is recorded in the organization audit log.
+         */
+        delete: operations["deleteSegment"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a saved segment
+         * @description Requires segments:write or sites:write. The mutation is recorded in the organization audit log.
+         */
+        patch: operations["updateSegment"];
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/events": {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                name?: string;
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                filter?: components["parameters"]["Filters"];
+                cursor?: components["parameters"]["Cursor"];
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Explore raw pageviews and custom events
+         * @description Requires stats:read. Results are newest first and limited to the site's raw-data retention window. Visitor identifiers, IP addresses, and user agents are never returned.
+         */
+        get: operations["listEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/properties": {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                event?: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List property keys and event counts
+         * @description Requires stats:read. Returns at most 100 keys from raw events.
+         */
+        get: operations["listProperties"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/properties/{property_key}/values": {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                event?: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                property_key: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List top property values and event counts
+         * @description Requires stats:read. Returns at most 100 values from raw events.
+         */
+        get: operations["listPropertyValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/suggestions": {
+        parameters: {
+            query: {
+                dimension: string;
+                q?: string;
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Suggest filter values
+         * @description Requires stats:read. Prefix matches rank ahead of substring matches; the response is capped at 20 values.
+         */
+        get: operations["listSuggestions"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -475,6 +645,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AnnotationInput: {
+            /** Format: date */
+            day: string;
+            text: string;
+        };
+        AnnotationPatch: {
+            /** Format: date */
+            day?: string;
+            text?: string;
+        };
         EventPayload: {
             /**
              * @description Public site identifier.
@@ -930,6 +1110,44 @@ export interface components {
         ProfileDetail: components["schemas"]["Profile"] & {
             timeline: components["schemas"]["ProfileEvent"][];
             next_cursor?: string | null;
+        };
+        EventExploreItem: {
+            /** Format: date-time */
+            ts: string;
+            /** @enum {string} */
+            kind: "pageview" | "event";
+            name: string;
+            page: string;
+            props?: {
+                [key: string]: string;
+            } | null;
+            country: string;
+            device: string;
+            browser: string;
+            source: string;
+        };
+        EventExploreList: {
+            data: components["schemas"]["EventExploreItem"][];
+            next_cursor?: string | null;
+        };
+        PropertyKeyCount: {
+            key: string;
+            /** Format: int64 */
+            events: number;
+        };
+        PropertyValueCount: {
+            value: string;
+            /** Format: int64 */
+            events: number;
+        };
+        SegmentInput: {
+            name: string;
+            filters: components["schemas"]["Filter"][];
+        };
+        Suggestion: {
+            value: string;
+            /** Format: int64 */
+            count: number;
         };
         TopPage: {
             page: string;
@@ -1837,6 +2055,89 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    createAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotationInput"];
+            };
+        };
+        responses: {
+            /** @description Annotation created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Annotation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                annotation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Annotation deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                annotation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotationPatch"];
+            };
+        };
+        responses: {
+            /** @description Annotation updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Annotation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     deleteGoal: {
         parameters: {
             query?: never;
@@ -2021,6 +2322,256 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    createSegment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SegmentInput"];
+            };
+        };
+        responses: {
+            /** @description Segment created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Segment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A segment with the same name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteSegment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                segment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Segment deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateSegment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                segment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SegmentInput"];
+            };
+        };
+        responses: {
+            /** @description Segment updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Segment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A segment with the same name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listEvents: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                name?: string;
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                filter?: components["parameters"]["Filters"];
+                cursor?: components["parameters"]["Cursor"];
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of raw events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "data": [
+                     *         {
+                     *           "ts": "2026-10-08T12:30:00Z",
+                     *           "kind": "event",
+                     *           "name": "signup",
+                     *           "page": "/pricing",
+                     *           "props": {
+                     *             "plan": "pro"
+                     *           },
+                     *           "country": "US",
+                     *           "device": "desktop",
+                     *           "browser": "Chrome",
+                     *           "source": "Google"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EventExploreList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listProperties: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                event?: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Property keys ordered by event count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyKeyCount"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listPropertyValues: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                event?: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                property_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Property values ordered by event count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyValueCount"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listSuggestions: {
+        parameters: {
+            query: {
+                dimension: string;
+                q?: string;
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching values */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suggestion"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     healthz: {
