@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -291,6 +292,12 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"GET " + privatePrefix + "/sites/{site}/profiles",
 		"GET " + privatePrefix + "/profiles/{profile}",
 		"DELETE " + privatePrefix + "/profiles/{profile}",
+		"GET " + privatePrefix + "/sites/{site}/replays",
+		"GET " + privatePrefix + "/sites/{site}/replays/{replay_path...}",
+		"GET " + privatePrefix + "/sites/{site}/replay-settings",
+		"PUT " + privatePrefix + "/sites/{site}/replay-settings",
+		"GET " + privatePrefix + "/instance/replay-storage",
+		"PUT " + privatePrefix + "/instance/replay-storage",
 	} {
 		mux.Handle(pattern, platform)
 	}
@@ -412,6 +419,17 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	if err := yaml.Unmarshal(source, &document); err != nil {
 		writeProblem(w, internalProblem())
 		return
+	}
+	// The source contract also generates the dashboard client. Keep private
+	// dashboard operations out of the public API document served to integrators.
+	if root, ok := document.(map[string]any); ok {
+		if paths, ok := root["paths"].(map[string]any); ok {
+			for route := range paths {
+				if strings.HasPrefix(route, "/api/private/sites/") || strings.HasPrefix(route, "/api/private/instance/") {
+					delete(paths, route)
+				}
+			}
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(document)

@@ -15,6 +15,7 @@ import (
 	"panel/internal/dict"
 	"panel/internal/query"
 	"panel/internal/sites"
+	"panel/internal/testpg"
 )
 
 func TestSessionsCombinesHotAndClosedNewestFirst(t *testing.T) {
@@ -89,6 +90,44 @@ func TestSessionsValidatesAndFilters(t *testing.T) {
 	}, nil)
 	if err == nil || !strings.Contains(err.Error(), "from must not be after to") {
 		t.Fatalf("validation error = %v", err)
+	}
+}
+
+func TestSessionsHasReplayFilter(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		create table sessions_r30_202610 partition of sessions_r30 for values from ('2026-10-01') to ('2026-11-01');
+		create table replay_sessions_202610 partition of replay_sessions for values from ('2026-10-01') to ('2026-11-01');
+		insert into sessions(site_id,retention_class,session_id,visitor_id,start,last,local_day,pageviews)
+		values (1,30,301,1,'2026-10-08 08:00Z','2026-10-08 08:01Z','2026-10-08',1),
+		       (1,30,302,2,'2026-10-08 09:00Z','2026-10-08 09:01Z','2026-10-08',1);
+		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+		values (1,301,'2026-10-08 08:00Z','2026-10-08 08:01Z','2026-10-08',10,1,'replay/1/2026-10-08/301.gz')`); err != nil {
+		t.Fatal(err)
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	engine := query.NewEngine(pool, dictionary, sitesRegistry{{ID: 1, PublicID: "replay", TZ: time.UTC, Retention: db.Ret30}})
+	hasReplay := true
+	response, err := engine.Sessions(ctx, 1, api.ListSessionsParams{
+		From:      openapi_types.Date{Time: day("2026-10-06")},
+		To:        openapi_types.Date{Time: day("2026-10-08")},
+		HasReplay: &hasReplay,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := sessionIDs(response.Data), []string{"301"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("session IDs = %v, want %v", got, want)
+	}
+	if !response.Data[0].HasReplay {
+		t.Fatalf("session = %+v, want has_replay", response.Data[0])
 	}
 }
 

@@ -74,7 +74,7 @@ func (e *Engine) Events(ctx context.Context, req api.EventExploreRequest) (api.E
 			var kind int16
 			var props []byte
 			var key eventCursor
-			if scanErr := rows.Scan(&item.Ts, &kind, &item.Name, &item.Page, &props, &item.Country, &item.Device, &item.Browser, &item.Source,
+			if scanErr := rows.Scan(&item.Ts, &kind, &item.Name, &item.Page, &props, &item.Country, &item.Device, &item.Browser, &item.Source, &item.HasReplay,
 				&key.sessionID, &key.nameID, &key.pathID); scanErr != nil {
 				return scanErr
 			}
@@ -315,7 +315,9 @@ func buildEventsExploreSQL(req normalizedEventExplore) (string, []any, error) {
 	querySQL := `select e.ts,e.kind,case when e.kind=0 then 'pageview' else coalesce(event_name.value,'') end,
        coalesce(path.value,''),e.props,trim(e.country),
        case e.device when 0 then 'desktop' when 1 then 'mobile' when 2 then 'tablet' else 'unknown' end,
-       coalesce(browser.value,''),coalesce(source.value,''),e.session_id,e.name_id,e.path_id
+       coalesce(browser.value,''),coalesce(source.value,''),
+       exists (select 1 from replay_sessions rr where rr.site_id=e.site_id and rr.session_id=e.session_id),
+       e.session_id,e.name_id,e.path_id
 from events e ` + joins + `
 left join dict path on path.kind=` + strconv.Itoa(int(dict.Path)) + ` and path.id=e.path_id
 left join dict browser on browser.kind=` + strconv.Itoa(int(dict.Browser)) + ` and browser.id=e.browser_id

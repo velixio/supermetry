@@ -50,7 +50,8 @@ func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := h.deps.Store.Pool.Query(r.Context(), `
 		select p.id,p.site_id,p.external_id,p.traits,p.first_seen_at,p.last_seen_at,
-		       count(distinct e.session_id)::int8,count(e.profile_id)::int8
+		       count(distinct e.session_id)::int8,count(e.profile_id)::int8,
+		       exists(select 1 from replay_sessions rr where rr.site_id=p.site_id and rr.profile_id=p.id)
 		from profiles p
 		left join events e on e.site_id=p.site_id and e.profile_id=p.id
 		where p.site_id=$1
@@ -92,7 +93,7 @@ type profileScanner interface{ Scan(...any) error }
 func scanProfile(row profileScanner) (api.Profile, error) {
 	var profile api.Profile
 	var traits []byte
-	if err := row.Scan(&profile.Id, &profile.SiteId, &profile.ExternalId, &traits, &profile.FirstSeenAt, &profile.LastSeenAt, &profile.Sessions, &profile.Events); err != nil {
+	if err := row.Scan(&profile.Id, &profile.SiteId, &profile.ExternalId, &traits, &profile.FirstSeenAt, &profile.LastSeenAt, &profile.Sessions, &profile.Events, &profile.HasReplay); err != nil {
 		return api.Profile{}, err
 	}
 	profile.Traits = make(map[string]string)
@@ -163,7 +164,7 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 	detail := api.ProfileDetail{
 		Id: profile.Id, SiteId: profile.SiteId, ExternalId: profile.ExternalId, Traits: profile.Traits,
 		FirstSeenAt: profile.FirstSeenAt, LastSeenAt: profile.LastSeenAt, Sessions: profile.Sessions,
-		Events: profile.Events, Timeline: timeline, NextCursor: next,
+		Events: profile.Events, HasReplay: profile.HasReplay, Timeline: timeline, NextCursor: next,
 	}
 	writeJSON(w, http.StatusOK, detail)
 }
@@ -248,7 +249,8 @@ func (h *handler) profilePrincipal(w http.ResponseWriter, r *http.Request, actio
 	}
 	row := h.deps.Store.Pool.QueryRow(r.Context(), `
 		select p.id,p.site_id,p.external_id,p.traits,p.first_seen_at,p.last_seen_at,
-		       count(distinct e.session_id)::int8,count(e.profile_id)::int8
+		       count(distinct e.session_id)::int8,count(e.profile_id)::int8,
+		       exists(select 1 from replay_sessions rr where rr.site_id=p.site_id and rr.profile_id=p.id)
 		from profiles p left join events e on e.site_id=p.site_id and e.profile_id=p.id
 		where p.id=$1 group by p.id`, id)
 	profile, err := scanProfile(row)

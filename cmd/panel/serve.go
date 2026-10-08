@@ -127,6 +127,23 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 
 	platformStore := &store.Store{Pool: pool}
+	// Replay dashboard reads use the same resolved storage settings as ingest.
+	var replayBlobs replay.BlobStore
+	replayStorageRaw, err := store.InstanceReplayStorage(ctx, platformStore)
+	if err != nil {
+		return err
+	}
+	replayStored, err := replay.OpenStoredStorage(cfg.SecretKey, replayStorageRaw)
+	if err != nil {
+		return err
+	}
+	replayStorage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, replayStored)
+	if replayStorage.Backend.V == "disk" {
+		replayBlobs, err = replay.NewDiskStore(replayStorage.Dir.V)
+		if err != nil {
+			return err
+		}
+	}
 	databaseRegistry := sitesvc.NewRegistry(platformStore, 30*time.Second)
 	defer databaseRegistry.Close()
 	var registry sites.Registry = databaseRegistry
@@ -244,6 +261,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		ImportQueue:       importManager,
 		ProfileTombstones: profileTombstones,
 		Exporter:          exporter,
+		ReplayStore:       replayBlobs,
+		ReplayEnv:         cfg.Replay,
+		DataDir:           cfg.DataDir,
+		SecretKey:         cfg.SecretKey,
+		AdminAPIKey:       cfg.AdminAPIKey,
+		ReplayRefresh:     refreshRegistry,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {

@@ -84,6 +84,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site_id}/replays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** List session replays */
+        get: operations["listReplays"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site_id}/replays/{session_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        /** Download replay events */
+        get: operations["getReplayData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site_id}/replays/css/{hash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                hash: string;
+            };
+            cookie?: never;
+        };
+        /** Download a replay stylesheet */
+        get: operations["getReplayCSS"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site_id}/replay-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** Get site replay settings */
+        get: operations["getReplaySettings"];
+        /** Replace site replay settings */
+        put: operations["updateReplaySettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/instance/replay-storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get instance replay storage settings */
+        get: operations["getReplayStorage"];
+        /**
+         * Replace instance replay storage settings
+         * @description migrate records a background migration request; migration execution is asynchronous.
+         */
+        put: operations["updateReplayStorage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/events": {
         parameters: {
             query?: never;
@@ -1303,6 +1403,99 @@ export interface components {
             /** @description Week and month intervals group daily cohorts without cross-day identity linkage. */
             cohorts: components["schemas"]["RetentionCohort"][];
         };
+        ReplayValueBoolean: {
+            value: boolean;
+            locked: boolean;
+        };
+        ReplayValueInteger: {
+            /** Format: int64 */
+            value: number;
+            locked: boolean;
+        };
+        ReplayValueString: {
+            value: string;
+            locked: boolean;
+        };
+        ReplayTriggers: {
+            error: boolean;
+            rage_click: boolean;
+            url: boolean;
+            manual: boolean;
+            url_patterns: string[];
+        };
+        ReplaySiteSettingsInput: {
+            enabled?: boolean;
+            mask?: boolean;
+            sample_rate?: number;
+            retention_days?: number;
+            /** Format: int64 */
+            quota_bytes?: number;
+            triggers?: components["schemas"]["ReplayTriggers"];
+            /** @enum {string} */
+            consent?: "auto" | "always" | "never";
+        };
+        ReplaySiteSettings: {
+            enabled: boolean;
+            mask: components["schemas"]["ReplayValueBoolean"];
+            sample_rate: components["schemas"]["ReplayValueInteger"];
+            retention_days: components["schemas"]["ReplayValueInteger"];
+            quota_bytes: components["schemas"]["ReplayValueInteger"];
+            triggers: components["schemas"]["ReplayTriggers"];
+            /** @enum {string} */
+            consent: "auto" | "always" | "never";
+        };
+        ReplayStorageS3Input: {
+            endpoint?: string;
+            bucket?: string;
+            region?: string;
+            access_key?: string;
+            /** Format: password */
+            secret_key?: string;
+            prefix?: string;
+        };
+        ReplayStorageInput: {
+            /** @enum {string} */
+            backend?: "disk" | "s3";
+            dir?: string;
+            s3?: components["schemas"]["ReplayStorageS3Input"];
+            migrate: boolean;
+        };
+        ReplayStorageS3: {
+            endpoint: string;
+            bucket: string;
+            region: string;
+            access_key: string;
+            prefix: string;
+            secret_key_set: boolean;
+        };
+        ReplayStorageS3Value: {
+            value: components["schemas"]["ReplayStorageS3"];
+            locked: boolean;
+        };
+        ReplayStorageSettings: {
+            backend: components["schemas"]["ReplayValueString"];
+            dir: components["schemas"]["ReplayValueString"];
+            s3: components["schemas"]["ReplayStorageS3Value"];
+        };
+        ReplaySummary: {
+            /** Format: int64 */
+            session_id: number;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: int64 */
+            duration_s: number;
+            /** Format: int32 */
+            pages: number;
+            /** Format: int64 */
+            bytes: number;
+            trigger: string;
+            /** Format: int64 */
+            profile_id?: number | null;
+        };
+        ReplayList: {
+            data: components["schemas"]["ReplaySummary"][];
+            next_cursor?: string | null;
+        };
         Profile: {
             /** Format: int64 */
             id: number;
@@ -1320,6 +1513,7 @@ export interface components {
             sessions: number;
             /** Format: int64 */
             events: number;
+            has_replay: boolean;
         };
         SessionSummary: {
             id: string;
@@ -1339,6 +1533,7 @@ export interface components {
             device: string;
             browser: string;
             os: string;
+            has_replay: boolean;
             external_id?: string;
         };
         SessionList: {
@@ -1393,6 +1588,7 @@ export interface components {
             device: string;
             browser: string;
             source: string;
+            has_replay: boolean;
         };
         EventExploreList: {
             data: components["schemas"]["EventExploreItem"][];
@@ -1891,6 +2087,202 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             /** @description Too many password checks. */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReplays: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                limit?: components["parameters"]["Limit"];
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Replay page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getReplayData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A gzip-compressed NDJSON event stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-ndjson": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getReplayCSS: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A gzip-compressed stylesheet */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/css": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getReplaySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resolved settings and environment locks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplaySiteSettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateReplaySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaySiteSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Resolved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplaySiteSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description A submitted field is locked by an environment variable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getReplayStorage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resolved storage settings without the S3 secret */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayStorageSettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateReplayStorage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplayStorageInput"];
+            };
+        };
+        responses: {
+            /** @description Resolved storage settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayStorageSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A submitted field is locked by an environment variable. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2496,6 +2888,7 @@ export interface operations {
                 to: string;
                 /** @description Repeatable dimension:operator:value filter. */
                 filter?: string[];
+                has_replay?: boolean;
                 limit?: components["parameters"]["Limit"];
                 cursor?: components["parameters"]["Cursor"];
             };
