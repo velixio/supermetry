@@ -16,7 +16,7 @@ import (
 var rollupDimensionCodes = map[string]int16{
 	"page": 1, "path": 1, "source": 2, "country": 3, "browser": 4,
 	"os": 5, "device": 6, "entry": 7, "exit": 8, "region": 9, "city": 10,
-	"utm_source": 11,
+	"utm_source": 11, "utm_medium": 12, "utm_campaign": 13,
 }
 
 func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {
@@ -112,7 +112,7 @@ where r.site_id=`+siteArg+` and r.dim=`+dimArg)
 	}
 	dimensionText := rollupValueText("value_id", req.Dimensions[0])
 	where := "true"
-	if req.Dimensions[0] == "region" || req.Dimensions[0] == "city" || req.Dimensions[0] == "utm_source" {
+	if req.Dimensions[0] == "region" || req.Dimensions[0] == "city" || req.Dimensions[0] == "utm_source" || req.Dimensions[0] == "utm_medium" || req.Dimensions[0] == "utm_campaign" {
 		where = "value_id<>0"
 	}
 	querySQL := aggregateSQL([]string{dimensionText}, baseSums, "("+strings.Join(inputs, " union all ")+") r", where)
@@ -130,6 +130,10 @@ func rollupValueText(column, dimension string) string {
 		switch dimension {
 		case "source", "utm_source":
 			kind = dict.Source
+		case "utm_medium":
+			kind = dict.Medium
+		case "utm_campaign":
+			kind = dict.Campaign
 		case "browser":
 			kind = dict.Browser
 		case "os":
