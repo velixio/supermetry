@@ -1080,7 +1080,7 @@ export interface components {
          */
         Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "exit_rate" | "time_on_page" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
         Filter: {
-            /** @description Analytics dimension to filter. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. */
+            /** @description Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. */
             dimension: string;
             /** @enum {string} */
             operator: "is" | "is_not" | "contains" | "starts_with";
@@ -1103,6 +1103,7 @@ export interface components {
             /** @default true */
             include_imported: boolean;
             metrics: components["schemas"]["Metric"][];
+            /** @description Dimensions to group by. browser_version, os_version, screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop, desktop, and large, while stored value 0 is returned as an empty string for Unknown. */
             dimensions?: string[];
             filters?: components["schemas"]["Filter"][];
             order_by?: components["schemas"]["OrderBy"][];
@@ -2125,7 +2126,7 @@ export interface operations {
                 filter?: components["parameters"]["Filters"];
                 compare?: components["parameters"]["Compare"];
                 format?: components["parameters"]["Format"];
-                /** @description Analytics dimension to group by. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. */
+                /** @description Analytics dimension to group by, including browser_version, os_version, screen_size, language, and hostname. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. */
                 dimension: string;
                 /** @description 1-1000, or all for a CSV export capped at 100,000 rows. */
                 limit?: components["parameters"]["StatsLimit"];

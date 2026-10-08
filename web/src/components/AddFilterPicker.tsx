@@ -19,8 +19,35 @@ import { CHANNELS } from '@/lib/channels'
 import type { Filter, FilterOperator } from '@/lib/search'
 
 const dimensions = [
-  'page', 'source', 'channel', 'country', 'region', 'city', 'browser', 'os', 'device',
-  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'event', 'property',
+  { value: 'page', label: 'Page' },
+  { value: 'source', label: 'Source' },
+  { value: 'channel', label: 'Channel' },
+  { value: 'country', label: 'Country' },
+  { value: 'region', label: 'Region' },
+  { value: 'city', label: 'City' },
+  { value: 'browser', label: 'Browser' },
+  { value: 'browser_version', label: 'Browser version' },
+  { value: 'os', label: 'OS' },
+  { value: 'os_version', label: 'OS version' },
+  { value: 'device', label: 'Device' },
+  { value: 'screen_size', label: 'Screen size' },
+  { value: 'language', label: 'Language' },
+  { value: 'hostname', label: 'Hostname' },
+  { value: 'utm_source', label: 'UTM source' },
+  { value: 'utm_medium', label: 'UTM medium' },
+  { value: 'utm_campaign', label: 'UTM campaign' },
+  { value: 'utm_content', label: 'UTM content' },
+  { value: 'utm_term', label: 'UTM term' },
+  { value: 'event', label: 'Event' },
+  { value: 'property', label: 'Property' },
+] as const
+
+const screenSizes = [
+  { value: 'mobile', label: 'Mobile' },
+  { value: 'tablet', label: 'Tablet' },
+  { value: 'laptop', label: 'Laptop' },
+  { value: 'desktop', label: 'Desktop' },
+  { value: 'large', label: 'Large' },
 ] as const
 
 const suggestionDelayMs = 250
@@ -73,11 +100,18 @@ export function AddFilterPicker({
     open &&
       suggestionDimension !== '' &&
       suggestionDimension !== 'channel' &&
-      actualDimension !== 'channel',
+      suggestionDimension !== 'screen_size' &&
+      actualDimension !== 'channel' &&
+      actualDimension !== 'screen_size',
   )
   const channelSuggestions = actualDimension === 'channel'
     ? CHANNELS.filter((channel) =>
         channel.toLowerCase().includes(value.trim().toLowerCase()),
+      )
+    : []
+  const screenSizeSuggestions = actualDimension === 'screen_size'
+    ? screenSizes.filter((size) =>
+        size.label.toLowerCase().includes(value.trim().toLowerCase()),
       )
     : []
 
@@ -117,7 +151,9 @@ export function AddFilterPicker({
                   setValue('')
                 }}
               >
-                {dimensions.map((item) => <option key={item} value={item}>{item}</option>)}
+                {dimensions.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
               </select>
             </Field>
             {dimension === 'property' ? (
@@ -157,6 +193,21 @@ export function AddFilterPicker({
                       onClick={() => setValue(channel)}
                     >
                       {channel}
+                    </Button>
+                  ))}
+                </div>
+              ) : actualDimension === 'screen_size' ? (
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Suggested values">
+                  {screenSizeSuggestions.map((size) => (
+                    <Button
+                      key={size.value}
+                      aria-label={size.label}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setValue(size.value)}
+                    >
+                      {size.label}
                     </Button>
                   ))}
                 </div>
