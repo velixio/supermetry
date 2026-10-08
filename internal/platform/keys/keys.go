@@ -78,7 +78,7 @@ func (k *Keys) Close() {
 }
 
 func (k *Keys) Create(ctx context.Context, principal authz.Principal, name string, scopes []string, siteIDs []int32, expires *time.Time) (plain string, info KeyInfo, err error) {
-	if !authz.Can(principal, authz.ActionKeysManage, 0) || principal.UserID == 0 {
+	if !authz.Can(principal, authz.ActionKeysManage, 0) || principal.Role != authz.RoleKey && principal.UserID == 0 {
 		return "", KeyInfo{}, ErrForbidden
 	}
 	prefix, secret, err := newKeyParts()
@@ -90,11 +90,25 @@ func (k *Keys) Create(ctx context.Context, principal authz.Principal, name strin
 
 	var stored store.APIKey
 	err = k.store.Tx(ctx, func(tx pgx.Tx) error {
+		createdBy := principal.UserID
+		if principal.Role == authz.RoleKey {
+			caller, callerErr := store.APIKeyForDelegation(ctx, tx, principal.OrgID, principal.KeyID)
+			if callerErr != nil {
+				if errors.Is(callerErr, pgx.ErrNoRows) {
+					return ErrForbidden
+				}
+				return callerErr
+			}
+			if !canDelegate(caller, scopes, siteIDs, expires) {
+				return ErrForbidden
+			}
+			createdBy = caller.CreatedBy
+		}
 		var createErr error
 		stored, createErr = store.CreateAPIKey(ctx, tx, store.APIKey{
 			OrgID: principal.OrgID, Name: name, Prefix: prefix, Hash: hash[:],
 			Scopes: cloneStrings(scopes), SiteIDs: cloneSites(siteIDs),
-			CreatedBy: principal.UserID, ExpiresAt: cloneTime(expires),
+			CreatedBy: createdBy, ExpiresAt: cloneTime(expires),
 		})
 		if createErr != nil {
 			return createErr
@@ -107,6 +121,49 @@ func (k *Keys) Create(ctx context.Context, principal authz.Principal, name strin
 		return "", KeyInfo{}, err
 	}
 	return plain, keyInfo(stored), nil
+}
+
+func canDelegate(caller store.APIKey, scopes []string, siteIDs []int32, expires *time.Time) bool {
+	if !contains(caller.Scopes, "keys:manage") || contains(scopes, "keys:manage") {
+		return false
+	}
+	for _, scope := range scopes {
+		if !contains(caller.Scopes, scope) {
+			return false
+		}
+	}
+	if caller.SiteIDs != nil {
+		if siteIDs == nil {
+			return false
+		}
+		for _, siteID := range siteIDs {
+			if !containsSite(caller.SiteIDs, siteID) {
+				return false
+			}
+		}
+	}
+	if caller.ExpiresAt != nil && (expires == nil || expires.After(*caller.ExpiresAt)) {
+		return false
+	}
+	return true
+}
+
+func contains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsSite(values []int32, want int32) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func (k *Keys) Verify(ctx context.Context, plain string) (authz.Principal, bool) {

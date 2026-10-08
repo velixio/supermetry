@@ -153,6 +153,9 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 	}
 	public := rateLimit(limiter, platform)
 	for _, pattern := range []string{
+		"GET " + publicPrefix + "/api-keys",
+		"POST " + publicPrefix + "/api-keys",
+		"DELETE " + publicPrefix + "/api-keys/{key}",
 		"GET " + publicPrefix + "/sites",
 		"POST " + publicPrefix + "/sites",
 		"GET " + publicPrefix + "/sites/{site}",

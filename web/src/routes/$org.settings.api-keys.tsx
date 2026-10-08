@@ -9,12 +9,16 @@ export const Route = createFileRoute("/$org/settings/api-keys")({
 function ApiKeysRoute() {
   const { org } = Route.useParams();
   const membership = useOrganization(org);
-  return membership ? (
+  if (!membership) return null;
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    return <ApiKeysPage orgId={membership.org.id} role={membership.role} />;
+  }
+  return (
     <div className="flex flex-col gap-6">
-      <ApiKeysPage orgId={membership.org.id} />
+      <ApiKeysPage orgId={membership.org.id} role={membership.role} />
       <McpConnectionGuide />
     </div>
-  ) : null;
+  );
 }
 
 const endpoint = `${window.location.origin}/api/public/v1/mcp`;

@@ -433,6 +433,25 @@ func (e VitalsDimension) Valid() bool {
 	}
 }
 
+// APIKey defines model for APIKey.
+type APIKey struct {
+	CreatedAt  time.Time  `json:"created_at"`
+	ExpiresAt  *time.Time `json:"expires_at"`
+	Id         int64      `json:"id"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	Name       string     `json:"name"`
+	Revoked    bool       `json:"revoked"`
+	Scopes     []string   `json:"scopes"`
+
+	// SiteIds Null grants every site in the organization; an empty array grants none.
+	SiteIds *[]int32 `json:"site_ids"`
+}
+
+// APIKeyList defines model for APIKeyList.
+type APIKeyList struct {
+	Data []APIKey `json:"data"`
+}
+
 // Annotation defines model for Annotation.
 type Annotation struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -462,6 +481,14 @@ type ComparisonResult struct {
 	Totals    map[string]float64       `json:"totals"`
 }
 
+// CreateAPIKeyRequest defines model for CreateAPIKeyRequest.
+type CreateAPIKeyRequest struct {
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Name      string     `json:"name"`
+	Scopes    []string   `json:"scopes"`
+	SiteIds   *[]int32   `json:"site_ids,omitempty"`
+}
+
 // CreateSiteRequest defines model for CreateSiteRequest.
 type CreateSiteRequest struct {
 	Hosts         []string                       `json:"hosts"`
@@ -472,6 +499,14 @@ type CreateSiteRequest struct {
 
 // CreateSiteRequestRetentionDays defines model for CreateSiteRequest.RetentionDays.
 type CreateSiteRequestRetentionDays int
+
+// CreatedAPIKey defines model for CreatedAPIKey.
+type CreatedAPIKey struct {
+	Id int64 `json:"id"`
+
+	// Key The secret value. It is shown once and cannot be retrieved later.
+	Key string `json:"key"`
+}
 
 // DateRange defines model for DateRange.
 type DateRange struct {
@@ -1314,6 +1349,9 @@ type StatsTimeseriesParams struct {
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
 
+// CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
+type CreateApiKeyJSONRequestBody = CreateAPIKeyRequest
+
 // SubmitEventJSONRequestBody defines body for SubmitEvent for application/json ContentType.
 type SubmitEventJSONRequestBody = EventPayload
 
@@ -1435,6 +1473,15 @@ type ServerInterface interface {
 	// UpdateAnnotation Update a chart annotation
 	// (PATCH /api/public/v1/annotations/{annotation_id})
 	UpdateAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
+	// ListApiKeys List API keys for the caller's organization
+	// (GET /api/public/v1/api-keys)
+	ListApiKeys(w http.ResponseWriter, r *http.Request)
+	// CreateApiKey Create a narrower API key
+	// (POST /api/public/v1/api-keys)
+	CreateApiKey(w http.ResponseWriter, r *http.Request)
+	// RevokeApiKey Revoke an API key
+	// (DELETE /api/public/v1/api-keys/{key_id})
+	RevokeApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
 	// SubmitEvent Submit an analytics event
 	// (POST /api/public/v1/events)
 	SubmitEvent(w http.ResponseWriter, r *http.Request)
@@ -1612,6 +1659,60 @@ func (siw *ServerInterfaceWrapper) UpdateAnnotation(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAnnotation(w, r, annotationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListApiKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListApiKeys(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListApiKeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateApiKey operation middleware
+func (siw *ServerInterfaceWrapper) CreateApiKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateApiKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeApiKey operation middleware
+func (siw *ServerInterfaceWrapper) RevokeApiKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key_id" -------------
+	var keyId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key_id", r.PathValue("key_id"), &keyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeApiKey(w, r, keyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3575,6 +3676,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.ListApiKeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.CreateApiKey)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}", wrapper.RevokeApiKey)
 
 	return m
 }

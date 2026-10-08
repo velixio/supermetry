@@ -10,6 +10,8 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { fmt } from "@/lib/format";
@@ -681,9 +683,30 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
   );
 }
 
-export function ApiKeysPage({ orgId }: { orgId: number }) {
+const apiKeyScopes = [
+  ["stats:read", "Read analytics"],
+  ["sites:write", "Manage sites"],
+  ["goals:write", "Manage goals"],
+  ["segments:write", "Manage segments"],
+  ["annotations:write", "Manage annotations"],
+  ["keys:manage", "Manage API keys"],
+] as const;
+
+export function ApiKeysPage({ orgId, role }: { orgId: number; role: Role }) {
+  if (role !== "owner" && role !== "admin") {
+    return (
+      <p role="alert" className="text-sm text-muted-foreground">
+        Only owners and admins can manage API keys.
+      </p>
+    );
+  }
+  return <ApiKeysManager orgId={orgId} />;
+}
+
+function ApiKeysManager({ orgId }: { orgId: number }) {
   const queryClient = useQueryClient();
   const [secret, setSecret] = useState("");
+  const [scopes, setScopes] = useState<string[]>(["stats:read"]);
   const key = ["api-keys", orgId];
   const keys = useQuery({
     queryKey: key,
@@ -695,11 +718,11 @@ export function ApiKeysPage({ orgId }: { orgId: number }) {
       ),
   });
   const create = useMutation({
-    mutationFn: (name: string) =>
+    mutationFn: ({ name, scopes }: { name: string; scopes: string[] }) =>
       privateRequest<{ id: number; key: string }>(
         "POST",
         `/api/private/orgs/${orgId}/api-keys`,
-        { orgId, body: { name, scopes: ["stats:read"] } },
+        { orgId, body: { name, scopes } },
       ),
     onSuccess: (data) => {
       setSecret(data.key);
@@ -722,16 +745,46 @@ export function ApiKeysPage({ orgId }: { orgId: number }) {
     >
       <Surface>
         <form
-          className="flex gap-2"
+          className="flex flex-col gap-5"
           onSubmit={(event) => {
             event.preventDefault();
-            create.mutate(
-              String(new FormData(event.currentTarget).get("name") ?? ""),
-            );
+            create.mutate({
+              name: String(new FormData(event.currentTarget).get("name") ?? ""),
+              scopes,
+            });
           }}
         >
-          <Input name="name" placeholder="Reporting integration" required />
-          <Button type="submit">
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="api-key-name">Key name</FieldLabel>
+              <Input id="api-key-name" name="name" placeholder="Reporting integration" required />
+            </Field>
+            <FieldSet>
+              <FieldLegend>Scopes</FieldLegend>
+              {apiKeyScopes.map(([scope, label]) => (
+                <Field orientation="horizontal" key={scope}>
+                  <input
+                    checked={scopes.includes(scope)}
+                    id={`api-key-scope-${scope}`}
+                    type="checkbox"
+                    onChange={(event) => setScopes((current) =>
+                      event.target.checked
+                        ? [...current, scope]
+                        : current.filter((value) => value !== scope),
+                    )}
+                  />
+                  <FieldLabel htmlFor={`api-key-scope-${scope}`}>{label}</FieldLabel>
+                </Field>
+              ))}
+              {scopes.includes("keys:manage") ? (
+                <FieldDescription>
+                  Can create and revoke API keys for this organization. Treat this key like an owner or admin credential.
+                </FieldDescription>
+              ) : null}
+            </FieldSet>
+          </FieldGroup>
+          <Message error={create.error} />
+          <Button className="self-start" type="submit" disabled={create.isPending}>
             <KeyRoundIcon data-icon="inline-start" />
             Create key
           </Button>

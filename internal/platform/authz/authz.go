@@ -76,6 +76,7 @@ var keyScopes = map[Action][]string{
 	ActionAnnotationsEdit: {"annotations:write", "sites:write"},
 	ActionSiteCreate:      {"sites:write"},
 	ActionSiteDelete:      {"sites:write"},
+	ActionKeysManage:      {"keys:manage"},
 }
 
 // Can reports whether p may perform action for siteID. A zero siteID denotes
