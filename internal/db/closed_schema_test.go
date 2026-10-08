@@ -18,7 +18,7 @@ func TestClosedSchemaHasExpectedColumns(t *testing.T) {
 	want := map[string][]string{
 		"events":           {"region_id", "city_id", "revenue_micros", "revenue_currency"},
 		"sessions":         {"region_id", "city_id"},
-		"sessions_closed":  {"site_id", "day", "visitor_id", "session_id", "region_id", "city_id", "flags", "vd_n", "seq", "seq_engage", "seq_scroll", "engagement_ms"},
+		"sessions_closed":  {"site_id", "day", "visitor_id", "session_id", "started_at", "profile_id", "region_id", "city_id", "flags", "vd_n", "seq", "seq_engage", "seq_scroll", "engagement_ms"},
 		"custom_closed":    {"region_id", "city_id", "revenue_micros", "revenue_currency"},
 		"goals":            {"currency"},
 		"visitor_day":      {"site_id", "day", "country", "browser_id", "os_id", "device", "visitors", "visits", "pageviews", "bounces", "duration_ms", "engagement_ms"},
