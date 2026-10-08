@@ -276,6 +276,30 @@ func (e UpdateSiteRequestRetentionDays) Valid() bool {
 	}
 }
 
+// Defines values for VitalsDimension.
+const (
+	VitalsDimensionBrowser VitalsDimension = "browser"
+	VitalsDimensionCountry VitalsDimension = "country"
+	VitalsDimensionDevice  VitalsDimension = "device"
+	VitalsDimensionPage    VitalsDimension = "page"
+)
+
+// Valid indicates whether the value is a known member of the VitalsDimension enum.
+func (e VitalsDimension) Valid() bool {
+	switch e {
+	case VitalsDimensionBrowser:
+		return true
+	case VitalsDimensionCountry:
+		return true
+	case VitalsDimensionDevice:
+		return true
+	case VitalsDimensionPage:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StatsTimeseriesParamsInterval.
 const (
 	Day StatsTimeseriesParamsInterval = "day"
@@ -513,6 +537,47 @@ type ValidationError struct {
 	Message string  `json:"message"`
 }
 
+// VitalMetric defines model for VitalMetric.
+type VitalMetric struct {
+	Good             float64  `json:"good"`
+	NeedsImprovement float64  `json:"needs_improvement"`
+	P75              *float64 `json:"p75,omitempty"`
+	Poor             float64  `json:"poor"`
+	Samples          int64    `json:"samples"`
+}
+
+// VitalsBreakdown defines model for VitalsBreakdown.
+type VitalsBreakdown struct {
+	Cls   VitalMetric `json:"cls"`
+	Inp   VitalMetric `json:"inp"`
+	Lcp   VitalMetric `json:"lcp"`
+	Value string      `json:"value"`
+}
+
+// VitalsDimension defines model for VitalsDimension.
+type VitalsDimension string
+
+// VitalsMetrics defines model for VitalsMetrics.
+type VitalsMetrics struct {
+	Cls VitalMetric `json:"cls"`
+	Inp VitalMetric `json:"inp"`
+	Lcp VitalMetric `json:"lcp"`
+}
+
+// VitalsRequest defines model for VitalsRequest.
+type VitalsRequest struct {
+	DateRange DateRange        `json:"date_range"`
+	Dimension *VitalsDimension `json:"dimension,omitempty"`
+	Filters   *[]Filter        `json:"filters,omitempty"`
+	SiteId    int32            `json:"site_id"`
+}
+
+// VitalsResponse defines model for VitalsResponse.
+type VitalsResponse struct {
+	Breakdown []VitalsBreakdown `json:"breakdown"`
+	Overall   VitalsMetrics     `json:"overall"`
+}
+
 // Cursor defines model for Cursor.
 type Cursor = string
 
@@ -616,6 +681,9 @@ type CreateFunnelJSONRequestBody = SavedFunnelInput
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalInput
 
+// VitalsQueryJSONRequestBody defines body for VitalsQuery for application/json ContentType.
+type VitalsQueryJSONRequestBody = VitalsRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// FunnelQuery Run a funnel query
@@ -678,6 +746,9 @@ type ServerInterface interface {
 	// StatsTimeseries Get a metrics time series
 	// (GET /api/public/v1/stats/timeseries)
 	StatsTimeseries(w http.ResponseWriter, r *http.Request, params StatsTimeseriesParams)
+	// VitalsQuery Query Web Vitals from raw events
+	// (POST /api/public/v1/vitals/query)
+	VitalsQuery(w http.ResponseWriter, r *http.Request)
 	// Healthz Check process health
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
@@ -1334,6 +1405,20 @@ func (siw *ServerInterfaceWrapper) StatsTimeseries(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// VitalsQuery operation middleware
+func (siw *ServerInterfaceWrapper) VitalsQuery(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.VitalsQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Healthz operation middleware
 func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
 
@@ -1496,6 +1581,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/query", wrapper.Query)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/summary", wrapper.StatsSummary)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/stats/timeseries", wrapper.StatsTimeseries)
