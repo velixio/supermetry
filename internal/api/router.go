@@ -69,10 +69,14 @@ func NewRouter(deps Deps) http.Handler {
 	}
 
 	h := &handlers{query: deps.Query, heatmaps: deps.Heatmaps, now: deps.Now}
+	explore, hasExplore := deps.Query.(exploreService)
 	mux := http.NewServeMux()
 
 	public := http.NewServeMux()
 	registerStats(public, publicPrefix, h)
+	if hasExplore {
+		registerExplore(public, publicPrefix, explore)
+	}
 	public.Handle("POST "+publicPrefix+"/mcp", NewMCPHandler(MCPDeps{
 		Query: deps.Query, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
 		Dictionary: deps.Dictionary,
@@ -89,6 +93,9 @@ func NewRouter(deps Deps) http.Handler {
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
+	if hasExplore {
+		registerExplore(private, privatePrefix, explore)
+	}
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
 	private.HandleFunc("POST "+privatePrefix+"/heatmaps/query", h.heatmapRequest)
 	private.HandleFunc("POST "+privatePrefix+"/vitals/query", h.vitalsRequest)
