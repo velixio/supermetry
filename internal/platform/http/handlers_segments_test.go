@@ -48,6 +48,11 @@ func newSegmentHarness(t *testing.T) segmentHarness {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := dbPool.Exec(ctx, `insert into api_keys(id,org_id,name,prefix,hash,scopes,created_by) overriding system value values
+		(102,$1,'Segments','segments',decode(repeat('12',32),'hex'),array['segments:write'],$2),
+		(103,$1,'Sites','siteskey',decode(repeat('13',32),'hex'),array['sites:write'],$2)`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
 	authenticator := actorAuthenticator{
 		"owner":  owner,
 		"editor": {UserID: userID, OrgID: orgID, Role: authz.RoleEditor, SiteIDs: []int32{site.ID}},
@@ -57,6 +62,10 @@ func newSegmentHarness(t *testing.T) segmentHarness {
 			Scopes: []string{"goals:write"}, SiteIDs: []int32{site.ID}},
 		"noscope": {KeyID: 100, OrgID: orgID, Role: authz.RoleKey,
 			Scopes: []string{}, SiteIDs: []int32{site.ID}},
+		"segmentskey": {KeyID: 102, OrgID: orgID, Role: authz.RoleKey,
+			Scopes: []string{"segments:write"}, SiteIDs: []int32{site.ID}},
+		"siteskey": {KeyID: 103, OrgID: orgID, Role: authz.RoleKey,
+			Scopes: []string{"sites:write"}, SiteIDs: []int32{site.ID}},
 		"outside": {UserID: userID + 100, OrgID: orgID + 100, Role: authz.RoleOwner},
 	}
 	platform := platformhttp.New(platformhttp.Deps{Authenticator: authenticator, Sites: registry, Store: data})
@@ -144,7 +153,28 @@ func TestSegmentAuthorizationIsolationAndPublicScope(t *testing.T) {
 	segmentRawRequest(t, h.handler, "key", http.MethodGet, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID), "", http.StatusOK)
 	segmentRawRequest(t, h.handler, "noscope", http.MethodGet, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID), "", http.StatusForbidden)
 	segmentRawRequest(t, h.handler, "goalskey", http.MethodGet, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID), "", http.StatusForbidden)
-	segmentRawRequest(t, h.handler, "key", http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID), `{"name":"No","filters":[]}`, http.StatusMethodNotAllowed)
+	segmentRawRequest(t, h.handler, "key", http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID), `{"name":"No","filters":[]}`, http.StatusForbidden)
+}
+
+func TestSegmentPublicWriteScopesAndAudit(t *testing.T) {
+	h := newSegmentHarness(t)
+	for _, actor := range []string{"segmentskey", "siteskey"} {
+		t.Run(actor, func(t *testing.T) {
+			created := segmentRequest(t, h.handler, actor, http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID), `{"name":"Public `+actor+`","filters":[{"dimension":"country","operator":"is","values":["US"]}]}`, http.StatusCreated)
+			segmentRequest(t, h.handler, actor, http.MethodPatch, fmt.Sprintf("/api/public/v1/segments/%d", created.ID), `{"name":"Updated `+actor+`","filters":[{"dimension":"country","operator":"is","values":["US"]}]}`, http.StatusOK)
+			segmentRawRequest(t, h.handler, actor, http.MethodDelete, fmt.Sprintf("/api/public/v1/segments/%d", created.ID), "", http.StatusNoContent)
+		})
+	}
+	segmentRawRequest(t, h.handler, "key", http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID), `{"name":"No","filters":[]}`, http.StatusForbidden)
+	segmentRawRequest(t, h.handler, "segmentskey", http.MethodPost, fmt.Sprintf("/api/public/v1/sites/%d/segments", h.siteID+9999), `{"name":"No","filters":[]}`, http.StatusNotFound)
+
+	var audits int
+	if err := h.pool.Pool.QueryRow(context.Background(), `select count(*) from audit_log where action like 'segment.%' and actor_key_id is not null`).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 6 {
+		t.Fatalf("API-key audit rows=%d, want 6", audits)
+	}
 }
 
 type segmentJSON struct {

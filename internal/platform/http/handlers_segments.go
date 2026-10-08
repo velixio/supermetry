@@ -64,7 +64,7 @@ func (h *handler) listSegments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) createSegment(w http.ResponseWriter, r *http.Request) {
-	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSegmentsEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSegmentsEdit, h.resourceRoles(r)...)
 	if !ok {
 		return
 	}
@@ -79,7 +79,7 @@ func (h *handler) createSegment(w http.ResponseWriter, r *http.Request) {
 	var created segmentResponse
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		created.SiteID, created.Name, created.Filters = site.ID, input.Name, input.Filters
-		if err := tx.QueryRow(r.Context(), `insert into segments(site_id,name,filters,created_by) values($1,$2,$3,$4) returning id,created_by,created_at,updated_at`, site.ID, input.Name, filtersJSON, principal.UserID).Scan(&created.ID, &created.CreatedBy, &created.CreatedAt, &created.UpdatedAt); err != nil {
+		if err := tx.QueryRow(r.Context(), `insert into segments(site_id,name,filters,created_by) values($1,$2,$3,$4) returning id,created_by,created_at,updated_at`, site.ID, input.Name, filtersJSON, createdByUser(principal)).Scan(&created.ID, &created.CreatedBy, &created.CreatedAt, &created.UpdatedAt); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, principal, "segment.created", "segment", created.ID, map[string]any{"site_id": site.ID})
@@ -133,7 +133,7 @@ func (h *handler) deleteSegment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) segmentPrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, segmentResponse, bool) {
-	principal, ok := h.privatePrincipal(w, r)
+	principal, ok := h.principal(w, r)
 	if !ok {
 		return authz.Principal{}, segmentResponse{}, false
 	}
@@ -156,7 +156,7 @@ func (h *handler) segmentPrincipal(w http.ResponseWriter, r *http.Request) (auth
 	if _, _, ok := h.visibleSite(w, principal, segment.SiteID); !ok {
 		return authz.Principal{}, segmentResponse{}, false
 	}
-	if !authz.Can(principal, authz.ActionSegmentsEdit, segment.SiteID) {
+	if !roleAllowed(principal.Role, h.resourceRoles(r)) || !authz.Can(principal, authz.ActionSegmentsEdit, segment.SiteID) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
 		return authz.Principal{}, segmentResponse{}, false
 	}
