@@ -13,6 +13,25 @@ export function trackingSnippet(
   return `<script defer data-site="${publicId}" src="${origin}/js/script${full ? ".full" : ""}.js"></script>`;
 }
 
+const scriptOptions = [
+  {
+    id: "full",
+    full: true,
+    title: "Full script (recommended)",
+    size: "~2.3 KB",
+    collects:
+      "Everything in core, plus outbound links, file downloads, 404 pages, data-panel-event clicks, Web Vitals and heatmap clicks.",
+  },
+  {
+    id: "core",
+    full: false,
+    title: "Core script",
+    size: "under 1 KB",
+    collects:
+      "Pageviews (including single-page apps), scroll depth, engagement time, panel.track() events, revenue and panel.identify().",
+  },
+] as const;
+
 export function TrackingSnippet({
   publicId,
   snippet: serverSnippet,
@@ -37,15 +56,32 @@ export function TrackingSnippet({
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex items-center gap-2 text-sm font-medium">
-        <input
-          type="checkbox"
-          checked={full}
-          onChange={(event) => setFull(event.target.checked)}
-          className="size-4 accent-accent"
-        />
-        Track outbound links, downloads and clicks
-      </label>
+      <fieldset className="grid gap-3 sm:grid-cols-2">
+        <legend className="mb-2 text-sm font-medium">Choose a script</legend>
+        {scriptOptions.map((option) => (
+          <label
+            key={option.id}
+            className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent/5"
+          >
+            <span className="flex items-center gap-2 font-medium">
+              <input
+                type="radio"
+                name="tracker-script"
+                value={option.id}
+                checked={full === option.full}
+                onChange={() => setFull(option.full)}
+                className="size-4 accent-accent"
+              />
+              {option.title}
+              <span className="ml-auto text-xs font-normal text-muted-foreground">{option.size}</span>
+            </span>
+            <span className="text-muted-foreground">{option.collects}</span>
+          </label>
+        ))}
+      </fieldset>
+      <p className="text-xs text-muted-foreground">
+        Already installed the core script? Change <code>/js/script.js</code> to <code>/js/script.full.js</code> in your snippet to switch.
+      </p>
       <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all">
         <code>{snippet}</code>
       </pre>

@@ -70,14 +70,14 @@ describe("settings security boundaries", () => {
       />,
     );
 
-    const checkbox = view.getByRole("checkbox", {
-      name: /track outbound links, downloads and clicks/i,
-    });
-    expect(checkbox).toBeChecked();
+    const full = view.getByRole("radio", { name: /full script/i });
+    const core = view.getByRole("radio", { name: /core script/i });
+    expect(full).toBeChecked();
     expect(view.getByText(/custom\.full\.js/)).toBeVisible();
+    expect(view.getByText(/web vitals/i)).toBeVisible();
 
-    fireEvent.click(checkbox);
-    expect(checkbox).not.toBeChecked();
+    fireEvent.click(core);
+    expect(core).toBeChecked();
     expect(view.getByText(/custom\.js/)).toBeVisible();
   });
 
