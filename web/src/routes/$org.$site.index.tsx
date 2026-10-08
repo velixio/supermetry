@@ -172,6 +172,7 @@ const breakdownCards: { title: string; tabs: BreakdownTab[] }[] = [
     title: 'Sources',
     tabs: [
       { key: 'source', label: 'Source', dimension: 'source', metric: 'visitors' },
+      { key: 'utm-source', label: 'UTM Source', dimension: 'utm_source', metric: 'visitors' },
       { key: 'medium', label: 'Medium', dimension: 'utm_medium', metric: 'visitors' },
       { key: 'campaign', label: 'Campaign', dimension: 'utm_campaign', metric: 'visitors' },
     ],
