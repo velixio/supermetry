@@ -10,6 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { en } from "@/messages/en";
 
 export function ApiKeySecretDialog({
   secret: initialSecret,
@@ -19,6 +22,7 @@ export function ApiKeySecretDialog({
   onClose: () => void;
 }) {
   const [secret, setSecret] = useState(initialSecret);
+  const curl = `curl ${window.location.origin}/api/public/v1/sites \\\n+  -H "Accept: application/json" \\\n+  -H "Authorization: Bearer ${secret}"`;
 
   function close() {
     setSecret("");
@@ -32,24 +36,30 @@ export function ApiKeySecretDialog({
     >
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Copy your API key</DialogTitle>
-          <DialogDescription>
-            You won&apos;t see this key again. Store it somewhere safe before
-            closing.
-          </DialogDescription>
+          <DialogTitle>{en.apiKeys.secretTitle}</DialogTitle>
+          <DialogDescription>{en.apiKeys.secretDescription}</DialogDescription>
         </DialogHeader>
-        <code className="break-all rounded-lg bg-muted p-3 text-xs">
-          {secret}
-        </code>
+        <Field>
+          <FieldLabel htmlFor="created-api-key">{en.apiKeys.secretLabel}</FieldLabel>
+          <Input id="created-api-key" readOnly value={secret} />
+        </Field>
+        <Field>
+          <FieldLabel>{en.apiKeys.curlLabel}</FieldLabel>
+          <FieldDescription>{en.apiKeys.curlDescription}</FieldDescription>
+          <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs"><code>{curl}</code></pre>
+        </Field>
         <DialogFooter>
           <Button
             type="button"
             onClick={() => void copyText(secret)}
           >
-            Copy API key
+            {en.apiKeys.copyKey}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => void copyText(curl)}>
+            {en.apiKeys.copyCurl}
           </Button>
           <Button type="button" variant="outline" onClick={close}>
-            Close
+            {en.common.close}
           </Button>
         </DialogFooter>
       </DialogContent>

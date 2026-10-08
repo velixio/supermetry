@@ -11,11 +11,11 @@ function ApiKeysRoute() {
   const membership = useOrganization(org);
   if (!membership) return null;
   if (membership.role !== "owner" && membership.role !== "admin") {
-    return <ApiKeysPage orgId={membership.org.id} role={membership.role} />;
+    return <ApiKeysPage orgId={membership.org.id} orgSlug={org} role={membership.role} sites={membership.sites} />;
   }
   return (
     <div className="flex flex-col gap-6">
-      <ApiKeysPage orgId={membership.org.id} role={membership.role} />
+      <ApiKeysPage orgId={membership.org.id} orgSlug={org} role={membership.role} sites={membership.sites} />
       <McpConnectionGuide />
     </div>
   );

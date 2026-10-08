@@ -4,17 +4,56 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ExternalLinkIcon, KeyRoundIcon, ShieldCheckIcon } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Field,
+  FieldContent,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { fmt } from "@/lib/format";
+import { en } from "@/messages/en";
 
 import { ApiKeySecretDialog } from "./ApiKeySecretDialog";
 import { MemberRoleSelect, type MemberRole } from "./MemberRoleSelect";
@@ -57,7 +96,19 @@ type ApiKey = {
   Name?: string;
   prefix?: string;
   Prefix?: string;
-  revoked_at?: string;
+  scopes?: string[];
+  Scopes?: string[];
+  site_ids?: number[] | null;
+  SiteIDs?: number[] | null;
+  created_at?: string;
+  CreatedAt?: string;
+  expires_at?: string | null;
+  ExpiresAt?: string | null;
+  last_used_at?: string | null;
+  LastUsedAt?: string | null;
+  revoked?: boolean;
+  Revoked?: boolean;
+  revoked_at?: string | null;
   RevokedAt?: string;
 };
 type Share = { id: number; password_protected: boolean; revoked_at?: string };
@@ -684,29 +735,75 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
 }
 
 const apiKeyScopes = [
-  ["stats:read", "Read analytics"],
-  ["sites:write", "Manage sites"],
-  ["goals:write", "Manage goals"],
-  ["segments:write", "Manage segments"],
-  ["annotations:write", "Manage annotations"],
-  ["keys:manage", "Manage API keys"],
+  "stats:read",
+  "sites:write",
+  "goals:write",
+  "segments:write",
+  "annotations:write",
+  "keys:manage",
 ] as const;
 
-export function ApiKeysPage({ orgId, role }: { orgId: number; role: Role }) {
+type ApiKeySite = Pick<Site, "id" | "name">;
+
+type ApiKeysPageProps = {
+  orgId: number;
+  orgSlug: string;
+  role: Role;
+  sites: ApiKeySite[];
+};
+
+export function ApiKeysPage({ orgId, orgSlug, role, sites }: ApiKeysPageProps) {
   if (role !== "owner" && role !== "admin") {
     return (
       <p role="alert" className="text-sm text-muted-foreground">
-        Only owners and admins can manage API keys.
+        {en.apiKeys.unauthorized}
       </p>
     );
   }
-  return <ApiKeysManager orgId={orgId} />;
+  return <ApiKeysManager orgId={orgId} orgSlug={orgSlug} sites={sites} />;
 }
 
-function ApiKeysManager({ orgId }: { orgId: number }) {
+type CreateKeyInput = {
+  name: string;
+  scopes: string[];
+  site_ids: number[] | null;
+  expires_at?: string;
+};
+
+function apiKeyValue<T>(key: ApiKey, camel: keyof ApiKey, pascal: keyof ApiKey): T | undefined {
+  return (key[camel] ?? key[pascal]) as T | undefined;
+}
+
+function apiKeyStatus(key: ApiKey, now = Date.now()): "active" | "expired" | "revoked" {
+  const revoked = key.revoked ?? key.Revoked ?? Boolean(key.revoked_at ?? key.RevokedAt);
+  if (revoked) return "revoked";
+  const expiresAt = apiKeyValue<string | null>(key, "expires_at", "ExpiresAt");
+  return expiresAt && new Date(expiresAt).getTime() <= now ? "expired" : "active";
+}
+
+function relativeTime(value: string): string {
+  const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1_000);
+  const absolute = Math.abs(seconds);
+  if (absolute < 60) return relativeTimeFormatter.format(seconds, "second");
+  const minutes = Math.round(seconds / 60);
+  if (Math.abs(minutes) < 60) return relativeTimeFormatter.format(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return relativeTimeFormatter.format(hours, "hour");
+  return relativeTimeFormatter.format(Math.round(hours / 24), "day");
+}
+
+const relativeTimeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "always" });
+
+function ApiKeysManager({ orgId, orgSlug, sites }: { orgId: number; orgSlug: string; sites: ApiKeySite[] }) {
   const queryClient = useQueryClient();
   const [secret, setSecret] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [scopes, setScopes] = useState<string[]>(["stats:read"]);
+  const [siteAccess, setSiteAccess] = useState<"all" | "restricted">("all");
+  const [siteIds, setSiteIds] = useState<number[]>([]);
+  const [expiry, setExpiry] = useState("");
+  const [validation, setValidation] = useState("");
+  const [revokeKey, setRevokeKey] = useState<{ id: number; name: string } | null>(null);
   const key = ["api-keys", orgId];
   const keys = useQuery({
     queryKey: key,
@@ -718,14 +815,20 @@ function ApiKeysManager({ orgId }: { orgId: number }) {
       ),
   });
   const create = useMutation({
-    mutationFn: ({ name, scopes }: { name: string; scopes: string[] }) =>
+    mutationFn: (input: CreateKeyInput) =>
       privateRequest<{ id: number; key: string }>(
         "POST",
         `/api/private/orgs/${orgId}/api-keys`,
-        { orgId, body: { name, scopes } },
+        { orgId, body: input },
       ),
     onSuccess: (data) => {
       setSecret(data.key);
+      setCreateOpen(false);
+      setScopes(["stats:read"]);
+      setSiteAccess("all");
+      setSiteIds([]);
+      setExpiry("");
+      setValidation("");
       void queryClient.invalidateQueries({ queryKey: key });
     },
   });
@@ -736,83 +839,234 @@ function ApiKeysManager({ orgId }: { orgId: number }) {
         `/api/private/orgs/${orgId}/api-keys/${id}`,
         { orgId },
       ),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: () => {
+      setRevokeKey(null);
+      void queryClient.invalidateQueries({ queryKey: key });
+    },
   });
+
+  function resetCreateForm() {
+    setScopes(["stats:read"]);
+    setSiteAccess("all");
+    setSiteIds([]);
+    setExpiry("");
+    setValidation("");
+    create.reset();
+  }
+
+  function submitCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get("name") ?? "").trim();
+    if (scopes.length === 0) {
+      setValidation(en.apiKeys.scopesRequired);
+      return;
+    }
+    if (siteAccess === "restricted" && siteIds.length === 0) {
+      setValidation(en.apiKeys.sitesRequired);
+      return;
+    }
+    if (expiry) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (expiry <= today) {
+        setValidation(en.apiKeys.expiryFuture);
+        return;
+      }
+    }
+    setValidation("");
+    create.mutate({
+      name,
+      scopes,
+      site_ids: siteAccess === "all" ? null : siteIds,
+      ...(expiry ? { expires_at: new Date(`${expiry}T00:00:00.000Z`).toISOString() } : {}),
+    });
+  }
+
   return (
     <Page
-      title="API keys"
-      description="Create scoped integration keys. A new secret is displayed exactly once."
+      title={en.apiKeys.title}
+      description={en.apiKeys.description}
     >
       <Surface>
-        <form
-          className="flex flex-col gap-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            create.mutate({
-              name: String(new FormData(event.currentTarget).get("name") ?? ""),
-              scopes,
-            });
-          }}
-        >
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="api-key-name">Key name</FieldLabel>
-              <Input id="api-key-name" name="name" placeholder="Reporting integration" required />
-            </Field>
-            <FieldSet>
-              <FieldLegend>Scopes</FieldLegend>
-              {apiKeyScopes.map(([scope, label]) => (
-                <Field orientation="horizontal" key={scope}>
-                  <input
-                    checked={scopes.includes(scope)}
-                    id={`api-key-scope-${scope}`}
-                    type="checkbox"
-                    onChange={(event) => setScopes((current) =>
-                      event.target.checked
-                        ? [...current, scope]
-                        : current.filter((value) => value !== scope),
-                    )}
-                  />
-                  <FieldLabel htmlFor={`api-key-scope-${scope}`}>{label}</FieldLabel>
-                </Field>
-              ))}
-              {scopes.includes("keys:manage") ? (
-                <FieldDescription>
-                  Can create and revoke API keys for this organization. Treat this key like an owner or admin credential.
-                </FieldDescription>
-              ) : null}
-            </FieldSet>
-          </FieldGroup>
-          <Message error={create.error} />
-          <Button className="self-start" type="submit" disabled={create.isPending}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="link"><a href={`/${orgSlug}/settings/api`}>{en.apiKeys.apiReference}</a></Button>
+            <Button asChild variant="link"><a href="/docs/api-auth">{en.apiKeys.authGuide}</a></Button>
+          </div>
+          <Button type="button" onClick={() => setCreateOpen(true)}>
             <KeyRoundIcon data-icon="inline-start" />
-            Create key
+            {en.apiKeys.create}
           </Button>
-        </form>
-        <ul className="flex flex-col gap-2">
-          {keys.data?.data.map((key) => {
-            const id = key.id ?? key.ID ?? 0;
-            return (
-              <li
-                className="flex items-center justify-between border-t pt-3"
-                key={id}
-              >
-                <span className="text-sm">
-                  {key.name ?? key.Name} · {key.prefix ?? key.Prefix}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={Boolean(key.revoked_at ?? key.RevokedAt)}
-                  onClick={() => revoke.mutate(id)}
-                >
-                  Revoke
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
+        </div>
+        <Message error={keys.error} />
+        {keys.data?.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.apiKeys.empty}</p> : null}
+        {keys.data?.data.length ? (
+          <Table aria-label={en.apiKeys.tableLabel}>
+            <TableHeader>
+              <TableRow>
+                {Object.values(en.apiKeys.columns).map((column) => <TableHead key={column}>{column}</TableHead>)}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {keys.data.data.map((apiKey) => {
+                const id = apiKeyValue<number>(apiKey, "id", "ID") ?? 0;
+                const name = apiKeyValue<string>(apiKey, "name", "Name") ?? "";
+                const prefix = apiKeyValue<string>(apiKey, "prefix", "Prefix") ?? "";
+                const keyScopes = apiKeyValue<string[]>(apiKey, "scopes", "Scopes") ?? [];
+                const keySiteIDs = apiKeyValue<number[] | null>(apiKey, "site_ids", "SiteIDs");
+                const createdAt = apiKeyValue<string>(apiKey, "created_at", "CreatedAt");
+                const expiresAt = apiKeyValue<string | null>(apiKey, "expires_at", "ExpiresAt");
+                const lastUsedAt = apiKeyValue<string | null>(apiKey, "last_used_at", "LastUsedAt");
+                const status = apiKeyStatus(apiKey);
+                const siteNames = keySiteIDs == null
+                  ? en.apiKeys.allSites
+                  : keySiteIDs.map((siteID) => sites.find((site) => site.id === siteID)?.name ?? `#${siteID}`).join(", ");
+                return (
+                  <TableRow key={id}>
+                    <TableCell>{name}</TableCell>
+                    <TableCell><code>{prefix}</code></TableCell>
+                    <TableCell><div className="flex flex-wrap gap-1">{keyScopes.map((scope) => <Badge variant="outline" key={scope}>{scope}</Badge>)}</div></TableCell>
+                    <TableCell>{siteNames}</TableCell>
+                    <TableCell>{createdAt ? fmt.date(createdAt, "UTC") : "—"}</TableCell>
+                    <TableCell>{expiresAt ? fmt.date(expiresAt, "UTC") : en.apiKeys.never}</TableCell>
+                    <TableCell>{lastUsedAt ? relativeTime(lastUsedAt) : en.apiKeys.never}</TableCell>
+                    <TableCell><Badge variant={status === "active" ? "secondary" : "outline"}>{en.apiKeys[status]}</Badge></TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={status === "revoked"}
+                        aria-label={`${en.apiKeys.revoke} ${name}`}
+                        onClick={() => setRevokeKey({ id, name })}
+                      >
+                        {en.apiKeys.revoke}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        ) : null}
       </Surface>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{en.apiKeys.createTitle}</DialogTitle>
+            <DialogDescription>{en.apiKeys.createDescription}</DialogDescription>
+          </DialogHeader>
+          <form className="flex flex-col gap-5" onSubmit={submitCreate}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="api-key-name">{en.apiKeys.name}</FieldLabel>
+                <Input id="api-key-name" name="name" placeholder={en.apiKeys.namePlaceholder} required />
+              </Field>
+              <FieldSet>
+                <FieldLegend>{en.apiKeys.scopes}</FieldLegend>
+                <FieldGroup data-slot="checkbox-group" className="gap-3">
+                  {apiKeyScopes.map((scope) => (
+                    <Field orientation="horizontal" key={scope}>
+                      <Checkbox
+                        checked={scopes.includes(scope)}
+                        id={`api-key-scope-${scope}`}
+                        onCheckedChange={(checked) => setScopes((current) =>
+                          checked === true
+                            ? [...current, scope]
+                            : current.filter((value) => value !== scope),
+                        )}
+                      />
+                      <FieldContent>
+                        <FieldLabel htmlFor={`api-key-scope-${scope}`}>{en.apiKeys.scopeLabels[scope]}</FieldLabel>
+                        <FieldDescription>{en.apiKeys.scopeDescriptions[scope]}</FieldDescription>
+                        {scope === "keys:manage" ? <FieldDescription>{en.apiKeys.keysManageWarning}</FieldDescription> : null}
+                      </FieldContent>
+                    </Field>
+                  ))}
+                </FieldGroup>
+              </FieldSet>
+              <Field>
+                <FieldLabel htmlFor="api-key-site-access">{en.apiKeys.siteAccess}</FieldLabel>
+                <Select value={siteAccess} onValueChange={(value) => setSiteAccess(value as "all" | "restricted")}>
+                  <SelectTrigger id="api-key-site-access" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="all">{en.apiKeys.allSites}</SelectItem>
+                      <SelectItem value="restricted">{en.apiKeys.onlySites}</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              {siteAccess === "restricted" ? (
+                <FieldSet>
+                  <FieldLegend variant="label">{en.apiKeys.onlySites}</FieldLegend>
+                  <FieldGroup data-slot="checkbox-group" className="gap-3">
+                    {sites.map((site) => (
+                      <Field orientation="horizontal" key={site.id}>
+                        <Checkbox
+                          checked={siteIds.includes(site.id)}
+                          id={`api-key-site-${site.id}`}
+                          onCheckedChange={(checked) => setSiteIds((current) =>
+                            checked === true
+                              ? [...current, site.id]
+                              : current.filter((id) => id !== site.id),
+                          )}
+                        />
+                        <FieldLabel htmlFor={`api-key-site-${site.id}`}>{site.name}</FieldLabel>
+                      </Field>
+                    ))}
+                  </FieldGroup>
+                </FieldSet>
+              ) : null}
+              <Field data-invalid={validation === en.apiKeys.expiryFuture || undefined}>
+                <FieldLabel htmlFor="api-key-expiry">{en.apiKeys.expiry}</FieldLabel>
+                <Input id="api-key-expiry" type="date" value={expiry} aria-invalid={validation === en.apiKeys.expiryFuture || undefined} onChange={(event) => setExpiry(event.target.value)} />
+                <FieldDescription>{en.apiKeys.expiryDescription}</FieldDescription>
+              </Field>
+            </FieldGroup>
+            {validation ? <FieldError>{validation}</FieldError> : null}
+            <Message error={create.error} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setCreateOpen(false); resetCreateForm(); }}>{en.common.close}</Button>
+              <Button type="submit" disabled={create.isPending}>
+                <KeyRoundIcon data-icon="inline-start" />
+                {en.apiKeys.create}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(revokeKey)} onOpenChange={(open) => open ? undefined : setRevokeKey(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{en.apiKeys.revokeTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{en.apiKeys.revokeDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <Message error={revoke.error} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>{en.common.close}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={revoke.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (revokeKey) revoke.mutate(revokeKey.id);
+              }}
+            >
+              {en.apiKeys.revokeConfirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {secret ? (
         <ApiKeySecretDialog secret={secret} onClose={() => setSecret("")} />
       ) : null}
