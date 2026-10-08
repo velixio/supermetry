@@ -30,7 +30,7 @@ func newHandler(files fs.FS) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/flags/") {
+		if strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/flags/") || strings.HasPrefix(path, "/icons/") {
 			name := strings.TrimPrefix(path, "/")
 			if info, err := fs.Stat(files, name); err != nil || info.IsDir() {
 				http.NotFound(w, r)

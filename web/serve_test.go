@@ -69,3 +69,22 @@ func TestFlagCaching(t *testing.T) {
 		t.Errorf("flag cache: got %q", got)
 	}
 }
+
+// Browser, OS and device logos live under /icons/; without this they fell
+// through to index.html and the dashboard showed text with no logo.
+func TestIconsAreServedAsFiles(t *testing.T) {
+	h := newHandler(fstest.MapFS{
+		"index.html":               {Data: []byte("<main>Panel</main>")},
+		"icons/browser/chrome.png": {Data: []byte("\x89PNG")},
+	})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest("GET", "/icons/browser/chrome.png", nil))
+	if rr.Code != 200 || rr.Body.String() != "\x89PNG" {
+		t.Fatalf("icon: status %d body %q, want the PNG", rr.Code, rr.Body.String())
+	}
+	missing := httptest.NewRecorder()
+	h.ServeHTTP(missing, httptest.NewRequest("GET", "/icons/browser/nope.png", nil))
+	if missing.Code != 404 {
+		t.Fatalf("missing icon: status %d, want 404", missing.Code)
+	}
+}
