@@ -77,6 +77,7 @@ func NewRouter(deps Deps) http.Handler {
 		Dictionary: deps.Dictionary,
 	}))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
+	public.HandleFunc("POST "+publicPrefix+"/vitals/query", h.vitalsRequest)
 	public.HandleFunc("POST "+publicPrefix+"/funnels/query", h.funnelRequest)
 	public.HandleFunc("POST "+publicPrefix+"/journeys/query", h.journeyRequest)
 	public.HandleFunc("POST "+publicPrefix+"/retention/query", h.retentionRequest)
@@ -87,6 +88,7 @@ func NewRouter(deps Deps) http.Handler {
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
+	private.HandleFunc("POST "+privatePrefix+"/vitals/query", h.vitalsRequest)
 	private.HandleFunc("POST "+privatePrefix+"/funnels/query", h.funnelRequest)
 	private.HandleFunc("POST "+privatePrefix+"/journeys/query", h.journeyRequest)
 	private.HandleFunc("POST "+privatePrefix+"/retention/query", h.retentionRequest)

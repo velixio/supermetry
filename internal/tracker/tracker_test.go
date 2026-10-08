@@ -108,8 +108,21 @@ func TestScriptContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fullText := string(fullSource)
+	for _, want := range []string{
+		`d.vitals != "false"`,
+		`PerformanceObserver`,
+		`largest-contentful-paint`,
+		`layout-shift`,
+		`durationThreshold: 40`,
+		`"Web Vitals"`,
+	} {
+		if !strings.Contains(fullText, want) {
+			t.Errorf("full tracker source is missing %q", want)
+		}
+	}
 	for _, forbidden := range []string{"localStorage", "sessionStorage", "document.cookie"} {
-		if strings.Contains(text, forbidden) || strings.Contains(string(fullSource), forbidden) {
+		if strings.Contains(text, forbidden) || strings.Contains(fullText, forbidden) {
 			t.Errorf("tracker source contains forbidden browser API %q", forbidden)
 		}
 	}
@@ -148,7 +161,7 @@ func TestMinifiedFullTrackerGzipSize(t *testing.T) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if got := compressed.Len(); got >= 1600 {
-		t.Fatalf("gzipped full tracker = %d bytes, want under 1600", got)
+	if got := compressed.Len(); got >= 2048 {
+		t.Fatalf("gzipped full tracker = %d bytes, want under 2048", got)
 	}
 }

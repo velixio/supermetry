@@ -5,6 +5,7 @@ import {
   FilterIcon,
   GoalIcon,
   Globe2Icon,
+  GaugeIcon,
   PlusIcon,
   RouteIcon,
   SettingsIcon,
@@ -41,6 +42,7 @@ const coreNavigation = [
   { label: en.navigation.dashboard, suffix: '', icon: ChartNoAxesCombinedIcon, scope: 'site' },
   { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
+  { label: en.navigation.vitals, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
   { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
   { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
   { label: en.navigation.goals, suffix: '/goals', icon: GoalIcon, scope: 'site' },
@@ -143,6 +145,17 @@ function navigationLink(
       return <Link to="/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
     case '/retention':
       return <Link to="/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', interval: 'day' }} {...props}>{content}</Link>
+    case '/vitals':
+      return (
+        <Link
+          to="/$org/$site/vitals"
+          params={{ org, site }}
+          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors' }}
+          {...props}
+        >
+          {content}
+        </Link>
+      )
     case '/realtime':
       return <Link to="/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':

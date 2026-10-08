@@ -2,10 +2,76 @@ package ingest_test
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"panel/internal/ingest"
 )
+
+func TestParsePayloadNormalizesWebVitalsProps(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventName string
+		props     string
+		want      map[string]string
+	}{
+		{
+			name:      "keeps valid metrics and unrelated props",
+			eventName: "Web Vitals",
+			props:     `{"lcp":"2500","cls":"100","inp":"200","page":"/pricing"}`,
+			want:      map[string]string{"lcp": "2500", "cls": "100", "inp": "200", "page": "/pricing"},
+		},
+		{
+			name:      "keeps inclusive caps",
+			eventName: "Web Vitals",
+			props:     `{"lcp":"60000","cls":"10000","inp":"60000"}`,
+			want:      map[string]string{"lcp": "60000", "cls": "10000", "inp": "60000"},
+		},
+		{
+			name:      "drops negative malformed and over-cap metrics",
+			eventName: "Web Vitals",
+			props:     `{"lcp":"-1","cls":"10001","inp":"fast","page":"/"}`,
+			want:      map[string]string{"page": "/"},
+		},
+		{
+			name:      "drops overlong metric before generic validation",
+			eventName: "Web Vitals",
+			props:     fmt.Sprintf(`{"lcp":%q,"page":"/"}`, strings.Repeat("9", 2001)),
+			want:      map[string]string{"page": "/"},
+		},
+		{
+			name:      "does not normalize another event",
+			eventName: "Checkout",
+			props:     `{"lcp":"-1","cls":"10001","inp":"fast"}`,
+			want:      map[string]string{"lcp": "-1", "cls": "10001", "inp": "fast"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload, err := ingest.ParsePayload([]byte(fmt.Sprintf(
+				`{"site":"abc123","name":%q,"url":"https://example.com/","props":%s}`,
+				tt.eventName, tt.props,
+			)))
+			if err != nil {
+				t.Fatalf("invalid vital prop rejected whole event: %v", err)
+			}
+			if !reflect.DeepEqual(payload.Props, tt.want) {
+				t.Fatalf("props = %#v, want %#v", payload.Props, tt.want)
+			}
+		})
+	}
+}
+
+func TestParsePayloadRejectsOverlongUnrelatedWebVitalsProp(t *testing.T) {
+	_, err := ingest.ParsePayload([]byte(fmt.Sprintf(
+		`{"site":"abc123","name":"Web Vitals","url":"https://example.com/","props":{"page":%q}}`,
+		strings.Repeat("x", 2001),
+	)))
+	if err == nil {
+		t.Fatal("overlong unrelated prop was accepted")
+	}
+}
 
 func TestParsePayloadRevenue(t *testing.T) {
 	tests := []struct {

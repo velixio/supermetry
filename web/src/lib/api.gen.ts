@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/public/v1/vitals/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query Web Vitals from raw events
+         * @description Returns p75 and rating shares for LCP, CLS, and INP. The requested range must be inside the site's raw-data retention window.
+         */
+        post: operations["vitalsQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/query": {
         parameters: {
             query?: never;
@@ -564,6 +584,42 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** @enum {string} */
+        VitalsDimension: "page" | "device" | "country" | "browser";
+        VitalsRequest: {
+            /** Format: int32 */
+            site_id: number;
+            date_range: components["schemas"]["DateRange"];
+            filters?: components["schemas"]["Filter"][];
+            dimension?: components["schemas"]["VitalsDimension"];
+        };
+        VitalMetric: {
+            /** Format: double */
+            p75?: number;
+            /** Format: int64 */
+            samples: number;
+            /** Format: double */
+            good: number;
+            /** Format: double */
+            needs_improvement: number;
+            /** Format: double */
+            poor: number;
+        };
+        VitalsMetrics: {
+            lcp: components["schemas"]["VitalMetric"];
+            cls: components["schemas"]["VitalMetric"];
+            inp: components["schemas"]["VitalMetric"];
+        };
+        VitalsBreakdown: {
+            value: string;
+            lcp: components["schemas"]["VitalMetric"];
+            cls: components["schemas"]["VitalMetric"];
+            inp: components["schemas"]["VitalMetric"];
+        };
+        VitalsResponse: {
+            overall: components["schemas"]["VitalsMetrics"];
+            breakdown: components["schemas"]["VitalsBreakdown"][];
+        };
         FunnelStep: {
             /** @enum {string} */
             type: "page" | "event";
@@ -842,6 +898,36 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    vitalsQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VitalsRequest"];
+            };
+        };
+        responses: {
+            /** @description Web Vitals results */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VitalsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     query: {
         parameters: {
             query?: {

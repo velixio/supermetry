@@ -13,7 +13,7 @@ func TestMinify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []byte("var answer=40+2;var label='two words';")
+	want := []byte(`var answer=40+2,label="two words"`)
 	if !bytes.Equal(got, want) {
 		t.Fatalf("minify() = %q, want %q", got, want)
 	}

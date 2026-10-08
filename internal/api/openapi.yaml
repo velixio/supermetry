@@ -8,6 +8,37 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/public/v1/vitals/query:
+    post:
+      operationId: vitalsQuery
+      summary: Query Web Vitals from raw events
+      description: Returns p75 and rating shares for LCP, CLS, and INP. The requested range must be inside the site's raw-data retention window.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VitalsRequest'
+      responses:
+        '200':
+          description: Web Vitals results
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/public/v1/query:
     post:
       operationId: query
@@ -1136,6 +1167,90 @@ components:
         date_range: { from: '2026-08-02', to: '2026-08-31' }
         rows: [{ time: '2026-09-01', visitors: 35 }]
         totals: { visitors: 35 }
+    VitalsDimension:
+      type: string
+      enum: [page, device, country, browser]
+      x-enum-varnames: [VitalsDimensionPage, VitalsDimensionDevice, VitalsDimensionCountry, VitalsDimensionBrowser]
+    VitalsRequest:
+      type: object
+      additionalProperties: false
+      required: [site_id, date_range]
+      properties:
+        site_id:
+          type: integer
+          format: int32
+          minimum: 1
+        date_range:
+          $ref: '#/components/schemas/DateRange'
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/Filter'
+        dimension:
+          $ref: '#/components/schemas/VitalsDimension'
+    VitalMetric:
+      type: object
+      additionalProperties: false
+      required: [samples, good, needs_improvement, poor]
+      properties:
+        p75:
+          type: number
+          format: double
+        samples:
+          type: integer
+          format: int64
+          minimum: 0
+        good:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        needs_improvement:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        poor:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+    VitalsMetrics:
+      type: object
+      additionalProperties: false
+      required: [lcp, cls, inp]
+      properties:
+        lcp:
+          $ref: '#/components/schemas/VitalMetric'
+        cls:
+          $ref: '#/components/schemas/VitalMetric'
+        inp:
+          $ref: '#/components/schemas/VitalMetric'
+    VitalsBreakdown:
+      type: object
+      additionalProperties: false
+      required: [value, lcp, cls, inp]
+      properties:
+        value:
+          type: string
+        lcp:
+          $ref: '#/components/schemas/VitalMetric'
+        cls:
+          $ref: '#/components/schemas/VitalMetric'
+        inp:
+          $ref: '#/components/schemas/VitalMetric'
+    VitalsResponse:
+      type: object
+      additionalProperties: false
+      required: [overall, breakdown]
+      properties:
+        overall:
+          $ref: '#/components/schemas/VitalsMetrics'
+        breakdown:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/VitalsBreakdown'
     FunnelStep:
       type: object
       additionalProperties: false
@@ -1144,6 +1259,7 @@ components:
         type:
           type: string
           enum: [page, event]
+          x-enum-varnames: [Page, Event]
         match:
           type: string
         value:
