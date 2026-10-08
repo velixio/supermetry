@@ -35,7 +35,7 @@ export function useSessions(
             filter: filters.map((filter) => `${filter.dimension}:${filter.operator}:${filter.values.join(',')}`),
             cursor,
             limit: 50,
-            has_replay: hasReplay ? 1 : undefined,
+            has_replay: hasReplay ? true : undefined,
           },
         },
         signal,
