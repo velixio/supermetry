@@ -40,6 +40,9 @@ type dictionaryResolver interface {
 	Value(dict.Kind, int32) (string, bool)
 }
 
+// RollupBackfillProgressFunc loads cluster-wide progress from PostgreSQL.
+type RollupBackfillProgressFunc func(context.Context) (running bool, daysDone, totalDays int, err error)
+
 // Deps contains the services exposed by the analytics HTTP router.
 type Deps struct {
 	Config         config.Config
@@ -59,9 +62,10 @@ type Deps struct {
 	// Platform serves the application routes implemented under
 	// internal/platform/http. Those handlers resolve the complete platform
 	// principal required by authz.Can and transactional audit records.
-	Platform http.Handler
-	Now      func() time.Time
-	Ready    func() bool
+	Platform               http.Handler
+	Now                    func() time.Time
+	Ready                  func() bool
+	RollupBackfillProgress RollupBackfillProgressFunc
 }
 
 // NewRouter mounts the public integration API, private dashboard API and
@@ -111,7 +115,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("POST "+privatePrefix+"/journeys/query", h.journeyRequest)
 	private.HandleFunc("POST "+privatePrefix+"/retention/query", h.retentionRequest)
 	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
-	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler)
+	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))
 	registerPlatformRoutes(mux, deps.Platform, deps.RateLimiter)

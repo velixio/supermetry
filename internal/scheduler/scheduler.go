@@ -32,9 +32,10 @@ type Ticker interface {
 
 // Job is a named periodic operation.
 type Job struct {
-	Name  string
-	Every time.Duration
-	Run   func(ctx context.Context) error
+	Name       string
+	Every      time.Duration
+	RunOnStart bool
+	Run        func(ctx context.Context) error
 }
 
 // Scheduler runs jobs against a shared PostgreSQL pool.
@@ -76,6 +77,20 @@ func (s *Scheduler) runJob(ctx context.Context, job Job) {
 	defer ticker.Stop()
 
 	backoff := initialBackoff
+	if job.RunOnStart {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		ran, err := s.tryRun(ctx, job)
+		if err != nil {
+			ticker.Reset(backoff)
+			backoff = min(backoff*2, maximumBackoff)
+		} else if ran {
+			backoff = initialBackoff
+		}
+	}
 	for {
 		select {
 		case <-ctx.Done():

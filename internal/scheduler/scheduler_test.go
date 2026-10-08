@@ -97,6 +97,35 @@ func TestJobsRunSkipOnLockAndRetry(t *testing.T) {
 	}
 }
 
+func TestJobRunsImmediatelyWhenRequested(t *testing.T) {
+	pool, _ := testpg.New(t)
+	clk := newFakeClock()
+	var runs atomic.Int32
+	s := New(pool, clk, Job{
+		Name:       "startup",
+		Every:      time.Hour,
+		RunOnStart: true,
+		Run: func(context.Context) error {
+			runs.Add(1)
+			return nil
+		},
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := runScheduler(s, ctx)
+
+	eventually(t, func() bool { return runs.Load() == 1 })
+	clk.Advance(time.Hour - time.Nanosecond)
+	if got := runs.Load(); got != 1 {
+		t.Fatalf("runs before interval = %d, want 1", got)
+	}
+	clk.Advance(time.Nanosecond)
+	eventually(t, func() bool { return runs.Load() == 2 })
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("Run after cancellation: %v", err)
+	}
+}
+
 func runScheduler(s *Scheduler, ctx context.Context) <-chan error {
 	done := make(chan error, 1)
 	go func() {

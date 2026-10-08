@@ -191,6 +191,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	w.SetProfileTombstones(profileTombstones)
 	engine := query.NewEngine(pool, dictionary, registry)
+	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill)
 	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
 	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/totp/v1")
@@ -301,6 +302,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
+		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {
+			progress, err := rollupBackfill.Progress(ctx)
+			return progress.Running, progress.DaysDone, progress.TotalDays, err
+		},
 	})
 	listener, err := settings.listen("tcp", cfg.Listen)
 	if err != nil {
@@ -329,7 +334,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, settings.clock)
-	jobs = append(jobs, profileTombstones.Job())
+	jobs = append(jobs, profileTombstones.Job(), rollupBackfill.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
@@ -414,6 +419,17 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, replayStore, settings.clock.Now()))
 	return errors.Join(cause, httpErr)
+}
+
+func pauseRollupBackfill(ctx context.Context) error {
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 type compatibilityMode struct {

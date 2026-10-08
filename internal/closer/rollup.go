@@ -20,7 +20,7 @@ select site_id, day, count(*) filter (where flags & 1 <> 0), count(*),
 from session_metrics
 group by site_id, day`
 
-const rollupSessionDimensionsSQL = sessionMetricsCTE + `
+const rollupSessionDimensionsBaseSQL = sessionMetricsCTE + `
 insert into rollup_day_dim (
   site_id, day, dim, value_id, visitors, visits, pageviews, bounces,
   duration_ms, engagement_ms, scroll_sum, scroll_n
@@ -62,7 +62,13 @@ cross join lateral (values
   (18::smallint, s.campaign_id, s.campaign_visitor)
 ) dimensions(dim, value_id, is_visitor)
 where not (dim in (11, 17, 18) and value_id = 0)
-  and not (dim in (7, 8) and s.pageviews = 0)
+  and not (dim in (7, 8) and s.pageviews = 0)`
+
+const rollupSessionDimensionsSQL = rollupSessionDimensionsBaseSQL + `
+group by site_id, dim, value_id`
+
+const rollupSelectedSessionDimensionsSQL = rollupSessionDimensionsBaseSQL + `
+  and dim = any($3::int2[])
 group by site_id, dim, value_id`
 
 const rollupPathSQL = `
@@ -190,33 +196,44 @@ order by closed.day`)
 
 	for _, item := range batches {
 		if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-			for _, table := range []string{"rollup_day", "rollup_day_dim"} {
-				if _, err := tx.Exec(ctx, `delete from `+table+` where day=$1 and site_id=any($2)`, item.day, item.siteIDs); err != nil {
-					return fmt.Errorf("delete %s: %w", table, err)
-				}
-			}
-			for _, derived := range []struct {
-				name string
-				sql  string
-			}{
-				{name: "rollup_day", sql: rollupDaySQL},
-				{name: "session rollups", sql: rollupSessionDimensionsSQL},
-				{name: "path rollups", sql: rollupPathSQL},
-			} {
-				if _, err := tx.Exec(ctx, derived.sql, item.day, item.siteIDs); err != nil {
-					return fmt.Errorf("build %s: %w", derived.name, err)
-				}
-			}
-			if err := refreshDayBlocks(ctx, tx, item.siteIDs, item.day); err != nil {
-				return fmt.Errorf("refresh day blocks: %w", err)
-			}
-			if err := refreshMonth(ctx, tx, item.siteIDs, item.day); err != nil {
-				return fmt.Errorf("refresh month: %w", err)
-			}
-			return nil
+			return recomputeDayRollups(ctx, tx, item.day, item.siteIDs)
 		}); err != nil {
 			return 0, fmt.Errorf("recompute rollups for %s: %w", item.day.Format(time.DateOnly), err)
 		}
 	}
 	return len(batches), nil
+}
+
+// recomputeDayRollups replaces every rollup row of siteIDs on one closed day,
+// then refreshes the dependent block and month rollups. It is the full,
+// idempotent per-day rebuild shared by RecomputeRollups and the upgrade
+// backfill.
+func recomputeDayRollups(ctx context.Context, tx pgx.Tx, day time.Time, siteIDs []int32) error {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, rollupRefreshLockID); err != nil {
+		return fmt.Errorf("lock rollup refresh: %w", err)
+	}
+	for _, table := range []string{"rollup_day", "rollup_day_dim"} {
+		if _, err := tx.Exec(ctx, `delete from `+table+` where day=$1 and site_id=any($2)`, day, siteIDs); err != nil {
+			return fmt.Errorf("delete %s: %w", table, err)
+		}
+	}
+	for _, derived := range []struct {
+		name string
+		sql  string
+	}{
+		{name: "rollup_day", sql: rollupDaySQL},
+		{name: "session rollups", sql: rollupSessionDimensionsSQL},
+		{name: "path rollups", sql: rollupPathSQL},
+	} {
+		if _, err := tx.Exec(ctx, derived.sql, day, siteIDs); err != nil {
+			return fmt.Errorf("build %s: %w", derived.name, err)
+		}
+	}
+	if err := refreshDayBlocks(ctx, tx, siteIDs, day); err != nil {
+		return fmt.Errorf("refresh day blocks: %w", err)
+	}
+	if err := refreshMonth(ctx, tx, siteIDs, day); err != nil {
+		return fmt.Errorf("refresh month: %w", err)
+	}
+	return nil
 }

@@ -31,6 +31,21 @@ sudo systemctl enable --now panel
 
 The service runs as `panel` and stores writable data in `/var/lib/panel`.
 
+## Upgrades
+
+Replace the Panel binary or image and restart the service. Database migrations
+run automatically at startup. When a release changes the rollup layout,
+Panel rebuilds already-closed days in the background, one closed site-local
+day at a time: a release that only adds breakdowns recomputes just the new
+rollup dimensions, while a release that adds or changes rollup counters runs
+the full per-day recompute. Startup and readiness are not delayed, queries
+keep working (breakdowns for days not yet rebuilt may be incomplete), the work
+resumes after a restart, and progress appears on the Data health page.
+
+No manual rollup step is required after an upgrade. The
+`panel recompute-rollups` command remains available for an explicit full
+rebuild when troubleshooting or repairing rollup data.
+
 ## Installer
 
 Set the release asset base URL. It normally ends with the version used in the

@@ -69,6 +69,9 @@ func CloseDay(ctx context.Context, pool *pgxpool.Pool, siteIDs []int32, day time
 
 	var stats Stats
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, rollupRefreshLockID); err != nil {
+			return fmt.Errorf("lock rollup refresh: %w", err)
+		}
 		for _, setting := range []string{
 			`set local enable_nestloop = off`,
 			`set local enable_mergejoin = off`,

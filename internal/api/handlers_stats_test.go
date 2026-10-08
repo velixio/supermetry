@@ -528,6 +528,32 @@ func TestRealtimeUsesConfiguredMinuteSource(t *testing.T) {
 	}
 }
 
+func TestDataHealthShowsRollupBackfillProgress(t *testing.T) {
+	router := api.NewRouter(api.Deps{
+		Config:      config.Config{AdminAPIKey: "test-key"},
+		PrivateAuth: api.StaticKey("test-key"),
+		RollupBackfillProgress: func(context.Context) (bool, int, int, error) {
+			return true, 37, 120, nil
+		},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/private/health", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body api.DataHealthResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.RollupBackfill.Status != "running" || body.RollupBackfill.DaysDone != 37 || body.RollupBackfill.TotalDays != 120 {
+		t.Fatalf("rollup backfill = %+v, want running 37/120", body.RollupBackfill)
+	}
+}
+
 var _ realtime.MinuteSource = apiMinuteSource{}
 
 func TestRealtimeResolvesRichSnapshotLabels(t *testing.T) {
