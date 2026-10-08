@@ -379,6 +379,30 @@ func (e ReplayStorageInputBackend) Valid() bool {
 	}
 }
 
+// Defines values for ReplaySummaryDevice.
+const (
+	Desktop ReplaySummaryDevice = "desktop"
+	Empty   ReplaySummaryDevice = ""
+	Mobile  ReplaySummaryDevice = "mobile"
+	Tablet  ReplaySummaryDevice = "tablet"
+)
+
+// Valid indicates whether the value is a known member of the ReplaySummaryDevice enum.
+func (e ReplaySummaryDevice) Valid() bool {
+	switch e {
+	case Desktop:
+		return true
+	case Empty:
+		return true
+	case Mobile:
+		return true
+	case Tablet:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RetentionRequestIdentity.
 const (
 	AnonymousRetentionIdentity RetentionRequestIdentity = "anonymous"
@@ -607,11 +631,13 @@ type DateRange struct {
 // EventExploreItem defines model for EventExploreItem.
 type EventExploreItem struct {
 	Browser   string               `json:"browser"`
+	City      string               `json:"city"`
 	Country   string               `json:"country"`
 	Device    string               `json:"device"`
 	HasReplay bool                 `json:"has_replay"`
 	Kind      EventExploreItemKind `json:"kind"`
 	Name      string               `json:"name"`
+	Os        string               `json:"os"`
 	Page      string               `json:"page"`
 	Props     *map[string]string   `json:"props,omitempty"`
 	Source    string               `json:"source"`
@@ -1088,14 +1114,23 @@ type ReplayStorageSettings struct {
 
 // ReplaySummary defines model for ReplaySummary.
 type ReplaySummary struct {
-	Bytes     int64     `json:"bytes"`
-	DurationS int64     `json:"duration_s"`
-	Pages     int32     `json:"pages"`
-	ProfileId *int64    `json:"profile_id,omitempty"`
-	SessionId string    `json:"session_id"`
-	StartedAt time.Time `json:"started_at"`
-	Trigger   string    `json:"trigger"`
+	Actions   int64               `json:"actions"`
+	Browser   string              `json:"browser"`
+	Bytes     int64               `json:"bytes"`
+	City      string              `json:"city"`
+	Country   string              `json:"country"`
+	Device    ReplaySummaryDevice `json:"device"`
+	DurationS int64               `json:"duration_s"`
+	Os        string              `json:"os"`
+	Pages     int32               `json:"pages"`
+	ProfileId *int64              `json:"profile_id,omitempty"`
+	SessionId string              `json:"session_id"`
+	StartedAt time.Time           `json:"started_at"`
+	Trigger   string              `json:"trigger"`
 }
+
+// ReplaySummaryDevice defines model for ReplaySummary.Device.
+type ReplaySummaryDevice string
 
 // ReplayTriggers defines model for ReplayTriggers.
 type ReplayTriggers struct {

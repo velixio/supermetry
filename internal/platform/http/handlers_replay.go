@@ -16,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"panel/internal/dict"
 	"panel/internal/platform/authz"
 	"panel/internal/platform/store"
 	"panel/internal/replay"
@@ -30,6 +31,12 @@ type replayListItem struct {
 	Bytes     int64     `json:"bytes"`
 	Trigger   string    `json:"trigger"`
 	ProfileID *int64    `json:"profile_id"`
+	Browser   string    `json:"browser"`
+	OS        string    `json:"os"`
+	Device    string    `json:"device"`
+	Country   string    `json:"country"`
+	City      string    `json:"city"`
+	Actions   int64     `json:"actions"`
 }
 
 type replayCursor struct {
@@ -67,12 +74,41 @@ func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := h.deps.Store.Pool.Query(r.Context(), `
-		select session_id,started_at,greatest(0,extract(epoch from (last_seen_at-started_at)))::bigint,
-		       pages,bytes,coalesce(trigger,''),profile_id
-		from replay_sessions
-		where site_id=$1 and day between $2::date and $3::date
-		  and ($4::boolean=false or (started_at,session_id)<($5,$6))
-		order by started_at desc,session_id desc limit $7`, site.ID, from, to, hasCursor, cursor.StartedAt, cursor.SessionID, limit+1)
+		select r.session_id,r.started_at,greatest(0,extract(epoch from (r.last_seen_at-r.started_at)))::bigint,
+		       r.pages,r.bytes,coalesce(r.trigger,''),r.profile_id,
+		       coalesce(browser.value,''),coalesce(os.value,''),
+		       case details.device when 0 then 'desktop' when 1 then 'mobile' when 2 then 'tablet' else '' end,
+		       coalesce(trim(details.country),''),coalesce(city.value,''),coalesce(details.actions,0)
+		from replay_sessions r
+		left join lateral (
+		  select candidate.country,candidate.city_id,candidate.device,candidate.browser_id,candidate.os_id,candidate.actions
+		  from (
+		    select s.country,s.city_id,s.device,s.browser_id,s.os_id,
+		           s.pageviews::bigint+s.custom::bigint as actions,0 as priority
+		    from sessions_closed s
+		    where s.site_id=r.site_id and s.session_id=r.session_id
+		      and s.day between r.day-1 and r.day+1
+		      and s.started_at>=r.started_at-interval '1 day' and s.started_at<r.started_at+interval '1 day'
+		      and exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.day and dc.status='done')
+		    union all
+		    select s.country,s.city_id,s.device,s.browser_id,s.os_id,
+		           s.pageviews::bigint+s.events::bigint as actions,1 as priority
+		    from sessions s
+		    where s.site_id=r.site_id and s.retention_class=$8 and s.session_id=r.session_id
+		      and s.start>=r.started_at-interval '1 day' and s.start<r.started_at+interval '1 day'
+		      and not exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.local_day and dc.status='done')
+		  ) candidate
+		  order by candidate.priority
+		  limit 1
+		) details on true
+		left join dict browser on browser.kind=$9 and browser.id=details.browser_id
+		left join dict os on os.kind=$10 and os.id=details.os_id
+		left join dict city on city.kind=$11 and city.id=details.city_id
+		where r.site_id=$1 and r.day between $2::date and $3::date
+		  and r.started_at>=$2::date-interval '1 day' and r.started_at<$3::date+interval '2 days'
+		  and ($4::boolean=false or (r.started_at,r.session_id)<($5,$6))
+		order by r.started_at desc,r.session_id desc limit $7`, site.ID, from, to, hasCursor, cursor.StartedAt, cursor.SessionID, limit+1,
+		site.Retention, dict.Browser, dict.OS, dict.City)
 	if err != nil {
 		serviceError(w, err)
 		return
@@ -81,7 +117,8 @@ func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
 	items := make([]replayListItem, 0, limit+1)
 	for rows.Next() {
 		var item replayListItem
-		if err := rows.Scan(&item.SessionID, &item.StartedAt, &item.DurationS, &item.Pages, &item.Bytes, &item.Trigger, &item.ProfileID); err != nil {
+		if err := rows.Scan(&item.SessionID, &item.StartedAt, &item.DurationS, &item.Pages, &item.Bytes, &item.Trigger, &item.ProfileID,
+			&item.Browser, &item.OS, &item.Device, &item.Country, &item.City, &item.Actions); err != nil {
 			serviceError(w, err)
 			return
 		}

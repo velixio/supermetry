@@ -1507,6 +1507,14 @@ export interface components {
             trigger: string;
             /** Format: int64 */
             profile_id?: number | null;
+            browser: string;
+            os: string;
+            /** @enum {string} */
+            device: "desktop" | "mobile" | "tablet" | "";
+            country: string;
+            city: string;
+            /** Format: int64 */
+            actions: number;
         };
         ReplayList: {
             data: components["schemas"]["ReplaySummary"][];
@@ -1601,8 +1609,10 @@ export interface components {
                 [key: string]: string;
             } | null;
             country: string;
+            city: string;
             device: string;
             browser: string;
+            os: string;
             source: string;
             has_replay: boolean;
         };
