@@ -79,3 +79,27 @@ func TestLoadFileRejectsDuplicateIdentifiers(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadFileLoadsAndClonesReplaySettings(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "sites.json")
+	if err := os.WriteFile(p, []byte(`[{
+		"id":1,"public_id":"replay","timezone":"UTC","retention_days":30,
+		"replay":{"enabled":true,"mask":true,"sample_rate":25,"triggers":{"url_patterns":["/checkout/*"]}}
+	}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := sites.LoadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.ByPublicID("replay")
+	if !ok || !loaded.Replay.Enabled || loaded.Replay.Mask == nil || !*loaded.Replay.Mask || loaded.Replay.SampleRate == nil || *loaded.Replay.SampleRate != 25 {
+		t.Fatalf("file replay = (%+v, %t)", loaded.Replay, ok)
+	}
+	*loaded.Replay.Mask = false
+	loaded.Replay.Triggers.URLPatterns[0] = "/mutated"
+	again, _ := registry.ByPublicID("replay")
+	if again.Replay.Mask == nil || !*again.Replay.Mask || again.Replay.Triggers.URLPatterns[0] != "/checkout/*" {
+		t.Fatalf("file replay aliased caller mutation: %+v", again.Replay)
+	}
+}

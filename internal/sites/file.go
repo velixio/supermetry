@@ -18,15 +18,16 @@ type FileRegistry struct {
 }
 
 type fileSite struct {
-	ID                    int32    `json:"id"`
-	OrgID                 int64    `json:"org_id"`
-	PublicID              string   `json:"public_id"`
-	Timezone              string   `json:"timezone"`
-	RetentionDays         int16    `json:"retention_days"`
-	AllowedHosts          []string `json:"allowed_hosts"`
-	ProfilesEnabled       bool     `json:"profiles_enabled"`
-	HeatmapsEnabled       bool     `json:"heatmaps_enabled"`
-	RespectPrivacySignals *bool    `json:"respect_privacy_signals"`
+	ID                    int32           `json:"id"`
+	OrgID                 int64           `json:"org_id"`
+	PublicID              string          `json:"public_id"`
+	Timezone              string          `json:"timezone"`
+	RetentionDays         int16           `json:"retention_days"`
+	AllowedHosts          []string        `json:"allowed_hosts"`
+	ProfilesEnabled       bool            `json:"profiles_enabled"`
+	HeatmapsEnabled       bool            `json:"heatmaps_enabled"`
+	RespectPrivacySignals *bool           `json:"respect_privacy_signals"`
+	Replay                json.RawMessage `json:"replay"`
 }
 
 // LoadFile loads site metadata from a JSON array at path.
@@ -62,6 +63,10 @@ func LoadFile(path string) (*FileRegistry, error) {
 		if record.RespectPrivacySignals != nil {
 			respectPrivacySignals = *record.RespectPrivacySignals
 		}
+		replaySettings, err := ParseReplaySiteInput(record.Replay)
+		if err != nil {
+			return nil, fmt.Errorf("site %d replay settings: %w", i, err)
+		}
 		site := Site{
 			OrgID:                 record.OrgID,
 			ID:                    record.ID,
@@ -72,6 +77,7 @@ func LoadFile(path string) (*FileRegistry, error) {
 			ProfilesEnabled:       record.ProfilesEnabled,
 			HeatmapsEnabled:       record.HeatmapsEnabled,
 			RespectPrivacySignals: respectPrivacySignals,
+			Replay:                replaySettings,
 		}
 		if _, exists := r.byPublicID[site.PublicID]; exists {
 			return nil, fmt.Errorf("site %d: duplicate public_id %q", i, site.PublicID)
@@ -106,16 +112,69 @@ func retentionClass(days int16) (db.RetentionClass, bool) {
 // ByPublicID returns the site with the given public identifier.
 func (r *FileRegistry) ByPublicID(id string) (Site, bool) {
 	site, ok := r.byPublicID[id]
-	return site, ok
+	return cloneFileSite(site), ok
 }
 
 // Site returns the site with the given internal identifier.
 func (r *FileRegistry) Site(id int32) (Site, bool) {
 	site, ok := r.byID[id]
-	return site, ok
+	return cloneFileSite(site), ok
 }
 
 // All returns every configured site in file order.
 func (r *FileRegistry) All() []Site {
-	return append([]Site(nil), r.sites...)
+	result := make([]Site, len(r.sites))
+	for i, site := range r.sites {
+		result[i] = cloneFileSite(site)
+	}
+	return result
+}
+
+func cloneFileSite(site Site) Site {
+	site.AllowedHosts = append([]string(nil), site.AllowedHosts...)
+	site.Exclusions = site.Exclusions.Clone()
+	site.Replay = cloneReplaySiteInput(site.Replay)
+	return site
+}
+
+func cloneReplaySiteInput(settings ReplaySiteInput) ReplaySiteInput {
+	cloneBool := func(value *bool) *bool {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	cloneInt := func(value *int) *int {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	cloneInt64 := func(value *int64) *int64 {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	cloneString := func(value *string) *string {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	settings.Mask = cloneBool(settings.Mask)
+	settings.SampleRate = cloneInt(settings.SampleRate)
+	settings.RetentionDays = cloneInt(settings.RetentionDays)
+	settings.QuotaBytes = cloneInt64(settings.QuotaBytes)
+	settings.Consent = cloneString(settings.Consent)
+	settings.Triggers.Error = cloneBool(settings.Triggers.Error)
+	settings.Triggers.RageClick = cloneBool(settings.Triggers.RageClick)
+	settings.Triggers.URL = cloneBool(settings.Triggers.URL)
+	settings.Triggers.Manual = cloneBool(settings.Triggers.Manual)
+	settings.Triggers.URLPatterns = append([]string(nil), settings.Triggers.URLPatterns...)
+	return settings
 }
