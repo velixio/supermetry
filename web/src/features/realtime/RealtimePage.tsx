@@ -175,13 +175,15 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
                 <span className="absolute inline-flex size-full rounded-full bg-accent opacity-50 motion-safe:animate-ping" />
                 <span className="relative inline-flex size-2 rounded-full bg-accent" />
               </span>
-              Visitors now
+              Live now
             </CardTitle>
-            <CardDescription>Active in the last 30 minutes</CardDescription>
+            <CardDescription>Active in the last 5 minutes</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 pb-2">
             <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.active_visitors)}</output>
-            <p className="text-sm text-muted-foreground">{fmt.number(data.pageviews_last_30m)} pageviews in the last 30 minutes</p>
+            <p className="text-sm text-muted-foreground">
+              {fmt.number(data.visitors_last_30m)} visitors and {fmt.number(data.pageviews_last_30m)} pageviews in the last 30 minutes
+            </p>
           </CardContent>
         </Card>
 
