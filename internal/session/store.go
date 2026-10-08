@@ -64,6 +64,84 @@ type RealtimeStore interface {
 	ActiveBreakdownsSince(siteID int32, t time.Time) (visitors int, pages, sources []ActiveValue)
 }
 
+// ActivityRecorder accepts the privacy-safe portion of a successfully queued
+// pageview or custom event. Implementations must not retain VisitorID in feeds.
+type ActivityRecorder interface {
+	RecordActivity(Activity)
+}
+
+// RichRealtimeStore exposes the complete process-local realtime snapshot
+// without expanding Store.
+type RichRealtimeStore interface {
+	RealtimeSnapshot(siteID int32, now time.Time) RealtimeSnapshot
+}
+
+type Activity struct {
+	SiteID    int32
+	Timestamp time.Time
+	VisitorID int64
+	Kind      int16
+	PathID    int32
+	NameID    int32
+	Country   string
+	CityID    int32
+	Device    int16
+	BrowserID int32
+	SourceID  int32
+}
+
+type MinuteVisitors struct {
+	Minute   time.Time
+	Visitors int
+}
+
+type ActiveLocation struct {
+	ID          int32
+	CountryCode string
+	Visitors    int
+}
+
+type ActiveCountry struct {
+	CountryCode string
+	Visitors    int
+}
+
+type ActiveEvent struct {
+	NameID int32
+	Count  int
+}
+
+// RecentActivity deliberately excludes visitor, session, profile, IP and UA
+// identifiers. Kind is 0 for pageviews and 1 for custom events.
+type RecentActivity struct {
+	Kind        int16
+	PathID      int32
+	NameID      int32
+	CountryCode string
+	CityID      int32
+	Device      int16
+	BrowserID   int32
+	SourceID    int32
+	Timestamp   time.Time
+}
+
+type RealtimeSnapshot struct {
+	ActiveVisitors    int
+	Pages             []ActiveValue
+	Sources           []ActiveValue
+	EntryPages        []ActiveValue
+	Countries         []ActiveCountry
+	Regions           []ActiveLocation
+	Cities            []ActiveLocation
+	Devices           []ActiveValue
+	Browsers          []ActiveValue
+	OperatingSystems  []ActiveValue
+	VisitorsPerMinute []MinuteVisitors
+	Pageviews         int
+	Events            []ActiveEvent
+	RecentActivity    []RecentActivity
+}
+
 // Snapshot is the durable state needed to upsert or restore an open session.
 type Snapshot struct {
 	SiteID       int32

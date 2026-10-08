@@ -25,7 +25,8 @@ export function useRealtimePage(siteId: number) {
       if (!data) throw new Error('The realtime response was empty.')
       return data
     },
-    staleTime: 10_000,
-    refetchInterval: 10_000,
+    staleTime: 5_000,
+    refetchInterval: () => document.hidden ? false : 5_000,
+    refetchIntervalInBackground: false,
   })
 }

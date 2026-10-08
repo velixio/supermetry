@@ -860,6 +860,45 @@ export interface components {
             /** Format: int64 */
             visitors: number;
         };
+        RealtimeMinute: {
+            /** Format: date-time */
+            minute: string;
+            /** Format: int64 */
+            visitors: number;
+        };
+        RealtimeCountry: {
+            country_code: string;
+            /** Format: int64 */
+            visitors: number;
+        };
+        RealtimeLocation: {
+            label: string;
+            country_code: string;
+            /** Format: int64 */
+            visitors: number;
+        };
+        RealtimeLabel: {
+            label: string;
+            /** Format: int64 */
+            visitors: number;
+        };
+        RealtimeEvent: {
+            name: string;
+            /** Format: int64 */
+            count: number;
+        };
+        RecentActivity: {
+            kind: string;
+            page: string;
+            event_name: string;
+            country_code: string;
+            city: string;
+            device: string;
+            browser: string;
+            source: string;
+            /** Format: date-time */
+            timestamp: string;
+        };
         /**
          * @example {
          *       "active_visitors": 12,
@@ -882,6 +921,18 @@ export interface components {
             active_visitors: number;
             top_pages: components["schemas"]["TopPage"][];
             top_sources: components["schemas"]["TopSource"][];
+            visitors_per_minute: components["schemas"]["RealtimeMinute"][];
+            /** Format: int64 */
+            pageviews_last_30m: number;
+            top_entry_pages: components["schemas"]["TopPage"][];
+            countries: components["schemas"]["RealtimeCountry"][];
+            regions: components["schemas"]["RealtimeLocation"][];
+            cities: components["schemas"]["RealtimeLocation"][];
+            devices: components["schemas"]["RealtimeLabel"][];
+            browsers: components["schemas"]["RealtimeLabel"][];
+            operating_systems: components["schemas"]["RealtimeLabel"][];
+            events: components["schemas"]["RealtimeEvent"][];
+            recent_activity: components["schemas"]["RecentActivity"][];
         };
         DataHealthResponse: {
             /** Format: double */

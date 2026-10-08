@@ -25,6 +25,7 @@ import { useStats, type StatsQuery } from '@/lib/stats'
 
 import { EmptyState } from './EmptyState'
 import { ErrorState } from './ErrorState'
+import { Flag } from './Flag'
 
 type DetailRow = Record<string, unknown>
 
@@ -49,7 +50,10 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
   const detailsQuery = useMemo<StatsQuery>(
     () => ({
       ...query,
-      dimensions: [dimension],
+      dimensions:
+        dimension === 'region' || dimension === 'city'
+          ? [dimension, 'country']
+          : [dimension],
       filters: [
         ...query.filters,
         ...(searchValue
@@ -75,12 +79,16 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
         id: dimension,
         accessorFn: (row) => String(row[dimension] ?? ''),
         header: dimension,
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const raw = String(getValue())
           const value = dimension === 'country' ? countryLabel(raw) : raw
+          const country = String(row.original.country ?? (dimension === 'country' ? raw : ''))
           return (
-            <span className="block max-w-[18rem] truncate" title={value}>
-              {value}
+            <span className="flex max-w-[18rem] items-center gap-2">
+              {dimension === 'country' || dimension === 'region' || dimension === 'city'
+                ? <Flag code={country} />
+                : null}
+              <span className="min-w-0 truncate" title={value}>{value}</span>
             </span>
           )
         },

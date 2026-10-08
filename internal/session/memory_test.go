@@ -237,6 +237,45 @@ func TestActiveBreakdownsSinceRanksPagesAndSourcesWithCounts(t *testing.T) {
 	}
 }
 
+func TestRealtimeSnapshotRanksSessionsAndKeepsRollingTotalsBeyondFeed(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 30, 0, time.UTC)
+	m := session.NewMemory(4, realClock{})
+	m.Touch(session.Hit{SiteID: 1, TS: now.Add(-2 * time.Minute), LocalDay: now, VisitorID: 1, Kind: 0, PathID: 10, Source: 20, Country: "US", Region: 30, City: 40, Browser: 50, OS: 60, Device: 0})
+	m.Touch(session.Hit{SiteID: 1, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 1, Kind: 0, PathID: 11})
+	m.Touch(session.Hit{SiteID: 1, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 2, Kind: 0, PathID: 11, Source: 20, Country: "US", Region: 30, City: 41, Browser: 50, OS: 61, Device: 1})
+
+	for i := 0; i < 5; i++ {
+		m.RecordActivity(session.Activity{SiteID: 1, Timestamp: now.Add(-20 * time.Second), VisitorID: 9, Kind: 1, NameID: 70})
+	}
+	for i := 0; i < 120; i++ {
+		m.RecordActivity(session.Activity{SiteID: 1, Timestamp: now.Add(-time.Duration(i) * time.Millisecond), VisitorID: int64(i%3 + 1), Kind: 0, PathID: 11, Country: "US", CityID: 41, Device: 0, BrowserID: 50, SourceID: 20})
+	}
+	m.RecordActivity(session.Activity{SiteID: 1, Timestamp: now.Add(-31 * time.Minute), VisitorID: 99, Kind: 0, PathID: 99})
+
+	got := m.RealtimeSnapshot(1, now)
+	if got.ActiveVisitors != 2 || len(got.Pages) != 1 || got.Pages[0] != (session.ActiveValue{ID: 11, Visitors: 2}) {
+		t.Fatalf("active/pages = %d/%v", got.ActiveVisitors, got.Pages)
+	}
+	if len(got.EntryPages) != 2 || got.EntryPages[0].ID != 10 || got.EntryPages[0].Visitors != 1 {
+		t.Fatalf("entry pages = %v", got.EntryPages)
+	}
+	if len(got.Countries) != 1 || got.Countries[0].CountryCode != "US" || got.Countries[0].Visitors != 2 {
+		t.Fatalf("countries = %v", got.Countries)
+	}
+	if len(got.Devices) != 2 || got.Devices[0].ID != 0 || got.Devices[0].Visitors != 1 {
+		t.Fatalf("devices = %v", got.Devices)
+	}
+	if len(got.VisitorsPerMinute) != 30 || got.VisitorsPerMinute[29].Visitors != 4 {
+		t.Fatalf("visitors per minute = %v", got.VisitorsPerMinute)
+	}
+	if got.Pageviews != 120 || len(got.Events) != 1 || got.Events[0] != (session.ActiveEvent{NameID: 70, Count: 5}) {
+		t.Fatalf("rolling pageviews/events = %d/%v", got.Pageviews, got.Events)
+	}
+	if len(got.RecentActivity) != 50 || got.RecentActivity[0].Timestamp.Before(got.RecentActivity[49].Timestamp) {
+		t.Fatalf("recent activity length/order = %d/%v", len(got.RecentActivity), got.RecentActivity[:min(2, len(got.RecentActivity))])
+	}
+}
+
 func TestCountersRemainExactPastCompactRange(t *testing.T) {
 	m := session.NewMemory(1, realClock{})
 	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)

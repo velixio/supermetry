@@ -17,5 +17,6 @@ function RealtimeRoute() {
     item.slug === siteSlug || item.public_id === siteSlug || String(item.id) === siteSlug,
   )
   if (!site) return null
-  return <RealtimePage dateRange={resolveRange('today', 'UTC', new Date())} siteId={site.id} timezone="UTC" />
+  const timezone = site.timezone || 'UTC'
+  return <RealtimePage dateRange={resolveRange('today', timezone, new Date())} siteId={site.id} timezone={timezone} />
 }

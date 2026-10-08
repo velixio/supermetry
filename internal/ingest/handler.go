@@ -197,6 +197,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
+	recordAcceptedActivity(h.Sessions, hit, result.VisitorID)
 	if !site.ProfilesEnabled && profileSupplied {
 		health.IngestProfilesSuppressed.Add(1)
 	}
@@ -233,6 +234,20 @@ func (h *Handler) acceptHeatmap(w http.ResponseWriter, ctx context.Context, payl
 	}
 	health.IngestAccepted.Add(1)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func recordAcceptedActivity(store session.Store, hit session.Hit, visitorID int64) {
+	if hit.Kind == 2 {
+		return
+	}
+	if recorder, ok := store.(session.ActivityRecorder); ok {
+		recorder.RecordActivity(session.Activity{
+			SiteID: hit.SiteID, Timestamp: hit.TS, VisitorID: visitorID,
+			Kind: hit.Kind, PathID: hit.PathID, NameID: hit.NameID,
+			Country: hit.Country, CityID: hit.City, Device: hit.Device,
+			BrowserID: hit.Browser, SourceID: hit.Source,
+		})
+	}
 }
 
 func (h *Handler) buildEvent(

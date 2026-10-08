@@ -91,10 +91,44 @@ describe('BreakdownCard', () => {
     )
 
     expect(screen.getByText('/')).toBeVisible()
-    expect(screen.getByText('🇮🇳 India')).toBeVisible()
+    expect(screen.getByText('India')).toBeVisible()
+    expect(screen.getByRole('presentation', { hidden: true })).toHaveAttribute('src', '/flags/in.svg')
     const sources = screen.getByRole('region', { name: /sources/i })
     expect(within(sources).getByText(/try again/i)).toBeVisible()
     expect(within(sources).getByRole('button', { name: /retry/i })).toBeEnabled()
+  })
+
+  it('queries country with region and displays its flag without changing the raw filter', () => {
+    useStats.mockReturnValue(result({
+      data: {
+        ...data('region', 'California', 5),
+        columns: ['country', 'region', 'visitors'],
+        rows: [{ country: 'US', region: 'California', visitors: 5 }],
+      },
+    }))
+    const onFilter = vi.fn()
+
+    render(<BreakdownCard title="Countries" tabs={tabs('region')} query={baseQuery} onFilter={onFilter} />)
+
+    expect(useStats).toHaveBeenCalledWith(expect.objectContaining({ dimensions: ['region', 'country'] }))
+    expect(screen.getByRole('presentation', { hidden: true })).toHaveAttribute('src', '/flags/us.svg')
+    fireEvent.click(screen.getByRole('button', { name: /filter by region California/i }))
+    expect(onFilter).toHaveBeenCalledWith({ dimension: 'region', operator: 'is', values: ['California'] })
+  })
+
+  it('queries country with region in the details table', () => {
+    useStats.mockReturnValue(result({
+      data: {
+        ...data('region', 'California', 5),
+        columns: ['country', 'region', 'visitors'],
+        rows: [{ country: 'US', region: 'California', visitors: 5 }],
+      },
+    }))
+
+    render(<BreakdownCard title="Countries" tabs={tabs('region')} query={baseQuery} onFilter={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+
+    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({ dimensions: ['region', 'country'] }))
   })
 
   it('clicking a row emits an is filter that round-trips to URL state', () => {

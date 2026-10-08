@@ -133,6 +133,27 @@ func TestBackpressureReturns503Fast(t *testing.T) {
 	if rr.Header().Get("Retry-After") == "" {
 		t.Fatal("503 response has no Retry-After header")
 	}
+	snapshot := f.h.Sessions.(session.RichRealtimeStore).RealtimeSnapshot(1, f.clock.Now())
+	if snapshot.Pageviews != 0 || len(snapshot.RecentActivity) != 0 {
+		t.Fatalf("rejected event reached realtime: %+v", snapshot)
+	}
+}
+
+func TestRealtimeRecordsQueuedPageviewsAndCustomEventsOnly(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	for _, body := range []string{
+		okBody,
+		`{"site":"abc123","name":"engagement","url":"https://example.com/","engagement_ms":1000}`,
+		`{"site":"abc123","name":"Signup","url":"https://example.com/"}`,
+	} {
+		if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+			t.Fatalf("body=%s status=%d", body, response.Code)
+		}
+	}
+	snapshot := f.h.Sessions.(session.RichRealtimeStore).RealtimeSnapshot(1, f.clock.Now())
+	if snapshot.Pageviews != 1 || len(snapshot.Events) != 1 || snapshot.Events[0].Count != 1 || len(snapshot.RecentActivity) != 2 {
+		t.Fatalf("realtime snapshot=%+v", snapshot)
+	}
 }
 
 func TestHeatmapDisabledIsDroppedWithoutRawEvent(t *testing.T) {
