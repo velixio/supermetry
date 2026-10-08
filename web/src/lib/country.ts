@@ -18,9 +18,11 @@ export function countryName(code: string): string {
   if (!code) return 'Unknown'
   if (!isoCode.test(code)) return code
   try {
-    return names?.of(code.toUpperCase()) ?? code
+    const normalized = code.toUpperCase()
+    const name = names?.of(normalized)
+    return name && name.toUpperCase() !== normalized ? name : 'Unknown'
   } catch {
-    return code
+    return 'Unknown'
   }
 }
 

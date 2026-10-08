@@ -6,6 +6,7 @@ import { FilterBar } from '@/components/FilterBar'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
+import { countryName } from '@/lib/country'
 import { dashboardSearch, parseFilters, removeFilter, replaceFilters, resolveRange } from '@/lib/search'
 import { en } from '@/messages/en'
 
@@ -40,10 +41,10 @@ function SessionsRoute() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <FilterBar
           dropped={dropped}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.join(', ')}`}
+          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
           filters={filters}
           invalidNotice={en.dashboard.invalidFilter}
-          removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.join(', ')}`}
+          removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
           onRemove={(index) => void navigate({ search: { ...search, ...removeFilter(search, index), cursor: undefined } })}
           siteId={site.id}
           canEdit={membership?.role !== 'viewer'}

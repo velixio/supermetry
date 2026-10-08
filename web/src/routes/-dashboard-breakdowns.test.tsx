@@ -204,11 +204,25 @@ describe('dashboard breakdown route', () => {
     fireEvent.keyDown(document, { key: 'm' })
     await waitFor(() => expect(router.state.location.search.period).toBe('30d'))
 
-    fireEvent.click(await screen.findByRole('button', { name: /filter by country IN/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /filter by country India/i }))
 
     await waitFor(() =>
       expect(router.state.location.search.f).toEqual(['country:is:IN']),
     )
+  })
+
+  it('shows the full country name in an active country filter chip', async () => {
+    const history = createMemoryHistory({
+      initialEntries: ['/acme/example?period=30d&f=country%3Ais%3AIN'],
+    })
+    const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>)
+
+    const chip = await screen.findByRole('button', { name: /country.*India/i })
+    expect(chip).toHaveTextContent('country is India')
+    expect(chip).not.toHaveTextContent('IN')
+    expect(chip.querySelector('img')).toHaveAttribute('src', '/flags/in.svg')
   })
 
   // Exports one CSV per dashboard tab, so it needs more than the 5 s default

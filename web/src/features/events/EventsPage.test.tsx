@@ -40,7 +40,7 @@ describe('EventsPage', () => {
       return Promise.resolve(response({
         data: [{
           ts: '2026-10-08T12:00:00Z', kind: 'event', name: 'signup', page: '/pricing',
-          props: { plan: 'pro' }, country: 'US', device: 'desktop', browser: 'Chrome', source: 'Google',
+          props: { plan: 'pro' }, country: 'US', city: 'Austin', device: 'desktop', browser: 'Chrome', os: 'Windows', source: 'Google',
         }],
         next_cursor: 'next',
       }))
@@ -55,6 +55,13 @@ describe('EventsPage', () => {
     expect(await screen.findByRole('cell', { name: 'signup' })).toBeVisible()
     expect(screen.getByRole('cell', { name: '/pricing' })).toBeVisible()
     expect(screen.getByText('plan: pro')).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'Location' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'Browser' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'OS' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'Device' })).toBeVisible()
+    expect(screen.getByText('Austin, United States')).toBeVisible()
+    expect(screen.queryByText('US')).not.toBeInTheDocument()
+    expect(screen.getByText('Windows')).toBeVisible()
     expect(screen.queryByText(/visitor_id|user agent|ip address/i)).not.toBeInTheDocument()
     expect(get).toHaveBeenCalledWith('/api/private/sites/7/events', expect.objectContaining({
       params: expect.objectContaining({

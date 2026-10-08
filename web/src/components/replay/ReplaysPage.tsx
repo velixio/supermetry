@@ -3,17 +3,25 @@ import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { BrowserLabel } from '@/components/visitor/BrowserLabel'
+import { DeviceLabel } from '@/components/visitor/DeviceLabel'
+import { Location } from '@/components/visitor/Location'
+import { OsLabel } from '@/components/visitor/OsLabel'
 import { useReplays } from './api'
+import type { ReplayListItem } from '@/lib/replay-api'
+
+type ReplayRow = ReplayListItem & Partial<{
+  actions: number
+  browser: string
+  city: string
+  country: string
+  device: string
+  os: string
+}>
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.round(seconds)}s`
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export function ReplaysPage({
@@ -49,15 +57,24 @@ export function ReplaysPage({
       ) : (
         <div className="overflow-x-auto rounded-xl border bg-card">
           <Table aria-label="Session replays">
-            <TableHeader><TableRow><TableHead>Play</TableHead><TableHead>Started</TableHead><TableHead>Duration</TableHead><TableHead>Pages</TableHead><TableHead>Trigger</TableHead><TableHead>Size</TableHead></TableRow></TableHeader>
-            <TableBody>{replays.data.items.map((replay) => (
+            <TableHeader><TableRow>
+              <TableHead aria-label="Play"><span aria-hidden="true">▶</span></TableHead>
+              <TableHead>Started</TableHead><TableHead>Location</TableHead><TableHead>Browser</TableHead>
+              <TableHead>OS</TableHead><TableHead>Device</TableHead><TableHead>Actions</TableHead>
+              <TableHead>Duration</TableHead><TableHead>Pages</TableHead><TableHead>Trigger</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>{(replays.data.items as ReplayRow[]).map((replay) => (
               <TableRow key={replay.session_id}>
                 <TableCell><ReplayLink hasReplay org={org} site={site} sessionId={replay.session_id} /></TableCell>
                 <TableCell><time dateTime={replay.started_at}>{new Date(replay.started_at).toLocaleString()}</time></TableCell>
-                <TableCell>{formatDuration(replay.duration_s)}</TableCell>
-                <TableCell>{replay.pages}</TableCell>
+                <TableCell><Location city={replay.city} country={replay.country} /></TableCell>
+                <TableCell><BrowserLabel value={replay.browser} /></TableCell>
+                <TableCell><OsLabel value={replay.os} /></TableCell>
+                <TableCell><DeviceLabel value={replay.device} /></TableCell>
+                <TableCell className="tabular-nums">{replay.actions ?? 0}</TableCell>
+                <TableCell className="tabular-nums">{formatDuration(replay.duration_s)}</TableCell>
+                <TableCell className="tabular-nums">{replay.pages}</TableCell>
                 <TableCell>{replay.trigger}</TableCell>
-                <TableCell>{formatBytes(replay.bytes)}</TableCell>
               </TableRow>
             ))}</TableBody>
           </Table>
