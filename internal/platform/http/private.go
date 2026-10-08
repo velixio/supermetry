@@ -29,6 +29,7 @@ import (
 	"panel/internal/platform/shares"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	"panel/internal/replay"
 	coresites "panel/internal/sites"
 )
 
@@ -93,6 +94,7 @@ type Deps struct {
 		RememberTx(context.Context, pgx.Tx, int32, string) error
 		ForgetMemory(int32, string)
 	}
+	ReplayStore replay.BlobStore
 	ImportQueue interface {
 		Queue(imports.Job) error
 	}

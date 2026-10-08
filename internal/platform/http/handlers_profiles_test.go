@@ -19,6 +19,7 @@ import (
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
 	"panel/internal/profiletombstone"
+	"panel/internal/replay"
 	"panel/internal/testpg"
 )
 
@@ -30,6 +31,7 @@ type profileFixture struct {
 	foreignSite int32
 	profileID   int64
 	tombstones  *profiletombstone.Store
+	replays     replay.BlobStore
 }
 
 func newProfileFixture(t *testing.T) profileFixture {
@@ -92,10 +94,14 @@ func newProfileFixture(t *testing.T) profileFixture {
 		"key-no-scope": {KeyID: 12, OrgID: orgID, Role: authz.RoleKey},
 	}
 	tombstones := profiletombstone.New(pool, nil)
+	replays, err := replay.NewDiskStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	return profileFixture{
-		handler: platformhttp.New(platformhttp.Deps{Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones}),
+		handler: platformhttp.New(platformhttp.Deps{Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones, ReplayStore: replays}),
 		pool:    pool, siteID: siteID, disabledID: disabledID, foreignSite: foreignSite, profileID: profileID,
-		tombstones: tombstones,
+		tombstones: tombstones, replays: replays,
 	}
 }
 
@@ -230,6 +236,37 @@ func TestDeleteProfileErasesEventsAndAuditsTransactionally(t *testing.T) {
 	}
 	if strings.Contains(storedID, "user-123") || len(storedID) != 64 {
 		t.Fatalf("stored tombstone hash=%q", storedID)
+	}
+}
+
+func TestProfileDeleteRemovesReplays(t *testing.T) {
+	f := newProfileFixture(t)
+	ctx := context.Background()
+	day := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
+	key := replay.SessionKey(f.siteID, day, 100)
+	if _, err := f.replays.Append(ctx, key, strings.NewReader("replay")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `
+		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,profile_id,blob_key)
+		values ($1,100,$2,$2,$3,6,1,$4,$5)`, f.siteID, day.Add(time.Hour), day, f.profileID, key); err != nil {
+		t.Fatal(err)
+	}
+
+	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("delete status=%d body=%s", response.Code, response.Body.String())
+	}
+	if reader, err := f.replays.Open(ctx, key); err == nil {
+		_ = reader.Close()
+		t.Fatal("profile replay blob still exists")
+	}
+	var rows int
+	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where profile_id=$1`, f.profileID).Scan(&rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 0 {
+		t.Fatalf("profile replay rows = %d, want 0", rows)
 	}
 }
 

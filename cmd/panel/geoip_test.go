@@ -244,7 +244,7 @@ func TestGeoIPRefreshSerializesConcurrentRuns(t *testing.T) {
 
 func TestScheduledJobsRegistersGeoIPUpdate(t *testing.T) {
 	service := &geoService{maxMind: true}
-	jobs := scheduledJobs(nil, nil, nil, nil, nil, nil, nil, nil, nil, service, wallClock{})
+	jobs := scheduledJobs(nil, nil, nil, nil, nil, nil, nil, nil, nil, service, nil, config.ReplayEnv{}, wallClock{})
 	for _, job := range jobs {
 		if job.Name == "geoip-update" {
 			if job.Every != 24*time.Hour {

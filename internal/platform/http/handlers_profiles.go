@@ -14,6 +14,7 @@ import (
 	"panel/internal/api"
 	"panel/internal/platform/audit"
 	"panel/internal/platform/authz"
+	"panel/internal/replay"
 	coresites "panel/internal/sites"
 )
 
@@ -232,6 +233,35 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 		h.deps.ProfileTombstones.ForgetMemory(site.ID, profile.ExternalId)
 		serviceError(w, err)
 		return
+	}
+	if h.deps.ReplayStore != nil {
+		rows, queryErr := h.deps.Store.Pool.Query(r.Context(), `
+			select distinct session_id from replay_sessions
+			where site_id=$1 and profile_id=$2 order by session_id`, site.ID, profile.Id)
+		if queryErr != nil {
+			serviceError(w, queryErr)
+			return
+		}
+		var sessionIDs []int64
+		for rows.Next() {
+			var sessionID int64
+			if scanErr := rows.Scan(&sessionID); scanErr != nil {
+				rows.Close()
+				serviceError(w, scanErr)
+				return
+			}
+			sessionIDs = append(sessionIDs, sessionID)
+		}
+		queryErr = rows.Err()
+		rows.Close()
+		if queryErr != nil {
+			serviceError(w, queryErr)
+			return
+		}
+		if eraseErr := replay.EraseSessions(r.Context(), h.deps.Store.Pool, h.deps.ReplayStore, site.ID, sessionIDs); eraseErr != nil {
+			serviceError(w, eraseErr)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
