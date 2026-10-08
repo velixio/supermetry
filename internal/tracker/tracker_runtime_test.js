@@ -4,16 +4,22 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(`${__dirname}/tracker.js`, "utf8");
 
-function loadTracker() {
+function buildSource(full) {
+  return source.replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "");
+}
+
+function loadTracker({full = false, dataset = {}} = {}) {
   const events = new Map();
   const payloads = [];
+  let now = 1000;
   const forbidStorage = () => {
     throw new Error("tracker accessed browser storage");
   };
+  const location = {hostname: "example.com", href: "https://example.com/start"};
   const document = {
     body: {scrollHeight: 1000},
     currentScript: {
-      dataset: {site: "site-1"},
+      dataset: {site: "site-1", ...dataset},
       hasAttribute: () => false,
     },
     documentElement: {scrollHeight: 1000},
@@ -29,13 +35,21 @@ function loadTracker() {
     localStorage: {get: forbidStorage},
     sessionStorage: {get: forbidStorage},
   });
+  const history = {
+    pushState(_state, _unused, url) {
+      if (url) location.href = new URL(url, location.href).href;
+    },
+    replaceState(_state, _unused, url) {
+      if (url) location.href = new URL(url, location.href).href;
+    },
+  };
   const context = {
     Blob: class Blob {
       constructor(parts) {
         this.parts = parts;
       }
     },
-    Date: {now: () => 1000},
+    Date: {now: () => now += 100},
     Math,
     Object,
     JSON,
@@ -46,9 +60,9 @@ function loadTracker() {
     fetch() {
       throw new Error("sendBeacon unexpectedly fell back to fetch");
     },
-    history: {pushState() {}},
+    history,
     innerHeight: 500,
-    location: {hostname: "example.com", href: "https://example.com/start"},
+    location,
     navigator: {
       webdriver: false,
       sendBeacon(_endpoint, body) {
@@ -60,7 +74,7 @@ function loadTracker() {
     scrollY: 0,
     window,
   };
-  vm.runInNewContext(source, context, {filename: "tracker.js"});
+  vm.runInNewContext(buildSource(full), context, {filename: "tracker.js"});
   return {context, events, panel: window.panel, payloads};
 }
 
@@ -132,7 +146,103 @@ function testValidationBoundaries() {
   }
 }
 
+function testManualPageviews() {
+  const tracker = loadTracker({full: true, dataset: {manual: "true"}});
+  assert.deepEqual(tracker.payloads, [], "manual mode must suppress the initial pageview");
+
+  tracker.context.history.pushState({}, "", "/automatic");
+  assert.deepEqual(tracker.payloads, [], "manual mode must suppress pushState pageviews");
+
+  tracker.panel.pageview({url: "https://example.com/a", props: {k: "v"}});
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["engagement", "pageview"]);
+  assert.equal(tracker.payloads[1].url, "https://example.com/a");
+  assert.deepEqual(tracker.payloads[1].props, {k: "v"});
+}
+
+function testHashRouting() {
+  const enabled = loadTracker({full: true, dataset: {hash: "true"}});
+  enabled.context.location.href = "https://example.com/start#b";
+  enabled.events.get("window:hashchange")();
+  assert.deepEqual(enabled.payloads.map((payload) => payload.name), [
+    "pageview", "engagement", "pageview",
+  ]);
+  assert.equal(enabled.payloads.at(-1).url, "https://example.com/start#b");
+
+  const disabled = loadTracker({full: true});
+  disabled.context.location.href = "https://example.com/start#b";
+  assert.equal(disabled.events.has("window:hashchange"), false);
+  assert.deepEqual(disabled.payloads.map((payload) => payload.name), ["pageview"]);
+}
+
+function testReplaceStateRouting() {
+  const tracker = loadTracker({full: true});
+  tracker.context.history.replaceState({}, "", "/start");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
+
+  tracker.context.history.replaceState({}, "", "/next?tab=one");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
+    "pageview", "engagement", "pageview",
+  ]);
+  assert.equal(tracker.payloads.at(-1).url, "https://example.com/next?tab=one");
+}
+
+function testDuplicateNavigationIsDropped() {
+  const tracker = loadTracker({full: true, dataset: {hash: "true"}});
+  tracker.context.location.href = "https://example.com/next#details";
+  tracker.events.get("window:hashchange")();
+  tracker.events.get("window:popstate")();
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
+    "pageview", "engagement", "pageview",
+  ]);
+}
+
+function testBeforeSend() {
+  const edited = loadTracker({full: true});
+  edited.panel.beforeSend = (event) => ({...event, props: {x: "1"}, site: "other-site"});
+  edited.panel.track("Edited", {ignored: "yes"});
+  assert.deepEqual(edited.payloads.at(-1).props, {x: "1"});
+  assert.equal(edited.payloads.at(-1).site, "site-1");
+
+  for (const [name, hook] of [
+    ["null", () => null],
+    ["throw", () => { throw new Error("redaction failed"); }],
+    ["string", () => "yes"],
+    ["boolean", () => true],
+  ]) {
+    const tracker = loadTracker({full: true});
+    tracker.panel.beforeSend = hook;
+    const before = tracker.payloads.length;
+    tracker.panel.track("Dropped");
+    assert.equal(tracker.payloads.length, before, `${name} return must fail closed`);
+  }
+}
+
+function testNamedBeforeSendIsResolvedAtSendTime() {
+  const tracker = loadTracker({full: true, dataset: {beforeSend: "hook"}});
+  tracker.context.window.hook = (event) => ({...event, props: {version: "first"}});
+  tracker.panel.track("First");
+  tracker.context.window.hook = (event) => ({...event, props: {version: "second"}});
+  tracker.panel.track("Second");
+  assert.deepEqual(tracker.payloads.slice(-2).map((payload) => payload.props), [
+    {version: "first"}, {version: "second"},
+  ]);
+}
+
+function testCoreBuildExcludesFullRoutingFeatures() {
+  const core = buildSource(false);
+  for (const forbidden of ["hashchange", "beforeSend", "consent", "data.manual"]) {
+    assert.equal(core.includes(forbidden), false, `core build contains ${forbidden}`);
+  }
+}
+
 testIdentifyAndSubsequentEvents();
 testClear();
 testOmittedTraits();
 testValidationBoundaries();
+testManualPageviews();
+testHashRouting();
+testReplaceStateRouting();
+testDuplicateNavigationIsDropped();
+testBeforeSend();
+testNamedBeforeSendIsResolvedAtSendTime();
+testCoreBuildExcludesFullRoutingFeatures();

@@ -18,6 +18,50 @@
   var pending = true;
   var profileID;
 
+  function post(payload) {
+    var body = JSON.stringify(payload);
+    navigator.sendBeacon?.(endpoint,
+      new Blob([body], {type: "text/plain"})) || fetch(endpoint, {
+        method: "POST",
+        body: body,
+        keepalive: true
+      }).catch(() => 0);
+  }
+
+  /*@full*/
+  var manual = data.manual == "true";
+  function key(url) {
+    return data.hash == "true" ? url : url.split("#")[0];
+  }
+  function run(payload) {
+    var hook = panel.beforeSend || window[data.beforeSend];
+    var result;
+    if (typeof hook != "function") return payload;
+    try {
+      result = hook({
+        name: payload.name,
+        url: payload.url,
+        referrer: payload.referrer,
+        props: payload.props,
+        engagement_ms: payload.engagement_ms,
+        scroll_pct: payload.scroll_pct
+      });
+    } catch (error) {
+      return;
+    }
+    if (!result || typeof result != "object") return;
+    ["name", "url", "referrer", "props", "engagement_ms", "scroll_pct"].forEach((field) => {
+      if (field in result) payload[field] = result[field];
+    });
+    return payload;
+  }
+  function emit(payload) {
+    payload = run(payload);
+    if (payload) post(payload);
+    return true;
+  }
+  /*@end*/
+
   function send(name, props, engagement, scroll, revenue, traits) {
     var payload = {
       site: data.site,
@@ -36,13 +80,10 @@
     if (profileID) {
       payload.profile_id = profileID;
     }
-    var body = JSON.stringify(payload);
-    navigator.sendBeacon?.(endpoint,
-      new Blob([body], {type: "text/plain"})) || fetch(endpoint, {
-        method: "POST",
-        body: body,
-        keepalive: true
-      }).catch(() => 0);
+    /*@full*/
+    if (emit(payload)) return;
+    /*@end*/
+    post(payload);
   }
 
   function stopTimer() {
@@ -71,21 +112,36 @@
     }
   }
 
-  function startPage() {
-    pageURL = location.href;
+  function startPage(url, props) {
+    pageURL = url || location.href;
     active = maxScroll = 0;
     started = document.hidden ? 0 : Date.now();
     pending = true;
-    send("pageview");
+    send("pageview", props);
+  }
+
+  function navigate() {
+    /*@full*/
+    if (manual || key(location.href) == key(pageURL)) return;
+    /*@end*/
+    flushEngagement();
+    startPage();
   }
 
   var pushState = history.pushState;
   history.pushState = (...args) => {
     pushState.apply(history, args);
-    flushEngagement();
-    startPage();
+    navigate();
   };
-  addEventListener("popstate", () => flushEngagement() || startPage());
+  addEventListener("popstate", navigate);
+  /*@full*/
+  if (data.hash == "true") addEventListener("hashchange", navigate);
+  var replaceState = history.replaceState;
+  history.replaceState = (...args) => {
+    replaceState.apply(history, args);
+    navigate();
+  };
+  /*@end*/
   addEventListener("scroll", () => {
     updateScroll();
     pending = true;
@@ -95,6 +151,12 @@
   addEventListener("pagehide", flushEngagement);
 
   var panel = window.panel = window.panel || {};
+  /*@full*/
+  panel.pageview = (options) => {
+    flushEngagement();
+    startPage(options?.url, options?.props);
+  };
+  /*@end*/
   panel.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);
   // Identification is memory-only, so call identify on every page load.
   panel.identify = (id, traits = {}) => {
@@ -115,5 +177,5 @@
     profileID = id;
     send("identify", 0, 0, 0, 0, traits);
   };
-  send("pageview");
+  /*@full*/ if (!manual) /*@end*/ send("pageview");
 })();
