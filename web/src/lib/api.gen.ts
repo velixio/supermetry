@@ -1521,6 +1521,13 @@ export interface components {
             queue_depth: number;
             /** Format: double */
             close_lag_seconds: number;
+            rollup_backfill: components["schemas"]["RollupBackfillProgress"];
+        };
+        RollupBackfillProgress: {
+            /** @enum {string} */
+            status: "running" | "finished";
+            days_done: number;
+            total_days: number;
         };
         HealthResponse: {
             status: string;
