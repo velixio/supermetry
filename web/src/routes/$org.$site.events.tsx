@@ -70,8 +70,10 @@ function EventsRoute() {
         filters={filters}
         name={search.name}
         orgId={membership.org.id}
+        org={org}
         propertyKey={search.property}
         siteId={site.id}
+        site={siteSlug}
         onNameChange={(name) => void navigate({ search: { ...search, name, cursor: undefined } })}
         onNext={(cursor) => void navigate({ search: { ...search, cursor } })}
         onPrevious={() => void navigate({ search: { ...search, cursor: undefined } })}

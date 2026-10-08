@@ -1,0 +1,444 @@
+package platformhttp
+
+import (
+	"compress/gzip"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"panel/internal/platform/authz"
+	"panel/internal/platform/store"
+	"panel/internal/replay"
+	coresites "panel/internal/sites"
+)
+
+type replayListItem struct {
+	SessionID int64     `json:"session_id"`
+	StartedAt time.Time `json:"started_at"`
+	DurationS int64     `json:"duration_s"`
+	Pages     int32     `json:"pages"`
+	Bytes     int64     `json:"bytes"`
+	Trigger   string    `json:"trigger"`
+	ProfileID *int64    `json:"profile_id"`
+}
+
+type replayCursor struct {
+	StartedAt time.Time `json:"started_at"`
+	SessionID int64     `json:"session_id"`
+}
+
+func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
+	_, site, ok := h.replaySitePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Store == nil {
+		unavailable(w, "replay")
+		return
+	}
+	from, fromErr := time.Parse(time.DateOnly, r.URL.Query().Get("from"))
+	to, toErr := time.Parse(time.DateOnly, r.URL.Query().Get("to"))
+	if fromErr != nil || toErr != nil || from.After(to) {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "from and to must be valid dates in ascending order")
+		return
+	}
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 100 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "limit must be between 1 and 100")
+			return
+		}
+		limit = parsed
+	}
+	cursor, hasCursor, err := decodeReplayCursor(r.URL.Query().Get("cursor"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "cursor is invalid")
+		return
+	}
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `
+		select session_id,started_at,greatest(0,extract(epoch from (last_seen_at-started_at)))::bigint,
+		       pages,bytes,coalesce(trigger,''),profile_id
+		from replay_sessions
+		where site_id=$1 and day between $2::date and $3::date
+		  and ($4::boolean=false or (started_at,session_id)<($5,$6))
+		order by started_at desc,session_id desc limit $7`, site.ID, from, to, hasCursor, cursor.StartedAt, cursor.SessionID, limit+1)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	defer rows.Close()
+	items := make([]replayListItem, 0, limit+1)
+	for rows.Next() {
+		var item replayListItem
+		if err := rows.Scan(&item.SessionID, &item.StartedAt, &item.DurationS, &item.Pages, &item.Bytes, &item.Trigger, &item.ProfileID); err != nil {
+			serviceError(w, err)
+			return
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		serviceError(w, err)
+		return
+	}
+	var next *string
+	if len(items) > limit {
+		last := items[limit-1]
+		value := encodeReplayCursor(replayCursor{StartedAt: last.StartedAt, SessionID: last.SessionID})
+		next = &value
+		items = items[:limit]
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": items, "next_cursor": next})
+}
+
+func (h *handler) replayAsset(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.Trim(r.PathValue("replay_path"), "/"), "/")
+	switch {
+	case len(parts) == 2 && parts[0] == "css":
+		r.SetPathValue("hash", parts[1])
+		h.replayCSS(w, r)
+	case len(parts) == 2 && parts[1] == "data":
+		r.SetPathValue("session", parts[0])
+		h.replayData(w, r)
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func (h *handler) replayData(w http.ResponseWriter, r *http.Request) {
+	_, site, ok := h.replaySitePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Store == nil || h.deps.ReplayStore == nil {
+		unavailable(w, "replay")
+		return
+	}
+	sessionID, err := parseInt64(r.PathValue("session"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "session must be a positive integer")
+		return
+	}
+	var key string
+	err = h.deps.Store.Pool.QueryRow(r.Context(), `select blob_key from replay_sessions where site_id=$1 and session_id=$2 order by started_at desc limit 1`, site.ID, sessionID).Scan(&key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeProblem(w, http.StatusNotFound, "Not found", "replay not found")
+		return
+	}
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	body, err := h.deps.ReplayStore.Open(r.Context(), key)
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "replay data not found")
+		return
+	}
+	defer body.Close()
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.Header().Set("Content-Encoding", "gzip")
+	w.Header().Set("Cache-Control", "private, no-store")
+	zw := gzip.NewWriter(w)
+	_, copyErr := io.Copy(zw, replay.NewConcatReader(body))
+	closeErr := zw.Close()
+	if copyErr != nil || closeErr != nil {
+		return
+	}
+}
+
+func (h *handler) replayCSS(w http.ResponseWriter, r *http.Request) {
+	_, site, ok := h.replaySitePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.ReplayStore == nil {
+		unavailable(w, "replay")
+		return
+	}
+	hash := r.PathValue("hash")
+	if len(hash) != sha256.Size*2 {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := hex.DecodeString(hash); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	body, err := h.deps.ReplayStore.Open(r.Context(), replay.CSSKey(site.ID, hash))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer body.Close()
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	w.Header().Set("Content-Encoding", "gzip")
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	_, _ = io.Copy(w, body)
+}
+
+func (h *handler) getReplaySettings(w http.ResponseWriter, r *http.Request) {
+	_, site, ok := h.replaySitePrincipal(w, r)
+	if !ok {
+		return
+	}
+	settings, ok := h.loadReplaySiteSettings(w, r, site)
+	if ok {
+		writeJSON(w, http.StatusOK, settings)
+	}
+}
+
+func (h *handler) putReplaySettings(w http.ResponseWriter, r *http.Request) {
+	_, site, ok := h.replaySitePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var raw json.RawMessage
+	if !decodeJSON(w, r, &raw) {
+		return
+	}
+	in, err := coresites.ParseReplaySiteInput(raw)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
+		return
+	}
+	if (in.Mask != nil && h.deps.ReplayEnv.Mask != nil) ||
+		(in.SampleRate != nil && h.deps.ReplayEnv.SampleRate != nil) ||
+		(in.RetentionDays != nil && h.deps.ReplayEnv.Retention != nil) ||
+		(in.QuotaBytes != nil && h.deps.ReplayEnv.QuotaBytes != nil) {
+		writeProblem(w, http.StatusConflict, "Conflict", "a replay setting is locked by the environment")
+		return
+	}
+	encoded, _ := json.Marshal(in)
+	if err := store.SetSiteReplaySettings(r.Context(), h.deps.Store, site.OrgID, site.ID, encoded); err != nil {
+		serviceError(w, err)
+		return
+	}
+	if h.deps.ReplayRefresh != nil {
+		if err := h.deps.ReplayRefresh(); err != nil {
+			serviceError(w, err)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, replay.ResolveSite(h.deps.ReplayEnv, in))
+}
+
+func (h *handler) loadReplaySiteSettings(w http.ResponseWriter, r *http.Request, site coresites.Site) (replay.SiteSettings, bool) {
+	if h.deps.Store == nil {
+		unavailable(w, "replay settings")
+		return replay.SiteSettings{}, false
+	}
+	raw, err := store.SiteReplaySettings(r.Context(), h.deps.Store, site.OrgID, site.ID)
+	if err != nil {
+		serviceError(w, err)
+		return replay.SiteSettings{}, false
+	}
+	in, err := coresites.ParseReplaySiteInput(raw)
+	if err != nil {
+		serviceError(w, err)
+		return replay.SiteSettings{}, false
+	}
+	return replay.ResolveSite(h.deps.ReplayEnv, in), true
+}
+
+type replayStorageS3Response struct {
+	Endpoint     string `json:"endpoint"`
+	Bucket       string `json:"bucket"`
+	Region       string `json:"region"`
+	AccessKey    string `json:"access_key"`
+	Prefix       string `json:"prefix"`
+	SecretKeySet bool   `json:"secret_key_set"`
+}
+
+type replayStorageResponse struct {
+	Backend replay.Value[string]                  `json:"backend"`
+	Dir     replay.Value[string]                  `json:"dir"`
+	S3      replay.Value[replayStorageS3Response] `json:"s3"`
+}
+
+func (h *handler) getReplayStorage(w http.ResponseWriter, r *http.Request) {
+	if !h.instanceReplayAdmin(w, r) {
+		return
+	}
+	settings, ok := h.loadReplayStorage(w, r)
+	if ok {
+		writeJSON(w, http.StatusOK, replayStorageAPI(settings))
+	}
+}
+
+func (h *handler) putReplayStorage(w http.ResponseWriter, r *http.Request) {
+	if !h.instanceReplayAdmin(w, r) {
+		return
+	}
+	current, ok := h.loadStoredReplayStorage(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		Backend *string `json:"backend"`
+		Dir     *string `json:"dir"`
+		S3      *struct {
+			Endpoint  string `json:"endpoint"`
+			Bucket    string `json:"bucket"`
+			Region    string `json:"region"`
+			AccessKey string `json:"access_key"`
+			SecretKey string `json:"secret_key"`
+			Prefix    string `json:"prefix"`
+		} `json:"s3"`
+		Migrate bool `json:"migrate"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if ((request.Backend != nil || request.S3 != nil) && h.deps.ReplayEnv.S3 != nil) || (request.Dir != nil && h.deps.ReplayEnv.Dir != "") {
+		writeProblem(w, http.StatusConflict, "Conflict", "a replay storage setting is locked by the environment")
+		return
+	}
+	next := current
+	if request.Backend != nil {
+		next.Backend = *request.Backend
+	}
+	if request.Dir != nil {
+		next.Dir = *request.Dir
+	}
+	if request.S3 != nil {
+		secret := request.S3.SecretKey
+		if secret == "" {
+			secret = current.S3.SecretKey
+		}
+		next.S3 = replay.S3Settings{Endpoint: request.S3.Endpoint, Bucket: request.S3.Bucket, Region: request.S3.Region, AccessKey: request.S3.AccessKey, SecretKey: secret, Prefix: request.S3.Prefix}
+	}
+	if next.Backend == "" {
+		next.Backend = "disk"
+	}
+	if next.Backend != "disk" && next.Backend != "s3" {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "backend must be disk or s3")
+		return
+	}
+	if next.Backend == "s3" && (next.S3.Endpoint == "" || next.S3.Bucket == "" || next.S3.Region == "" || next.S3.AccessKey == "" || next.S3.SecretKey == "") {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "all S3 fields except prefix are required")
+		return
+	}
+	sealed, err := replay.SealStoredStorage(h.deps.SecretKey, next)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	var migration any
+	if request.Migrate {
+		from, err := replay.SealStoredStorage(h.deps.SecretKey, current)
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+		migration = map[string]any{"from": json.RawMessage(from), "to": json.RawMessage(sealed), "requested_at": time.Now().UTC()}
+	}
+	if err := store.SetInstanceReplayStorage(r.Context(), h.deps.Store, sealed, migration); err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, replayStorageAPI(replay.ResolveStorage(h.deps.ReplayEnv, h.deps.DataDir, next)))
+}
+
+func (h *handler) loadReplayStorage(w http.ResponseWriter, r *http.Request) (replay.StorageSettings, bool) {
+	stored, ok := h.loadStoredReplayStorage(w, r)
+	if !ok {
+		return replay.StorageSettings{}, false
+	}
+	return replay.ResolveStorage(h.deps.ReplayEnv, h.deps.DataDir, stored), true
+}
+
+func (h *handler) loadStoredReplayStorage(w http.ResponseWriter, r *http.Request) (replay.StoredStorage, bool) {
+	if h.deps.Store == nil {
+		unavailable(w, "replay storage")
+		return replay.StoredStorage{}, false
+	}
+	raw, err := store.InstanceReplayStorage(r.Context(), h.deps.Store)
+	if err != nil {
+		serviceError(w, err)
+		return replay.StoredStorage{}, false
+	}
+	stored, err := replay.OpenStoredStorage(h.deps.SecretKey, raw)
+	if err != nil {
+		serviceError(w, err)
+		return replay.StoredStorage{}, false
+	}
+	return stored, true
+}
+
+func replayStorageAPI(settings replay.StorageSettings) replayStorageResponse {
+	s3 := settings.S3.V
+	return replayStorageResponse{
+		Backend: settings.Backend,
+		Dir:     settings.Dir,
+		S3: replay.Value[replayStorageS3Response]{V: replayStorageS3Response{
+			Endpoint: s3.Endpoint, Bucket: s3.Bucket, Region: s3.Region, AccessKey: s3.AccessKey, Prefix: s3.Prefix, SecretKeySet: s3.SecretKey != "",
+		}, Locked: settings.S3.Locked},
+	}
+}
+
+func (h *handler) instanceReplayAdmin(w http.ResponseWriter, r *http.Request) bool {
+	if validAdminBearer(r.Header.Get("Authorization"), h.deps.AdminAPIKey) {
+		return true
+	}
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return false
+	}
+	if principal.Role != authz.RoleOwner || h.deps.Store == nil {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "instance administration is required")
+		return false
+	}
+	var oldestOrgID int64
+	if err := h.deps.Store.Pool.QueryRow(r.Context(), `select id from orgs where deleted_at is null order by created_at,id limit 1`).Scan(&oldestOrgID); err != nil {
+		serviceError(w, err)
+		return false
+	}
+	if principal.OrgID != oldestOrgID {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "instance administration is required")
+		return false
+	}
+	return true
+}
+
+func validAdminBearer(header, key string) bool {
+	scheme, credential, ok := strings.Cut(header, " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") || credential == "" || key == "" {
+		return false
+	}
+	want, got := sha256.Sum256([]byte(key)), sha256.Sum256([]byte(credential))
+	return subtle.ConstantTimeCompare(want[:], got[:]) == 1
+}
+
+func (h *handler) replaySitePrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, coresites.Site, bool) {
+	return h.sitePrincipal(w, r, authz.ActionStatsRead, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
+}
+
+func encodeReplayCursor(cursor replayCursor) string {
+	raw, _ := json.Marshal(cursor)
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+func decodeReplayCursor(raw string) (replayCursor, bool, error) {
+	if raw == "" {
+		return replayCursor{}, false, nil
+	}
+	decoded, err := base64.RawURLEncoding.Strict().DecodeString(raw)
+	if err != nil {
+		return replayCursor{}, false, err
+	}
+	var cursor replayCursor
+	if err := json.Unmarshal(decoded, &cursor); err != nil || cursor.StartedAt.IsZero() || cursor.SessionID <= 0 {
+		return replayCursor{}, false, errors.New("invalid replay cursor")
+	}
+	return cursor, true, nil
+}

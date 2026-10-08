@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"panel/internal/api"
+	"panel/internal/config"
 	"panel/internal/imports"
 	"panel/internal/platform/audit"
 	platformauth "panel/internal/platform/auth"
@@ -29,6 +30,7 @@ import (
 	"panel/internal/platform/shares"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	"panel/internal/replay"
 	coresites "panel/internal/sites"
 )
 
@@ -99,6 +101,12 @@ type Deps struct {
 	Exporter interface {
 		Write(context.Context, io.Writer, int32, time.Time, time.Time) error
 	}
+	ReplayStore   replay.BlobStore
+	ReplayEnv     config.ReplayEnv
+	DataDir       string
+	SecretKey     []byte
+	AdminAPIKey   string
+	ReplayRefresh func() error
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -148,7 +156,7 @@ func New(deps Deps) http.Handler {
 	h.registerPrivate(mux)
 	h.registerAuth(mux)
 	h.registerPublic(mux)
-	return csrf(mux)
+	return csrf(mux, deps.AdminAPIKey)
 }
 
 func (h *handler) registerPrivate(mux *http.ServeMux) {
@@ -186,6 +194,12 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/profiles", h.listProfiles)
 	mux.HandleFunc("GET /api/private/profiles/{profile}", h.getProfile)
 	mux.HandleFunc("DELETE /api/private/profiles/{profile}", h.deleteProfile)
+	mux.HandleFunc("GET /api/private/sites/{site}/replays", h.listReplays)
+	mux.HandleFunc("GET /api/private/sites/{site}/replays/{replay_path...}", h.replayAsset)
+	mux.HandleFunc("GET /api/private/sites/{site}/replay-settings", h.getReplaySettings)
+	mux.HandleFunc("PUT /api/private/sites/{site}/replay-settings", h.putReplaySettings)
+	mux.HandleFunc("GET /api/private/instance/replay-storage", h.getReplayStorage)
+	mux.HandleFunc("PUT /api/private/instance/replay-storage", h.putReplayStorage)
 	mux.HandleFunc("GET /api/private/me", h.me)
 	mux.HandleFunc("PATCH /api/private/me", h.updateMe)
 	mux.HandleFunc("DELETE /api/private/me", h.deleteAccount)
@@ -403,9 +417,9 @@ func allowsSite(siteIDs []int32, siteID int32) bool {
 	return false
 }
 
-func csrf(next http.Handler) http.Handler {
+func csrf(next http.Handler, adminAPIKey string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/private/") || r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions || csrfExempt(r.URL.Path) {
+		if !strings.HasPrefix(r.URL.Path, "/api/private/") || r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions || csrfExempt(r.URL.Path) || validAdminBearer(r.Header.Get("Authorization"), adminAPIKey) {
 			next.ServeHTTP(w, r)
 			return
 		}

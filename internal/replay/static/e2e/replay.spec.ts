@@ -1,6 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-type State = { uploads: Array<{ text: string; trigger: string | null; page: string | null; sequence: string | null }>; starts: number };
+type State = {
+  uploads: Array<{ text: string; trigger: string | null; page: string | null; sequence: string | null }>;
+  starts: number;
+  cssPuts: Array<{ hash: string; text: string }>;
+};
 
 async function reset(page: Page) {
   await page.request.post("/test/reset");
@@ -225,4 +229,45 @@ test("opt-in starts a fresh replay after runtime opt-out", async ({ page }) => {
   await page.evaluate(() => (window as typeof window & { panel?: { optOut(): void; optIn(): void } }).panel?.optIn());
 
   await expect.poll(async () => (await state(page)).starts).toBe(2);
+});
+
+test("uploads a large stylesheet once before snapshots reference it", async ({ page }) => {
+  await page.goto("/full/css");
+  await expect.poll(async () => (await state(page)).cssPuts.length).toBe(1);
+  await page.evaluate(() => history.pushState({}, "", "/full/css/next"));
+  await page.evaluate(() => dispatchEvent(new Event("pagehide")));
+  await expect.poll(async () => (await state(page)).uploads
+    .flatMap((upload) => upload.text.trim().split("\n"))
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as { type: number })
+    .filter((event) => event.type === 2).length).toBeGreaterThanOrEqual(2);
+
+  const recorded = await state(page);
+  expect(recorded.cssPuts).toHaveLength(1);
+  expect(recorded.cssPuts[0].text.length).toBeGreaterThan(200_000);
+  const snapshots = recorded.uploads
+    .flatMap((upload) => upload.text.trim().split("\n"))
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as { type: number; data: unknown })
+    .filter((event) => event.type === 2);
+  expect(snapshots.length).toBeGreaterThanOrEqual(2);
+  const secondSnapshot = JSON.stringify(snapshots[1]);
+  expect(secondSnapshot).toContain('"_cssRef"');
+  expect(secondSnapshot).not.toContain('"_cssText"');
+  expect(secondSnapshot.length).toBeLessThan(recorded.cssPuts[0].text.length / 2);
+});
+
+test("keeps stylesheet text inline when the CSS upload fails", async ({ page }) => {
+  await page.goto("/full/css-fail");
+  await flush(page);
+
+  const recorded = await state(page);
+  expect(recorded.cssPuts).toHaveLength(1);
+  const snapshot = recorded.uploads
+    .flatMap((upload) => upload.text.trim().split("\n"))
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as { type: number })
+    .find((event) => event.type === 2);
+  expect(JSON.stringify(snapshot)).toContain('"_cssText"');
+  expect(JSON.stringify(snapshot)).not.toContain('"_cssRef"');
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
+import { ReplayLink } from '@/components/replay/ReplayLink'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -23,11 +24,13 @@ type EventsPageProps = {
   onPropertyChange: (key: string) => void
   onNext?: (cursor: string) => void
   onPrevious?: () => void
+  org?: string
+  site?: string
 }
 
 export function EventsPage({
   siteId, orgId, dateRange, filters, name, propertyKey, cursor,
-  onNameChange, onPropertyChange, onNext, onPrevious,
+  onNameChange, onPropertyChange, onNext, onPrevious, org, site,
 }: EventsPageProps) {
   const [draftName, setDraftName] = useState(name)
   useEffect(() => setDraftName(name), [name])
@@ -98,12 +101,14 @@ export function EventsPage({
           <Table aria-label="Events">
             <TableHeader><TableRow>
               <TableHead>Time</TableHead><TableHead>Kind</TableHead><TableHead>Name</TableHead><TableHead>Page</TableHead>
+              <TableHead>Replay</TableHead>
               <TableHead>Properties</TableHead><TableHead>Country</TableHead><TableHead>Device</TableHead><TableHead>Browser</TableHead><TableHead>Source</TableHead>
             </TableRow></TableHeader>
             <TableBody>{events.data.data.map((event, index) => (
               <TableRow key={`${event.ts}:${event.name}:${event.page}:${index}`}>
                 <TableCell className="whitespace-nowrap">{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.ts))}</TableCell>
                 <TableCell>{event.kind}</TableCell><TableCell>{event.name}</TableCell><TableCell>{event.page || '—'}</TableCell>
+                <TableCell>{org && site ? <ReplayLink hasReplay={(event as { has_replay?: boolean }).has_replay} org={org} site={site} /> : null}</TableCell>
                 <TableCell>{event.props ? Object.entries(event.props).map(([key, value]) => <span className="mr-2 whitespace-nowrap" key={key}>{key}: {value}</span>) : '—'}</TableCell>
                 <TableCell>{event.country || '—'}</TableCell><TableCell>{event.device || '—'}</TableCell>
                 <TableCell>{event.browser || '—'}</TableCell><TableCell>{event.source || '—'}</TableCell>

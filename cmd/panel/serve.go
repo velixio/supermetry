@@ -48,6 +48,7 @@ import (
 	"panel/internal/profiletombstone"
 	"panel/internal/query"
 	"panel/internal/rehydrate"
+	"panel/internal/replay"
 	"panel/internal/retention"
 	"panel/internal/salts"
 	"panel/internal/scheduler"
@@ -124,8 +125,24 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := db.Migrate(ctx, pool); err != nil {
 		return err
 	}
-
 	platformStore := &store.Store{Pool: pool}
+	// One replay blob store serves ingest, dashboard reads, retention and erasure.
+	var replayStore replay.BlobStore
+	replayStorageRaw, err := store.InstanceReplayStorage(ctx, platformStore)
+	if err != nil {
+		return err
+	}
+	replayStored, err := replay.OpenStoredStorage(cfg.SecretKey, replayStorageRaw)
+	if err != nil {
+		return err
+	}
+	replayStorage := replay.ResolveStorage(cfg.Replay, cfg.DataDir, replayStored)
+	if replayStorage.Backend.V == "disk" {
+		replayStore, err = replay.NewDiskStore(replayStorage.Dir.V)
+		if err != nil {
+			return err
+		}
+	}
 	databaseRegistry := sitesvc.NewRegistry(platformStore, 30*time.Second)
 	defer databaseRegistry.Close()
 	var registry sites.Registry = databaseRegistry
@@ -243,7 +260,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Imports:           importStore,
 		ImportQueue:       importManager,
 		ProfileTombstones: profileTombstones,
+		ReplayStore:       replayStore,
 		Exporter:          exporter,
+		ReplayEnv:         cfg.Replay,
+		DataDir:           cfg.DataDir,
+		SecretKey:         cfg.SecretKey,
+		AdminAPIKey:       cfg.AdminAPIKey,
+		ReplayRefresh:     refreshRegistry,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {
@@ -261,10 +284,22 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Diag:              os.Getenv("PANEL_INGEST_DIAG") == "1",
 	}
 
+	// Replay owns a separate limiter, upload semaphore, blob store and index
+	// queue so replay pressure cannot consume the analytics ingest queue.
+	var replayHandler http.Handler
+	var replayIndex *replay.IndexWriter
+	if cfg.Replay.Enabled && replayStore != nil {
+		replayIndex = replay.NewIndexWriter(pool, 5*time.Second, func() { health.ReplayDropped.Add(1) })
+		replayHandler = replay.NewHandler(replay.HandlerDeps{
+			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: replayStore, Index: replayIndex,
+			Replay: cfg.Replay, Limiter: ingest.NewTokenBuckets(250, 500), TrustedProxies: cfg.TrustedProxies,
+		}, replay.WithClock(settings.clock), replay.WithDiskGuard(func() bool { return false }))
+	}
+
 	var ready atomic.Bool
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
+		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
 		Now: settings.clock.Now, Ready: ready.Load,
 		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {
@@ -288,9 +323,17 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	writerCtx, cancelWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
 	go func() { writerDone <- w.Run(writerCtx) }()
+	var cancelReplayIndex context.CancelFunc
+	var replayIndexDone chan error
+	if replayIndex != nil {
+		var replayIndexCtx context.Context
+		replayIndexCtx, cancelReplayIndex = context.WithCancel(context.Background())
+		replayIndexDone = make(chan error, 1)
+		go func() { replayIndexDone <- replayIndex.Run(replayIndexCtx) }()
+	}
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, settings.clock)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, settings.clock)
 	jobs = append(jobs, profileTombstones.Job(), rollupBackfill.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
@@ -334,6 +377,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-writerDone:
 		cause = err
 		writerDone = nil
+	case err := <-replayIndexDone:
+		cause = err
+		replayIndexDone = nil
 	case err := <-schedulerDone:
 		cause = err
 		schedulerDone = nil
@@ -354,6 +400,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if writerDone != nil {
 		cause = errors.Join(cause, <-writerDone)
 	}
+	if cancelReplayIndex != nil {
+		cancelReplayIndex()
+	}
+	if replayIndexDone != nil {
+		cause = errors.Join(cause, <-replayIndexDone)
+	}
 	cancelScheduler()
 	if schedulerDone != nil {
 		cause = errors.Join(cause, <-schedulerDone)
@@ -365,7 +417,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if importDone != nil {
 		cause = errors.Join(cause, <-importDone)
 	}
-	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, settings.clock.Now()))
+	cause = errors.Join(cause, eraseDeletedSites(context.Background(), pool, replayStore, settings.clock.Now()))
 	return errors.Join(cause, httpErr)
 }
 
@@ -477,6 +529,8 @@ func scheduledJobs(
 	reportService *reports.Reports,
 	alertJobs interface{ Job() scheduler.Job },
 	geo *geoService,
+	replayStore replay.BlobStore,
+	replayEnvironment config.ReplayEnv,
 	clk clock,
 ) []scheduler.Job {
 	jobs := []scheduler.Job{
@@ -510,7 +564,7 @@ func scheduledJobs(
 			return refreshRegistry()
 		}},
 		{Name: "site-erasure", Every: time.Minute, Run: func(ctx context.Context) error {
-			return eraseDeletedSites(ctx, pool, clk.Now())
+			return eraseDeletedSites(ctx, pool, replayStore, clk.Now())
 		}},
 		{Name: "user-session-cleanup", Every: time.Hour, Run: func(ctx context.Context) error {
 			now := clk.Now()
@@ -521,6 +575,11 @@ func scheduledJobs(
 			_, err := pool.Exec(ctx, `delete from invitations where expires_at <= $1 or accepted_at is not null or revoked_at is not null`, clk.Now())
 			return err
 		}},
+	}
+	if replayStore != nil {
+		jobs = append(jobs, scheduler.Job{Name: "replay-retention", Every: time.Hour, Run: func(ctx context.Context) error {
+			return replay.RunRetentionConfigured(ctx, pool, replayStore, clk.Now(), replayEnvironment)
+		}})
 	}
 	if geo != nil && geo.maxMind {
 		jobs = append(jobs, scheduler.Job{Name: "geoip-update", Every: geoIPUpdateInterval, Run: func(ctx context.Context) error {
@@ -537,7 +596,7 @@ func scheduledJobs(
 	return jobs
 }
 
-func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore replay.BlobStore, now time.Time) error {
 	rows, err := pool.Query(ctx, `select id from sites where deleted_at is not null order by id`)
 	if err != nil {
 		return fmt.Errorf("load sites pending erasure: %w", err)
@@ -557,6 +616,11 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, now time.Time) e
 	}
 	rows.Close()
 	for _, siteID := range siteIDs {
+		if replayStore != nil {
+			if err := replay.EraseSite(ctx, pool, replayStore, siteID); err != nil {
+				return err
+			}
+		}
 		if err := retention.Erase(ctx, pool, siteID, 10_000, 10*time.Millisecond); err != nil {
 			return err
 		}

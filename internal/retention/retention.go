@@ -62,6 +62,24 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 			expired = append(expired, partition)
 		}
 	}
+	replayPartitions, err := db.ListMonthlyPartitions(ctx, pool, "replay_sessions")
+	if err != nil {
+		return nil, fmt.Errorf("list replay retention partitions: %w", err)
+	}
+	currentMonth := time.Date(utcNow.Year(), utcNow.Month(), 1, 0, 0, 0, 0, time.UTC)
+	for _, partition := range replayPartitions {
+		if partition.To.After(currentMonth) {
+			continue
+		}
+		var empty bool
+		query := fmt.Sprintf("select not exists(select 1 from %s limit 1)", pgx.Identifier{partition.Name}.Sanitize())
+		if err := pool.QueryRow(ctx, query).Scan(&empty); err != nil {
+			return nil, fmt.Errorf("check replay retention partition %s: %w", partition.Name, err)
+		}
+		if empty {
+			expired = append(expired, partition)
+		}
+	}
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))

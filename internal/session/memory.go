@@ -93,6 +93,7 @@ type Memory struct {
 }
 
 var _ Store = (*Memory)(nil)
+var _ Joiner = (*Memory)(nil)
 var _ RealtimeStore = (*Memory)(nil)
 var _ RichRealtimeStore = (*Memory)(nil)
 var _ ActivityRecorder = (*Memory)(nil)
@@ -185,6 +186,45 @@ func (m *Memory) Touch(h Hit) Result {
 	m.apply(currentShard, s, h)
 	m.markDirty(currentShard, s)
 	return Result{SessionID: s.sessionID, VisitorID: s.visitorID, New: true}
+}
+
+// Join returns the continuable session for a privacy-safe visitor hash
+// without extending or dirtying it. It checks the previous-day visitor hash
+// during the same midnight window used by Touch.
+func (m *Memory) Join(h Hit) Result {
+	if h.TS.IsZero() && m.clock != nil {
+		h.TS = m.clock.Now()
+	}
+	currentIndex := m.shardIndex(h.VisitorID)
+	previousIndex := currentIndex
+	if h.PrevVisitorID != 0 {
+		previousIndex = m.shardIndex(h.PrevVisitorID)
+	}
+	first, second := currentIndex, previousIndex
+	if first > second {
+		first, second = second, first
+	}
+	m.shards[first].mu.Lock()
+	if second != first {
+		m.shards[second].mu.Lock()
+	}
+	defer func() {
+		if second != first {
+			m.shards[second].mu.Unlock()
+		}
+		m.shards[first].mu.Unlock()
+	}()
+	currentKey := sessionKey{siteID: h.SiteID, visitorID: h.VisitorID}
+	if live := m.shards[currentIndex].sessions[currentKey]; m.canContinue(live, h.TS) {
+		return Result{SessionID: live.sessionID, VisitorID: live.visitorID}
+	}
+	if h.PrevVisitorID != 0 {
+		previousKey := sessionKey{siteID: h.SiteID, visitorID: h.PrevVisitorID}
+		if live := m.shards[previousIndex].sessions[previousKey]; m.canContinue(live, h.TS) {
+			return Result{SessionID: live.sessionID, VisitorID: live.visitorID}
+		}
+	}
+	return Result{}
 }
 
 // Dirty returns at most max changed sessions and removes those entries from

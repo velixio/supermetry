@@ -115,6 +115,110 @@ paths:
         '204': { description: Password changed and other sessions revoked. }
         '429': { description: Too many password checks. }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/private/sites/{site_id}/replays:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listReplays
+      security: [{ cookieAuth: [] }]
+      summary: List session replays
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Replay page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReplayList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site_id}/replays/{session_id}/data:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - { name: session_id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getReplayData
+      security: [{ cookieAuth: [] }]
+      summary: Download replay events
+      responses:
+        '200':
+          description: A gzip-compressed NDJSON event stream
+          content:
+            application/x-ndjson:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site_id}/replays/css/{hash}:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - { name: hash, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{64}$' } }
+    get:
+      operationId: getReplayCSS
+      security: [{ cookieAuth: [] }]
+      summary: Download a replay stylesheet
+      responses:
+        '200':
+          description: A gzip-compressed stylesheet
+          content:
+            text/css:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site_id}/replay-settings:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: getReplaySettings
+      security: [{ cookieAuth: [] }]
+      summary: Get site replay settings
+      responses:
+        '200': { description: Resolved settings and environment locks, content: { application/json: { schema: { $ref: '#/components/schemas/ReplaySiteSettings' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateReplaySettings
+      security: [{ cookieAuth: [] }]
+      summary: Replace site replay settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplaySiteSettingsInput' }
+      responses:
+        '200': { description: Resolved settings, content: { application/json: { schema: { $ref: '#/components/schemas/ReplaySiteSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: A submitted field is locked by an environment variable. }
+  /api/private/instance/replay-storage:
+    get:
+      operationId: getReplayStorage
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Get instance replay storage settings
+      responses:
+        '200': { description: Resolved storage settings without the S3 secret, content: { application/json: { schema: { $ref: '#/components/schemas/ReplayStorageSettings' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      operationId: updateReplayStorage
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Replace instance replay storage settings
+      description: migrate records a background migration request; migration execution is asynchronous.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplayStorageInput' }
+      responses:
+        '200': { description: Resolved storage settings, content: { application/json: { schema: { $ref: '#/components/schemas/ReplayStorageSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: A submitted field is locked by an environment variable. }
   /api/public/v1/events:
     post:
       operationId: submitEvent
@@ -726,6 +830,9 @@ paths:
             type: array
             maxItems: 10
             items: { type: string }
+        - name: has_replay
+          in: query
+          schema: { type: boolean }
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
@@ -2410,10 +2517,128 @@ components:
           description: Week and month intervals group daily cohorts without cross-day identity linkage.
           items:
             $ref: '#/components/schemas/RetentionCohort'
+    ReplayValueBoolean:
+      type: object
+      additionalProperties: false
+      required: [value, locked]
+      properties:
+        value: { type: boolean }
+        locked: { type: boolean }
+    ReplayValueInteger:
+      type: object
+      additionalProperties: false
+      required: [value, locked]
+      properties:
+        value: { type: integer, format: int64 }
+        locked: { type: boolean }
+    ReplayValueString:
+      type: object
+      additionalProperties: false
+      required: [value, locked]
+      properties:
+        value: { type: string }
+        locked: { type: boolean }
+    ReplayTriggers:
+      type: object
+      additionalProperties: false
+      required: [error, rage_click, url, manual, url_patterns]
+      properties:
+        error: { type: boolean }
+        rage_click: { type: boolean }
+        url: { type: boolean }
+        manual: { type: boolean }
+        url_patterns: { type: array, items: { type: string } }
+    ReplaySiteSettingsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled: { type: boolean }
+        mask: { type: boolean }
+        sample_rate: { type: integer, minimum: 0, maximum: 100 }
+        retention_days: { type: integer, minimum: 1, maximum: 365 }
+        quota_bytes: { type: integer, format: int64, minimum: 1 }
+        triggers: { $ref: '#/components/schemas/ReplayTriggers' }
+        consent: { type: string, enum: [auto, always, never] }
+    ReplaySiteSettings:
+      type: object
+      additionalProperties: false
+      required: [enabled, mask, sample_rate, retention_days, quota_bytes, triggers, consent]
+      properties:
+        enabled: { type: boolean }
+        mask: { $ref: '#/components/schemas/ReplayValueBoolean' }
+        sample_rate: { $ref: '#/components/schemas/ReplayValueInteger' }
+        retention_days: { $ref: '#/components/schemas/ReplayValueInteger' }
+        quota_bytes: { $ref: '#/components/schemas/ReplayValueInteger' }
+        triggers: { $ref: '#/components/schemas/ReplayTriggers' }
+        consent: { type: string, enum: [auto, always, never] }
+    ReplayStorageS3Input:
+      type: object
+      additionalProperties: false
+      properties:
+        endpoint: { type: string }
+        bucket: { type: string }
+        region: { type: string }
+        access_key: { type: string }
+        secret_key: { type: string, format: password }
+        prefix: { type: string }
+    ReplayStorageInput:
+      type: object
+      additionalProperties: false
+      required: [migrate]
+      properties:
+        backend: { type: string, enum: [disk, s3] }
+        dir: { type: string }
+        s3: { $ref: '#/components/schemas/ReplayStorageS3Input' }
+        migrate: { type: boolean }
+    ReplayStorageS3:
+      type: object
+      additionalProperties: false
+      required: [endpoint, bucket, region, access_key, prefix, secret_key_set]
+      properties:
+        endpoint: { type: string }
+        bucket: { type: string }
+        region: { type: string }
+        access_key: { type: string }
+        prefix: { type: string }
+        secret_key_set: { type: boolean }
+    ReplayStorageS3Value:
+      type: object
+      additionalProperties: false
+      required: [value, locked]
+      properties:
+        value: { $ref: '#/components/schemas/ReplayStorageS3' }
+        locked: { type: boolean }
+    ReplayStorageSettings:
+      type: object
+      additionalProperties: false
+      required: [backend, dir, s3]
+      properties:
+        backend: { $ref: '#/components/schemas/ReplayValueString' }
+        dir: { $ref: '#/components/schemas/ReplayValueString' }
+        s3: { $ref: '#/components/schemas/ReplayStorageS3Value' }
+    ReplaySummary:
+      type: object
+      additionalProperties: false
+      required: [session_id, started_at, duration_s, pages, bytes, trigger]
+      properties:
+        session_id: { type: integer, format: int64, minimum: 1 }
+        started_at: { type: string, format: date-time }
+        duration_s: { type: integer, format: int64, minimum: 0 }
+        pages: { type: integer, format: int32, minimum: 0 }
+        bytes: { type: integer, format: int64, minimum: 0 }
+        trigger: { type: string }
+        profile_id: { type: [integer, 'null'], format: int64 }
+    ReplayList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/ReplaySummary' } }
+        next_cursor: { type: [string, 'null'] }
     Profile:
       type: object
       additionalProperties: false
-      required: [id, site_id, external_id, traits, first_seen_at, last_seen_at, sessions, events]
+      required: [id, site_id, external_id, traits, first_seen_at, last_seen_at, sessions, events, has_replay]
       properties:
         id: { type: integer, format: int64 }
         site_id: { type: integer, format: int32 }
@@ -2425,10 +2650,11 @@ components:
         last_seen_at: { type: string, format: date-time }
         sessions: { type: integer, format: int64, minimum: 0 }
         events: { type: integer, format: int64, minimum: 0 }
+        has_replay: { type: boolean }
     SessionSummary:
       type: object
       additionalProperties: false
-      required: [id, started_at, duration_ms, pageviews, events, entry_page, exit_page, source, country, city, device, browser, os]
+      required: [id, started_at, duration_ms, pageviews, events, entry_page, exit_page, source, country, city, device, browser, os, has_replay]
       properties:
         id: { type: string, pattern: '^[1-9][0-9]*$' }
         started_at: { type: string, format: date-time }
@@ -2443,6 +2669,7 @@ components:
         device: { type: string }
         browser: { type: string }
         os: { type: string }
+        has_replay: { type: boolean }
         external_id: { type: string }
     SessionList:
       type: object
@@ -2514,7 +2741,7 @@ components:
     EventExploreItem:
       type: object
       additionalProperties: false
-      required: [ts, kind, name, page, country, device, browser, source]
+      required: [ts, kind, name, page, country, device, browser, source, has_replay]
       properties:
         ts: { type: string, format: date-time }
         kind:
@@ -2530,6 +2757,7 @@ components:
         device: { type: string }
         browser: { type: string }
         source: { type: string }
+        has_replay: { type: boolean }
     EventExploreList:
       type: object
       additionalProperties: false

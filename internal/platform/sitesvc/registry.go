@@ -2,6 +2,7 @@ package sitesvc
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -88,6 +89,10 @@ func (r *Registry) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	replayBySite, err := r.loadReplaySettings(ctx)
+	if err != nil {
+		return err
+	}
 	next := &registrySnapshot{
 		byPublic: make(map[string]coresites.Site, len(stored)),
 		byID:     make(map[int32]coresites.Site, len(stored)),
@@ -97,6 +102,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		site.Replay = replayBySite[site.ID]
 		next.byPublic[site.PublicID] = site
 		next.byID[site.ID] = site
 	}
@@ -104,11 +110,82 @@ func (r *Registry) refresh(ctx context.Context) error {
 	return nil
 }
 
+func (r *Registry) loadReplaySettings(ctx context.Context) (map[int32]coresites.ReplaySiteInput, error) {
+	rows, err := r.store.Pool.Query(ctx, `
+		select id, coalesce(settings->'replay', '{}'::jsonb)
+		from sites
+		where deleted_at is null`)
+	if err != nil {
+		return nil, fmt.Errorf("query replay site settings: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[int32]coresites.ReplaySiteInput)
+	for rows.Next() {
+		var id int32
+		var raw []byte
+		if err := rows.Scan(&id, &raw); err != nil {
+			return nil, fmt.Errorf("scan replay site settings: %w", err)
+		}
+		settings, err := coresites.ParseReplaySiteInput(raw)
+		if err != nil {
+			return nil, fmt.Errorf("parse replay settings for site %d: %w", id, err)
+		}
+		result[id] = settings
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate replay site settings: %w", err)
+	}
+	return result, nil
+}
+
 func cloneSite(site coresites.Site) coresites.Site {
 	site.AllowedHosts = append([]string(nil), site.AllowedHosts...)
 	site.Exclusions = site.Exclusions.Clone()
 	site.Tracker = cloneTrackerSettings(site.Tracker)
+	site.Replay = cloneReplaySettings(site.Replay)
 	return site
+}
+
+func cloneReplaySettings(settings coresites.ReplaySiteInput) coresites.ReplaySiteInput {
+	cloneBool := func(value *bool) *bool {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	cloneInt := func(value *int) *int {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	cloneInt64 := func(value *int64) *int64 {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	cloneString := func(value *string) *string {
+		if value == nil {
+			return nil
+		}
+		copied := *value
+		return &copied
+	}
+	settings.Mask = cloneBool(settings.Mask)
+	settings.SampleRate = cloneInt(settings.SampleRate)
+	settings.RetentionDays = cloneInt(settings.RetentionDays)
+	settings.QuotaBytes = cloneInt64(settings.QuotaBytes)
+	settings.Consent = cloneString(settings.Consent)
+	settings.Triggers.Error = cloneBool(settings.Triggers.Error)
+	settings.Triggers.RageClick = cloneBool(settings.Triggers.RageClick)
+	settings.Triggers.URL = cloneBool(settings.Triggers.URL)
+	settings.Triggers.Manual = cloneBool(settings.Triggers.Manual)
+	settings.Triggers.URLPatterns = append([]string(nil), settings.Triggers.URLPatterns...)
+	return settings
 }
 
 func cloneTrackerSettings(settings coresites.TrackerSettingsInput) coresites.TrackerSettingsInput {

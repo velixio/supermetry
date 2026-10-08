@@ -14,6 +14,7 @@ import (
 	"panel/internal/api"
 	"panel/internal/platform/audit"
 	"panel/internal/platform/authz"
+	"panel/internal/replay"
 	coresites "panel/internal/sites"
 )
 
@@ -50,7 +51,8 @@ func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := h.deps.Store.Pool.Query(r.Context(), `
 		select p.id,p.site_id,p.external_id,p.traits,p.first_seen_at,p.last_seen_at,
-		       count(distinct e.session_id)::int8,count(e.profile_id)::int8
+		       count(distinct e.session_id)::int8,count(e.profile_id)::int8,
+		       exists(select 1 from replay_sessions rr where rr.site_id=p.site_id and rr.profile_id=p.id)
 		from profiles p
 		left join events e on e.site_id=p.site_id and e.profile_id=p.id
 		where p.site_id=$1
@@ -92,7 +94,7 @@ type profileScanner interface{ Scan(...any) error }
 func scanProfile(row profileScanner) (api.Profile, error) {
 	var profile api.Profile
 	var traits []byte
-	if err := row.Scan(&profile.Id, &profile.SiteId, &profile.ExternalId, &traits, &profile.FirstSeenAt, &profile.LastSeenAt, &profile.Sessions, &profile.Events); err != nil {
+	if err := row.Scan(&profile.Id, &profile.SiteId, &profile.ExternalId, &traits, &profile.FirstSeenAt, &profile.LastSeenAt, &profile.Sessions, &profile.Events, &profile.HasReplay); err != nil {
 		return api.Profile{}, err
 	}
 	profile.Traits = make(map[string]string)
@@ -163,7 +165,7 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 	detail := api.ProfileDetail{
 		Id: profile.Id, SiteId: profile.SiteId, ExternalId: profile.ExternalId, Traits: profile.Traits,
 		FirstSeenAt: profile.FirstSeenAt, LastSeenAt: profile.LastSeenAt, Sessions: profile.Sessions,
-		Events: profile.Events, Timeline: timeline, NextCursor: next,
+		Events: profile.Events, HasReplay: profile.HasReplay, Timeline: timeline, NextCursor: next,
 	}
 	writeJSON(w, http.StatusOK, detail)
 }
@@ -233,6 +235,35 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
+	if h.deps.ReplayStore != nil {
+		rows, queryErr := h.deps.Store.Pool.Query(r.Context(), `
+			select distinct session_id from replay_sessions
+			where site_id=$1 and profile_id=$2 order by session_id`, site.ID, profile.Id)
+		if queryErr != nil {
+			serviceError(w, queryErr)
+			return
+		}
+		var sessionIDs []int64
+		for rows.Next() {
+			var sessionID int64
+			if scanErr := rows.Scan(&sessionID); scanErr != nil {
+				rows.Close()
+				serviceError(w, scanErr)
+				return
+			}
+			sessionIDs = append(sessionIDs, sessionID)
+		}
+		queryErr = rows.Err()
+		rows.Close()
+		if queryErr != nil {
+			serviceError(w, queryErr)
+			return
+		}
+		if eraseErr := replay.EraseSessions(r.Context(), h.deps.Store.Pool, h.deps.ReplayStore, site.ID, sessionIDs); eraseErr != nil {
+			serviceError(w, eraseErr)
+			return
+		}
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -248,7 +279,8 @@ func (h *handler) profilePrincipal(w http.ResponseWriter, r *http.Request, actio
 	}
 	row := h.deps.Store.Pool.QueryRow(r.Context(), `
 		select p.id,p.site_id,p.external_id,p.traits,p.first_seen_at,p.last_seen_at,
-		       count(distinct e.session_id)::int8,count(e.profile_id)::int8
+		       count(distinct e.session_id)::int8,count(e.profile_id)::int8,
+		       exists(select 1 from replay_sessions rr where rr.site_id=p.site_id and rr.profile_id=p.id)
 		from profiles p left join events e on e.site_id=p.site_id and e.profile_id=p.id
 		where p.id=$1 group by p.id`, id)
 	profile, err := scanProfile(row)

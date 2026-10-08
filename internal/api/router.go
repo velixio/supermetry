@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -49,6 +50,7 @@ type Deps struct {
 	SessionExplore sessionExploreService
 	Heatmaps       heatmapService
 	Ingest         http.Handler
+	Replay         http.Handler
 	PublicAuth     Authenticator
 	PrivateAuth    Authenticator
 	Sites          sites.Registry // resolves site ownership for every site-scoped request
@@ -120,6 +122,12 @@ func NewRouter(deps Deps) http.Handler {
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
 		mux.Handle("POST "+deps.Config.EventPath, deps.Ingest)
+	}
+	if deps.Config.Replay.Enabled && deps.Replay != nil {
+		mux.Handle("POST /api/replay/start", deps.Replay)
+		mux.Handle("OPTIONS /api/replay/start", deps.Replay)
+		mux.Handle("POST /api/replay/chunk", deps.Replay)
+		mux.Handle("OPTIONS /api/replay/chunk", deps.Replay)
 	}
 	if deps.Config.TrackerPath != "" {
 		mux.Handle("GET "+deps.Config.TrackerPath, tracker.Handler())
@@ -288,6 +296,12 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"GET " + privatePrefix + "/sites/{site}/profiles",
 		"GET " + privatePrefix + "/profiles/{profile}",
 		"DELETE " + privatePrefix + "/profiles/{profile}",
+		"GET " + privatePrefix + "/sites/{site}/replays",
+		"GET " + privatePrefix + "/sites/{site}/replays/{replay_path...}",
+		"GET " + privatePrefix + "/sites/{site}/replay-settings",
+		"PUT " + privatePrefix + "/sites/{site}/replay-settings",
+		"GET " + privatePrefix + "/instance/replay-storage",
+		"PUT " + privatePrefix + "/instance/replay-storage",
 	} {
 		mux.Handle(pattern, platform)
 	}
@@ -409,6 +423,17 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	if err := yaml.Unmarshal(source, &document); err != nil {
 		writeProblem(w, internalProblem())
 		return
+	}
+	// The source contract also generates the dashboard client. Keep private
+	// dashboard operations out of the public API document served to integrators.
+	if root, ok := document.(map[string]any); ok {
+		if paths, ok := root["paths"].(map[string]any); ok {
+			for route := range paths {
+				if strings.HasPrefix(route, "/api/private/sites/") || strings.HasPrefix(route, "/api/private/instance/") {
+					delete(paths, route)
+				}
+			}
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(document)

@@ -81,6 +81,7 @@ func backupCommandWithRuntime(ctx context.Context, args []string, output io.Writ
 		fmt.Fprintln(output, "usage: panel backup [--out FILE]")
 		fmt.Fprintln(output, "PANEL_SECRET_KEY is not included; restore it separately to decrypt TOTP secrets.")
 		fmt.Fprintln(output, "GeoIP .mmdb files are excluded because they can be downloaded again.")
+		fmt.Fprintln(output, "Replay files are excluded; back them up separately from the replay storage directory.")
 		flags.PrintDefaults()
 	}
 	defaultName := "panel-backup-" + rt.now().UTC().Format("20060102-150405") + ".tar.gz"

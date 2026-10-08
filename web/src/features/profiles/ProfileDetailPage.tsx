@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
+import { ReplayLink } from '@/components/replay/ReplayLink'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,12 +32,16 @@ export function ProfileDetailPage({
   orgId,
   role,
   onDeleted,
+  org,
+  site,
 }: {
   profileId: number
   siteId?: number
   orgId: number
   role: Role
   onDeleted: () => void
+  org?: string
+  site?: string
 }) {
   const [cursors, setCursors] = useState<string[]>([])
   const cursor = cursors.at(-1)
@@ -54,6 +59,7 @@ export function ProfileDetailPage({
           <p className="text-sm text-muted-foreground">Profile</p>
           <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.data.external_id}</h1>
         </header>
+        {org && site ? <ReplayLink hasReplay={(profile.data as typeof profile.data & { has_replay?: boolean }).has_replay} org={org} site={site} /> : null}
         {canDelete ? (
           <AlertDialog>
             <AlertDialogTrigger asChild><Button variant="destructive">Delete profile</Button></AlertDialogTrigger>
@@ -100,13 +106,14 @@ export function ProfileDetailPage({
         ) : (
           <div className="rounded-xl border bg-card">
             <Table aria-label="Profile event timeline">
-              <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Event</TableHead><TableHead>Path</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Event</TableHead><TableHead>Path</TableHead><TableHead>Replay</TableHead></TableRow></TableHeader>
               <TableBody>
                 {profile.data.timeline.map((event, index) => (
                   <TableRow key={`${event.ts}-${event.name}-${index}`}>
                     <TableCell>{new Date(event.ts).toLocaleString()}</TableCell>
                     <TableCell className="font-medium">{event.name || event.kind}</TableCell>
                     <TableCell>{event.path || '—'}</TableCell>
+                    <TableCell>{org && site ? <ReplayLink hasReplay={(event as { has_replay?: boolean }).has_replay} org={org} site={site} /> : null}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

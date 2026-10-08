@@ -10,8 +10,8 @@ type Problem = components['schemas']['Problem']
 
 export const sessionKeys = {
   all: (siteId: number) => ['sessions', siteId] as const,
-  list: (siteId: number, dateRange: { from: string; to: string }, filters: Filter[], cursor?: string) =>
-    [...sessionKeys.all(siteId), 'list', { dateRange, filters, cursor }] as const,
+  list: (siteId: number, dateRange: { from: string; to: string }, filters: Filter[], cursor?: string, hasReplay = false) =>
+    [...sessionKeys.all(siteId), 'list', { dateRange, filters, cursor, hasReplay }] as const,
   detail: (siteId: number, sessionId?: string) =>
     [...sessionKeys.all(siteId), 'detail', sessionId] as const,
 }
@@ -21,9 +21,10 @@ export function useSessions(
   dateRange: { from: string; to: string },
   filters: Filter[],
   cursor?: string,
+  hasReplay = false,
 ) {
   return useQuery<SessionsResponse, Problem>({
-    queryKey: sessionKeys.list(siteId, dateRange, filters, cursor),
+    queryKey: sessionKeys.list(siteId, dateRange, filters, cursor, hasReplay),
     queryFn: async ({ signal }) => {
       const { data, error } = await api.GET('/api/private/sites/{site_id}/sessions', {
         params: {
@@ -34,6 +35,7 @@ export function useSessions(
             filter: filters.map((filter) => `${filter.dimension}:${filter.operator}:${filter.values.join(',')}`),
             cursor,
             limit: 50,
+            has_replay: hasReplay ? true : undefined,
           },
         },
         signal,
