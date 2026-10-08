@@ -11,7 +11,11 @@ type MountPlayer = (target: HTMLElement, events: unknown[]) => void | (() => voi
 async function mountRRWebPlayer(target: HTMLElement, events: unknown[]): Promise<() => void> {
   await import('rrweb-player/dist/style.css')
   const { default: RRWebPlayer } = await import('rrweb-player')
-  const player = new RRWebPlayer({ target, props: { events: events as never[] } })
+  // Fit the card: rrweb-player defaults to 1024px wide and overflows narrower
+  // layouts. 80px leaves room for its controller below the frame.
+  const width = Math.max(320, target.clientWidth)
+  const height = Math.max(240, Math.round(width * 0.5625) - 80)
+  const player = new RRWebPlayer({ target, props: { events: events as never[], width, height } })
   return () => {
     (player as unknown as { $destroy?: () => void }).$destroy?.()
     target.replaceChildren()
