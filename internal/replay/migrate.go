@@ -13,9 +13,11 @@ import (
 const migrationBatchSize = 256
 
 type migrationCheckpoint struct {
-	LastKey       string `json:"last_key,omitempty"`
-	PendingDelete string `json:"pending_delete,omitempty"`
-	Complete      bool   `json:"complete"`
+	LastKey       string          `json:"last_key,omitempty"`
+	PendingDelete string          `json:"pending_delete,omitempty"`
+	Complete      bool            `json:"complete"`
+	From          json.RawMessage `json:"from,omitempty"`
+	To            json.RawMessage `json:"to,omitempty"`
 }
 
 func RunMigration(ctx context.Context, pool *pgxpool.Pool, from, to BlobStore) (result error) {

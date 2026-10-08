@@ -185,6 +185,7 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "profile erasure")
 		return
 	}
+	var replaySessionIDs []int64
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		ctx := r.Context()
 		if err := h.deps.ProfileTombstones.RememberTx(ctx, tx, site.ID, profile.ExternalId); err != nil {
@@ -196,6 +197,29 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 			from events where site_id=$1 and profile_id=$2
 			group by session_id, visitor_id, local_day`, site.ID, profile.Id); err != nil {
 			return err
+		}
+		if h.deps.ReplayStore != nil {
+			rows, err := tx.Query(ctx, `
+				select session_id from profile_erasure
+				union
+				select session_id from replay_sessions where site_id=$1 and profile_id=$2
+				order by session_id`, site.ID, profile.Id)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				var sessionID int64
+				if err := rows.Scan(&sessionID); err != nil {
+					rows.Close()
+					return err
+				}
+				replaySessionIDs = append(replaySessionIDs, sessionID)
+			}
+			rowsErr := rows.Err()
+			rows.Close()
+			if rowsErr != nil {
+				return rowsErr
+			}
 		}
 		for _, sql := range []string{
 			`delete from events where site_id=$1 and profile_id=$2`,
@@ -236,30 +260,7 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.deps.ReplayStore != nil {
-		rows, queryErr := h.deps.Store.Pool.Query(r.Context(), `
-			select distinct session_id from replay_sessions
-			where site_id=$1 and profile_id=$2 order by session_id`, site.ID, profile.Id)
-		if queryErr != nil {
-			serviceError(w, queryErr)
-			return
-		}
-		var sessionIDs []int64
-		for rows.Next() {
-			var sessionID int64
-			if scanErr := rows.Scan(&sessionID); scanErr != nil {
-				rows.Close()
-				serviceError(w, scanErr)
-				return
-			}
-			sessionIDs = append(sessionIDs, sessionID)
-		}
-		queryErr = rows.Err()
-		rows.Close()
-		if queryErr != nil {
-			serviceError(w, queryErr)
-			return
-		}
-		if eraseErr := replay.EraseSessions(r.Context(), h.deps.Store.Pool, h.deps.ReplayStore, site.ID, sessionIDs); eraseErr != nil {
+		if eraseErr := replay.EraseSessions(r.Context(), h.deps.Store.Pool, h.deps.ReplayStore, site.ID, replaySessionIDs); eraseErr != nil {
 			serviceError(w, eraseErr)
 			return
 		}

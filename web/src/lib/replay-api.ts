@@ -1,50 +1,15 @@
 import { api } from './api'
 
-export type LockedValue<T> = { value: T; locked: boolean }
+import type { components } from './api.gen'
 
-export type ReplayTriggers = {
-  error: boolean
-  rage_click: boolean
-  url: boolean
-  manual: boolean
-  url_patterns: string[]
-}
-
-export type SiteSettings = {
-  enabled: boolean
-  mask: LockedValue<boolean>
-  sample_rate: LockedValue<number>
-  retention_days: LockedValue<number>
-  quota_bytes: LockedValue<number>
-  triggers: ReplayTriggers
-  consent: 'auto' | 'always' | 'never'
-}
-
-export type ReplayListItem = {
+export type SiteSettings = components['schemas']['ReplaySiteSettings']
+export type ReplayListItem = Omit<components['schemas']['ReplaySummary'], 'session_id'> & {
   session_id: string
-  started_at: string
-  duration_s: number
-  pages: number
-  bytes: number
-  trigger: string
-  profile_id?: number | null
 }
-
 export type ReplayList = { items: ReplayListItem[]; next_cursor?: string | null }
-
-export type S3StorageValue = {
-  endpoint: string
-  bucket: string
-  region: string
-  access_key: string
-  prefix: string
-  secret_key_set: boolean
-}
-
-export type ReplayStorageSettings = {
-  backend: LockedValue<'disk' | 's3'>
-  dir: LockedValue<string>
-  s3: LockedValue<S3StorageValue>
+type GeneratedReplayStorageSettings = components['schemas']['ReplayStorageSettings']
+export type ReplayStorageSettings = Omit<GeneratedReplayStorageSettings, 'backend'> & {
+  backend: Omit<GeneratedReplayStorageSettings['backend'], 'value'> & { value: 'disk' | 's3' }
 }
 
 export class ReplayApiError extends Error {
@@ -53,42 +18,70 @@ export class ReplayApiError extends Error {
   }
 }
 
-type Method = 'GET' | 'PUT'
-type ApiResult = { data?: unknown; error?: unknown; response: Response }
-type LooseClient = Record<Method, (path: string, options: Record<string, unknown>) => Promise<ApiResult>>
+function resultError(result: { error?: unknown; response: Response }): ReplayApiError {
+  const detail = (result.error as { detail?: string } | undefined)?.detail
+  return new ReplayApiError(result.response.status, detail ?? `Request failed (${result.response.status})`)
+}
 
-async function request<T>(method: Method, path: string, options: Record<string, unknown> = {}): Promise<T> {
-  const result = await (api as unknown as LooseClient)[method](path, options)
+function requireData<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (!result.response.ok) {
-    const detail = (result.error as { detail?: string } | undefined)?.detail
-    throw new ReplayApiError(result.response.status, detail ?? `Request failed (${result.response.status})`)
+    throw resultError(result)
   }
   if (result.data === undefined) throw new ReplayApiError(result.response.status, 'The replay response was empty.')
-  return result.data as T
+  return result.data
 }
 
-export function getReplaySettings(siteId: number, signal?: AbortSignal): Promise<SiteSettings> {
-  return request('GET', `/api/private/sites/${siteId}/replay-settings`, { signal })
+export async function getReplaySettings(siteId: number, signal?: AbortSignal): Promise<SiteSettings> {
+  return requireData(await api.GET('/api/private/sites/{site_id}/replay-settings', {
+    params: { path: { site_id: siteId } }, signal,
+  }))
 }
 
-export function putReplaySettings(siteId: number, settings: SiteSettings): Promise<SiteSettings> {
-  return request('PUT', `/api/private/sites/${siteId}/replay-settings`, { body: settings })
+export async function putReplaySettings(siteId: number, settings: SiteSettings): Promise<SiteSettings> {
+  return requireData(await api.PUT('/api/private/sites/{site_id}/replay-settings', {
+    params: { path: { site_id: siteId } },
+    body: {
+      enabled: settings.enabled,
+      mask: settings.mask.value,
+      sample_rate: settings.sample_rate.value,
+      retention_days: settings.retention_days.value,
+      quota_bytes: settings.quota_bytes.value,
+      triggers: settings.triggers,
+      consent: settings.consent,
+    },
+  }))
 }
 
-export function listReplays(
+export async function listReplays(
   siteId: number,
   query: { from: string; to: string; cursor?: string; limit?: number },
   signal?: AbortSignal,
 ): Promise<ReplayList> {
-  return request('GET', `/api/private/sites/${siteId}/replays`, { params: { query }, signal })
+  const data = requireData(await api.GET('/api/private/sites/{site_id}/replays', {
+    params: { path: { site_id: siteId }, query }, signal,
+  }))
+  return { ...data, items: data.data.map((item) => ({ ...item, session_id: String(item.session_id) })) }
 }
 
-export function getReplayStorage(signal?: AbortSignal): Promise<ReplayStorageSettings> {
-  return request('GET', '/api/private/instance/replay-storage', { signal })
+export async function getReplayStorage(signal?: AbortSignal): Promise<ReplayStorageSettings> {
+  return requireData(await api.GET('/api/private/instance/replay-storage', { signal })) as ReplayStorageSettings
 }
 
-export function putReplayStorage(settings: ReplayStorageSettings, migrate: boolean): Promise<ReplayStorageSettings> {
-  return request('PUT', '/api/private/instance/replay-storage', { body: { ...settings, migrate } })
+export async function putReplayStorage(settings: ReplayStorageSettings, migrate: boolean): Promise<ReplayStorageSettings> {
+  return requireData(await api.PUT('/api/private/instance/replay-storage', {
+    body: {
+      backend: settings.backend.value,
+      dir: settings.dir.value,
+      s3: {
+        endpoint: settings.s3.value.endpoint,
+        bucket: settings.s3.value.bucket,
+        region: settings.s3.value.region,
+        access_key: settings.s3.value.access_key,
+        prefix: settings.s3.value.prefix,
+      },
+      migrate,
+    },
+  })) as ReplayStorageSettings
 }
 
 export type ReplayData = { events: unknown[]; truncated: boolean }
@@ -112,10 +105,14 @@ export function parseReplayNDJSON(value: string): ReplayData {
 }
 
 export async function getReplayData(siteId: number, sessionId: string, signal?: AbortSignal): Promise<ReplayData> {
-  const response = await fetch(`/api/private/sites/${siteId}/replays/${encodeURIComponent(sessionId)}/data`, {
-    credentials: 'same-origin',
-    signal,
+  const result = await api.GET('/api/private/sites/{site_id}/replays/{session_id}/data', {
+    params: { path: { site_id: siteId, session_id: Number(sessionId) } }, signal, parseAs: 'text',
   })
-  if (!response.ok) throw new ReplayApiError(response.status, `Replay data request failed (${response.status})`)
-  return parseReplayNDJSON(await response.text())
+  return parseReplayNDJSON(requireData(result))
+}
+
+export async function getReplayCSS(siteId: number, hash: string, signal?: AbortSignal): Promise<string> {
+  return requireData(await api.GET('/api/private/sites/{site_id}/replays/css/{hash}', {
+    params: { path: { site_id: siteId, hash } }, signal, parseAs: 'text',
+  }))
 }

@@ -143,3 +143,16 @@ func TestPrivacySignalDropsAreExportedSeparately(t *testing.T) {
 		t.Fatalf("Prometheus output missing privacy signal drop counter:\n%s", b.String())
 	}
 }
+
+func TestReplayDiskLowIsExported(t *testing.T) {
+	health.ReplayDiskLow.Store(1)
+	t.Cleanup(func() { health.ReplayDiskLow.Store(0) })
+	if got := health.Snapshot()["replay_disk_low"]; got != 1 {
+		t.Fatalf("replay_disk_low = %v, want 1", got)
+	}
+	var b strings.Builder
+	health.WritePrometheus(&b)
+	if !strings.Contains(b.String(), "panel_replay_disk_low 1") {
+		t.Fatalf("Prometheus output missing replay disk guard:\n%s", b.String())
+	}
+}

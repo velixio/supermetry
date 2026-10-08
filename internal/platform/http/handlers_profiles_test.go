@@ -248,8 +248,8 @@ func TestProfileDeleteRemovesReplays(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := f.pool.Exec(ctx, `
-		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,profile_id,blob_key)
-		values ($1,100,$2,$2,$3,6,1,$4,$5)`, f.siteID, day.Add(time.Hour), day, f.profileID, key); err != nil {
+		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+		values ($1,100,$2,$2,$3,6,1,$4)`, f.siteID, day.Add(time.Hour), day, key); err != nil {
 		t.Fatal(err)
 	}
 
@@ -262,7 +262,7 @@ func TestProfileDeleteRemovesReplays(t *testing.T) {
 		t.Fatal("profile replay blob still exists")
 	}
 	var rows int
-	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where profile_id=$1`, f.profileID).Scan(&rows); err != nil {
+	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
 	if rows != 0 {

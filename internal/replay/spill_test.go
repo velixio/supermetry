@@ -3,6 +3,7 @@ package replay
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 	"time"
 )
@@ -27,6 +28,35 @@ func TestSpillUploadsOnSessionClose(t *testing.T) {
 	}
 	if got := string(fake.object("panel/" + key)); got != "firstsecond" {
 		t.Fatalf("uploaded object = %q, want firstsecond", got)
+	}
+}
+
+func TestSpillClosesOnlyIdleSessions(t *testing.T) {
+	t.Parallel()
+	fake := newFakeS3(t)
+	store := newTestS3Store(t, fake)
+	now := time.Now()
+	day := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
+	idleKey := SessionKey(7, day, 1)
+	activeKey := SessionKey(7, day, 2)
+	for _, key := range []string{idleKey, activeKey} {
+		if _, err := store.Append(context.Background(), key, bytes.NewBufferString(key)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	idle, _ := store.spills.get(idleKey)
+	if err := os.Chtimes(idle.path, now.Add(-time.Hour), now.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.CloseIdleSessions(context.Background(), now.Add(-30*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.object("panel/" + idleKey); got == nil {
+		t.Fatal("idle spill was not uploaded")
+	}
+	if got := fake.object("panel/" + activeKey); got != nil {
+		t.Fatal("active spill was uploaded")
 	}
 }
 

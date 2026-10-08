@@ -21,6 +21,11 @@ func NewCSSHandler(store BlobStore, lookupSite func(publicID string) (siteID int
 		onDrop = func() {}
 	}
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		setCSSCORS(response, request)
+		if request.Method == http.MethodOptions {
+			response.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if request.Method != http.MethodPut {
 			response.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -84,6 +89,18 @@ func NewCSSHandler(store BlobStore, lookupSite func(publicID string) (siteID int
 		}
 		response.WriteHeader(http.StatusOK)
 	})
+}
+
+func setCSSCORS(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		origin = "*"
+	} else {
+		w.Header().Add("Vary", "Origin")
+	}
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
 func validCSSHash(value string) bool {

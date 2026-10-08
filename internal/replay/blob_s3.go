@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -156,13 +157,43 @@ func (s *S3Store) CloseSession(ctx context.Context, key string) error {
 	}
 	spill.mu.Lock()
 	defer spill.mu.Unlock()
+	return s.closeSpill(ctx, spill)
+}
+
+// CloseIdleSessions seals and uploads spill files whose last write predates
+// idleBefore. The spill lock makes the age check atomic with sealing.
+func (s *S3Store) CloseIdleSessions(ctx context.Context, idleBefore time.Time) error {
+	var result error
+	for _, key := range s.spills.keys() {
+		spill, ok := s.spills.get(key)
+		if !ok {
+			continue
+		}
+		spill.mu.Lock()
+		info, err := os.Stat(spill.path)
+		if errors.Is(err, os.ErrNotExist) || err == nil && info.ModTime().After(idleBefore) {
+			spill.mu.Unlock()
+			continue
+		}
+		if err != nil {
+			result = errors.Join(result, fmt.Errorf("stat replay spill: %w", err))
+			spill.mu.Unlock()
+			continue
+		}
+		result = errors.Join(result, s.closeSpill(ctx, spill))
+		spill.mu.Unlock()
+	}
+	return result
+}
+
+func (s *S3Store) closeSpill(ctx context.Context, spill *spillFile) error {
 	spill.sealed = true
 	file, err := ioFileWithSize(spill.path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	_, err = s.client.PutObject(ctx, s.bucket, s.objectKey(key), file, file.size, minio.PutObjectOptions{
+	_, err = s.client.PutObject(ctx, s.bucket, s.objectKey(spill.key), file, file.size, minio.PutObjectOptions{
 		DisableMultipart: true, DisableContentSha256: true,
 	})
 	if err != nil {
