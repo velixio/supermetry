@@ -2,7 +2,7 @@
   var s = document.currentScript, d = s.dataset;
   var t = window.panel && window.panel.track;
   if (!t) return;
-  var extensions = (d.downloadExt || "pdf,xlsx,docx,csv,txt,zip,mp3,mp4,mov,avi,wav,pptx,ppt,xls,doc").toLowerCase().split(",");
+  var extensions = (d.downloadExt || "pdf,xlsx,docx,csv,txt,zip,rar,7z,gz,dmg,exe,msi,pkg,apk,mp3,mp4,mov,avi,wav,key,pptx,ppt,xls,doc,epub,iso").toLowerCase().split(",");
 
   function link(e) {
     if (e.button > 1) return;
@@ -145,23 +145,27 @@
     function heatClick(e) {
       const width = root.scrollWidth || 1;
       if (points.length < 200) points.push([
-        bound(e.clientX * 1000 / width, 1000),
+        bound(e.pageX * 1000 / width, 1000),
         bound(e.pageY, 100000)
       ]);
     }
 
     function sendHeatmap() {
       if (!points.length) return;
-      const stringify = JSON.stringify;
-      JSON.stringify = function (payload) {
-        payload.clicks = points;
-        payload.doc_h = bound(root.scrollHeight, 100000);
-        payload.vw = bound(innerWidth, 10000);
-        return stringify(payload);
-      };
-      t("heatmap");
-      JSON.stringify = stringify;
+      const body = JSON.stringify({
+        site: d.site,
+        name: "heatmap",
+        url: location.href,
+        screen_width: screen.width,
+        clicks: points,
+        doc_h: bound(root.scrollHeight, 100000),
+        vw: bound(innerWidth, 10000)
+      });
+      const endpoint = d.api || "/api/public/v1/events";
       points = [];
+      if (!(navigator.sendBeacon && navigator.sendBeacon(endpoint, new Blob([body], {type: "text/plain"})))) {
+        fetch(endpoint, {method: "POST", headers: {"Content-Type": "text/plain"}, body: body, keepalive: true}).catch(function () {});
+      }
     }
 
     document.addEventListener("click", heatClick);
