@@ -19,6 +19,7 @@ import (
 	"panel/internal/dict"
 	"panel/internal/ingest"
 	"panel/internal/realtime"
+	"panel/internal/replay"
 	"panel/internal/session"
 	"panel/internal/sites"
 	"panel/internal/tracker"
@@ -120,9 +121,27 @@ func NewRouter(deps Deps) http.Handler {
 		mux.Handle("GET "+deps.Config.TrackerPath, tracker.Handler())
 		mux.Handle("GET "+tracker.FullPath(deps.Config.TrackerPath), tracker.FullHandler())
 		if deps.Sites != nil {
-			mux.Handle("GET "+path.Dir(deps.Config.TrackerPath)+"/", tracker.SiteHandler(deps.Sites))
+			mux.Handle("GET "+path.Dir(deps.Config.TrackerPath)+"/", tracker.SiteHandler(deps.Sites, deps.Config.Replay))
 		}
 	}
+	mux.HandleFunc("GET /replay.js", func(w http.ResponseWriter, request *http.Request) {
+		if !deps.Config.Replay.Enabled {
+			http.NotFound(w, request)
+			return
+		}
+		body, etag := replay.ReplayJS()
+		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("ETag", etag)
+		if request.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		if request.Method != http.MethodHead {
+			_, _ = w.Write(body)
+		}
+	})
 	mux.HandleFunc("GET /api/public/openapi.json", serveOpenAPI)
 	if deps.UI != nil {
 		// Least specific pattern: API, intake, tracker and ops routes above take precedence.

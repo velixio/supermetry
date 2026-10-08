@@ -161,8 +161,10 @@ func TestMinifiedTrackerGzipSize(t *testing.T) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if got := compressed.Len(); got >= 1024 {
-		t.Fatalf("gzipped tracker = %d bytes, want under 1024", got)
+	// Replay is full-build-only. Keep the core at or below the checked-in
+	// pre-replay artifact's size under this deterministic Go gzip encoder.
+	if got := compressed.Len(); got > 1004 {
+		t.Fatalf("gzipped tracker = %d bytes, want no more than unchanged 1004-byte baseline", got)
 	}
 }
 
@@ -183,7 +185,7 @@ func TestMinifiedFullTrackerGzipSize(t *testing.T) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if got := compressed.Len(); got >= 3584 {
-		t.Fatalf("gzipped full tracker = %d bytes, want under 3584", got)
+	if got := compressed.Len(); got > 3002+400 {
+		t.Fatalf("gzipped full tracker = %d bytes, want at most 400 bytes over 3002-byte baseline", got)
 	}
 }

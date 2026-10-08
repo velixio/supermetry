@@ -9,14 +9,18 @@ import (
 	"strings"
 	"testing"
 
+	"panel/internal/config"
+	"panel/internal/replay"
 	"panel/internal/sites"
 )
+
+func noReplay() replay.SiteSettings { return replay.SiteSettings{} }
 
 func TestBuildScriptDefaultsToFullTracker(t *testing.T) {
 	t.Parallel()
 
 	const publicID = "abc123def456"
-	got := BuildScript(publicID, (sites.TrackerSettingsInput{}).Resolve(true))
+	got := BuildScript(publicID, (sites.TrackerSettingsInput{}).Resolve(true), noReplay())
 	wantPrelude := `(d=>{d.site??="abc123def456";d.heatmap??="true";})(document.currentScript.dataset);` + "\n"
 	if !bytes.HasPrefix(got.Body, []byte(wantPrelude)) {
 		t.Fatalf("body prefix = %q, want %q", got.Body[:min(len(got.Body), len(wantPrelude))], wantPrelude)
@@ -56,7 +60,7 @@ func TestBuildScriptEmitsOnlyNonDefaultSwitches(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			body := string(BuildScript("abc123def456", test.settings).Body)
+			body := string(BuildScript("abc123def456", test.settings, noReplay()).Body)
 			prelude, _, ok := strings.Cut(body, "\n")
 			if !ok {
 				t.Fatal("script has no prelude separator")
@@ -75,7 +79,7 @@ func TestBuildScriptPreludeStaysUnderLimit(t *testing.T) {
 	t.Parallel()
 
 	settings := sites.TrackerSettings{Hash: true}
-	body := string(BuildScript("abc123def456", settings).Body)
+	body := string(BuildScript("abc123def456", settings, noReplay()).Body)
 	prelude, _, ok := strings.Cut(body, "\n")
 	if !ok {
 		t.Fatal("script has no prelude separator")
@@ -88,7 +92,7 @@ func TestBuildScriptPreludeStaysUnderLimit(t *testing.T) {
 func TestBuildScriptUsesCoreWhenEveryExtensionIsOff(t *testing.T) {
 	t.Parallel()
 
-	got := BuildScript("abc123def456", sites.TrackerSettings{})
+	got := BuildScript("abc123def456", sites.TrackerSettings{}, noReplay())
 	_, source, ok := bytes.Cut(got.Body, []byte("\n"))
 	if !ok {
 		t.Fatal("script has no prelude separator")
@@ -105,8 +109,8 @@ func TestBuildScriptIncludesSiteInBodyAndETag(t *testing.T) {
 	t.Parallel()
 
 	settings := (sites.TrackerSettingsInput{}).Resolve(true)
-	first := BuildScript("abc123def456", settings)
-	second := BuildScript("xyz987uvw654", settings)
+	first := BuildScript("abc123def456", settings, noReplay())
+	second := BuildScript("xyz987uvw654", settings, noReplay())
 	if bytes.Equal(first.Body, second.Body) {
 		t.Fatal("different site IDs produced identical bodies")
 	}
@@ -130,7 +134,7 @@ func (r scriptRegistry) All() []sites.Site { return nil }
 
 func TestSiteHandlerServesAndRevalidatesGeneratedScript(t *testing.T) {
 	registry := scriptRegistry{"abc123def456": {PublicID: "abc123def456", HeatmapsEnabled: true}}
-	handler := SiteHandler(registry)
+	handler := SiteHandler(registry, config.ReplayEnv{})
 
 	request := httptest.NewRequest(http.MethodGet, "/js/abc123def456.js", nil)
 	response := httptest.NewRecorder()
@@ -169,7 +173,7 @@ func TestSiteHandlerServesAndRevalidatesGeneratedScript(t *testing.T) {
 func TestSiteHandlerRejectsUnknownAndMalformedIDs(t *testing.T) {
 	t.Parallel()
 
-	handler := SiteHandler(scriptRegistry{"abc123def456": {PublicID: "abc123def456"}})
+	handler := SiteHandler(scriptRegistry{"abc123def456": {PublicID: "abc123def456"}}, config.ReplayEnv{})
 	tests := []struct {
 		name string
 		path string
@@ -198,11 +202,11 @@ func TestSiteHandlerCachesBySiteAndSettings(t *testing.T) {
 	originalBuilder := siteScriptBuilder
 	t.Cleanup(func() { siteScriptBuilder = originalBuilder })
 	builds := 0
-	siteScriptBuilder = func(publicID string, settings sites.TrackerSettings) Script {
+	siteScriptBuilder = func(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) Script {
 		builds++
-		return BuildScript(publicID, settings)
+		return BuildScript(publicID, settings, replaySettings)
 	}
-	handler := SiteHandler(registry)
+	handler := SiteHandler(registry, config.ReplayEnv{})
 	var first []byte
 	for requestNumber := range 2 {
 		response := httptest.NewRecorder()
@@ -225,6 +229,54 @@ func TestSiteHandlerCachesBySiteAndSettings(t *testing.T) {
 	}
 	if bytes.Equal(first, changed.Body.Bytes()) {
 		t.Fatal("settings change reused stale cached body")
+	}
+}
+
+func TestScriptHasNoReplayWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  config.ReplayEnv
+		site sites.ReplaySiteInput
+	}{
+		{name: "instance off", site: sites.ReplaySiteInput{Enabled: true}},
+		{name: "site off", env: config.ReplayEnv{Enabled: true}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			settings := replay.ResolveSite(test.env, test.site)
+			body := BuildScript("abc123def456", (sites.TrackerSettingsInput{}).Resolve(false), settings).Body
+			prelude, _, ok := bytes.Cut(body, []byte("\n"))
+			if !ok {
+				t.Fatal("script has no prelude separator")
+			}
+			if bytes.Contains(prelude, []byte("replay")) {
+				t.Fatalf("disabled script prelude contains replay config: %q", prelude)
+			}
+		})
+	}
+}
+
+func TestScriptHasReplayConfigWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	consent := "always"
+	settings := replay.ResolveSite(config.ReplayEnv{Enabled: true}, sites.ReplaySiteInput{
+		Enabled: true,
+		Consent: &consent,
+	})
+	body := BuildScript("abc123def456", sites.TrackerSettings{}, settings).Body
+	prelude, source, ok := bytes.Cut(body, []byte("\n"))
+	if !ok {
+		t.Fatal("script has no prelude separator")
+	}
+	if !bytes.Contains(prelude, []byte(`d.replay??="always";`)) {
+		t.Fatalf("enabled script prelude = %q, want replay consent config", prelude)
+	}
+	if !bytes.Equal(source, fullScript) {
+		t.Fatal("replay-enabled site did not receive the full tracker")
 	}
 }
 
