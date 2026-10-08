@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|backup|restore|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|version}")
 		os.Exit(2)
 	}
 
@@ -52,6 +52,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "recompute-rollups":
+		if err := recomputeRollupsCommand(context.Background(), os.Args[2:], os.Getenv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case "close-days":
 		if err := closeDays(context.Background(), os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -73,7 +78,7 @@ func main() {
 			os.Exit(1)
 		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|backup|restore|version}")
+		fmt.Fprintln(os.Stderr, "usage: panel {serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|version}")
 		os.Exit(2)
 	}
 }
