@@ -85,6 +85,7 @@ const settingsTabs = [
   ['general', 'General', '/$org/$site/settings/general'],
   ['installation', 'Installation', '/$org/$site/settings/installation'],
   ['tracking', 'Tracking', '/$org/$site/settings/tracking'],
+  ['replay', 'Replay', '/$org/$site/settings/replay'],
   ['goals', 'Goals', '/$org/$site/settings/goals'],
   ['funnels', 'Funnels', '/$org/$site/settings/funnels'],
   ['shares', 'Shares', '/$org/$site/settings/shares'],
@@ -93,11 +94,11 @@ const settingsTabs = [
   ['imports', 'Imports & export', '/$org/$site/settings/imports'],
 ] as const
 
-export function SiteSettingsTabs({ org, site, current }: { org: string; site: string; current: string }) {
+export function SiteSettingsTabs({ org, site, current, showReplay = false }: { org: string; site: string; current: string; showReplay?: boolean }) {
   return (
     <nav aria-label="Site settings" className="overflow-x-auto border-b">
       <div role="tablist" className="flex min-w-max gap-5">
-        {settingsTabs.map(([value, label, to]) => (
+        {settingsTabs.filter(([value]) => value !== 'replay' || showReplay).map(([value, label, to]) => (
           <Link
             key={value}
             aria-current={current === value ? 'page' : undefined}

@@ -14,6 +14,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SiteIcon } from '@/components/SiteIcon'
+import { useReplayAvailability } from '@/components/replay/api'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
@@ -40,6 +41,7 @@ export function AppShell({
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const requestedSite = pathname.split('/').filter(Boolean)[1]
   const site = activeSite(membership, requestedSite)
+  const replay = useReplayAvailability(site?.id)
 
   useShortcuts({
     d: toggle,
@@ -49,7 +51,7 @@ export function AppShell({
   return (
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
-        <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} />
+        <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} replayEnabled={replay.enabled} />
         <SidebarInset>
           <header className="flex h-14 items-center justify-between border-b px-4">
             <div className="flex min-w-0 items-center gap-2">

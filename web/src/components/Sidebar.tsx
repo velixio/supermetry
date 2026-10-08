@@ -19,6 +19,7 @@ import {
 import { Link, useRouterState } from '@tanstack/react-router'
 
 import { SiteIcon } from '@/components/SiteIcon'
+import { ReplayNavLink } from '@/components/replay/ReplayNavLink'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,10 +201,12 @@ export function PanelSidebar({
   me,
   membership,
   requestedSite,
+  replayEnabled = false,
 }: {
   me: Me
   membership: Membership
   requestedSite?: string
+  replayEnabled?: boolean
 }) {
   const site = activeSite(membership, requestedSite)
   const currentSite = site ? siteSlug(site) : ''
@@ -318,6 +321,13 @@ export function PanelSidebar({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {site && replayEnabled ? (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(`/${membership.org.slug}/${currentSite}/replays`)} tooltip="Replays">
+                    <ReplayNavLink enabled org={membership.org.slug} site={currentSite} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -28,6 +28,7 @@ import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
 import { Route as OrgSiteHeatmapsRouteImport } from './routes/$org.$site.heatmaps'
 import { Route as OrgSiteJourneysRouteImport } from './routes/$org.$site.journeys'
 import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
+import { Route as OrgSiteReplaysRouteImport } from './routes/$org.$site.replays'
 import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retention'
 import { Route as OrgSiteSessionsRouteImport } from './routes/$org.$site.sessions'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
@@ -38,18 +39,21 @@ import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.aud
 import { Route as OrgSettingsInvitesRouteImport } from './routes/$org.settings.invites'
 import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
 import { Route as OrgSettingsNotificationsRouteImport } from './routes/$org.settings.notifications'
+import { Route as OrgSettingsReplayStorageRouteImport } from './routes/$org.settings.replay-storage'
 import { Route as OrgSitesIndexRouteImport } from './routes/$org.sites.index'
 import { Route as OrgSitesNewRouteImport } from './routes/$org.sites.new'
 import { Route as OrgSiteFunnelsIndexRouteImport } from './routes/$org.$site.funnels.index'
 import { Route as OrgSiteFunnelsIdRouteImport } from './routes/$org.$site.funnels.$id'
 import { Route as OrgSiteProfilesIndexRouteImport } from './routes/$org.$site.profiles.index'
 import { Route as OrgSiteProfilesIdRouteImport } from './routes/$org.$site.profiles.$id'
+import { Route as OrgSiteReplaysIdRouteImport } from './routes/$org.$site.replays.$id'
 import { Route as OrgSiteSettingsAlertsRouteImport } from './routes/$org.$site.settings.alerts'
 import { Route as OrgSiteSettingsFunnelsRouteImport } from './routes/$org.$site.settings.funnels'
 import { Route as OrgSiteSettingsGeneralRouteImport } from './routes/$org.$site.settings.general'
 import { Route as OrgSiteSettingsGoalsRouteImport } from './routes/$org.$site.settings.goals'
 import { Route as OrgSiteSettingsImportsRouteImport } from './routes/$org.$site.settings.imports'
 import { Route as OrgSiteSettingsInstallationRouteImport } from './routes/$org.$site.settings.installation'
+import { Route as OrgSiteSettingsReplayRouteImport } from './routes/$org.$site.settings.replay'
 import { Route as OrgSiteSettingsReportsRouteImport } from './routes/$org.$site.settings.reports'
 import { Route as OrgSiteSettingsSharesRouteImport } from './routes/$org.$site.settings.shares'
 import { Route as OrgSiteSettingsTrackingRouteImport } from './routes/$org.$site.settings.tracking'
@@ -149,6 +153,11 @@ const OrgSiteRealtimeRoute = OrgSiteRealtimeRouteImport.update({
   path: '/$site/realtime',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSiteReplaysRoute = OrgSiteReplaysRouteImport.update({
+  id: '/$site/replays',
+  path: '/$site/replays',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSiteRetentionRoute = OrgSiteRetentionRouteImport.update({
   id: '/$site/retention',
   path: '/$site/retention',
@@ -200,6 +209,12 @@ const OrgSettingsNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => OrgSettingsRoute,
   } as any)
+const OrgSettingsReplayStorageRoute =
+  OrgSettingsReplayStorageRouteImport.update({
+    id: '/replay-storage',
+    path: '/replay-storage',
+    getParentRoute: () => OrgSettingsRoute,
+  } as any)
 const OrgSitesIndexRoute = OrgSitesIndexRouteImport.update({
   id: '/sites/',
   path: '/sites/',
@@ -229,6 +244,11 @@ const OrgSiteProfilesIdRoute = OrgSiteProfilesIdRouteImport.update({
   id: '/$site/profiles/$id',
   path: '/$site/profiles/$id',
   getParentRoute: () => OrgRoute,
+} as any)
+const OrgSiteReplaysIdRoute = OrgSiteReplaysIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => OrgSiteReplaysRoute,
 } as any)
 const OrgSiteSettingsAlertsRoute = OrgSiteSettingsAlertsRouteImport.update({
   id: '/alerts',
@@ -261,6 +281,11 @@ const OrgSiteSettingsInstallationRoute =
     path: '/installation',
     getParentRoute: () => OrgSiteSettingsRoute,
   } as any)
+const OrgSiteSettingsReplayRoute = OrgSiteSettingsReplayRouteImport.update({
+  id: '/replay',
+  path: '/replay',
+  getParentRoute: () => OrgSiteSettingsRoute,
+} as any)
 const OrgSiteSettingsReportsRoute = OrgSiteSettingsReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -296,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/replays': typeof OrgSiteReplaysRouteWithChildren
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
@@ -306,17 +332,20 @@ export interface FileRoutesByFullPath {
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
+  '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
+  '/$org/$site/replays/$id': typeof OrgSiteReplaysIdRoute
   '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
   '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
   '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
+  '/$org/$site/settings/replay': typeof OrgSiteSettingsReplayRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
@@ -342,6 +371,7 @@ export interface FileRoutesByTo {
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/replays': typeof OrgSiteReplaysRouteWithChildren
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
@@ -352,17 +382,20 @@ export interface FileRoutesByTo {
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
+  '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site': typeof OrgSiteIndexRoute
   '/$org/sites': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
+  '/$org/$site/replays/$id': typeof OrgSiteReplaysIdRoute
   '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
   '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
   '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
+  '/$org/$site/settings/replay': typeof OrgSiteSettingsReplayRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
@@ -389,6 +422,7 @@ export interface FileRoutesById {
   '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
   '/$org/$site/journeys': typeof OrgSiteJourneysRoute
   '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
+  '/$org/$site/replays': typeof OrgSiteReplaysRouteWithChildren
   '/$org/$site/retention': typeof OrgSiteRetentionRoute
   '/$org/$site/sessions': typeof OrgSiteSessionsRoute
   '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
@@ -399,17 +433,20 @@ export interface FileRoutesById {
   '/$org/settings/invites': typeof OrgSettingsInvitesRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
+  '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
+  '/$org/$site/replays/$id': typeof OrgSiteReplaysIdRoute
   '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
   '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
   '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
   '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
   '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
   '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
+  '/$org/$site/settings/replay': typeof OrgSiteSettingsReplayRoute
   '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
   '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
   '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
@@ -437,6 +474,7 @@ export interface FileRouteTypes {
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
+    | '/$org/$site/replays'
     | '/$org/$site/retention'
     | '/$org/$site/sessions'
     | '/$org/$site/settings'
@@ -447,17 +485,20 @@ export interface FileRouteTypes {
     | '/$org/settings/invites'
     | '/$org/settings/members'
     | '/$org/settings/notifications'
+    | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
+    | '/$org/$site/replays/$id'
     | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
     | '/$org/$site/settings/imports'
     | '/$org/$site/settings/installation'
+    | '/$org/$site/settings/replay'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
@@ -483,6 +524,7 @@ export interface FileRouteTypes {
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
+    | '/$org/$site/replays'
     | '/$org/$site/retention'
     | '/$org/$site/sessions'
     | '/$org/$site/settings'
@@ -493,17 +535,20 @@ export interface FileRouteTypes {
     | '/$org/settings/invites'
     | '/$org/settings/members'
     | '/$org/settings/notifications'
+    | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site'
     | '/$org/sites'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
+    | '/$org/$site/replays/$id'
     | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
     | '/$org/$site/settings/imports'
     | '/$org/$site/settings/installation'
+    | '/$org/$site/settings/replay'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
@@ -529,6 +574,7 @@ export interface FileRouteTypes {
     | '/$org/$site/heatmaps'
     | '/$org/$site/journeys'
     | '/$org/$site/realtime'
+    | '/$org/$site/replays'
     | '/$org/$site/retention'
     | '/$org/$site/sessions'
     | '/$org/$site/settings'
@@ -539,17 +585,20 @@ export interface FileRouteTypes {
     | '/$org/settings/invites'
     | '/$org/settings/members'
     | '/$org/settings/notifications'
+    | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
+    | '/$org/$site/replays/$id'
     | '/$org/$site/settings/alerts'
     | '/$org/$site/settings/funnels'
     | '/$org/$site/settings/general'
     | '/$org/$site/settings/goals'
     | '/$org/$site/settings/imports'
     | '/$org/$site/settings/installation'
+    | '/$org/$site/settings/replay'
     | '/$org/$site/settings/reports'
     | '/$org/$site/settings/shares'
     | '/$org/$site/settings/tracking'
@@ -706,6 +755,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteRealtimeRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/$site/replays': {
+      id: '/$org/$site/replays'
+      path: '/$site/replays'
+      fullPath: '/$org/$site/replays'
+      preLoaderRoute: typeof OrgSiteReplaysRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/$site/retention': {
       id: '/$org/$site/retention'
       path: '/$site/retention'
@@ -776,6 +832,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSettingsNotificationsRouteImport
       parentRoute: typeof OrgSettingsRoute
     }
+    '/$org/settings/replay-storage': {
+      id: '/$org/settings/replay-storage'
+      path: '/replay-storage'
+      fullPath: '/$org/settings/replay-storage'
+      preLoaderRoute: typeof OrgSettingsReplayStorageRouteImport
+      parentRoute: typeof OrgSettingsRoute
+    }
     '/$org/sites/': {
       id: '/$org/sites/'
       path: '/sites'
@@ -817,6 +880,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$org/$site/profiles/$id'
       preLoaderRoute: typeof OrgSiteProfilesIdRouteImport
       parentRoute: typeof OrgRoute
+    }
+    '/$org/$site/replays/$id': {
+      id: '/$org/$site/replays/$id'
+      path: '/$id'
+      fullPath: '/$org/$site/replays/$id'
+      preLoaderRoute: typeof OrgSiteReplaysIdRouteImport
+      parentRoute: typeof OrgSiteReplaysRoute
     }
     '/$org/$site/settings/alerts': {
       id: '/$org/$site/settings/alerts'
@@ -860,6 +930,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteSettingsInstallationRouteImport
       parentRoute: typeof OrgSiteSettingsRoute
     }
+    '/$org/$site/settings/replay': {
+      id: '/$org/$site/settings/replay'
+      path: '/replay'
+      fullPath: '/$org/$site/settings/replay'
+      preLoaderRoute: typeof OrgSiteSettingsReplayRouteImport
+      parentRoute: typeof OrgSiteSettingsRoute
+    }
     '/$org/$site/settings/reports': {
       id: '/$org/$site/settings/reports'
       path: '/reports'
@@ -891,6 +968,7 @@ interface OrgSettingsRouteChildren {
   OrgSettingsInvitesRoute: typeof OrgSettingsInvitesRoute
   OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
   OrgSettingsNotificationsRoute: typeof OrgSettingsNotificationsRoute
+  OrgSettingsReplayStorageRoute: typeof OrgSettingsReplayStorageRoute
 }
 
 const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
@@ -900,10 +978,23 @@ const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
   OrgSettingsInvitesRoute: OrgSettingsInvitesRoute,
   OrgSettingsMembersRoute: OrgSettingsMembersRoute,
   OrgSettingsNotificationsRoute: OrgSettingsNotificationsRoute,
+  OrgSettingsReplayStorageRoute: OrgSettingsReplayStorageRoute,
 }
 
 const OrgSettingsRouteWithChildren = OrgSettingsRoute._addFileChildren(
   OrgSettingsRouteChildren,
+)
+
+interface OrgSiteReplaysRouteChildren {
+  OrgSiteReplaysIdRoute: typeof OrgSiteReplaysIdRoute
+}
+
+const OrgSiteReplaysRouteChildren: OrgSiteReplaysRouteChildren = {
+  OrgSiteReplaysIdRoute: OrgSiteReplaysIdRoute,
+}
+
+const OrgSiteReplaysRouteWithChildren = OrgSiteReplaysRoute._addFileChildren(
+  OrgSiteReplaysRouteChildren,
 )
 
 interface OrgSiteSettingsRouteChildren {
@@ -913,6 +1004,7 @@ interface OrgSiteSettingsRouteChildren {
   OrgSiteSettingsGoalsRoute: typeof OrgSiteSettingsGoalsRoute
   OrgSiteSettingsImportsRoute: typeof OrgSiteSettingsImportsRoute
   OrgSiteSettingsInstallationRoute: typeof OrgSiteSettingsInstallationRoute
+  OrgSiteSettingsReplayRoute: typeof OrgSiteSettingsReplayRoute
   OrgSiteSettingsReportsRoute: typeof OrgSiteSettingsReportsRoute
   OrgSiteSettingsSharesRoute: typeof OrgSiteSettingsSharesRoute
   OrgSiteSettingsTrackingRoute: typeof OrgSiteSettingsTrackingRoute
@@ -925,6 +1017,7 @@ const OrgSiteSettingsRouteChildren: OrgSiteSettingsRouteChildren = {
   OrgSiteSettingsGoalsRoute: OrgSiteSettingsGoalsRoute,
   OrgSiteSettingsImportsRoute: OrgSiteSettingsImportsRoute,
   OrgSiteSettingsInstallationRoute: OrgSiteSettingsInstallationRoute,
+  OrgSiteSettingsReplayRoute: OrgSiteSettingsReplayRoute,
   OrgSiteSettingsReportsRoute: OrgSiteSettingsReportsRoute,
   OrgSiteSettingsSharesRoute: OrgSiteSettingsSharesRoute,
   OrgSiteSettingsTrackingRoute: OrgSiteSettingsTrackingRoute,
@@ -942,6 +1035,7 @@ interface OrgRouteChildren {
   OrgSiteHeatmapsRoute: typeof OrgSiteHeatmapsRoute
   OrgSiteJourneysRoute: typeof OrgSiteJourneysRoute
   OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
+  OrgSiteReplaysRoute: typeof OrgSiteReplaysRouteWithChildren
   OrgSiteRetentionRoute: typeof OrgSiteRetentionRoute
   OrgSiteSessionsRoute: typeof OrgSiteSessionsRoute
   OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
@@ -963,6 +1057,7 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgSiteHeatmapsRoute: OrgSiteHeatmapsRoute,
   OrgSiteJourneysRoute: OrgSiteJourneysRoute,
   OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
+  OrgSiteReplaysRoute: OrgSiteReplaysRouteWithChildren,
   OrgSiteRetentionRoute: OrgSiteRetentionRoute,
   OrgSiteSessionsRoute: OrgSiteSessionsRoute,
   OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,

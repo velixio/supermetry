@@ -3,6 +3,8 @@ import { z } from 'zod'
 
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
 import { dashboardSearch, parseFilters, removeFilter, replaceFilters, resolveRange } from '@/lib/search'
 import { en } from '@/messages/en'
@@ -12,6 +14,7 @@ import { useMe } from './$org'
 const sessionsSearch = dashboardSearch.extend({
   cursor: z.string().optional(),
   session: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
+  replay: z.boolean().optional().catch(false),
 })
 
 export const Route = createFileRoute('/$org/$site/sessions')({
@@ -52,14 +55,21 @@ function SessionsRoute() {
           onChange={(next) => void navigate({ search: { ...search, ...next, cursor: undefined } })}
         />
       </div>
+      <Field orientation="horizontal">
+        <Checkbox id="sessions-has-replay" checked={search.replay ?? false} onCheckedChange={(checked) => void navigate({ search: { ...search, replay: checked === true, cursor: undefined } })} />
+        <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
+      </Field>
       <SessionsPage
         cursor={search.cursor}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         filters={filters}
+        hasReplayOnly={search.replay}
+        org={org}
         onCursorChange={(cursor) => void navigate({ search: { ...search, cursor } })}
         onSelect={(session) => void navigate({ search: { ...search, session } })}
         selectedSessionId={search.session}
         siteId={site.id}
+        site={siteSlug}
       />
     </div>
   )
