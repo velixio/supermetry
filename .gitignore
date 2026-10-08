@@ -42,6 +42,7 @@ web/dist/
 web/e2e/screenshots/
 web/test-results/
 web/playwright-report/
+dist/
 !.env.example
 /bin/
 web/node_modules

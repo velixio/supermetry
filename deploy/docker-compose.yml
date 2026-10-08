@@ -1,0 +1,39 @@
+services:
+  panel:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      # Start with: cp ../.env.example .env
+      - .env
+    environment:
+      PANEL_DATABASE_URL: postgres://panel:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}@postgres:5432/panel?sslmode=disable
+      PANEL_DATA_DIR: /data
+      PANEL_LISTEN: 0.0.0.0:8787
+    ports:
+      - "8787:8787"
+    volumes:
+      - panel-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: panel
+      POSTGRES_USER: panel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U panel -d panel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  panel-data:
+  postgres-data:

@@ -1,0 +1,26 @@
+[Unit]
+Description=Panel web analytics
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=panel
+Group=panel
+EnvironmentFile=/etc/panel/panel.env
+Environment=PANEL_DATA_DIR=/var/lib/panel
+WorkingDirectory=/var/lib/panel
+ExecStart=/usr/local/bin/panel serve
+Restart=on-failure
+RestartSec=5s
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/panel
+StateDirectory=panel
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target
