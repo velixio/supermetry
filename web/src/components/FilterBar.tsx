@@ -37,9 +37,11 @@ import type { Segment } from '@/features/segments/types'
 import { serializeFilters, type Filter } from '@/lib/search'
 
 import { Flag } from './Flag'
+import { AddFilterPicker } from './AddFilterPicker'
 
 type FilterBarProps = {
   siteId: number
+  orgId?: number
   canEdit: boolean
   filters: Filter[]
   dropped: string[]
@@ -48,6 +50,8 @@ type FilterBarProps = {
   removeLabel: (filter: Filter) => string
   onApply: (filters: Filter[]) => void
   onRemove: (index: number) => void
+  dateRange?: { from: string; to: string }
+  onAdd?: (filter: Filter) => void
 }
 
 function sameFilters(left: Filter[], right: Filter[]): boolean {
@@ -60,6 +64,7 @@ function sameFilters(left: Filter[], right: Filter[]): boolean {
 
 export function FilterBar({
   siteId,
+  orgId,
   canEdit,
   filters,
   dropped,
@@ -68,6 +73,8 @@ export function FilterBar({
   removeLabel,
   onApply,
   onRemove,
+  dateRange,
+  onAdd,
 }: FilterBarProps) {
   const segments = useSegments(siteId)
   const saveSegment = useSaveSegment(siteId)
@@ -186,6 +193,7 @@ export function FilterBar({
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+      {dateRange && onAdd && orgId !== undefined ? <AddFilterPicker dateRange={dateRange} orgId={orgId} siteId={siteId} onAdd={onAdd} /> : null}
       {filters.map((filter, index) => (
         <Button
           key={`${filter.dimension}:${filter.operator}:${filter.values.join(',')}:${index}`}
