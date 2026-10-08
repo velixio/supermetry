@@ -52,9 +52,11 @@ type ClosedDays interface {
 
 // Writer owns the bounded event queue and the database batch loops.
 type Writer struct {
-	ch    chan Event
-	slots chan struct{}
-	sess  session.Store
+	ch           chan Event
+	slots        chan struct{}
+	heatmapCh    chan HeatmapEvent
+	heatmapSlots chan struct{}
+	sess         session.Store
 
 	flushEvery   time.Duration
 	sessionFlush time.Duration
@@ -84,6 +86,8 @@ func New(pool *pgxpool.Pool, sess session.Store, size int, flushEvery, sessionFl
 	return &Writer{
 		ch:           make(chan Event, size),
 		slots:        make(chan struct{}, size),
+		heatmapCh:    make(chan HeatmapEvent, min(size, 1024)),
+		heatmapSlots: make(chan struct{}, min(size, 1024)),
 		sess:         sess,
 		flushEvery:   flushEvery,
 		sessionFlush: sessionFlush,
@@ -150,10 +154,13 @@ func (w *Writer) Run(ctx context.Context) error {
 	}
 
 	sessionDone := make(chan error, 1)
+	heatmapDone := make(chan error, 1)
 	go func() { sessionDone <- w.runSessions(ctx) }()
+	go func() { heatmapDone <- w.runHeatmaps(ctx, w.upsertHeatmaps) }()
 	eventErr := w.runEvents(ctx, w.copyEvents)
 	sessionErr := <-sessionDone
-	return errors.Join(eventErr, sessionErr)
+	heatmapErr := <-heatmapDone
+	return errors.Join(eventErr, sessionErr, heatmapErr)
 }
 
 func (w *Writer) runEvents(ctx context.Context, write func(context.Context, []Event) error) error {

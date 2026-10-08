@@ -76,6 +76,8 @@ func TestGeoIPMetricsPrometheusTextFormat(t *testing.T) {
 func TestPrometheusTextFormat(t *testing.T) {
 	health.IngestAccepted.Add(3)
 	health.IngestRevenueInvalid.Add(2)
+	health.HeatmapInvalid.Add(1)
+	health.HeatmapDropped.Add(2)
 	health.BotsFiltered[1].Add(2)
 	health.ExclusionsFiltered[health.ExclusionPath].Add(4)
 	var b bytes.Buffer
@@ -85,6 +87,8 @@ func TestPrometheusTextFormat(t *testing.T) {
 		"panel_ingest_accepted_total 3",
 		"# TYPE panel_ingest_revenue_invalid_total counter",
 		"panel_ingest_revenue_invalid_total 2",
+		"# TYPE panel_heatmap_invalid_total counter",
+		"# TYPE panel_heatmap_dropped_total counter",
 		`panel_bots_filtered_total{reason="ua"} 2`,
 		`panel_ingest_excluded_total{reason="path"} 4`,
 	} {

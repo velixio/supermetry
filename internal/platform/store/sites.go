@@ -20,6 +20,7 @@ type Site struct {
 	ExcludeIPs      []string
 	ExcludePaths    []string
 	ProfilesEnabled bool
+	HeatmapsEnabled bool
 	CreatedAt       time.Time
 	DeletedAt       *time.Time
 }
@@ -46,7 +47,8 @@ func SiteForUpdate(ctx context.Context, tx pgx.Tx, orgID int64, id int32) (Site,
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
-		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at
+		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
+		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false), created_at, deleted_at
 		from sites
 		where id = $1 and org_id = $2 and deleted_at is null
 		for update`, id, orgID)
@@ -61,17 +63,20 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		        jsonb_set(
 		            jsonb_set(settings, '{exclude_ips}', coalesce(to_jsonb($7::text[]), '[]'::jsonb)),
 		            '{exclude_paths}', coalesce(to_jsonb($8::text[]), '[]'::jsonb)),
-		        '{profiles_enabled}', to_jsonb($9::boolean))
+		        '{profiles_enabled}', to_jsonb($9::boolean)) ||
+		        jsonb_build_object('heatmaps_enabled', $10::boolean)
 		where id = $1 and org_id = $2 and deleted_at is null
 		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),
 		          coalesce(settings->'exclude_paths', '[]'::jsonb),
-		          coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at`,
+		          coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
+		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false), created_at, deleted_at`,
 		site.ID, site.OrgID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass,
-		site.ExcludeIPs, site.ExcludePaths, site.ProfilesEnabled,
+		site.ExcludeIPs, site.ExcludePaths, site.ProfilesEnabled, site.HeatmapsEnabled,
 	).Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ProfilesEnabled,
+		&site.HeatmapsEnabled,
 		&site.CreatedAt, &site.DeletedAt,
 	)
 	if err != nil {
@@ -102,7 +107,8 @@ func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
-		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at
+		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
+		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false), created_at, deleted_at
 		from sites
 		where deleted_at is null
 		order by id`)
@@ -118,7 +124,8 @@ func ListSites(ctx context.Context, data *Store, orgID int64, siteIDs []int32, a
 		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
-		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false), created_at, deleted_at
+		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
+		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false), created_at, deleted_at
 		from sites
 		where org_id = $1 and deleted_at is null and id > $2
 		  and ($3::integer[] is null or id = any($3))
@@ -140,6 +147,7 @@ func scanSite(row siteScanner) (Site, error) {
 	if err := row.Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ProfilesEnabled,
+		&site.HeatmapsEnabled,
 		&site.CreatedAt, &site.DeletedAt,
 	); err != nil {
 		return Site{}, err

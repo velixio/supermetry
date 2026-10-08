@@ -174,7 +174,7 @@ func TestMinifiedFullTrackerGzipSize(t *testing.T) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if got := compressed.Len(); got >= 2048 {
-		t.Fatalf("gzipped full tracker = %d bytes, want under 2048", got)
+	if got := compressed.Len(); got >= 2560 {
+		t.Fatalf("gzipped full tracker = %d bytes, want under 2560", got)
 	}
 }

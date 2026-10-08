@@ -6,6 +6,7 @@ import {
   GoalIcon,
   Globe2Icon,
   GaugeIcon,
+  MousePointer2Icon,
   PlusIcon,
   RouteIcon,
   SettingsIcon,
@@ -44,6 +45,7 @@ const coreNavigation = [
   { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { label: en.navigation.profiles, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
+  { label: en.navigation.heatmaps, suffix: '/heatmaps', icon: MousePointer2Icon, scope: 'site' },
   { label: en.navigation.vitals, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
   { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
   { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
@@ -149,6 +151,8 @@ function navigationLink(
       return <Link to="/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, interval: 'day', identity: 'anonymous' }} {...props}>{content}</Link>
     case '/profiles':
       return <Link to="/$org/$site/profiles" params={{ org, site }} {...props}>{content}</Link>
+    case '/heatmaps':
+      return <Link to="/$org/$site/heatmaps" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, path: '', device: 'desktop' }} {...props}>{content}</Link>
     case '/vitals':
       return (
         <Link

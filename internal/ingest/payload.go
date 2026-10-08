@@ -30,6 +30,8 @@ const (
 
 var webVitalCaps = map[string]uint64{"lcp": 60000, "cls": 10000, "inp": 60000}
 
+var errInvalidHeatmap = errors.New("invalid heatmap payload")
+
 // Payload is the public event intake format. Unknown JSON fields are ignored,
 // in particular any client-supplied visitor or session identifiers.
 type Payload struct {
@@ -47,6 +49,9 @@ type Payload struct {
 	RevenueInvalid  bool              `json:"-"`
 	profileID       json.RawMessage
 	traits          json.RawMessage
+	Clicks          [][2]int `json:"clicks"`
+	DocHeight       int      `json:"doc_h"`
+	ViewportWidth   int      `json:"vw"`
 }
 
 // ParsePayload decodes and bounds an intake payload. It deliberately returns
@@ -85,6 +90,9 @@ func ParsePayload(body []byte) (Payload, error) {
 		payload.EngagementMS < 0 || payload.EngagementMS > math.MaxInt32 ||
 		payload.ScrollPct < 0 || payload.ScrollPct > 100 {
 		return Payload{}, errors.New("invalid payload")
+	}
+	if payload.Name == "heatmap" && !validHeatmap(payload) {
+		return payload, errInvalidHeatmap
 	}
 	payload.normalizeRevenue()
 	return payload, nil
@@ -127,6 +135,20 @@ func (p Payload) Identity(profilesEnabled bool) (string, map[string]string, bool
 		}
 	}
 	return externalID, traits, true, nil
+}
+
+func validHeatmap(payload Payload) bool {
+	if len(payload.Clicks) == 0 || len(payload.Clicks) > 200 ||
+		payload.DocHeight < 0 || payload.DocHeight > 100000 ||
+		payload.ViewportWidth < 0 || payload.ViewportWidth > 10000 {
+		return false
+	}
+	for _, click := range payload.Clicks {
+		if click[0] < 0 || click[0] > 1000 || click[1] < 0 || click[1] > 100000 {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *Payload) normalizeWebVitals() {

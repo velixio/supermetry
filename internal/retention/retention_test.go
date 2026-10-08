@@ -123,7 +123,9 @@ values
   (2, 30, '2026-10-07', '2026-10-07 11:01Z', 200, 20, 1, 102, 2, 11, 'NP', 21, 31, 2, '{"plan":"free"}');
 
 insert into dirty_day (site_id, day, reason) values
-  (1, '2026-10-07', 'test'), (2, '2026-10-07', 'test')`); err != nil {
+  (1, '2026-10-07', 'test'), (2, '2026-10-07', 'test');
+insert into heatmap_cells(site_id,day,path_id,device,gx,gy,clicks) values
+  (1,'2026-10-07',1,0,1,1,2), (2,'2026-10-07',2,0,2,2,3)`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -158,6 +160,7 @@ on conflict do nothing`); err != nil {
 
 func siteTables() []string {
 	return []string{
+		"heatmap_cells",
 		"events",
 		"sessions",
 		"sessions_closed",

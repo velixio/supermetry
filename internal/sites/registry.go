@@ -18,6 +18,7 @@ type Site struct {
 	AllowedHosts    []string
 	Exclusions      Exclusions
 	ProfilesEnabled bool
+	HeatmapsEnabled bool
 }
 
 // Registry provides in-memory site lookups for the analytics core.

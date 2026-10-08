@@ -69,6 +69,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	payload, err := ParsePayload(body)
+	if errors.Is(err, errInvalidHeatmap) {
+		health.HeatmapInvalid.Add(1)
+	}
 	if err != nil || payload.Site == "" || payload.Name == "" || payload.URL == "" {
 		h.invalid(w)
 		return
@@ -100,6 +103,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	if payload.Name == "heatmap" && !site.HeatmapsEnabled {
+		health.HeatmapDropped.Add(1)
+		health.IngestDropped.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 	ip, ok := h.clientIP(r)
 	if !ok {
 		h.invalid(w)
@@ -119,14 +128,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
-	location := h.Enricher.City(ip)
-	if h.Diag {
-		h.logDiag(r, ip, location)
-	}
 	if h.Limiter != nil && (!h.Limiter.Allow("site:"+strconv.FormatInt(int64(site.ID), 10)) || !h.Limiter.Allow(ipRateKey(ip))) {
 		w.Header().Set("Retry-After", "1")
 		w.WriteHeader(http.StatusTooManyRequests)
 		return
+	}
+	if payload.Name == "heatmap" {
+		if reason := h.Enricher.Bot(r.UserAgent(), ip, payload.Referrer); reason != enrich.BotNone {
+			Bots[reason].Add(1)
+			health.BotsFiltered[reason].Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		h.acceptHeatmap(w, r.Context(), payload, pageURL, site)
+		return
+	}
+
+	location := h.Enricher.City(ip)
+	if h.Diag {
+		h.logDiag(r, ip, location)
 	}
 
 	ua := r.UserAgent()
@@ -182,6 +202,34 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if payload.RevenueInvalid {
 		health.IngestRevenueInvalid.Add(1)
+	}
+	health.IngestAccepted.Add(1)
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h *Handler) acceptHeatmap(w http.ResponseWriter, ctx context.Context, payload Payload, pageURL *url.URL, site sites.Site) {
+	path := pageURL.Path
+	if path == "" {
+		path = "/"
+	}
+	pathID, err := h.dimensionID(ctx, dict.Path, path)
+	if err != nil {
+		h.unavailable(w)
+		return
+	}
+	now := time.Now()
+	if h.Clock != nil {
+		now = h.Clock.Now()
+	}
+	if !h.Writer.EnqueueHeatmap(writer.HeatmapEvent{
+		SiteID: site.ID, LocalDay: salts.LocalDay(now, site.TZ), PathID: pathID,
+		ViewportWidth: payload.ViewportWidth, Clicks: payload.Clicks,
+	}) {
+		health.HeatmapDropped.Add(1)
+		health.IngestDropped.Add(1)
+		w.Header().Set("Retry-After", "1")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
 	}
 	health.IngestAccepted.Add(1)
 	w.WriteHeader(http.StatusAccepted)

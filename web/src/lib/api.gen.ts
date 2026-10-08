@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/public/v1/heatmaps/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Query an aggregated click heatmap and scroll map */
+        post: operations["heatmapQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/vitals/query": {
         parameters: {
             query?: never;
@@ -443,6 +460,9 @@ export interface components {
             /** @default false */
             profiles_enabled: boolean;
             allowed_hosts: string[];
+            exclude_ips: string[];
+            exclude_paths: string[];
+            heatmaps_enabled: boolean;
         };
         SiteList: {
             data: components["schemas"]["Site"][];
@@ -462,6 +482,9 @@ export interface components {
             timezone?: string;
             /** @enum {integer} */
             retention_days?: 0 | 7 | 30 | 90 | 365;
+            exclude_ips?: string[];
+            exclude_paths?: string[];
+            heatmaps_enabled?: boolean;
         };
         GoalInput: {
             /** @enum {string} */
@@ -531,6 +554,40 @@ export interface components {
             from: string;
             /** Format: date */
             to: string;
+        };
+        /** @enum {string} */
+        HeatmapDevice: "desktop" | "mobile" | "tablet";
+        HeatmapRequest: {
+            /** Format: int32 */
+            site_id: number;
+            date_range: components["schemas"]["DateRange"];
+            path: string;
+            device: components["schemas"]["HeatmapDevice"];
+        };
+        HeatmapCell: {
+            /** Format: int32 */
+            gx: number;
+            /** Format: int32 */
+            gy: number;
+            /** Format: int64 */
+            clicks: number;
+        };
+        ScrollBand: {
+            /** Format: int32 */
+            band: number;
+            /** Format: double */
+            share: number;
+        };
+        HeatmapTotals: {
+            /** Format: int64 */
+            pageviews_sampled: number;
+            /** Format: int64 */
+            clicks: number;
+        };
+        HeatmapResponse: {
+            cells: components["schemas"]["HeatmapCell"][];
+            scroll_bands: components["schemas"]["ScrollBand"][];
+            totals: components["schemas"]["HeatmapTotals"];
         };
         /** @enum {string} */
         Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
@@ -990,6 +1047,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    heatmapQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeatmapRequest"];
+            };
+        };
+        responses: {
+            /** @description Aggregated heatmap results */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeatmapResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     vitalsQuery: {
         parameters: {
             query?: never;

@@ -227,6 +227,34 @@ func TestParsePayloadDefersProfileIdentityValidation(t *testing.T) {
 	}
 }
 
+func TestParsePayloadHeatmap(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		ok   bool
+	}{
+		{name: "valid boundaries", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/pricing","clicks":[[0,0],[1000,100000]],"doc_h":100000,"vw":10000}`, ok: true},
+		{name: "negative x", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[-1,0]],"doc_h":1,"vw":390}`},
+		{name: "x above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1001,0]],"doc_h":1,"vw":390}`},
+		{name: "negative y", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,-1]],"doc_h":1,"vw":390}`},
+		{name: "y above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,100001]],"doc_h":1,"vw":390}`},
+		{name: "document above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,1]],"doc_h":100001,"vw":390}`},
+		{name: "viewport above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,1]],"doc_h":1,"vw":10001}`},
+		{name: "empty clicks", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[],"doc_h":1,"vw":390}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload, err := ingest.ParsePayload([]byte(tt.body))
+			if (err == nil) != tt.ok {
+				t.Fatalf("ParsePayload error = %v, want valid=%v", err, tt.ok)
+			}
+			if tt.ok && (len(payload.Clicks) != 2 || payload.DocHeight != 100000 || payload.ViewportWidth != 10000) {
+				t.Fatalf("heatmap payload = %#v", payload)
+			}
+		})
+	}
+}
+
 func TestParsePayloadAcceptsBoundedProfileIdentity(t *testing.T) {
 	body := fmt.Sprintf(
 		`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":%q,"traits":{%q:%q}}`,
@@ -272,5 +300,16 @@ func TestParsePayloadCountsProfileCharactersNotBytes(t *testing.T) {
 	}
 	if _, _, _, err := payload.Identity(true); err == nil {
 		t.Fatal("129-character identifier accepted")
+	}
+}
+
+func TestParsePayloadHeatmapRejectsMoreThanTwoHundredClicks(t *testing.T) {
+	clicks := strings.Repeat(`[1,1],`, 200) + `[1,1]`
+	_, err := ingest.ParsePayload([]byte(fmt.Sprintf(
+		`{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[%s],"doc_h":1,"vw":390}`,
+		clicks,
+	)))
+	if err == nil {
+		t.Fatal("201 heatmap clicks were accepted")
 	}
 }

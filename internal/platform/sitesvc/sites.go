@@ -41,6 +41,7 @@ type SitePatch struct {
 	ExcludeIPs      *[]string
 	ExcludePaths    *[]string
 	ProfilesEnabled *bool
+	HeatmapsEnabled *bool
 }
 
 type Sites struct {
@@ -97,6 +98,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	if !authz.Can(principal, authz.ActionSiteEdit, id) {
 		return coresites.Site{}, ErrForbidden
 	}
+	if patch.HeatmapsEnabled != nil && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+		return coresites.Site{}, ErrForbidden
+	}
 	var updated store.Site
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
 		current, err := store.SiteForUpdate(ctx, tx, principal.OrgID, id)
@@ -127,6 +131,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.ProfilesEnabled != nil {
 			current.ProfilesEnabled = *patch.ProfilesEnabled
 		}
+		if patch.HeatmapsEnabled != nil {
+			current.HeatmapsEnabled = *patch.HeatmapsEnabled
+		}
 		name, hosts, location, retention, err := validateSite(
 			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
 		)
@@ -147,6 +154,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		}
 		metadata := map[string]any{
 			"name": name, "timezone": location.String(), "retention_days": int(retention),
+			"heatmaps_enabled": current.HeatmapsEnabled,
 		}
 		if patch.ProfilesEnabled != nil {
 			metadata["profiles_enabled"] = current.ProfilesEnabled
@@ -305,6 +313,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
 		ProfilesEnabled: row.ProfilesEnabled,
+		HeatmapsEnabled: row.HeatmapsEnabled,
 	}, nil
 }
 

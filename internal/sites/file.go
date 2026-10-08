@@ -25,6 +25,7 @@ type fileSite struct {
 	RetentionDays   int16    `json:"retention_days"`
 	AllowedHosts    []string `json:"allowed_hosts"`
 	ProfilesEnabled bool     `json:"profiles_enabled"`
+	HeatmapsEnabled bool     `json:"heatmaps_enabled"`
 }
 
 // LoadFile loads site metadata from a JSON array at path.
@@ -64,6 +65,7 @@ func LoadFile(path string) (*FileRegistry, error) {
 			Retention:       retention,
 			AllowedHosts:    allowedHosts,
 			ProfilesEnabled: record.ProfilesEnabled,
+			HeatmapsEnabled: record.HeatmapsEnabled,
 		}
 		if _, exists := r.byPublicID[site.PublicID]; exists {
 			return nil, fmt.Errorf("site %d: duplicate public_id %q", i, site.PublicID)

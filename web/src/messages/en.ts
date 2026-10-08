@@ -39,6 +39,7 @@ export const en = {
     journeys: 'Journeys',
     retention: 'Retention',
     profiles: 'Profiles',
+    heatmaps: 'Heatmaps',
     vitals: 'Web Vitals',
     funnels: 'Funnels',
     realtime: 'Realtime',

@@ -136,4 +136,48 @@
     addEventListener("popstate", () => sendVitals() || start(1));
     start();
   }
+
+  if (d.heatmap != "false") {
+    let points = [];
+    const root = document.documentElement;
+
+    function bound(value, max) {
+      return Math.max(0, Math.min(max, Math.round(value)));
+    }
+
+    function heatClick(e) {
+      const width = root.scrollWidth || 1;
+      if (points.length < 200) points.push([
+        bound(e.pageX * 1000 / width, 1000),
+        bound(e.pageY, 100000)
+      ]);
+    }
+
+    function sendHeatmap() {
+      if (!points.length) return;
+      const body = JSON.stringify({
+        site: d.site,
+        name: "heatmap",
+        url: location.href,
+        screen_width: screen.width,
+        clicks: points,
+        doc_h: bound(root.scrollHeight, 100000),
+        vw: bound(innerWidth, 10000)
+      });
+      const endpoint = d.api || "/api/public/v1/events";
+      points = [];
+      if (!(navigator.sendBeacon && navigator.sendBeacon(endpoint, new Blob([body], {type: "text/plain"})))) {
+        fetch(endpoint, {method: "POST", headers: {"Content-Type": "text/plain"}, body: body, keepalive: true}).catch(function () {});
+      }
+    }
+
+    document.addEventListener("click", heatClick);
+    addEventListener("pagehide", sendHeatmap);
+    const heatNavigate = history.pushState;
+    history.pushState = function () {
+      sendHeatmap();
+      heatNavigate.apply(history, arguments);
+    };
+    addEventListener("popstate", sendHeatmap, true);
+  }
 })();

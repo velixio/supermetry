@@ -135,6 +135,62 @@ func TestBackpressureReturns503Fast(t *testing.T) {
 	}
 }
 
+func TestHeatmapDisabledIsDroppedWithoutRawEvent(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	before := health.HeatmapDropped.Load()
+	body := `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[500,120]],"doc_h":2000,"vw":390}`
+	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 0 || health.HeatmapDropped.Load() != before+1 {
+		t.Fatalf("events=%d heatmap_dropped_delta=%d", events, health.HeatmapDropped.Load()-before)
+	}
+}
+
+func TestHeatmapEnabledAggregatesWithoutRawEvent(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	setHeatmapsEnabled(t, f, true)
+	body := `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[500,120],[509,139]],"doc_h":2000,"vw":390}`
+	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+	var events, cells, clicks int
+	if err := f.pool.QueryRow(context.Background(), `
+		select (select count(*) from events), count(*), coalesce(sum(clicks),0) from heatmap_cells`).Scan(&events, &cells, &clicks); err != nil {
+		t.Fatal(err)
+	}
+	if events != 0 || cells != 1 || clicks != 2 {
+		t.Fatalf("events=%d cells=%d clicks=%d", events, cells, clicks)
+	}
+}
+
+func TestHeatmapFromBotIsNotAggregated(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	setHeatmapsEnabled(t, f, true)
+	before := ingest.Bots[enrich.BotUserAgent].Load()
+	body := `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[500,120]],"doc_h":2000,"vw":390}`
+	rr := post(t, f.h, body, "Googlebot/2.1", "66.249.66.1:5555")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+	var cells int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from heatmap_cells`).Scan(&cells); err != nil {
+		t.Fatal(err)
+	}
+	if cells != 0 || ingest.Bots[enrich.BotUserAgent].Load() != before+1 {
+		t.Fatalf("cells=%d bots_delta=%d", cells, ingest.Bots[enrich.BotUserAgent].Load()-before)
+	}
+}
+
 func TestBotsCountedNotStored(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := ingest.Bots[enrich.BotUserAgent].Load()
@@ -667,6 +723,16 @@ func setProfilesEnabled(t *testing.T, fixture *handlerFixture, enabled bool) {
 		t.Fatal("fixture site missing")
 	}
 	site.ProfilesEnabled = enabled
+	fixture.h.Sites = siteRegistry{site: site}
+}
+
+func setHeatmapsEnabled(t *testing.T, fixture *handlerFixture, enabled bool) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	site.HeatmapsEnabled = enabled
 	fixture.h.Sites = siteRegistry{site: site}
 }
 
