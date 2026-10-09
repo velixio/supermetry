@@ -12,11 +12,14 @@ import (
 	"panel/internal/api"
 	"panel/internal/closer"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 	"panel/internal/query"
 )
 
 func TestLiveIngestUTMBreakdownsExcludeUntaggedTrafficAcrossStorageTiers(t *testing.T) {
 	fixture := newHandlerFixture(t, 32, nil)
+	fixture.h.TrackingMode = privacy.Identified
+	setProfilesEnabled(t, fixture, true)
 	requests := []struct {
 		body   string
 		remote string
@@ -43,6 +46,7 @@ func TestLiveIngestUTMBreakdownsExcludeUntaggedTrafficAcrossStorageTiers(t *test
 		t.Fatal(err)
 	}
 	engine := query.NewEngine(fixture.pool, dictionary, fixture.h.Sites)
+	engine.SetTrackingMode(privacy.Identified)
 	fixtureDay := fakeNow().UTC().Truncate(24 * time.Hour)
 	assertLiveUTMBreakdowns(t, engine.WithForcedRoute(query.RouteHot), fixtureDay)
 

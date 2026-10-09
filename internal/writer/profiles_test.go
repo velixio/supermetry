@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"panel/internal/db"
+	"panel/internal/privacy"
 	"panel/internal/profiletombstone"
 	"panel/internal/session"
+	"panel/internal/sites"
 	"panel/internal/testpg"
 )
 
@@ -52,6 +54,7 @@ func TestCopyEventsUpsertsOneProfileAndLinksBatch(t *testing.T) {
 		},
 	}
 	w := New(pool, nil, 2, time.Hour, time.Hour, nil)
+	w.SetTrackingPolicy(privacy.Identified, &policyRegistry{site: sites.Site{ID: siteID, ProfilesEnabled: true}})
 	if err := w.copyEvents(ctx, events); err != nil {
 		t.Fatal(err)
 	}
@@ -116,6 +119,7 @@ func TestBufferedProfileEventStaysAnonymousAfterErasureAndRestart(t *testing.T) 
 		SessionID: 1, ProfileExternalID: "customer-1", ProfileTraits: map[string]string{"plan": "pro"},
 	}}
 	w := New(pool, nil, 1, time.Hour, time.Hour, nil)
+	w.SetTrackingPolicy(privacy.Identified, &policyRegistry{site: sites.Site{ID: siteID, ProfilesEnabled: true}})
 	w.SetProfileTombstones(restarted)
 	if err := w.copyEvents(ctx, events); err != nil {
 		t.Fatal(err)

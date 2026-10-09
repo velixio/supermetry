@@ -14,7 +14,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"panel/internal/privacy"
 	"panel/internal/session"
+	"panel/internal/sites"
 )
 
 const (
@@ -62,6 +64,10 @@ type Writer struct {
 	sessionFlush      time.Duration
 	closed            ClosedDays
 	profileTombstones ProfileTombstones
+
+	trackingMu    sync.RWMutex
+	trackingMode  privacy.Mode
+	trackingSites sites.Registry
 
 	poolMu sync.RWMutex
 	pool   *pgxpool.Pool
@@ -243,6 +249,7 @@ func (w *Writer) stopAccepting() {
 
 func (w *Writer) retryEvents(waitCtx, attemptCtx context.Context, batch []Event, write func(context.Context, []Event) error) error {
 	return retryOperation(waitCtx, attemptCtx, func(ctx context.Context) error {
+		w.suppressRestrictedIdentity(batch)
 		return write(ctx, batch)
 	})
 }
@@ -353,6 +360,7 @@ func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
 	if pool == nil {
 		return errors.New("writer: database pool is nil")
 	}
+	w.suppressRestrictedIdentity(events)
 	w.suppressTombstonedProfiles(events)
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if err := upsertProfiles(ctx, tx, events); err != nil {
@@ -583,6 +591,7 @@ var sessionColumns = []string{
 }
 
 func (w *Writer) upsertSessions(ctx context.Context, snapshots []session.Snapshot) error {
+	w.suppressRestrictedSessions(snapshots)
 	pool := w.currentPool()
 	if pool == nil {
 		return errors.New("writer: database pool is nil")

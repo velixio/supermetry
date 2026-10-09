@@ -1,0 +1,52 @@
+package writer
+
+import (
+	"panel/internal/privacy"
+	"panel/internal/session"
+	"panel/internal/sites"
+)
+
+// SetTrackingPolicy sets the process permission ceiling and cached project
+// registry. Production sets this before Run; environment changes require a
+// maintenance restart. It does not synchronize an already-running transaction
+// with a site edit or other server processes.
+func (w *Writer) SetTrackingPolicy(mode privacy.Mode, registry sites.Registry) {
+	w.trackingMu.Lock()
+	w.trackingMode, w.trackingSites = mode, registry
+	w.trackingMu.Unlock()
+}
+
+func (w *Writer) identityAllowed(siteID int32) bool {
+	w.trackingMu.RLock()
+	mode, registry := w.trackingMode, w.trackingSites
+	w.trackingMu.RUnlock()
+	if mode != privacy.Identified || registry == nil {
+		return false
+	}
+	site, ok := registry.Site(siteID)
+	return ok && site.ProfilesEnabled
+}
+
+// Recheck on every flush attempt: accepting a hit is not permission to persist
+// identity later. Unknown/deleted projects fail closed. Already interned URL
+// and campaign dimensions cannot be safely reconstructed here, so omit them.
+func (w *Writer) suppressRestrictedIdentity(events []Event) {
+	for i := range events {
+		e := &events[i]
+		if w.identityAllowed(e.SiteID) {
+			continue
+		}
+		e.ProfileExternalID, e.ProfileID, e.ProfileTraits, e.Props = "", 0, nil, nil
+		e.ReferrerID, e.Source, e.UTMSource, e.Medium, e.Campaign = 0, 0, 0, 0, 0
+	}
+}
+
+func (w *Writer) suppressRestrictedSessions(snapshots []session.Snapshot) {
+	for i := range snapshots {
+		s := &snapshots[i]
+		if w.identityAllowed(s.SiteID) {
+			continue
+		}
+		s.Source, s.UTMSource, s.Medium, s.Campaign = 0, 0, 0, 0
+	}
+}

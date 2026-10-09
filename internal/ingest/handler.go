@@ -19,6 +19,7 @@ import (
 	"panel/internal/dict"
 	"panel/internal/enrich"
 	"panel/internal/health"
+	"panel/internal/privacy"
 	"panel/internal/salts"
 	"panel/internal/session"
 	"panel/internal/sites"
@@ -43,6 +44,7 @@ type Clock interface {
 // or in-memory stores on the normal path; the bounded Writer applies the final
 // nonblocking backpressure decision.
 type Handler struct {
+	TrackingMode      privacy.Mode
 	Sites             sites.Registry
 	Enricher          *enrich.Enricher
 	Salts             *salts.Store
@@ -92,12 +94,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
-	if site.RespectPrivacySignals && (r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1") {
+	if r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1" {
 		health.PrivacySignalsDropped.Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
-	profileID, profileTraits, profileSupplied, err := payload.Identity(site.ProfilesEnabled)
+	identityAllowed := h.TrackingMode == privacy.Identified && site.ProfilesEnabled
+	profileID, profileTraits, profileSupplied, err := payload.Identity(identityAllowed)
 	if err != nil {
 		h.invalid(w)
 		return
@@ -106,7 +109,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		profileID = ""
 		profileTraits = nil
 	}
-	if !site.ProfilesEnabled && payload.Name == identifyEvent {
+	if !identityAllowed && payload.Name == identifyEvent {
 		// The tracker sends identify only for opted-in use; on other sites
 		// it would just add one anonymous custom event per page load.
 		health.IngestProfilesSuppressed.Add(1)
@@ -117,6 +120,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil || !site.Allows(strings.ToLower(pageURL.Hostname())) {
 		h.invalid(w)
 		return
+	}
+	if !identityAllowed {
+		// Arbitrary property values and URL query/fragment values can contain
+		// identity even when no profile_id was supplied. Paths and event names
+		// remain publisher-controlled: anonymous is not a PII classifier.
+		payload.Props = nil
+		payload.URL = privacy.AnonymousURL(payload.URL)
+		payload.Referrer = privacy.AnonymousURL(payload.Referrer)
 	}
 	if payload.Name == "heatmap" && !site.HeatmapsEnabled {
 		health.HeatmapDropped.Add(1)
@@ -231,7 +242,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	recordAcceptedActivity(h.Sessions, hit, result.VisitorID)
-	if !site.ProfilesEnabled && profileSupplied {
+	if !identityAllowed && profileSupplied {
 		health.IngestProfilesSuppressed.Add(1)
 	}
 	if payload.RevenueInvalid {
