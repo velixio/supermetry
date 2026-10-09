@@ -106,3 +106,25 @@ return to the app. Other tabs react to session changes; theme preference remains
 Issued `/invite?token=...` URLs redirect without caching to the existing
 `/invite/$token` application route. The invitation's validation and acceptance
 contract remains unchanged.
+
+## Organization deletion lifecycle
+
+Only a current organization Owner may delete an organization. The server locks
+the organization and rechecks that role inside the deletion transaction, then
+sets `deleted_at` on the organization and every active child site and records the
+number of newly tombstoned sites in the audit entry. A concurrent site creation
+either commits before that transaction and is tombstoned with the other sites,
+or observes the deleted organization and is denied.
+
+The successful response means access is disabled and the child sites are queued
+for the existing site-erasure job; it does not mean every analytics row or replay
+blob has already been removed. Membership sessions lose tenant access, API keys
+stop authenticating, shared dashboards stop resolving, and scheduled reports
+stop delivering. Their database rows remain until their existing lifecycle or
+cascade removes them.
+
+The site-erasure job retries tombstoned sites on every run and during graceful
+shutdown. A replay-storage failure leaves the site enrolled for a later retry,
+and another run removes analytics rows written by an already-buffered flush.
+`settings.erased_at` records a completed pass only: it is not a terminal state,
+a resurrection-proof guarantee, or a distributed erasure acknowledgement.

@@ -285,16 +285,55 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 	if s.Store == nil {
 		return errors.New("organization service is unavailable")
 	}
-	return s.Store.Tx(ctx, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `update orgs set deleted_at=now() where id=$1 and id=$2 and deleted_at is null`, id, principal.OrgID)
+	if principal.UserID == 0 || !authz.Can(principal, authz.ActionOrgDelete, 0) {
+		return orgs.ErrForbidden
+	}
+	if id != principal.OrgID {
+		return sitesvc.ErrNotFound
+	}
+	var tombstoned int64
+	err := s.Store.Tx(ctx, func(tx pgx.Tx) error {
+		var lockedID int64
+		if err := tx.QueryRow(ctx, `select id from orgs where id=$1 and deleted_at is null for update`, id).Scan(&lockedID); errors.Is(err, pgx.ErrNoRows) {
+			return sitesvc.ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		current, err := store.CurrentMemberForUpdate(ctx, tx, id, principal.UserID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return orgs.ErrForbidden
+		}
 		if err != nil {
 			return err
 		}
-		if tag.RowsAffected() != 1 {
+		if !authz.Can(current, authz.ActionOrgDelete, 0) {
+			return orgs.ErrForbidden
+		}
+		sites, err := tx.Exec(ctx, `update sites set deleted_at=now() where org_id=$1 and deleted_at is null`, id)
+		if err != nil {
+			return err
+		}
+		tombstoned = sites.RowsAffected()
+		org, err := tx.Exec(ctx, `update orgs set deleted_at=now() where id=$1 and deleted_at is null`, id)
+		if err != nil {
+			return err
+		}
+		if org.RowsAffected() != 1 {
 			return sitesvc.ErrNotFound
 		}
-		return audit.Write(ctx, tx, principal, "organization.deleted", "organization", id, nil)
+		return audit.Write(ctx, tx, principal, "organization.deleted", "organization", id, map[string]any{
+			"sites_tombstoned": tombstoned,
+		})
 	})
+	if err != nil {
+		return err
+	}
+	if s.Sites != nil {
+		if err := s.Sites.Invalidate(); err != nil {
+			return fmt.Errorf("refresh site registry: %w", err)
+		}
+	}
+	return nil
 }
 
 func (h *handler) principal(w http.ResponseWriter, r *http.Request, allowedRoles ...authz.Role) (authz.Principal, bool) {
