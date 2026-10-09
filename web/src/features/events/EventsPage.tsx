@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
+import { ListPager } from '@/components/ListPager'
 import { ReplayLink } from '@/components/replay/ReplayLink'
 import { BrowserLabel } from '@/components/visitor/BrowserLabel'
 import { DeviceLabel } from '@/components/visitor/DeviceLabel'
@@ -18,6 +19,7 @@ import { useEvents, useProperties, usePropertyValues } from './api'
 import type { EventExploreItem } from './types'
 
 type EventRow = EventExploreItem & Partial<{ city: string; os: string }>
+type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
 
 type EventsPageProps = {
   siteId: number
@@ -27,23 +29,26 @@ type EventsPageProps = {
   name: string
   propertyKey: string
   cursor?: string
+  page: number
   onNameChange: (name: string) => void
   onPropertyChange: (key: string) => void
-  onNext?: (cursor: string) => void
-  onPrevious?: () => void
+  onNext: (cursor: string) => void
+  onPrevious: () => void
+  onFirst: () => void
   org?: string
   site?: string
 }
 
 export function EventsPage({
-  siteId, orgId, dateRange, filters, name, propertyKey, cursor,
-  onNameChange, onPropertyChange, onNext, onPrevious, org, site,
+  siteId, orgId, dateRange, filters, name, propertyKey, cursor, page,
+  onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site,
 }: EventsPageProps) {
   const [draftName, setDraftName] = useState(name)
   useEffect(() => setDraftName(name), [name])
   const events = useEvents(siteId, orgId, dateRange, filters, name, cursor)
   const properties = useProperties(siteId, orgId, dateRange, name)
   const values = usePropertyValues(siteId, orgId, propertyKey, dateRange, name)
+  const data = events.data as Paged<NonNullable<typeof events.data>> | undefined
 
   function submitName(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -127,10 +132,20 @@ export function EventsPage({
           </Table>
         </div>
       )}
-      <div className="flex justify-end gap-2">
-        <Button disabled={!cursor || events.isFetching} type="button" variant="outline" onClick={onPrevious}>First page</Button>
-        <Button disabled={!events.data?.next_cursor || events.isFetching} type="button" variant="outline" onClick={() => events.data?.next_cursor && onNext?.(events.data.next_cursor)}>Next page</Button>
-      </div>
+      {!events.isPending && !events.isError ? (
+        <ListPager
+          fetching={events.isFetching}
+          hasNext={Boolean(data?.next_cursor)}
+          page={page}
+          pageSize={50}
+          rowCount={data?.data.length ?? 0}
+          total={data?.total}
+          totalCapped={data?.total_capped}
+          onFirst={onFirst}
+          onNext={() => data?.next_cursor && onNext(data.next_cursor)}
+          onPrevious={onPrevious}
+        />
+      ) : null}
     </main>
   )
 }

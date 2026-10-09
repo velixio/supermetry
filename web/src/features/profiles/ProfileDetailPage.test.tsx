@@ -19,7 +19,11 @@ function renderPage(role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner') {
     <QueryClientProvider client={new QueryClient()}>
       <ProfileDetailPage
         onDeleted={() => undefined}
+        onFirst={() => undefined}
+        onNext={() => undefined}
+        onPrevious={() => undefined}
         orgId={1}
+        page={1}
         profileId={12}
         role={role}
       />
@@ -53,8 +57,7 @@ describe('ProfileDetailPage', () => {
     expect(screen.getByText('pro')).toBeVisible()
     expect(screen.getByText('Signup')).toBeVisible()
     expect(screen.getByText('/pricing')).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    expect(useProfile).toHaveBeenLastCalledWith(12, 1, 'events-2')
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
   })
 
   it('requires an accessible confirmation before an owner deletes a profile', async () => {

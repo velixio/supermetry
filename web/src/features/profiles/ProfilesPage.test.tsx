@@ -19,7 +19,7 @@ describe('ProfilesPage', () => {
       isError: false,
     })
 
-    render(<ProfilesPage orgId={1} orgSlug="acme" siteId={7} siteSlug="docs" />)
+    render(<ProfilesPage orgId={1} orgSlug="acme" page={1} search="" siteId={7} siteSlug="docs" onFirst={() => undefined} onNext={() => undefined} onPrevious={() => undefined} onSearchChange={() => undefined} />)
 
     expect(screen.getByRole('heading', { name: 'Profiles are disabled' })).toBeVisible()
     expect(screen.getByText(/enable profiles in general site settings/i)).toBeVisible()
@@ -28,6 +28,8 @@ describe('ProfilesPage', () => {
   })
 
   it('searches profiles and renders cursor pagination', async () => {
+    const onNext = vi.fn()
+    const onSearchChange = vi.fn()
     useProfiles.mockImplementation((_siteId: number, _orgId: number, search: string, cursor?: string) => ({
       data: {
         profiles_enabled: true,
@@ -42,19 +44,21 @@ describe('ProfilesPage', () => {
           events: 19,
         }] : [],
         next_cursor: cursor ? null : 'next-1',
+        total: 26,
+        total_capped: false,
       },
       isPending: false,
       isError: false,
       isFetching: false,
     }))
 
-    renderWithRouter(<ProfilesPage orgId={1} orgSlug="acme" siteId={7} siteSlug="docs" />)
-    fireEvent.change(await screen.findByRole('searchbox', { name: 'Search profiles' }), { target: { value: 'ada' } })
+    renderWithRouter(<ProfilesPage orgId={1} orgSlug="acme" page={1} search="ada" siteId={7} siteSlug="docs" onFirst={() => undefined} onNext={onNext} onPrevious={() => undefined} onSearchChange={onSearchChange} />)
+    fireEvent.change(await screen.findByRole('searchbox', { name: 'Search profiles' }), { target: { value: 'grace' } })
+    expect(onSearchChange).toHaveBeenCalledWith('grace')
 
     expect(await screen.findByRole('link', { name: 'ada-42' })).toHaveAttribute('href', '/acme/docs/profiles/12')
     expect(screen.getByRole('cell', { name: '19' })).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    expect(useProfiles).toHaveBeenLastCalledWith(7, 1, 'ada', 'next-1')
-    expect(screen.getByRole('button', { name: 'Previous page' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(onNext).toHaveBeenCalledWith('next-1')
   })
 })

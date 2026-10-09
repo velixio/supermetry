@@ -7,8 +7,13 @@ import { EventsPage } from '@/features/events/EventsPage'
 import { countryName } from '@/lib/country'
 import {
   addFilter,
+  currentCursor,
   dashboardSearch,
+  firstPage,
+  nextPage,
+  paginationSearch,
   parseFilters,
+  previousPage,
   removeFilter,
   replaceFilters,
   resolveRange,
@@ -20,7 +25,7 @@ import { useMe } from './$org'
 const eventsSearch = dashboardSearch.extend({
   name: z.string().catch(''),
   property: z.string().catch(''),
-  cursor: z.string().optional(),
+  ...paginationSearch,
 })
 
 export const Route = createFileRoute('/$org/$site/events')({
@@ -55,18 +60,18 @@ function EventsRoute() {
           orgId={membership.org.id}
           removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
           siteId={site.id}
-          onAdd={(filter) => void navigate({ search: { ...search, f: addFilter(search, filter).f, cursor: undefined } })}
-          onApply={(next) => void navigate({ search: { ...search, f: replaceFilters(search, next).f, cursor: undefined } })}
-          onRemove={(index) => void navigate({ search: { ...search, f: removeFilter(search, index).f, cursor: undefined } })}
+          onAdd={(filter) => void navigate({ search: firstPage({ ...search, f: addFilter(search, filter).f }) })}
+          onApply={(next) => void navigate({ search: firstPage({ ...search, f: replaceFilters(search, next).f }) })}
+          onRemove={(index) => void navigate({ search: firstPage({ ...search, f: removeFilter(search, index).f }) })}
         />
         <DatePicker
           labels={en.dashboard}
           search={search}
-          onChange={(next) => void navigate({ search: { ...search, ...next, cursor: undefined } })}
+          onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
         />
       </div>
       <EventsPage
-        cursor={search.cursor}
+        cursor={currentCursor(search)}
         dateRange={dateRange}
         filters={filters}
         name={search.name}
@@ -75,9 +80,11 @@ function EventsRoute() {
         propertyKey={search.property}
         siteId={site.id}
         site={siteSlug}
-        onNameChange={(name) => void navigate({ search: { ...search, name, cursor: undefined } })}
-        onNext={(cursor) => void navigate({ search: { ...search, cursor } })}
-        onPrevious={() => void navigate({ search: { ...search, cursor: undefined } })}
+        page={search.page ?? 1}
+        onFirst={() => void navigate({ search: firstPage(search) })}
+        onNameChange={(name) => void navigate({ search: firstPage({ ...search, name }) })}
+        onNext={(cursor) => void navigate({ search: nextPage(search, cursor) })}
+        onPrevious={() => void navigate({ search: previousPage(search) })}
         onPropertyChange={(property) => void navigate({ search: { ...search, property } })}
       />
     </div>

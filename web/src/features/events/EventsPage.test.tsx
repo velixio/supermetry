@@ -23,7 +23,11 @@ function renderPage(overrides: Partial<ComponentProps<typeof EventsPage>> = {}) 
     filters: [],
     name: '',
     propertyKey: '',
+    page: 1,
+    onFirst: vi.fn(),
     onNameChange: vi.fn(),
+    onNext: vi.fn(),
+    onPrevious: vi.fn(),
     onPropertyChange: vi.fn(),
     ...overrides,
   }

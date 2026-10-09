@@ -1,15 +1,16 @@
 import { Link } from '@tanstack/react-router'
 import { SearchIcon, UserRoundIcon } from 'lucide-react'
-import { useState } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
-import { Button } from '@/components/ui/button'
+import { ListPager } from '@/components/ListPager'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import { useProfiles } from './api'
+
+type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
 
 function formatDate(value: string): string {
   if (!value) return '—'
@@ -21,21 +22,28 @@ export function ProfilesPage({
   orgId,
   orgSlug,
   siteSlug,
+  search,
+  cursor,
+  page,
+  onSearchChange,
+  onFirst,
+  onPrevious,
+  onNext,
 }: {
   siteId: number
   orgId: number
   orgSlug: string
   siteSlug: string
+  search: string
+  cursor?: string
+  page: number
+  onSearchChange: (search: string) => void
+  onFirst: () => void
+  onPrevious: () => void
+  onNext: (cursor: string) => void
 }) {
-  const [search, setSearch] = useState('')
-  const [cursors, setCursors] = useState<string[]>([])
-  const cursor = cursors.at(-1)
   const profiles = useProfiles(siteId, orgId, search, cursor)
-
-  function changeSearch(value: string) {
-    setSearch(value)
-    setCursors([])
-  }
+  const data = profiles.data as Paged<NonNullable<typeof profiles.data>> | undefined
 
   return (
     <main className="flex min-w-0 flex-col gap-6">
@@ -70,7 +78,7 @@ export function ProfilesPage({
               placeholder="Search external ID"
               role="searchbox"
               value={search}
-              onChange={(event) => changeSearch(event.target.value)}
+              onChange={(event) => onSearchChange(event.target.value)}
             />
           </div>
           {profiles.data.data.length === 0 ? (
@@ -108,10 +116,18 @@ export function ProfilesPage({
               </Table>
             </div>
           )}
-          <div className="flex justify-end gap-2">
-            <Button disabled={cursors.length === 0 || profiles.isFetching} variant="outline" onClick={() => setCursors((value) => value.slice(0, -1))}>Previous page</Button>
-            <Button disabled={!profiles.data.next_cursor || profiles.isFetching} variant="outline" onClick={() => profiles.data?.next_cursor && setCursors((value) => [...value, profiles.data.next_cursor!])}>Next page</Button>
-          </div>
+          <ListPager
+            fetching={profiles.isFetching}
+            hasNext={Boolean(data?.next_cursor)}
+            page={page}
+            pageSize={25}
+            rowCount={data?.data.length ?? 0}
+            total={data?.total}
+            totalCapped={data?.total_capped}
+            onFirst={onFirst}
+            onNext={() => data?.next_cursor && onNext(data.next_cursor)}
+            onPrevious={onPrevious}
+          />
         </section>
       )}
     </main>
