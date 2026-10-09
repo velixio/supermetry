@@ -12,10 +12,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"supermetry/internal/api"
-	"supermetry/internal/closer"
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
-	"supermetry/internal/replay"
+	"supermetry/internal/profileerasure"
 	coresites "supermetry/internal/sites"
 )
 
@@ -231,108 +230,129 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Erasure works whether or not profiles are currently enabled. It removes
-	// the profile's events and every row of the sessions and visitor-days it
-	// was identified in, in both tiers: the anonymous events of those
-	// sessions, the hot session rows, sessions_closed, custom_closed and the
-	// verified_page_sessions projection.
-	// Aggregates (cube_day, visitor_day, verified_page_day, rollups) hold
-	// counts, not session rows, and
-	// are not adjusted; the audit entry records that.
-	if h.deps.ProfileTombstones == nil {
+	if h.deps.ProfileTombstones == nil || h.deps.ProfileErasures == nil || h.deps.Store == nil {
 		unavailable(w, "profile erasure")
 		return
 	}
+	var request profileerasure.Request
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
-		ctx := r.Context()
-		var replaySessionIDs []int64
-		// Serialize with the closer before selecting linkage or deleting raw
-		// rows, so a concurrent close cannot reinsert erased session rows.
-		if err := closer.LockRollupRefresh(ctx, tx); err != nil {
+		if err := h.deps.ProfileTombstones.RememberTx(r.Context(), tx, site.ID, profile.ExternalId); err != nil {
 			return err
 		}
-		if err := h.deps.ProfileTombstones.RememberTx(ctx, tx, site.ID, profile.ExternalId); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `
-			create temporary table profile_erasure on commit drop as
-			select session_id, visitor_id, local_day, min(ts) as first_ts, max(ts) as last_ts
-			from events where site_id=$1 and profile_id=$2
-			group by session_id, visitor_id, local_day`, site.ID, profile.Id); err != nil {
-			return err
-		}
-		if h.deps.ReplayStore != nil {
-			rows, err := tx.Query(ctx, `
-				select session_id from profile_erasure
-				union
-				select session_id from replay_sessions where site_id=$1 and profile_id=$2
-				order by session_id`, site.ID, profile.Id)
-			if err != nil {
-				return err
-			}
-			for rows.Next() {
-				var sessionID int64
-				if err := rows.Scan(&sessionID); err != nil {
-					rows.Close()
-					return err
-				}
-				replaySessionIDs = append(replaySessionIDs, sessionID)
-			}
-			rowsErr := rows.Err()
-			rows.Close()
-			if rowsErr != nil {
-				return rowsErr
-			}
-		}
-		for _, sql := range []string{
-			`delete from events where site_id=$1 and profile_id=$2`,
-			`delete from events e using profile_erasure k
-			 where e.site_id=$1 and e.session_id=k.session_id
-			   and e.ts between k.first_ts - interval '1 day' and k.last_ts + interval '1 day'`,
-			`delete from sessions s using profile_erasure k
-			 where s.site_id=$1 and s.session_id=k.session_id
-			   and s.start between k.first_ts - interval '1 day' and k.last_ts`,
-			`delete from sessions_closed s using profile_erasure k
-			 where s.site_id=$1 and s.session_id=k.session_id
-			   and s.day between k.local_day - 1 and k.local_day`,
-			// Verified rows are grouped by event day, unlike session-start-day
-			// projections: the raw erasure window also covers the next day.
-			`delete from verified_page_sessions s using profile_erasure k
-             where s.site_id=$1 and s.session_id=k.session_id
-               and s.day between k.local_day - 1 and k.local_day + 1`,
-			`delete from custom_closed c using profile_erasure k
-			 where c.site_id=$1 and c.visitor_id=k.visitor_id and c.day=k.local_day`,
-		} {
-			args := []any{site.ID}
-			if strings.Contains(sql, "$2") {
-				args = append(args, profile.Id)
-			}
-			if _, err := tx.Exec(ctx, sql, args...); err != nil {
-				return err
-			}
-		}
-		if h.deps.ReplayStore != nil {
-			if err := replay.EraseSessionsTx(ctx, tx, h.deps.ReplayStore, site.ID, replaySessionIDs); err != nil {
-				return err
-			}
-		}
-		tag, err := tx.Exec(r.Context(), `delete from profiles where id=$1 and site_id=$2`, profile.Id, site.ID)
+		var err error
+		request, err = h.deps.ProfileErasures.CreateOrGetTx(r.Context(), tx, site.ID, profile.Id, profile.ExternalId, erasureRequester(principal))
 		if err != nil {
 			return err
 		}
-		if tag.RowsAffected() != 1 {
-			return pgx.ErrNoRows
-		}
-		return audit.Write(r.Context(), tx, principal, "profile.erased", "profile", profile.Id, map[string]any{
-			"site_id": site.ID, "aggregates_adjusted": false,
+		return audit.Write(r.Context(), tx, principal, "profile.erasure_requested", "profile", profile.Id, map[string]any{
+			"site_id": site.ID, "erasure_id": request.ID,
 		})
 	})
 	if err != nil {
-		h.deps.ProfileTombstones.ForgetMemory(site.ID, profile.ExternalId)
 		serviceError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.Header().Set("Location", "/api/private/erasures/"+strconv.FormatInt(request.ID, 10))
+	writeJSON(w, http.StatusAccepted, map[string]any{"erasure_id": request.ID, "status": request.Status})
+}
+
+func erasureRequester(principal authz.Principal) string {
+	if principal.KeyID > 0 {
+		return profileerasure.RequestedByAPIKey(principal.KeyID)
+	}
+	return profileerasure.RequestedByUser(principal.UserID)
+}
+
+type erasureResponse struct {
+	ID          int64                 `json:"id"`
+	SiteID      int32                 `json:"site_id"`
+	ProfileID   int64                 `json:"profile_id"`
+	Status      profileerasure.Status `json:"status"`
+	Attempts    int                   `json:"attempts"`
+	LastError   *string               `json:"last_error"`
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"updated_at"`
+	SettleAfter *time.Time            `json:"settle_after"`
+	CompletedAt *time.Time            `json:"completed_at"`
+}
+
+func newErasureResponse(request profileerasure.Request) erasureResponse {
+	return erasureResponse{
+		ID: request.ID, SiteID: request.SiteID, ProfileID: request.ProfileID, Status: request.Status,
+		Attempts: request.Attempts, LastError: request.LastError, CreatedAt: request.CreatedAt,
+		UpdatedAt: request.UpdatedAt, SettleAfter: request.SettleAfter, CompletedAt: request.CompletedAt,
+	}
+}
+
+func (h *handler) getPrivateErasure(w http.ResponseWriter, r *http.Request) {
+	h.getErasure(w, r, true)
+}
+
+func (h *handler) getPublicErasure(w http.ResponseWriter, r *http.Request) {
+	h.getErasure(w, r, false)
+}
+
+func (h *handler) getErasure(w http.ResponseWriter, r *http.Request, ownersOnly bool) {
+	_, request, ok := h.erasurePrincipal(w, r, ownersOnly)
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, newErasureResponse(request))
+}
+
+func (h *handler) retryErasure(w http.ResponseWriter, r *http.Request) {
+	_, request, ok := h.erasurePrincipal(w, r, true)
+	if !ok {
+		return
+	}
+	if err := h.deps.ProfileErasures.Retry(r.Context(), request.ID); err != nil {
+		if errors.Is(err, profileerasure.ErrInvalidState) {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "only failed erasures can be retried")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	request, err := h.deps.ProfileErasures.Get(r.Context(), request.ID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, newErasureResponse(request))
+}
+
+func (h *handler) erasurePrincipal(w http.ResponseWriter, r *http.Request, ownersOnly bool) (authz.Principal, profileerasure.Request, bool) {
+	principal, ok := h.principal(w, r)
+	if !ok {
+		return authz.Principal{}, profileerasure.Request{}, false
+	}
+	if h.deps.ProfileErasures == nil {
+		unavailable(w, "profile erasure")
+		return authz.Principal{}, profileerasure.Request{}, false
+	}
+	id, err := parseInt64(r.PathValue("erasure"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "erasure request not found")
+		return authz.Principal{}, profileerasure.Request{}, false
+	}
+	request, err := h.deps.ProfileErasures.Get(r.Context(), id)
+	if errors.Is(err, profileerasure.ErrNotFound) {
+		writeProblem(w, http.StatusNotFound, "Not found", "erasure request not found")
+		return authz.Principal{}, profileerasure.Request{}, false
+	}
+	if err != nil {
+		serviceError(w, err)
+		return authz.Principal{}, profileerasure.Request{}, false
+	}
+	principal, _, ok = h.authorizeSite(w, principal, request.SiteID, authz.ActionProfilesRead)
+	if !ok {
+		return authz.Principal{}, profileerasure.Request{}, false
+	}
+	if ownersOnly && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
+		return authz.Principal{}, profileerasure.Request{}, false
+	}
+	return principal, request, true
 }
 
 func (h *handler) profilePrincipal(w http.ResponseWriter, r *http.Request, action authz.Action, roles ...authz.Role) (authz.Principal, coresites.Site, api.Profile, bool) {

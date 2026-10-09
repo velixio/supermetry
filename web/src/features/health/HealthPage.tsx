@@ -3,9 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { fmt } from "@/lib/format";
 import type { components } from "@/lib/api.gen";
 import { privateRequest } from "@/features/settings/privateApi";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-type Health = components["schemas"]["DataHealthResponse"];
-type HealthCounterKey = Exclude<keyof Health, "rollup_backfill">;
+type Health = components["schemas"]["DataHealthResponse"] & {
+  failed_profile_erasures: number;
+};
+type HealthCounterKey = Exclude<keyof Health, "failed_profile_erasures" | "rollup_backfill">;
 
 const counters: { key: HealthCounterKey; label: string; suffix?: string }[] = [
   { key: "ingest_rate", label: "Events per second" },
@@ -43,6 +46,14 @@ export function HealthPage() {
           Updating historical breakdowns: {health.data.rollup_backfill.days_done} of{" "}
           {health.data.rollup_backfill.total_days} days
         </p>
+      ) : null}
+      {health.data && health.data.failed_profile_erasures > 0 ? (
+        <Alert variant="destructive">
+          <AlertTitle>Profile erasure needs attention</AlertTitle>
+          <AlertDescription>
+            {health.data.failed_profile_erasures} profile erasure {health.data.failed_profile_erasures === 1 ? "request needs" : "requests need"} attention.
+          </AlertDescription>
+        </Alert>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {counters.map((counter) => (

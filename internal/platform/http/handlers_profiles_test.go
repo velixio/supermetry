@@ -3,13 +3,10 @@ package platformhttp_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +19,7 @@ import (
 	"supermetry/internal/platform/sitesvc"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/privacy"
+	"supermetry/internal/profileerasure"
 	"supermetry/internal/profiletombstone"
 	"supermetry/internal/replay"
 	"supermetry/internal/testpg"
@@ -36,39 +34,6 @@ type profileFixture struct {
 	profileID   int64
 	tombstones  *profiletombstone.Store
 	replays     replay.BlobStore
-	replayFault *profileReplayFaultStore
-}
-
-type profileReplayFaultStore struct {
-	replay.BlobStore
-	mu           sync.Mutex
-	deleteCalls  int
-	failDeleteAt int
-	failDelete   error
-}
-
-func (s *profileReplayFaultStore) Delete(ctx context.Context, key string) (int64, error) {
-	s.mu.Lock()
-	s.deleteCalls++
-	var err error
-	if s.deleteCalls == s.failDeleteAt {
-		err = s.failDelete
-		s.failDeleteAt = 0
-		s.failDelete = nil
-	}
-	s.mu.Unlock()
-	if err != nil {
-		return 0, err
-	}
-	return s.BlobStore.Delete(ctx, key)
-}
-
-func (s *profileReplayFaultStore) failDeleteNumber(number int, err error) {
-	s.mu.Lock()
-	s.deleteCalls = 0
-	s.failDeleteAt = number
-	s.failDelete = err
-	s.mu.Unlock()
 }
 
 func newProfileFixture(t *testing.T, modes ...privacy.Mode) profileFixture {
@@ -144,11 +109,10 @@ func newProfileFixture(t *testing.T, modes ...privacy.Mode) profileFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	replays := &profileReplayFaultStore{BlobStore: diskReplays}
 	return profileFixture{
-		handler: platformhttp.New(platformhttp.Deps{TrackingMode: mode, Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones, ReplayStore: replays}),
+		handler: platformhttp.New(platformhttp.Deps{TrackingMode: mode, Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones, ProfileErasures: profileerasure.New(pool), ReplayStore: diskReplays}),
 		pool:    pool, siteID: siteID, disabledID: disabledID, foreignSite: foreignSite, profileID: profileID,
-		tombstones: tombstones, replays: replays, replayFault: replays,
+		tombstones: tombstones, replays: diskReplays,
 	}
 }
 
@@ -165,6 +129,21 @@ func (f profileFixture) request(t *testing.T, actor, method, path string) *httpt
 	response := httptest.NewRecorder()
 	f.handler.ServeHTTP(response, request)
 	return response
+}
+
+func (f profileFixture) completeErasure(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	worker := profileerasure.NewWorker(f.pool, profileerasure.New(f.pool), f.replays, nil)
+	if err := worker.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `update profile_erasure_requests set settle_after=now()-interval '1 second' where profile_id=$1 and status='settling'`, f.profileID); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestProfilesListAndDetail(t *testing.T) {
@@ -316,25 +295,45 @@ func TestProfilesAuthorization(t *testing.T) {
 	}
 }
 
-func TestDeleteProfileErasesEventsAndAuditsTransactionally(t *testing.T) {
+func TestDeleteProfileQueuesErasureTransactionally(t *testing.T) {
 	f := newProfileFixture(t)
 	response := f.request(t, "admin", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
+	if response.Code != http.StatusAccepted {
 		t.Fatalf("delete status=%d body=%s", response.Code, response.Body.String())
 	}
+	var accepted struct {
+		ErasureID int64  `json:"erasure_id"`
+		Status    string `json:"status"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &accepted); err != nil {
+		t.Fatal(err)
+	}
+	if accepted.ErasureID <= 0 || accepted.Status != "pending" {
+		t.Fatalf("accepted=%+v, want positive id and pending", accepted)
+	}
+	wantLocation := fmt.Sprintf("/api/private/erasures/%d", accepted.ErasureID)
+	if got := response.Header().Get("Location"); got != wantLocation {
+		t.Fatalf("Location=%q, want %q", got, wantLocation)
+	}
 	ctx := context.Background()
-	var profiles, events, audits int
+	var profiles, events, requests, audits int
 	if err := f.pool.QueryRow(ctx, `select count(*) from profiles where id=$1`, f.profileID).Scan(&profiles); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.pool.QueryRow(ctx, `select count(*) from events where profile_id=$1`, f.profileID).Scan(&events); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.pool.QueryRow(ctx, `select count(*) from audit_log where action='profile.erased' and target_id=$1`, f.profileID).Scan(&audits); err != nil {
+	if err := f.pool.QueryRow(ctx, `select count(*) from profile_erasure_requests where id=$1 and site_id=$2 and profile_id=$3 and status='pending'`, accepted.ErasureID, f.siteID, f.profileID).Scan(&requests); err != nil {
 		t.Fatal(err)
 	}
-	if profiles != 0 || events != 0 || audits != 1 {
-		t.Fatalf("profiles=%d events=%d audits=%d", profiles, events, audits)
+	if err := f.pool.QueryRow(ctx, `select count(*) from audit_log where action='profile.erasure_requested' and target_id=$1`, f.profileID).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 1 || events != 3 || requests != 1 || audits != 1 {
+		t.Fatalf("profiles=%d events=%d requests=%d audits=%d", profiles, events, requests, audits)
+	}
+	if err := f.tombstones.Poll(ctx); err != nil {
+		t.Fatal(err)
 	}
 	if !f.tombstones.Contains(f.siteID, "user-123") {
 		t.Fatal("profile erasure did not publish a tombstone")
@@ -345,6 +344,108 @@ func TestDeleteProfileErasesEventsAndAuditsTransactionally(t *testing.T) {
 	}
 	if strings.Contains(storedID, "user-123") || len(storedID) != 64 {
 		t.Fatalf("stored tombstone hash=%q", storedID)
+	}
+
+	duplicate := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if duplicate.Code != http.StatusAccepted {
+		t.Fatalf("duplicate status=%d body=%s", duplicate.Code, duplicate.Body.String())
+	}
+	var duplicateAccepted struct {
+		ErasureID int64 `json:"erasure_id"`
+	}
+	if err := json.Unmarshal(duplicate.Body.Bytes(), &duplicateAccepted); err != nil {
+		t.Fatal(err)
+	}
+	if duplicateAccepted.ErasureID != accepted.ErasureID {
+		t.Fatalf("duplicate id=%d, want %d", duplicateAccepted.ErasureID, accepted.ErasureID)
+	}
+}
+
+func TestProfileErasureRequestRollbackDoesNotPublishTombstone(t *testing.T) {
+	f := newProfileFixture(t)
+	ctx := context.Background()
+	if _, err := f.pool.Exec(ctx, `
+		create function reject_profile_erasure_request_audit() returns trigger language plpgsql as $$
+		begin raise exception 'audit unavailable'; end $$;
+		create trigger reject_profile_erasure_request_audit before insert on audit_log
+		for each row when (new.action='profile.erasure_requested')
+		execute function reject_profile_erasure_request_audit()`); err != nil {
+		t.Fatal(err)
+	}
+	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var requests, tombstones int
+	if err := f.pool.QueryRow(ctx, `select count(*) from profile_erasure_requests where profile_id=$1`, f.profileID).Scan(&requests); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from profile_tombstones where site_id=$1`, f.siteID).Scan(&tombstones); err != nil {
+		t.Fatal(err)
+	}
+	if requests != 0 || tombstones != 0 || f.tombstones.Contains(f.siteID, "user-123") {
+		t.Fatalf("rollback left requests=%d tombstones=%d memory=%t", requests, tombstones, f.tombstones.Contains(f.siteID, "user-123"))
+	}
+}
+
+func TestProfileErasureStatusAuthorizationAndRetry(t *testing.T) {
+	f := newProfileFixture(t)
+	created := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if created.Code != http.StatusAccepted {
+		t.Fatalf("create status=%d body=%s", created.Code, created.Body.String())
+	}
+	var accepted struct {
+		ErasureID int64 `json:"erasure_id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &accepted); err != nil {
+		t.Fatal(err)
+	}
+	privatePath := fmt.Sprintf("/api/private/erasures/%d", accepted.ErasureID)
+	publicPath := fmt.Sprintf("/api/public/v1/erasures/%d", accepted.ErasureID)
+	for _, test := range []struct {
+		name, actor, method, path string
+		want                      int
+	}{
+		{name: "owner private read", actor: "owner", method: http.MethodGet, path: privatePath, want: http.StatusOK},
+		{name: "editor private read forbidden", actor: "editor", method: http.MethodGet, path: privatePath, want: http.StatusForbidden},
+		{name: "profile key public read", actor: "key", method: http.MethodGet, path: publicPath, want: http.StatusOK},
+		{name: "missing public scope", actor: "stats-key", method: http.MethodGet, path: publicPath, want: http.StatusForbidden},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := f.request(t, test.actor, test.method, test.path)
+			if response.Code != test.want {
+				t.Fatalf("status=%d body=%s, want=%d", response.Code, response.Body.String(), test.want)
+			}
+		})
+	}
+
+	if _, err := f.pool.Exec(context.Background(), `update profile_erasure_requests set status='failed',attempts=20,last_error='storage unavailable' where id=$1`, accepted.ErasureID); err != nil {
+		t.Fatal(err)
+	}
+	retried := f.request(t, "admin", http.MethodPost, privatePath+"/retry")
+	if retried.Code != http.StatusOK {
+		t.Fatalf("retry status=%d body=%s", retried.Code, retried.Body.String())
+	}
+	var result struct {
+		Status   string `json:"status"`
+		Attempts int    `json:"attempts"`
+	}
+	if err := json.Unmarshal(retried.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "pending" || result.Attempts != 0 {
+		t.Fatalf("retry response=%+v", result)
+	}
+
+	var foreignRequest int64
+	if err := f.pool.QueryRow(context.Background(), `
+		insert into profile_erasure_requests(site_id,profile_id,external_hash,requested_by)
+		values ($1,999,decode(repeat('ab',32),'hex'),'user:1') returning id`, f.foreignSite).Scan(&foreignRequest); err != nil {
+		t.Fatal(err)
+	}
+	foreign := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/erasures/%d", foreignRequest))
+	if foreign.Code != http.StatusNotFound {
+		t.Fatalf("cross-org status=%d body=%s", foreign.Code, foreign.Body.String())
 	}
 }
 
@@ -363,9 +464,10 @@ func TestProfileDeleteRemovesReplays(t *testing.T) {
 	}
 
 	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
+	if response.Code != http.StatusAccepted {
 		t.Fatalf("delete status=%d body=%s", response.Code, response.Body.String())
 	}
+	f.completeErasure(t)
 	if reader, err := f.replays.Open(ctx, key); err == nil {
 		_ = reader.Close()
 		t.Fatal("profile replay blob still exists")
@@ -376,139 +478,6 @@ func TestProfileDeleteRemovesReplays(t *testing.T) {
 	}
 	if rows != 0 {
 		t.Fatalf("profile replay rows = %d, want 0", rows)
-	}
-}
-
-func TestProfileDeleteReplayFailureRollsBackAndCanBeRetried(t *testing.T) {
-	f := newProfileFixture(t)
-	ctx := context.Background()
-	day := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
-	keys := []string{
-		replay.SessionKey(f.siteID, day, 100),
-		replay.SessionKey(f.siteID, day, 101),
-	}
-	for index, key := range keys {
-		if _, err := f.replays.Append(ctx, key, strings.NewReader("replay")); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := f.pool.Exec(ctx, `
-			insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
-			values ($1,$2,$3,$3,$4,6,1,$5)`, f.siteID, 100+index, day.Add(time.Duration(index+1)*time.Hour), day, key); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// The first blob is already gone when the second delete fails. PostgreSQL
-	// rolls back both replay index deletions and the rest of profile erasure.
-	f.replayFault.failDeleteNumber(2, errors.New("replay storage unavailable"))
-	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusInternalServerError {
-		t.Fatalf("first delete status=%d body=%s", response.Code, response.Body.String())
-	}
-	var profiles, events, replayRows int
-	if err := f.pool.QueryRow(ctx, `select count(*) from profiles where id=$1`, f.profileID).Scan(&profiles); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.pool.QueryRow(ctx, `select count(*) from events where profile_id=$1`, f.profileID).Scan(&events); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=any($2::bigint[])`, f.siteID, []int64{100, 101}).Scan(&replayRows); err != nil {
-		t.Fatal(err)
-	}
-	if profiles != 1 || events == 0 || replayRows != 2 {
-		t.Fatalf("failed erase committed partial state: profiles=%d events=%d replay_rows=%d", profiles, events, replayRows)
-	}
-	if reader, err := f.replays.Open(ctx, keys[0]); err == nil {
-		_ = reader.Close()
-		t.Fatal("partial erase restored the already deleted first replay blob")
-	}
-	reader, err := f.replays.Open(ctx, keys[1])
-	if err != nil {
-		t.Fatalf("partial erase removed the replay whose delete failed: %v", err)
-	}
-	if _, err := io.ReadAll(reader); err != nil {
-		t.Fatal(err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if f.tombstones.Contains(f.siteID, "user-123") {
-		t.Fatal("failed erase left an in-memory tombstone")
-	}
-
-	response = f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
-		t.Fatalf("retry status=%d body=%s", response.Code, response.Body.String())
-	}
-	for _, key := range keys {
-		if reader, err := f.replays.Open(ctx, key); err == nil {
-			_ = reader.Close()
-			t.Fatalf("retry left replay blob %q", key)
-		}
-	}
-	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=any($2::bigint[])`, f.siteID, []int64{100, 101}).Scan(&replayRows); err != nil {
-		t.Fatal(err)
-	}
-	if replayRows != 0 {
-		t.Fatalf("retry left %d replay rows", replayRows)
-	}
-}
-
-func TestProfileDeleteDatabaseFailureAfterBlobDeleteCanBeRetried(t *testing.T) {
-	f := newProfileFixture(t)
-	ctx := context.Background()
-	day := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
-	key := replay.SessionKey(f.siteID, day, 100)
-	if _, err := f.replays.Append(ctx, key, strings.NewReader("replay")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.pool.Exec(ctx, `
-		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
-		values ($1,100,$2,$2,$3,6,1,$4)`, f.siteID, day.Add(time.Hour), day, key); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.pool.Exec(ctx, `
-		create function reject_profile_erasure_audit() returns trigger language plpgsql as $$
-		begin raise exception 'audit unavailable'; end $$;
-		create trigger reject_profile_erasure_audit before insert on audit_log
-		for each row execute function reject_profile_erasure_audit()`); err != nil {
-		t.Fatal(err)
-	}
-
-	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusInternalServerError {
-		t.Fatalf("first delete status=%d body=%s", response.Code, response.Body.String())
-	}
-	var profiles, replayRows int
-	if err := f.pool.QueryRow(ctx, `select count(*) from profiles where id=$1`, f.profileID).Scan(&profiles); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&replayRows); err != nil {
-		t.Fatal(err)
-	}
-	if profiles != 1 || replayRows != 1 {
-		t.Fatalf("database failure committed partial state: profiles=%d replay_rows=%d", profiles, replayRows)
-	}
-	if reader, err := f.replays.Open(ctx, key); err == nil {
-		_ = reader.Close()
-		t.Fatal("database rollback restored an already deleted replay blob")
-	}
-	if f.tombstones.Contains(f.siteID, "user-123") {
-		t.Fatal("database failure left an in-memory tombstone")
-	}
-	if _, err := f.pool.Exec(ctx, `drop trigger reject_profile_erasure_audit on audit_log; drop function reject_profile_erasure_audit()`); err != nil {
-		t.Fatal(err)
-	}
-
-	response = f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
-		t.Fatalf("retry status=%d body=%s", response.Code, response.Body.String())
-	}
-	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&replayRows); err != nil {
-		t.Fatal(err)
-	}
-	if replayRows != 0 {
-		t.Fatalf("retry left %d replay rows", replayRows)
 	}
 }
 
@@ -533,9 +502,10 @@ func TestDeleteProfileErasesLinkedSessionsInBothTiers(t *testing.T) {
 	exec(`insert into custom_closed(site_id,day,visitor_id,name_id,path_id) values ($1,'2026-10-09',10,1,1),($1,'2026-10-09',20,1,1)`, f.siteID)
 
 	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
+	if response.Code != http.StatusAccepted {
 		t.Fatalf("delete status=%d body=%s", response.Code, response.Body.String())
 	}
+	f.completeErasure(t)
 	for _, check := range []struct {
 		table string
 		want  string
@@ -580,8 +550,8 @@ func TestDisabledSiteProfilesStayErasable(t *testing.T) {
 	if got := f.request(t, "viewer", http.MethodGet, fmt.Sprintf("/api/private/profiles/%d", profileID)).Code; got != http.StatusOK {
 		t.Fatalf("detail status=%d, want 200", got)
 	}
-	if got := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", profileID)).Code; got != http.StatusNoContent {
-		t.Fatalf("delete status=%d, want 204", got)
+	if got := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", profileID)).Code; got != http.StatusAccepted {
+		t.Fatalf("delete status=%d, want 202", got)
 	}
 }
 
@@ -598,7 +568,7 @@ func TestAnonymousHistoricalReadsBlockedButErasureAllowed(t *testing.T) {
 		t.Fatalf("read restriction erased data: count=%d err=%v", count, err)
 	}
 	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
+	if response.Code != http.StatusAccepted {
 		t.Fatalf("erasure: %d %s", response.Code, response.Body.String())
 	}
 }

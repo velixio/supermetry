@@ -151,6 +151,51 @@ func TestOpenAPISessionsEndpoints(t *testing.T) {
 	}
 }
 
+func TestOpenAPIProfileErasureEndpoints(t *testing.T) {
+	source, err := os.ReadFile("openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var document struct {
+		Paths map[string]struct {
+			Get *struct {
+				Responses map[string]any `yaml:"responses"`
+			} `yaml:"get"`
+			Post *struct {
+				Responses map[string]any `yaml:"responses"`
+			} `yaml:"post"`
+			Delete *struct {
+				Responses map[string]any `yaml:"responses"`
+			} `yaml:"delete"`
+		} `yaml:"paths"`
+		Components struct {
+			Schemas map[string]any `yaml:"schemas"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(source, &document); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteOperation := document.Paths["/api/private/profiles/{profile_id}"].Delete
+	if deleteOperation == nil || deleteOperation.Responses["202"] == nil {
+		t.Fatal("private profile deletion must document its 202 response")
+	}
+	for _, path := range []string{"/api/private/erasures/{erasure_id}", "/api/public/v1/erasures/{erasure_id}"} {
+		if document.Paths[path].Get == nil {
+			t.Errorf("GET %s is missing", path)
+		}
+	}
+	if document.Paths["/api/private/erasures/{erasure_id}/retry"].Post == nil {
+		t.Error("private erasure retry endpoint is missing")
+	}
+	for _, schema := range []string{"ErasureAccepted", "ErasureRequest"} {
+		if _, ok := document.Components.Schemas[schema]; !ok {
+			t.Errorf("schema %s is missing", schema)
+		}
+	}
+}
+
 func mapKeys[V any](values map[string]V) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {

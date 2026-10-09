@@ -203,3 +203,15 @@ type Store interface {
 type Joiner interface {
 	Join(Hit) Result
 }
+
+// ProfileLinker optionally records a hash-only association between a live
+// session and an external profile identity.
+type ProfileLinker interface {
+	LinkProfile(siteID int32, sessionID int64, externalID string) bool
+}
+
+// ProfileBlockChecker optionally reports that replay uploads for a live
+// session must be suppressed after its linked profile was tombstoned.
+type ProfileBlockChecker interface {
+	ProfileBlocked(siteID int32, sessionID int64) bool
+}

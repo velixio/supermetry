@@ -5,6 +5,7 @@ package writer
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"sync"
@@ -570,9 +571,10 @@ func upsertProfiles(ctx context.Context, tx pgx.Tx, events []Event) error {
 		rowsToWrite = append(rowsToWrite, *row)
 	}
 	if _, err := tx.Exec(ctx, `
-		create temporary table profiles_stage (
+	create temporary table profiles_stage (
 			site_id integer not null,
 			external_id text not null,
+			external_hash bytea not null,
 			traits jsonb not null,
 			first_seen_at timestamptz not null,
 			last_seen_at timestamptz not null
@@ -584,9 +586,13 @@ func upsertProfiles(ctx context.Context, tx pgx.Tx, events []Event) error {
 	}
 	rows, err := tx.Query(ctx, `
 		insert into profiles(site_id, external_id, traits, first_seen_at, last_seen_at)
-		select site_id, external_id, traits, first_seen_at, last_seen_at
-		from profiles_stage
-		where true
+		select staged.site_id, staged.external_id, staged.traits, staged.first_seen_at, staged.last_seen_at
+		from profiles_stage staged
+		where not exists (
+			select 1 from profile_tombstones tombstone
+			where tombstone.site_id=staged.site_id
+				and tombstone.external_hash=staged.external_hash
+		)
 		on conflict (site_id, external_id) do update set
 			traits = case
 				when (select count(*) from jsonb_object_keys(profiles.traits || excluded.traits)) <= 20
@@ -617,7 +623,10 @@ func upsertProfiles(ctx context.Context, tx pgx.Tx, events []Event) error {
 			key := profileKey{siteID: events[i].SiteID, externalID: events[i].ProfileExternalID}
 			id, ok := ids[key]
 			if !ok {
-				return fmt.Errorf("writer: profile upsert returned no identifier")
+				events[i].ProfileExternalID = ""
+				events[i].ProfileTraits = nil
+				events[i].ProfileID = 0
+				continue
 			}
 			events[i].ProfileID = id
 		}
@@ -646,12 +655,12 @@ func mergeTraits(row *profileRow, traits map[string]string) {
 	}
 }
 
-var profileColumns = []string{"site_id", "external_id", "traits", "first_seen_at", "last_seen_at"}
+var profileColumns = []string{"site_id", "external_id", "external_hash", "traits", "first_seen_at", "last_seen_at"}
 
 type profileSource struct {
 	profiles []profileRow
 	index    int
-	row      [5]any
+	row      [6]any
 }
 
 func (s *profileSource) Next() bool {
@@ -663,7 +672,8 @@ func (s *profileSource) Err() error { return nil }
 
 func (s *profileSource) Values() ([]any, error) {
 	profile := &s.profiles[s.index-1]
-	s.row = [5]any{profile.siteID, profile.externalID, profile.traits, profile.firstSeen, profile.lastSeen}
+	externalHash := sha256.Sum256([]byte(profile.externalID))
+	s.row = [6]any{profile.siteID, profile.externalID, externalHash[:], profile.traits, profile.firstSeen, profile.lastSeen}
 	return s.row[:], nil
 }
 

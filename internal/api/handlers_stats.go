@@ -702,7 +702,7 @@ func realtimeLabel(dictionary dictionaryResolver, kind dict.Kind, encoded string
 	return encoded
 }
 
-func dataHealthHandler(progressProvider RollupBackfillProgressFunc) http.HandlerFunc {
+func dataHealthHandler(progressProvider RollupBackfillProgressFunc, failedErasuresProvider FailedProfileErasuresFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !authorizeRequest(w, r, 0, "admin:read") {
 			return
@@ -726,30 +726,41 @@ func dataHealthHandler(progressProvider RollupBackfillProgressFunc) http.Handler
 				backfill.Status = "running"
 			}
 		}
+		var failedProfileErasures int64
+		if failedErasuresProvider != nil {
+			var err error
+			failedProfileErasures, err = failedErasuresProvider(r.Context())
+			if err != nil {
+				writeProblem(w, internalProblem())
+				return
+			}
+		}
 		writeJSON(w, http.StatusOK, DataHealthResponse{
-			BotsFiltered:    bots,
-			CloseLagSeconds: snapshot["close_lag_seconds"],
-			ClockSkewClamps: int64(snapshot["ingest_clock_skew_total"]),
-			Duplicates:      int64(snapshot["ingest_duplicates_total"]),
-			Drops503:        int64(snapshot["ingest_dropped_total"]),
-			IngestRate:      snapshot["ingest_accepted_total"],
-			LateDrops:       int64(snapshot["ingest_late_dropped_total"]),
-			QueueDepth:      int64(snapshot["writer_queue_depth"]),
-			RollupBackfill:  backfill,
+			BotsFiltered:          bots,
+			CloseLagSeconds:       snapshot["close_lag_seconds"],
+			ClockSkewClamps:       int64(snapshot["ingest_clock_skew_total"]),
+			Duplicates:            int64(snapshot["ingest_duplicates_total"]),
+			Drops503:              int64(snapshot["ingest_dropped_total"]),
+			IngestRate:            snapshot["ingest_accepted_total"],
+			LateDrops:             int64(snapshot["ingest_late_dropped_total"]),
+			QueueDepth:            int64(snapshot["writer_queue_depth"]),
+			FailedProfileErasures: failedProfileErasures,
+			RollupBackfill:        backfill,
 		})
 	}
 }
 
 type DataHealthResponse struct {
-	BotsFiltered    int64                  `json:"bots_filtered"`
-	CloseLagSeconds float64                `json:"close_lag_seconds"`
-	ClockSkewClamps int64                  `json:"clock_skew_clamps"`
-	Duplicates      int64                  `json:"duplicates"`
-	Drops503        int64                  `json:"drops_503"`
-	IngestRate      float64                `json:"ingest_rate"`
-	LateDrops       int64                  `json:"late_drops"`
-	QueueDepth      int64                  `json:"queue_depth"`
-	RollupBackfill  RollupBackfillProgress `json:"rollup_backfill"`
+	BotsFiltered          int64                  `json:"bots_filtered"`
+	CloseLagSeconds       float64                `json:"close_lag_seconds"`
+	ClockSkewClamps       int64                  `json:"clock_skew_clamps"`
+	Duplicates            int64                  `json:"duplicates"`
+	Drops503              int64                  `json:"drops_503"`
+	IngestRate            float64                `json:"ingest_rate"`
+	LateDrops             int64                  `json:"late_drops"`
+	QueueDepth            int64                  `json:"queue_depth"`
+	FailedProfileErasures int64                  `json:"failed_profile_erasures"`
+	RollupBackfill        RollupBackfillProgress `json:"rollup_backfill"`
 }
 
 type RollupBackfillProgress struct {

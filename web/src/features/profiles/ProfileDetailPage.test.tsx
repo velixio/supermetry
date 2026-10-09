@@ -3,17 +3,33 @@ import '@testing-library/jest-dom/vitest'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useDeleteProfile, useProfile } = vi.hoisted(() => ({
+const { useDeleteProfile, useProfile, useProfileErasure, useRetryProfileErasure } = vi.hoisted(() => ({
   useDeleteProfile: vi.fn(),
   useProfile: vi.fn(),
+  useProfileErasure: vi.fn(),
+  useRetryProfileErasure: vi.fn(),
 }))
-vi.mock('./api', () => ({ useDeleteProfile, useProfile }))
+vi.mock('./api', () => ({ useDeleteProfile, useProfile, useProfileErasure, useRetryProfileErasure }))
 
 import { ProfileDetailPage } from './ProfileDetailPage'
 
 afterEach(cleanup)
+
+beforeEach(() => {
+  useProfileErasure.mockReturnValue({ data: undefined })
+  useRetryProfileErasure.mockReturnValue({ mutate: vi.fn(), isPending: false })
+})
+
+function profileFixture() {
+  return {
+    data: { id: 12, site_id: 7, external_id: 'ada-42', traits: {}, first_seen_at: '', last_seen_at: '', timeline: [], next_cursor: null },
+    isPending: false,
+    isError: false,
+    isFetching: false,
+  }
+}
 
 function renderPage(role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner') {
   return render(
@@ -102,5 +118,42 @@ describe('ProfileDetailPage', () => {
 
     renderPage('editor')
     expect(screen.queryByRole('button', { name: 'Delete profile' })).not.toBeInTheDocument()
+  })
+
+  it('shows deletion in progress while an accepted erasure is running', () => {
+    useDeleteProfile.mockReturnValue({ mutate: vi.fn(), isPending: false, data: { erasure_id: 91, status: 'pending' } })
+    useProfileErasure.mockReturnValue({ data: { id: 91, status: 'running' } })
+    useProfile.mockReturnValue(profileFixture())
+
+    renderPage()
+
+    expect(screen.getByText('Deletion in progress')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Delete profile' })).not.toBeInTheDocument()
+  })
+
+  it('shows deleted after the erasure completes', () => {
+    useDeleteProfile.mockReturnValue({ mutate: vi.fn(), isPending: false, data: { erasure_id: 91, status: 'pending' } })
+    useProfileErasure.mockReturnValue({ data: { id: 91, status: 'done' } })
+    useProfile.mockReturnValue(profileFixture())
+
+    renderPage()
+
+    expect(screen.getByText('Deleted')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Back to profiles' })).toBeVisible()
+  })
+
+  it('shows a failed erasure and lets an owner retry it', () => {
+    const retry = vi.fn()
+    useDeleteProfile.mockReturnValue({ mutate: vi.fn(), isPending: false, data: { erasure_id: 91, status: 'pending' } })
+    useProfileErasure.mockReturnValue({ data: { id: 91, status: 'failed', last_error: 'blob storage unavailable' } })
+    useRetryProfileErasure.mockReturnValue({ mutate: retry, isPending: false })
+    useProfile.mockReturnValue(profileFixture())
+
+    renderPage()
+    expect(screen.getByText('Failed')).toBeVisible()
+    expect(screen.getByText('blob storage unavailable')).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retry).toHaveBeenCalledWith(91)
   })
 })

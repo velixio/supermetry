@@ -296,6 +296,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
+	if profileID != "" {
+		if links, ok := h.Sessions.(session.ProfileLinker); ok && !links.LinkProfile(site.ID, result.SessionID, profileID) {
+			profileID = ""
+			profileTraits = nil
+		}
+	}
 	if !identityAllowed && hit.Kind == 0 {
 		event.PathSanitizerVersion = pathValue.Version
 		event.PathPolicyID = pathValue.Policy

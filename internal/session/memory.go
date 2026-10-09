@@ -85,6 +85,7 @@ type Memory struct {
 	shards   []memoryShard
 	clock    Clock
 	activity activityIndex
+	profiles profileLinks
 
 	rngMu sync.Mutex
 	rng   *mathrand.ChaCha8
@@ -114,6 +115,7 @@ func NewMemory(shards int, clk Clock) *Memory {
 		rng:    mathrand.NewChaCha8(seed),
 	}
 	m.activity.init()
+	m.profiles.init()
 	for i := range m.shards {
 		m.shards[i].sessions = make(map[sessionKey]*memorySession)
 	}
@@ -462,6 +464,7 @@ func (m *Memory) markDirty(sh *memoryShard, s *memorySession) {
 
 func (m *Memory) deactivate(sh *memoryShard, key sessionKey, s *memorySession) {
 	delete(sh.sessions, key)
+	m.dropProfileSession(s.siteID, s.sessionID)
 	s.status &^= statusActive
 	if s.status&statusQueued == 0 {
 		delete(sh.overflow, s)

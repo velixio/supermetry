@@ -44,6 +44,10 @@ type dictionaryResolver interface {
 // RollupBackfillProgressFunc loads cluster-wide progress from PostgreSQL.
 type RollupBackfillProgressFunc func(context.Context) (running bool, daysDone, totalDays int, err error)
 
+// FailedProfileErasuresFunc reports durable erasure requests that exhausted
+// their retries and need an administrator's attention.
+type FailedProfileErasuresFunc func(context.Context) (int64, error)
+
 // Deps contains the services exposed by the analytics HTTP router.
 type Deps struct {
 	Config         config.Config
@@ -68,6 +72,7 @@ type Deps struct {
 	Now                    func() time.Time
 	Ready                  func() bool
 	RollupBackfillProgress RollupBackfillProgressFunc
+	FailedProfileErasures  FailedProfileErasuresFunc
 }
 
 // NewRouter mounts the public integration API, private dashboard API and
@@ -123,7 +128,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("POST "+privatePrefix+"/retention/query", h.retentionRequest)
 	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	private.HandleFunc("GET "+privatePrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
-	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress))
+	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress, deps.FailedProfileErasures))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, private))))
 	registerPlatformRoutes(mux, deps.Platform, deps.RateLimiter)
@@ -225,6 +230,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"DELETE " + publicPrefix + "/segments/{segment}",
 		"GET " + publicPrefix + "/sites/{site}/profiles",
 		"GET " + publicPrefix + "/profiles/{profile}",
+		"GET " + publicPrefix + "/erasures/{erasure}",
 	} {
 		mux.Handle(pattern, public)
 	}
@@ -312,6 +318,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"GET " + privatePrefix + "/sites/{site}/profiles",
 		"GET " + privatePrefix + "/profiles/{profile}",
 		"DELETE " + privatePrefix + "/profiles/{profile}",
+		"GET " + privatePrefix + "/erasures/{erasure}",
+		"POST " + privatePrefix + "/erasures/{erasure}/retry",
 		"GET " + privatePrefix + "/sites/{site}/replays",
 		"GET " + privatePrefix + "/sites/{site}/replays/{replay_path...}",
 		"GET " + privatePrefix + "/sites/{site}/replay-settings",
@@ -452,7 +460,10 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	if root, ok := document.(map[string]any); ok {
 		if paths, ok := root["paths"].(map[string]any); ok {
 			for route := range paths {
-				if strings.HasPrefix(route, "/api/private/sites/") || strings.HasPrefix(route, "/api/private/instance/") {
+				if strings.HasPrefix(route, "/api/private/sites/") ||
+					strings.HasPrefix(route, "/api/private/instance/") ||
+					strings.HasPrefix(route, "/api/private/profiles/") ||
+					strings.HasPrefix(route, "/api/private/erasures/") {
 					delete(paths, route)
 				}
 			}

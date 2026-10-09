@@ -31,6 +31,7 @@ import (
 	"supermetry/internal/platform/sitesvc"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/privacy"
+	"supermetry/internal/profileerasure"
 	"supermetry/internal/replay"
 	coresites "supermetry/internal/sites"
 )
@@ -98,9 +99,9 @@ type Deps struct {
 	}
 	ProfileTombstones interface {
 		RememberTx(context.Context, pgx.Tx, int32, string) error
-		ForgetMemory(int32, string)
 	}
-	ImportQueue interface {
+	ProfileErasures *profileerasure.Store
+	ImportQueue     interface {
 		Queue(imports.Job) error
 	}
 	Exporter interface {
@@ -200,6 +201,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/profiles", h.listProfiles)
 	mux.HandleFunc("GET /api/private/profiles/{profile}", h.getProfile)
 	mux.HandleFunc("DELETE /api/private/profiles/{profile}", h.deleteProfile)
+	mux.HandleFunc("GET /api/private/erasures/{erasure}", h.getPrivateErasure)
+	mux.HandleFunc("POST /api/private/erasures/{erasure}/retry", h.retryErasure)
 	mux.HandleFunc("GET /api/private/sites/{site}/replays", h.listReplays)
 	mux.HandleFunc("GET /api/private/sites/{site}/replays/{replay_path...}", h.replayAsset)
 	mux.HandleFunc("GET /api/private/sites/{site}/replay-settings", h.getReplaySettings)

@@ -35,6 +35,7 @@ func (h *handler) registerPublic(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/public/v1/segments/{segment}", h.deleteSegment)
 	mux.HandleFunc("GET /api/public/v1/sites/{site}/profiles", h.listProfiles)
 	mux.HandleFunc("GET /api/public/v1/profiles/{profile}", h.getProfile)
+	mux.HandleFunc("GET /api/public/v1/erasures/{erasure}", h.getPublicErasure)
 	mux.HandleFunc("GET /api/public/v1/stats/summary", h.publicStats)
 }
 

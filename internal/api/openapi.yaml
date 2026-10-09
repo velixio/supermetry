@@ -971,6 +971,86 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /api/private/profiles/{profile_id}:
+    parameters:
+      - name: profile_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    delete:
+      operationId: requestProfileErasure
+      summary: Queue durable profile erasure
+      description: Owner or Admin only. Records a tombstone and restart-safe erasure request before returning.
+      responses:
+        '202':
+          description: Erasure accepted
+          headers:
+            Location:
+              description: Private erasure status URL
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErasureAccepted' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/erasures/{erasure_id}:
+    parameters:
+      - name: erasure_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    get:
+      operationId: getPrivateProfileErasure
+      summary: Get profile erasure status
+      responses:
+        '200':
+          description: Erasure status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErasureRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/erasures/{erasure_id}/retry:
+    parameters:
+      - name: erasure_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    post:
+      operationId: retryProfileErasure
+      summary: Retry a failed profile erasure
+      responses:
+        '200':
+          description: Erasure queued again
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErasureRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/erasures/{erasure_id}:
+    parameters:
+      - name: erasure_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    get:
+      operationId: getProfileErasure
+      summary: Get profile erasure status
+      description: Requires profiles:read and access to the request's site.
+      responses:
+        '200':
+          description: Erasure status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErasureRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/public/v1/sites/{site_id}/annotations:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -2906,6 +2986,28 @@ components:
             next_cursor: { type: [string, 'null'] }
             total: { type: integer, minimum: 0, maximum: 10000 }
             total_capped: { type: boolean }
+    ErasureAccepted:
+      type: object
+      additionalProperties: false
+      required: [erasure_id, status]
+      properties:
+        erasure_id: { type: integer, format: int64, minimum: 1 }
+        status: { type: string, enum: [pending, running, settling, done, failed] }
+    ErasureRequest:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, profile_id, status, attempts, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        site_id: { type: integer, format: int32, minimum: 1 }
+        profile_id: { type: integer, format: int64, minimum: 1 }
+        status: { type: string, enum: [pending, running, settling, done, failed] }
+        attempts: { type: integer, minimum: 0, maximum: 20 }
+        last_error: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        settle_after: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
     EventExploreItem:
       type: object
       additionalProperties: false
@@ -3129,7 +3231,7 @@ components:
     DataHealthResponse:
       type: object
       additionalProperties: false
-      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds, duplicates, late_drops, clock_skew_clamps, rollup_backfill]
+      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds, duplicates, late_drops, clock_skew_clamps, failed_profile_erasures, rollup_backfill]
       properties:
         ingest_rate:
           type: number
@@ -3155,6 +3257,10 @@ components:
           format: int64
           minimum: 0
         clock_skew_clamps:
+          type: integer
+          format: int64
+          minimum: 0
+        failed_profile_erasures:
           type: integer
           format: int64
           minimum: 0

@@ -81,6 +81,7 @@ it("shows collection reliability signals in a distinct section", async () => {
     duplicates: 23,
     late_drops: 5,
     clock_skew_clamps: 7,
+    failed_profile_erasures: 0,
     rollup_backfill: { status: "finished", days_done: 120, total_days: 120 },
   });
   const client = new QueryClient({
@@ -99,4 +100,32 @@ it("shows collection reliability signals in a distinct section", async () => {
   expect(collection).toHaveTextContent("Late drops5");
   expect(collection).toHaveTextContent("Clock-skew clamps7");
   expect(collection).not.toHaveTextContent("Events rejected");
+});
+
+it("shows failed profile erasure requests that need attention", async () => {
+  request.mockResolvedValue({
+    ingest_rate: 0,
+    drops_503: 0,
+    bots_filtered: 0,
+    queue_depth: 0,
+    close_lag_seconds: 0,
+    duplicates: 0,
+    late_drops: 0,
+    clock_skew_clamps: 0,
+    failed_profile_erasures: 2,
+    rollup_backfill: { status: "finished", days_done: 120, total_days: 120 },
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  render(
+    <QueryClientProvider client={client}>
+      <HealthPage />
+    </QueryClientProvider>,
+  );
+
+  expect(
+    await screen.findByRole("alert"),
+  ).toHaveTextContent("2 profile erasure requests need attention.");
 });

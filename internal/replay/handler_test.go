@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -232,6 +233,22 @@ func TestChunkNoLiveSessionDropped(t *testing.T) {
 	}
 	if len(blob.keys) != 0 || len(index.updates) != 0 {
 		t.Fatalf("no-session upload wrote blobs=%d index=%d", len(blob.keys), len(index.updates))
+	}
+}
+
+func TestChunkDropsTombstonedProfileSession(t *testing.T) {
+	h, sessions, blob, index, visitorID := newReplayTestHandler(t, replayInput(100))
+	result := touchReplaySession(t, sessions, visitorID)
+	if !sessions.LinkProfile(7, result.SessionID, "customer-1") {
+		t.Fatal("link profile")
+	}
+	sessions.TombstoneProfile(7, sha256.Sum256([]byte("customer-1")))
+	response := requestChunk(h, 0, true, "", gzipBody(t, []byte("chunk")), "192.0.2.1:1234", "test-agent")
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want privacy-preserving 202", response.Code)
+	}
+	if len(blob.keys) != 0 || len(index.updates) != 0 {
+		t.Fatalf("tombstoned session wrote blobs=%d index=%d", len(blob.keys), len(index.updates))
 	}
 }
 

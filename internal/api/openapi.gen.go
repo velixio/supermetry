@@ -43,6 +43,60 @@ func (e CreateSiteRequestRetentionDays) Valid() bool {
 	}
 }
 
+// Defines values for ErasureAcceptedStatus.
+const (
+	ErasureAcceptedStatusDone     ErasureAcceptedStatus = "done"
+	ErasureAcceptedStatusFailed   ErasureAcceptedStatus = "failed"
+	ErasureAcceptedStatusPending  ErasureAcceptedStatus = "pending"
+	ErasureAcceptedStatusRunning  ErasureAcceptedStatus = "running"
+	ErasureAcceptedStatusSettling ErasureAcceptedStatus = "settling"
+)
+
+// Valid indicates whether the value is a known member of the ErasureAcceptedStatus enum.
+func (e ErasureAcceptedStatus) Valid() bool {
+	switch e {
+	case ErasureAcceptedStatusDone:
+		return true
+	case ErasureAcceptedStatusFailed:
+		return true
+	case ErasureAcceptedStatusPending:
+		return true
+	case ErasureAcceptedStatusRunning:
+		return true
+	case ErasureAcceptedStatusSettling:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ErasureRequestStatus.
+const (
+	ErasureRequestStatusDone     ErasureRequestStatus = "done"
+	ErasureRequestStatusFailed   ErasureRequestStatus = "failed"
+	ErasureRequestStatusPending  ErasureRequestStatus = "pending"
+	ErasureRequestStatusRunning  ErasureRequestStatus = "running"
+	ErasureRequestStatusSettling ErasureRequestStatus = "settling"
+)
+
+// Valid indicates whether the value is a known member of the ErasureRequestStatus enum.
+func (e ErasureRequestStatus) Valid() bool {
+	switch e {
+	case ErasureRequestStatusDone:
+		return true
+	case ErasureRequestStatusFailed:
+		return true
+	case ErasureRequestStatusPending:
+		return true
+	case ErasureRequestStatusRunning:
+		return true
+	case ErasureRequestStatusSettling:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EventExploreItemKind.
 const (
 	ExploreEvent    EventExploreItemKind = "event"
@@ -749,6 +803,32 @@ type DateRange struct {
 	From openapi_types.Date `json:"from"`
 	To   openapi_types.Date `json:"to"`
 }
+
+// ErasureAccepted defines model for ErasureAccepted.
+type ErasureAccepted struct {
+	ErasureId int64                 `json:"erasure_id"`
+	Status    ErasureAcceptedStatus `json:"status"`
+}
+
+// ErasureAcceptedStatus defines model for ErasureAccepted.Status.
+type ErasureAcceptedStatus string
+
+// ErasureRequest defines model for ErasureRequest.
+type ErasureRequest struct {
+	Attempts    int                  `json:"attempts"`
+	CompletedAt *time.Time           `json:"completed_at,omitempty"`
+	CreatedAt   time.Time            `json:"created_at"`
+	Id          int64                `json:"id"`
+	LastError   *string              `json:"last_error,omitempty"`
+	ProfileId   int64                `json:"profile_id"`
+	SettleAfter *time.Time           `json:"settle_after,omitempty"`
+	SiteId      int32                `json:"site_id"`
+	Status      ErasureRequestStatus `json:"status"`
+	UpdatedAt   time.Time            `json:"updated_at"`
+}
+
+// ErasureRequestStatus defines model for ErasureRequest.Status.
+type ErasureRequestStatus string
 
 // EventExploreItem defines model for EventExploreItem.
 type EventExploreItem struct {
@@ -2044,6 +2124,12 @@ type ServerInterface interface {
 	// ConfirmCurrentUserEmailChange Confirm an email change
 	// (POST /api/private/auth/email-change/confirm)
 	ConfirmCurrentUserEmailChange(w http.ResponseWriter, r *http.Request)
+	// GetPrivateProfileErasure Get profile erasure status
+	// (GET /api/private/erasures/{erasure_id})
+	GetPrivateProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
+	// RetryProfileErasure Retry a failed profile erasure
+	// (POST /api/private/erasures/{erasure_id}/retry)
+	RetryProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
 	// GetReplayStorage Get instance replay storage settings
 	// (GET /api/private/instance/replay-storage)
 	GetReplayStorage(w http.ResponseWriter, r *http.Request)
@@ -2065,6 +2151,9 @@ type ServerInterface interface {
 	// ChangeCurrentUserPassword Change the signed-in user's password
 	// (POST /api/private/me/password)
 	ChangeCurrentUserPassword(w http.ResponseWriter, r *http.Request)
+	// RequestProfileErasure Queue durable profile erasure
+	// (DELETE /api/private/profiles/{profile_id})
+	RequestProfileErasure(w http.ResponseWriter, r *http.Request, profileId int64)
 	// GetReplaySettings Get site replay settings
 	// (GET /api/private/sites/{site_id}/replay-settings)
 	GetReplaySettings(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -2095,6 +2184,9 @@ type ServerInterface interface {
 	// RevokeApiKey Revoke an API key
 	// (DELETE /api/public/v1/api-keys/{key_id})
 	RevokeApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
+	// GetProfileErasure Get profile erasure status
+	// (GET /api/public/v1/erasures/{erasure_id})
+	GetProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
 	// SubmitEvent Submit an analytics event
 	// (POST /api/public/v1/events)
 	SubmitEvent(w http.ResponseWriter, r *http.Request)
@@ -2279,6 +2371,58 @@ func (siw *ServerInterfaceWrapper) ConfirmCurrentUserEmailChange(w http.Response
 	handler.ServeHTTP(w, r)
 }
 
+// GetPrivateProfileErasure operation middleware
+func (siw *ServerInterfaceWrapper) GetPrivateProfileErasure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "erasure_id" -------------
+	var erasureId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "erasure_id", r.PathValue("erasure_id"), &erasureId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "erasure_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPrivateProfileErasure(w, r, erasureId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetryProfileErasure operation middleware
+func (siw *ServerInterfaceWrapper) RetryProfileErasure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "erasure_id" -------------
+	var erasureId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "erasure_id", r.PathValue("erasure_id"), &erasureId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "erasure_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetryProfileErasure(w, r, erasureId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetReplayStorage operation middleware
 func (siw *ServerInterfaceWrapper) GetReplayStorage(w http.ResponseWriter, r *http.Request) {
 
@@ -2368,6 +2512,32 @@ func (siw *ServerInterfaceWrapper) ChangeCurrentUserPassword(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeCurrentUserPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequestProfileErasure operation middleware
+func (siw *ServerInterfaceWrapper) RequestProfileErasure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "profile_id" -------------
+	var profileId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "profile_id", r.PathValue("profile_id"), &profileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "profile_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestProfileErasure(w, r, profileId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2677,6 +2847,32 @@ func (siw *ServerInterfaceWrapper) RevokeApiKey(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeApiKey(w, r, keyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProfileErasure operation middleware
+func (siw *ServerInterfaceWrapper) GetProfileErasure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "erasure_id" -------------
+	var erasureId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "erasure_id", r.PathValue("erasure_id"), &erasureId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "erasure_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProfileErasure(w, r, erasureId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4680,6 +4876,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sessions/{session_id}", wrapper.GetSession)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/profiles/{profile_id}", wrapper.GetProfile)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/profiles/{profile_id}", wrapper.RequestProfileErasure)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/erasures/{erasure_id}", wrapper.GetPrivateProfileErasure)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/erasures/{erasure_id}/retry", wrapper.RetryProfileErasure)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/erasures/{erasure_id}", wrapper.GetProfileErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/annotations", wrapper.ListAnnotations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/annotations", wrapper.CreateAnnotation)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/annotations/{annotation_id}", wrapper.DeleteAnnotation)

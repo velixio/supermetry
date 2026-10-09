@@ -657,6 +657,9 @@ func TestDataHealthShowsRollupBackfillProgress(t *testing.T) {
 	router := identifiedRouter(api.Deps{
 		Config:      config.Config{AdminAPIKey: "test-key"},
 		PrivateAuth: api.StaticKey("test-key"),
+		FailedProfileErasures: func(context.Context) (int64, error) {
+			return 3, nil
+		},
 		RollupBackfillProgress: func(context.Context) (bool, int, int, error) {
 			return true, 37, 120, nil
 		},
@@ -676,6 +679,9 @@ func TestDataHealthShowsRollupBackfillProgress(t *testing.T) {
 	}
 	if body.RollupBackfill.Status != "running" || body.RollupBackfill.DaysDone != 37 || body.RollupBackfill.TotalDays != 120 {
 		t.Fatalf("rollup backfill = %+v, want running 37/120", body.RollupBackfill)
+	}
+	if body.FailedProfileErasures != 3 {
+		t.Fatalf("failed profile erasures=%d, want 3", body.FailedProfileErasures)
 	}
 }
 

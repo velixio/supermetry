@@ -42,9 +42,10 @@ func TestDeleteProfileErasesVerifiedPageSessionsPreservingUnrelatedRows(t *testi
 		t.Fatal(err)
 	}
 	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
+	if response.Code != http.StatusAccepted {
 		t.Fatalf("delete=%d %s", response.Code, response.Body.String())
 	}
+	f.completeErasure(t)
 	var remaining string
 	if err := f.pool.QueryRow(ctx, `select string_agg(day::text||':'||session_id::text,',' order by day,session_id) from verified_page_sessions where site_id=$1`, f.siteID).Scan(&remaining); err != nil {
 		t.Fatal(err)
@@ -95,9 +96,10 @@ func TestDeleteProfileErasesFollowingDayVerifiedPageInSameSession(t *testing.T) 
 		t.Fatal(err)
 	}
 	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
-	if response.Code != http.StatusNoContent {
+	if response.Code != http.StatusAccepted {
 		t.Fatalf("delete=%d %s", response.Code, response.Body.String())
 	}
+	f.completeErasure(t)
 	var raw int
 	if err := f.pool.QueryRow(ctx, `select count(*) from events where site_id=$1 and session_id=300`, f.siteID).Scan(&raw); err != nil || raw != 0 {
 		t.Fatalf("erased raw rows=%d err=%v", raw, err)

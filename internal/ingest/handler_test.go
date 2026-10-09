@@ -3,6 +3,7 @@ package ingest_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -921,6 +922,27 @@ func TestTombstonedProfileIsRemovedBeforeQueueing(t *testing.T) {
 	}
 	if profiles != 0 || linked != 0 {
 		t.Fatalf("profiles=%d linked=%d, want anonymous queued event", profiles, linked)
+	}
+}
+
+func TestSessionProfileLinkRaceKeepsEventAnonymous(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	f.h.TrackingMode = privacy.Identified
+	setProfilesEnabled(t, f, true)
+	f.h.Sessions.(*session.Memory).TombstoneProfile(1, sha256.Sum256([]byte("customer-1")))
+	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1"}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("code=%d, want 202", rr.Code)
+	}
+	f.stop(t)
+
+	var profiles, linked int
+	if err := f.pool.QueryRow(context.Background(), `select (select count(*) from profiles), count(profile_id) from events`).Scan(&profiles, &linked); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 0 || linked != 0 {
+		t.Fatalf("profiles=%d linked=%d, want anonymous event after link race", profiles, linked)
 	}
 }
 

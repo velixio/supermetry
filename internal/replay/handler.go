@@ -274,6 +274,10 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
+	if profiles, ok := h.deps.Sessions.(session.ProfileBlockChecker); ok && profiles.ProfileBlocked(site.ID, result.SessionID) {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 	if previous != 0 && result.VisitorID == previous {
 		day = day.AddDate(0, 0, -1)
 	}

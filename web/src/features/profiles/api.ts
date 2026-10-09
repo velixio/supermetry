@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 
 import type { ProfileResponse, ProfilesResponse } from './types'
 
-type Method = 'GET' | 'DELETE'
+type Method = 'GET' | 'POST' | 'DELETE'
 type ApiResult = { data?: unknown; error?: unknown; response: Response }
 type LooseClient = Record<Method, (path: string, options: Record<string, unknown>) => Promise<ApiResult>>
 
@@ -34,6 +34,30 @@ export const profileKeys = {
   detail: (orgId: number, siteId: number, profileId: number, cursor?: string) => [...profileKeys.detailRoot(orgId, siteId, profileId), { cursor }] as const,
 }
 
+export type ErasureStatus = 'pending' | 'running' | 'settling' | 'done' | 'failed'
+
+export type ErasureAccepted = {
+  erasure_id: number
+  status: ErasureStatus
+}
+
+export type ErasureRequest = {
+  id: number
+  site_id: number
+  profile_id: number
+  status: ErasureStatus
+  attempts: number
+  last_error?: string | null
+  created_at: string
+  updated_at: string
+  completed_at?: string | null
+  settle_after?: string | null
+}
+
+export const erasureKeys = {
+  detail: (orgId: number, erasureId: number) => ['profile-erasures', orgId, erasureId] as const,
+}
+
 export function useProfiles(siteId: number, orgId: number, search: string, cursor?: string) {
   return useQuery<ProfilesResponse, Error>({
     queryKey: profileKeys.list(orgId, siteId, search, cursor),
@@ -57,14 +81,35 @@ export function useProfile(profileId: number, orgId: number, siteId: number, cur
   })
 }
 
-export function useDeleteProfile(siteId: number, orgId: number, onDeleted: () => void) {
+export function useDeleteProfile(siteId: number, orgId: number) {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, number>({
+  return useMutation<ErasureAccepted, Error, number>({
     mutationFn: (profileId) => profilesRequest('DELETE', `/api/private/profiles/${profileId}`, orgId),
-    onSuccess: async (_data, profileId) => {
-      queryClient.removeQueries({ queryKey: profileKeys.detailRoot(orgId, siteId, profileId) })
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: profileKeys.all(orgId, siteId) })
-      onDeleted()
+    },
+  })
+}
+
+export function useProfileErasure(erasureId: number | undefined, orgId: number) {
+  return useQuery<ErasureRequest, Error>({
+    queryKey: erasureKeys.detail(orgId, erasureId ?? 0),
+    enabled: Boolean(erasureId) && orgId > 0,
+    queryFn: ({ signal }) => profilesRequest('GET', `/api/private/erasures/${erasureId}`, orgId, undefined, signal),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'done' || status === 'failed' ? false : 2_000
+    },
+  })
+}
+
+export function useRetryProfileErasure(orgId: number) {
+  const queryClient = useQueryClient()
+  return useMutation<ErasureRequest, Error, number>({
+    mutationFn: (erasureId) => profilesRequest('POST', `/api/private/erasures/${erasureId}/retry`, orgId),
+    onSuccess: (request, erasureId) => {
+      queryClient.setQueryData(erasureKeys.detail(orgId, erasureId), request)
+      void queryClient.invalidateQueries({ queryKey: erasureKeys.detail(orgId, erasureId) })
     },
   })
 }

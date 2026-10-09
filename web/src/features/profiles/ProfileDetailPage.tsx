@@ -16,18 +16,54 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Role } from '@/components/Sidebar'
 
-import { useDeleteProfile, useProfile } from './api'
+import { useDeleteProfile, useProfile, useProfileErasure, useRetryProfileErasure, type ErasureStatus } from './api'
 
 type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
 
 function displayValue(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value)
+}
+
+function ProfileErasureState({
+  erasureId,
+  lastError,
+  onDeleted,
+  onRetry,
+  retrying,
+  status,
+}: {
+  erasureId: number
+  lastError?: string | null
+  onDeleted: () => void
+  onRetry: (id: number) => void
+  retrying: boolean
+  status: ErasureStatus
+}) {
+  const failed = status === 'failed'
+  const done = status === 'done'
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Profile deletion</CardTitle>
+        <CardDescription>The erasure request is processed in the background and remains safe across restarts.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-start gap-3">
+        <Badge variant={failed ? 'destructive' : done ? 'outline' : 'secondary'}>
+          {failed ? 'Failed' : done ? 'Deleted' : 'Deletion in progress'}
+        </Badge>
+        {failed && lastError ? <p className="text-sm text-muted-foreground">{lastError}</p> : null}
+        {failed ? <Button disabled={retrying} onClick={() => onRetry(erasureId)}>Retry</Button> : null}
+        {done ? <Button variant="outline" onClick={onDeleted}>Back to profiles</Button> : null}
+      </CardContent>
+    </Card>
+  )
 }
 
 function ProfileDetailPageContent({
@@ -63,13 +99,36 @@ function ProfileDetailPageContent({
 }) {
   const canReplay = useCapability('replay.read')
   const profile = useProfile(profileId, orgId, siteId, cursor)
-  const remove = useDeleteProfile(siteId, orgId, onDeleted)
+  const remove = useDeleteProfile(siteId, orgId)
+  const erasureId = remove.data?.erasure_id
+  const erasure = useProfileErasure(erasureId, orgId)
+  const retryErasure = useRetryProfileErasure(orgId)
   const canDelete = role === 'owner' || role === 'admin'
 
   if (profile.isError) return <ErrorState detail={profile.error?.message} onRetry={() => void profile.refetch?.()} />
   if (profile.isPending || !profile.data) return <Skeleton className="h-72 w-full" />
   if (profile.data.site_id !== siteId) return <AccessDenied subject="read this profile from the selected site" />
   const data = profile.data as Paged<typeof profile.data>
+  const erasureStatus = erasure.data?.status ?? remove.data?.status
+
+  if (erasureId && erasureStatus) {
+    return (
+      <main className="flex min-w-0 flex-col gap-6">
+        <header className="flex min-w-0 flex-col gap-1">
+          <p className="text-sm text-muted-foreground">Profile</p>
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.data.external_id}</h1>
+        </header>
+        <ProfileErasureState
+          erasureId={erasureId}
+          lastError={erasure.data?.last_error}
+          retrying={retryErasure.isPending}
+          status={erasureStatus}
+          onDeleted={onDeleted}
+          onRetry={(id) => retryErasure.mutate(id)}
+        />
+      </main>
+    )
+  }
 
   const replayRows: ReplayOverlayRow[] = []
   const replayIDs = new Set<string>()

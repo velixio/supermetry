@@ -3,9 +3,9 @@ import { cleanup, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const { get } = vi.hoisted(() => ({ get: vi.fn() }))
-vi.mock('@/lib/api', () => ({ api: { GET: get } }))
-import { profileKeys, useProfile } from './api'
+const { deleteRequest, get, post } = vi.hoisted(() => ({ deleteRequest: vi.fn(), get: vi.fn(), post: vi.fn() }))
+vi.mock('@/lib/api', () => ({ api: { DELETE: deleteRequest, GET: get, POST: post } }))
+import { erasureKeys, profileKeys, useDeleteProfile, useProfile, useProfileErasure, useRetryProfileErasure } from './api'
 
 const foreignProfile = {
   id: 123,
@@ -66,5 +66,48 @@ describe('profile query authorization scope', () => {
     expect(result.current.error?.message).toContain('selected site')
     expect(result.current.data).toBeUndefined()
     expect(client.getQueryData(profileKeys.detail(1, 20, 123))).toBeUndefined()
+  })
+
+  it('keeps the accepted erasure id available for status polling', async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    deleteRequest.mockResolvedValue({
+      response: new Response(null, { status: 202 }),
+      data: { erasure_id: 91, status: 'pending' },
+    })
+    const { result } = renderHook(() => useDeleteProfile(7, 1), {
+      wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+    })
+
+    result.current.mutate(123)
+
+    await waitFor(() => expect(result.current.data).toEqual({ erasure_id: 91, status: 'pending' }))
+    expect(deleteRequest).toHaveBeenCalledWith('/api/private/profiles/123', expect.objectContaining({
+      params: expect.objectContaining({ header: { 'X-Supermetry-Org': '1' } }),
+    }))
+  })
+
+  it('loads an erasure status and retries the same request', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const erasure = { id: 91, site_id: 7, profile_id: 123, status: 'failed', attempts: 20, last_error: 'storage unavailable', created_at: '', updated_at: '' }
+    get.mockResolvedValue({ response: new Response(null, { status: 200 }), data: erasure })
+    const retried = { ...erasure, status: 'pending', attempts: 0, last_error: null, updated_at: '2026-10-09T18:30:00Z' }
+    post.mockResolvedValue({ response: new Response(null, { status: 200 }), data: retried })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const status = renderHook(() => useProfileErasure(91, 1), { wrapper })
+    await waitFor(() => expect(status.result.current.data?.status).toBe('failed'))
+    get.mockResolvedValue({ response: new Response(null, { status: 200 }), data: retried })
+
+    const retry = renderHook(() => useRetryProfileErasure(1), { wrapper })
+    retry.result.current.mutate(91)
+    await waitFor(() => expect(retry.result.current.isSuccess).toBe(true))
+    expect(client.getQueryData(erasureKeys.detail(1, 91))).toEqual(retried)
+
+    expect(get).toHaveBeenCalledWith('/api/private/erasures/91', expect.objectContaining({
+      params: expect.objectContaining({ header: { 'X-Supermetry-Org': '1' } }),
+      signal: expect.any(AbortSignal),
+    }))
+    expect(post).toHaveBeenCalledWith('/api/private/erasures/91/retry', expect.objectContaining({
+      params: expect.objectContaining({ header: { 'X-Supermetry-Org': '1' } }),
+    }))
   })
 })

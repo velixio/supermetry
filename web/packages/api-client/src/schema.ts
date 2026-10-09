@@ -570,6 +570,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Queue durable profile erasure
+         * @description Owner or Admin only. Records a tombstone and restart-safe erasure request before returning.
+         */
+        delete: operations["requestProfileErasure"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/erasures/{erasure_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                erasure_id: number;
+            };
+            cookie?: never;
+        };
+        /** Get profile erasure status */
+        get: operations["getPrivateProfileErasure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/erasures/{erasure_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                erasure_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a failed profile erasure */
+        post: operations["retryProfileErasure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/erasures/{erasure_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                erasure_id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get profile erasure status
+         * @description Requires profiles:read and access to the request's site.
+         */
+        get: operations["getProfileErasure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/sites/{site_id}/annotations": {
         parameters: {
             query?: never;
@@ -1698,6 +1780,32 @@ export interface components {
             total: number;
             total_capped: boolean;
         };
+        ErasureAccepted: {
+            /** Format: int64 */
+            erasure_id: number;
+            /** @enum {string} */
+            status: "pending" | "running" | "settling" | "done" | "failed";
+        };
+        ErasureRequest: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            /** Format: int64 */
+            profile_id: number;
+            /** @enum {string} */
+            status: "pending" | "running" | "settling" | "done" | "failed";
+            attempts: number;
+            last_error?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            settle_after?: string | null;
+            /** Format: date-time */
+            completed_at?: string | null;
+        };
         EventExploreItem: {
             /** Format: date-time */
             ts: string;
@@ -1865,6 +1973,8 @@ export interface components {
             late_drops: number;
             /** Format: int64 */
             clock_skew_clamps: number;
+            /** Format: int64 */
+            failed_profile_erasures: number;
             rollup_backfill: components["schemas"]["RollupBackfillProgress"];
         };
         RollupBackfillProgress: {
@@ -3188,6 +3298,110 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    requestProfileErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Erasure accepted */
+            202: {
+                headers: {
+                    /** @description Private erasure status URL */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureAccepted"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPrivateProfileErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                erasure_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Erasure status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureRequest"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    retryProfileErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                erasure_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Erasure queued again */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureRequest"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getProfileErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                erasure_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Erasure status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureRequest"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

@@ -47,6 +47,7 @@ import (
 	"supermetry/internal/platform/sitesvc"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/platform/users"
+	"supermetry/internal/profileerasure"
 	"supermetry/internal/profiletombstone"
 	"supermetry/internal/query"
 	"supermetry/internal/rehydrate"
@@ -209,10 +210,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	w := writer.New(pool, sessions, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush)
 	w.SetClock(settings.clock)
 	profileTombstones := profiletombstone.New(pool, settings.clock)
+	profileTombstones.SetSessions(sessions)
 	if err := profileTombstones.Load(ctx); err != nil {
 		return fmt.Errorf("load profile tombstones: %w", err)
 	}
 	w.SetProfileTombstones(profileTombstones)
+	profileErasures := profileerasure.New(pool)
+	profileErasureWorker := profileerasure.NewWorker(pool, profileErasures, replayStore, settings.clock)
 	w.SetTrackingPolicy(cfg.Tracking.Mode, registry)
 	w.SetPathPolicy(cfg.TrackingPaths, dictionary)
 	engine := query.NewEngine(pool, dictionary, registry)
@@ -294,6 +298,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Imports:           importStore,
 		ImportQueue:       importManager,
 		ProfileTombstones: profileTombstones,
+		ProfileErasures:   profileErasures,
 		ReplayStore:       replayStore,
 		Exporter:          exporter,
 		ReplayEnv:         cfg.Replay,
@@ -349,6 +354,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			progress, err := rollupBackfill.Progress(ctx)
 			return progress.Running, progress.DaysDone, progress.TotalDays, err
 		},
+		FailedProfileErasures: func(ctx context.Context) (int64, error) {
+			var count int64
+			err := pool.QueryRow(ctx, `select count(*) from profile_erasure_requests where status='failed'`).Scan(&count)
+			return count, err
+		},
 	})
 	listener, err := settings.listen("tcp", cfg.Listen)
 	if err != nil {
@@ -373,10 +383,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock, engine.InvalidateSite)
-	jobs = append(jobs, profileTombstones.Job(), rollupBackfill.Job())
+	jobs = append(jobs, profileErasureWorker.Job(), rollupBackfill.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
+	tombstoneDone := make(chan error, 1)
+	go func() { tombstoneDone <- profileTombstones.Run(schedulerCtx) }()
 	geoRefreshDone := startGeoIPRefresh(schedulerCtx, geo, func(err error) {
 		slog.Warn("GeoIP background refresh failed", "error", err)
 	})
@@ -422,6 +434,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-schedulerDone:
 		cause = err
 		schedulerDone = nil
+	case err := <-tombstoneDone:
+		cause = err
+		tombstoneDone = nil
 	case err := <-importDone:
 		cause = err
 		importDone = nil
@@ -448,6 +463,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelScheduler()
 	if schedulerDone != nil {
 		cause = errors.Join(cause, <-schedulerDone)
+	}
+	if tombstoneDone != nil {
+		cause = errors.Join(cause, <-tombstoneDone)
 	}
 	if geoRefreshDone != nil {
 		<-geoRefreshDone

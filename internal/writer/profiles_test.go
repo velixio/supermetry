@@ -2,6 +2,7 @@ package writer
 
 import (
 	"context"
+	"crypto/sha256"
 	"testing"
 	"time"
 
@@ -130,5 +131,45 @@ func TestBufferedProfileEventStaysAnonymousAfterErasureAndRestart(t *testing.T) 
 	}
 	if profiles != 0 || linked != 0 || events[0].ProfileExternalID != "" || events[0].ProfileTraits != nil {
 		t.Fatalf("profiles=%d linked=%d event=%+v, want anonymous", profiles, linked, events[0])
+	}
+}
+
+func TestDatabaseTombstoneBlocksBufferedProfileUpsert(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, day, day.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('DB guard','db-guard') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class) values ($1,'dbguard00001','DB guard','UTC',30) returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.Sum256([]byte("customer-1"))
+	if _, err := pool.Exec(ctx, `insert into profile_tombstones(site_id,external_hash,erased_at) values ($1,$2,now())`, siteID, hash[:]); err != nil {
+		t.Fatal(err)
+	}
+	events := []Event{{
+		Hit:       session.Hit{SiteID: siteID, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, Kind: 1},
+		SessionID: 1, ProfileExternalID: "customer-1", ProfileTraits: map[string]string{"plan": "pro"},
+	}}
+	w := New(pool, nil, 1, time.Hour, time.Hour)
+	w.SetTrackingPolicy(privacy.Identified, &policyRegistry{site: sites.Site{ID: siteID, ProfilesEnabled: true}})
+	if err := w.copyEvents(ctx, events); err != nil {
+		t.Fatal(err)
+	}
+	var profiles, linked int
+	if err := pool.QueryRow(ctx, `select (select count(*) from profiles where site_id=$1), count(profile_id) from events where site_id=$1`, siteID).Scan(&profiles, &linked); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 0 || linked != 0 || events[0].ProfileExternalID != "" || events[0].ProfileTraits != nil {
+		t.Fatalf("profiles=%d linked=%d event=%+v, want database-enforced anonymity", profiles, linked, events[0])
 	}
 }
