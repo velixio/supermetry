@@ -18,7 +18,7 @@ const me = {
   memberships: [{
     org: { id: 1, name: 'Acme', slug: 'acme' },
     role: 'owner',
-    sites: [{ id: 7, name: 'Example', slug: 'example', timezone: 'UTC' }],
+    sites: [{ id: 7, name: 'Example', slug: 'example', timezone: 'UTC', tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }],
   }],
 }
 

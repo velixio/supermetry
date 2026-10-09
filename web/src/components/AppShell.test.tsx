@@ -12,11 +12,11 @@ import {
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useLiveSummary } = vi.hoisted(() => ({ useLiveSummary: vi.fn() }))
+const { useLiveSummary, useReplayAvailability } = vi.hoisted(() => ({ useLiveSummary: vi.fn(), useReplayAvailability: vi.fn() }))
 
 vi.mock('@/features/realtime/useLiveSummary', () => ({ useLiveSummary }))
 vi.mock('@/components/replay/api', () => ({
-  useReplayAvailability: () => ({ enabled: false }),
+  useReplayAvailability,
 }))
 vi.mock('@/lib/shortcuts', () => ({ useShortcuts: () => undefined }))
 vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn() }) }))
@@ -28,7 +28,7 @@ import { AppShell } from './AppShell'
 const membership: Membership = {
   org: { id: 1, name: 'Acme', slug: 'acme' },
   role: 'owner',
-  sites: [{ id: 8, name: 'Other', slug: 'other' }, { id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public' }],
+  sites: [{ id: 8, name: 'Other', slug: 'other' }, { id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public', tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }],
 }
 
 const me: Me = {
@@ -36,12 +36,12 @@ const me: Me = {
   memberships: [membership],
 }
 
-function renderShell(initialEntry: string) {
+function renderShell(initialEntry: string, shellMembership = membership) {
   const root = createRootRoute({ component: Outlet })
   const org = createRoute({
     getParentRoute: () => root,
     path: '$org',
-    component: () => <AppShell me={me} membership={membership} />,
+    component: () => <AppShell me={{ ...me, memberships: [shellMembership] }} membership={shellMembership} />,
   })
   const site = createRoute({ getParentRoute: () => org, path: '$site', component: Outlet })
   const siteSettings = createRoute({ getParentRoute: () => site, path: 'settings', component: Outlet })
@@ -95,6 +95,7 @@ describe('AppShell live visitor badge', () => {
       unobserve() {}
       disconnect() {}
     })
+    useReplayAvailability.mockReturnValue({ enabled: false })
     useLiveSummary.mockReturnValue({
       data: { active_visitors: 12, visitors_last_30m: 48 },
       isPending: false,
@@ -155,6 +156,38 @@ describe('AppShell live visitor badge', () => {
     useLiveSummary.mockReturnValue({ data: undefined, isPending: false, isError: true })
     renderShell('/acme/docs-public/settings/general')
     expect(screen.queryByText(/live$/)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { name: 'enabled replay with grant', enabled: true, grant: true, visible: true },
+    { name: 'disabled replay with grant', enabled: false, grant: true, visible: true },
+    { name: 'enabled replay without grant', enabled: true, grant: false, visible: false },
+  ])('preserves identified navigation for $name even when project profiles are off', async ({ enabled, grant, visible }) => {
+    useReplayAvailability.mockReturnValue({ enabled })
+    const identifiedMembership = { ...membership, effective_capabilities: grant ? ['replay.read'] : [] }
+    renderShell('/acme/docs-public/settings/general', identifiedMembership)
+    await screen.findByRole('heading', { name: 'Site settings' })
+    const link = screen.queryByRole('link', { name: 'Replays' })
+    if (visible) {
+      expect(link).toBeVisible()
+      expect(new URL(link!.getAttribute('href')!, window.location.origin).pathname).toBe('/acme/docs/replays')
+    } else {
+      expect(link).not.toBeInTheDocument()
+    }
+    expect(useReplayAvailability).not.toHaveBeenCalled()
+  })
+
+  it('blocks a direct anonymous route before its outlet mounts and keeps only live counts', async () => {
+    const anonymousMembership: Membership = { ...membership, sites: membership.sites.map((site) => ({ ...site, tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] } })) }
+    renderShell('/acme/docs-public/realtime', anonymousMembership)
+    expect(await screen.findByRole('heading', { name: 'Unavailable in anonymous tracking mode' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Realtime page' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('12 active now, 48 in the last 30 minutes')).toHaveTextContent('● 12 live')
+    expect(screen.queryByRole('link', { name: '12 active now, 48 in the last 30 minutes' })).not.toBeInTheDocument()
+    expect(useReplayAvailability).not.toHaveBeenCalled()
+    for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals']) {
+      expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument()
+    }
   })
 
   it('does not show the badge on organization-only routes', async () => {

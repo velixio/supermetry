@@ -8,6 +8,8 @@ import {
   visibleNavigation,
 } from './$org'
 
+const identifiedSite = { id: 7, name: 'Docs', tracking_policy: { instance_mode: 'identified' as const, effective_mode: 'anonymous' as const, configured_profiles_enabled: false, restrictions: [] } }
+
 describe('organization shell authentication', () => {
   it('preserves the full dashboard URL when authentication expires', () => {
     expect(loginRedirect('/acme/blog', '?period=30d')).toBe(
@@ -40,7 +42,7 @@ describe('organization shell authentication', () => {
   })
 
   it('links Web Vitals at site scope', () => {
-    const vitals = visibleNavigation('viewer').find(
+    const vitals = visibleNavigation('viewer', true, undefined, identifiedSite).find(
       (item) => item.label === 'Web Vitals',
     )
     expect(vitals && navigationHref(vitals, 'acme', 'blog')).toBe('/acme/blog/vitals')
@@ -48,7 +50,7 @@ describe('organization shell authentication', () => {
 
   it('links Heatmaps at site scope for every site role', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
-      const heatmaps = visibleNavigation(role).find((item) => item.label === 'Heatmaps')
+      const heatmaps = visibleNavigation(role, true, undefined, identifiedSite).find((item) => item.label === 'Heatmaps')
       expect(heatmaps && navigationHref(heatmaps, 'acme', 'blog')).toBe('/acme/blog/heatmaps')
     }
   })

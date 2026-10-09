@@ -1,9 +1,11 @@
 import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
-import { AuthorizationProvider, hasCapability } from '@/lib/authorization'
+import { AuthorizationProvider } from '@/lib/authorization'
 import { useState } from 'react'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
 
+import { isAnonymousTracking } from '@/lib/tracking-policy'
+import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
 import { LiveBadge } from '@/components/LiveBadge'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,7 +19,6 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { Toaster } from '@/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SiteIcon } from '@/components/SiteIcon'
-import { useReplayAvailability } from '@/components/replay/api'
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
@@ -27,7 +28,7 @@ import type { Me, Membership } from '@/routes/$org'
 import { activeSite, matchesSite, PanelSidebar } from './Sidebar'
 import { HeaderMenus } from './HeaderMenus'
 
-function SiteLiveBadge({ siteId, org, site }: { siteId: number; org: string; site: string }) {
+function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number; org: string; site: string; detailsAvailable: boolean }) {
   const summary = useLiveSummary(siteId)
   if (summary.isError) return null
 
@@ -35,24 +36,24 @@ function SiteLiveBadge({ siteId, org, site }: { siteId: number; org: string; sit
     ? `${summary.data.active_visitors} active now, ${summary.data.visitors_last_30m} in the last 30 minutes`
     : 'Loading live visitors'
 
+  const badge = (
+    <LiveBadge
+      count={summary.data?.active_visitors ?? 0}
+      disableLabel={description}
+      enableLabel={description}
+      enabled
+      label={summary.data ? (count) => `${count} live` : () => '— live'}
+      muted={summary.isPending}
+    />
+  )
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link
-          aria-label={description}
-          params={{ org, site }}
-          title={description}
-          to="/$org/$site/realtime"
-        >
-          <LiveBadge
-            count={summary.data?.active_visitors ?? 0}
-            disableLabel={description}
-            enableLabel={description}
-            enabled
-            label={summary.data ? (count) => `${count} live` : () => '— live'}
-            muted={summary.isPending}
-          />
-        </Link>
+        {detailsAvailable ? (
+          <Link aria-label={description} params={{ org, site }} title={description} to="/$org/$site/realtime">
+            {badge}
+          </Link>
+        ) : <span aria-label={description} tabIndex={0}>{badge}</span>}
       </TooltipTrigger>
       <TooltipContent>{description}</TooltipContent>
     </Tooltip>
@@ -75,16 +76,20 @@ export function AppShell({
   const { theme, toggle } = useTheme()
   const [helpOpen, setHelpOpen] = useState(false)
   const [sidebarOpen] = useState(sidebarStartsOpen)
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const requestedSite = useRouterState({
+  const { pathname, requestedSite, renderedPathnames } = useRouterState({
     select: (state) => {
       const params = state.matches.at(-1)?.params
-      return params && 'site' in params ? params.site : undefined
+      return {
+        pathname: state.location.pathname,
+        requestedSite: params && 'site' in params ? params.site : undefined,
+        // Location advances before Outlet commits its active matches. Cover
+        // both snapshots so back/forward cannot briefly mount a blocked page.
+        renderedPathnames: [state.resolvedLocation?.pathname ?? '', ...state.matches.map((match) => match.routeId)],
+      }
     },
   })
   const site = activeSite(membership, requestedSite)
   const scopedSite = membership.sites.find((item) => matchesSite(item, requestedSite))
-  const replay = useReplayAvailability(hasCapability(membership, 'replay.read') ? site?.id : undefined)
 
   useShortcuts({
     d: toggle,
@@ -95,7 +100,7 @@ export function AppShell({
     <AuthorizationProvider membership={membership}>
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
-        <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} replayEnabled={replay.enabled} />
+        <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} />
         <SidebarInset>
           <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4">
             <div className="flex min-w-0 items-center gap-2">
@@ -113,6 +118,7 @@ export function AppShell({
                   org={membership.org.slug}
                   site={requestedSite}
                   siteId={scopedSite.id}
+                  detailsAvailable={!isAnonymousTracking(scopedSite)}
                 /></div>
               ) : null}
               <Button
@@ -143,7 +149,9 @@ export function AppShell({
                 key={pathname}
                 className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-150"
               >
-                <Outlet />
+                <AnalyticsPrivacyBoundary site={scopedSite} org={membership.org.slug} requestedSite={requestedSite} pathname={pathname} renderedPathnames={renderedPathnames}>
+                  <Outlet />
+                </AnalyticsPrivacyBoundary>
               </div>
             </AuthorizationCacheBoundary>
           </main>

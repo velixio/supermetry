@@ -1,3 +1,4 @@
+import { isAnonymousTracking } from '@/lib/tracking-policy'
 import { Outlet, createFileRoute, useRouterState } from '@tanstack/react-router'
 
 import { SiteSettingsTabs } from '@/features/settings/SiteSettings'
@@ -14,7 +15,7 @@ function SiteSettingsLayout() {
   const current = pathname.split('/').filter(Boolean).at(-1) ?? 'general'
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <SiteSettingsTabs org={org} site={site} current={current} showReplay={replay.isSuccess} />
+      <SiteSettingsTabs org={org} site={site} current={current} showReplay={replay.isSuccess} trackingRestricted={isAnonymousTracking(siteContext.site)} />
       <Outlet />
     </div>
   )

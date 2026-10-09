@@ -1,3 +1,5 @@
+import { isAnonymousTracking } from '@/lib/tracking-policy'
+import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 import { hasCapability, type Authorization } from '@/lib/authorization'
 import { Fragment } from 'react'
 import {
@@ -67,10 +69,11 @@ export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
 
-export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization): NavigationItem[] {
+export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site): NavigationItem[] {
   const items: NavigationItem[] = [...coreNavigation, managementNavigation[0]]
   if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
-  return items.filter((item) => (hasSite || item.scope === 'org') && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
+  return items.filter((item) => (hasSite || item.scope === 'org') &&
+    (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/org/site${item.suffix}`)) && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
 }
 
 export function canCreateSites(role: Role): boolean {
@@ -189,12 +192,10 @@ export function PanelSidebar({
   me,
   membership,
   requestedSite,
-  replayEnabled = false,
 }: {
   me: Me
   membership: Membership
   requestedSite?: string
-  replayEnabled?: boolean
 }) {
   const site = activeSite(membership, requestedSite)
   const currentSite = site ? siteSlug(site) : ''
@@ -282,7 +283,7 @@ export function PanelSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleNavigation(membership.role, Boolean(site), membership).map((item) => (
+              {visibleNavigation(membership.role, Boolean(site), membership, site).map((item) => (
                 <Fragment key={item.label}>
                   <SidebarMenuItem>
                     <SidebarMenuButton
@@ -309,7 +310,7 @@ export function PanelSidebar({
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {item.suffix === '/sessions' && site && replayEnabled && hasCapability(membership, 'replay.read') ? (
+                  {item.suffix === '/sessions' && site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read') ? (
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
