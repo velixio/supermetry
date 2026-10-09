@@ -124,6 +124,13 @@ Then the server replaces the path with an exact declared literal or the single
 `/[redacted]` fallback before dictionary interning, session updates and heatmap
 collection. Credentials/query/fragment are omitted from the path; encoded and
 noncanonical paths fall back. Original path segments never appear in the fallback.
+The Sessions interface displays the stored path; it does not reconstruct or
+replace the fallback label. Setting the instance to identified alone does not
+change collection for a project with profiles disabled: both permissions are
+required for unsanitized new paths. After a coordinated restart with both enabled,
+new sessions may retain their actual paths; older `/[redacted]` values remain
+redacted because the original path was discarded, not merely hidden.
+
 The path evidence makes no assertion about retained hostnames, event names or
 opaque replay payloads. Campaigns and properties do not gain verified provenance.
 
@@ -222,3 +229,26 @@ zero-trust imports, policy-separated close/reclose, actual raw-partition expiry,
 rebuild from durable projections, distinct totals, comparisons/pagination,
 cache policy changes and invalid dictionary/evidence pairs. No production
 migration or configuration change has been run by this work.
+
+## Dashboard and navigation policy
+
+The authenticated site bootstrap includes the instance policy separately from
+project profile opt-in. The interface uses the instance policy to gate historical
+analytics before mounting query hooks. Missing policy shows an unavailable state;
+it never grants identified access. Server authorization and privacy checks remain
+the authority, including direct API requests.
+
+Anonymous dashboards retain aggregate counts, trends and canonical breakdowns.
+Verified page counts are a separate partial cohort: only current-policy verified
+pages, with historical unverified data and imports excluded. They do not support
+page filters, combined dimensions or session-derived page metrics. Unsupported
+saved filters require removal before queries run; the interface does not silently
+remove them and change the requested population. Restricted detail screens explain
+the policy instead of requesting forbidden data. Terminal authorization failures
+remain errors and stop automatic retries/live polling. Dashboard cache keys include
+the instance mode so identified results cannot fill anonymous views.
+
+Replay navigation depends on identified historical-read permission and the user's
+replay grant, independently of whether new recording is enabled. The replay view
+shows recording status and the project settings link; disabling collection does
+not by itself erase recordings or revoke separately authorized historical reads.
