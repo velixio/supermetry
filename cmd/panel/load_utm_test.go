@@ -57,6 +57,8 @@ func TestLoadPreservesUTMBreakdownsAcrossStorageTiers(t *testing.T) {
 	if _, err := closer.CloseDay(ctx, pool, []int32{1}, fixtureDay); err != nil {
 		t.Fatal(err)
 	}
+	// Mirror closeDueDays: forced-route engines share cached close metadata.
+	engine.InvalidateSite(1)
 	for _, route := range []query.Route{query.RouteClosed, query.RouteRollup} {
 		assertLoadUTMBreakdowns(t, engine.WithForcedRoute(route), fixtureDay)
 	}

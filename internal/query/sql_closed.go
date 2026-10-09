@@ -292,7 +292,7 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	conditions, err := filterConditions(builder, req.Filters, resolver)
+	conditions, err := customFilterConditions(builder, req, resolver, "c")
 	if err != nil {
 		return "", nil, err
 	}

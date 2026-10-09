@@ -322,7 +322,7 @@ func hasEventOrGoalScope(dimensions []string, filters []api.Filter) bool {
 	if containsAny(dimensions, "event", "goal") {
 		return true
 	}
-	return filterHasDimension(filters, "event") || filterHasDimension(filters, "goal")
+	return filterHasDimension(filters, "event") || filterHasDimension(filters, "goal") || filterHasDimension(filters, "goal_id")
 }
 
 func containsDimension(dimensions []string, value string) bool {
