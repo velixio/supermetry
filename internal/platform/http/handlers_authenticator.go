@@ -58,6 +58,11 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 	if !ok {
 		return authz.Principal{}, false
 	}
+	// Account operations authenticate the person, not a selected tenant. Never
+	// attach organization grants to this principal, even with a stale header.
+	if accountRequest(r) {
+		return authz.Principal{UserID: session.UserID, SiteIDs: []int32{}}, true
+	}
 	memberships, err := a.orgs.MembershipsFor(r.Context(), session.UserID)
 	if err != nil {
 		return authz.Principal{}, false
@@ -110,4 +115,22 @@ func copySiteIDs(values []int32) []int32 {
 	out := make([]int32, len(values))
 	copy(out, values)
 	return out
+}
+
+// accountRequest lists only routes whose authorization is scoped to the current
+// user. Organization resources must still resolve an explicit membership.
+func accountRequest(r *http.Request) bool {
+	switch r.Method + " " + r.URL.Path {
+	case "GET /api/private/me", "HEAD /api/private/me", "PATCH /api/private/me", "DELETE /api/private/me",
+		"GET /api/private/me/ip", "HEAD /api/private/me/ip", "GET /api/private/me/sessions", "HEAD /api/private/me/sessions",
+		"POST /api/private/me/email", "POST /api/private/me/password", "POST /api/private/me/totp", "PATCH /api/private/me/totp",
+		"GET /api/private/orgs", "HEAD /api/private/orgs", "POST /api/private/auth/logout",
+		"GET /api/private/auth/email-change/confirm", "HEAD /api/private/auth/email-change/confirm", "POST /api/private/auth/email-change/confirm":
+		return true
+	}
+	if r.Method == http.MethodDelete {
+		value, ok := strings.CutPrefix(r.URL.Path, "/api/private/me/sessions/")
+		return ok && value != "" && !strings.Contains(value, "/")
+	}
+	return false
 }

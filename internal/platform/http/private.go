@@ -309,6 +309,17 @@ func (h *handler) principal(w http.ResponseWriter, r *http.Request, allowedRoles
 }
 
 func (h *handler) privatePrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, bool) {
+	if accountRequest(r) {
+		principal, ok := h.principal(w, r)
+		if !ok {
+			return authz.Principal{}, false
+		}
+		if principal.UserID == 0 || principal.Role == authz.RoleKey || principal.Role == authz.RoleShare {
+			writeProblem(w, http.StatusForbidden, "Forbidden", "a user session is required")
+			return authz.Principal{}, false
+		}
+		return principal, true
+	}
 	return h.principal(w, r, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
 }
 
