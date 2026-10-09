@@ -129,6 +129,13 @@ test('revoking grants and all project access removes sensitive controls after me
   page,
   owner,
 }) => {
+  // Recording now requires explicit project opt-in as well as instance permission.
+  // Run this identified-mode authorization fixture with PANEL_REPLAY_ENABLED=true.
+  const replayOptIn = await page.request.put(`/api/private/sites/${owner.siteId}/replay-settings`, {
+    headers: owner.apiHeaders,
+    data: { enabled: true },
+  })
+  expect(replayOptIn.ok(), await replayOptIn.text()).toBe(true)
   const email = 'revoked-grants@panel.test'
   const member = await createMember(page.request, owner, email, {
     site_ids: [owner.siteId],
@@ -224,13 +231,13 @@ test('owner invitation controls copy a working no-site invitation without billin
   owner,
 }) => {
   await owner.login(page, `/${owner.orgSlug}/settings/invites`)
-  await page
-    .getByRole('textbox', { name: 'Email', exact: true })
-    .fill('billing-invite-ui@panel.test')
   await page.getByRole('combobox', { name: 'Site access', exact: true }).selectOption('none')
   await expect(page.getByRole('checkbox', { name: /Billing Admin/ })).toHaveCount(0)
   for (const name of [/Read profiles/, /Watch replays/, /Export data/])
     await expect(page.getByRole('checkbox', { name })).not.toBeChecked()
+  const inviteEmail = page.getByRole('textbox', { name: 'Email', exact: true })
+  await inviteEmail.fill('billing-invite-ui@panel.test')
+  await expect(inviteEmail).toHaveValue('billing-invite-ui@panel.test')
   const pending = page.waitForRequest(
     (request) =>
       request.method() === 'POST' &&
