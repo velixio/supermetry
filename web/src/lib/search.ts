@@ -79,6 +79,36 @@ export const dashboardSearch = z.object({
     .transform((value) => value === undefined || value === true || value === 'true'),
 })
 
+export const paginationSearch = {
+  page: z.coerce.number().int().positive().optional().catch(undefined),
+  cursors: z.array(z.string()).optional().catch(undefined),
+}
+
+export type PaginationSearch = {
+  page?: number
+  cursors?: string[]
+}
+
+export function currentCursor(search: PaginationSearch): string | undefined {
+  return search.cursors?.at(-1)
+}
+
+export function firstPage<T extends PaginationSearch>(search: T): T & { page: number; cursors: string[] } {
+  return { ...search, page: 1, cursors: [] }
+}
+
+export function nextPage<T extends PaginationSearch>(search: T, cursor: string): T & { page: number; cursors: string[] } {
+  return { ...search, page: (search.page ?? 1) + 1, cursors: [...(search.cursors ?? []), cursor] }
+}
+
+export function previousPage<T extends PaginationSearch>(search: T): T & { page: number; cursors: string[] } {
+  return {
+    ...search,
+    page: Math.max(1, (search.page ?? 1) - 1),
+    cursors: search.cursors?.slice(0, -1) ?? [],
+  }
+}
+
 export type Period = z.infer<typeof Period>
 export type Compare = z.infer<typeof Compare>
 export type DashboardMetric = z.infer<typeof Metric>
