@@ -24,7 +24,6 @@ export type MemberAccess = {
   role: MemberRole
   site_ids: number[] | null
   capabilities: string[]
-  billing_admin: boolean
 }
 
 export function siteAccessLabel(siteIds?: number[] | null): string {
@@ -161,28 +160,6 @@ export function MemberAccessControls({
           </p>
         ) : null}
       </fieldset>
-      <label className="flex items-start gap-2 border-t pt-3 text-sm">
-        <input
-          className="mt-1"
-          type="checkbox"
-          checked={value.role === 'owner' || value.billing_admin}
-          disabled={disabled || actorRole !== 'owner' || value.role === 'owner'}
-          onChange={(event) =>
-            onChange({ billing_admin: event.target.checked })
-          }
-        />
-        <span>
-          Billing Admin
-          <span className="block text-xs text-muted-foreground">
-            Manage organization billing separately from project access. Only an
-            Owner can change this assignment. Billing actions are not available
-            yet.
-          </span>
-        </span>
-      </label>
-      {value.role === 'viewer' && scope === 'none' && value.billing_admin ? (
-        <p className="text-sm text-muted-foreground">Billing-only access</p>
-      ) : null}
     </div>
   )
 }

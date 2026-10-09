@@ -584,7 +584,7 @@ export function MembersPage({
   return (
     <Page
       title="Members"
-      description="Assign roles, project access, sensitive data permissions, and independent billing access."
+      description="Assign roles, project access, and sensitive data permissions."
     >
       <Surface>
         <Message error={members.error || update.error} />
@@ -607,7 +607,6 @@ export function MembersPage({
                     role: member.role,
                     site_ids: member.site_ids ?? null,
                     capabilities: member.capabilities ?? [],
-                    billing_admin: member.billing_admin ?? false,
                   }}
                   actorRole={actorRole}
                   sites={sites}
@@ -640,7 +639,6 @@ export function InvitationsPage({
     role: "viewer",
     site_ids: null,
     capabilities: [],
-    billing_admin: false,
   });
   const canManage = actorRole === "owner" || actorRole === "admin";
   const key = ["invitations", orgId];
@@ -666,9 +664,6 @@ export function InvitationsPage({
             role: access.role,
             site_ids: access.site_ids,
             capabilities: access.capabilities,
-            ...(actorRole === "owner"
-              ? { billing_admin: access.billing_admin }
-              : {}),
           },
         },
       ),
@@ -695,7 +690,7 @@ export function InvitationsPage({
   return (
     <Page
       title="Invitations"
-      description="Invite a teammate with the project and billing access they need."
+      description="Invite a teammate with the project access and permissions they need."
     >
       <Surface>
         <form
@@ -753,7 +748,6 @@ export function InvitationsPage({
               <div className="text-sm">
                 <p>
                   {invitation.email} · {invitation.role}
-                  {invitation.billing_admin ? " · Billing Admin" : ""}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {siteAccessLabel(invitation.site_ids)}

@@ -11,7 +11,6 @@ const viewer: MemberAccess = {
   role: 'viewer',
   site_ids: null,
   capabilities: [],
-  billing_admin: false,
 }
 afterEach(cleanup)
 
@@ -75,7 +74,7 @@ describe('member access controls', () => {
     expect(onChange).toHaveBeenCalledWith({ capabilities: [] })
   })
 
-  it('shows role-included grants as checked and disabled without granting billing to admins', () => {
+  it('shows role-included grants as checked and disabled for admins', () => {
     render(
       <MemberAccessControls
         value={{ ...viewer, role: 'admin' }}
@@ -88,43 +87,20 @@ describe('member access controls', () => {
       expect(screen.getByRole('checkbox', { name })).toBeChecked()
       expect(screen.getByRole('checkbox', { name })).toBeDisabled()
     }
-    expect(
-      screen.getByRole('checkbox', { name: /Billing Admin/ }),
-    ).not.toBeChecked()
+    expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()
   })
 
-  it('only permits an owner to assign Billing Admin', () => {
-    const onChange = vi.fn()
+  it.each(['owner', 'admin'] as const)('never exposes hosted billing controls to %s', (actorRole) => {
     render(
       <MemberAccessControls
-        value={viewer}
-        actorRole="admin"
-        sites={sites}
-        onChange={onChange}
-      />,
-    )
-    expect(
-      screen.getByRole('checkbox', { name: /Billing Admin/ }),
-    ).toBeDisabled()
-    expect(
-      screen.getByRole('checkbox', { name: /Read profiles/ }),
-    ).toBeEnabled()
-  })
-
-  it('describes billing-only access without selecting project or sensitive grants', () => {
-    render(
-      <MemberAccessControls
-        value={{ ...viewer, site_ids: [], billing_admin: true }}
-        actorRole="owner"
+        value={{ ...viewer, site_ids: [] }}
+        actorRole={actorRole}
         sites={sites}
         onChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('Billing-only access')).toBeVisible()
+    expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText('Site access')).toHaveValue('none')
-    expect(
-      screen.getByRole('checkbox', { name: /Billing Admin/ }),
-    ).toBeChecked()
     for (const name of [/Read profiles/, /Watch replays/, /Export data/])
       expect(screen.getByRole('checkbox', { name })).not.toBeChecked()
   })
