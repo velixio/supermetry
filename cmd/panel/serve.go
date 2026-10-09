@@ -243,7 +243,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("initialize alert encryption: %w", err)
 	}
 	webhookClient := alerts.NewWebhookClient(alerts.WebhookOptions{AllowPrivate: cfg.AllowPrivateWebhooks})
-	alertDispatcher := alerts.NewDispatcher(sender, webhookClient)
+	telegramClient := alerts.NewTelegramClient(alerts.TelegramOptions{})
+	alertDispatcher := alerts.NewDispatcher(sender, webhookClient, telegramClient)
 	alertService := alerts.New(platformStore, alertBox, alertDispatcher)
 	alertMetrics := alerts.NewEngineSource(engine, definitionService)
 	alertEvaluator := alerts.NewEvaluator(alertService, alertMetrics, registry, sessions, alertDispatcher, settings.clock.Now,

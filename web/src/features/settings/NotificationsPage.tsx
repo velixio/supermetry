@@ -12,7 +12,7 @@ import {
   useChannels, useDeleteChannel, useSaveChannel, useTestChannel,
 } from './notificationApi'
 
-const blank: ChannelInput = { kind: 'email', name: '', config: { recipients: [] } }
+const blank: ChannelInput = { kind: 'email', name: '', enabled: true, config: { recipients: [] } }
 
 export function NotificationsPage({ orgId, canManage = true }: { orgId: number; canManage?: boolean }) {
   const channels = useChannels(orgId)
@@ -51,7 +51,8 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
               <h2 className="font-medium">{channel.name}</h2>
               <p className="text-sm capitalize text-muted-foreground">
                 {channel.kind}{channel.config.recipients?.length ? ` · ${channel.config.recipients.join(', ')}` : ''}
-                {channel.config.configured ? ' · Configured' : ''}
+                {channel.config.chat_id ? ` · ${channel.config.chat_id}` : ''}
+                {channel.config.configured ? ' · Configured' : ''} · {channel.enabled ? 'Enabled' : 'Disabled'}
               </p>
             </div>
             {canManage ? (
@@ -59,7 +60,7 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
                 <Button variant="outline" disabled={test.isPending} onClick={() => sendTest(channel)}>
                   Send test to {channel.name}
                 </Button>
-                {channel.kind === 'email' ? <Button variant="outline" onClick={() => setEditing(channel)}>Edit</Button> : null}
+                {channel.kind === 'email' || channel.kind === 'telegram' ? <Button variant="outline" onClick={() => setEditing(channel)}>Edit</Button> : null}
                 <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(channel.id)}>Delete</Button>
               </div>
             ) : null}
@@ -92,12 +93,16 @@ function ChannelDialog({ channel, error, pending, onClose, onSave }: {
     setInput(channel ? {
       kind: channel.kind,
       name: channel.name,
-      config: { recipients: channel.config.recipients ?? [] },
+      enabled: channel.enabled,
+      config: channel.kind === 'telegram'
+        ? { bot_token: '', chat_id: channel.config.chat_id ?? '' }
+        : { recipients: channel.config.recipients ?? [] },
     } : blank)
   }, [channel])
 
   if (channel === undefined) return null
-  const needsURL = input.kind !== 'email'
+  const needsURL = input.kind === 'webhook' || input.kind === 'slack' || input.kind === 'discord'
+  const isTelegram = input.kind === 'telegram'
   function submit(event: FormEvent) {
     event.preventDefault()
     void onSave(input).catch(() => undefined)
@@ -113,8 +118,8 @@ function ChannelDialog({ channel, error, pending, onClose, onSave }: {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="channel-kind">Channel type</FieldLabel>
-              <select id="channel-kind" className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput({ kind: event.target.value as ChannelKind, name: input.name, config: {} })}>
-                <option value="email">Email</option><option value="webhook">Webhook</option><option value="slack">Slack</option><option value="discord">Discord</option>
+              <select id="channel-kind" disabled={Boolean(channel)} className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput({ kind: event.target.value as ChannelKind, name: input.name, enabled: input.enabled, config: {} })}>
+                <option value="email">Email</option><option value="webhook">Webhook</option><option value="slack">Slack</option><option value="discord">Discord</option><option value="telegram">Telegram</option>
               </select>
             </Field>
             <Field>
@@ -142,6 +147,24 @@ function ChannelDialog({ channel, error, pending, onClose, onSave }: {
                 <FieldDescription>Optional. Leave blank when editing to keep the current secret.</FieldDescription>
               </Field>
             ) : null}
+            {isTelegram ? (
+              <>
+                <Field>
+                  <FieldLabel htmlFor="channel-bot-token">Bot token</FieldLabel>
+                  <Input id="channel-bot-token" autoComplete="new-password" required={!channel?.config.configured} type="password" value={input.config.bot_token ?? ''} onChange={(event) => setInput((value) => ({ ...value, config: { ...value.config, bot_token: event.target.value } }))} />
+                  <FieldDescription>{channel?.config.configured ? 'Token configured. Leave blank to keep it, or enter a replacement.' : 'Copy the token from BotFather. It is encrypted and never shown again.'}</FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="channel-chat-id">Chat ID or channel username</FieldLabel>
+                  <Input id="channel-chat-id" required value={input.config.chat_id ?? ''} onChange={(event) => setInput((value) => ({ ...value, config: { ...value.config, chat_id: event.target.value } }))} />
+                  <FieldDescription>Use a numeric chat ID, including a leading minus sign, or an @channel username.</FieldDescription>
+                </Field>
+              </>
+            ) : null}
+            <Field orientation="horizontal">
+              <input id="channel-enabled" checked={input.enabled} type="checkbox" onChange={(event) => setInput((value) => ({ ...value, enabled: event.target.checked }))} />
+              <FieldLabel htmlFor="channel-enabled">Enabled</FieldLabel>
+            </Field>
           </FieldGroup>
           <FieldError>{error?.message}</FieldError>
           <DialogFooter>

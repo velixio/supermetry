@@ -32,6 +32,8 @@ Gotchas:
 | `PANEL_SIGNUP` | Signup mode: `open` or `invite`. Any other value is rejected. | `open` | `invite` |
 | `PANEL_ALLOW_PRIVATE_WEBHOOKS` | Boolean (Go `ParseBool`: `1`, `t`, `true`, `0`, `f`, `false`, ...). Passed to the alert webhook client as "allow private". Exact effect: see source, `internal/alerts` and `cmd/panel/serve.go`. | `false` | `false` |
 
+Notification destinations, including Telegram, are configured in the application rather than through environment variables. See [Notification channels](notifications.md) for routing, secret handling, testing, and Telegram setup.
+
 Gotcha: the default `open` signup lets anyone who can reach the server register. Set `invite` on a public install if that is not what you want.
 
 ### How PANEL_TRUSTED_PROXIES works

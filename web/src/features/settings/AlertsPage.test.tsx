@@ -37,7 +37,7 @@ describe('AlertsPage', () => {
     })
     get.mockImplementation((path: string) => Promise.resolve({
       data: path.endsWith('/channels')
-        ? { data: [{ id: 8, org_id: 3, kind: 'email', name: 'Operations', config: { recipients: ['ops@example.com'] }, created_at: '2026-10-08T00:00:00Z' }] }
+        ? { data: [{ id: 8, org_id: 3, kind: 'email', name: 'Operations', enabled: true, config: { recipients: ['ops@example.com'] }, created_at: '2026-10-08T00:00:00Z' }] }
         : { data: [] },
       response: { ok: true, status: 200 },
     }))
@@ -70,6 +70,20 @@ describe('AlertsPage', () => {
         },
       }),
     ))
+  })
+
+  it('labels disabled notification channels without selecting them automatically', async () => {
+    get.mockImplementation(async (path: string) => ({
+      data: path.endsWith('/channels')
+        ? { data: [{ id: 8, name: 'Telegram ops', enabled: false }] }
+        : path.endsWith('/alerts') ? { data: [] } : [],
+      response: { ok: true, status: 200 },
+    }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Create alert' }))
+    expect(screen.getByText('Telegram ops (disabled)')).toBeVisible()
+    expect(screen.getByLabelText('Telegram ops')).not.toBeChecked()
+    expect(screen.getByLabelText('Telegram ops')).toBeDisabled()
   })
 
   it('explains each alert threshold in its actual evaluation window', async () => {

@@ -36,6 +36,7 @@ describe('NotificationsPage', () => {
           org_id: 3,
           kind: 'email',
           name: 'Operations',
+          enabled: true,
           config: { recipients: ['ops@example.com'] },
           created_at: '2026-10-08T00:00:00Z',
         }],
@@ -66,6 +67,7 @@ describe('NotificationsPage', () => {
         body: {
           kind: 'webhook',
           name: 'Deploy hook',
+          enabled: true,
           config: { url: 'https://hooks.example.test/panel', secret: 'secret-value' },
         },
       }),
@@ -97,5 +99,64 @@ describe('NotificationsPage', () => {
     renderPage()
     await screen.findByText('Deploy hook')
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+  })
+
+  it('creates a disabled Telegram channel with a write-only bot token', async () => {
+    renderPage()
+    await screen.findByText('Operations')
+    fireEvent.click(screen.getByRole('button', { name: 'Add channel' }))
+    fireEvent.change(screen.getByLabelText('Channel type'), { target: { value: 'telegram' } })
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Telegram incidents' } })
+    fireEvent.change(screen.getByLabelText('Bot token'), { target: { value: '123456:fake-token-value-for-tests' } })
+    fireEvent.change(screen.getByLabelText('Chat ID or channel username'), { target: { value: '-1001234567890' } })
+    fireEvent.click(screen.getByLabelText('Enabled'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create channel' }))
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith(
+      '/api/private/orgs/3/channels',
+      expect.objectContaining({ body: {
+        kind: 'telegram', name: 'Telegram incidents', enabled: false,
+        config: { bot_token: '123456:fake-token-value-for-tests', chat_id: '-1001234567890' },
+      } }),
+    ))
+    expect(screen.queryByDisplayValue('123456:fake-token-value-for-tests')).not.toBeInTheDocument()
+  })
+
+  it('edits Telegram configuration without reading or resending the configured token', async () => {
+    get.mockResolvedValue({
+      data: { data: [{
+        id: 10, org_id: 3, kind: 'telegram', name: 'Telegram ops', enabled: false,
+        config: { configured: true, chat_id: '-1001234567890' }, created_at: '2026-10-08T00:00:00Z',
+      }] },
+      response: { ok: true, status: 200 },
+    })
+    renderPage()
+    await screen.findByText('Telegram ops')
+    expect(screen.getByText(/Disabled/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByLabelText('Bot token')).toHaveValue('')
+    expect(screen.getByLabelText('Chat ID or channel username')).toHaveValue('-1001234567890')
+    fireEvent.change(screen.getByLabelText('Chat ID or channel username'), { target: { value: '@panel_alerts' } })
+    fireEvent.click(screen.getByLabelText('Enabled'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(
+      '/api/private/orgs/3/channels/10',
+      expect.objectContaining({ body: {
+        kind: 'telegram', name: 'Telegram ops', enabled: true,
+        config: { bot_token: '', chat_id: '@panel_alerts' },
+      } }),
+    ))
+  })
+
+  it('shows a useful test-delivery failure', async () => {
+    post.mockResolvedValueOnce({
+      error: { detail: 'Test notification could not be delivered; verify the channel credentials and destination.' },
+      response: { ok: false, status: 502 },
+    })
+    renderPage()
+    await screen.findByText('Operations')
+    fireEvent.click(screen.getByRole('button', { name: 'Send test to Operations' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('verify the channel credentials')
   })
 })

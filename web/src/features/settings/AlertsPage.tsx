@@ -78,7 +78,7 @@ export function AlertsPage({ orgId, siteId }: { orgId: number; siteId: number })
 
 function AlertDialog({ alert, channels, goals, error, pending, onClose, onSave }: {
   alert: AlertRule | null | undefined
-  channels: { id: number; name: string }[]
+  channels: { id: number; name: string; enabled: boolean }[]
   goals: { id: number; name: string }[]
   error: Error | null
   pending: boolean
@@ -135,6 +135,7 @@ function AlertDialog({ alert, channels, goals, error, pending, onClose, onSave }
                   <input
                     aria-label={channel.name}
                     checked={input.channel_ids.includes(channel.id)}
+                    disabled={!channel.enabled && !input.channel_ids.includes(channel.id)}
                     id={`alert-channel-${channel.id}`}
                     type="checkbox"
                     onChange={(event) => setInput((value) => ({
@@ -144,7 +145,7 @@ function AlertDialog({ alert, channels, goals, error, pending, onClose, onSave }
                         : value.channel_ids.filter((id) => id !== channel.id),
                     }))}
                   />
-                  <FieldLabel htmlFor={`alert-channel-${channel.id}`}>{channel.name}</FieldLabel>
+                  <FieldLabel htmlFor={`alert-channel-${channel.id}`}>{channel.name}{channel.enabled ? '' : ' (disabled)'}</FieldLabel>
                 </Field>
               ))}
             </FieldSet>

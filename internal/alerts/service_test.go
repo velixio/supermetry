@@ -68,6 +68,77 @@ func TestServiceChannelCRUDEncryptsSecretsAndAudits(t *testing.T) {
 	}
 }
 
+func TestServiceTelegramChannelEncryptsTokenAndPreservesRedactedEdit(t *testing.T) {
+	service, pool, principal, _, _ := newServiceTest(t)
+	ctx := context.Background()
+	token := "123456:fake-token-value-for-tests"
+	created, err := service.CreateChannel(ctx, principal, ChannelInput{
+		Kind: ChannelTelegram, Name: "Telegram ops", BotToken: token, ChatID: "-1001234567890",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !created.Enabled || !created.Config.Configured || created.Config.ChatID != "-1001234567890" {
+		t.Fatalf("created = %+v", created)
+	}
+	var raw string
+	if err := pool.QueryRow(ctx, `select config::text from notification_channels where id=$1`, created.ID).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(raw, token) {
+		t.Fatal("stored Telegram config contains plaintext token")
+	}
+	disabled := false
+	updated, err := service.UpdateChannel(ctx, principal, created.ID, ChannelInput{
+		Kind: ChannelTelegram, Name: "Telegram incidents", ChatID: "@panel_incidents", Enabled: &disabled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Enabled || updated.Config.ChatID != "@panel_incidents" {
+		t.Fatalf("updated = %+v", updated)
+	}
+	channels, err := service.DeliveryChannels(ctx, []int64{created.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(channels) != 1 || channels[0].BotToken != token || channels[0].ChatID != "@panel_incidents" || channels[0].Enabled {
+		t.Fatalf("delivery channels = %+v", channels)
+	}
+	var auditPayload string
+	if err := pool.QueryRow(ctx, `select metadata::text from audit_log where action='notification_channel.updated' and target_id=$1 order by id desc limit 1`, created.ID).Scan(&auditPayload); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(auditPayload, token) || strings.Contains(auditPayload, "panel_incidents") {
+		t.Fatalf("audit payload leaked Telegram config: %s", auditPayload)
+	}
+}
+
+func TestServiceTelegramChannelIsTenantScoped(t *testing.T) {
+	service, pool, principal, _, _ := newServiceTest(t)
+	ctx := context.Background()
+	created, err := service.CreateChannel(ctx, principal, ChannelInput{
+		Kind: ChannelTelegram, Name: "Telegram ops", BotToken: "123456:fake-token-value-for-tests", ChatID: "-1001234567890",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var otherOrgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values('Other','other') returning id`).Scan(&otherOrgID); err != nil {
+		t.Fatal(err)
+	}
+	other := authz.Principal{UserID: principal.UserID + 1, OrgID: otherOrgID, Role: authz.RoleOwner}
+	if listed, err := service.ListChannels(ctx, other); err != nil || len(listed) != 0 {
+		t.Fatalf("other tenant list = %+v, %v", listed, err)
+	}
+	if _, err := service.UpdateChannel(ctx, other, created.ID, ChannelInput{Kind: ChannelTelegram, Name: "Stolen", ChatID: "@panel_alerts"}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("cross-tenant update error = %v, want ErrNoRows", err)
+	}
+	if err := service.TestChannel(ctx, other, created.ID); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("cross-tenant test error = %v, want ErrNoRows", err)
+	}
+}
+
 func TestServiceAlertCRUDValidatesRelationsAndAudits(t *testing.T) {
 	service, pool, principal, siteID, goalID := newServiceTest(t)
 	ctx := context.Background()

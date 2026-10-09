@@ -11,10 +11,11 @@ import (
 type Dispatcher struct {
 	mailer   mail.Sender
 	webhooks *WebhookClient
+	telegram TelegramSender
 }
 
-func NewDispatcher(mailer mail.Sender, webhooks *WebhookClient) *Dispatcher {
-	return &Dispatcher{mailer: mailer, webhooks: webhooks}
+func NewDispatcher(mailer mail.Sender, webhooks *WebhookClient, telegram TelegramSender) *Dispatcher {
+	return &Dispatcher{mailer: mailer, webhooks: webhooks, telegram: telegram}
 }
 
 func (d *Dispatcher) Deliver(ctx context.Context, channel DeliveryChannel, notification Notification) error {
@@ -37,6 +38,11 @@ func (d *Dispatcher) Deliver(ctx context.Context, channel DeliveryChannel, notif
 			return errors.New("webhook delivery is unavailable")
 		}
 		return d.webhooks.Send(ctx, channel.Kind, channel.URL, channel.Secret, notification)
+	case ChannelTelegram:
+		if d.telegram == nil {
+			return errors.New("Telegram delivery is unavailable")
+		}
+		return d.telegram.SendMessage(ctx, channel.BotToken, channel.ChatID, notificationText(notification))
 	default:
 		return fmt.Errorf("unknown channel kind %q", channel.Kind)
 	}

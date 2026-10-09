@@ -52,7 +52,7 @@ func (f *fakeAlertsService) DeleteChannel(context.Context, authz.Principal, int6
 
 func (f *fakeAlertsService) TestChannel(context.Context, authz.Principal, int64) error {
 	f.channelCall++
-	return nil
+	return f.err
 }
 
 func (f *fakeAlertsService) ListAlerts(context.Context, authz.Principal, int32) ([]alerts.Alert, error) {
@@ -157,6 +157,10 @@ func TestChannelMutationsValidateInputBeforeService(t *testing.T) {
 		{name: "unknown kind", body: `{"kind":"sms","name":"Ops","config":{"recipients":["ops@example.test"]}}`},
 		{name: "email needs recipients", body: `{"kind":"email","name":"Ops","config":{}}`},
 		{name: "webhook needs URL", body: `{"kind":"webhook","name":"Hook","config":{}}`},
+		{name: "telegram needs token", body: `{"kind":"telegram","name":"Ops","config":{"chat_id":"-100123"}}`},
+		{name: "telegram needs chat", body: `{"kind":"telegram","name":"Ops","config":{"bot_token":"123456:fake-token-value-for-tests"}}`},
+		{name: "telegram rejects invalid token", body: `{"kind":"telegram","name":"Ops","config":{"bot_token":"not-a-token","chat_id":"-100123"}}`},
+		{name: "telegram rejects invalid chat", body: `{"kind":"telegram","name":"Ops","config":{"bot_token":"123456:fake-token-value-for-tests","chat_id":"https://evil.test"}}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -194,6 +198,68 @@ func TestChannelCRUDDelegatesValidatedRequests(t *testing.T) {
 	}
 	if response := requestAs(t, handler, "admin", http.MethodDelete, "/api/private/orgs/1/channels/7", ""); response.Code != http.StatusNoContent {
 		t.Fatalf("delete status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestTelegramChannelCRUDAcceptsWriteOnlyTokenAndDisabledState(t *testing.T) {
+	service := &fakeAlertsService{}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"admin": {UserID: 2, OrgID: 1, Role: authz.RoleAdmin}},
+		Alerts:        service,
+	})
+	created := requestAs(t, handler, "admin", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"telegram","name":"Ops","enabled":false,"config":{"bot_token":"123456:fake-token-value-for-tests","chat_id":"-1001234567890"}}`)
+	if created.Code != http.StatusCreated || service.channelIn.BotToken == "" || service.channelIn.ChatID != "-1001234567890" || service.channelIn.Enabled == nil || *service.channelIn.Enabled {
+		t.Fatalf("status=%d input=%+v body=%s", created.Code, service.channelIn, created.Body.String())
+	}
+	updated := requestAs(t, handler, "admin", http.MethodPatch, "/api/private/orgs/1/channels/7", `{"kind":"telegram","name":"Ops","enabled":true,"config":{"bot_token":"","chat_id":"@panel_alerts"}}`)
+	if updated.Code != http.StatusOK || service.channelIn.BotToken != "" || service.channelIn.ChatID != "@panel_alerts" || service.channelIn.Enabled == nil || !*service.channelIn.Enabled {
+		t.Fatalf("status=%d input=%+v body=%s", updated.Code, service.channelIn, updated.Body.String())
+	}
+}
+
+func TestTelegramChannelAuthorizationAndTenantIsolation(t *testing.T) {
+	service := &fakeAlertsService{}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{
+			"admin":  {UserID: 2, OrgID: 1, Role: authz.RoleAdmin},
+			"editor": {UserID: 3, OrgID: 1, Role: authz.RoleEditor},
+			"other":  {UserID: 4, OrgID: 2, Role: authz.RoleOwner},
+		},
+		Alerts: service,
+	})
+	body := `{"kind":"telegram","name":"Ops","config":{"bot_token":"123456:fake-token-value-for-tests","chat_id":"-1001234567890"}}`
+	tests := []struct {
+		name, actor, method, path, body string
+		status                          int
+	}{
+		{name: "admin creates", actor: "admin", method: http.MethodPost, path: "/api/private/orgs/1/channels", body: body, status: http.StatusCreated},
+		{name: "editor cannot create", actor: "editor", method: http.MethodPost, path: "/api/private/orgs/1/channels", body: body, status: http.StatusForbidden},
+		{name: "other org cannot create", actor: "other", method: http.MethodPost, path: "/api/private/orgs/1/channels", body: body, status: http.StatusNotFound},
+		{name: "other org cannot test", actor: "other", method: http.MethodPost, path: "/api/private/orgs/1/channels/7/test", status: http.StatusNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			before := service.channelCall
+			response := requestAs(t, handler, tt.actor, tt.method, tt.path, tt.body)
+			if response.Code != tt.status {
+				t.Fatalf("status=%d body=%s, want %d", response.Code, response.Body.String(), tt.status)
+			}
+			if tt.status != http.StatusCreated && service.channelCall != before {
+				t.Fatalf("unauthorized request reached service: calls %d -> %d", before, service.channelCall)
+			}
+		})
+	}
+}
+
+func TestChannelTestFailureReturnsUsefulSanitizedError(t *testing.T) {
+	service := &fakeAlertsService{err: alerts.ErrTestDelivery}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"admin": {UserID: 2, OrgID: 1, Role: authz.RoleAdmin}},
+		Alerts:        service,
+	})
+	response := requestAs(t, handler, "admin", http.MethodPost, "/api/private/orgs/1/channels/7/test", "")
+	if response.Code != http.StatusBadGateway || !strings.Contains(response.Body.String(), "verify the channel credentials") {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
 }
 

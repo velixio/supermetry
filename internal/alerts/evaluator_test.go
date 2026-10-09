@@ -95,6 +95,23 @@ func TestEvaluatorMarksFiredAfterAllDeliveriesAreAttempted(t *testing.T) {
 	}
 }
 
+func TestEvaluatorSkipsDisabledChannelAndContinuesOtherDeliveries(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	repo := &fakeRepository{
+		alerts:   []Alert{{ID: 7, SiteID: 10, Kind: AlertTrafficSpike, Threshold: 1, ChannelIDs: []int64{1, 2}, Enabled: true}},
+		channels: []DeliveryChannel{{ID: 1, Kind: ChannelTelegram, Enabled: false}, {ID: 2, Kind: ChannelEmail, Enabled: true, Recipients: []string{"owner@example.test"}}},
+	}
+	deliverer := &fakeDeliverer{}
+	evaluator := NewEvaluator(repo, &fakeMetricSource{}, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, &fakeActiveVisitors{visitors: 2}, deliverer, func() time.Time { return now })
+
+	if err := evaluator.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if deliverer.calls != 1 || len(repo.marked) != 1 {
+		t.Fatalf("deliveries=%d marked=%v", deliverer.calls, repo.marked)
+	}
+}
+
 func TestEvaluatorReportsDeliveryFailureOnceWithoutChannelSecrets(t *testing.T) {
 	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	repo := &fakeRepository{alerts: []Alert{{ID: 7, SiteID: 10, Kind: AlertTrafficSpike, Threshold: 1, ChannelIDs: []int64{8}, Enabled: true}}}
@@ -162,17 +179,21 @@ func (f *fakeMetricSource) Conversions(_ context.Context, site sites.Site, goalI
 }
 
 type fakeRepository struct {
-	alerts []Alert
-	marked []int64
+	alerts   []Alert
+	channels []DeliveryChannel
+	marked   []int64
 }
 
 func (f *fakeRepository) EnabledAlerts(context.Context) ([]Alert, error) {
 	return append([]Alert(nil), f.alerts...), nil
 }
 func (f *fakeRepository) DeliveryChannels(_ context.Context, ids []int64) ([]DeliveryChannel, error) {
+	if f.channels != nil {
+		return append([]DeliveryChannel(nil), f.channels...), nil
+	}
 	channels := make([]DeliveryChannel, len(ids))
 	for i, id := range ids {
-		channels[i] = DeliveryChannel{ID: id, Kind: ChannelEmail, Recipients: []string{"owner@example.test"}}
+		channels[i] = DeliveryChannel{ID: id, Kind: ChannelEmail, Enabled: true, Recipients: []string{"owner@example.test"}}
 	}
 	return channels, nil
 }

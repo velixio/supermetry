@@ -143,6 +143,9 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 	notification := Notification{AlertID: alert.ID, SiteID: alert.SiteID, Kind: alert.Kind, Value: value, Threshold: alert.Threshold, From: from, To: to, FiredAt: now}
 	var deliveryErr error
 	for _, channel := range channels {
+		if !channel.Enabled {
+			continue
+		}
 		if err := e.deliverer.Deliver(ctx, channel, notification); err != nil {
 			if e.onFailure != nil {
 				e.onFailure(alert.ID, channel.ID, channel.Kind, err)

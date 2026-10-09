@@ -28,12 +28,15 @@ type AlertsService interface {
 }
 
 type channelRequest struct {
-	Kind   alerts.ChannelKind `json:"kind"`
-	Name   string             `json:"name"`
-	Config struct {
+	Kind    alerts.ChannelKind `json:"kind"`
+	Name    string             `json:"name"`
+	Enabled *bool              `json:"enabled,omitempty"`
+	Config  struct {
 		Recipients []string `json:"recipients,omitempty"`
 		URL        string   `json:"url,omitempty"`
 		Secret     string   `json:"secret,omitempty"`
+		BotToken   string   `json:"bot_token,omitempty"`
+		ChatID     string   `json:"chat_id,omitempty"`
 	} `json:"config"`
 }
 
@@ -158,15 +161,16 @@ func decodeChannelInput(w http.ResponseWriter, r *http.Request) (alerts.ChannelI
 	input := alerts.ChannelInput{
 		Kind: request.Kind, Name: strings.TrimSpace(request.Name),
 		Recipients: request.Config.Recipients, URL: strings.TrimSpace(request.Config.URL), Secret: request.Config.Secret,
+		BotToken: request.Config.BotToken, ChatID: strings.TrimSpace(request.Config.ChatID), Enabled: request.Enabled,
 	}
-	if !validChannelInput(input) {
+	if !validChannelInput(input, r.Method == http.MethodPatch) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "notification channel fields are invalid")
 		return alerts.ChannelInput{}, false
 	}
 	return input, true
 }
 
-func validChannelInput(input alerts.ChannelInput) bool {
+func validChannelInput(input alerts.ChannelInput, update bool) bool {
 	if input.Name == "" {
 		return false
 	}
@@ -188,6 +192,10 @@ func validChannelInput(input alerts.ChannelInput) bool {
 		}
 		parsed, err := url.ParseRequestURI(input.URL)
 		return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+	case alerts.ChannelTelegram:
+		return len(input.Recipients) == 0 && input.URL == "" && input.Secret == "" &&
+			alerts.ValidTelegramChatID(input.ChatID) &&
+			((update && input.BotToken == "") || alerts.ValidTelegramToken(input.BotToken))
 	default:
 		return false
 	}
@@ -325,6 +333,8 @@ func alertServiceError(w http.ResponseWriter, err error, resource string) {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, alerts.ErrInvalid):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
+	case errors.Is(err, alerts.ErrTestDelivery):
+		writeProblem(w, http.StatusBadGateway, "Bad gateway", alerts.ErrTestDelivery.Error())
 	default:
 		serviceError(w, err)
 	}
