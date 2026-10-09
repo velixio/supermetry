@@ -46,6 +46,19 @@ No manual rollup step is required after an upgrade. The
 `panel recompute-rollups` command remains available for an explicit full
 rebuild when troubleshooting or repairing rollup data.
 
+## Backup and restore
+
+Run `panel backup --out FILE` against the configured database. The archive is
+created with mode `0600`; it contains the PostgreSQL dump and a manifest, but
+not `PANEL_SECRET_KEY`, GeoIP databases, or replay files.
+
+Stop Panel before running `panel restore FILE --yes`, and restore only into its
+dedicated PostgreSQL database. Restore replaces database objects and is not
+atomic, so a `pg_restore` failure can leave the target partially restored. A
+binary accepts archives whose schema version is no newer than its highest
+embedded migration and refuses archives created by a newer schema. After a
+successful restore, restart Panel so any migrations newer than the archive run.
+
 ## Installer
 
 Set the release asset base URL. It normally ends with the version used in the

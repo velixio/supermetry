@@ -26,6 +26,20 @@ type migration struct {
 	sql     string
 }
 
+// LatestMigrationVersion returns the highest migration version embedded in this
+// binary. Callers that gate compatibility should use this instead of maintaining
+// a second version constant alongside the migration files.
+func LatestMigrationVersion() (int, error) {
+	migrations, err := loadMigrations()
+	if err != nil {
+		return 0, err
+	}
+	if len(migrations) == 0 {
+		return 0, nil
+	}
+	return migrations[len(migrations)-1].version, nil
+}
+
 // Migrate applies each embedded migration once, in numeric order.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) (resultErr error) {
 	conn, err := pool.Acquire(ctx)
