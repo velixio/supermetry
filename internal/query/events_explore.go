@@ -64,6 +64,15 @@ func (e *Engine) Events(ctx context.Context, req api.EventExploreRequest) (api.E
 	response := api.EventExploreList{Data: make([]api.EventExploreItem, 0, normalized.limit)}
 	keys := make([]eventCursor, 0, normalized.limit+1)
 	err = WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
+		countSQL, countArgs, countErr := buildEventsExploreCountSQL(normalized)
+		if countErr != nil {
+			return countErr
+		}
+		var count int
+		if countErr := tx.QueryRow(ctx, countSQL, countArgs...).Scan(&count); countErr != nil {
+			return countErr
+		}
+		response.Total, response.TotalCapped = cappedTotal(count)
 		rows, queryErr := tx.Query(ctx, querySQL, args...)
 		if queryErr != nil {
 			return queryErr
@@ -297,20 +306,9 @@ func normalizeEventExplore(req api.EventExploreRequest, site sites.Site, now tim
 }
 
 func buildEventsExploreSQL(req normalizedEventExplore) (string, []any, error) {
-	builder := &sqlBuilder{}
-	rangeValue := normalizedExploreRange{siteID: req.siteID, retention: req.retention, from: req.from, to: req.to, start: req.start, end: req.end}
-	where, joins := exploreBaseSQL(builder, rangeValue, req.name)
-	conditions, err := eventExploreFilterConditions(builder, req.filters)
+	builder, fromSQL, where, err := buildEventsExploreBaseSQL(req, true)
 	if err != nil {
 		return "", nil, err
-	}
-	where += andSQL(conditions)
-	if req.after != nil {
-		// Keyset pagination: newer rows that arrive between requests cannot
-		// shift later pages, and deep pages cost no more than the first one.
-		where += " and (e.ts,e.session_id,e.kind,e.name_id,e.path_id)<(" + builder.arg(req.after.ts) + "::timestamptz," +
-			builder.arg(req.after.sessionID) + "::int8," + builder.arg(req.after.kind) + "::int2," +
-			builder.arg(req.after.nameID) + "::int4," + builder.arg(req.after.pathID) + "::int4)"
 	}
 	querySQL := `select e.ts,e.kind,case when e.kind=0 then 'pageview' else coalesce(event_name.value,'') end,
 	       coalesce(path.value,''),e.props,trim(e.country),coalesce(city.value,''),
@@ -318,7 +316,7 @@ func buildEventsExploreSQL(req normalizedEventExplore) (string, []any, error) {
 	       coalesce(browser.value,''),coalesce(os.value,''),coalesce(source.value,''),
        exists (select 1 from replay_sessions rr where rr.site_id=e.site_id and rr.session_id=e.session_id),
        e.session_id,e.name_id,e.path_id
-from events e ` + joins + `
+` + fromSQL + `
 left join dict path on path.kind=` + strconv.Itoa(int(dict.Path)) + ` and path.id=e.path_id
 left join dict browser on browser.kind=` + strconv.Itoa(int(dict.Browser)) + ` and browser.id=e.browser_id
 left join dict os on os.kind=` + strconv.Itoa(int(dict.OS)) + ` and os.id=e.os_id
@@ -327,6 +325,36 @@ left join dict source on source.kind=` + strconv.Itoa(int(dict.Source)) + ` and 
 where ` + where + `
 order by e.ts desc,e.session_id desc,e.kind desc,e.name_id desc,e.path_id desc
 limit ` + builder.arg(req.limit+1)
+	return querySQL, builder.args, nil
+}
+
+func buildEventsExploreBaseSQL(req normalizedEventExplore, includeCursor bool) (*sqlBuilder, string, string, error) {
+	builder := &sqlBuilder{}
+	rangeValue := normalizedExploreRange{siteID: req.siteID, retention: req.retention, from: req.from, to: req.to, start: req.start, end: req.end}
+	where, joins := exploreBaseSQL(builder, rangeValue, req.name)
+	conditions, err := eventExploreFilterConditions(builder, req.filters)
+	if err != nil {
+		return nil, "", "", err
+	}
+	where += andSQL(conditions)
+	if includeCursor && req.after != nil {
+		// Keyset pagination: newer rows that arrive between requests cannot
+		// shift later pages, and deep pages cost no more than the first one.
+		where += " and (e.ts,e.session_id,e.kind,e.name_id,e.path_id)<(" + builder.arg(req.after.ts) + "::timestamptz," +
+			builder.arg(req.after.sessionID) + "::int8," + builder.arg(req.after.kind) + "::int2," +
+			builder.arg(req.after.nameID) + "::int4," + builder.arg(req.after.pathID) + "::int4)"
+	}
+	return builder, "from events e " + joins, where, nil
+}
+
+func buildEventsExploreCountSQL(req normalizedEventExplore) (string, []any, error) {
+	builder, fromSQL, where, err := buildEventsExploreBaseSQL(req, false)
+	if err != nil {
+		return "", nil, err
+	}
+	querySQL := `select count(*) from (
+  select 1 ` + fromSQL + ` where ` + where + ` limit ` + builder.arg(listTotalCap+1) + `
+) t`
 	return querySQL, builder.args, nil
 }
 

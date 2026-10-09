@@ -21,6 +21,7 @@ const (
 	defaultSessionLimit = 50
 	maxSessionLimit     = 1000
 	maxSessionEvents    = 1000
+	listTotalCap        = 10000
 	// sessionTimelineSlack widens the timeline's upper ts bound past the
 	// stored session.last, which the writer flushes after the events, so the
 	// bound keeps partition pruning without hiding the newest hits.
@@ -80,6 +81,15 @@ func (e *Engine) Sessions(ctx context.Context, siteID int32, params api.ListSess
 	}
 	defer globalQuerySlots.Release(1)
 	err = WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
+		countSQL, countArgs, countErr := buildSessionsCountSQL(siteID, site.Retention, site.TZ, from, to, filters, params.HasReplay)
+		if countErr != nil {
+			return countErr
+		}
+		var count int
+		if countErr := tx.QueryRow(ctx, countSQL, countArgs...).Scan(&count); countErr != nil {
+			return countErr
+		}
+		response.Total, response.TotalCapped = cappedTotal(count)
 		rows, queryErr := tx.Query(ctx, querySQL, args...)
 		if queryErr != nil {
 			return queryErr
@@ -190,6 +200,68 @@ limit `+strconv.Itoa(maxSessionEvents), siteID, site.Retention, sessionID, dict.
 }
 
 func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.Location, profilesEnabled bool, from, to time.Time, filters []api.Filter, hasReplay *bool, cursor *sessionCursor, limit int) (string, []any, error) {
+	parts, err := buildSessionExploreSources(siteID, retention, location, from, to, filters, hasReplay, cursor)
+	if err != nil {
+		return "", nil, err
+	}
+	builder := parts.builder
+	profilesArg := builder.arg(profilesEnabled)
+	limitArg := builder.arg(limit)
+	querySQL := `with combined as (
+  (
+  select s.session_id,s.started_at,s.duration_ms::bigint as duration_ms,s.pageviews,s.custom as events,
+         s.entry_path,s.exit_path,s.source_id,s.country,s.city_id,s.device,s.browser_id,s.os_id,s.profile_id,
+         false as hot,null::timestamptz as last,null::date as local_day
+  ` + parts.closedFrom + `
+  order by s.started_at desc,s.session_id desc
+  limit ` + limitArg + `
+  )
+  union all
+  (
+  select s.session_id,s.start,greatest(0,round(extract(epoch from (s.last-s.start))*1000))::bigint,
+         s.pageviews,s.events,s.entry_path,s.exit_path,s.source_id,s.country,s.city_id,s.device,s.browser_id,s.os_id,
+         null::bigint,true,s.last,s.local_day
+  ` + parts.hotFrom + `
+  order by s.start desc,s.session_id desc
+  limit ` + limitArg + `
+  )
+), limited as (
+  select * from combined order by started_at desc,session_id desc limit ` + limitArg + `
+), hot_profiles as (
+  select distinct on (e.session_id) e.session_id,e.profile_id
+  from events e
+  join limited c on c.hot and c.session_id=e.session_id and c.local_day=e.local_day
+    and e.ts>=c.started_at and e.ts<c.last+interval '30 minutes'
+  where ` + profilesArg + ` and e.site_id=` + parts.siteArg + ` and e.retention_class=` + parts.retentionArg + `
+    and e.ts>=` + parts.startArg + ` and e.ts<` + parts.endArg + ` and e.profile_id is not null
+  order by e.session_id,e.ts
+)
+select c.session_id,c.started_at,c.duration_ms,c.pageviews,c.events,
+       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Path)) + ` and id=c.entry_path),''),
+       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Path)) + ` and id=c.exit_path),''),
+       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Source)) + ` and id=c.source_id),''),
+       c.country,
+       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.City)) + ` and id=c.city_id),''),
+       case c.device when 0 then 'desktop' when 1 then 'mobile' when 2 then 'tablet' else 'unknown' end,
+       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Browser)) + ` and id=c.browser_id),''),
+       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.OS)) + ` and id=c.os_id),''),
+       p.external_id,
+       exists (select 1 from replay_sessions rr where rr.site_id=` + parts.siteArg + ` and rr.session_id=c.session_id)
+from limited c
+left join hot_profiles hp on hp.session_id=c.session_id
+left join profiles p on ` + profilesArg + ` and p.site_id=` + parts.siteArg + ` and p.id=case when c.hot then hp.profile_id else c.profile_id end
+order by c.started_at desc,c.session_id desc`
+	return querySQL, builder.args, nil
+}
+
+type sessionExploreSources struct {
+	builder               *sqlBuilder
+	siteArg, retentionArg string
+	startArg, endArg      string
+	closedFrom, hotFrom   string
+}
+
+func buildSessionExploreSources(siteID int32, retention db.RetentionClass, location *time.Location, from, to time.Time, filters []api.Filter, hasReplay *bool, cursor *sessionCursor) (sessionExploreSources, error) {
 	if location == nil {
 		location = time.UTC
 	}
@@ -201,11 +273,11 @@ func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.
 	startArg, endArg := builder.arg(startTS), builder.arg(endTS)
 	closedConditions, err := sessionExploreConditions(builder, filters, true)
 	if err != nil {
-		return "", nil, err
+		return sessionExploreSources{}, err
 	}
 	hotConditions, err := sessionExploreConditions(builder, filters, false)
 	if err != nil {
-		return "", nil, err
+		return sessionExploreSources{}, err
 	}
 	if cursor != nil {
 		startedArg, idArg := builder.arg(cursor.startedAt), builder.arg(cursor.id)
@@ -220,60 +292,41 @@ func buildSessionsSQL(siteID int32, retention db.RetentionClass, location *time.
 		closedConditions = append(closedConditions, condition)
 		hotConditions = append(hotConditions, condition)
 	}
-	profilesArg := builder.arg(profilesEnabled)
-	limitArg := builder.arg(limit)
-	querySQL := `with combined as (
-  (
-  select s.session_id,s.started_at,s.duration_ms::bigint as duration_ms,s.pageviews,s.custom as events,
-         s.entry_path,s.exit_path,s.source_id,s.country,s.city_id,s.device,s.browser_id,s.os_id,s.profile_id,
-         false as hot,null::timestamptz as last,null::date as local_day
-  from sessions_closed s
+	closedFrom := `from sessions_closed s
   where s.site_id=` + siteArg + ` and s.day between ` + fromArg + `::date and ` + toArg + `::date
     and s.started_at is not null
-    and exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.day and dc.status='done')` + andSQL(closedConditions) + `
-  order by s.started_at desc,s.session_id desc
-  limit ` + limitArg + `
-  )
-  union all
-  (
-  select s.session_id,s.start,greatest(0,round(extract(epoch from (s.last-s.start))*1000))::bigint,
-         s.pageviews,s.events,s.entry_path,s.exit_path,s.source_id,s.country,s.city_id,s.device,s.browser_id,s.os_id,
-         null::bigint,true,s.last,s.local_day
-  from sessions s
+	and exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.day and dc.status='done')` + andSQL(closedConditions)
+	hotFrom := `from sessions s
   where s.site_id=` + siteArg + ` and s.retention_class=` + retentionArg + `
     and s.local_day between ` + fromArg + `::date and ` + toArg + `::date
     and s.start>=` + startArg + ` and s.start<` + endArg + `
-    and not exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.local_day and dc.status='done')` + andSQL(hotConditions) + `
-  order by s.start desc,s.session_id desc
+	and not exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.local_day and dc.status='done')` + andSQL(hotConditions)
+	return sessionExploreSources{
+		builder: builder, siteArg: siteArg, retentionArg: retentionArg, startArg: startArg, endArg: endArg,
+		closedFrom: closedFrom, hotFrom: hotFrom,
+	}, nil
+}
+
+func buildSessionsCountSQL(siteID int32, retention db.RetentionClass, location *time.Location, from, to time.Time, filters []api.Filter, hasReplay *bool) (string, []any, error) {
+	parts, err := buildSessionExploreSources(siteID, retention, location, from, to, filters, hasReplay, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	limitArg := parts.builder.arg(listTotalCap + 1)
+	querySQL := `select count(*) from (
+  select 1 ` + parts.closedFrom + `
+  union all
+  select 1 ` + parts.hotFrom + `
   limit ` + limitArg + `
-  )
-), limited as (
-  select * from combined order by started_at desc,session_id desc limit ` + limitArg + `
-), hot_profiles as (
-  select distinct on (e.session_id) e.session_id,e.profile_id
-  from events e
-  join limited c on c.hot and c.session_id=e.session_id and c.local_day=e.local_day
-    and e.ts>=c.started_at and e.ts<c.last+interval '30 minutes'
-  where ` + profilesArg + ` and e.site_id=` + siteArg + ` and e.retention_class=` + retentionArg + `
-    and e.ts>=` + startArg + ` and e.ts<` + endArg + ` and e.profile_id is not null
-  order by e.session_id,e.ts
-)
-select c.session_id,c.started_at,c.duration_ms,c.pageviews,c.events,
-       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Path)) + ` and id=c.entry_path),''),
-       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Path)) + ` and id=c.exit_path),''),
-       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Source)) + ` and id=c.source_id),''),
-       c.country,
-       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.City)) + ` and id=c.city_id),''),
-       case c.device when 0 then 'desktop' when 1 then 'mobile' when 2 then 'tablet' else 'unknown' end,
-       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.Browser)) + ` and id=c.browser_id),''),
-       coalesce((select value from dict where kind=` + strconv.Itoa(int(dict.OS)) + ` and id=c.os_id),''),
-       p.external_id,
-       exists (select 1 from replay_sessions rr where rr.site_id=` + siteArg + ` and rr.session_id=c.session_id)
-from limited c
-left join hot_profiles hp on hp.session_id=c.session_id
-left join profiles p on ` + profilesArg + ` and p.site_id=` + siteArg + ` and p.id=case when c.hot then hp.profile_id else c.profile_id end
-order by c.started_at desc,c.session_id desc`
-	return querySQL, builder.args, nil
+) t`
+	return querySQL, parts.builder.args, nil
+}
+
+func cappedTotal(count int) (int, bool) {
+	if count > listTotalCap {
+		return listTotalCap, true
+	}
+	return count, false
 }
 
 func sessionExploreConditions(builder *sqlBuilder, filters []api.Filter, closed bool) ([]string, error) {
