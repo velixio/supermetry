@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"panel/internal/config"
+	"panel/internal/privacy"
 	"panel/internal/replay"
 	"panel/internal/sites"
 )
@@ -24,8 +25,8 @@ type Script struct {
 }
 
 // BuildScript prepends a site's resolved settings to the appropriate embedded
-// tracker. Snippet data attributes take precedence because the prelude uses
-// nullish assignment.
+// tracker. Snippet attributes may tighten settings; disabled collection features cannot
+// be re-enabled by dataset overrides.
 func BuildScript(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) Script {
 	prefix := prelude(publicID, settings, replaySettings)
 	source := script
@@ -76,7 +77,7 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 		if !enabled {
 			builder.WriteString(`d`)
 			builder.WriteString(attribute)
-			builder.WriteString(`??="false";`)
+			builder.WriteString(`="false";`)
 		}
 	}
 	off(".outbound", settings.Outbound)
@@ -87,14 +88,22 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 	// Heatmap capture is opt-in in the tracker, so it is switched on here.
 	if settings.Clicks {
 		builder.WriteString(`d.heatmap??="true";`)
+	} else {
+		builder.WriteString(`d.heatmap="false";`)
 	}
 	if settings.Hash {
 		builder.WriteString(`d.hash??="true";`)
 	}
 	if replaySettings.Enabled {
-		builder.WriteString(`d.replay??="`)
+		if replaySettings.Consent == "always" {
+			builder.WriteString(`d.replay="`)
+		} else {
+			builder.WriteString(`d.replay??="`)
+		}
 		builder.WriteString(replaySettings.Consent)
 		builder.WriteString(`";`)
+	} else {
+		builder.WriteString(`d.replay="";`)
 	}
 	builder.WriteString(`})(document.currentScript.dataset);` + "\n")
 	return builder.String()
@@ -103,10 +112,12 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 var siteScriptBuilder = BuildScript
 
 type siteScriptCacheKey struct {
-	publicID      string
-	settings      sites.TrackerSettings
-	replayEnabled bool
-	replayConsent string
+	publicID        string
+	settings        sites.TrackerSettings
+	replayEnabled   bool
+	replayConsent   string
+	profilesEnabled bool
+	mode            privacy.Mode
 }
 
 // SiteHandler serves generated tracker scripts for sites in the in-memory
@@ -117,6 +128,12 @@ func SiteHandler(registry sites.Registry, replayEnvs ...config.ReplayEnv) http.H
 	if len(replayEnvs) != 0 {
 		replayEnv = replayEnvs[0]
 	}
+	return SiteHandlerWithPolicy(registry, replayEnv, privacy.Anonymous)
+}
+
+// SiteHandlerWithPolicy exposes the effective instance/project identity gate.
+// Server admission remains authoritative when an older script is cached.
+func SiteHandlerWithPolicy(registry sites.Registry, replayEnv config.ReplayEnv, mode privacy.Mode) http.Handler {
 	var cache sync.Map
 	var cacheEntries atomic.Int64
 	var buildMu sync.Mutex
@@ -131,6 +148,14 @@ func SiteHandler(registry sites.Registry, replayEnvs ...config.ReplayEnv) http.H
 			return cached.(Script)
 		}
 		built := siteScriptBuilder(key.publicID, key.settings, replaySettings)
+		identityPrelude := `(d=>{d.tracking=` + strconv.Quote(key.mode.String()) + `;`
+		if !key.profilesEnabled {
+			identityPrelude += `d.profiles="false";`
+		}
+		identityPrelude += `})(document.currentScript.dataset);` + "\n"
+		built.Body = append([]byte(identityPrelude), built.Body...)
+		digest := sha256.Sum256(built.Body)
+		built.ETag = `"` + hex.EncodeToString(digest[:])[:16] + `"`
 		if cacheEntries.Load() >= maxSiteScriptCacheEntries {
 			cache.Clear()
 			cacheEntries.Store(0)
@@ -168,7 +193,7 @@ func SiteHandler(registry sites.Registry, replayEnvs ...config.ReplayEnv) http.H
 		settings := site.Tracker.Resolve(site.HeatmapsEnabled)
 		replaySettings := replay.ResolveSite(replayEnv, site.Replay)
 		generated := load(siteScriptCacheKey{
-			publicID: publicID, settings: settings,
+			publicID: publicID, settings: settings, profilesEnabled: mode == privacy.Identified && site.ProfilesEnabled, mode: mode,
 			replayEnabled: replaySettings.Enabled, replayConsent: replaySettings.Consent,
 		}, replaySettings)
 

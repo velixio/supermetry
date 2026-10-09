@@ -23,8 +23,11 @@
   var pending = /*@full*/ !manual && /*@end*/ true;
   var profileID;
 
+  function permitted() {
+    return !ignored && !navigator.globalPrivacyControl && navigator.doNotTrack != "1" && window.doNotTrack != "1" /*@full*/ && !denied && !paused /*@end*/;
+  }
   function post(payload) {
-    if (ignored) return;
+    if (!permitted()) return;
     var body = JSON.stringify(payload);
     navigator.sendBeacon?.(endpoint,
       new Blob([body], {type: "text/plain"})) || fetch(endpoint, {
@@ -179,7 +182,7 @@
   if (data.replay) {
     startReplay = () => {
       var connection = navigator.connection;
-      if (ignored || panel._replayDenied || panel._replay || connection?.saveData || /^(slow-)?2g$/.test(connection?.effectiveType)) return;
+      if (!permitted() || panel._replayDenied || panel._replay || connection?.saveData || /^(slow-)?2g$/.test(connection?.effectiveType)) return;
       var origin = new URL(endpoint, location.href).origin;
       panel._replay = {s: data.site, o: origin};
       var replayScript = document.createElement("script");
@@ -191,10 +194,14 @@
     if (replayGranted) startReplay();
   }
   panel._post = post;
+  panel._allowed = permitted;
   /*@end*/
   // Opt-out is the only thing the tracker ever stores: a flag, no identifier.
   var opt = (value) => () => {
     ignored = value;
+    /*@full*/
+    if (value) { profileID = 0; if (paused) paused = []; panel._clearHeatmap?.(); }
+    /*@end*/
     try { value ? localStorage.panel_ignore = 1 : delete localStorage.panel_ignore; } catch (_) {}
     /*@full*/
     if (data.replay) {
@@ -218,6 +225,9 @@
     startPage(url, options?.props);
   };
   panel.consent = (granted) => {
+    panel._replayConsent = !!granted;
+    denied = !granted;
+    if (!granted) { profileID = 0; panel._clearHeatmap?.(); }
     if (data.replay) {
       replayGranted = granted;
       panel._replayDenied = !granted;
@@ -237,6 +247,7 @@
   panel.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);
   // Identification is memory-only, so call identify on every page load.
   panel.identify = (id, traits = {}) => {
+    if (data.profiles == "false" || !permitted()) return;
     if (id === null) {
       return profileID = 0;
     }

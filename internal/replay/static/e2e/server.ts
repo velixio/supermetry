@@ -45,6 +45,7 @@ Bun.serve({
       const mode = body.u?.includes("/trigger") ? "trigger" : "full";
       return Response.json({
         m: mode,
+        v: "test-policy",
         mask: false,
         t: { e: true, r: true, u: body.u?.includes("/url-spa") ? ["*checkout*"] : [], x: !body.u?.includes("/manual-off") },
       });

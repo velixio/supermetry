@@ -22,8 +22,11 @@ const (
 )
 
 type Value[T any] struct {
-	V      T    `json:"value"`
-	Locked bool `json:"locked"`
+	V           T      `json:"value"`
+	Locked      bool   `json:"locked"`
+	Configured  *T     `json:"configured,omitempty"`
+	Maximum     *T     `json:"maximum,omitempty"`
+	Restriction string `json:"restriction,omitempty"`
 }
 
 type Triggers struct {
@@ -35,13 +38,16 @@ type Triggers struct {
 }
 
 type SiteSettings struct {
-	Enabled       bool         `json:"enabled"`
-	Mask          Value[bool]  `json:"mask"`
-	SampleRate    Value[int]   `json:"sample_rate"`
-	RetentionDays Value[int]   `json:"retention_days"`
-	QuotaBytes    Value[int64] `json:"quota_bytes"`
-	Triggers      Triggers     `json:"triggers"`
-	Consent       string       `json:"consent"`
+	Enabled           bool         `json:"enabled"`
+	ConfiguredEnabled bool         `json:"configured_enabled"`
+	InstanceEnabled   bool         `json:"instance_enabled"`
+	Restrictions      []string     `json:"restrictions"`
+	Mask              Value[bool]  `json:"mask"`
+	SampleRate        Value[int]   `json:"sample_rate"`
+	RetentionDays     Value[int]   `json:"retention_days"`
+	QuotaBytes        Value[int64] `json:"quota_bytes"`
+	Triggers          Triggers     `json:"triggers"`
+	Consent           string       `json:"consent"`
 }
 
 type S3Settings struct {
@@ -82,16 +88,25 @@ type storedS3JSON struct {
 
 func ResolveSite(env config.ReplayEnv, in sites.ReplaySiteInput) SiteSettings {
 	settings := SiteSettings{
-		Enabled:       env.Enabled, // PANEL_REPLAY_ENABLED is the only switch; the UI shows it read-only
-		Mask:          resolve(false, in.Mask, env.Mask),
-		SampleRate:    resolve(defaultSampleRate, in.SampleRate, env.SampleRate),
-		RetentionDays: resolve(defaultRetentionDays, in.RetentionDays, env.Retention),
-		QuotaBytes:    resolve(defaultQuotaBytes, in.QuotaBytes, env.QuotaBytes),
+		Enabled:           env.Enabled && in.Enabled,
+		ConfiguredEnabled: in.Enabled,
+		InstanceEnabled:   env.Enabled,
+		Restrictions:      []string{},
+		Mask:              resolveMask(in.Mask, env.Mask),
+		SampleRate:        resolveCap(defaultSampleRate, in.SampleRate, env.SampleRate, "instance_sample_rate_cap"),
+		RetentionDays:     resolveCap(defaultRetentionDays, in.RetentionDays, env.Retention, "instance_retention_days_cap"),
+		QuotaBytes:        resolveCap(defaultQuotaBytes, in.QuotaBytes, env.QuotaBytes, "instance_quota_bytes_cap"),
 		Triggers: Triggers{
 			Error: true, RageClick: true, URL: true, Manual: true,
 			URLPatterns: append([]string{}, in.Triggers.URLPatterns...), // [] not null in JSON
 		},
 		Consent: "auto",
+	}
+	if !env.Enabled {
+		settings.Restrictions = append(settings.Restrictions, "instance_replay_disabled")
+	}
+	if !in.Enabled {
+		settings.Restrictions = append(settings.Restrictions, "project_replay_disabled")
 	}
 	settings.Triggers.Error = pick(in.Triggers.Error, settings.Triggers.Error)
 	settings.Triggers.RageClick = pick(in.Triggers.RageClick, settings.Triggers.RageClick)
@@ -217,4 +232,34 @@ func pick[T any](value *T, fallback T) T {
 		return *value
 	}
 	return fallback
+}
+
+// A mandatory mask combines with project preferences using OR; numeric instance
+// values are ceilings, never replacements for stricter project preferences.
+func resolveMask(project, instance *bool) Value[bool] {
+	configured := pick(project, false)
+	value := Value[bool]{V: configured, Configured: &configured}
+	if instance != nil && *instance {
+		value.V = true
+		value.Locked = true
+		if !configured {
+			value.Restriction = "instance_mask_required"
+		}
+	}
+	return value
+}
+
+func resolveCap[T ~int | ~int64](fallback T, project, instance *T, reason string) Value[T] {
+	configured := pick(project, fallback)
+	value := Value[T]{V: configured, Configured: &configured}
+	if instance != nil {
+		maximum := *instance
+		value.Maximum = &maximum
+		value.Locked = true
+		if maximum < configured {
+			value.V = maximum
+			value.Restriction = reason
+		}
+	}
+	return value
 }

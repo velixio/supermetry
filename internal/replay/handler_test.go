@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -80,15 +81,13 @@ func (i *replayTestIndex) Add(update IndexUpdate) {
 	i.mu.Unlock()
 }
 
-func TestStartIgnoresStoredSiteSwitch(t *testing.T) {
-	// PANEL_REPLAY_ENABLED is the only switch: a stale per-site "enabled":false
-	// stored before that rule must not stop recording.
+func TestStartHonorsStoredSiteSwitch(t *testing.T) {
 	input := replayInput(100)
 	input.Enabled = false
 	h, _, _, _, _ := newReplayTestHandler(t, input)
 	response := requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")
-	if response.Code != http.StatusOK || decodeStart(t, response).Mode != "full" {
-		t.Fatalf("status/body = %d/%s, want 200 with full", response.Code, response.Body.String())
+	if response.Code != http.StatusOK || decodeStart(t, response).Mode != "off" {
+		t.Fatalf("status/body = %d/%s, want 200 with off", response.Code, response.Body.String())
 	}
 	assertCORS(t, response)
 }
@@ -183,8 +182,8 @@ func TestChunkRejectsUnsampledWithoutTrigger(t *testing.T) {
 	}
 }
 
-func TestChunkAllowsTriggeredContinuation(t *testing.T) {
-	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(0))
+func TestChunkAllowsSampledContinuation(t *testing.T) {
+	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(100))
 	touchReplaySession(t, sessions, visitorID)
 	body := gzipBody(t, []byte("chunk"))
 	if response := requestChunk(h, 0, true, "error", body, "192.0.2.1:1234", "test-agent"); response.Code != http.StatusAccepted {
@@ -413,7 +412,8 @@ func (*benchmarkResponse) Write(body []byte) (int, error) { return len(body), ni
 func (w *benchmarkResponse) WriteHeader(status int)       { w.status = status }
 
 type startWire struct {
-	Mode string `json:"m"`
+	Version string `json:"v"`
+	Mode    string `json:"m"`
 }
 
 func decodeStart(t testing.TB, response *httptest.ResponseRecorder) startWire {
@@ -498,7 +498,8 @@ func requestChunkWithOrigin(h *Handler, sequence int, page bool, trigger string,
 	if page {
 		pageValue = "1"
 	}
-	target := "/api/replay/chunk?s=site-public&q=" + itoa(sequence) + "&p=" + pageValue
+	site, _ := h.deps.Sites.ByPublicID("site-public")
+	target := "/api/replay/chunk?s=site-public&q=" + itoa(sequence) + "&p=" + pageValue + "&v=" + policyVersion(ResolveSite(h.deps.Replay, site.Replay))
 	if trigger != "" {
 		target += "&t=" + trigger
 	}
@@ -576,5 +577,188 @@ func TestChunkSequenceAcrossSPANavigation(t *testing.T) {
 	}
 	if len(blob.keys) != 6 {
 		t.Fatalf("blob appends = %d, want 6", len(blob.keys))
+	}
+}
+
+func TestReplayPrivacySignalsAndConsent(t *testing.T) {
+	for _, tc := range []struct {
+		name, header, value string
+		consent             bool
+	}{
+		{name: "GPC", header: "Sec-GPC", value: "1"},
+		{name: "DNT", header: "DNT", value: "1"},
+		{name: "required consent", consent: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := replayInput(100)
+			if tc.consent {
+				input.Consent = ptr("always")
+			}
+			h, sessions, blob, _, visitor := newReplayTestHandler(t, input)
+			touchReplaySession(t, sessions, visitor)
+			start := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://example.com/page"}`))
+			start.RemoteAddr = "192.0.2.1:1234"
+			start.Header.Set("User-Agent", "test-agent")
+			if tc.header != "" {
+				start.Header.Set(tc.header, tc.value)
+			}
+			response := httptest.NewRecorder()
+			h.Start(response, start)
+			if response.Code != http.StatusOK || decodeStart(t, response).Mode != "off" {
+				t.Fatalf("start=%d %s", response.Code, response.Body.String())
+			}
+			chunk := httptest.NewRequest(http.MethodPost, "/api/replay/chunk?s=site-public&q=0&p=1", bytes.NewReader(gzipBody(t, []byte("{}\n"))))
+			chunk.RemoteAddr = "192.0.2.1:1234"
+			chunk.Header.Set("User-Agent", "test-agent")
+			if tc.header != "" {
+				chunk.Header.Set(tc.header, tc.value)
+			}
+			response = httptest.NewRecorder()
+			h.Chunk(response, chunk)
+			if response.Code != http.StatusForbidden || len(blob.bodies) != 0 {
+				t.Fatalf("chunk status=%d writes=%d", response.Code, len(blob.bodies))
+			}
+		})
+	}
+}
+
+func TestChunkRechecksProjectPermission(t *testing.T) {
+	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(100))
+	touchReplaySession(t, sessions, visitor)
+	start := requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")
+	if decodeStart(t, start).Mode != "full" {
+		t.Fatal("start not admitted")
+	}
+	reg := h.deps.Sites.(replayTestRegistry)
+	reg.site.Replay.Enabled = false
+	h.deps.Sites = reg
+	response := requestChunk(h, 0, true, "", gzipBody(t, []byte("{}\n")), "192.0.2.1:1234", "test-agent")
+	if response.Code != http.StatusBadRequest || len(blob.bodies) != 0 {
+		t.Fatalf("status=%d writes=%d", response.Code, len(blob.bodies))
+	}
+}
+
+func TestTriggerCannotBypassZeroSampleCap(t *testing.T) {
+	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(0))
+	touchReplaySession(t, sessions, visitor)
+	if got := decodeStart(t, requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")).Mode; got != "off" {
+		t.Fatalf("mode=%s", got)
+	}
+	response := requestChunk(h, 0, true, "error", gzipBody(t, []byte("{}\n")), "192.0.2.1:1234", "test-agent")
+	if response.Code != http.StatusBadRequest || len(blob.bodies) != 0 {
+		t.Fatalf("status=%d writes=%d", response.Code, len(blob.bodies))
+	}
+}
+
+func TestChunkRejectsStalePrivacyConfiguration(t *testing.T) {
+	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(100))
+	touchReplaySession(t, sessions, visitor)
+	old := decodeStart(t, requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent"))
+	reg := h.deps.Sites.(replayTestRegistry)
+	reg.site.Replay.Mask = ptr(true)
+	h.deps.Sites = reg
+	request := httptest.NewRequest(http.MethodPost, "/api/replay/chunk?s=site-public&q=0&p=1&v="+old.Version, bytes.NewReader(gzipBody(t, []byte("{}\n"))))
+	request.RemoteAddr = "192.0.2.1:1234"
+	request.Header.Set("User-Agent", "test-agent")
+	response := httptest.NewRecorder()
+	h.Chunk(response, request)
+	if response.Code != http.StatusForbidden || len(blob.bodies) != 0 {
+		t.Fatalf("status=%d writes=%d", response.Code, len(blob.bodies))
+	}
+}
+
+func TestReplayRequiredConsentAllowsExplicitAssertion(t *testing.T) {
+	input := replayInput(100)
+	input.Consent = ptr("always")
+	h, sessions, blob, _, visitor := newReplayTestHandler(t, input)
+	touchReplaySession(t, sessions, visitor)
+	start := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://example.com/page","c":true}`))
+	start.RemoteAddr = "192.0.2.1:1234"
+	start.Header.Set("User-Agent", "test-agent")
+	response := httptest.NewRecorder()
+	h.Start(response, start)
+	admission := decodeStart(t, response)
+	if admission.Mode != "full" {
+		t.Fatalf("consented start: %s", response.Body.String())
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/replay/chunk?s=site-public&q=0&p=1&c=1&v="+admission.Version, bytes.NewReader(gzipBody(t, []byte("{}\n"))))
+	request.RemoteAddr = "192.0.2.1:1234"
+	request.Header.Set("User-Agent", "test-agent")
+	response = httptest.NewRecorder()
+	h.Chunk(response, request)
+	if response.Code != http.StatusAccepted || len(blob.bodies) != 1 {
+		t.Fatalf("status=%d writes=%d", response.Code, len(blob.bodies))
+	}
+}
+
+func TestCollectionGuardChecksAuxiliaryUploadPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name                           string
+		enabled, consent, version, gpc bool
+		want                           int
+	}{
+		{name: "project disabled", consent: true, version: true, want: 403},
+		{name: "missing consent", enabled: true, version: true, want: 403},
+		{name: "stale recorder", enabled: true, consent: true, want: 403},
+		{name: "privacy signal", enabled: true, consent: true, version: true, gpc: true, want: 403},
+		{name: "permitted", enabled: true, consent: true, version: true, want: 204},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := replayInput(100)
+			input.Enabled = tc.enabled
+			input.Consent = ptr("always")
+			site := sites.Site{PublicID: "site-public", Replay: input, AllowedHosts: []string{"example.com"}}
+			env := config.ReplayEnv{Enabled: true}
+			target := "/api/replay/css/unused?s=site-public"
+			if tc.consent {
+				target += "&c=1"
+			}
+			if tc.version {
+				target += "&v=" + policyVersion(ResolveSite(env, input))
+			}
+			request := httptest.NewRequest(http.MethodPut, target, nil)
+			if tc.gpc {
+				request.Header.Set("Sec-GPC", "1")
+			}
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+			response := httptest.NewRecorder()
+			CollectionGuard(replayTestRegistry{site: site}, env, next).ServeHTTP(response, request)
+			if response.Code != tc.want {
+				t.Fatalf("status=%d want=%d", response.Code, tc.want)
+			}
+		})
+	}
+}
+
+type replayReadHook struct {
+	io.Reader
+	before func()
+}
+
+func (r *replayReadHook) Read(p []byte) (int, error) {
+	if r.before != nil {
+		r.before()
+		r.before = nil
+	}
+	return r.Reader.Read(p)
+}
+
+func TestChunkRechecksPolicyAfterBodyWait(t *testing.T) {
+	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(100))
+	touchReplaySession(t, sessions, visitor)
+	old := decodeStart(t, requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent"))
+	body := gzipBody(t, []byte("{}\n"))
+	request := httptest.NewRequest(http.MethodPost, "/api/replay/chunk?s=site-public&q=0&p=1&v="+old.Version, &replayReadHook{Reader: bytes.NewReader(body), before: func() {
+		reg := h.deps.Sites.(replayTestRegistry)
+		reg.site.Replay.Enabled = false
+		h.deps.Sites = reg
+	}})
+	request.ContentLength = int64(len(body))
+	request.RemoteAddr = "192.0.2.1:1234"
+	request.Header.Set("User-Agent", "test-agent")
+	response := httptest.NewRecorder()
+	h.Chunk(response, request)
+	if response.Code != http.StatusForbidden || len(blob.bodies) != 0 {
+		t.Fatalf("status=%d writes=%d", response.Code, len(blob.bodies))
 	}
 }
