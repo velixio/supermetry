@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
 import { ReplayLink } from '@/components/replay/ReplayLink'
+import { ReplayOverlay, type ReplayOverlayRow } from '@/components/replay/ReplayOverlay'
 import { BrowserLabel } from '@/components/visitor/BrowserLabel'
 import { DeviceLabel } from '@/components/visitor/DeviceLabel'
 import { Location } from '@/components/visitor/Location'
@@ -33,17 +34,33 @@ type EventsPageProps = {
   onPrevious?: () => void
   org?: string
   site?: string
+  replayId?: string
+  onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }
 
 export function EventsPage({
   siteId, orgId, dateRange, filters, name, propertyKey, cursor,
-  onNameChange, onPropertyChange, onNext, onPrevious, org, site,
+  onNameChange, onPropertyChange, onNext, onPrevious, org, site, replayId, onReplayChange,
 }: EventsPageProps) {
   const [draftName, setDraftName] = useState(name)
   useEffect(() => setDraftName(name), [name])
   const events = useEvents(siteId, orgId, dateRange, filters, name, cursor)
   const properties = useProperties(siteId, orgId, dateRange, name)
   const values = usePropertyValues(siteId, orgId, propertyKey, dateRange, name)
+  const replayRows: ReplayOverlayRow[] = []
+  const replayIDs = new Set<string>()
+  for (const event of events.data?.data ?? []) {
+    if (!event.has_replay || replayIDs.has(event.session_id)) continue
+    replayIDs.add(event.session_id)
+    replayRows.push({
+      sessionId: event.session_id,
+      browser: event.browser,
+      os: event.os,
+      device: event.device,
+      city: event.city,
+      country: event.country,
+    })
+  }
 
   function submitName(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -115,7 +132,7 @@ export function EventsPage({
               <TableRow key={`${event.ts}:${event.name}:${event.page}:${index}`}>
                 <TableCell className="whitespace-nowrap">{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.ts))}</TableCell>
                 <TableCell>{event.kind}</TableCell><TableCell>{event.name}</TableCell><TableCell>{event.page || '—'}</TableCell>
-                <TableCell>{org && site ? <ReplayLink hasReplay={(event as { has_replay?: boolean }).has_replay} org={org} site={site} /> : null}</TableCell>
+                <TableCell>{org && site ? <ReplayLink hasReplay={event.has_replay} org={org} site={site} sessionId={event.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell>
                 <TableCell>{event.props ? Object.entries(event.props).map(([key, value]) => <span className="mr-2 whitespace-nowrap" key={key}>{key}: {value}</span>) : '—'}</TableCell>
                 <TableCell><Location city={event.city} country={event.country} /></TableCell>
                 <TableCell><BrowserLabel value={event.browser} /></TableCell>
@@ -131,6 +148,18 @@ export function EventsPage({
         <Button disabled={!cursor || events.isFetching} type="button" variant="outline" onClick={onPrevious}>First page</Button>
         <Button disabled={!events.data?.next_cursor || events.isFetching} type="button" variant="outline" onClick={() => events.data?.next_cursor && onNext?.(events.data.next_cursor)}>Next page</Button>
       </div>
+      {org && site && onReplayChange ? (
+        <ReplayOverlay
+          open={Boolean(replayId)}
+          org={org}
+          rows={replayRows}
+          sessionId={replayId}
+          site={site}
+          siteId={siteId}
+          onOpenChange={(open) => !open && onReplayChange(undefined, { replace: true })}
+          onSessionChange={(id) => onReplayChange(id, { replace: true })}
+        />
+      ) : null}
     </main>
   )
 }

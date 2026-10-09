@@ -1590,6 +1590,8 @@ export interface components {
             kind: number;
             name: string;
             path: string;
+            session_id: string;
+            has_replay: boolean;
             props?: {
                 [key: string]: unknown;
             } | null;
@@ -1614,6 +1616,7 @@ export interface components {
             browser: string;
             os: string;
             source: string;
+            session_id: string;
             has_replay: boolean;
         };
         EventExploreList: {

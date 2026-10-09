@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import {
@@ -12,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ErrorState } from '@/components/ErrorState'
 import { ReplayLink } from '@/components/replay/ReplayLink'
+import { ReplayOverlay, type ReplayOverlayRow } from '@/components/replay/ReplayOverlay'
 import { BrowserLabel } from '@/components/visitor/BrowserLabel'
 import { DeviceLabel } from '@/components/visitor/DeviceLabel'
 import { Location } from '@/components/visitor/Location'
@@ -19,7 +19,8 @@ import { OsLabel } from '@/components/visitor/OsLabel'
 import type { Filter } from '@/lib/search'
 
 import { useSession, useSessions } from './api'
-import type { SessionSummary, SessionTimelineItem } from './types'
+import { TimelineItem } from './TimelineItem'
+import type { SessionSummary } from './types'
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -34,23 +35,6 @@ function formatDuration(milliseconds: number): string {
   return `${minutes}m ${remainder}s`
 }
 
-function TimelineItem({ item }: { item: SessionTimelineItem }) {
-  const props = item.props ? Object.entries(item.props) : []
-  return (
-    <li className="flex flex-col gap-1 border-l-2 border-border py-1 pl-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={item.kind === 'pageview' ? 'secondary' : 'outline'}>{item.kind}</Badge>
-        <span className="font-medium">{item.name}</span>
-        <time className="text-xs text-muted-foreground" dateTime={item.ts}>{formatDate(item.ts)}</time>
-      </div>
-      <span className="text-sm text-muted-foreground">{item.page}</span>
-      {props.map(([key, value]) => (
-        <span className="text-xs text-muted-foreground" key={key}>{key}: {String(value)}</span>
-      ))}
-    </li>
-  )
-}
-
 export function SessionsPage({
   siteId,
   dateRange,
@@ -62,6 +46,8 @@ export function SessionsPage({
   hasReplayOnly = false,
   org,
   site,
+  replayId,
+  onReplayChange,
 }: {
   siteId: number
   dateRange: { from: string; to: string }
@@ -73,9 +59,25 @@ export function SessionsPage({
   hasReplayOnly?: boolean
   org?: string
   site?: string
+  replayId?: string
+  onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }) {
   const sessions = useSessions(siteId, dateRange, filters, cursor, hasReplayOnly)
   const detail = useSession(siteId, selectedSessionId)
+  const replayRows: ReplayOverlayRow[] = sessions.data?.data
+    .filter((session) => session.has_replay)
+    .map((session) => ({
+      sessionId: session.id,
+      startedAt: session.started_at,
+      browser: session.browser,
+      os: session.os,
+      device: session.device,
+      city: session.city,
+      country: session.country,
+      durationMs: session.duration_ms,
+      actions: session.pageviews + session.events,
+      pages: session.pageviews,
+    })) ?? []
 
   return (
     <main className="flex min-w-0 flex-col gap-6">
@@ -124,7 +126,7 @@ export function SessionsPage({
                         <time dateTime={session.started_at}>{formatDate(session.started_at)}</time>
                       </Button>
                     </TableCell>
-                    <TableCell>{org && site ? <ReplayLink hasReplay={(session as SessionSummary & { has_replay?: boolean }).has_replay} org={org} site={site} sessionId={session.id} /> : null}</TableCell>
+                    <TableCell>{org && site ? <ReplayLink hasReplay={(session as SessionSummary & { has_replay?: boolean }).has_replay} org={org} site={site} sessionId={session.id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell>
                     <TableCell>{session.entry_page} → {session.exit_page}</TableCell>
                     <TableCell>{session.source || 'Direct'}</TableCell>
                     <TableCell><Location city={session.city} country={session.country} /></TableCell>
@@ -166,6 +168,18 @@ export function SessionsPage({
           ) : null}
         </SheetContent>
       </Sheet>
+      {org && site && onReplayChange ? (
+        <ReplayOverlay
+          open={Boolean(replayId)}
+          org={org}
+          rows={replayRows}
+          sessionId={replayId}
+          site={site}
+          siteId={siteId}
+          onOpenChange={(open) => !open && onReplayChange(undefined, { replace: true })}
+          onSessionChange={(id) => onReplayChange(id, { replace: true })}
+        />
+      ) : null}
     </main>
   )
 }

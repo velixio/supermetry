@@ -162,6 +162,9 @@ func TestProfilesListAndDetail(t *testing.T) {
 	if len(page.Timeline) != 2 || page.NextCursor == nil {
 		t.Fatalf("first timeline page=%+v", page)
 	}
+	if got := page.Timeline[0].SessionId; got != "101" {
+		t.Fatalf("first timeline session_id=%q, want 101", got)
+	}
 	next := f.request(t, "viewer", http.MethodGet, fmt.Sprintf("/api/private/profiles/%d?limit=2&cursor=%s", f.profileID, *page.NextCursor))
 	if next.Code != http.StatusOK {
 		t.Fatalf("next detail status=%d body=%s", next.Code, next.Body.String())
