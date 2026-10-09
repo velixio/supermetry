@@ -20,7 +20,7 @@ describe('primary sidebar navigation', () => {
   it('preserves identified navigation when project profiles are disabled', () => {
     const identified: Site = { id: 7, name: 'Docs', profiles_enabled: false, tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }
     const suffixes = visibleNavigation('owner', true, { effective_capabilities: ['profiles.read', 'replay.read'] }, identified).map((item) => item.suffix)
-    for (const suffix of ['/events', '/sessions', '/profiles', '/journeys', '/heatmaps', '/vitals', '/funnels', '/realtime', '/goals']) expect(suffixes).toContain(suffix)
+    for (const suffix of ['/events', '/sessions', '/profiles', '/journeys', '/heatmaps', '/vitals', '/funnels', '/realtime', '/goals', '/revenue']) expect(suffixes).toContain(suffix)
   })
 
 })

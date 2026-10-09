@@ -164,8 +164,8 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		if !foundCurrency {
 			filters = append(filters, api.Filter{Dimension: "revenue_currency", Operator: api.Is, Values: []string{revenueCurrency}})
 		}
-		if !hasEventOrGoalScope(dimensions, filters) {
-			return Normalized{}, badQuery("revenue metrics require an event or goal filter or dimension")
+		if !hasRevenueScope(dimensions, filters) {
+			return Normalized{}, badQuery("revenue metrics require an event or goal scope, or a revenue report dimension")
 		}
 	} else if filterHasDimension(filters, "revenue_currency") {
 		return Normalized{}, badQuery("revenue_currency requires a revenue metric")
@@ -371,11 +371,21 @@ func validCurrency(value string) bool {
 	return true
 }
 
-func hasEventOrGoalScope(dimensions []string, filters []api.Filter) bool {
-	if containsAny(dimensions, "event", "goal") {
+func hasRevenueScope(dimensions []string, filters []api.Filter) bool {
+	if containsAny(dimensions, "event", "goal") || filterHasDimension(filters, "event") || filterHasDimension(filters, "goal") || filterHasDimension(filters, "goal_id") {
 		return true
 	}
-	return filterHasDimension(filters, "event") || filterHasDimension(filters, "goal") || filterHasDimension(filters, "goal_id")
+	if len(dimensions) == 0 {
+		return true
+	}
+	for _, dimension := range dimensions {
+		switch dimension {
+		case "time", "source", "channel", "utm_campaign":
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func containsDimension(dimensions []string, value string) bool {
