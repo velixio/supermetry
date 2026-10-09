@@ -146,7 +146,9 @@ No timestamp or matching dictionary value retroactively grants trust.
 
 The anonymous query/API/MCP view accepts exactly one `page` or `path` dimension,
 no filters, and only `visitors`, `visits`, and/or `pageviews`. It supports sorting,
-pagination, comparisons and query CSV. Dates use the site's time zone; another
+pagination, comparisons and query CSV. CSV filenames carry `-verified-only`;
+`X-Panel-Privacy-*` response headers carry the scope, version, policy and exclusions.
+The CSV body keeps its existing columns and does not embed JSON metadata. Dates use the site's time zone; another
 requested time zone is rejected. Visitors and visits mean daily visitors/sessions
 with at least one verified pageview under the **current exact policy**. Range
 counts add those daily counts. Totals are deduplicated across paths before
