@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
+import { resetAfterLogin } from '@/lib/session-lifecycle'
 import { applyPreferredTheme } from '@/lib/theme'
 
 import {
@@ -50,6 +51,7 @@ function SignupPage() {
       signup={signup}
       submit={(input) => postPrivate('/api/private/auth/signup', input)}
       onSuccess={() => {
+        resetAfterLogin()
         applyPreferredTheme()
         void navigate({ to: '/', replace: true })
       }}

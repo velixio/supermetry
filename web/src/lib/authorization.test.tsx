@@ -141,7 +141,7 @@ describe('server capability UI boundaries', () => {
     }
     const navigation = visibleNavigation(membership.role, false, membership)
     expect(navigation.every((item) => item.scope === 'org')).toBe(true)
-    expect(navigation.map((item) => item.label)).toContain(
+    expect(navigation.map((item) => item.label)).not.toContain(
       'Organization settings',
     )
     expect(organizationHref(membership)).toBe('/acme/settings')

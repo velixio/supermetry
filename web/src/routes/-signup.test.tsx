@@ -11,6 +11,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 
+import { queryClient as appQueryClient } from '@/lib/queryClient'
+
 import { SignupPageContent } from './signup'
 import { routeTree } from '../routeTree.gen'
 
@@ -74,7 +76,8 @@ describe('signup page', () => {
     })
   })
 
-  it('navigates the signup route to onboarding after success', async () => {
+  it('clears the previous account cache before navigating after signup', async () => {
+    appQueryClient.setQueryData(['previous-account-private-data'], { id: 'old' })
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const path = new URL(request.url).pathname
@@ -119,5 +122,6 @@ describe('signup page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(appQueryClient.getQueryData(['previous-account-private-data'])).toBeUndefined()
   })
 })

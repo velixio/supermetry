@@ -13,8 +13,6 @@ import {
   PlusIcon,
   RouteIcon,
   Rows3Icon,
-  SettingsIcon,
-  Building2Icon,
   TablePropertiesIcon,
   UserRoundIcon,
 } from 'lucide-react'
@@ -62,11 +60,8 @@ const coreNavigation = [
 ] as const
 
 const managementNavigation = [
-  { label: en.navigation.settings, suffix: '/settings/general', icon: SettingsIcon, scope: 'site' },
   { label: en.navigation.sites, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
   { label: en.navigation.health, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
-  { label: en.navigation.organizationSettings, suffix: '/settings/members', icon: Building2Icon, scope: 'org' },
-  { label: en.navigation.organizationSettings, suffix: '/settings', icon: Building2Icon, scope: 'org' },
 ] as const
 
 export type NavigationItem =
@@ -74,11 +69,8 @@ export type NavigationItem =
   | (typeof managementNavigation)[number]
 
 export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization): NavigationItem[] {
-  const items: NavigationItem[] = role === 'viewer'
-    ? [...coreNavigation, managementNavigation[1], managementNavigation[4]]
-    : role === 'editor'
-      ? [...coreNavigation, managementNavigation[0], managementNavigation[1], managementNavigation[4]]
-      : [...coreNavigation, ...managementNavigation.slice(0, 4)]
+  const items: NavigationItem[] = [...coreNavigation, managementNavigation[0]]
+  if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
   return items.filter((item) => (hasSite || item.scope === 'org') && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
 }
 
@@ -114,17 +106,15 @@ export function navigationIsActive(
 ): boolean {
   const href = navigationHref(item, org, site)
   if (item.suffix === '') return pathname === href || pathname === `${href}/`
-  if (item.suffix === '/settings/general') {
-    return pathname.startsWith(`/${org}/${site}/settings/`)
-  }
-  if (item.suffix === '/settings/members' || item.suffix === '/settings') {
-    return pathname === `/${org}/settings` || pathname.startsWith(`/${org}/settings/`)
-  }
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+export function matchesSite(site: Site, requested?: string): boolean {
+  return requested !== undefined && [site.slug, site.public_id, String(site.id)].includes(requested)
+}
+
 export function activeSite(membership: Membership, requested?: string): Site | undefined {
-  return membership.sites.find((site) => siteSlug(site) === requested) ?? membership.sites[0]
+  return membership.sites.find((site) => matchesSite(site, requested)) ?? membership.sites[0]
 }
 
 function navigationLink(
@@ -186,16 +176,10 @@ function navigationLink(
       return <Link to="/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':
       return <Link to="/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
-    case '/settings/general':
-      return <Link to="/$org/$site/settings/general" params={{ org, site }} {...props}>{content}</Link>
     case '/sites':
       return <Link to="/$org/sites" params={{ org }} {...props}>{content}</Link>
     case '/health':
       return <Link to="/$org/health" params={{ org }} {...props}>{content}</Link>
-    case '/settings':
-      return <Link to="/$org/settings" params={{ org }} {...props}>{content}</Link>
-    case '/settings/members':
-      return <Link to="/$org/settings/members" params={{ org }} {...props}>{content}</Link>
   }
 
   const unreachable: never = item
@@ -244,7 +228,7 @@ export function PanelSidebar({
                     </Link>
                   ) : (
                     <Link
-                      to="/$org"
+                      to="/$org/settings"
                       params={{ org: item.org.slug }}
                       onClick={closeMobile}
                     >

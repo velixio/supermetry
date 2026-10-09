@@ -14,6 +14,7 @@ const email = 'owner@panel.test'
 const password = 'panel-e2e-password'
 
 export type Owner = {
+  schema: string
   email: string
   password: string
   orgId: number
@@ -110,6 +111,7 @@ export default async function globalSetup(config: FullConfig) {
   const shareSlug = value<string>(share, 'slug', 'Slug')
 
   const owner: SerializedOwner = {
+    schema: required('PANEL_E2E_SCHEMA'),
     email,
     password,
     orgId,

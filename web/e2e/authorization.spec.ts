@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import type { APIRequestContext, Page } from '@playwright/test'
 import { expect, test, type Owner } from './fixtures'
 
@@ -22,9 +23,10 @@ async function createMember(
   )
   expect(invitation.ok(), await invitation.text()).toBe(true)
   const { link } = (await invitation.json()) as { link: string }
-  const token = new URL(link).pathname.split('/').at(-1)
+  const token = new URL(link).searchParams.get('token')
+  expect(token, 'issued invitation must contain a query token').toBeTruthy()
   const accepted = await request.post(
-    `/api/private/invitations/${token}/accept`,
+    `/api/private/invitations/${encodeURIComponent(token!)}/accept`,
     { data: { name: 'Authorization test', password } },
   )
   expect(accepted.ok(), await accepted.text()).toBe(true)
@@ -72,7 +74,7 @@ test('billing-only no-site member reaches organization and account pages without
   ).toBeVisible()
   await expect(
     page.getByRole('heading', { name: 'Billing access' }),
-  ).toBeVisible()
+  ).toHaveCount(0)
   await expect(page.locator('[data-slot="sidebar-wrapper"]')).toBeVisible()
   for (const name of ['Dashboard', 'Profiles', 'Replays'])
     await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0)
@@ -139,6 +141,15 @@ test('revoking grants and all project access removes sensitive controls after me
   await expect(
     page.getByRole('button', { name: 'Export CSV', exact: true }),
   ).toBeVisible()
+  for (const feature of ['profiles', 'replays']) {
+    const response = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/api/private/sites/${owner.siteId}/${feature}`,
+    )
+    await page.goto(`/${owner.orgSlug}/${owner.siteSlug}/${feature}`)
+    expect((await response).ok()).toBe(true)
+    await expect(page.getByRole('heading', { name: feature === 'profiles' ? 'Profiles' : 'Replays', exact: true })).toBeVisible()
+  }
+  await page.goto(`/${owner.orgSlug}/${owner.siteSlug}`)
   const changed = await page.request.patch(
     `/api/private/orgs/${owner.orgId}/members/${member}`,
     { headers: owner.apiHeaders, data: { capabilities: [] } },
@@ -169,16 +180,55 @@ test('revoking grants and all project access removes sensitive controls after me
   ).toHaveCount(0)
 })
 
-test('owner invitation controls submit independent billing-only access', async ({
+test('organization switching isolates cached profiles from a no-site membership', async ({ page, owner }) => {
+  const email = 'switching@panel.test'
+  const member = await createMember(page.request, owner, email, {
+    site_ids: [owner.siteId], capabilities: ['profiles.read', 'data.export'],
+  })
+  const schema = owner.schema
+  const dsn = process.env.PANEL_TEST_DSN
+  if (!schema || !/^panel_e2e_\d+$/.test(schema) || !dsn) throw new Error('isolated e2e database is required')
+  // Seed only the disposable schema owned by this Playwright run.
+  execFileSync('psql', [dsn, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${schema}`, '-v', `member=${member}`, '-v', `site=${owner.siteId}`], {
+    input: `SET search_path TO :"schema";
+WITH organization AS (INSERT INTO orgs(name,slug) VALUES ('Restricted organization','restricted-org') RETURNING id)
+INSERT INTO memberships(org_id,user_id,role,site_ids) SELECT id,:member,'viewer','{}'::integer[] FROM organization;
+INSERT INTO profiles(site_id,external_id,first_seen_at,last_seen_at) VALUES (:site,'Acme-only-profile',now(),now());`,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  const bootstrap = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === '/api/private/me',
+  )
+  await login(page, email)
+  expect((await bootstrap).status(), 'multi-organization session must bootstrap without an organization header').toBe(200)
+  await page.getByRole('link', { name: 'Profiles', exact: true }).click()
+  await expect(page.getByText('Acme-only-profile', { exact: true })).toBeVisible()
+  const reads = recordSensitiveReads(page)
+  await page.getByRole('button', { name: 'Acme', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Restricted organization', exact: true }).click()
+  await expect(page).toHaveURL('/restricted-org/settings')
+  await expect(page.getByText('Acme-only-profile', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Profiles', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Export CSV', exact: true })).toHaveCount(0)
+  expect(reads).toEqual([])
+  await page.getByRole('button', { name: 'Restricted organization', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Acme', exact: true }).click()
+  await page.getByRole('link', { name: 'Profiles', exact: true }).click()
+  await expect(page.getByText('Acme-only-profile', { exact: true })).toBeVisible()
+  expect(reads).toContain(`/api/private/sites/${owner.siteId}/profiles`)
+})
+
+test('owner invitation controls copy a working no-site invitation without billing fields', async ({
   page,
+  browser,
   owner,
 }) => {
   await owner.login(page, `/${owner.orgSlug}/settings/invites`)
   await page
     .getByRole('textbox', { name: 'Email', exact: true })
     .fill('billing-invite-ui@panel.test')
-  await page.getByLabel('Site access', { exact: true }).selectOption('none')
-  await page.getByRole('checkbox', { name: /Billing Admin/ }).check()
+  await page.getByRole('combobox', { name: 'Site access', exact: true }).selectOption('none')
+  await expect(page.getByRole('checkbox', { name: /Billing Admin/ })).toHaveCount(0)
   for (const name of [/Read profiles/, /Watch replays/, /Export data/])
     await expect(page.getByRole('checkbox', { name })).not.toBeChecked()
   const pending = page.waitForRequest(
@@ -186,17 +236,42 @@ test('owner invitation controls submit independent billing-only access', async (
       request.method() === 'POST' &&
       request.url().endsWith(`/orgs/${owner.orgId}/invitations`),
   )
+  const created = page.waitForResponse(
+    (response) => response.request().method() === 'POST' &&
+      response.url().endsWith(`/orgs/${owner.orgId}/invitations`),
+  )
   await page.getByRole('button', { name: 'Invite', exact: true }).click()
   expect((await pending).postDataJSON()).toEqual({
     email: 'billing-invite-ui@panel.test',
     role: 'viewer',
     site_ids: [],
     capabilities: [],
-    billing_admin: true,
   })
   await expect(
     page.getByRole('button', { name: 'Copy invitation link' }),
   ).toBeVisible()
+  const { link } = await (await created).json() as { link: string }
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.getByRole('button', { name: 'Copy invitation link' }).click()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copied).toBe(link)
+  const token = new URL(copied).searchParams.get('token')
+  expect(token).toBeTruthy()
+  const guest = await browser.newContext()
+  try {
+    const invitationPage = await guest.newPage()
+    await invitationPage.goto(copied)
+    await expect(invitationPage).toHaveURL(new URL(`/invite/${token}`, copied).href)
+    await invitationPage.getByLabel('Name', { exact: true }).fill('Billing invite')
+    await invitationPage.getByLabel('Password', { exact: true }).fill(password)
+    const accepted = invitationPage.waitForResponse((response) =>
+      response.request().method() === 'POST' && response.url().endsWith(`/invitations/${token}/accept`),
+    )
+    await invitationPage.getByRole('button', { name: 'Accept invitation' }).click()
+    expect((await accepted).ok()).toBe(true)
+  } finally {
+    await guest.close()
+  }
   await page.screenshot({
     path: 'e2e/screenshots/authorization-invite-controls.png',
     fullPage: true,

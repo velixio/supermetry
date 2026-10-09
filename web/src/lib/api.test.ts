@@ -1,8 +1,28 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { queryClient } from './queryClient'
 
 import { createApi } from './api'
 
+afterEach(() => { queryClient.clear(); window.history.replaceState({}, '', '/') })
+
 describe('api client', () => {
+  it('selects only the organization named by the current route and preserves explicit context', async () => {
+    queryClient.setQueryData(['me'], { memberships: [{ org: { id: 1, slug: 'first' } }, { org: { id: 2, slug: 'second' } }] })
+    const requests: Request[] = []
+    const api = createApi({ fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => { requests.push(input instanceof Request ? input : new Request(input, init)); return new Response('{}') }) })
+    window.history.replaceState({}, '', '/second/site')
+    await api.GET('/api/private/me', {})
+    expect(requests[0].headers.get('X-Panel-Org')).toBe('2')
+    await api.GET('/api/private/me', { headers: { 'X-Panel-Org': '1' } })
+    expect(requests[1].headers.get('X-Panel-Org')).toBe('1')
+    window.history.replaceState({}, '', '/account/profile')
+    await api.GET('/api/private/me', {})
+    expect(requests[2].headers.has('X-Panel-Org')).toBe(false)
+    queryClient.clear()
+    window.history.replaceState({}, '', '/second/site')
+    await api.GET('/api/private/me', {})
+    expect(requests[3].headers.has('X-Panel-Org')).toBe(false)
+  })
   it('sends the CSRF header on POST and redirects on 401', async () => {
     document.cookie = 'panel_csrf=tok123'
     const fetchMock = vi

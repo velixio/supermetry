@@ -1,30 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { visibleNavigation } from './Sidebar'
 
-import { navigationHref, navigationIsActive, visibleNavigation } from './Sidebar'
-
-describe('sidebar navigation', () => {
-  it('links owners and admins to organization settings', () => {
-    for (const role of ['owner', 'admin'] as const) {
-      const item = visibleNavigation(role).find((entry) => entry.label === 'Organization settings')
-      expect(item, role).toBeDefined()
-      expect(navigationHref(item!, 'acme', 'blog')).toBe('/acme/settings/members')
-      expect(navigationIsActive(item!, '/acme/settings/api-keys', 'acme', 'blog')).toBe(true)
-      expect(navigationIsActive(item!, '/acme/blog/settings/general', 'acme', 'blog')).toBe(false)
+describe('primary sidebar navigation', () => {
+  it('keeps settings out of analytics navigation for every role and site state', () => {
+    for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
+      for (const hasSite of [true, false]) {
+        expect(visibleNavigation(role, hasSite).some((item) => /settings/i.test(item.label))).toBe(false)
+      }
     }
-  })
-
-  it('keeps a safe organization overview reachable for editors and viewers', () => {
-    for (const role of ['editor', 'viewer'] as const) {
-      const item = visibleNavigation(role).find((entry) => entry.label === 'Organization settings')
-      expect(item && navigationHref(item, 'acme', 'blog')).toBe('/acme/settings')
-    }
-  })
-
-  it('keeps organization settings reachable without a site', () => {
-    expect(visibleNavigation('owner', false).some((entry) => entry.label === 'Organization settings')).toBe(true)
-  })
-
-  it('labels the per-site settings entry as site settings', () => {
-    expect(visibleNavigation('owner').some((entry) => entry.label === 'Site settings')).toBe(true)
   })
 })

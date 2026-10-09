@@ -1,4 +1,7 @@
 import createClient, { type Middleware } from 'openapi-fetch'
+import { queryClient } from './queryClient'
+
+import { expireSession } from './session-lifecycle'
 
 import type { paths } from './api.gen'
 
@@ -116,12 +119,19 @@ function loginURL(): string {
 export function createApi(options: ApiOptions = {}) {
   const client = createClient<PrivatePaths>({
     baseUrl: window.location.origin,
-    fetch: options.fetch,
+    fetch: options.fetch ?? ((...args) => globalThis.fetch(...args)),
   })
   const onUnauthorized =
-    options.onUnauthorized ?? ((url: string) => window.location.assign(url))
+    options.onUnauthorized ?? ((url: string) => expireSession(url))
   const middleware: Middleware = {
     async onRequest({ request }) {
+      if (!request.headers.has('X-Panel-Org')) {
+        const me = queryClient.getQueryData<{ memberships: { org: { id: number; slug: string } }[] }>(['me'])
+        let slug = ''
+        try { slug = decodeURIComponent(window.location.pathname.split('/')[1] ?? '') } catch { /* Invalid paths have no tenant context. */ }
+        const membership = me?.memberships.find((item) => item.org.slug === slug)
+        if (membership) request.headers.set('X-Panel-Org', String(membership.org.id))
+      }
       if (request.method !== 'GET') {
         const token = readCookie(csrfCookie)
         if (token) {

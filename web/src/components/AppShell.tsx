@@ -24,7 +24,8 @@ import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 import type { Me, Membership } from '@/routes/$org'
 
-import { activeSite, PanelSidebar, siteSlug } from './Sidebar'
+import { activeSite, matchesSite, PanelSidebar } from './Sidebar'
+import { HeaderMenus } from './HeaderMenus'
 
 function SiteLiveBadge({ siteId, org, site }: { siteId: number; org: string; site: string }) {
   const summary = useLiveSummary(siteId)
@@ -82,7 +83,7 @@ export function AppShell({
     },
   })
   const site = activeSite(membership, requestedSite)
-  const scopedSite = membership.sites.find((item) => siteSlug(item) === requestedSite)
+  const scopedSite = membership.sites.find((item) => matchesSite(item, requestedSite))
   const replay = useReplayAvailability(hasCapability(membership, 'replay.read') ? site?.id : undefined)
 
   useShortcuts({
@@ -96,28 +97,29 @@ export function AppShell({
       <SidebarProvider defaultOpen={sidebarOpen}>
         <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} replayEnabled={replay.enabled} />
         <SidebarInset>
-          <header className="flex h-14 items-center justify-between border-b px-4">
+          <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4">
             <div className="flex min-w-0 items-center gap-2">
               <SidebarTrigger aria-label={en.navigation.collapse} />
               {site ? (
                 <div className="flex min-w-0 items-center gap-2">
                   <SiteIcon iconUrl={site.icon_url} name={site.name} size={24} />
-                  <span className="truncate text-sm font-medium">{site.name}</span>
+                  <span className="hidden truncate text-sm font-medium sm:inline">{site.name}</span>
                 </div>
               ) : null}
             </div>
             <div className="flex items-center gap-1">
               {scopedSite && requestedSite ? (
-                <SiteLiveBadge
+                <div className="hidden sm:block"><SiteLiveBadge
                   org={membership.org.slug}
                   site={requestedSite}
                   siteId={scopedSite.id}
-                />
+                /></div>
               ) : null}
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
+                className="hidden sm:inline-flex"
                 aria-label={en.shortcuts.open}
                 onClick={() => setHelpOpen(true)}
               >
@@ -132,6 +134,7 @@ export function AppShell({
               >
                 {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
               </Button>
+              <HeaderMenus me={me} membership={membership} site={scopedSite} />
             </div>
           </header>
           <main className="min-w-0 flex-1 p-4 md:p-6">

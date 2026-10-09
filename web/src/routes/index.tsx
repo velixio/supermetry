@@ -7,6 +7,7 @@ import { SiteForm } from '@/features/sites/SiteForm'
 import type { ManagedSite, SiteInput } from '@/features/sites/types'
 import { en } from '@/messages/en'
 import { canCreateSites } from '@/components/Sidebar'
+import { AccountFrame } from '@/components/AccountFrame'
 import { useMe, type Me } from './$org'
 
 export const Route = createFileRoute('/')({
@@ -35,11 +36,15 @@ function IndexPage() {
     )
   }
 
+  const membership = me.data.memberships[0]
+  if (membership && (membership.sites.length > 0 || !canCreateSites(membership.role))) {
+    return <Onboarding me={me.data} navigate={navigate} />
+  }
   return (
-    <Onboarding
+    <AccountFrame me={me.data}><Onboarding
       me={me.data}
       navigate={navigate}
-    />
+    /></AccountFrame>
   )
 }
 
@@ -77,7 +82,7 @@ export function Onboarding({
   }, [existingSite, membership, navigate])
 
   if (!membership) {
-    return <OnboardingError detail="Your account does not belong to an organization." />
+    return <section className="mx-auto max-w-lg py-12"><h1 className="text-2xl font-semibold">No organization access</h1><p className="mt-2 text-muted-foreground">Ask an organization owner for an invitation. Your account settings are available from the Account menu.</p></section>
   }
 
   if (existingSite || !canCreateSites(membership.role)) {

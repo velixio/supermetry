@@ -5,7 +5,10 @@ import { RouterProvider } from '@tanstack/react-router'
 
 import { queryClient } from './lib/queryClient'
 import { router } from './router'
+import { installSessionLifecycle } from './lib/session-lifecycle'
 import './index.css'
+
+installSessionLifecycle()
 
 const root = document.getElementById('root')
 if (!root) {
