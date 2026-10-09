@@ -663,6 +663,159 @@ func TestCrossOrgAndForbiddenWritesAreHiddenOrDenied(t *testing.T) {
 	}
 }
 
+func TestDeleteRevalidatesCurrentMembership(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Lifecycle", []string{"lifecycle.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := pool.Exec(ctx, `update memberships set role='viewer',site_ids=array[$3::integer] where org_id=$1 and user_id=$2`, principal.OrgID, principal.UserID, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Delete(ctx, principal, site.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("stale owner Delete error = %v, want ErrForbidden", err)
+	}
+	if _, ok := registry.Site(site.ID); !ok {
+		t.Fatal("denied stale-principal delete removed site from registry")
+	}
+
+	if _, err := pool.Exec(ctx, `delete from memberships where org_id=$1 and user_id=$2`, principal.OrgID, principal.UserID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Delete(ctx, principal, site.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("removed owner Delete error = %v, want ErrForbidden", err)
+	}
+	var deleted bool
+	if err := pool.QueryRow(ctx, `select deleted_at is not null from sites where id=$1`, site.ID).Scan(&deleted); err != nil {
+		t.Fatal(err)
+	}
+	if deleted {
+		t.Fatal("denied stale-principal delete soft-deleted site")
+	}
+}
+
+func TestDeleteKeepsCrossTenantSiteHidden(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Tenant A", []string{"tenant-a.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherOrg := insertOrg(t, pool, "Tenant B", "tenant-b")
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, otherOrg, principal.UserID); err != nil {
+		t.Fatal(err)
+	}
+	otherPrincipal := authz.Principal{UserID: principal.UserID, OrgID: otherOrg, Role: authz.RoleOwner}
+	if err := service.Delete(ctx, otherPrincipal, site.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-tenant Delete error = %v, want ErrNotFound", err)
+	}
+	if _, ok := registry.Site(site.ID); !ok {
+		t.Fatal("cross-tenant delete removed site from registry")
+	}
+}
+
+func TestDeleteRevalidatesAPIKey(t *testing.T) {
+	service, registry, owner, pool := newSites(t)
+	ctx := context.Background()
+	trackedSites := make([]sites.Site, 4)
+	for index, host := range []string{"key-active.example.com", "key-revoked.example.com", "key-expired.example.com", "key-restricted.example.com"} {
+		created, err := service.Create(ctx, owner, host, []string{host}, "UTC", 30, "USD")
+		if err != nil {
+			t.Fatal(err)
+		}
+		trackedSites[index] = created
+	}
+	insertKey := func(name, prefix, hashByte string, siteIDs []int32, revoked, expired bool) int64 {
+		t.Helper()
+		var id int64
+		err := pool.QueryRow(ctx, `
+			insert into api_keys(org_id,name,prefix,hash,scopes,site_ids,created_by,revoked_at,expires_at)
+			values ($1,$2,$3,decode(repeat($4,32),'hex'),array['sites:write'],$5,$6,
+				case when $7 then now() end,case when $8 then now() - interval '1 minute' end)
+			returning id`, owner.OrgID, name, prefix, hashByte, siteIDs, owner.UserID, revoked, expired).Scan(&id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+
+	activeID := insertKey("Active", "active01", "01", nil, false, false)
+	active := authz.Principal{KeyID: activeID, OrgID: owner.OrgID, Role: authz.RoleKey, Scopes: []string{"sites:write"}}
+	if err := service.Delete(ctx, active, trackedSites[0].ID); err != nil {
+		t.Fatalf("active API key Delete error = %v", err)
+	}
+	if _, ok := registry.Site(trackedSites[0].ID); ok {
+		t.Fatal("active API key did not delete authorized site")
+	}
+
+	for _, test := range []struct {
+		name  string
+		keyID int64
+		site  sites.Site
+	}{
+		{
+			name:  "revoked",
+			keyID: insertKey("Revoked", "revoked1", "02", nil, true, false),
+			site:  trackedSites[1],
+		},
+		{
+			name:  "expired",
+			keyID: insertKey("Expired", "expired1", "03", nil, false, true),
+			site:  trackedSites[2],
+		},
+		{
+			name:  "new restriction",
+			keyID: insertKey("Restricted", "restrict", "04", []int32{trackedSites[0].ID}, false, false),
+			site:  trackedSites[3],
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stale := authz.Principal{KeyID: test.keyID, OrgID: owner.OrgID, Role: authz.RoleKey, Scopes: []string{"sites:write"}}
+			if err := service.Delete(ctx, stale, test.site.ID); !errors.Is(err, ErrForbidden) {
+				t.Fatalf("stale API key Delete error = %v, want ErrForbidden", err)
+			}
+			if _, ok := registry.Site(test.site.ID); !ok {
+				t.Fatal("denied API key delete removed site from registry")
+			}
+		})
+	}
+}
+
+func TestDeleteAuditFailureRollsBackSoftDelete(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Audited", []string{"audited.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		create function reject_site_delete_audit() returns trigger language plpgsql as $$
+		begin
+			if new.action = 'site.deleted' then raise exception 'audit unavailable'; end if;
+			return new;
+		end $$;
+		create trigger reject_site_delete_audit before insert on audit_log
+		for each row execute function reject_site_delete_audit()`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.Delete(ctx, principal, site.ID); err == nil {
+		t.Fatal("Delete succeeded despite audit failure")
+	}
+	var deleted bool
+	if err := pool.QueryRow(ctx, `select deleted_at is not null from sites where id=$1`, site.ID).Scan(&deleted); err != nil {
+		t.Fatal(err)
+	}
+	if deleted {
+		t.Fatal("failed delete audit did not roll back soft delete")
+	}
+	if _, ok := registry.Site(site.ID); !ok {
+		t.Fatal("failed delete audit removed site from registry")
+	}
+}
+
 func TestSnippet(t *testing.T) {
 	want := `<script defer src="https://stats.example.com/js/abc123def456.js"></script>`
 	for _, full := range []bool{false, true} {
