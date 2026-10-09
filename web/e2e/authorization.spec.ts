@@ -213,7 +213,7 @@ INSERT INTO profiles(site_id,external_id,first_seen_at,last_seen_at) VALUES (:si
   const reads = recordSensitiveReads(page)
   await page.getByRole('button', { name: 'Acme', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Restricted organization', exact: true }).click()
-  await expect(page).toHaveURL('/restricted-org/settings')
+  await expect(page).toHaveURL('/app/restricted-org/settings')
   await expect(page.getByText('Acme-only-profile', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Profiles', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Export CSV', exact: true })).toHaveCount(0)

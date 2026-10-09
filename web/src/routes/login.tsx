@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
+import { BrandLogo } from '@/components/BrandLogo'
 import {
   Field,
   FieldDescription,
@@ -160,7 +161,7 @@ export function AuthScreen({
     <main className="dark grid min-h-dvh place-items-center bg-background px-5 py-12 text-foreground">
       <section className="flex w-full max-w-sm flex-col gap-8">
         <header className="flex flex-col gap-2 border-l-2 border-accent pl-5">
-          <p className="text-sm font-medium text-muted-foreground">{en.appName}</p>
+          <BrandLogo className="h-7 w-auto self-start" />
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         </header>

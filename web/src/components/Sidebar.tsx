@@ -22,6 +22,7 @@ import {
 import { Link, useRouterState } from '@tanstack/react-router'
 
 import { SiteIcon } from '@/components/SiteIcon'
+import { BrandLogo } from '@/components/BrandLogo'
 import { ReplayNavLink } from '@/components/replay/ReplayNavLink'
 import {
   DropdownMenu,
@@ -210,6 +211,9 @@ export function PanelSidebar({
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
+        <Link aria-label="Supermetry home" className="mb-1 flex h-8 items-center px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={closeMobile}>
+          <BrandLogo className="h-7 w-7" mark />
+        </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton tooltip={en.navigation.organization}>

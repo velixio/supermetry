@@ -236,7 +236,7 @@ func TestBackupRestoreIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer pool.Close()
-	schema := "panel_backup_test_" + strings.ReplaceAll(time.Now().UTC().Format("20060102150405.000000000"), ".", "")
+	schema := "supermetry_backup_test_" + strings.ReplaceAll(time.Now().UTC().Format("20060102150405.000000000"), ".", "")
 	identifier := pgx.Identifier{schema}.Sanitize()
 	if _, err := pool.Exec(context.Background(), "create schema "+identifier+"; create table "+identifier+".marker (value text); insert into "+identifier+".marker values ('restored')"); err != nil {
 		t.Fatal(err)

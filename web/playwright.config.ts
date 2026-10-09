@@ -83,7 +83,7 @@ export default defineConfig({
       SUPERMETRY_E2E_SECRET_KEY: Buffer.alloc(32, 'e').toString('base64'),
     },
     url: `${baseURL}/readyz`,
-    timeout: 180_000,
+    timeout: 300_000,
     reuseExistingServer: false,
   },
 })

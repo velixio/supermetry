@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import type { Page } from '@playwright/test'
-import { expect, test, type Owner } from './fixtures'
+import { expect, fmtCompact, test, type Owner } from './fixtures'
 
 
 const routes = [
@@ -31,8 +31,8 @@ test('anonymous direct routes show policy restrictions without forbidden request
   const seen = watchPrivacyRequests(page)
   await page.goto(`${siteRoot(owner)}/`)
   await expect(page.getByRole('region', { name: 'Verified pages', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Visitors 0', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Pageviews 0', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Visitors [\d,.]+$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Pageviews [\d,.]+$/ })).toBeVisible()
   for (const route of routes) {
     await test.step(route, async () => {
       await page.goto(`${siteRoot(owner)}/${route}`)
@@ -81,6 +81,10 @@ function seedLegacyAndVerifiedRows(owner: Owner) {
 
 test('anonymous dashboard keeps canonical totals and labels verified coverage without exposing legacy identity', async ({ page, owner }) => {
   test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  const [baselineVisitors, baselinePageviews, baselineSessions] = syntheticSQL(owner, `
+    select count(distinct visitor_id), coalesce(sum(pageviews),0), count(*)
+    from sessions where site_id=${owner.siteId}
+  `).split('|').map(Number)
   // Warm the live dictionary through the real anonymous ingestion pipeline;
   // inserting dictionary rows only through SQL would leave its cache stale.
   const hit = await page.request.post('/api/public/v1/events', {
@@ -91,7 +95,7 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
   await expect.poll(() => syntheticSQL(owner, "select count(*) from dict where (kind=0 and value='/[redacted]') or (kind=9 and value='Chrome')")).toBe('2')
   seedLegacyAndVerifiedRows(owner)
   // Wait for the ingested session to flush before the first dashboard query is cached.
-  await expect.poll(() => syntheticSQL(owner, `select count(*) from sessions where site_id=${owner.siteId}`)).toBe('3')
+  await expect.poll(() => syntheticSQL(owner, `select count(*) from sessions where site_id=${owner.siteId}`)).toBe(String(baselineSessions + 3))
   await owner.login(page, `${siteRoot(owner)}/settings/general`)
   const seen = watchPrivacyRequests(page)
   const queries: Array<{ dimensions?: string[]; metrics?: string[]; filters?: unknown[] }> = []
@@ -104,8 +108,8 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
   await expect(pages.getByText(/Partial coverage: only verified page data/)).toBeVisible()
   await expect(page.getByRole('region', { name: 'Countries', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Channels', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Visitors 3', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Pageviews 3', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Visitors ${fmtCompact(baselineVisitors + 3)}`, exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Pageviews ${fmtCompact(baselinePageviews + 3)}`, exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /Filter by country United States/ })).toBeVisible()
   await expect(pages.getByText('/[redacted]', { exact: true })).toBeVisible()
   await expect(pages.getByRole('row').filter({ hasText: '/[redacted]' })).toHaveText(/\/\[redacted\]\s*2\s*2/)

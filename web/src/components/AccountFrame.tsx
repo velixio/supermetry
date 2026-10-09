@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { MoonIcon, SunIcon } from 'lucide-react'
 
 import { HeaderMenus } from './HeaderMenus'
+import { BrandLogo } from './BrandLogo'
 import { PoweredBySupermetry } from './PoweredBySupermetry'
 import { Button } from './ui/button'
 import { Toaster } from './ui/sonner'
@@ -14,7 +15,7 @@ export function AccountFrame({ me, children }: { me: Me; children: ReactNode }) 
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4">
-        <Link className="font-semibold" to="/app">Supermetry</Link>
+        <Link aria-label="Supermetry" to="/app"><BrandLogo className="h-6 w-auto" /></Link>
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'} onClick={toggle}>
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}

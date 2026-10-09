@@ -46,7 +46,7 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   await expect(page.locator('[data-slot="sidebar"][data-state="collapsed"]')).toBeVisible()
 
   await page.goBack()
-  await expect(page).toHaveURL(dashboard)
+  await expect(page).toHaveURL((url) => url.pathname === dashboard)
   await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
     'aria-current',
     'page',
@@ -84,7 +84,7 @@ test('serves an authenticated nested route as a direct URL', async ({ page, owne
   expect(response?.ok()).toBe(true)
   await expect(page).toHaveURL(settings)
   await expect(page.getByRole('heading', { name: 'Site settings' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'General', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   )

@@ -30,6 +30,9 @@ reset. The historical `panel/.../v1` cryptographic derivation labels and path
 policy fingerprint seed are intentionally retained as persisted data-format
 identifiers; changing them would make encrypted values unreadable or invalidate
 stored provenance. They are not configuration aliases or public namespaces.
+Historical design specifications and benchmark result artifacts also retain the
+names, commands, paths and output keys that were true when those records were
+created. Current guides, examples and runtime configuration use Supermetry.
 Back up the database and data directory before the cutover. Existing
 `velixio/panel` repository links remain valid until a separate repository rename
 is authorized and completed.
