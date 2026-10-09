@@ -1,11 +1,13 @@
 name: CI
 
-# Disabled for now (user, 2026-10-07): manual runs only.
-# To re-enable, restore:
-#   push:
-#   pull_request:
+# Manual runs only until the push and pull-request triggers below are enabled.
 on:
   workflow_dispatch:
+  # push:
+  # pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -14,20 +16,58 @@ jobs:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: panel
+          POSTGRES_PASSWORD: panel
+          POSTGRES_DB: panel
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres"
+          --health-cmd "pg_isready -U panel -d panel"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      SUPERMETRY_TEST_DSN: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      SUPERMETRY_TEST_DSN: postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
-          cache: false
-      - run: make lint test
+          go-version-file: go.mod
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            printf 'The following files need gofmt:\n%s\n' "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet Go packages
+        run: go vet ./...
+
+      - name: Test Go packages with race detector
+        run: go test -race -p 2 -timeout 40m -skip TestBackupRestoreIntegration ./...
+
+      - name: Test tracker size budgets
+        run: go test -count=1 ./internal/tracker -run 'TestMinified(Tracker|FullTracker)GzipSize$'
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck web
+        working-directory: web
+        run: bun run typecheck
+
+      - name: Test web
+        working-directory: web
+        run: bun run test --run
+
+      - name: Build web
+        working-directory: web
+        run: bun run build
