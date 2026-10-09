@@ -409,6 +409,27 @@ func TestCreateRevalidatesAPIKeyAndOrganization(t *testing.T) {
 	}
 }
 
+func TestRegistryExcludesSitesOwnedByDeletedOrganizations(t *testing.T) {
+	service, registry, owner, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, owner, "Deleted org site", []string{"deleted-org.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := registry.Site(site.ID); !ok {
+		t.Fatal("registry did not contain active organization's site")
+	}
+	if _, err := pool.Exec(ctx, `update orgs set deleted_at=now() where id=$1`, owner.OrgID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := registry.Site(site.ID); ok {
+		t.Fatal("registry contained site owned by deleted organization")
+	}
+}
+
 func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()

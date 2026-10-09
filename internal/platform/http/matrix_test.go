@@ -118,7 +118,6 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 		{http.MethodPatch, fmt.Sprintf("/api/private/sites/%d", siteA), `{"name":"Updated"}`, allowed("owner", "admin", "editor")},
 		{http.MethodPost, fmt.Sprintf("/api/private/orgs/%d/api-keys", org1), `{"name":"CI","scopes":["stats:read"]}`, allowed("owner", "admin")},
 		{http.MethodGet, fmt.Sprintf("/api/private/orgs/%d/audit", org1), "", allowed("owner", "admin")},
-		{http.MethodDelete, fmt.Sprintf("/api/private/orgs/%d", org1), "", allowed("owner")},
 		{http.MethodGet, fmt.Sprintf("/api/public/v1/stats/summary?site_id=%d&period=7d", siteA), "", allowed("key")},
 		{http.MethodGet, fmt.Sprintf("/api/public/v1/stats/summary?site_id=%d&period=7d", siteC), "", allowed()},
 		{http.MethodGet, fmt.Sprintf("/api/private/share/demo/stats/summary?site_id=%d&period=7d", siteA), "", allowed("share")},

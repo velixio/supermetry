@@ -112,9 +112,10 @@ func (r *Registry) refresh(ctx context.Context) error {
 
 func (r *Registry) loadReplaySettings(ctx context.Context) (map[int32]coresites.ReplaySiteInput, error) {
 	rows, err := r.store.Pool.Query(ctx, `
-		select id, coalesce(settings->'replay', '{}'::jsonb)
-		from sites
-		where deleted_at is null`)
+		select s.id, coalesce(s.settings->'replay', '{}'::jsonb)
+		from sites s
+		join orgs o on o.id = s.org_id
+		where s.deleted_at is null and o.deleted_at is null`)
 	if err != nil {
 		return nil, fmt.Errorf("query replay site settings: %w", err)
 	}

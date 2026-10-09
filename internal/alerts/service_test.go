@@ -182,6 +182,37 @@ func TestServiceAlertCRUDValidatesRelationsAndAudits(t *testing.T) {
 	}
 }
 
+func TestServiceEnabledAlertsExcludesDeletedOrganizations(t *testing.T) {
+	service, pool, principal, siteID, _ := newServiceTest(t)
+	ctx := context.Background()
+	channel, err := service.CreateChannel(ctx, principal, ChannelInput{
+		Kind: ChannelEmail, Name: "Owners", Recipients: []string{"owner@example.test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	alert, err := service.CreateAlert(ctx, principal, siteID, AlertInput{
+		Kind: AlertTrafficSpike, Threshold: 5, ChannelIDs: []int64{channel.ID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if alerts, err := service.EnabledAlerts(ctx); err != nil || len(alerts) != 1 || alerts[0].ID != alert.ID {
+		t.Fatalf("EnabledAlerts() before organization deletion = %+v, %v", alerts, err)
+	}
+	if _, err := pool.Exec(ctx, `update orgs set deleted_at=now() where id=$1`, principal.OrgID); err != nil {
+		t.Fatal(err)
+	}
+
+	alerts, err := service.EnabledAlerts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(alerts) != 0 {
+		t.Fatalf("EnabledAlerts() after organization deletion = %+v, want empty", alerts)
+	}
+}
+
 func TestServiceTestChannelUsesDecryptedConfigurationAndAudits(t *testing.T) {
 	deliverer := &fakeDeliverer{}
 	service, pool, principal, _, _ := newServiceTestWithDeliverer(t, deliverer)

@@ -42,7 +42,8 @@ func SharedLinkBySlugHash(ctx context.Context, data *Store, slugHash []byte) (Sh
 		       l.created_by, l.created_at, l.revoked_at
 		from shared_links l
 		join sites s on s.id = l.site_id
-		where l.slug_hash = $1 and s.deleted_at is null`, slugHash).Scan(
+		join orgs o on o.id = s.org_id
+		where l.slug_hash = $1 and s.deleted_at is null and o.deleted_at is null`, slugHash).Scan(
 		&link.ID, &link.SiteID, &link.OrgID, &link.SlugHash,
 		&link.PasswordHash, &link.CreatedBy, &link.CreatedAt, &link.RevokedAt,
 	)

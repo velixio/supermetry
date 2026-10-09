@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
 )
 
@@ -166,6 +167,30 @@ func (h *handler) deleteOrg(w http.ResponseWriter, r *http.Request) {
 	}
 	if !authz.Can(principal, authz.ActionOrgDelete, 0) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot delete the organization")
+		return
+	}
+	var request struct {
+		Password string `json:"password"`
+		TOTPCode string `json:"totp_code,omitempty"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if h.deps.Auth == nil {
+		unavailable(w, "authentication")
+		return
+	}
+	if err := h.deps.Auth.VerifySensitiveAction(h.clientContext(r), principal.UserID, request.Password, request.TOTPCode); err != nil {
+		switch {
+		case errors.Is(err, platformauth.ErrRateLimited):
+			rateLimited(w)
+		case errors.Is(err, platformauth.ErrTOTPRequired):
+			writeProblem(w, http.StatusBadRequest, "Verification required", "a TOTP code is required")
+		case errors.Is(err, platformauth.ErrInvalid):
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "password or verification code is invalid")
+		default:
+			serviceError(w, err)
+		}
 		return
 	}
 	if h.deps.Mutations == nil {

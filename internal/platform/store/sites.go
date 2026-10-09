@@ -190,19 +190,20 @@ func SoftDeleteSite(ctx context.Context, tx pgx.Tx, orgID int64, id int32) error
 
 func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 	rows, err := data.Pool.Query(ctx, `
-		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
-		       coalesce(settings->'exclude_ips', '[]'::jsonb),
-		       coalesce(settings->'exclude_paths', '[]'::jsonb),
-		       coalesce(settings->'exclude_countries', '[]'::jsonb),
-		       coalesce(settings->'tracker', '{}'::jsonb),
-		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
-		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
-		       coalesce(settings->'respect_privacy_signals' = 'true'::jsonb, true),
-		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
-		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at
-		from sites
-		where deleted_at is null
-		order by id`)
+		select s.id, s.org_id, s.public_id, s.name, s.allowed_hosts, s.timezone, s.retention_class,
+		       coalesce(s.settings->'exclude_ips', '[]'::jsonb),
+		       coalesce(s.settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(s.settings->'exclude_countries', '[]'::jsonb),
+		       coalesce(s.settings->'tracker', '{}'::jsonb),
+		       coalesce(s.settings->'profiles_enabled' = 'true'::jsonb, false),
+		       coalesce(s.settings->'heatmaps_enabled' = 'true'::jsonb, false),
+		       coalesce(s.settings->'respect_privacy_signals' = 'true'::jsonb, true),
+		       coalesce(s.settings->>'icon_url', ''), coalesce(s.settings->>'icon_checked_at', ''),
+		       coalesce(s.revenue_currency::text, ''), s.revenue_currency_state, s.created_at, s.deleted_at
+		from sites s
+		join orgs o on o.id = s.org_id
+		where s.deleted_at is null and o.deleted_at is null
+		order by s.id`)
 	if err != nil {
 		return nil, fmt.Errorf("query active sites: %w", err)
 	}

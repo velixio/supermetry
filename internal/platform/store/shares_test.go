@@ -86,3 +86,42 @@ func TestSharedLinkPersistenceScopesMutationsToOrganization(t *testing.T) {
 		t.Fatal("shared link was not revoked")
 	}
 }
+
+func TestSharedLinkBySlugHashExcludesDeletedOrganization(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('deleted-owner@example.test', 'Owner', 'hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name, slug) values ('Deleted', 'deleted') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `
+		insert into sites(org_id, public_id, name, timezone, retention_class)
+		values ($1, 'deletedsite1', 'Deleted site', 'UTC', 30)
+		returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+
+	slugHash := platformcrypto.HashToken("shr_deleted")
+	if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		_, err := CreateSharedLink(ctx, tx, orgID, SharedLink{SiteID: siteID, SlugHash: slugHash, CreatedBy: userID})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update orgs set deleted_at=now() where id=$1`, orgID); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := SharedLinkBySlugHash(ctx, &Store{Pool: pool}, slugHash)
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("SharedLinkBySlugHash() error = %v, want pgx.ErrNoRows", err)
+	}
+}

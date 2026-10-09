@@ -281,7 +281,7 @@ func (s *Service) DeleteAlert(ctx context.Context, principal authz.Principal, si
 }
 
 func (s *Service) EnabledAlerts(ctx context.Context) ([]Alert, error) {
-	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at from alerts a join sites s on s.id=a.site_id where a.enabled and s.deleted_at is null order by a.id`)
+	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at from alerts a join sites s on s.id=a.site_id join orgs o on o.id=s.org_id where a.enabled and s.deleted_at is null and o.deleted_at is null order by a.id`)
 	if err != nil {
 		return nil, fmt.Errorf("load enabled alerts: %w", err)
 	}
