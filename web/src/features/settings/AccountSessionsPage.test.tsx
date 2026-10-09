@@ -40,6 +40,22 @@ describe('account active sessions', () => {
     expect(within(rows[0]).getByText('2001:db8::1')).toHaveClass('break-all')
   })
 
+  it('preserves distinct device labels as wrapped secondary text without empty or duplicate labels', async () => {
+    request.mockResolvedValue({ data: [
+      { ...current, DeviceLabel: '  Work laptop  ' },
+      { ...other, DeviceLabel: ' chrome ' },
+      { ID: 'legacy-label', DeviceLabel: 'Personal tablet' },
+      { ID: 'blank-label', DeviceLabel: '   ' },
+    ] })
+    mount()
+    expect(await screen.findByText('Work laptop')).toHaveClass('break-words', 'text-muted-foreground')
+    expect(screen.getByText('Personal tablet')).toBeVisible()
+    expect(screen.queryByText('chrome', { exact: true })).not.toBeInTheDocument()
+    const rows = screen.getAllByRole('listitem')
+    expect(rows[1].querySelector('p')).toBeNull()
+    expect(rows[3].querySelector('p')).toBeNull()
+  })
+
   it('uses local timezone with exact machine-readable and accessible timestamps', async () => {
     request.mockResolvedValue({ data: [current] })
     mount()

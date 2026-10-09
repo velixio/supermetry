@@ -77,9 +77,14 @@ export function AccountSessionsPage() {
           {ordered.map((session) => (
             <li key={session.ID} className="min-w-0 py-5 first:pt-0 last:pb-0">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm font-medium">
-                  <BrowserLabel value={session.Browser || 'Unknown browser'} />
-                  {session.Current && <Badge variant="secondary">Current session</Badge>}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
+                    <BrowserLabel value={session.Browser || 'Unknown browser'} />
+                    {session.Current && <Badge variant="secondary">Current session</Badge>}
+                  </div>
+                  {session.DeviceLabel?.trim() && session.DeviceLabel.trim().toLowerCase() !== (session.Browser?.trim() || 'Unknown browser').toLowerCase() && (
+                    <p className="mt-1 break-words text-sm text-muted-foreground">{session.DeviceLabel.trim()}</p>
+                  )}
                 </div>
                 <Button size="sm" variant="outline" disabled={revoke.isPending || !session.ID} onClick={() => revoke.mutate(session.ID)} aria-label={session.Current ? 'Revoke current session' : `Revoke ${session.Browser || 'unknown browser'} session${session.IPAddress ? ` at ${session.IPAddress}` : ''}`}>
                   {revoke.isPending && revoke.variables === session.ID ? 'Revoking…' : 'Revoke'}
