@@ -158,28 +158,16 @@ func TestSiteErasureCatchesShutdownFlush(t *testing.T) {
 	created := owner.createSite(t, "Blog", "blog.example.com", "UTC")
 	env.track(t, created.PublicID, "https://blog.example.com/", 1)
 	owner.request(t, http.MethodDelete, fmt.Sprintf("/api/private/sites/%d", created.ID), nil, http.StatusNoContent, nil)
-
-	deadline := time.Now().Add(90 * time.Second)
-	for {
-		var erased bool
-		if err := env.pool.QueryRow(context.Background(), `select settings ? 'erased_at' from sites where id=$1`, created.ID).Scan(&erased); err != nil {
-			t.Fatal(err)
-		}
-		if erased {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("site erasure job did not run; server logs:\n%s", env.logs.String())
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
 	env.stop()
 	var count int
-	if err := env.pool.QueryRow(context.Background(), `select count(*) from events where site_id=$1`, created.ID).Scan(&count); err != nil {
+	var erased bool
+	if err := env.pool.QueryRow(context.Background(), `
+		select (select count(*) from events where site_id=$1), settings ? 'erased_at'
+		from sites where id=$1`, created.ID).Scan(&count, &erased); err != nil {
 		t.Fatal(err)
 	}
-	if count != 0 {
-		t.Fatalf("events after shutdown erasure = %d", count)
+	if count != 0 || !erased {
+		t.Fatalf("after shutdown erasure: events=%d erased=%t", count, erased)
 	}
 }
 
