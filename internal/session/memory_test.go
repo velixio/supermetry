@@ -71,6 +71,98 @@ func TestSessionIdleTimeoutAndMidnight(t *testing.T) {
 	}
 }
 
+func TestPageviewOlderThanSessionWindowStartsNewSession(t *testing.T) {
+	m := session.NewMemory(4, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	first := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1})
+
+	late := m.Touch(session.Hit{
+		SiteID: 1, TS: t0.Add(-20 * time.Hour), LocalDay: t0.AddDate(0, 0, -1),
+		VisitorID: 7, Kind: 0, PathID: 99,
+	})
+	if !late.New || late.SessionID == first.SessionID {
+		t.Fatalf("out-of-window pageview joined live session: first=%+v late=%+v", first, late)
+	}
+
+	snapshot := findSnap(t, m.Dirty(10), first.SessionID)
+	if snapshot.Entry != 1 || snapshot.Exit != 1 || !snapshot.Bounce || snapshot.Pageviews != 1 {
+		t.Fatalf("out-of-window pageview changed live session: %+v", snapshot)
+	}
+}
+
+func TestLatePageviewOutsideSessionWindowDoesNotReplaceLiveSession(t *testing.T) {
+	m := session.NewMemory(4, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	first := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1})
+	inOrderAt := t0.Add(5 * time.Minute)
+	inOrder := m.Touch(session.Hit{SiteID: 1, TS: inOrderAt, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 2})
+	if inOrder.New || inOrder.SessionID != first.SessionID {
+		t.Fatalf("in-order pageview did not join live session: first=%+v inOrder=%+v", first, inOrder)
+	}
+
+	late := m.Touch(session.Hit{
+		SiteID: 1, TS: t0.Add(-time.Hour), LocalDay: t0,
+		VisitorID: 7, Kind: 0, PathID: 99,
+	})
+	if !late.New || late.SessionID == first.SessionID {
+		t.Fatalf("out-of-window pageview did not start a separate session: first=%+v late=%+v", first, late)
+	}
+
+	next := m.Touch(session.Hit{
+		SiteID: 1, TS: inOrderAt.Add(5 * time.Minute), LocalDay: t0,
+		VisitorID: 7, Kind: 0, PathID: 3,
+	})
+	if next.New || next.SessionID != first.SessionID {
+		t.Fatalf("late pageview replaced live session: first=%+v late=%+v next=%+v", first, late, next)
+	}
+
+	snapshots := m.Dirty(10)
+	liveSnapshot := findSnap(t, snapshots, first.SessionID)
+	if liveSnapshot.Pageviews != 3 || liveSnapshot.Entry != 1 || liveSnapshot.Exit != 3 || liveSnapshot.Last != inOrderAt.Add(5*time.Minute) {
+		t.Fatalf("live session changed unexpectedly: %+v", liveSnapshot)
+	}
+	lateSnapshot := findSnap(t, snapshots, late.SessionID)
+	if lateSnapshot.Pageviews != 1 || lateSnapshot.Entry != 99 || lateSnapshot.Exit != 99 || lateSnapshot.Last != t0.Add(-time.Hour) {
+		t.Fatalf("late session was not queued for persistence: %+v", lateSnapshot)
+	}
+}
+
+func TestPageviewWithinIdleTimeoutBeforeSessionStartJoinsWithoutReorderingPages(t *testing.T) {
+	m := session.NewMemory(4, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	first := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1})
+
+	early := m.Touch(session.Hit{
+		SiteID: 1, TS: t0.Add(-5 * time.Minute), LocalDay: t0,
+		VisitorID: 7, Kind: 0, PathID: 2,
+	})
+	if early.New || early.SessionID != first.SessionID {
+		t.Fatalf("slightly early pageview did not join: first=%+v early=%+v", first, early)
+	}
+
+	snapshot := findSnap(t, m.Dirty(10), first.SessionID)
+	if snapshot.Pageviews != 2 || snapshot.Entry != 1 || snapshot.Exit != 1 || snapshot.Last != t0 || snapshot.Bounce {
+		t.Fatalf("slightly early pageview reordered session: %+v", snapshot)
+	}
+}
+
+func TestInOrderPageviewStillAdvancesSession(t *testing.T) {
+	m := session.NewMemory(4, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	first := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1})
+	nextAt := t0.Add(5 * time.Minute)
+
+	next := m.Touch(session.Hit{SiteID: 1, TS: nextAt, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 2})
+	if next.New || next.SessionID != first.SessionID {
+		t.Fatalf("in-order pageview did not join: first=%+v next=%+v", first, next)
+	}
+
+	snapshot := findSnap(t, m.Dirty(10), first.SessionID)
+	if snapshot.Pageviews != 2 || snapshot.Entry != 1 || snapshot.Exit != 2 || snapshot.Last != nextAt || snapshot.Bounce {
+		t.Fatalf("in-order pageview did not advance session: %+v", snapshot)
+	}
+}
+
 func TestEngagementDoesNotCountAsEvent(t *testing.T) {
 	m := session.NewMemory(4, realClock{})
 	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)

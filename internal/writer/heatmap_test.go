@@ -34,7 +34,7 @@ func TestAggregateHeatmapsUsesDeviceAndGridCells(t *testing.T) {
 
 func TestRunHeatmapsFlushesAggregatesOnShutdown(t *testing.T) {
 	day := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
-	w := New(nil, nil, 4, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 4, time.Hour, time.Hour)
 	if !w.EnqueueHeatmap(HeatmapEvent{SiteID: 1, LocalDay: day, PathID: 2, ViewportWidth: 820, Clicks: [][2]int{{100, 40}, {100, 40}}}) {
 		t.Fatal("heatmap rejected")
 	}
@@ -58,7 +58,7 @@ func TestRunHeatmapsFlushesAggregatesOnShutdown(t *testing.T) {
 }
 
 func TestEnqueueHeatmapCopiesClicks(t *testing.T) {
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	clicks := [][2]int{{10, 20}}
 	if !w.EnqueueHeatmap(HeatmapEvent{Clicks: clicks}) {
 		t.Fatal("heatmap rejected")
@@ -80,7 +80,7 @@ func TestUpsertHeatmapsMergesFlushes(t *testing.T) {
 	if err := db.EnsurePartitions(ctx, pool, day, day.AddDate(0, 1, 0)); err != nil {
 		t.Fatal(err)
 	}
-	w := New(pool, nil, 1, time.Hour, time.Hour, nil)
+	w := New(pool, nil, 1, time.Hour, time.Hour)
 	key := heatmapCell{siteID: 1, day: day, pathID: 2, device: DeviceDesktop, gx: 3, gy: 4}
 	if err := w.upsertHeatmaps(ctx, map[heatmapCell]int32{key: 2}); err != nil {
 		t.Fatal(err)
@@ -102,7 +102,7 @@ func TestRunHeatmapsFlushesWhenCellMapIsLarge(t *testing.T) {
 	heatmapMaxCells = 3
 	t.Cleanup(func() { heatmapMaxCells = old })
 	day := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
-	w := New(nil, nil, 4, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 4, time.Hour, time.Hour)
 	if !w.EnqueueHeatmap(HeatmapEvent{SiteID: 1, LocalDay: day, PathID: 2, ViewportWidth: 1200, Clicks: [][2]int{{0, 0}, {100, 0}, {200, 0}}}) {
 		t.Fatal("heatmap rejected")
 	}

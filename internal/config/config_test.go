@@ -76,7 +76,7 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" {
+	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.DedupEntries != 250000 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" {
 		t.Fatalf("bad defaults: %+v", c)
 	}
 	if c.HTTPReadTimeout != 30*time.Second || c.HTTPWriteTimeout != 60*time.Second {
@@ -242,7 +242,7 @@ func TestLoadGeoIPDoesNotRequireServerConfiguration(t *testing.T) {
 
 func TestLoadRejectsBadValues(t *testing.T) {
 	base := baseEnv()
-	for k, v := range map[string]string{"SUPERMETRY_QUEUE_SIZE": "0", "SUPERMETRY_EVENT_PATH": "no-slash", "SUPERMETRY_FLUSH_EVERY": "-1s", "SUPERMETRY_BASE_URL": "ftp://x"} {
+	for k, v := range map[string]string{"SUPERMETRY_QUEUE_SIZE": "0", "SUPERMETRY_DEDUP_ENTRIES": "-1", "SUPERMETRY_EVENT_PATH": "no-slash", "SUPERMETRY_FLUSH_EVERY": "-1s", "SUPERMETRY_BASE_URL": "ftp://x"} {
 		m := map[string]string{}
 		for a, b := range base {
 			m[a] = b

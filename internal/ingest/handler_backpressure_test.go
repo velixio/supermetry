@@ -77,7 +77,7 @@ func TestFullEventQueuePreservesIntakeOrdering(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
-			f.h.Writer = writer.New(nil, f.h.Sessions, 1, time.Hour, time.Hour, nil)
+			f.h.Writer = writer.New(nil, f.h.Sessions, 1, time.Hour, time.Hour)
 			if !f.h.Writer.Enqueue(writer.Event{}) {
 				t.Fatal("fill event queue")
 			}
@@ -136,7 +136,7 @@ func TestFullEventQueuePreservesIntakeOrdering(t *testing.T) {
 func TestHandlerReservationPreventsSessionMutationRace(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	f.stop(t)
-	w := writer.New(f.pool, f.h.Sessions, 1, time.Hour, time.Hour, noneClosed{})
+	w := writer.New(f.pool, f.h.Sessions, 1, time.Hour, time.Hour)
 	f.h.Writer = w
 	original := f.h.Sessions
 	var competingAccepted bool

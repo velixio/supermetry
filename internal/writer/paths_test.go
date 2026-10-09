@@ -44,7 +44,7 @@ func TestQueuedPathProvenanceValidation(t *testing.T) {
 		{"unverified safe-looking label", ids[0], 0, "", 0, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+			w := New(nil, nil, 1, time.Hour, time.Hour)
 			w.SetPathPolicy(policy, dictionary)
 			batch := []Event{{Hit: session.Hit{SiteID: 1, Kind: 0, PathID: tc.pathID}, PathSanitizerVersion: tc.version, PathPolicyID: tc.policyID}}
 			w.suppressRestrictedIdentity(batch)
@@ -74,7 +74,7 @@ func TestQueuedPathPolicyDowngradeNeverPromotes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	w.SetPathPolicy(policy, dictionary)
 	if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1, Kind: 0, PathID: ids[0]}, PathSanitizerVersion: 1, PathPolicyID: policy.Fingerprint()}) {
 		t.Fatal("enqueue")
@@ -104,7 +104,7 @@ func TestQueuedIdentityCannotClaimAnonymousPathProvenance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	w.SetPathPolicy(policy, dictionary)
 	batch := []Event{{Hit: session.Hit{SiteID: 1, Kind: 0, PathID: ids[0]}, PathSanitizerVersion: 1, PathPolicyID: policy.Fingerprint(), ProfileExternalID: "forged", ProfileTraits: map[string]string{"email": "secret"}, Props: map[string]string{"email": "secret"}}}
 	w.suppressRestrictedIdentity(batch)

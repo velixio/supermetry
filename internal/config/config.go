@@ -18,6 +18,7 @@ const (
 	defaultEventPath        = "/api/public/v1/events"
 	defaultTrackerPath      = "/js/script.js"
 	defaultQueueSize        = 65536
+	defaultDedupEntries     = 250000
 	defaultFlushEvery       = time.Second
 	defaultSessionFlush     = 10 * time.Second
 	defaultQueryTimeout     = 10 * time.Second
@@ -61,6 +62,7 @@ type Config struct {
 	MaxMindEditions      []string
 	SitesFile            string
 	QueueSize            int
+	DedupEntries         int
 	FlushEvery           time.Duration
 	SessionFlush         time.Duration
 	QueryTimeout         time.Duration
@@ -123,6 +125,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		MaxMindEditions:      geo.MaxMindEditions,
 		SitesFile:            getenv("SUPERMETRY_SITES_FILE"),
 		QueueSize:            defaultQueueSize,
+		DedupEntries:         defaultDedupEntries,
 		FlushEvery:           defaultFlushEvery,
 		SessionFlush:         defaultSessionFlush,
 		QueryTimeout:         defaultQueryTimeout,
@@ -235,6 +238,14 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 			errs = append(errs, fmt.Errorf("SUPERMETRY_QUEUE_SIZE must be a positive integer"))
 		} else {
 			c.QueueSize = value
+		}
+	}
+	if raw := getenv("SUPERMETRY_DEDUP_ENTRIES"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value <= 0 {
+			errs = append(errs, fmt.Errorf("SUPERMETRY_DEDUP_ENTRIES must be a positive integer"))
+		} else {
+			c.DedupEntries = value
 		}
 	}
 	if raw := getenv("SUPERMETRY_SMTP_PORT"); raw != "" {

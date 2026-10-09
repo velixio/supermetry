@@ -44,14 +44,17 @@ func New(pool *pgxpool.Pool, clk Clock) *Store {
 	}
 }
 
-// Refresh ensures salts exist for yesterday, today and tomorrow in UTC, then
-// replaces the cache with those persisted values.
+// Refresh ensures unexpired salts exist for up to two days ago through
+// tomorrow in UTC, then replaces the cache with those persisted values.
 func (s *Store) Refresh(ctx context.Context) error {
 	s.mutationMu.Lock()
 	defer s.mutationMu.Unlock()
 
-	today := civilDay(s.clock.Now().UTC())
+	now := s.clock.Now()
+	today := civilDay(now.UTC())
+	cutoff := expiredDayCutoff(now)
 	days := [...]time.Time{
+		today.AddDate(0, 0, -2),
 		today.AddDate(0, 0, -1),
 		today,
 		today.AddDate(0, 0, 1),
@@ -65,6 +68,9 @@ func (s *Store) Refresh(ctx context.Context) error {
 
 	loaded := make(map[time.Time][]byte, len(days))
 	for _, day := range days {
+		if day.Before(cutoff) {
+			continue
+		}
 		generated := make([]byte, saltLength)
 		if _, err := rand.Read(generated); err != nil {
 			return fmt.Errorf("generate salt for %s: %w", day.Format(time.DateOnly), err)

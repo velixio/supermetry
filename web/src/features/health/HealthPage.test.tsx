@@ -25,6 +25,9 @@ it("shows historical breakdown backfill progress", async () => {
     bots_filtered: 0,
     queue_depth: 0,
     close_lag_seconds: 0,
+    duplicates: 0,
+    late_drops: 0,
+    clock_skew_clamps: 0,
     rollup_backfill: { status: "running", days_done: 37, total_days: 120 },
   });
   const client = new QueryClient({
@@ -49,6 +52,9 @@ it("hides historical breakdown progress after completion", async () => {
     bots_filtered: 0,
     queue_depth: 0,
     close_lag_seconds: 0,
+    duplicates: 0,
+    late_drops: 0,
+    clock_skew_clamps: 0,
     rollup_backfill: { status: "finished", days_done: 120, total_days: 120 },
   });
   const client = new QueryClient({
@@ -63,4 +69,34 @@ it("hides historical breakdown progress after completion", async () => {
 
   expect(await screen.findByText("Data health")).toBeVisible();
   expect(screen.queryByText(/Updating historical breakdowns/)).not.toBeInTheDocument();
+});
+
+it("shows collection reliability signals in a distinct section", async () => {
+  request.mockResolvedValue({
+    ingest_rate: 17,
+    drops_503: 2,
+    bots_filtered: 11,
+    queue_depth: 4,
+    close_lag_seconds: 9,
+    duplicates: 23,
+    late_drops: 5,
+    clock_skew_clamps: 7,
+    rollup_backfill: { status: "finished", days_done: 120, total_days: 120 },
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  render(
+    <QueryClientProvider client={client}>
+      <HealthPage />
+    </QueryClientProvider>,
+  );
+
+  const collection = await screen.findByRole("region", { name: "Collection" });
+  await screen.findByText("23");
+  expect(collection).toHaveTextContent("Duplicates23");
+  expect(collection).toHaveTextContent("Late drops5");
+  expect(collection).toHaveTextContent("Clock-skew clamps7");
+  expect(collection).not.toHaveTextContent("Events rejected");
 });

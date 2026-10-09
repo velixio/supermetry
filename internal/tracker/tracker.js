@@ -28,11 +28,10 @@
   }
   function post(payload) {
     if (!permitted()) return;
-    var body = JSON.stringify(payload);
-    navigator.sendBeacon?.(endpoint,
-      new Blob([body], {type: "text/plain"})) || fetch(endpoint, {
-        method: "POST",
-        body: body,
+    payload = JSON.stringify(payload);
+    navigator.sendBeacon?.(endpoint, payload) || fetch(endpoint, {
+      method: "POST",
+      body: payload,
         keepalive: true
       }).catch(() => 0);
   }
@@ -83,6 +82,9 @@
 
   function send(name, props, engagement, scroll, revenue, traits) {
     var payload = {
+      v: 1,
+      ts: Date.now(),
+      id: (crypto.randomUUID?.() || Math.random().toString(16)).replace(/\W/g, ""),
       site: data.site,
       name: name,
       url: pageURL,

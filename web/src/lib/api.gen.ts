@@ -990,6 +990,18 @@ export interface components {
             text?: string;
         };
         EventPayload: {
+            /** @description Client event identifier used for bounded retry deduplication. */
+            id?: string;
+            /**
+             * Format: int64
+             * @description Client event time in Unix milliseconds.
+             */
+            ts?: number;
+            /**
+             * @description Event payload contract version.
+             * @enum {integer}
+             */
+            v?: 1;
             /**
              * @description Public site identifier.
              * @example my-site
@@ -1847,6 +1859,12 @@ export interface components {
             queue_depth: number;
             /** Format: double */
             close_lag_seconds: number;
+            /** Format: int64 */
+            duplicates: number;
+            /** Format: int64 */
+            late_drops: number;
+            /** Format: int64 */
+            clock_skew_clamps: number;
             rollup_backfill: components["schemas"]["RollupBackfillProgress"];
         };
         RollupBackfillProgress: {

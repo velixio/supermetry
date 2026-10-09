@@ -61,6 +61,21 @@ func (e EventExploreItemKind) Valid() bool {
 	}
 }
 
+// Defines values for EventPayloadV.
+const (
+	N1 EventPayloadV = 1
+)
+
+// Valid indicates whether the value is a known member of the EventPayloadV enum.
+func (e EventPayloadV) Valid() bool {
+	switch e {
+	case N1:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterOperator.
 const (
 	Contains   FilterOperator = "contains"
@@ -769,6 +784,9 @@ type EventExploreList struct {
 type EventPayload struct {
 	EngagementMs *int `json:"engagement_ms,omitempty"`
 
+	// Id Client event identifier used for bounded retry deduplication.
+	Id *string `json:"id,omitempty"`
+
 	// Name Event name, such as pageview or a custom event name.
 	Name string `json:"name"`
 
@@ -789,8 +807,14 @@ type EventPayload struct {
 	// Traits Profile traits for an identify event on a profiles-enabled site.
 	Traits *map[string]string `json:"traits,omitempty"`
 
+	// Ts Client event time in Unix milliseconds.
+	Ts *int64 `json:"ts,omitempty"`
+
 	// Url Full page URL. Required by the event intake handler.
 	Url *string `json:"url,omitempty"`
+
+	// V Event payload contract version.
+	V *EventPayloadV `json:"v,omitempty"`
 }
 
 // EventPayloadRevenueAmount0 defines model for EventPayload.Revenue.Amount.0.
@@ -803,6 +827,9 @@ type EventPayloadRevenueAmount1 = string
 type EventPayload_Revenue_Amount struct {
 	union json.RawMessage
 }
+
+// EventPayloadV Event payload contract version.
+type EventPayloadV int
 
 // Filter defines model for Filter.
 type Filter struct {

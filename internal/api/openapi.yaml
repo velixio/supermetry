@@ -1817,6 +1817,20 @@ components:
       type: object
       required: [site, name]
       properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9_-]+$'
+          description: Client event identifier used for bounded retry deduplication.
+        ts:
+          type: integer
+          format: int64
+          description: Client event time in Unix milliseconds.
+        v:
+          type: integer
+          enum: [1]
+          description: Event payload contract version.
         site:
           type: string
           description: Public site identifier.
@@ -3115,7 +3129,7 @@ components:
     DataHealthResponse:
       type: object
       additionalProperties: false
-      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds, rollup_backfill]
+      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds, duplicates, late_drops, clock_skew_clamps, rollup_backfill]
       properties:
         ingest_rate:
           type: number
@@ -3132,6 +3146,18 @@ components:
         close_lag_seconds:
           type: number
           format: double
+        duplicates:
+          type: integer
+          format: int64
+          minimum: 0
+        late_drops:
+          type: integer
+          format: int64
+          minimum: 0
+        clock_skew_clamps:
+          type: integer
+          format: int64
+          minimum: 0
         rollup_backfill:
           $ref: '#/components/schemas/RollupBackfillProgress'
     RollupBackfillProgress:

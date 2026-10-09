@@ -54,10 +54,6 @@ type loadRecord struct {
 	Device      string            `json:"device"`
 }
 
-type neverClosedDays struct{}
-
-func (neverClosedDays) IsClosed(int32, time.Time) bool { return false }
-
 func loadCommand(ctx context.Context, in io.Reader, out io.Writer) error {
 	cfg, err := config.LoadLookup(os.LookupEnv)
 	if err != nil {
@@ -122,7 +118,7 @@ func loadEventsWithPolicy(ctx context.Context, pool *pgxpool.Pool, registry site
 		return loadStats{}, fmt.Errorf("load source classifier: %w", err)
 	}
 	sessions := session.NewMemory(16, nil)
-	w := writer.New(pool, sessions, queueSize, flushEvery, sessionFlush, neverClosedDays{})
+	w := writer.New(pool, sessions, queueSize, flushEvery, sessionFlush)
 	w.SetTrackingPolicy(mode, registry)
 	// Imported records have no collection-time provenance; the writer must not
 	// promote historical paths merely because they match today's allowlist.

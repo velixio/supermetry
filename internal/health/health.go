@@ -54,6 +54,10 @@ var (
 	IngestProfilesSuppressed Counter
 	IngestDropped            Counter
 	IngestStalePings         Counter
+	IngestDuplicates         Counter
+	IngestDedupEvicted       Counter
+	IngestLateDropped        Counter
+	IngestClockSkew          Counter
 	PrivacySignalsDropped    Counter
 	HeatmapInvalid           Counter
 	HeatmapDropped           Counter
@@ -182,6 +186,10 @@ func Snapshot() map[string]float64 {
 		"ingest_profiles_suppressed_total": float64(IngestProfilesSuppressed.Load()),
 		"ingest_dropped_total":             float64(IngestDropped.Load()),
 		"ingest_stale_pings_total":         float64(IngestStalePings.Load()),
+		"ingest_duplicates_total":          float64(IngestDuplicates.Load()),
+		"ingest_dedup_evicted_total":       float64(IngestDedupEvicted.Load()),
+		"ingest_late_dropped_total":        float64(IngestLateDropped.Load()),
+		"ingest_clock_skew_total":          float64(IngestClockSkew.Load()),
 		"heatmap_invalid_total":            float64(HeatmapInvalid.Load()),
 		"heatmap_dropped_total":            float64(HeatmapDropped.Load()),
 		"replay_dropped_total":             float64(ReplayDropped.Load()),
@@ -231,6 +239,10 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_revenue_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_profiles_suppressed_total", "counter")
 	writeFamily(w, snapshot, "ingest_dropped_total", "counter")
+	writeFamily(w, snapshot, "ingest_duplicates_total", "counter")
+	writeFamily(w, snapshot, "ingest_dedup_evicted_total", "counter")
+	writeFamily(w, snapshot, "ingest_late_dropped_total", "counter")
+	writeFamily(w, snapshot, "ingest_clock_skew_total", "counter")
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
 	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
 	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")

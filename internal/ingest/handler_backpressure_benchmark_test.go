@@ -50,7 +50,7 @@ func BenchmarkHandlerCapacity(b *testing.B) {
 			if saturated {
 				queueSize = 1
 			}
-			h := &ingest.Handler{Sites: siteRegistry{site: sites.Site{ID: 1, PublicID: "abc123", TZ: time.UTC, Retention: db.Ret30, AllowedHosts: []string{"example.com"}}}, Enricher: enricher, Salts: saltStore, Dict: dict.New(pool), Sessions: sessions, Clock: clk, Writer: writer.New(nil, sessions, queueSize, time.Hour, time.Hour, nil)}
+			h := &ingest.Handler{Sites: siteRegistry{site: sites.Site{ID: 1, PublicID: "abc123", TZ: time.UTC, Retention: db.Ret30, AllowedHosts: []string{"example.com"}}}, Enricher: enricher, Salts: saltStore, Dict: dict.New(pool), Sessions: sessions, Clock: clk, Writer: writer.New(nil, sessions, queueSize, time.Hour, time.Hour)}
 			request := func() int {
 				req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(okBody))
 				req.Header.Set("User-Agent", testUA)

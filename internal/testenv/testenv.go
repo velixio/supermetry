@@ -80,10 +80,6 @@ func (r *registry) Site(id int32) (sites.Site, bool) {
 
 func (r *registry) All() []sites.Site { return append([]sites.Site(nil), r.all...) }
 
-type noClosedDays struct{}
-
-func (noClosedDays) IsClosed(int32, time.Time) bool { return false }
-
 // Env owns one HTTP server, writer, and disposable PostgreSQL schema.
 type Env struct {
 	pool       *pgxpool.Pool
@@ -123,7 +119,8 @@ func Start(t *testing.T) *Env {
 		t.Fatal(err)
 	}
 	sessions := session.NewMemory(16, clock)
-	w := writer.New(pool, sessions, 65536, 20*time.Millisecond, 20*time.Millisecond, noClosedDays{})
+	w := writer.New(pool, sessions, 65536, 20*time.Millisecond, 20*time.Millisecond)
+	w.SetClock(clock)
 	w.SetTrackingPolicy(privacy.Identified, reg)
 	writerCtx, stopWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)

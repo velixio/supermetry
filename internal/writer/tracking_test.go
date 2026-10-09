@@ -25,7 +25,7 @@ func TestBufferedIdentityRecheckedOnRetry(t *testing.T) {
 	for _, downgrade := range []string{"instance", "project", "missing site"} {
 		t.Run(downgrade, func(t *testing.T) {
 			registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}
-			w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+			w := New(nil, nil, 1, time.Hour, time.Hour)
 			w.SetTrackingPolicy(privacy.Identified, registry)
 			if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1}, ReferrerID: 11, ProfileExternalID: "customer", ProfileID: 42, ProfileTraits: map[string]string{"name": "person"}, Props: map[string]string{"email": "person"}}) {
 				t.Fatal("enqueue")
@@ -62,7 +62,7 @@ func TestBufferedIdentityRecheckedOnRetry(t *testing.T) {
 }
 
 func TestWriterDefaultsAnonymous(t *testing.T) {
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	events := []Event{{Hit: session.Hit{SiteID: 1}, ProfileExternalID: "forged", ProfileID: 9, ProfileTraits: map[string]string{"name": "secret"}, Props: map[string]string{"identity": "secret"}}}
 	if err := w.retryEvents(context.Background(), context.Background(), events, func(_ context.Context, batch []Event) error {
 		e := batch[0]
@@ -77,7 +77,7 @@ func TestWriterDefaultsAnonymous(t *testing.T) {
 
 func TestBufferedRevenueRecheckedAgainstCurrentProjectCurrency(t *testing.T) {
 	registry := &policyRegistry{site: sites.Site{ID: 1, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Anonymous, registry)
 
 	events := []Event{{Hit: session.Hit{SiteID: 1}, RevenueMicros: 4_990_000, RevenueCurrency: "USD"}}
@@ -101,7 +101,7 @@ func TestBufferedRevenueRecheckedAgainstCurrentProjectCurrency(t *testing.T) {
 }
 
 func TestSessionDimensionsRecheckedBeforeFlush(t *testing.T) {
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}
 	w.SetTrackingPolicy(privacy.Identified, registry)
 	snapshots := []session.Snapshot{{SiteID: 1, Source: 1, UTMSource: 2, Medium: 3, Campaign: 4}}
@@ -127,7 +127,7 @@ func TestBufferedDowngradePersistsNoIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}
-	w := New(pool, nil, 1, time.Hour, time.Hour, nil)
+	w := New(pool, nil, 1, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Identified, registry)
 	if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, PathID: 1, Source: 9, UTMSource: 10, Medium: 11, Campaign: 12}, SessionID: 1, ProfileExternalID: "queued-person", ProfileID: 123, ProfileTraits: map[string]string{"name": "secret"}, Props: map[string]string{"email": "secret"}, ReferrerID: 13}) {
 		t.Fatal("enqueue")

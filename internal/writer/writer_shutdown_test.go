@@ -14,7 +14,7 @@ func TestRunEventsDoesNotReplayInFlightBatchAtShutdown(t *testing.T) {
 	finish := make(chan struct{})
 	var writes atomic.Int32
 
-	w := New(nil, nil, batchSize, time.Hour, time.Hour, nil)
+	w := New(nil, nil, batchSize, time.Hour, time.Hour)
 	for range batchSize {
 		if !w.Enqueue(Event{}) {
 			t.Fatal("batch event rejected")

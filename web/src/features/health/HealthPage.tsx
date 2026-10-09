@@ -15,6 +15,12 @@ const counters: { key: HealthCounterKey; label: string; suffix?: string }[] = [
   { key: "close_lag_seconds", label: "Day-close lag", suffix: "s" },
 ];
 
+const collectionCounters: { key: HealthCounterKey; label: string }[] = [
+  { key: "duplicates", label: "Duplicates" },
+  { key: "late_drops", label: "Late drops" },
+  { key: "clock_skew_clamps", label: "Clock-skew clamps" },
+];
+
 export function HealthPage() {
   const health = useQuery({
     queryKey: ["data-health"],
@@ -52,6 +58,28 @@ export function HealthPage() {
           </section>
         ))}
       </div>
+      <section aria-labelledby="collection-heading" className="flex flex-col gap-3">
+        <div>
+          <h2 id="collection-heading" className="text-lg font-semibold">
+            Collection
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Events safely ignored or corrected during intake.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {collectionCounters.map((counter) => (
+            <div className="rounded-xl border bg-card p-5" key={counter.key}>
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {counter.label}
+              </h3>
+              <p className="mt-2 text-3xl font-semibold tabular-nums">
+                {health.data ? fmt.number(health.data[counter.key]) : "—"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
       {health.error ? (
         <p role="alert" className="text-sm text-destructive">
           {health.error.message}

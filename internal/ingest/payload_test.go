@@ -9,6 +9,59 @@ import (
 	"supermetry/internal/ingest"
 )
 
+func TestParsePayloadCollectionContractV1(t *testing.T) {
+	tests := []struct {
+		name    string
+		fields  string
+		wantID  string
+		wantTS  int64
+		wantVer int
+		valid   bool
+	}{
+		{name: "legacy payload", valid: true},
+		{name: "version one", fields: `,"v":1`, wantVer: 1, valid: true},
+		{name: "bounded id and timestamp", fields: `,"id":"Az_09-x","ts":1791374400123`, wantID: "Az_09-x", wantTS: 1791374400123, valid: true},
+		{name: "maximum id", fields: `,"id":"` + strings.Repeat("a", 64) + `"`, wantID: strings.Repeat("a", 64), valid: true},
+		{name: "empty id", fields: `,"id":""`},
+		{name: "overlong id", fields: `,"id":"` + strings.Repeat("a", 65) + `"`},
+		{name: "id punctuation", fields: `,"id":"not.valid"`},
+		{name: "version zero", fields: `,"v":0`},
+		{name: "unknown version", fields: `,"v":2`},
+		{name: "fractional timestamp", fields: `,"ts":1.5`},
+		{name: "null timestamp", fields: `,"ts":null`},
+		{name: "null version", fields: `,"v":null`},
+		{name: "null id", fields: `,"id":null`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload, err := ingest.ParsePayload([]byte(`{"site":"abc123","name":"pageview","url":"https://example.com/"` + tt.fields + `}`))
+			if (err == nil) != tt.valid {
+				t.Fatalf("ParsePayload error = %v, want valid=%v", err, tt.valid)
+			}
+			if !tt.valid {
+				return
+			}
+			if payload.ID != tt.wantID {
+				t.Fatalf("ID=%q, want %q", payload.ID, tt.wantID)
+			}
+			if tt.wantTS == 0 {
+				if payload.TimestampMS != nil {
+					t.Fatalf("TimestampMS=%v, want nil", payload.TimestampMS)
+				}
+			} else if payload.TimestampMS == nil || *payload.TimestampMS != tt.wantTS {
+				t.Fatalf("TimestampMS=%v, want %d", payload.TimestampMS, tt.wantTS)
+			}
+			if tt.wantVer == 0 {
+				if payload.Version != nil {
+					t.Fatalf("Version=%v, want nil", payload.Version)
+				}
+			} else if payload.Version == nil || *payload.Version != tt.wantVer {
+				t.Fatalf("Version=%v, want %d", payload.Version, tt.wantVer)
+			}
+		})
+	}
+}
+
 func TestParsePayloadNormalizesWebVitalsProps(t *testing.T) {
 	tests := []struct {
 		name      string

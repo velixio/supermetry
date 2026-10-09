@@ -727,9 +727,15 @@ func dataHealthHandler(progressProvider RollupBackfillProgressFunc) http.Handler
 			}
 		}
 		writeJSON(w, http.StatusOK, DataHealthResponse{
-			BotsFiltered: bots, CloseLagSeconds: snapshot["close_lag_seconds"],
-			Drops503: int64(snapshot["ingest_dropped_total"]), IngestRate: snapshot["ingest_accepted_total"],
-			QueueDepth: int64(snapshot["writer_queue_depth"]), RollupBackfill: backfill,
+			BotsFiltered:    bots,
+			CloseLagSeconds: snapshot["close_lag_seconds"],
+			ClockSkewClamps: int64(snapshot["ingest_clock_skew_total"]),
+			Duplicates:      int64(snapshot["ingest_duplicates_total"]),
+			Drops503:        int64(snapshot["ingest_dropped_total"]),
+			IngestRate:      snapshot["ingest_accepted_total"],
+			LateDrops:       int64(snapshot["ingest_late_dropped_total"]),
+			QueueDepth:      int64(snapshot["writer_queue_depth"]),
+			RollupBackfill:  backfill,
 		})
 	}
 }
@@ -737,8 +743,11 @@ func dataHealthHandler(progressProvider RollupBackfillProgressFunc) http.Handler
 type DataHealthResponse struct {
 	BotsFiltered    int64                  `json:"bots_filtered"`
 	CloseLagSeconds float64                `json:"close_lag_seconds"`
+	ClockSkewClamps int64                  `json:"clock_skew_clamps"`
+	Duplicates      int64                  `json:"duplicates"`
 	Drops503        int64                  `json:"drops_503"`
 	IngestRate      float64                `json:"ingest_rate"`
+	LateDrops       int64                  `json:"late_drops"`
 	QueueDepth      int64                  `json:"queue_depth"`
 	RollupBackfill  RollupBackfillProgress `json:"rollup_backfill"`
 }

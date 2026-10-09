@@ -42,10 +42,6 @@ type fakeClock struct{ now time.Time }
 
 func (c *fakeClock) Now() time.Time { return c.now }
 
-type noneClosed struct{}
-
-func (noneClosed) IsClosed(int32, time.Time) bool { return false }
-
 type handlerFixture struct {
 	h       *ingest.Handler
 	pool    *pgxpool.Pool
@@ -103,6 +99,7 @@ func TestHostilePayloads(t *testing.T) {
 		{name: "long url", body: `{"site":"abc123","name":"pageview","url":"https://example.com/` + strings.Repeat("p", 8000) + `"}`, want: http.StatusBadRequest},
 		{name: "host not allowed", body: `{"site":"abc123","name":"pageview","url":"https://evil.test/"}`, want: http.StatusBadRequest},
 		{name: "unknown site", body: `{"site":"nope","name":"pageview","url":"https://example.com/"}`, want: http.StatusBadRequest},
+		{name: "unknown contract version", body: `{"site":"abc123","name":"pageview","url":"https://example.com/","v":2}`, want: http.StatusBadRequest},
 		{name: "ok and client ids ignored", body: `{"site":"abc123","name":"pageview","url":"https://example.com/","visitor_id":"123","session_id":"456"}`, want: http.StatusAccepted},
 	}
 	for _, tt := range cases {
@@ -113,6 +110,9 @@ func TestHostilePayloads(t *testing.T) {
 			}
 			if strings.Contains(rr.Body.String(), "198.51.100.7") || strings.Contains(rr.Body.String(), testUA) {
 				t.Fatal("response leaks request identity")
+			}
+			if tt.want == http.StatusBadRequest && !strings.HasPrefix(rr.Header().Get("Content-Type"), "application/problem+json") {
+				t.Fatalf("Content-Type=%q, want application/problem+json", rr.Header().Get("Content-Type"))
 			}
 		})
 	}
@@ -142,6 +142,128 @@ func TestBackpressureReturns503Fast(t *testing.T) {
 		t.Fatalf("rejected event reached realtime: %+v", snapshot)
 	}
 }
+
+func TestClientEventTimestampWindow(t *testing.T) {
+	tests := []struct {
+		name       string
+		offset     *time.Duration
+		wantStored bool
+		wantTS     time.Time
+		lateDelta  uint64
+		skewDelta  uint64
+	}{
+		{name: "missing uses server time", wantStored: true, wantTS: fakeNow()},
+		{name: "23 hours old keeps client time", offset: durationPtr(-23 * time.Hour), wantStored: true, wantTS: fakeNow().Add(-23 * time.Hour)},
+		{name: "25 hours old drops", offset: durationPtr(-25 * time.Hour), lateDelta: 1},
+		{name: "10 minutes future clamps", offset: durationPtr(10 * time.Minute), wantStored: true, wantTS: fakeNow(), skewDelta: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newHandlerFixture(t, 32, nil)
+			lateBefore := health.IngestLateDropped.Load()
+			skewBefore := health.IngestClockSkew.Load()
+			body := okBody
+			if tt.offset != nil {
+				body = fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://example.com/","ts":%d}`, fakeNow().Add(*tt.offset).UnixMilli())
+			}
+			if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+				t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+			}
+			f.stop(t)
+			var count int
+			var stored time.Time
+			err := f.pool.QueryRow(context.Background(), `select count(*), coalesce(min(ts), 'epoch') from events`).Scan(&count, &stored)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantCount := 0
+			if tt.wantStored {
+				wantCount = 1
+			}
+			if count != wantCount {
+				t.Fatalf("events=%d, want %d", count, wantCount)
+			}
+			if tt.wantStored && !stored.Equal(tt.wantTS) {
+				t.Fatalf("stored ts=%s, want %s", stored, tt.wantTS)
+			}
+			if got := health.IngestLateDropped.Load() - lateBefore; got != tt.lateDelta {
+				t.Fatalf("late drop delta=%d, want %d", got, tt.lateDelta)
+			}
+			if got := health.IngestClockSkew.Load() - skewBefore; got != tt.skewDelta {
+				t.Fatalf("clock skew delta=%d, want %d", got, tt.skewDelta)
+			}
+		})
+	}
+}
+
+func TestMissingSaltForLateDayDropsInsteadOfReturning503(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	before := health.IngestLateDropped.Load()
+	f.clock.now = fakeNow().Add(5 * 24 * time.Hour)
+	if _, err := f.h.Salts.DeleteExpired(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	f.clock.now = fakeNow()
+	body := fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://example.com/","ts":%d}`, fakeNow().Add(-23*time.Hour).UnixMilli())
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := health.IngestLateDropped.Load() - before; got != 1 {
+		t.Fatalf("late drop delta=%d, want 1", got)
+	}
+}
+
+func TestDuplicateEventDoesNotTouchSessionOrWriter(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	before := health.IngestDuplicates.Load()
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","id":"event_1"}`
+	for range 2 {
+		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+	}
+	snapshot := f.h.Sessions.(session.RichRealtimeStore).RealtimeSnapshot(1, f.clock.Now())
+	if snapshot.Pageviews != 1 {
+		t.Fatalf("realtime pageviews=%d, want 1", snapshot.Pageviews)
+	}
+	f.stop(t)
+	var events, pageviews int
+	if err := f.pool.QueryRow(context.Background(), `select (select count(*) from events), pageviews from sessions`).Scan(&events, &pageviews); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 || pageviews != 1 {
+		t.Fatalf("events=%d pageviews=%d, want 1/1", events, pageviews)
+	}
+	if got := health.IngestDuplicates.Load() - before; got != 1 {
+		t.Fatalf("duplicate delta=%d, want 1", got)
+	}
+}
+
+func TestEventRejectedWith503CanRetrySameID(t *testing.T) {
+	f := newHandlerFixture(t, 1, nil)
+	reservation, ok := f.writer.ReserveEvent()
+	if !ok {
+		t.Fatal("could not occupy writer capacity")
+	}
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","id":"retry_1"}`
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("first status=%d, want 503", rr.Code)
+	}
+	reservation.Cancel()
+	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("retry status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	f.stop(t)
+	var events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 {
+		t.Fatalf("events=%d, want 1", events)
+	}
+}
+
+func durationPtr(value time.Duration) *time.Duration { return &value }
 
 func TestUTMSourcePersistsRawValueSeparatelyFromBlendedSource(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
@@ -890,7 +1012,7 @@ func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *han
 	dictionary := dict.New(pool)
 	primeDictionary(t, dictionary)
 	sessions := session.NewMemory(4, clk)
-	w := writer.New(pool, sessions, queueSize, time.Hour, time.Hour, noneClosed{})
+	w := writer.New(pool, sessions, queueSize, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Anonymous, registry)
 	w.SetPathPolicy(privacy.PathPolicy{}, dictionary)
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -900,7 +1022,7 @@ func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *han
 	h := &ingest.Handler{
 		Sites: registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
 		Sessions: sessions, Writer: w, Limiter: ingest.NewTokenBuckets(1000, 1000),
-		TrustedProxies: trusted, Clock: clk,
+		TrustedProxies: trusted, Clock: clk, Dedup: ingest.NewDeduplicator(250000),
 	}
 	f := &handlerFixture{h: h, pool: pool, writer: w, clock: clk, cancel: cancel, stopped: stopped}
 	t.Cleanup(func() { f.stop(t) })

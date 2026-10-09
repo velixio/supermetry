@@ -308,7 +308,7 @@ func TestIdentifiedRestartPreservesNewPathsOnlyWithProjectOptIn(t *testing.T) {
 			if err := saltStore.Refresh(ctx); err != nil {
 				t.Fatal(err)
 			}
-			w := writer.New(f.pool, sessions, 32, time.Hour, time.Hour, noneClosed{})
+			w := writer.New(f.pool, sessions, 32, time.Hour, time.Hour)
 			w.SetTrackingPolicy(privacy.Identified, registry)
 			w.SetPathPolicy(privacy.PathPolicy{}, dictionary)
 			handler := &ingest.Handler{TrackingMode: privacy.Identified, Sites: registry, Enricher: f.h.Enricher, Salts: saltStore, Dict: dictionary, Sessions: sessions, Writer: w, Clock: clock}

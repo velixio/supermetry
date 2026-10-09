@@ -193,7 +193,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("load salts: %w", err)
 	}
 	now := settings.clock.Now()
-	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -1), now.Add(partitionLookahead)); err != nil {
+	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead)); err != nil {
 		return fmt.Errorf("ensure startup partitions: %w", err)
 	}
 	enricher := geo.enricher
@@ -206,7 +206,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if _, err := rehydrate.Run(ctx, pool, sessions, now); err != nil {
 		return fmt.Errorf("rehydrate sessions: %w", err)
 	}
-	w := writer.New(pool, sessions, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, closed)
+	w := writer.New(pool, sessions, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush)
+	w.SetClock(settings.clock)
 	profileTombstones := profiletombstone.New(pool, settings.clock)
 	if err := profileTombstones.Load(ctx); err != nil {
 		return fmt.Errorf("load profile tombstones: %w", err)
@@ -315,6 +316,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Sites:        registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
 		Sessions: sessions, Writer: w, Limiter: intakeLimiter,
 		TrustedProxies: cfg.TrustedProxies, Clock: settings.clock,
+		Dedup:             ingest.NewDeduplicator(cfg.DedupEntries),
 		ProfileTombstones: profileTombstones,
 		Diag:              os.Getenv("SUPERMETRY_INGEST_DIAG") == "1",
 	}
@@ -629,7 +631,7 @@ func scheduledJobs(
 		}},
 		{Name: "partitions", Every: time.Hour, Run: func(ctx context.Context) error {
 			now := clk.Now()
-			return db.EnsurePartitions(ctx, pool, now, now.Add(partitionLookahead))
+			return db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead))
 		}},
 		{Name: "retention", Every: time.Hour, Run: func(ctx context.Context) error {
 			_, err := retention.Run(ctx, pool, clk.Now())

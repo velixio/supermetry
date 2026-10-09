@@ -53,7 +53,7 @@ func TestCopyEventsUpsertsOneProfileAndLinksBatch(t *testing.T) {
 			ProfileTraits: map[string]string{"plan": "pro"},
 		},
 	}
-	w := New(pool, nil, 2, time.Hour, time.Hour, nil)
+	w := New(pool, nil, 2, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Identified, &policyRegistry{site: sites.Site{ID: siteID, ProfilesEnabled: true}})
 	if err := w.copyEvents(ctx, events); err != nil {
 		t.Fatal(err)
@@ -118,7 +118,7 @@ func TestBufferedProfileEventStaysAnonymousAfterErasureAndRestart(t *testing.T) 
 		Hit:       session.Hit{SiteID: siteID, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, Kind: 1},
 		SessionID: 1, ProfileExternalID: "customer-1", ProfileTraits: map[string]string{"plan": "pro"},
 	}}
-	w := New(pool, nil, 1, time.Hour, time.Hour, nil)
+	w := New(pool, nil, 1, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Identified, &policyRegistry{site: sites.Site{ID: siteID, ProfilesEnabled: true}})
 	w.SetProfileTombstones(restarted)
 	if err := w.copyEvents(ctx, events); err != nil {

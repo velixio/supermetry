@@ -100,6 +100,44 @@ func TestPrometheusTextFormat(t *testing.T) {
 	}
 }
 
+func TestCollectionReliabilityCountersAreExported(t *testing.T) {
+	metrics := []struct {
+		name    string
+		counter *health.Counter
+		delta   uint64
+	}{
+		{name: "ingest_duplicates_total", counter: &health.IngestDuplicates, delta: 2},
+		{name: "ingest_dedup_evicted_total", counter: &health.IngestDedupEvicted, delta: 3},
+		{name: "ingest_late_dropped_total", counter: &health.IngestLateDropped, delta: 5},
+		{name: "ingest_clock_skew_total", counter: &health.IngestClockSkew, delta: 7},
+	}
+	wants := make(map[string]uint64, len(metrics))
+	for _, metric := range metrics {
+		wants[metric.name] = metric.counter.Load() + metric.delta
+		metric.counter.Add(metric.delta)
+	}
+
+	snapshot := health.Snapshot()
+	for name, want := range wants {
+		if got := snapshot[name]; got != float64(want) {
+			t.Errorf("snapshot %s = %v, want %d", name, got, want)
+		}
+	}
+
+	var b strings.Builder
+	health.WritePrometheus(&b)
+	for name, value := range wants {
+		for _, want := range []string{
+			"# TYPE supermetry_" + name + " counter",
+			"supermetry_" + name + " " + strconv.FormatUint(value, 10),
+		} {
+			if !strings.Contains(b.String(), want) {
+				t.Errorf("Prometheus output missing %q:\n%s", want, b.String())
+			}
+		}
+	}
+}
+
 func TestDeliveryFailuresAreExported(t *testing.T) {
 	before := health.AlertDeliveryFailures.Load()
 	health.AlertDeliveryFailures.Add(2)

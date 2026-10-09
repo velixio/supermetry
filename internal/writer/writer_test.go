@@ -20,12 +20,6 @@ type realClock struct{}
 
 func (realClock) Now() time.Time { return time.Now() }
 
-type noneClosed struct{}
-
-func (noneClosed) IsClosed(int32, time.Time) bool { return false }
-
-type closedOn struct{ day time.Time }
-
 type revenueRegistry struct{ site sites.Site }
 
 func (r revenueRegistry) Site(id int32) (sites.Site, bool) { return r.site, r.site.ID == id }
@@ -34,12 +28,8 @@ func (r revenueRegistry) ByPublicID(id string) (sites.Site, bool) {
 }
 func (r revenueRegistry) All() []sites.Site { return []sites.Site{r.site} }
 
-func (c closedOn) IsClosed(_ int32, day time.Time) bool {
-	return day.Equal(c.day)
-}
-
 func TestEnqueueNeverBlocksAndReportsFull(t *testing.T) {
-	w := writer.New(nil, session.NewMemory(1, realClock{}), 2, time.Hour, time.Hour, noneClosed{})
+	w := writer.New(nil, session.NewMemory(1, realClock{}), 2, time.Hour, time.Hour)
 	if !w.Enqueue(writer.Event{}) || !w.Enqueue(writer.Event{}) {
 		t.Fatal("first two events must fit")
 	}
@@ -56,7 +46,7 @@ func TestEnqueueNeverBlocksAndReportsFull(t *testing.T) {
 }
 
 func TestZeroCapacityAlwaysReportsFull(t *testing.T) {
-	w := writer.New(nil, session.NewMemory(1, realClock{}), 0, time.Hour, time.Hour, noneClosed{})
+	w := writer.New(nil, session.NewMemory(1, realClock{}), 0, time.Hour, time.Hour)
 	if w.Enqueue(writer.Event{}) {
 		t.Fatal("zero-capacity writer accepted an event")
 	}
@@ -72,9 +62,12 @@ func TestFlushOnShutdownAndLateEventMarksDirty(t *testing.T) {
 	if err := db.EnsurePartitions(ctx, pool, day.AddDate(0, 0, -1), day.AddDate(0, 0, 2)); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := pool.Exec(ctx, `insert into day_close(site_id,day,status,version) values (1,$1,'done',1)`, day); err != nil {
+		t.Fatal(err)
+	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
-	w := writer.New(pool, session.NewMemory(1, realClock{}), 100, time.Hour, time.Hour, closedOn{day: day})
+	w := writer.New(pool, session.NewMemory(1, realClock{}), 100, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Anonymous, revenueRegistry{site: sites.Site{ID: 1, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}})
 	stopped := runWriter(w, runCtx)
 	if !w.Enqueue(writer.Event{
@@ -121,7 +114,7 @@ func TestPGOutageThenRecoveryNoDoubleCount(t *testing.T) {
 	defer bad.Close()
 
 	runCtx, cancel := context.WithCancel(context.Background())
-	w := writer.New(bad, session.NewMemory(1, realClock{}), 10, 10*time.Millisecond, time.Hour, noneClosed{})
+	w := writer.New(bad, session.NewMemory(1, realClock{}), 10, 10*time.Millisecond, time.Hour)
 	stopped := runWriter(w, runCtx)
 	for i := range 10 {
 		if !w.Enqueue(testEvent(day, i)) {
@@ -168,7 +161,7 @@ func TestDirtySessionsAreUpsertedOnShutdown(t *testing.T) {
 	}
 	result := sessions.Touch(hit)
 	runCtx, cancel := context.WithCancel(context.Background())
-	w := writer.New(pool, sessions, 10, time.Hour, time.Hour, noneClosed{})
+	w := writer.New(pool, sessions, 10, time.Hour, time.Hour)
 	stopped := runWriter(w, runCtx)
 	cancel()
 	waitStopped(t, stopped)

@@ -20,6 +20,7 @@ const (
 	maxURLBytes       = 2000
 	maxSiteBytes      = 300
 	maxEventNameBytes = 300
+	maxEventIDBytes   = 64
 	// Profile caps count characters, matching the tracker and the
 	// profiles.external_id CHECK; the body cap bounds their byte size.
 	maxProfileIDChars  = 128
@@ -35,6 +36,9 @@ var errInvalidHeatmap = errors.New("invalid heatmap payload")
 // Payload is the public event intake format. Unknown JSON fields are ignored,
 // in particular any client-supplied visitor or session identifiers.
 type Payload struct {
+	ID              string            `json:"-"`
+	TimestampMS     *int64            `json:"-"`
+	Version         *int              `json:"-"`
 	Site            string            `json:"site"`
 	Name            string            `json:"name"`
 	URL             string            `json:"url"`
@@ -59,6 +63,9 @@ type Payload struct {
 func ParsePayload(body []byte) (Payload, error) {
 	var decoded struct {
 		Payload
+		ID        json.RawMessage `json:"id"`
+		Timestamp json.RawMessage `json:"ts"`
+		Version   json.RawMessage `json:"v"`
 		ProfileID json.RawMessage `json:"profile_id"`
 		Traits    json.RawMessage `json:"traits"`
 	}
@@ -69,6 +76,25 @@ func ParsePayload(body []byte) (Payload, error) {
 		return Payload{}, errors.New("invalid payload")
 	}
 	payload := decoded.Payload
+	if len(decoded.ID) != 0 {
+		if err := json.Unmarshal(decoded.ID, &payload.ID); err != nil || !validEventID(payload.ID) {
+			return Payload{}, errors.New("invalid payload")
+		}
+	}
+	if len(decoded.Timestamp) != 0 {
+		var timestamp int64
+		if err := json.Unmarshal(decoded.Timestamp, &timestamp); err != nil || bytes.Equal(bytes.TrimSpace(decoded.Timestamp), []byte("null")) {
+			return Payload{}, errors.New("invalid payload")
+		}
+		payload.TimestampMS = &timestamp
+	}
+	if len(decoded.Version) != 0 {
+		var version int
+		if err := json.Unmarshal(decoded.Version, &version); err != nil || version != 1 {
+			return Payload{}, errors.New("invalid payload")
+		}
+		payload.Version = &version
+	}
 	payload.profileID = decoded.ProfileID
 	payload.traits = decoded.Traits
 	if !validText(payload.Site, maxSiteBytes) ||
@@ -96,6 +122,20 @@ func ParsePayload(body []byte) (Payload, error) {
 	}
 	payload.normalizeRevenue()
 	return payload, nil
+}
+
+func validEventID(value string) bool {
+	if len(value) == 0 || len(value) > maxEventIDBytes {
+		return false
+	}
+	for i := range len(value) {
+		c := value[i]
+		if (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') &&
+			(c < '0' || c > '9') && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 // Identity validates the optional profile fields after site lookup. Disabled

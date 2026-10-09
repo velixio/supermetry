@@ -27,11 +27,21 @@ const (
 	shutdownTimeout  = 10 * time.Second
 	initialBackoff   = 100 * time.Millisecond
 	maximumBackoff   = 5 * time.Second
+	dayCloseLockID   = 7469002
 )
 
 // Dropped counts events rejected because the writer has no remaining
 // capacity. Written counts events committed to PostgreSQL.
 var Dropped, Written atomic.Int64
+
+// Clock supplies the writer's view of current time.
+type Clock interface {
+	Now() time.Time
+}
+
+type wallClock struct{}
+
+func (wallClock) Now() time.Time { return time.Now() }
 
 // Event is the durable representation of an accepted analytics hit. It must
 // never contain an IP address or a full user-agent string.
@@ -58,11 +68,6 @@ type EventReservation struct {
 	once sync.Once
 }
 
-// ClosedDays reports whether a site-local day has already been compacted.
-type ClosedDays interface {
-	IsClosed(site int32, day time.Time) bool
-}
-
 // Writer owns the bounded event queue and the database batch loops.
 type Writer struct {
 	ch           chan Event
@@ -73,7 +78,6 @@ type Writer struct {
 
 	flushEvery        time.Duration
 	sessionFlush      time.Duration
-	closed            ClosedDays
 	profileTombstones ProfileTombstones
 
 	trackingMu     sync.RWMutex
@@ -85,6 +89,9 @@ type Writer struct {
 	poolMu sync.RWMutex
 	pool   *pgxpool.Pool
 
+	clockMu sync.RWMutex
+	clock   Clock
+
 	stateMu   sync.RWMutex
 	accepting bool
 	started   atomic.Bool
@@ -93,7 +100,7 @@ type Writer struct {
 // New constructs a writer. Run must be called exactly once to consume queued
 // work. A negative queue size uses the production default; zero deliberately
 // creates an always-full writer, which is useful for disabling intake.
-func New(pool *pgxpool.Pool, sess session.Store, size int, flushEvery, sessionFlush time.Duration, closed ClosedDays) *Writer {
+func New(pool *pgxpool.Pool, sess session.Store, size int, flushEvery, sessionFlush time.Duration) *Writer {
 	if size < 0 {
 		size = defaultQueueSize
 	}
@@ -111,8 +118,8 @@ func New(pool *pgxpool.Pool, sess session.Store, size int, flushEvery, sessionFl
 		sess:         sess,
 		flushEvery:   flushEvery,
 		sessionFlush: sessionFlush,
-		closed:       closed,
 		pool:         pool,
+		clock:        wallClock{},
 		accepting:    true,
 	}
 }
@@ -217,6 +224,26 @@ func (w *Writer) SetPool(pool *pgxpool.Pool) {
 	w.poolMu.Lock()
 	w.pool = pool
 	w.poolMu.Unlock()
+}
+
+// SetClock replaces the writer clock. Configure it before Run.
+func (w *Writer) SetClock(clock Clock) {
+	if clock == nil {
+		clock = wallClock{}
+	}
+	w.clockMu.Lock()
+	w.clock = clock
+	w.clockMu.Unlock()
+}
+
+func (w *Writer) now() time.Time {
+	w.clockMu.RLock()
+	clock := w.clock
+	w.clockMu.RUnlock()
+	if clock == nil {
+		return time.Now()
+	}
+	return clock.Now()
 }
 
 // Run writes until ctx is cancelled, then rejects new events, drains the
@@ -428,32 +455,73 @@ func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
 	}
 	w.suppressRestrictedIdentity(events)
 	w.suppressTombstonedProfiles(events)
+	lateDays := w.olderLocalDays(events, w.now())
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		if len(lateDays) != 0 {
+			if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock_shared($1)`, dayCloseLockID); err != nil {
+				return fmt.Errorf("lock day close for late events: %w", err)
+			}
+		}
 		if err := upsertProfiles(ctx, tx, events); err != nil {
 			return err
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"events"}, eventColumns, &eventSource{events: events}); err != nil {
 			return err
 		}
-		if w.closed == nil {
-			return nil
-		}
-		dirty := make(map[siteDay]struct{})
-		for _, event := range events {
-			if !event.LocalDay.IsZero() && w.closed.IsClosed(event.SiteID, event.LocalDay) {
-				dirty[siteDay{site: event.SiteID, day: event.LocalDay}] = struct{}{}
+		if len(lateDays) != 0 {
+			siteIDs := make([]int32, len(lateDays))
+			days := make([]time.Time, len(lateDays))
+			for i, key := range lateDays {
+				siteIDs[i], days[i] = key.site, key.day
 			}
-		}
-		for key := range dirty {
 			if _, err := tx.Exec(ctx, `
-				insert into dirty_day(site_id, day, reason)
-				values ($1, $2, 'late_event')
-				on conflict (site_id, day) do nothing`, key.site, key.day); err != nil {
-				return err
+insert into dirty_day(site_id, day, reason)
+select distinct late.site_id, late.day, 'late_event'
+from unnest($1::integer[], $2::date[]) as late(site_id, day)
+where exists (
+  select 1 from day_close closed
+  where closed.site_id=late.site_id and closed.day=late.day and closed.status='done'
+)
+on conflict (site_id, day) do nothing`, siteIDs, days); err != nil {
+				return fmt.Errorf("mark closed days dirty: %w", err)
 			}
 		}
 		return nil
 	})
+}
+
+func (w *Writer) olderLocalDays(events []Event, now time.Time) []siteDay {
+	w.trackingMu.RLock()
+	registry := w.trackingSites
+	w.trackingMu.RUnlock()
+	unique := make(map[siteDay]struct{})
+	for _, event := range events {
+		if event.LocalDay.IsZero() {
+			continue
+		}
+		if registry == nil {
+			unique[siteDay{site: event.SiteID, day: event.LocalDay}] = struct{}{}
+			continue
+		}
+		site, ok := registry.Site(event.SiteID)
+		if !ok || site.TZ == nil {
+			// The event's LocalDay was derived while the site was known. If the
+			// registry entry is unavailable at flush time, conservatively check
+			// that day under the close lock instead of assuming UTC.
+			unique[siteDay{site: event.SiteID, day: event.LocalDay}] = struct{}{}
+			continue
+		}
+		localNow := now.In(site.TZ)
+		currentDay := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, time.UTC)
+		if event.LocalDay.Before(currentDay) {
+			unique[siteDay{site: event.SiteID, day: event.LocalDay}] = struct{}{}
+		}
+	}
+	result := make([]siteDay, 0, len(unique))
+	for key := range unique {
+		result = append(result, key)
+	}
+	return result
 }
 
 type profileKey struct {

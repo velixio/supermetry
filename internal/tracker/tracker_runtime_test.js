@@ -9,7 +9,7 @@ function buildSource(full) {
   return source.replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "");
 }
 
-function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, doNotTrack = "0", ignored = false} = {}) {
+function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, doNotTrack = "0", ignored = false, crypto = {}} = {}) {
   const events = new Map();
   const listeners = new Map();
   const payloads = [];
@@ -87,6 +87,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
         this.parts = parts;
       }
     },
+    crypto,
     Date: {now: () => now += 100},
     Math,
     Object,
@@ -113,7 +114,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
       doNotTrack,
       webdriver: false,
       sendBeacon(_endpoint, body) {
-        payloads.push(JSON.parse(body.parts.join("")));
+        payloads.push(JSON.parse(body));
         return true;
       },
     },
@@ -125,7 +126,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
   if (withExtensions) {
     vm.runInNewContext(extensions, context, {filename: "tracker.extensions.js"});
   }
-  return {context, events, supermetry: window.supermetry, payloads, storage};
+  return {context, events, supermetry: window.supermetry, payloads, storage, setNow: (value) => now = value};
 }
 
 function element({tagName = "BUTTON", classes = [], attributes = {}, parentElement = null} = {}) {
@@ -164,6 +165,40 @@ function testIdentifyAndSubsequentEvents() {
   for (const payload of tracker.payloads.slice(1)) {
     assert.equal(payload.profile_id, "customer-42", `${payload.name} profile_id`);
   }
+}
+
+function testPayloadContractFields() {
+  const uuids = [
+    "123e4567-e89b-12d3-a456-426614174000",
+    "987e6543-e21b-12d3-a456-426614174111",
+  ];
+  const tracker = loadTracker({crypto: {randomUUID: () => uuids.shift()}});
+  tracker.supermetry.track("Signup");
+
+  assert.deepEqual(tracker.payloads.map((payload) => payload.id), [
+    "123e4567e89b12d3a456426614174000",
+    "987e6543e21b12d3a456426614174111",
+  ]);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.ts), [1200, 1300]);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.v), [1, 1]);
+}
+
+function testPayloadIDFallsBackToRandomHex() {
+  const tracker = loadTracker({crypto: {}});
+  assert.match(tracker.payloads[0].id, /^[a-f0-9]{1,64}$/);
+}
+
+function testConsentQueueKeepsCreationTimestamp() {
+  const tracker = loadTracker({
+    full: true,
+    dataset: {consent: "required", manual: "true"},
+    crypto: {randomUUID: () => "123e4567-e89b-12d3-a456-426614174000"},
+  });
+  tracker.supermetry.track("Queued");
+  tracker.setNow(9000);
+  tracker.supermetry.consent(true);
+
+  assert.equal(tracker.payloads[0].ts, 1100);
 }
 
 function testClear() {
@@ -583,6 +618,9 @@ function testGeneratedPreludeAppliesDefaultsWithoutOverridingAttributes() {
 }
 
 testIdentifyAndSubsequentEvents();
+testPayloadContractFields();
+testPayloadIDFallsBackToRandomHex();
+testConsentQueueKeepsCreationTimestamp();
 testClear();
 testOmittedTraits();
 testValidationBoundaries();

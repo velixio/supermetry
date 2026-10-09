@@ -13,7 +13,7 @@ import (
 func TestEventPreflightCapacityAndFinalEnqueue(t *testing.T) {
 	for _, capacity := range []int{0, 2} {
 		t.Run(map[int]string{0: "zero", 2: "positive"}[capacity], func(t *testing.T) {
-			w := New(nil, nil, capacity, time.Hour, time.Hour, nil)
+			w := New(nil, nil, capacity, time.Hour, time.Hour)
 			before := Dropped.Load()
 			for range capacity {
 				if w.RejectEventIfUnavailable() || w.RejectEventIfUnavailable() {
@@ -31,12 +31,12 @@ func TestEventPreflightCapacityAndFinalEnqueue(t *testing.T) {
 			}
 		})
 	}
-	idle := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	idle := New(nil, nil, 1, time.Hour, time.Hour)
 	idle.stopAccepting()
 	if !idle.RejectEventIfUnavailable() {
 		t.Fatal("empty stopped writer accepted preflight")
 	}
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	before := Dropped.Load()
 	if w.RejectEventIfUnavailable() {
 		t.Fatal("empty queue rejected")
@@ -55,7 +55,7 @@ func TestEventPreflightCapacityAndFinalEnqueue(t *testing.T) {
 }
 
 func TestEventReservationExcludesCompetitorsAndReleasesExactlyOnce(t *testing.T) {
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	before := Dropped.Load()
 
 	reservation, ok := w.ReserveEvent()
@@ -94,7 +94,7 @@ func TestEventReservationExcludesCompetitorsAndReleasesExactlyOnce(t *testing.T)
 }
 
 func TestEventReservationDelaysShutdownUntilCommit(t *testing.T) {
-	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 1, time.Hour, time.Hour)
 	reservation, ok := w.ReserveEvent()
 	if !ok {
 		t.Fatal("reserve")
@@ -117,7 +117,7 @@ func TestEventReservationDelaysShutdownUntilCommit(t *testing.T) {
 }
 
 func TestEventPreflightTracksInFlightRetryAndRecovery(t *testing.T) {
-	w := New(nil, nil, 1, time.Millisecond, time.Hour, nil)
+	w := New(nil, nil, 1, time.Millisecond, time.Hour)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	first, retry := make(chan struct{}), make(chan struct{})
@@ -183,7 +183,7 @@ func TestEventPreflightTracksInFlightRetryAndRecovery(t *testing.T) {
 }
 
 func TestEventPreflightConcurrentEnqueueAndShutdown(t *testing.T) {
-	w := New(nil, nil, 64, time.Hour, time.Hour, nil)
+	w := New(nil, nil, 64, time.Hour, time.Hour)
 	before := Dropped.Load()
 	var accepted, rejected atomic.Int64
 	var wg sync.WaitGroup

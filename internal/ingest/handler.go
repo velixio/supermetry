@@ -55,6 +55,7 @@ type Handler struct {
 	Limiter           RateLimiter
 	TrustedProxies    []netip.Prefix
 	Clock             Clock
+	Dedup             *Deduplicator
 	Diag              bool // log how each client address was resolved (SUPERMETRY_INGEST_DIAG=1)
 	capsOnce          sync.Once
 	caps              *valueCap
@@ -139,6 +140,31 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	receivedAt := time.Now()
+	if h.Clock != nil {
+		receivedAt = h.Clock.Now()
+	}
+	if payload.ID != "" && h.Dedup != nil && h.Dedup.Seen(site.ID, payload.ID, receivedAt) {
+		health.IngestDuplicates.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	if payload.ID != "" && h.Dedup != nil {
+		defer h.Dedup.Release(site.ID, payload.ID)
+	}
+	eventTime := receivedAt
+	if payload.TimestampMS != nil {
+		eventTime = time.UnixMilli(*payload.TimestampMS)
+		if eventTime.Before(receivedAt.Add(-24 * time.Hour)) {
+			health.IngestLateDropped.Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		if eventTime.After(receivedAt.Add(5 * time.Minute)) {
+			eventTime = receivedAt
+			health.IngestClockSkew.Add(1)
+		}
+	}
 	originalURL := payload.URL
 	if !identityAllowed {
 		// Arbitrary property values and URL query/fragment values can contain
@@ -200,7 +226,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
-		h.acceptHeatmap(w, r.Context(), payload, pageURL, site)
+		if h.acceptHeatmap(w, r.Context(), payload, pageURL, site, eventTime) && h.Dedup != nil {
+			h.Dedup.Record(site.ID, payload.ID, receivedAt)
+		}
 		return
 	}
 
@@ -230,19 +258,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
-	if h.Clock != nil {
-		now = h.Clock.Now()
-	}
-	localDay := salts.LocalDay(now, site.TZ)
+	localDay := salts.LocalDay(eventTime, site.TZ)
 	salt, ok := h.Salts.For(localDay)
 	if !ok {
+		if localDay.Before(salts.LocalDay(receivedAt, site.TZ)) {
+			health.IngestLateDropped.Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
 		h.unavailable(w)
 		return
 	}
 	visitorID := salts.VisitorID(salt, site.ID, ip.String(), ua)
 	var previousVisitorID int64
-	localNow := now.In(site.TZ)
+	localNow := eventTime.In(site.TZ)
 	localMidnight := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, site.TZ)
 	if localNow.Sub(localMidnight) <= previousSaltWindow {
 		if previousSalt, found := h.Salts.For(localDay.AddDate(0, 0, -1)); found {
@@ -253,7 +282,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	event, hit, err := h.buildEvent(
 		r.Context(), payload, pageURL, site, location, ua,
 		r.Header.Get("Accept-Language"), payload.ScreenWidth,
-		now, localDay, visitorID, previousVisitorID,
+		eventTime, localDay, visitorID, previousVisitorID,
 	)
 	if err != nil {
 		h.unavailable(w)
@@ -280,6 +309,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// The handler owns this reservation and commits it exactly once.
 		panic("ingest: event reservation already consumed")
 	}
+	if h.Dedup != nil {
+		h.Dedup.Record(site.ID, payload.ID, receivedAt)
+	}
 	recordAcceptedActivity(h.Sessions, hit, result.VisitorID)
 	if !identityAllowed && profileSupplied {
 		health.IngestProfilesSuppressed.Add(1)
@@ -291,7 +323,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (h *Handler) acceptHeatmap(w http.ResponseWriter, ctx context.Context, payload Payload, pageURL *url.URL, site sites.Site) {
+func (h *Handler) acceptHeatmap(w http.ResponseWriter, ctx context.Context, payload Payload, pageURL *url.URL, site sites.Site, eventTime time.Time) bool {
 	path := pageURL.Path
 	if path == "" {
 		path = "/"
@@ -299,24 +331,21 @@ func (h *Handler) acceptHeatmap(w http.ResponseWriter, ctx context.Context, payl
 	pathID, err := h.dimensionID(ctx, dict.Path, path)
 	if err != nil {
 		h.unavailable(w)
-		return
-	}
-	now := time.Now()
-	if h.Clock != nil {
-		now = h.Clock.Now()
+		return false
 	}
 	if !h.Writer.EnqueueHeatmap(writer.HeatmapEvent{
-		SiteID: site.ID, LocalDay: salts.LocalDay(now, site.TZ), PathID: pathID,
+		SiteID: site.ID, LocalDay: salts.LocalDay(eventTime, site.TZ), PathID: pathID,
 		ViewportWidth: payload.ViewportWidth, Clicks: payload.Clicks,
 	}) {
 		health.HeatmapDropped.Add(1)
 		health.IngestDropped.Add(1)
 		w.Header().Set("Retry-After", "1")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		return
+		return false
 	}
 	health.IngestAccepted.Add(1)
 	w.WriteHeader(http.StatusAccepted)
+	return true
 }
 
 func recordAcceptedActivity(store session.Store, hit session.Hit, visitorID int64) {
@@ -501,7 +530,9 @@ func ipRateKey(ip netip.Addr) string {
 func (h *Handler) invalid(w http.ResponseWriter) {
 	Invalid.Add(1)
 	health.IngestInvalid.Add(1)
+	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusBadRequest)
+	_, _ = io.WriteString(w, "{\"type\":\"about:blank\",\"title\":\"Bad Request\",\"status\":400,\"detail\":\"invalid event payload\"}\n")
 }
 
 func (h *Handler) revenueProblem(w http.ResponseWriter, status int, detail string) {

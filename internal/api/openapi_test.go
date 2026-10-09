@@ -30,8 +30,8 @@ func TestOpenAPIEventsEndpoint(t *testing.T) {
 		} `yaml:"paths"`
 		Components struct {
 			Schemas map[string]struct {
-				Required   []string       `yaml:"required"`
-				Properties map[string]any `yaml:"properties"`
+				Required   []string             `yaml:"required"`
+				Properties map[string]yaml.Node `yaml:"properties"`
 			} `yaml:"schemas"`
 		} `yaml:"components"`
 	}
@@ -60,7 +60,7 @@ func TestOpenAPIEventsEndpoint(t *testing.T) {
 		}
 	}
 	wantProperties := []string{
-		"site", "name", "url", "referrer", "screen_width", "props",
+		"id", "ts", "v", "site", "name", "url", "referrer", "screen_width", "props",
 		"engagement_ms", "scroll_pct", "revenue", "traits", "profile_id",
 	}
 	if len(schema.Properties) != len(wantProperties) {
@@ -69,6 +69,37 @@ func TestOpenAPIEventsEndpoint(t *testing.T) {
 	for _, property := range wantProperties {
 		if _, ok := schema.Properties[property]; !ok {
 			t.Errorf("property %q is missing", property)
+		}
+	}
+	type propertySchema struct {
+		Type      string `yaml:"type"`
+		Format    string `yaml:"format"`
+		MinLength int    `yaml:"minLength"`
+		MaxLength int    `yaml:"maxLength"`
+		Pattern   string `yaml:"pattern"`
+		Enum      []int  `yaml:"enum"`
+	}
+	decodeProperty := func(name string) propertySchema {
+		t.Helper()
+		var property propertySchema
+		node := schema.Properties[name]
+		if err := node.Decode(&property); err != nil {
+			t.Fatalf("decode %s schema: %v", name, err)
+		}
+		return property
+	}
+	if id := decodeProperty("id"); id.Type != "string" || id.MinLength != 1 || id.MaxLength != 64 || id.Pattern != "^[A-Za-z0-9_-]+$" {
+		t.Errorf("id schema = %+v, want optional 1-64 character bounded identifier", id)
+	}
+	if ts := decodeProperty("ts"); ts.Type != "integer" || ts.Format != "int64" {
+		t.Errorf("ts schema = %+v, want int64 integer", ts)
+	}
+	if version := decodeProperty("v"); version.Type != "integer" || !slices.Equal(version.Enum, []int{1}) {
+		t.Errorf("v schema = %+v, want integer enum [1]", version)
+	}
+	for _, field := range []string{"id", "ts", "v"} {
+		if slices.Contains(schema.Required, field) {
+			t.Errorf("field %q must remain optional", field)
 		}
 	}
 }
@@ -120,7 +151,7 @@ func TestOpenAPISessionsEndpoints(t *testing.T) {
 	}
 }
 
-func mapKeys(values map[string]any) []string {
+func mapKeys[V any](values map[string]V) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)

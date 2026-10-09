@@ -177,13 +177,19 @@ func (m *Memory) Touch(h Hit) Result {
 	if h.JoinOnly {
 		return Result{}
 	}
-	if replaced := currentShard.sessions[currentKey]; replaced != nil {
-		m.deactivate(currentShard, currentKey, replaced)
-	}
+	replaced := currentShard.sessions[currentKey]
 	s := m.newSession(h)
-	currentShard.sessions[currentKey] = s
 	m.setUTMSource(currentShard, s, h.UTMSource)
 	m.apply(currentShard, s, h)
+	if replaced != nil && h.TS.UnixNano() < replaced.lastNS {
+		s.status &^= statusActive
+		m.markDirty(currentShard, s)
+		return Result{SessionID: s.sessionID, VisitorID: s.visitorID, New: true}
+	}
+	if replaced != nil {
+		m.deactivate(currentShard, currentKey, replaced)
+	}
+	currentShard.sessions[currentKey] = s
 	m.markDirty(currentShard, s)
 	return Result{SessionID: s.sessionID, VisitorID: s.visitorID, New: true}
 }
@@ -358,7 +364,11 @@ func (m *Memory) shardIndex(visitorID int64) int {
 }
 
 func (m *Memory) canContinue(s *memorySession, at time.Time) bool {
-	return s != nil && time.Duration(at.UnixNano()-s.lastNS) <= IdleTimeout
+	if s == nil {
+		return false
+	}
+	atNS := at.UnixNano()
+	return atNS >= s.startNS-int64(IdleTimeout) && atNS <= s.lastNS+int64(IdleTimeout)
 }
 
 func (m *Memory) newSession(h Hit) *memorySession {
@@ -417,17 +427,24 @@ func restoredSession(snapshot Snapshot) *memorySession {
 }
 
 func (m *Memory) apply(sh *memoryShard, s *memorySession, h Hit) {
-	if timestamp := h.TS.UnixNano(); timestamp > s.lastNS {
+	timestamp := h.TS.UnixNano()
+	inOrder := timestamp >= s.lastNS
+	if timestamp > s.lastNS {
 		s.lastNS = timestamp
+	}
+	if timestamp < s.startNS {
+		s.startNS = timestamp
 	}
 	switch h.Kind {
 	case 0:
 		pageviews, _ := m.counts(sh, s)
 		m.incrementPageviews(sh, s)
-		if pageviews == 0 {
-			s.entry = h.PathID
+		if inOrder {
+			if pageviews == 0 {
+				s.entry = h.PathID
+			}
+			s.exit = h.PathID
 		}
-		s.exit = h.PathID
 	case 2:
 		s.engagementMS += h.EngagementMS
 	default:
