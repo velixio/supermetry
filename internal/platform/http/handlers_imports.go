@@ -23,6 +23,9 @@ var errImportTooLarge = errors.New("import file exceeds size limit")
 
 const maxImportBytes int64 = 512 << 20
 
+// importUploadTimeout bounds how long one import upload may take to arrive.
+const importUploadTimeout = 30 * time.Minute
+
 type importUpload struct {
 	Source   string
 	FileName string
@@ -127,6 +130,9 @@ func (h *handler) createImport(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "import")
 		return
 	}
+	// Uploads up to maxImportBytes outlast the server-wide read timeout on a
+	// normal uplink; allow a generous but bounded window for this route.
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(importUploadTimeout))
 	r.Body = http.MaxBytesReader(w, r.Body, maxImportBytes+(1<<20))
 	upload, err := saveImportMultipart(r, "", maxImportBytes)
 	if err != nil {

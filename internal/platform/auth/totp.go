@@ -60,7 +60,7 @@ func (a *Auth) ConfirmTOTP(ctx context.Context, userID int64, code string) error
 	var enabled bool
 	err = a.store.Tx(ctx, func(tx pgx.Tx) error {
 		var activateErr error
-		enabled, activateErr = store.ActivatePendingTOTP(ctx, tx, userID, step)
+		enabled, activateErr = store.ActivatePendingTOTP(ctx, tx, userID, step, user.TOTPPendingSecretEnc)
 		if activateErr != nil || !enabled {
 			return activateErr
 		}

@@ -38,7 +38,19 @@ func TestPendingTOTPEnrollmentPreservesActiveCredentialsUntilActivation(t *testi
 	}
 
 	if err := data.Tx(ctx, func(tx pgx.Tx) error {
-		activated, err := store.ActivatePendingTOTP(ctx, tx, userID, 42)
+		activated, err := store.ActivatePendingTOTP(ctx, tx, userID, 42, []byte("replaced-secret"))
+		if err != nil {
+			return err
+		}
+		if activated {
+			t.Fatal("activated an enrollment whose pending secret was replaced")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := data.Tx(ctx, func(tx pgx.Tx) error {
+		activated, err := store.ActivatePendingTOTP(ctx, tx, userID, 42, []byte("pending-secret"))
 		if err != nil {
 			return err
 		}

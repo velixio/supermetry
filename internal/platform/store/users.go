@@ -82,7 +82,10 @@ func (s *Store) SetPendingTOTPEnrollment(ctx context.Context, userID int64, encr
 	return err
 }
 
-func ActivatePendingTOTP(ctx context.Context, db DBTX, userID, step int64) (bool, error) {
+// ActivatePendingTOTP promotes the pending enrollment only if it is still the
+// one whose secret validated the code, so a re-enrollment in between cannot be
+// activated with a code for the earlier secret.
+func ActivatePendingTOTP(ctx context.Context, db DBTX, userID, step int64, pendingSecretEnc []byte) (bool, error) {
 	tag, err := db.Exec(ctx, `
 		update users
 		set totp_secret_enc=totp_pending_secret_enc,
@@ -91,7 +94,7 @@ func ActivatePendingTOTP(ctx context.Context, db DBTX, userID, step int64) (bool
 		    totp_pending_secret_enc=null,
 		    totp_pending_recovery='{}',
 		    totp_last_step=$2
-		where id=$1 and deleted_at is null and totp_pending_secret_enc is not null`, userID, step)
+		where id=$1 and deleted_at is null and totp_pending_secret_enc=$3`, userID, step, pendingSecretEnc)
 	return tag.RowsAffected() == 1, err
 }
 
@@ -127,6 +130,6 @@ func (s *Store) ConsumeRecoveryCode(ctx context.Context, userID int64, hash []by
 	tag, err := s.Pool.Exec(ctx, `
 		update users
 		set totp_recovery=array_remove(totp_recovery,$2::bytea)
-		where id=$1 and $2::bytea=any(totp_recovery)`, userID, hash)
+		where id=$1 and deleted_at is null and totp_enabled and $2::bytea=any(totp_recovery)`, userID, hash)
 	return tag.RowsAffected() == 1, err
 }
