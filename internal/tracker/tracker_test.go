@@ -161,10 +161,12 @@ func TestMinifiedTrackerGzipSize(t *testing.T) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// Replay is full-build-only. Keep the core at or below the checked-in
-	// pre-replay artifact's size under this deterministic Go gzip encoder.
-	if got := compressed.Len(); got > 1004 {
-		t.Fatalf("gzipped tracker = %d bytes, want no more than unchanged 1004-byte baseline", got)
+	// User-approved privacy budget (2026-10-09): required GPC/DNT and consent
+	// controls grew the 1004-byte baseline to 1067 bytes. Keep a narrow 1100-byte
+	// regression ceiling; replay/heavy features remain outside the core build.
+	t.Logf("core tracker gzip: %d bytes (baseline 1004; budget 1100)", compressed.Len())
+	if got := compressed.Len(); got > 1100 {
+		t.Fatalf("gzipped tracker = %d bytes, want at most 1100-byte privacy budget", got)
 	}
 }
 

@@ -144,7 +144,11 @@ Verification uses isolated synthetic PostgreSQL and real Go/Bun/Chromium tools.
 Existing tests that exercise identified features explicitly select identified
 fixtures; privacy tests exercise the anonymous zero value. Existing backpressure
 20 ms timing and UTM closed-storage failures are reported separately if observed;
-thresholds and assertions are not weakened. Optional S3/backup fixture skips are
+their thresholds and assertions are unchanged. The user approved a specific
+core tracker gzip budget increase for required privacy/consent controls: 1004-byte
+baseline, 1067-byte artifact (+63 bytes, about 6.3%), 1100-byte regression cap.
+The size test remains enabled; replay and heavy features stay separate.
+Optional S3/backup fixture skips are
 not coverage. See the candidate handoff for exact commands/results.
 
 This is a local review candidate, not a deployment or approval to change any
