@@ -15,10 +15,12 @@ const schemaDSN = new URL(testDSN)
 schemaDSN.searchParams.set('options', `-csearch_path=${schema}`)
 const resetFile = `/tmp/${schema}-reset.txt`
 const sitesFile = `/tmp/${schema}-sites.json`
+const serverPIDFile = `/tmp/${schema}-server.pid`
 process.env.SUPERMETRY_TEST_DSN = testDSN
 process.env.SUPERMETRY_E2E_SCHEMA = schema
 process.env.SUPERMETRY_E2E_RESET_FILE = resetFile
 process.env.SUPERMETRY_E2E_SITES_FILE = sitesFile
+process.env.SUPERMETRY_E2E_SERVER_PID_FILE = serverPIDFile
 
 const serverCommand = String.raw`
 set -eu
@@ -38,6 +40,7 @@ for site in $(seq 1 100); do
 done
 ../bin/supermetry user create --email owner@supermetry.test --org Acme > "$SUPERMETRY_E2E_RESET_FILE"
 export SUPERMETRY_LISTEN="127.0.0.1:$SUPERMETRY_E2E_PORT"
+echo "$$" > "$SUPERMETRY_E2E_SERVER_PID_FILE"
 exec ../bin/supermetry serve
 `
 
@@ -80,6 +83,7 @@ export default defineConfig({
       SUPERMETRY_E2E_PORT: String(port),
       SUPERMETRY_E2E_RESET_FILE: resetFile,
       SUPERMETRY_E2E_SITES_FILE: sitesFile,
+      SUPERMETRY_E2E_SERVER_PID_FILE: serverPIDFile,
       SUPERMETRY_E2E_SECRET_KEY: Buffer.alloc(32, 'e').toString('base64'),
     },
     url: `${baseURL}/readyz`,
