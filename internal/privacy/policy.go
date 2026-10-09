@@ -1,5 +1,5 @@
-// Package privacy computes prospective collection policy without I/O. It does
-// not enforce policy, change runtime defaults, or govern access to stored data.
+// Package privacy computes value policies and bounded sanitization without I/O.
+// Callers enforce these decisions at collection, persistence and read boundaries.
 package privacy
 
 import "fmt"

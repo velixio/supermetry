@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"panel/internal/privacy"
 )
 
 const (
@@ -42,6 +44,7 @@ type SMTP struct {
 
 type Config struct {
 	Tracking             TrackingMode
+	TrackingPaths        privacy.PathPolicy
 	DatabaseURL          string
 	Listen               string
 	BaseURL              string
@@ -96,9 +99,11 @@ func Load(getenv func(string) string) (Config, error) {
 func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	getenv := func(key string) string { value, _ := lookup(key); return value }
 	tracking, trackingErr := ParseTrackingMode(lookup(TrackingModeEnv))
+	trackingPaths, trackingPathsErr := ParseTrackingPublicPaths(lookup(TrackingPublicPathsEnv))
 	geo, geoErr := LoadGeoIP(getenv)
 	c := Config{
 		Tracking:             tracking,
+		TrackingPaths:        trackingPaths,
 		DatabaseURL:          getenv("PANEL_DATABASE_URL"),
 		Listen:               valueOrDefault(getenv("PANEL_LISTEN"), defaultListen),
 		BaseURL:              getenv("PANEL_BASE_URL"),
@@ -128,6 +133,9 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		},
 	}
 	var errs []error
+	if trackingPathsErr != nil {
+		errs = append(errs, trackingPathsErr)
+	}
 	if trackingErr != nil {
 		errs = append(errs, trackingErr)
 	}
