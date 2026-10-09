@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"panel/internal/privacy"
 	"strings"
 	"testing"
 	"time"
@@ -63,7 +64,7 @@ func (r mcpRegistry) Site(id int32) (sites.Site, bool)     { site, ok := r[id]; 
 func (r mcpRegistry) All() []sites.Site                    { return nil }
 
 func TestMCPHandler_ProtocolMethods(t *testing.T) {
-	handler := NewMCPHandler(MCPDeps{})
+	handler := NewMCPHandler(MCPDeps{TrackingMode: privacy.Identified})
 
 	t.Run("initialize negotiates current protocol", func(t *testing.T) {
 		response := callAuthorizedMCP(t, handler, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`)
@@ -159,7 +160,7 @@ func TestMCPHandler_ToolsCall(t *testing.T) {
 	resources.HandleFunc("GET /api/public/v1/sites/{site}/funnels", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, []SavedFunnel{{Id: 11, SiteId: 1, Name: "Signup", Steps: []FunnelStep{{Type: Page, Match: "exact", Value: "/"}, {Type: Event, Match: "exact", Value: "signup"}}}})
 	})
-	handler := NewMCPHandler(MCPDeps{Query: query, Resources: resources, Sessions: mcpSessionStub{}, Now: func() time.Time { return time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC) }})
+	handler := NewMCPHandler(MCPDeps{TrackingMode: privacy.Identified, Query: query, Resources: resources, Sessions: mcpSessionStub{}, Now: func() time.Time { return time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC) }})
 
 	tests := []struct{ name, tool, arguments, contains string }{
 		{name: "list sites", tool: "list_sites", arguments: `{}`, contains: `Example`},
@@ -188,7 +189,7 @@ func TestMCPHandler_ToolsCall(t *testing.T) {
 }
 
 func TestMCPHandler_Errors(t *testing.T) {
-	handler := NewMCPHandler(MCPDeps{})
+	handler := NewMCPHandler(MCPDeps{TrackingMode: privacy.Identified})
 	tests := []struct {
 		name, body string
 		code       int
@@ -239,7 +240,7 @@ func TestMCPHandler_Errors(t *testing.T) {
 }
 
 func TestMCPHandler_Authorization(t *testing.T) {
-	handler := NewMCPHandler(MCPDeps{Sessions: mcpSessionStub{}})
+	handler := NewMCPHandler(MCPDeps{TrackingMode: privacy.Identified, Sessions: mcpSessionStub{}})
 
 	t.Run("missing principal is unauthorized", func(t *testing.T) {
 		request := httptest.NewRequest(http.MethodPost, "http://panel.test/api/public/v1/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
@@ -262,7 +263,7 @@ func TestMCPHandler_Authorization(t *testing.T) {
 
 	t.Run("foreign and unassigned sites are denied on every site tool", func(t *testing.T) {
 		query := &mcpQueryStub{}
-		denying := NewMCPHandler(MCPDeps{Query: query, Resources: http.NewServeMux(), Sessions: mcpSessionStub{}})
+		denying := NewMCPHandler(MCPDeps{TrackingMode: privacy.Identified, Query: query, Resources: http.NewServeMux(), Sessions: mcpSessionStub{}})
 		calls := []string{
 			`{"name":"get_summary","arguments":{"site":%d,"period":"7d"}}`,
 			`{"name":"get_timeseries","arguments":{"site":%d,"period":"7d","interval":"day","metrics":["visitors"]}}`,

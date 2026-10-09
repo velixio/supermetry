@@ -29,7 +29,7 @@ func (s heatmapStub) Query(_ context.Context, _ api.HeatmapRequest) (api.Heatmap
 func TestHeatmapRoutesAuthorizeSiteAndScope(t *testing.T) {
 	registry := orgSites{1: {ID: 1, OrgID: 7}, 2: {ID: 2, OrgID: 7}}
 	newRouter := func(service heatmapStub, scopes []string) http.Handler {
-		return api.NewRouter(api.Deps{
+		return identifiedRouter(api.Deps{
 			Config:      config.Config{},
 			Query:       queryStub{},
 			Heatmaps:    service,

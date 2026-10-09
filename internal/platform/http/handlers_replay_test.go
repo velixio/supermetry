@@ -18,6 +18,7 @@ import (
 	"panel/internal/platform/authz"
 	platformhttp "panel/internal/platform/http"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	"panel/internal/replay"
 	"panel/internal/testpg"
 )
@@ -30,7 +31,11 @@ type replayFixture struct {
 	foreignSite int32
 }
 
-func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv) replayFixture {
+func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv, modes ...privacy.Mode) replayFixture {
+	mode := privacy.Identified
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
 	t.Helper()
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
@@ -74,7 +79,7 @@ func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv) replayFixture {
 		foreignSite: {ID: foreignSite, OrgID: foreignOrgID, PublicID: "replaytest02", TZ: time.UTC, Retention: db.Ret30},
 	}
 	data := &store.Store{Pool: pool}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{TrackingMode: mode,
 		Authenticator: actorAuthenticator{
 			"owner":        {UserID: ownerID, OrgID: orgID, Role: authz.RoleOwner},
 			"foreign":      {UserID: foreignID, OrgID: foreignOrgID, Role: authz.RoleOwner},
@@ -386,19 +391,37 @@ func TestReplayEndpointsForbiddenAcrossOrgs(t *testing.T) {
 	}
 }
 
-func TestReplayEnabledComesOnlyFromEnvironment(t *testing.T) {
-	for _, envEnabled := range []bool{true, false} {
-		f := newReplayFixture(t, config.ReplayEnv{Enabled: envEnabled})
-		path := fmt.Sprintf("/api/private/sites/%d/replay-settings", f.siteID)
-		if response := f.request(t, "owner", http.MethodPut, path, fmt.Sprintf(`{"enabled":%t}`, !envEnabled)); response.Code != http.StatusConflict {
-			t.Fatalf("env=%t: PUT enabled=%t status=%d body=%s, want 409", envEnabled, !envEnabled, response.Code, response.Body.String())
-		}
-		if response := f.request(t, "owner", http.MethodPut, path, `{"sample_rate":40}`); response.Code != http.StatusOK {
-			t.Fatalf("env=%t: PUT sample_rate status=%d body=%s, want 200", envEnabled, response.Code, response.Body.String())
-		}
-		response := f.request(t, "viewer", http.MethodGet, path, "")
-		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), fmt.Sprintf(`"enabled":%t`, envEnabled)) {
-			t.Fatalf("env=%t: GET status=%d body=%s, want enabled=%t", envEnabled, response.Code, response.Body.String(), envEnabled)
+func TestReplayRequiresBothInstanceAndProjectPermission(t *testing.T) {
+	for _, instance := range []bool{true, false} {
+		t.Run(fmt.Sprint(instance), func(t *testing.T) {
+			f := newReplayFixture(t, config.ReplayEnv{Enabled: instance})
+			path := fmt.Sprintf("/api/private/sites/%d/replay-settings", f.siteID)
+			response := f.request(t, "owner", http.MethodGet, path, "")
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"enabled":false`) {
+				t.Fatalf("fresh settings: %d %s", response.Code, response.Body.String())
+			}
+			response = f.request(t, "owner", http.MethodPut, path, `{"enabled":true}`)
+			want := http.StatusConflict
+			if instance {
+				want = http.StatusOK
+			}
+			if response.Code != want {
+				t.Fatalf("enable: %d %s", response.Code, response.Body.String())
+			}
+			response = f.request(t, "owner", http.MethodPut, path, `{"enabled":false}`)
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"enabled":false`) {
+				t.Fatalf("disable: %d %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestAnonymousReplayReadsBlocked(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true}, privacy.Anonymous)
+	for _, suffix := range []string{"", "/100/data", "/css/" + strings.Repeat("a", 64)} {
+		response := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays%s", f.siteID, suffix), "")
+		if response.Code != http.StatusForbidden {
+			t.Fatalf("%s: %d %s", suffix, response.Code, response.Body.String())
 		}
 	}
 }
@@ -416,5 +439,28 @@ func TestReplayListSendsLargeSessionIDsAsStrings(t *testing.T) {
 	response := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09", f.siteID), "")
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"session_id":"1683029196918025731"`) {
 		t.Fatalf("status=%d body=%s, want session_id as a string", response.Code, response.Body.String())
+	}
+}
+
+func TestReplaySettingsAllowStricterProjectCaps(t *testing.T) {
+	mask, rate, retention, quota := true, 20, 30, int64(1000)
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true, Mask: &mask, SampleRate: &rate, Retention: &retention, QuotaBytes: &quota})
+	path := fmt.Sprintf("/api/private/sites/%d/replay-settings", f.siteID)
+	for _, body := range []string{`{"sample_rate":21}`, `{"retention_days":31}`, `{"quota_bytes":1001}`, `{"mask":false}`} {
+		response := f.request(t, "owner", http.MethodPut, path, body)
+		if response.Code != http.StatusConflict {
+			t.Fatalf("body=%s status=%d response=%s", body, response.Code, response.Body.String())
+		}
+	}
+	response := f.request(t, "owner", http.MethodPut, path, `{"enabled":true,"mask":true,"sample_rate":10,"retention_days":7,"quota_bytes":500}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("tightening: %d %s", response.Code, response.Body.String())
+	}
+	var settings replay.SiteSettings
+	if err := json.Unmarshal(response.Body.Bytes(), &settings); err != nil {
+		t.Fatal(err)
+	}
+	if !settings.Enabled || !settings.Mask.V || settings.SampleRate.V != 10 || settings.RetentionDays.V != 7 || settings.QuotaBytes.V != 500 {
+		t.Fatalf("settings=%+v", settings)
 	}
 }

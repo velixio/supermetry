@@ -119,6 +119,10 @@ func (h *handler) createImport(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Imported payloads can contain arbitrary historical paths and properties.
+	if !h.allowHistoricalIdentity(w) {
+		return
+	}
 	if h.deps.Imports == nil || h.deps.ImportQueue == nil {
 		unavailable(w, "import")
 		return
@@ -235,10 +239,12 @@ func (h *handler) exportSite(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// This archive contains aggregate analytics, not identified profiles or
-	// replay recordings. Any future sensitive entries must add their read gate.
+	// Aggregate exports can still contain identity-bearing historical paths.
 	if !authz.Can(principal, authz.ActionStatsRead, site.ID) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot read site analytics")
+		return
+	}
+	if !h.allowHistoricalIdentity(w) {
 		return
 	}
 	if h.deps.Exporter == nil {

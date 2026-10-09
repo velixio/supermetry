@@ -12,7 +12,7 @@ import (
 
 func TestUIServesNonAPIPathsOnly(t *testing.T) {
 	ui := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(299) })
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:      config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"},
 		Query:       queryStub{},
 		RateLimiter: ingest.NewTokenBuckets(0, 30),
@@ -30,7 +30,7 @@ func TestUIServesNonAPIPathsOnly(t *testing.T) {
 func TestTrackerUsesConfiguredPathAndHeaders(t *testing.T) {
 	t.Parallel()
 
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:      config.Config{TrackerPath: "/custom/tracker.js"},
 		RateLimiter: ingest.NewTokenBuckets(0, 30),
 	})

@@ -31,8 +31,9 @@ func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
 	if !authorizeSensitiveExport(w, r, principal, site.ID, authz.ActionProfilesRead) {
 		return
 	}
-	// Profiles stored while the setting was on stay listed after it is turned
-	// off, so they can still be found and erased.
+	if !h.allowHistoricalIdentity(w) {
+		return
+	}
 	if h.deps.Store == nil {
 		unavailable(w, "profile")
 		return
@@ -325,6 +326,9 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 func (h *handler) profilePrincipal(w http.ResponseWriter, r *http.Request, action authz.Action, roles ...authz.Role) (authz.Principal, coresites.Site, api.Profile, bool) {
 	principal, ok := h.principal(w, r)
 	if !ok {
+		return authz.Principal{}, coresites.Site{}, api.Profile{}, false
+	}
+	if action == authz.ActionProfilesRead && !h.allowHistoricalIdentity(w) {
 		return authz.Principal{}, coresites.Site{}, api.Profile{}, false
 	}
 	id, err := parseInt64(r.PathValue("profile"))

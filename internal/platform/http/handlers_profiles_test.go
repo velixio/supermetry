@@ -18,6 +18,7 @@ import (
 	platformhttp "panel/internal/platform/http"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	"panel/internal/profiletombstone"
 	"panel/internal/replay"
 	"panel/internal/testpg"
@@ -34,7 +35,11 @@ type profileFixture struct {
 	replays     replay.BlobStore
 }
 
-func newProfileFixture(t *testing.T) profileFixture {
+func newProfileFixture(t *testing.T, modes ...privacy.Mode) profileFixture {
+	mode := privacy.Identified
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
 	t.Helper()
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
@@ -104,7 +109,7 @@ func newProfileFixture(t *testing.T) profileFixture {
 		t.Fatal(err)
 	}
 	return profileFixture{
-		handler: platformhttp.New(platformhttp.Deps{Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones, ReplayStore: replays}),
+		handler: platformhttp.New(platformhttp.Deps{TrackingMode: mode, Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones, ReplayStore: replays}),
 		pool:    pool, siteID: siteID, disabledID: disabledID, foreignSite: foreignSite, profileID: profileID,
 		tombstones: tombstones, replays: replays,
 	}
@@ -407,5 +412,23 @@ func TestDisabledSiteProfilesStayErasable(t *testing.T) {
 	}
 	if got := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", profileID)).Code; got != http.StatusNoContent {
 		t.Fatalf("delete status=%d, want 204", got)
+	}
+}
+
+func TestAnonymousHistoricalReadsBlockedButErasureAllowed(t *testing.T) {
+	f := newProfileFixture(t, privacy.Anonymous)
+	for _, path := range []string{fmt.Sprintf("/api/private/sites/%d/profiles", f.siteID), fmt.Sprintf("/api/private/profiles/%d", f.profileID)} {
+		response := f.request(t, "owner", http.MethodGet, path)
+		if response.Code != http.StatusForbidden {
+			t.Fatalf("read %s: %d %s", path, response.Code, response.Body.String())
+		}
+	}
+	var count int
+	if err := f.pool.QueryRow(context.Background(), "select count(*) from profiles where id=$1", f.profileID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("read restriction erased data: count=%d err=%v", count, err)
+	}
+	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("erasure: %d %s", response.Code, response.Body.String())
 	}
 }

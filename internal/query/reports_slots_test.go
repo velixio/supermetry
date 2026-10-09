@@ -11,6 +11,7 @@ import (
 
 	"panel/internal/api"
 	"panel/internal/db"
+	"panel/internal/privacy"
 	"panel/internal/sites"
 )
 
@@ -31,7 +32,7 @@ func TestRawReportsWaitForGlobalQuerySlots(t *testing.T) {
 	}
 	defer pool.Close()
 	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
-	engine := &Engine{
+	engine := &Engine{trackingMode: privacy.Identified,
 		pool:     pool,
 		registry: oneSiteRegistry{site: sites.Site{ID: 1, TZ: time.UTC, Retention: db.RetForever}},
 		now:      func() time.Time { return now },

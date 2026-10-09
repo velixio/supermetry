@@ -1060,13 +1060,16 @@ type ReplayList struct {
 
 // ReplaySiteSettings defines model for ReplaySiteSettings.
 type ReplaySiteSettings struct {
-	Consent       ReplaySiteSettingsConsent `json:"consent"`
-	Enabled       bool                      `json:"enabled"`
-	Mask          ReplayValueBoolean        `json:"mask"`
-	QuotaBytes    ReplayValueInteger        `json:"quota_bytes"`
-	RetentionDays ReplayValueInteger        `json:"retention_days"`
-	SampleRate    ReplayValueInteger        `json:"sample_rate"`
-	Triggers      ReplayTriggers            `json:"triggers"`
+	ConfiguredEnabled *bool                     `json:"configured_enabled,omitempty"`
+	Consent           ReplaySiteSettingsConsent `json:"consent"`
+	Enabled           bool                      `json:"enabled"`
+	InstanceEnabled   *bool                     `json:"instance_enabled,omitempty"`
+	Mask              ReplayValueBoolean        `json:"mask"`
+	QuotaBytes        ReplayValueInteger        `json:"quota_bytes"`
+	Restrictions      *[]string                 `json:"restrictions,omitempty"`
+	RetentionDays     ReplayValueInteger        `json:"retention_days"`
+	SampleRate        ReplayValueInteger        `json:"sample_rate"`
+	Triggers          ReplayTriggers            `json:"triggers"`
 }
 
 // ReplaySiteSettingsConsent defines model for ReplaySiteSettings.Consent.
@@ -1161,14 +1164,19 @@ type ReplayTriggers struct {
 
 // ReplayValueBoolean defines model for ReplayValueBoolean.
 type ReplayValueBoolean struct {
-	Locked bool `json:"locked"`
-	Value  bool `json:"value"`
+	Configured  *bool   `json:"configured,omitempty"`
+	Locked      bool    `json:"locked"`
+	Restriction *string `json:"restriction,omitempty"`
+	Value       bool    `json:"value"`
 }
 
 // ReplayValueInteger defines model for ReplayValueInteger.
 type ReplayValueInteger struct {
-	Locked bool  `json:"locked"`
-	Value  int64 `json:"value"`
+	Configured  *int64  `json:"configured,omitempty"`
+	Locked      bool    `json:"locked"`
+	Maximum     *int64  `json:"maximum,omitempty"`
+	Restriction *string `json:"restriction,omitempty"`
+	Value       int64   `json:"value"`
 }
 
 // ReplayValueString defines model for ReplayValueString.

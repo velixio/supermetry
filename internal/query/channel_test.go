@@ -86,7 +86,7 @@ select site_id, retention_class, local_day, start, visitor_id, session_id, 0, 0,
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "channels", TZ: time.UTC, Retention: db.Ret30}}
-	return pool, query.NewEngine(pool, dictionary, reg)
+	return pool, identifiedEngine(pool, dictionary, reg)
 }
 
 func visitorsBy(response api.QueryResponse, dimension string) map[string]float64 {

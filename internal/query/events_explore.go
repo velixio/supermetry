@@ -16,6 +16,7 @@ import (
 	"panel/internal/api"
 	"panel/internal/db"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 	"panel/internal/sites"
 )
 
@@ -49,6 +50,9 @@ type normalizedExploreRange struct {
 }
 
 func (e *Engine) Events(ctx context.Context, req api.EventExploreRequest) (api.EventExploreList, error) {
+	if e.trackingMode != privacy.Identified {
+		return api.EventExploreList{}, api.ErrAnonymousHistory
+	}
 	site, err := e.exploreSite(req.SiteID)
 	if err != nil {
 		return api.EventExploreList{}, err
@@ -117,6 +121,9 @@ func (e *Engine) Events(ctx context.Context, req api.EventExploreRequest) (api.E
 }
 
 func (e *Engine) Properties(ctx context.Context, req api.PropertyExploreRequest) ([]api.PropertyKeyCount, error) {
+	if e.trackingMode != privacy.Identified {
+		return nil, api.ErrAnonymousHistory
+	}
 	rangeValue, err := e.normalizeExploreRange(req.SiteID, req.From, req.To)
 	if err != nil {
 		return nil, err
@@ -150,6 +157,9 @@ group by property.key order by count(*) desc,property.key limit ` + builder.arg(
 }
 
 func (e *Engine) PropertyValues(ctx context.Context, req api.PropertyValueExploreRequest) ([]api.PropertyValueCount, error) {
+	if e.trackingMode != privacy.Identified {
+		return nil, api.ErrAnonymousHistory
+	}
 	if strings.TrimSpace(req.Key) == "" || len(req.Key) > 2000 {
 		return nil, errors.New("property key must be between 1 and 2000 characters")
 	}
@@ -187,6 +197,9 @@ group by 1 order by count(*) desc,value limit ` + builder.arg(eventExploreAggreg
 }
 
 func (e *Engine) Suggestions(ctx context.Context, req api.SuggestionExploreRequest) ([]api.Suggestion, error) {
+	if e.trackingMode != privacy.Identified {
+		return nil, api.ErrAnonymousHistory
+	}
 	rangeValue, err := e.normalizeExploreRange(req.SiteID, req.From, req.To)
 	if err != nil {
 		return nil, err

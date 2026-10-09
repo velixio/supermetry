@@ -20,7 +20,7 @@ func TestEndpoints404WhenInstanceDisabled(t *testing.T) {
 		called = true
 		w.WriteHeader(http.StatusTeapot)
 	})
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config: config.Config{Replay: config.ReplayEnv{Enabled: false}},
 		Replay: replayHandler,
 	})
@@ -56,7 +56,7 @@ func TestReplayCSSRoutePreflightAndPut(t *testing.T) {
 	cssHandler := replay.NewCSSHandler(store, func(publicID string) (int32, bool) {
 		return 42, publicID == "public-site"
 	}, make(chan struct{}, 16), nil)
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:    config.Config{Replay: config.ReplayEnv{Enabled: true}},
 		ReplayCSS: cssHandler,
 	})

@@ -2573,6 +2573,8 @@ components:
       required: [value, locked]
       properties:
         value: { type: boolean }
+        configured: { type: boolean }
+        restriction: { type: string }
         locked: { type: boolean }
     ReplayValueInteger:
       type: object
@@ -2580,6 +2582,9 @@ components:
       required: [value, locked]
       properties:
         value: { type: integer, format: int64 }
+        configured: { type: integer, format: int64 }
+        maximum: { type: integer, format: int64 }
+        restriction: { type: string }
         locked: { type: boolean }
     ReplayValueString:
       type: object
@@ -2615,6 +2620,9 @@ components:
       required: [enabled, mask, sample_rate, retention_days, quota_bytes, triggers, consent]
       properties:
         enabled: { type: boolean }
+        configured_enabled: { type: boolean }
+        instance_enabled: { type: boolean }
+        restrictions: { type: array, items: { type: string } }
         mask: { $ref: '#/components/schemas/ReplayValueBoolean' }
         sample_rate: { $ref: '#/components/schemas/ReplayValueInteger' }
         retention_days: { $ref: '#/components/schemas/ReplayValueInteger' }

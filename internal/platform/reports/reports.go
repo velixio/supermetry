@@ -15,6 +15,7 @@ import (
 	"panel/internal/platform/authz"
 	"panel/internal/platform/mail"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	"panel/internal/scheduler"
 	"panel/internal/sites"
 )
@@ -49,17 +50,21 @@ type Queryer interface {
 
 // Reports manages subscriptions and the scheduled delivery job.
 type Reports struct {
-	store    *store.Store
-	engine   Queryer
-	registry sites.Registry
-	mailer   mail.Sender
-	now      func() time.Time
+	trackingMode privacy.Mode
+	store        *store.Store
+	engine       Queryer
+	registry     sites.Registry
+	mailer       mail.Sender
+	now          func() time.Time
 }
 
 // New constructs the email report service.
 func New(data *store.Store, engine Queryer, registry sites.Registry, sender mail.Sender) *Reports {
 	return &Reports{store: data, engine: engine, registry: registry, mailer: sender, now: time.Now}
 }
+
+// SetTrackingMode sets the policy before starting the scheduler.
+func (r *Reports) SetTrackingMode(mode privacy.Mode) { r.trackingMode = mode }
 
 // Subscribe adds the current user to a site's report cadence.
 func (r *Reports) Subscribe(ctx context.Context, principal authz.Principal, siteID int32, cadence string) error {
@@ -179,6 +184,9 @@ func (r *Reports) summary(ctx context.Context, site sites.Site, cadence string, 
 	summary.Visitors = int64(response.Totals[string(api.Visitors)])
 	summary.Pageviews = int64(response.Totals[string(api.Pageviews)])
 
+	if r.trackingMode != privacy.Identified {
+		return summary, nil
+	}
 	response, err = r.engine.Query(ctx, queryRequest(site, dateRange, "page"))
 	if err != nil {
 		return Summary{}, err

@@ -17,6 +17,7 @@ import (
 
 	"panel/internal/api"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 	"panel/internal/sites"
 )
 
@@ -126,14 +127,15 @@ func metricsSupported(metrics []api.Metric, route Route) bool {
 
 // Engine executes normalized queries against the storage tiers.
 type Engine struct {
-	pool        *pgxpool.Pool
-	dict        *dict.Dict
-	registry    sites.Registry
-	goals       GoalLookup
-	cache       *Cache
-	closeMemo   *Cache
-	forcedRoute *Route
-	now         func() time.Time
+	trackingMode privacy.Mode
+	pool         *pgxpool.Pool
+	dict         *dict.Dict
+	registry     sites.Registry
+	goals        GoalLookup
+	cache        *Cache
+	closeMemo    *Cache
+	forcedRoute  *Route
+	now          func() time.Time
 }
 
 // NewEngine constructs a query engine.
@@ -144,6 +146,9 @@ func NewEngine(pool *pgxpool.Pool, dictionary *dict.Dict, registry sites.Registr
 	}
 	return &Engine{pool: pool, dict: dictionary, registry: registry, goals: lookup, closeMemo: NewCache(1), now: time.Now}
 }
+
+// SetTrackingMode configures the restart-boundary policy before serving requests.
+func (e *Engine) SetTrackingMode(mode privacy.Mode) { e.trackingMode = mode }
 
 // SetCache attaches the shared closed-range result cache. NewEngine keeps its
 // existing signature so tests and embedders may opt in explicitly.
@@ -181,6 +186,11 @@ type resultRow struct {
 
 // Query runs a typed analytics query and returns finalized metric values.
 func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResponse, error) {
+	if e != nil && e.trackingMode != privacy.Identified {
+		if err := api.ValidateAnonymousQuery(req); err != nil {
+			return api.QueryResponse{}, err
+		}
+	}
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.QueryResponse{}, errors.New("query engine is not configured")
 	}
@@ -216,7 +226,7 @@ func (e *Engine) queryNormalized(ctx context.Context, req api.QueryRequest, site
 	var cacheKey Key
 	cacheable := e.cache != nil && e.forcedRoute == nil && cacheEligible(normalized, site, now, metadata) && partsExcludeHot(parts)
 	if cacheable {
-		cacheKey = CacheKey(normalized.SiteID, normalizedCacheQuery(normalized), closedThrough, metadata.maxCloseVersion)
+		cacheKey = CacheKey(normalized.SiteID, fmt.Sprintf("tracking:%d:%s", e.trackingMode, normalizedCacheQuery(normalized)), closedThrough, metadata.maxCloseVersion)
 		if response, ok := e.cache.Get(cacheKey); ok {
 			response.Meta.Cached = true
 			return response, nil
@@ -317,6 +327,13 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 		sources = append(sources, "imported")
 	}
 
+	if e.trackingMode != privacy.Identified {
+		for i := range rows {
+			for j, dimension := range normalized.Dimensions {
+				rows[i].dimensions[j], _ = privacy.CanonicalDimensionValue(dimension, rows[i].dimensions[j])
+			}
+		}
+	}
 	rows = mergeRows(rows)
 	sortResultRows(rows, normalized)
 	offset, err := cursorOffset(normalized.Cursor)

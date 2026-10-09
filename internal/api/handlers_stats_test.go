@@ -507,7 +507,7 @@ func (panicMinuteSource) Minutes(context.Context, int32, time.Time, time.Time) (
 
 func TestRealtimeUsesConfiguredMinuteSource(t *testing.T) {
 	now := time.Date(2026, 10, 8, 12, 0, 45, 0, time.UTC)
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config: config.Config{AdminAPIKey: "test-key"}, Query: queryFunc{query: func(api.QueryRequest) (api.QueryResponse, error) { return emptyQueryResponse(), nil }},
 		RateLimiter: ingest.NewTokenBuckets(0, 1000), Sessions: session.NewMemory(1, nil),
 		MinuteSource: apiMinuteSource{minutes: []session.MinuteVisitors{{Minute: time.Date(2026, 10, 8, 11, 59, 0, 0, time.UTC), Visitors: 6}}},
@@ -545,7 +545,7 @@ func TestRealtimeSummaryMatchesFullRealtimeWithoutDatabaseAccess(t *testing.T) {
 	} {
 		store.Touch(hit)
 	}
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config: config.Config{AdminAPIKey: "test-key"}, Sessions: store,
 		RateLimiter: ingest.NewTokenBuckets(0, 1000),
 		Sites:       orgSites{1: sites.Site{ID: 1, OrgID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30}},
@@ -578,7 +578,7 @@ func TestRealtimeSummaryMatchesFullRealtimeWithoutDatabaseAccess(t *testing.T) {
 		t.Fatalf("Cache-Control=%q, want no-store", got)
 	}
 
-	noDatabaseRouter := api.NewRouter(api.Deps{
+	noDatabaseRouter := identifiedRouter(api.Deps{
 		Config: config.Config{AdminAPIKey: "test-key"}, Sessions: store, MinuteSource: panicMinuteSource{},
 		RateLimiter: ingest.NewTokenBuckets(0, 1000),
 		Sites:       orgSites{1: sites.Site{ID: 1, OrgID: 1}},
@@ -603,7 +603,7 @@ func TestRealtimeSummaryAuthorizationMatchesFullRealtime(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			router := api.NewRouter(api.Deps{
+			router := identifiedRouter(api.Deps{
 				PublicAuth: test.auth, Sessions: session.NewMemory(1, nil), Sites: test.sites,
 				RateLimiter: ingest.NewTokenBuckets(0, 1000),
 			})
@@ -624,7 +624,7 @@ func TestPrivateRealtimeSummaryUsesDashboardSessionAuthorization(t *testing.T) {
 	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	store := session.NewMemory(1, nil)
 	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 101, PathID: 12})
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
 		Sessions:    store,
 		Sites:       orgSites{1: {ID: 1, OrgID: 7}},
@@ -653,7 +653,7 @@ func realtimeRequest(t *testing.T, router http.Handler, path, authorization stri
 }
 
 func TestDataHealthShowsRollupBackfillProgress(t *testing.T) {
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:      config.Config{AdminAPIKey: "test-key"},
 		PrivateAuth: api.StaticKey("test-key"),
 		RollupBackfillProgress: func(context.Context) (bool, int, int, error) {
@@ -718,7 +718,7 @@ func TestRealtimeAuthorization(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			router := api.NewRouter(api.Deps{
+			router := identifiedRouter(api.Deps{
 				Config: config.Config{}, Query: queryFunc{}, Sessions: session.NewMemory(1, nil),
 				PublicAuth: principalAuth{principal: test.principal}, RateLimiter: ingest.NewTokenBuckets(0, 1000),
 				Sites: orgSites{1: sites.Site{ID: 1, OrgID: 1, PublicID: "tiny", TZ: time.UTC}},
@@ -733,7 +733,7 @@ func TestRealtimeAuthorization(t *testing.T) {
 
 func statsTestRouter(query queryFunc, store session.Store) http.Handler {
 	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
-	return api.NewRouter(api.Deps{
+	return identifiedRouter(api.Deps{
 		Config: config.Config{AdminAPIKey: "test-key"}, Query: query,
 		RateLimiter: ingest.NewTokenBuckets(0, 1000), Sessions: store,
 		Dictionary: realtimeLabels{},

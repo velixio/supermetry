@@ -21,6 +21,7 @@ import (
 	platformhttp "panel/internal/platform/http"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	"panel/internal/replay"
 	"panel/internal/salts"
 	"panel/internal/session"
@@ -100,12 +101,12 @@ func TestReplayEndToEnd(t *testing.T) {
 		memory.Touch(session.Hit{SiteID: siteID, TS: now, LocalDay: now, VisitorID: visitorID})
 		w.WriteHeader(http.StatusAccepted)
 	})
-	platform := platformhttp.New(platformhttp.Deps{
+	platform := platformhttp.New(platformhttp.Deps{TrackingMode: privacy.Identified,
 		Authenticator: replayE2EAuth{principal: authz.Principal{OrgID: orgID, Role: authz.RoleOwner}},
 		Sites:         registry, Store: platformStore, ReplayStore: blobs, ReplayEnv: replayEnv,
 		Mutations: platformhttp.Services{Sites: sitesvc.New(platformStore, registry)},
 	})
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config: config.Config{EventPath: "/api/event", Replay: replayEnv},
 		Ingest: pageview, Replay: replayHandler, Platform: platform,
 	})
@@ -113,15 +114,16 @@ func TestReplayEndToEnd(t *testing.T) {
 	doReplayRequest(t, router, http.MethodPost, "/api/event", nil, http.StatusAccepted)
 	start := doReplayRequest(t, router, http.MethodPost, "/api/replay/start", bytes.NewBufferString(`{"s":"replaye2e001","u":"https://example.test/page"}`), http.StatusOK)
 	var startBody struct {
-		Mode string `json:"m"`
+		Mode    string `json:"m"`
+		Version string `json:"v"`
 	}
 	if err := json.Unmarshal(start.Body.Bytes(), &startBody); err != nil || startBody.Mode != "full" {
 		t.Fatalf("start response = %s, err=%v", start.Body.String(), err)
 	}
 	first := gzipReplayE2E(t, []byte("{\"type\":4}\n"))
 	second := gzipReplayE2E(t, []byte("{\"type\":2}\n"))
-	doReplayRequest(t, router, http.MethodPost, "/api/replay/chunk?s=replaye2e001&q=0&p=1", bytes.NewReader(first), http.StatusAccepted)
-	doReplayRequest(t, router, http.MethodPost, "/api/replay/chunk?s=replaye2e001&q=1&p=0", bytes.NewReader(second), http.StatusAccepted)
+	doReplayRequest(t, router, http.MethodPost, "/api/replay/chunk?s=replaye2e001&q=0&p=1&v="+startBody.Version, bytes.NewReader(first), http.StatusAccepted)
+	doReplayRequest(t, router, http.MethodPost, "/api/replay/chunk?s=replaye2e001&q=1&p=0&v="+startBody.Version, bytes.NewReader(second), http.StatusAccepted)
 
 	cancelIndex()
 	if err := <-indexDone; err != nil {

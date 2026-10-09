@@ -16,6 +16,7 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
+	"panel/internal/privacy"
 	"panel/internal/realtime"
 	"panel/internal/session"
 	"panel/internal/sites"
@@ -29,6 +30,7 @@ const mcpLegacyProtocolVersion = "2025-03-26"
 // Resources is the platform HTTP handler used for sites, goals, and saved
 // funnels so those tools retain the public API's authorization and behavior.
 type MCPDeps struct {
+	TrackingMode privacy.Mode
 	Query        queryService
 	Resources    http.Handler
 	Sessions     session.Store
@@ -208,6 +210,9 @@ func (h *mcpHandler) callTool(w http.ResponseWriter, r *http.Request, request mc
 }
 
 func (h *mcpHandler) runTool(ctx context.Context, r *http.Request, name string, arguments json.RawMessage) (any, error) {
+	if h.deps.TrackingMode != privacy.Identified && name != "get_summary" && name != "get_timeseries" && name != "get_breakdown" && name != "list_sites" {
+		return nil, ErrAnonymousHistory
+	}
 	switch name {
 	case "list_sites":
 		if err := requireMCPScopes(r); err != nil {
@@ -368,12 +373,20 @@ func (h *mcpHandler) query(ctx context.Context, r *http.Request, request QueryRe
 	if h.deps.Query == nil {
 		return nil, errors.New("query service is unavailable")
 	}
+	if h.deps.TrackingMode != privacy.Identified {
+		if err := ValidateAnonymousQuery(request); err != nil {
+			return nil, err
+		}
+	}
 	response, err := h.deps.Query.Query(ctx, request)
 	if err != nil {
 		if isClientQueryError(err.Error()) {
 			return nil, invalidMCPParams{detail: err.Error()}
 		}
 		return nil, errors.New("query failed")
+	}
+	if h.deps.TrackingMode != privacy.Identified {
+		response = SanitizeAnonymousResponse(response, request)
 	}
 	return response, nil
 }

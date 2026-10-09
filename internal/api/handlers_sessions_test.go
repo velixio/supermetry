@@ -116,7 +116,7 @@ func TestSessionsValidationAndAuthorization(t *testing.T) {
 
 func sessionRequest(t *testing.T, service *sessionExplorerStub, principal api.Principal, method, path string) *httptest.ResponseRecorder {
 	t.Helper()
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:         config.Config{},
 		SessionExplore: service,
 		PublicAuth:     principalAuth{principal: principal},

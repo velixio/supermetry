@@ -12,15 +12,21 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"panel/internal/api"
 	"panel/internal/csvsafe"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 )
 
 type Exporter struct {
-	pool *pgxpool.Pool
+	trackingMode privacy.Mode
+	pool         *pgxpool.Pool
 }
 
 func New(pool *pgxpool.Pool) *Exporter { return &Exporter{pool: pool} }
+
+// SetTrackingMode sets the startup policy; anonymous exports fail before writing bytes.
+func (e *Exporter) SetTrackingMode(mode privacy.Mode) { e.trackingMode = mode }
 
 type dimension struct {
 	file string
@@ -58,6 +64,9 @@ var attributions = []attribution{
 }
 
 func (e *Exporter) Write(ctx context.Context, output io.Writer, siteID int32, from, to time.Time) (resultErr error) {
+	if e.trackingMode != privacy.Identified {
+		return api.ErrAnonymousHistory
+	}
 	archive := zip.NewWriter(output)
 	defer func() {
 		if err := archive.Close(); resultErr == nil && err != nil {

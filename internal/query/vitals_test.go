@@ -371,7 +371,7 @@ func setupVitals(t *testing.T, retention db.RetentionClass) (*pgxpool.Pool, *Eng
 	}
 	dictionary := dict.New(pool)
 	registry := vitalsRegistry{site: sites.Site{ID: 1, PublicID: "vitals", TZ: time.UTC, Retention: retention}}
-	engine := NewEngine(pool, dictionary, registry)
+	engine := identifiedEngine(pool, dictionary, registry)
 	engine.now = func() time.Time { return vitalsDay("2026-10-08") }
 	return pool, engine
 }

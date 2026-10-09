@@ -13,6 +13,7 @@ import (
 	"panel/internal/api"
 	"panel/internal/db"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 )
 
 type retentionVisit struct {
@@ -31,6 +32,9 @@ const maxRetentionOffsets = 10
 // Retention reports repeat sessions within a daily visitor-ID identity
 // window. It intentionally never links IDs across salt rotation boundaries.
 func (e *Engine) Retention(ctx context.Context, req api.RetentionRequest) (api.RetentionResponse, error) {
+	if e.trackingMode != privacy.Identified {
+		return api.RetentionResponse{}, api.ErrAnonymousHistory
+	}
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.RetentionResponse{}, errors.New("query engine is not configured")
 	}

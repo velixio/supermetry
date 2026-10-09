@@ -19,6 +19,7 @@ import (
 	platformhttp "panel/internal/platform/http"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	coresites "panel/internal/sites"
 	"panel/internal/testpg"
 )
@@ -161,13 +162,13 @@ func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 	data := &store.Store{Pool: pool}
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)
-	sites := sitesvc.New(data, registry)
+	sites := sitesvc.New(data, registry, privacy.Identified)
 	owner := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
 	site, err := sites.Create(ctx, owner, "Example", []string{"example.test"}, "UTC", 30)
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{TrackingMode: privacy.Identified,
 		Authenticator: actorAuthenticator{
 			"owner":  owner,
 			"admin":  {UserID: userID, OrgID: orgID, Role: authz.RoleAdmin},

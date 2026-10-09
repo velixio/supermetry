@@ -15,6 +15,7 @@ import (
 	"panel/internal/api"
 	"panel/internal/db"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 )
 
 const (
@@ -35,6 +36,9 @@ type sessionCursor struct {
 
 // Sessions lists bounded anonymous session summaries across the closed and hot tiers.
 func (e *Engine) Sessions(ctx context.Context, siteID int32, params api.ListSessionsParams, filters []api.Filter) (api.SessionList, error) {
+	if e.trackingMode != privacy.Identified {
+		return api.SessionList{}, api.ErrAnonymousHistory
+	}
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.SessionList{}, errors.New("query engine is not configured")
 	}
@@ -118,6 +122,9 @@ func (e *Engine) Sessions(ctx context.Context, siteID int32, params api.ListSess
 
 // Session returns one hot-tier session and its chronological pageview/custom-event timeline.
 func (e *Engine) Session(ctx context.Context, siteID int32, sessionID int64) (api.SessionDetail, error) {
+	if e.trackingMode != privacy.Identified {
+		return api.SessionDetail{}, api.ErrAnonymousHistory
+	}
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.SessionDetail{}, errors.New("query engine is not configured")
 	}

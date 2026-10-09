@@ -13,6 +13,7 @@ import (
 	"panel/internal/api"
 	"panel/internal/db"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 	"panel/internal/session"
 	"panel/internal/sites"
 )
@@ -37,6 +38,9 @@ type journeyOptions struct {
 // Journey returns a raw-event path flow. Consecutive duplicate pageviews in
 // each session are collapsed before steps and links are counted.
 func (e *Engine) Journey(ctx context.Context, req api.JourneyRequest) (api.JourneyResponse, error) {
+	if e.trackingMode != privacy.Identified {
+		return api.JourneyResponse{}, api.ErrAnonymousHistory
+	}
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.JourneyResponse{}, errors.New("query engine is not configured")
 	}

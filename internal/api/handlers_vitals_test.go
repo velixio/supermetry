@@ -29,7 +29,7 @@ func (s vitalsQueryStub) Vitals(_ context.Context, _ api.VitalsRequest) (api.Vit
 func TestVitalsRoutesAuthorizeSiteAndMapRetentionErrors(t *testing.T) {
 	registry := orgSites{1: {ID: 1, OrgID: 7}, 2: {ID: 2, OrgID: 7}}
 	newRouter := func(service vitalsQueryStub) http.Handler {
-		return api.NewRouter(api.Deps{
+		return identifiedRouter(api.Deps{
 			Config:      config.Config{},
 			Query:       service,
 			PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{2}}},
