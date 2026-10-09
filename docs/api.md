@@ -43,7 +43,7 @@ curl "https://panel.example.com/api/public/v1/stats/breakdown?site_id=1&period=3
 | POST | `/journeys/query` | Page-to-page flow from a start page or into an end page |
 | POST | `/retention/query` | Cohort retention (across days for identified profiles; same-day for anonymous visitors) |
 | POST | `/heatmaps/query` | Click grid and scroll map for a page and device |
-| POST | `/vitals/query` | Web Vitals (LCP, CLS, INP) p75 and ratings, overall or by page, device, country or browser |
+| POST | `/vitals/query` | Web Vitals (LCP, CLS, INP) overall/breakdown p75 and ratings plus retained daily p50/p75/p95 trends and sample counts, using site-timezone buckets |
 
 Funnel steps are ordered within one site-local session. Page and custom-event values support `exact`, `prefix`, and anchored `wildcard` matching. In wildcard mode only `*` expands to any characters; `%` and `_` are literal. Exact and prefix modes also treat `*` literally. The wildcard grammar does not currently provide an escape for a literal `*`. Funnel `visitors` values count sessions completing each step, not durable people across sessions or days. Step property fields are reserved but are not yet applied by funnel queries.
 

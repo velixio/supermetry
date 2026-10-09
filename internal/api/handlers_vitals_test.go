@@ -23,7 +23,7 @@ func (s vitalsQueryStub) Vitals(_ context.Context, _ api.VitalsRequest) (api.Vit
 	if s.err != nil {
 		return api.VitalsResponse{}, s.err
 	}
-	return api.VitalsResponse{Breakdown: []api.VitalsBreakdown{}}, nil
+	return api.VitalsResponse{Breakdown: []api.VitalsBreakdown{}, Timeseries: []api.VitalsTrendPoint{}}, nil
 }
 
 func TestVitalsRoutesAuthorizeSiteAndMapRetentionErrors(t *testing.T) {
@@ -46,6 +46,9 @@ func TestVitalsRoutesAuthorizeSiteAndMapRetentionErrors(t *testing.T) {
 		newRouter(vitalsQueryStub{}).ServeHTTP(response, request)
 		if response.Code != http.StatusOK {
 			t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+		}
+		if !strings.Contains(response.Body.String(), `"timeseries":[]`) {
+			t.Fatalf("body=%s", response.Body.String())
 		}
 	})
 

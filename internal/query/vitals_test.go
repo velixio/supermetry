@@ -50,6 +50,13 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 		t.Fatalf("breakdown = %+v", response.Breakdown)
 	}
 	assertVitalMetric(t, "page lcp", response.Breakdown[0].Lcp, 1750, 3, 1, 0, 0)
+	if len(response.Timeseries) != 2 {
+		t.Fatalf("timeseries = %+v", response.Timeseries)
+	}
+	assertVitalTrendMetric(t, "2026-10-06 lcp", response.Timeseries[0].Lcp, 1500, 1750, 1950, 2)
+	assertVitalTrendMetric(t, "2026-10-07 lcp", response.Timeseries[1].Lcp, 3000, 4000, 4800, 3)
+	assertVitalTrendMetric(t, "2026-10-07 cls", response.Timeseries[1].Cls, 200, 250, 290, 3)
+	assertVitalTrendMetric(t, "2026-10-07 inp", response.Timeseries[1].Inp, 400, 500, 580, 3)
 
 	filters := []api.Filter{{Dimension: "country", Operator: api.Is, Values: []string{"US"}}}
 	filtered, err := engine.Vitals(context.Background(), api.VitalsRequest{
@@ -65,6 +72,8 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 		t.Fatalf("filtered breakdown = %+v", filtered.Breakdown)
 	}
 	assertVitalMetric(t, "filtered lcp", filtered.Overall.Lcp, 1750, 3, 1, 0, 0)
+	assertVitalTrendMetric(t, "filtered 2026-10-06 lcp", filtered.Timeseries[0].Lcp, 1500, 1750, 1950, 2)
+	assertVitalTrendMetric(t, "filtered 2026-10-07 lcp", filtered.Timeseries[1].Lcp, 1500, 1500, 1500, 1)
 
 	sharedFilters := []api.Filter{
 		{Dimension: "entry", Operator: api.Is, Values: []string{"/"}},
@@ -80,6 +89,28 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertVitalMetric(t, "shared-filter lcp", shared.Overall.Lcp, 1375, 2, 1, 0, 0)
+}
+
+func TestEngine_VitalsIncludesSparseDays(t *testing.T) {
+	pool, engine := setupVitals(t, db.Ret30)
+	seedVitals(t, pool)
+	response, err := engine.Vitals(context.Background(), api.VitalsRequest{
+		SiteId: 1,
+		DateRange: api.DateRange{
+			From: openapi_types.Date{Time: vitalsDay("2026-10-05")},
+			To:   openapi_types.Date{Time: vitalsDay("2026-10-07")},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Timeseries) != 3 || response.Timeseries[0].Date.Time.Format(time.DateOnly) != "2026-10-05" {
+		t.Fatalf("timeseries = %+v", response.Timeseries)
+	}
+	empty := response.Timeseries[0]
+	if empty.Lcp.Samples != 0 || empty.Lcp.P50 != nil || empty.Lcp.P75 != nil || empty.Lcp.P95 != nil {
+		t.Fatalf("empty day LCP = %+v", empty.Lcp)
+	}
 }
 
 func TestEngine_VitalsDecodesDiagnosticBreakdowns(t *testing.T) {
@@ -145,6 +176,7 @@ func TestNormalizeVitalsRejectsInvalidRequests(t *testing.T) {
 		{name: "missing date range", req: api.VitalsRequest{SiteId: 1}, want: "date_range.from and date_range.to are required"},
 		{name: "unknown dimension", req: api.VitalsRequest{SiteId: 1, DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay("2026-10-06")}, To: openapi_types.Date{Time: vitalsDay("2026-10-07")}}, Dimension: &invalidDimension}, want: `unknown dimension "source"`},
 		{name: "revenue filter", req: api.VitalsRequest{SiteId: 1, DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay("2026-10-06")}, To: openapi_types.Date{Time: vitalsDay("2026-10-07")}}, Filters: &revenueFilters}, want: "filter dimension \"revenue_currency\" is not meaningful for Web Vitals"},
+		{name: "future range", req: api.VitalsRequest{SiteId: 1, DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay("2026-10-08")}, To: openapi_types.Date{Time: vitalsDay("2026-10-09")}}}, want: "date_range.to must not be after today in the site's timezone"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,6 +186,84 @@ func TestNormalizeVitalsRejectsInvalidRequests(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNormalizeVitalsCapsForeverRetentionTrendRange(t *testing.T) {
+	request := api.VitalsRequest{SiteId: 1, DateRange: api.DateRange{
+		From: openapi_types.Date{Time: vitalsDay("2025-10-07")},
+		To:   openapi_types.Date{Time: vitalsDay("2026-10-08")},
+	}}
+	_, err := normalizeVitals(request, sites.Site{ID: 1, TZ: time.UTC, Retention: db.RetForever}, vitalsDay("2026-10-08"))
+	if err == nil || err.Error() != "Web Vitals trends support at most 366 days per request" {
+		t.Fatalf("normalizeVitals() error = %v", err)
+	}
+}
+
+func TestNormalizeVitalsUsesSiteTimezoneAcrossDST(t *testing.T) {
+	location, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := api.VitalsRequest{SiteId: 1, DateRange: api.DateRange{
+		From: openapi_types.Date{Time: vitalsDay("2026-10-31")},
+		To:   openapi_types.Date{Time: vitalsDay("2026-11-01")},
+	}}
+	normalized, err := normalizeVitals(request, sites.Site{ID: 1, TZ: location, Retention: db.Ret30}, time.Date(2026, 11, 2, 12, 0, 0, 0, location))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := normalized.fromTimestamp.UTC(), time.Date(2026, 10, 31, 4, 0, 0, 0, time.UTC); !got.Equal(want) {
+		t.Fatalf("from timestamp = %s, want %s", got, want)
+	}
+	if got, want := normalized.toTimestamp.UTC(), time.Date(2026, 11, 2, 5, 0, 0, 0, time.UTC); !got.Equal(want) {
+		t.Fatalf("to timestamp = %s, want %s", got, want)
+	}
+	if normalized.toTimestamp.Sub(normalized.fromTimestamp) != 49*time.Hour {
+		t.Fatalf("DST range duration = %s, want 49h", normalized.toTimestamp.Sub(normalized.fromTimestamp))
+	}
+}
+
+func TestEngine_VitalsBucketsRepeatedDSTHourBySiteDay(t *testing.T) {
+	location, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, vitalsDay("2026-10-30"), vitalsDay("2026-11-03")); err != nil {
+		t.Fatal(err)
+	}
+	dictionary := dict.New(pool)
+	registry := vitalsRegistry{site: sites.Site{ID: 1, PublicID: "vitals", TZ: location, Retention: db.Ret30}}
+	engine := identifiedEngine(pool, dictionary, registry)
+	engine.now = func() time.Time { return time.Date(2026, 11, 2, 12, 0, 0, 0, location) }
+	_, err = pool.Exec(ctx, `
+insert into dict(kind,id,value) values (0,1,'/'),(7,10,'Web Vitals');
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,props)
+values
+  (1,30,'2026-10-31','2026-10-31 04:00Z',1,1,1,10,1,'{"lcp":"1000"}'),
+  (1,30,'2026-11-01','2026-11-01 05:30Z',2,2,1,10,1,'{"lcp":"2000"}'),
+  (1,30,'2026-11-01','2026-11-01 06:30Z',3,3,1,10,1,'{"lcp":"3000"}'),
+  (1,30,'2026-11-02','2026-11-02 05:00Z',4,4,1,10,1,'{"lcp":"9000"}')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := engine.Vitals(ctx, api.VitalsRequest{SiteId: 1, DateRange: api.DateRange{
+		From: openapi_types.Date{Time: vitalsDay("2026-10-31")},
+		To:   openapi_types.Date{Time: vitalsDay("2026-11-01")},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Timeseries) != 2 {
+		t.Fatalf("timeseries = %+v", response.Timeseries)
+	}
+	assertVitalTrendMetric(t, "Oct 31", response.Timeseries[0].Lcp, 1000, 1000, 1000, 1)
+	assertVitalTrendMetric(t, "Nov 1 repeated hour", response.Timeseries[1].Lcp, 2500, 2750, 2950, 2)
 }
 
 func TestBuildVitalsSQLPrunesHotPartitions(t *testing.T) {
@@ -295,8 +405,9 @@ analyze events;`)
 		t.Fatal(err)
 	}
 	filters := []api.Filter{{Dimension: "prop:plan", Operator: api.Is, Values: []string{"pro"}}}
+	dimension := api.VitalsDimensionPage
 	req := api.VitalsRequest{
-		SiteId: 1, DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay("2026-10-07")}, To: openapi_types.Date{Time: vitalsDay("2026-10-07")}}, Filters: &filters,
+		SiteId: 1, DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay("2026-10-07")}, To: openapi_types.Date{Time: vitalsDay("2026-10-07")}}, Filters: &filters, Dimension: &dimension,
 	}
 	if _, err := engine.Vitals(ctx, req); err != nil { // warm caches and prepared plans
 		t.Fatal(err)
@@ -310,8 +421,13 @@ analyze events;`)
 	if got.Overall.Lcp.Samples != 1500 {
 		t.Fatalf("LCP samples = %d, want 1500", got.Overall.Lcp.Samples)
 	}
-	if elapsed >= 100*time.Millisecond {
-		t.Fatalf("filtered Web Vitals query took %s, want under 100ms", elapsed)
+	if len(got.Breakdown) != 1 || got.Breakdown[0].Lcp.Samples != 1500 || len(got.Timeseries) != 1 || got.Timeseries[0].Lcp.Samples != 1500 {
+		t.Fatalf("production-shape response = %+v", got)
+	}
+	// The production request intentionally returns totals, daily trends, and a
+	// diagnostic breakdown in one response, each with the same filtered cohort.
+	if elapsed >= 300*time.Millisecond {
+		t.Fatalf("filtered production-shape Web Vitals query took %s, want under 300ms", elapsed)
 	}
 }
 
@@ -440,6 +556,7 @@ values
   (1,30,'2026-10-07','2026-10-07 11:00Z',4,4,1,10,2,'IN',21,1,'{"lcp":"5000","cls":"300","inp":"600"}'),
 	(1,30,'2026-10-07','2026-10-07 12:00Z',5,5,1,10,2,'IN',21,1,'{"lcp":"invalid"}'),
 	(1,30,'2026-10-07','2026-10-07 13:00Z',6,6,1,10,2,'IN',21,1,'{"lcp":"999999999999999999999999999999"}'),
+	(1,30,'2026-10-07','2026-10-07 13:01Z',6,6,1,10,2,'IN',21,1,'{"lcp":"NaN","cls":"Infinity","inp":"-1"}'),
 	(1,30,'2026-10-06','2026-10-06 10:00:01Z',1,1,1,11,1,'US',0,0,'{"plan":"pro"}'),
 	(1,30,'2026-10-06','2026-10-06 11:00:01Z',2,2,1,11,2,'US',0,1,'{"plan":"starter"}'),
 	(1,30,'2026-10-06','2026-10-06 23:59:30Z',7,7,1,11,1,'US',0,0,'{"plan":"pro"}'),
@@ -452,6 +569,13 @@ values
 func assertVitalMetric(t *testing.T, name string, got api.VitalMetric, p75 float64, samples int64, good, needs, poor float64) {
 	t.Helper()
 	if got.P75 == nil || math.Abs(*got.P75-p75) > 1e-9 || got.Samples != samples || math.Abs(got.Good-good) > 1e-9 || math.Abs(got.NeedsImprovement-needs) > 1e-9 || math.Abs(got.Poor-poor) > 1e-9 {
+		t.Fatalf("%s = %+v", name, got)
+	}
+}
+
+func assertVitalTrendMetric(t *testing.T, name string, got api.VitalTrendMetric, p50, p75, p95 float64, samples int64) {
+	t.Helper()
+	if got.P50 == nil || got.P75 == nil || got.P95 == nil || math.Abs(*got.P50-p50) > 1e-9 || math.Abs(*got.P75-p75) > 1e-9 || math.Abs(*got.P95-p95) > 1e-9 || got.Samples != samples {
 		t.Fatalf("%s = %+v", name, got)
 	}
 }

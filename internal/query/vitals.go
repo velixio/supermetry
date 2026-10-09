@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"panel/internal/api"
 	"panel/internal/db"
@@ -16,7 +17,10 @@ import (
 	"panel/internal/sites"
 )
 
-const webVitalsEventName = "Web Vitals"
+const (
+	webVitalsEventName      = "Web Vitals"
+	maxVitalsTimeseriesDays = 366
+)
 
 type normalizedVitals struct {
 	siteID         int32
@@ -51,7 +55,7 @@ func (e *Engine) Vitals(ctx context.Context, req api.VitalsRequest) (api.VitalsR
 		return api.VitalsResponse{}, err
 	}
 
-	response := api.VitalsResponse{Breakdown: []api.VitalsBreakdown{}}
+	response := api.VitalsResponse{Breakdown: []api.VitalsBreakdown{}, Timeseries: []api.VitalsTrendPoint{}}
 	err = WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
 		overallSQL, args, err := buildVitalsSQL(normalized, nil)
 		if err != nil {
@@ -64,6 +68,39 @@ func (e *Engine) Vitals(ctx context.Context, req api.VitalsRequest) (api.VitalsR
 		}
 		response.Overall = overall
 
+		timeseriesSQL, args, err := buildVitalsTimeseriesSQL(normalized)
+		if err != nil {
+			return err
+		}
+		rows, err := tx.Query(ctx, timeseriesSQL, args...)
+		if err != nil {
+			return fmt.Errorf("query Web Vitals timeseries: %w", err)
+		}
+		byDay := make(map[string]api.VitalsTrendPoint)
+		for rows.Next() {
+			var day time.Time
+			point, err := scanVitalsTrendPoint(rows, &day)
+			if err != nil {
+				rows.Close()
+				return err
+			}
+			point.Date = openapi_types.Date{Time: civilDate(day)}
+			byDay[day.Format(time.DateOnly)] = point
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		rows.Close()
+		for day := normalized.from; !day.After(normalized.to); day = day.AddDate(0, 0, 1) {
+			key := day.Format(time.DateOnly)
+			point, ok := byDay[key]
+			if !ok {
+				point.Date = openapi_types.Date{Time: day}
+			}
+			response.Timeseries = append(response.Timeseries, point)
+		}
+
 		if normalized.dimension == nil {
 			return nil
 		}
@@ -71,7 +108,7 @@ func (e *Engine) Vitals(ctx context.Context, req api.VitalsRequest) (api.VitalsR
 		if err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, breakdownSQL, args...)
+		rows, err = tx.Query(ctx, breakdownSQL, args...)
 		if err != nil {
 			return fmt.Errorf("query Web Vitals breakdown: %w", err)
 		}
@@ -129,13 +166,20 @@ func normalizeVitals(req api.VitalsRequest, site sites.Site, now time.Time) (nor
 	if location == nil {
 		location = time.UTC
 	}
+	localNow := now.In(location)
+	today := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, time.UTC)
+	if to.After(today) {
+		return normalizedVitals{}, errors.New("date_range.to must not be after today in the site's timezone")
+	}
 	if site.Retention > 0 {
-		localNow := now.In(location)
-		today := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, time.UTC)
 		oldest := today.AddDate(0, 0, -int(site.Retention)+1)
 		if from.Before(oldest) {
 			return normalizedVitals{}, fmt.Errorf("Web Vitals are available only within the site's %d-day raw retention window", site.Retention)
 		}
+	}
+	days := int(to.Sub(from)/(24*time.Hour)) + 1
+	if days > maxVitalsTimeseriesDays {
+		return normalizedVitals{}, fmt.Errorf("Web Vitals trends support at most %d days per request", maxVitalsTimeseriesDays)
 	}
 	fromTimestamp := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, location)
 	toTimestamp := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, location).AddDate(0, 0, 1)
@@ -151,7 +195,7 @@ func normalizeVitals(req api.VitalsRequest, site sites.Site, now time.Time) (nor
 	}, nil
 }
 
-func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (string, []any, error) {
+func buildVitalsCTE(req normalizedVitals, dimension *api.VitalsDimension, daily bool) (string, []any, error) {
 	builder := &sqlBuilder{}
 	resolver := vitalsDimensionResolver("e")
 	directFilters, sessionFilters, specialFilters := splitVitalsFilters(req.filters)
@@ -171,7 +215,9 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
 	}
 	conditions = append(conditions, filterConditions...)
 	dimensionExpr := ""
-	if dimension != nil {
+	if daily {
+		dimensionExpr = "e.local_day"
+	} else if dimension != nil {
 		column, kind, err := resolver(string(*dimension))
 		if err != nil {
 			return "", nil, err
@@ -186,8 +232,12 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
 	dimensionSelect := ""
 	dimensionColumn := ""
 	if dimensionExpr != "" {
-		dimensionSelect = dimensionExpr + " as dimension,"
-		dimensionColumn = "dimension,"
+		name := "dimension"
+		if daily {
+			name = "day"
+		}
+		dimensionSelect = dimensionExpr + " as " + name + ","
+		dimensionColumn = name + ","
 	}
 	ctePrefix := ""
 	if len(filterCTEs) > 0 {
@@ -213,6 +263,14 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
     case when inp <= 60000 then inp end as inp
   from parsed_vitals
 )`
+	return cte, builder.args, nil
+}
+
+func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (string, []any, error) {
+	cte, args, err := buildVitalsCTE(req, dimension, false)
+	if err != nil {
+		return "", nil, err
+	}
 	aggregates := `
   percentile_cont(0.75) within group (order by lcp) filter (where lcp is not null)::float8,
   count(lcp)::int8,
@@ -230,14 +288,37 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
   coalesce(avg((inp > 200 and inp <= 500)::int) filter (where inp is not null),0)::float8,
   coalesce(avg((inp > 500)::int) filter (where inp is not null),0)::float8`
 	if dimension == nil {
-		return cte + " select" + aggregates + " from vitals", builder.args, nil
+		return cte + " select" + aggregates + " from vitals", args, nil
 	}
 	return cte + ` select dimension,` + aggregates + `
 from vitals
 where dimension <> '' and dimension <> '0'
 group by dimension
 order by count(lcp)+count(cls)+count(inp) desc, dimension
-limit 20`, builder.args, nil
+limit 20`, args, nil
+}
+
+func buildVitalsTimeseriesSQL(req normalizedVitals) (string, []any, error) {
+	cte, args, err := buildVitalsCTE(req, nil, true)
+	if err != nil {
+		return "", nil, err
+	}
+	return cte + ` select day,
+  percentile_cont(0.5) within group (order by lcp) filter (where lcp is not null)::float8,
+  percentile_cont(0.75) within group (order by lcp) filter (where lcp is not null)::float8,
+  percentile_cont(0.95) within group (order by lcp) filter (where lcp is not null)::float8,
+  count(lcp)::int8,
+  percentile_cont(0.5) within group (order by cls) filter (where cls is not null)::float8,
+  percentile_cont(0.75) within group (order by cls) filter (where cls is not null)::float8,
+  percentile_cont(0.95) within group (order by cls) filter (where cls is not null)::float8,
+  count(cls)::int8,
+  percentile_cont(0.5) within group (order by inp) filter (where inp is not null)::float8,
+  percentile_cont(0.75) within group (order by inp) filter (where inp is not null)::float8,
+  percentile_cont(0.95) within group (order by inp) filter (where inp is not null)::float8,
+  count(inp)::int8
+from vitals
+group by day
+order by day`, args, nil
 }
 
 func vitalsDimensionResolver(alias string) dimensionResolver {
@@ -370,4 +451,17 @@ func scanVitalsMetricsWithPrefix(row vitalsScanner, prefix ...any) (api.VitalsMe
 		return api.VitalsMetrics{}, fmt.Errorf("scan Web Vitals aggregate: %w", err)
 	}
 	return metrics, nil
+}
+
+func scanVitalsTrendPoint(row vitalsScanner, prefix ...any) (api.VitalsTrendPoint, error) {
+	point := api.VitalsTrendPoint{}
+	dest := append(prefix,
+		&point.Lcp.P50, &point.Lcp.P75, &point.Lcp.P95, &point.Lcp.Samples,
+		&point.Cls.P50, &point.Cls.P75, &point.Cls.P95, &point.Cls.Samples,
+		&point.Inp.P50, &point.Inp.P75, &point.Inp.P95, &point.Inp.Samples,
+	)
+	if err := row.Scan(dest...); err != nil {
+		return api.VitalsTrendPoint{}, fmt.Errorf("scan Web Vitals timeseries: %w", err)
+	}
+	return point, nil
 }

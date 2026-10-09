@@ -248,7 +248,7 @@ export interface paths {
         put?: never;
         /**
          * Query Web Vitals from raw events
-         * @description Returns p75 and rating shares for LCP, CLS, and INP. The requested range must be inside the site's raw-data retention window.
+         * @description Returns overall and breakdown p75/rating shares plus daily p50, p75, p95, and sample counts for LCP, CLS, and INP. Daily buckets use the site's timezone. The requested range must be inside the raw-data retention window, end no later than the current site-local day, and span at most 366 days.
          */
         post: operations["vitalsQuery"];
         delete?: never;
@@ -1367,9 +1367,28 @@ export interface components {
             cls: components["schemas"]["VitalMetric"];
             inp: components["schemas"]["VitalMetric"];
         };
+        VitalTrendMetric: {
+            /** Format: double */
+            p50?: number;
+            /** Format: double */
+            p75?: number;
+            /** Format: double */
+            p95?: number;
+            /** Format: int64 */
+            samples: number;
+        };
+        VitalsTrendPoint: {
+            /** Format: date */
+            date: string;
+            lcp: components["schemas"]["VitalTrendMetric"];
+            cls: components["schemas"]["VitalTrendMetric"];
+            inp: components["schemas"]["VitalTrendMetric"];
+        };
         VitalsResponse: {
             overall: components["schemas"]["VitalsMetrics"];
             breakdown: components["schemas"]["VitalsBreakdown"][];
+            /** @description Daily site-timezone buckets from raw events within the site's retention window. Days without valid samples are included with zero sample counts and omitted percentiles. */
+            timeseries: components["schemas"]["VitalsTrendPoint"][];
         };
         FunnelStep: {
             /** @enum {string} */

@@ -34,6 +34,7 @@ func TestAnonymousEngineRejectsBeforeStorageOrCache(t *testing.T) {
 		{"journey", func() error { _, e := engine.Journey(ctx, api.JourneyRequest{}); return e }},
 		{"funnel", func() error { _, e := engine.Funnel(ctx, api.FunnelRequest{}); return e }},
 		{"retention", func() error { _, e := engine.Retention(ctx, api.RetentionRequest{}); return e }},
+		{"vitals", func() error { _, e := engine.Vitals(ctx, api.VitalsRequest{}); return e }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := tc.run(); !errors.Is(err, api.ErrAnonymousHistory) {
