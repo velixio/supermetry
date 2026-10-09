@@ -111,9 +111,25 @@ func TestManagerRecoversPanicAndMarksImportFailed(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	done := make(chan error, 1)
-	go func() { done <- manager.Run(ctx) }()
+	done := make(chan struct{})
+	var runErr error
+	go func() {
+		defer close(done)
+		runErr = manager.Run(ctx)
+	}()
+	stop := func() {
+		t.Helper()
+		cancel()
+		select {
+		case <-done:
+			if !errors.Is(runErr, context.Canceled) {
+				t.Fatalf("manager shutdown error = %v, want context.Canceled", runErr)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("manager did not stop after cancellation")
+		}
+	}
+	t.Cleanup(stop)
 	if err := manager.Queue(Job{ImportID: 9, Source: SourceUmami, Path: path}); err != nil {
 		t.Fatal(err)
 	}
@@ -125,11 +141,12 @@ func TestManagerRecoversPanicAndMarksImportFailed(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("panicking import was not marked failed")
 	}
+	// Failure is recorded before runJob removes the upload in its defer.
+	// Run returning proves that deferred cleanup has completed.
+	stop()
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("temporary file was not removed: %v", err)
 	}
-	cancel()
-	<-done
 }
 
 func TestManagerMarksInterruptedAndQueuedImportsFailedOnShutdown(t *testing.T) {
