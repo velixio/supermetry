@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"panel/internal/dict"
 	"panel/internal/privacy"
 	"panel/internal/session"
 	"panel/internal/sites"
@@ -36,15 +37,17 @@ var Dropped, Written atomic.Int64
 // never contain an IP address or a full user-agent string.
 type Event struct {
 	session.Hit
-	SessionID         int64
-	ProfileExternalID string
-	ProfileTraits     map[string]string
-	ProfileID         int64
-	Props             map[string]string
-	Screen            int16
-	ReferrerID        int32
-	RevenueMicros     int64
-	RevenueCurrency   string
+	SessionID            int64
+	PathSanitizerVersion int16
+	PathPolicyID         string
+	ProfileExternalID    string
+	ProfileTraits        map[string]string
+	ProfileID            int64
+	Props                map[string]string
+	Screen               int16
+	ReferrerID           int32
+	RevenueMicros        int64
+	RevenueCurrency      string
 }
 
 // ClosedDays reports whether a site-local day has already been compacted.
@@ -65,9 +68,11 @@ type Writer struct {
 	closed            ClosedDays
 	profileTombstones ProfileTombstones
 
-	trackingMu    sync.RWMutex
-	trackingMode  privacy.Mode
-	trackingSites sites.Registry
+	trackingMu     sync.RWMutex
+	trackingMode   privacy.Mode
+	trackingSites  sites.Registry
+	pathPolicy     privacy.PathPolicy
+	pathDictionary *dict.Dict
 
 	poolMu sync.RWMutex
 	pool   *pgxpool.Pool
@@ -352,7 +357,7 @@ var eventColumns = []string{
 	"browser_ver_id", "os_ver_id", "language_id", "hostname_id", "device", "screen",
 	"engagement_ms", "scroll_pct", "props",
 	"revenue_micros", "revenue_currency",
-	"profile_id",
+	"profile_id", "path_sanitizer_version", "path_policy_id",
 }
 
 func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
@@ -541,7 +546,7 @@ type siteDay struct {
 type eventSource struct {
 	events []Event
 	index  int
-	row    [33]any
+	row    [35]any
 }
 
 func (s *eventSource) Next() bool {
@@ -557,14 +562,14 @@ func (s *eventSource) Values() ([]any, error) {
 	if event.Props != nil {
 		props = event.Props
 	}
-	s.row = [33]any{
+	s.row = [35]any{
 		event.SiteID, event.Retention, event.LocalDay, event.TS, event.VisitorID, event.SessionID, event.Kind,
 		event.NameID, event.PathID, event.ReferrerID, event.Source, event.UTMSource, event.Medium, event.Campaign,
 		int32(0), int32(0), event.Country, event.Region, event.City, event.Browser, event.OS,
 		event.BrowserVer, event.OSVer, event.Language, event.Hostname, event.Device, event.Screen,
 		event.EngagementMS, event.ScrollPct, props,
 		event.RevenueMicros, nullableString(event.RevenueCurrency),
-		nullableInt64(event.ProfileID),
+		nullableInt64(event.ProfileID), event.PathSanitizerVersion, event.PathPolicyID,
 	}
 	return s.row[:], nil
 }

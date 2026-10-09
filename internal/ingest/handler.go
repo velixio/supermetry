@@ -45,6 +45,7 @@ type Clock interface {
 // nonblocking backpressure decision.
 type Handler struct {
 	TrackingMode      privacy.Mode
+	PathPolicy        privacy.PathPolicy
 	Sites             sites.Registry
 	Enricher          *enrich.Enricher
 	Salts             *salts.Store
@@ -121,10 +122,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	originalURL := payload.URL
 	if !identityAllowed {
 		// Arbitrary property values and URL query/fragment values can contain
-		// identity even when no profile_id was supplied. Paths and event names
-		// remain publisher-controlled: anonymous is not a PII classifier.
+		// identity even when no profile_id was supplied. Path policy is applied
+		// below, after exclusions have inspected the original request path.
 		payload.Props = nil
 		payload.URL = privacy.AnonymousURL(payload.URL)
 		payload.Referrer = privacy.AnonymousURL(payload.Referrer)
@@ -152,6 +154,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		health.ExclusionsFiltered[health.ExclusionPath].Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
+	}
+	var pathValue privacy.PathValue
+	if !identityAllowed {
+		pathValue = h.PathPolicy.SanitizePath(originalURL)
+		// Only the server output reaches path interning, sessions and heatmaps.
+		// Keep the original host only for enrichment; it was validated above.
+		pageURL.Path, pageURL.RawPath = pathValue.Path, ""
+		pageURL.RawQuery, pageURL.Fragment, pageURL.RawFragment = "", "", ""
 	}
 	if len(site.Exclusions.Countries) != 0 {
 		country := h.Enricher.Country(ip)
@@ -229,6 +239,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		health.IngestStalePings.Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
+	}
+	if !identityAllowed && hit.Kind == 0 {
+		event.PathSanitizerVersion = pathValue.Version
+		event.PathPolicyID = pathValue.Policy
 	}
 	event.Hit = hit
 	event.VisitorID = result.VisitorID

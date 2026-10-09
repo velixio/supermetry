@@ -43,8 +43,9 @@ dimensions too. Unknown/deleted sites fail closed. Policy checks use memory, not
 DB reads on ingestion. A transaction already underway can finish under its prior
 snapshot: use the maintenance boundary for strict downgrade completion.
 
-**Remaining payload limits:** paths, hostnames and event names are retained for
-analytics and may themselves contain identity. Imported/legacy data is not
+**Remaining payload limits:** hostnames and event names may themselves contain
+identity. New anonymous paths use the explicit substitution contract below;
+identified and imported/legacy paths are not
 rewritten. Arbitrary text cannot be proven anonymous by stripping a profile key.
 The controls therefore do not promise personal-data-free storage. Anonymous
 imports and raw exports are denied; trusted operators remain responsible for
@@ -103,17 +104,68 @@ legacy/imported labels do not escape as arbitrary text. Filters are limited to
 nonempty canonical values on those safe dimensions using `is` or `is_not`. Unknown
 labels are coalesced to the empty bucket before finalizing metrics; selecting that
 bucket as a filter is restricted because legacy labels cannot be selected by a
-single canonical equality. Query caches are separated by instance mode. Free-form
-page/referrer/source/UTM/property/event-name dimensions and filters remain denied.
+single canonical equality. Query caches are separated by instance mode, path sanitizer version and policy
+fingerprint. General page/referrer/source/UTM/property/event-name dimensions and
+filters remain denied, except for the bounded verified page view below.
 Reports omit page/source breakdowns in anonymous mode. Custom report/query paths
 cannot bypass the engine policy through a previously populated cache.
 
-There is no per-row provenance boundary yet. These free-form read restrictions
-apply to new data as well as legacy data. Preserving safe canonical breakdowns
-avoids disabling anonymous analytics wholesale, but raw exploration and free-form
-dashboard cards may show restricted access. A future verified collection epoch
-and sanitization contract could safely expand those reads; a timestamp alone
-cannot prove that caller-supplied strings contain no identity.
+### Verified page paths (bounded v1 slice)
+
+`PANEL_TRACKING_PUBLIC_PATHS` is a JSON array of exact public path literals, for
+example `["/", "/pricing", "/docs"]`. Absent or `[]` declares no paths public.
+Explicit empty/malformed input fails startup. At most 128 entries of 512 UTF-8
+bytes each are accepted. No patterns, prefixes, parameter capture or identifier
+heuristics are used. Operators must declare only literals suitable for exposure;
+this is a publication decision, not a personal-data detector.
+
+For effective anonymous collection, exclusions inspect the original path first.
+Then the server replaces the path with an exact declared literal or the single
+`/[redacted]` fallback before dictionary interning, session updates and heatmap
+collection. Credentials/query/fragment are omitted from the path; encoded and
+noncanonical paths fall back. Original path segments never appear in the fallback.
+The path evidence makes no assertion about retained hostnames, event names or
+opaque replay payloads. Campaigns and properties do not gain verified provenance.
+
+Only pageview events receive server-issued `path_sanitizer_version=1` and a
+SHA-256 fingerprint of the version and literal set. Client fields cannot establish
+trust. Queued writes revalidate the version, current fingerprint and cached safe
+label; invalid/unverified buffered paths become ID zero without being promoted.
+Old events and CLI imports default to version zero even when their text happens
+to match a public literal. The maintenance loader can still intern raw import
+text in the dictionary; its events remain unverified and do not enter this view.
+
+Migration 0027 adds event evidence and separate `verified_page_sessions` and
+`verified_page_day` tables. All keys and aggregation groups carry the version and
+policy fingerprint. Ordinary closed sequences, day/month/block rollups, sessions,
+replay and imported aggregates are never used as evidence for safe page reads.
+The event-only closed projection supports rebuilding the verified daily rollups
+after raw partitions expire. A reclose that would lose existing verified groups
+fails explicitly; use rollup recomputation from retained closed records instead.
+No timestamp or matching dictionary value retroactively grants trust.
+
+The anonymous query/API/MCP view accepts exactly one `page` or `path` dimension,
+no filters, and only `visitors`, `visits`, and/or `pageviews`. It supports sorting,
+pagination, comparisons and query CSV. Dates use the site's time zone; another
+requested time zone is rejected. Visitors and visits mean daily visitors/sessions
+with at least one verified pageview under the **current exact policy**. Range
+counts add those daily counts. Totals are deduplicated across paths before
+aggregation, not summed from path rows. Legacy, imported and other-policy cohorts
+are excluded even in mixed date ranges. Metadata explicitly reports
+`view=verified_paths`, `coverage=verified_only`, version, policy fingerprint and
+unverified/import exclusions; it does not claim complete historical coverage.
+A single SQL snapshot chooses hot versus closed data at the close boundary.
+Cache keys include mode/version/fingerprint/close generation, and output labels
+are validated against the current allowlist. Changed literal sets intentionally
+exclude earlier-policy cohorts rather than relabeling them. Restoring the exact
+previous policy restores its previously verified cohort, not unverified history.
+
+Entry/exit, bounce/duration/engagement/revenue, combined dimensions, page filters,
+page time-series, event/property/campaign exploration and raw exports remain
+restricted. Dashboard cards and scheduled reports have not been redesigned for
+this partial-population view; anonymous reports still omit page/source sections.
+This is a bounded API slice, not restoration of all anonymous analytics. No
+session-wide or replay anonymization is claimed.
 
 Administrative configuration (site names, saved definitions, account information)
 is not analytics payload redaction. This policy does not rewrite every string
@@ -129,7 +181,12 @@ available and checks tenant/site/action permissions. Its current interface needs
 a known profile ID; a purpose-specific erasure lookup/UI is not implemented.
 Tests verify denied reads leave a synthetic profile intact before an explicit
 authorized deletion. Do not infer durable multi-instance erasure guarantees from
-this endpoint's existing process-local tombstones. Restart-safe deletion jobs,
+this endpoint's existing process-local tombstones. Verified closed page/session
+links are removed when the existing profile-erasure linkage can identify them;
+aggregate counts retain the existing `aggregates_adjusted=false` contract.
+Erasure and closing share a database lock. If identity-bearing raw events have
+already expired, durable profile-to-session discovery remains unavailable.
+Buffered anonymous writes and cross-instance resurrection still need design. Restart-safe deletion jobs,
 retry/ordering guarantees and cross-instance tombstone propagation need design.
 
 ## Verification and rollout status
@@ -155,3 +212,11 @@ This is a local review candidate, not a deployment or approval to change any
 live mode, delete historical data, or roll out mixed-version instances. Review
 all documented restrictions and remaining payload/replay limitations before
 publication or activation.
+
+
+Verified-path validation additionally covers forged client markers, exclusion
+ordering, literal/fallback collection before interning, queued policy mismatch,
+zero-trust imports, policy-separated close/reclose, actual raw-partition expiry,
+rebuild from durable projections, distinct totals, comparisons/pagination,
+cache policy changes and invalid dictionary/evidence pairs. No production
+migration or configuration change has been run by this work.

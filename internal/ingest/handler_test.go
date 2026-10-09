@@ -874,6 +874,7 @@ func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *han
 	primeDictionary(t, dictionary)
 	sessions := session.NewMemory(4, clk)
 	w := writer.New(pool, sessions, queueSize, time.Hour, time.Hour, noneClosed{})
+	w.SetPathPolicy(privacy.PathPolicy{}, dictionary)
 	runCtx, cancel := context.WithCancel(context.Background())
 	stopped := make(chan error, 1)
 	go func() { stopped <- w.Run(runCtx) }()

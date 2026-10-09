@@ -81,7 +81,7 @@ func loadCommand(ctx context.Context, in io.Reader, out io.Writer) error {
 	if err := validateTrackingStartup(ctx, pool, cfg.Tracking, registry.All()); err != nil {
 		return err
 	}
-	stats, err := loadEventsWithQueue(ctx, pool, registry, in, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, cfg.Tracking.Mode)
+	stats, err := loadEventsWithPolicy(ctx, pool, registry, in, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, cfg.Tracking.Mode, cfg.TrackingPaths)
 	if err != nil {
 		return err
 	}
@@ -104,6 +104,14 @@ func loadEventsWithQueue(
 	sessionFlush time.Duration,
 	modes ...privacy.Mode,
 ) (loadStats, error) {
+	mode := privacy.Anonymous
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	return loadEventsWithPolicy(ctx, pool, registry, in, queueSize, flushEvery, sessionFlush, mode, privacy.PathPolicy{})
+}
+
+func loadEventsWithPolicy(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, in io.Reader, queueSize int, flushEvery, sessionFlush time.Duration, mode privacy.Mode, paths privacy.PathPolicy) (loadStats, error) {
 	started := time.Now()
 	dictionary := dict.New(pool)
 	if err := dictionary.Load(ctx); err != nil {
@@ -115,11 +123,10 @@ func loadEventsWithQueue(
 	}
 	sessions := session.NewMemory(16, nil)
 	w := writer.New(pool, sessions, queueSize, flushEvery, sessionFlush, neverClosedDays{})
-	mode := privacy.Anonymous
-	if len(modes) > 0 {
-		mode = modes[0]
-	}
 	w.SetTrackingPolicy(mode, registry)
+	// Imported records have no collection-time provenance; the writer must not
+	// promote historical paths merely because they match today's allowlist.
+	w.SetPathPolicy(paths, dictionary)
 	writerCtx, stopWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
 	go func() { writerDone <- w.Run(writerCtx) }()

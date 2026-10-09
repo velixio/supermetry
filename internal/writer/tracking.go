@@ -33,7 +33,9 @@ func (w *Writer) identityAllowed(siteID int32) bool {
 func (w *Writer) suppressRestrictedIdentity(events []Event) {
 	for i := range events {
 		e := &events[i]
-		if w.identityAllowed(e.SiteID) {
+		identityAllowed := w.identityAllowed(e.SiteID)
+		w.validatePathProvenance(e, identityAllowed)
+		if identityAllowed {
 			continue
 		}
 		e.ProfileExternalID, e.ProfileID, e.ProfileTraits, e.Props = "", 0, nil, nil

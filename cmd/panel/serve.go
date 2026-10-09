@@ -213,9 +213,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	w.SetProfileTombstones(profileTombstones)
 	w.SetTrackingPolicy(cfg.Tracking.Mode, registry)
+	w.SetPathPolicy(cfg.TrackingPaths, dictionary)
 	engine := query.NewEngine(pool, dictionary, registry)
 	engine.SetCache(query.NewCache(0))
 	engine.SetTrackingMode(cfg.Tracking.Mode)
+	engine.SetPathPolicy(cfg.TrackingPaths)
 	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill, engine.InvalidateSite)
 	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
@@ -306,6 +308,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	intakeLimiter := ingest.NewTokenBuckets(10_000, 10_000)
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
+		PathPolicy:   cfg.TrackingPaths,
 		Sites:        registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
 		Sessions: sessions, Writer: w, Limiter: intakeLimiter,
 		TrustedProxies: cfg.TrustedProxies, Clock: settings.clock,
