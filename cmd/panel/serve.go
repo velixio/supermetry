@@ -108,6 +108,9 @@ func withListen(value func(network, address string) (net.Listener, error)) serve
 }
 
 func serve(ctx context.Context, cfg config.Config, options ...serveOption) error {
+	if err := cfg.Tracking.ValidateUpgrade(false); err != nil {
+		return err
+	}
 	warnPublicSignup(ctx, slog.Default(), cfg.Signup)
 	settings := serveOptions{clock: wallClock{}, geoUpdate: geoupdate.Update, listen: net.Listen}
 	for _, option := range options {
@@ -178,6 +181,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		refreshRegistry = compatibility.Refresh
 		slog.Warn("using PANEL_SITES_FILE benchmark compatibility because no platform user exists")
 	}
+	if err := validateTrackingStartup(ctx, pool, cfg.Tracking, registry.All()); err != nil {
+		return err
+	}
 	dictionary := dict.New(pool)
 	if err := dictionary.Load(ctx); err != nil {
 		return fmt.Errorf("load dictionary: %w", err)
@@ -206,8 +212,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("load profile tombstones: %w", err)
 	}
 	w.SetProfileTombstones(profileTombstones)
+	w.SetTrackingPolicy(cfg.Tracking.Mode, registry)
+	w.SetPathPolicy(cfg.TrackingPaths, dictionary)
 	engine := query.NewEngine(pool, dictionary, registry)
 	engine.SetCache(query.NewCache(0))
+	engine.SetTrackingMode(cfg.Tracking.Mode)
+	engine.SetPathPolicy(cfg.TrackingPaths)
 	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill, engine.InvalidateSite)
 	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
@@ -227,6 +237,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// goal_id filters resolve goal definitions from this in-memory snapshot.
 	engine.SetGoalLookup(definitionService)
 	reportService := reports.New(platformStore, engine, registry, sender)
+	reportService.SetTrackingMode(cfg.Tracking.Mode)
 	alertBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/alerts/v1")
 	if err != nil {
 		return fmt.Errorf("initialize alert encryption: %w", err)
@@ -246,11 +257,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	importManager := imports.NewManager(importStore, 1)
 	exporter := siteexport.New(pool)
+	exporter.SetTrackingMode(cfg.Tracking.Mode)
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
-	siteService := sitesvc.New(platformStore, databaseRegistry)
+	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
 	platformHandler := platformhttp.New(platformhttp.Deps{
-		BaseURL: cfg.BaseURL, TrackerPath: cfg.TrackerPath,
+		TrackingMode: cfg.Tracking.Mode,
+		BaseURL:      cfg.BaseURL, TrackerPath: cfg.TrackerPath,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
 		},
@@ -294,7 +307,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	intakeLimiter := ingest.NewTokenBuckets(10_000, 10_000)
 	intake := &ingest.Handler{
-		Sites: registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
+		TrackingMode: cfg.Tracking.Mode,
+		PathPolicy:   cfg.TrackingPaths,
+		Sites:        registry, Enricher: enricher, Salts: saltStore, Dict: dictionary,
 		Sessions: sessions, Writer: w, Limiter: intakeLimiter,
 		TrustedProxies: cfg.TrustedProxies, Clock: settings.clock,
 		ProfileTombstones: profileTombstones,
@@ -316,6 +331,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			site, ok := registry.ByPublicID(publicID)
 			return site.ID, ok
 		}, make(chan struct{}, 16), func() { health.ReplayDropped.Add(1) })
+		replayCSSHandler = replay.CollectionGuard(registry, cfg.Replay, replayCSSHandler)
 	}
 
 	var ready atomic.Bool
@@ -782,7 +798,7 @@ func closeDays(ctx context.Context, args []string) error {
 		return errors.New("--from must not be after --to")
 	}
 
-	cfg, err := config.Load(os.Getenv)
+	cfg, err := config.LoadLookup(os.LookupEnv)
 	if err != nil {
 		return err
 	}

@@ -187,7 +187,7 @@ func TestHotTierCivilDateIsIndependentOfConnectionTimezone(t *testing.T) {
 	if err := dictionary.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	engine := query.NewEngine(timezonePool, dictionary, registry{site: sites.Site{
+	engine := identifiedEngine(timezonePool, dictionary, registry{site: sites.Site{
 		ID: 1, PublicID: "pages", TZ: time.UTC, Retention: db.Ret30,
 	}}).WithForcedRoute(query.RouteHot)
 	req := queryRequestRange("2026-10-09", "2026-10-09", []string{"source"}, nil)
@@ -233,7 +233,7 @@ where s.site_id=1`)
 	if err := dictionary.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
-	engine := query.NewEngine(pool, dictionary, registry{site: sites.Site{
+	engine := identifiedEngine(pool, dictionary, registry{site: sites.Site{
 		ID: 1, PublicID: "perf", TZ: time.UTC, Retention: db.Ret30,
 	}}).WithForcedRoute(query.RouteHot)
 	req := queryRequestRange("2026-09-10", "2026-10-09", []string{"source"}, nil)
@@ -401,7 +401,7 @@ func TestHourlyTimeseriesUsesSiteTimezoneWithMinuteOffset(t *testing.T) {
 	if err := dictionary.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	engine := query.NewEngine(pool, dictionary, registry{site: sites.Site{
+	engine := identifiedEngine(pool, dictionary, registry{site: sites.Site{
 		ID: 1, PublicID: "tiny", TZ: kolkata, Retention: db.Ret30,
 	}})
 	req := queryRequestRange("2026-10-06", "2026-10-06", []string{"hour"}, nil)
@@ -577,7 +577,7 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
-	return pool, query.NewEngine(pool, dictionary, reg)
+	return pool, identifiedEngine(pool, dictionary, reg)
 }
 
 func setupTinyDims(t *testing.T) (*pgxpool.Pool, *query.Engine) {
@@ -604,7 +604,7 @@ func setupTinyDims(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
-	return pool, query.NewEngine(pool, dictionary, reg)
+	return pool, identifiedEngine(pool, dictionary, reg)
 }
 
 const tinyDimsSQL = `
@@ -677,7 +677,7 @@ values
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "pages", TZ: time.UTC, Retention: db.Ret30}}
-	return pool, query.NewEngine(pool, dictionary, reg)
+	return pool, identifiedEngine(pool, dictionary, reg)
 }
 
 func pageMetricRequest(filters []api.Filter) api.QueryRequest {

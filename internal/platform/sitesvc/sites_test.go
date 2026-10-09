@@ -13,6 +13,7 @@ import (
 	"panel/internal/db"
 	"panel/internal/platform/authz"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	"panel/internal/sites"
 	"panel/internal/testpg"
 )
@@ -566,7 +567,7 @@ func newSites(t *testing.T) (*Sites, *Registry, authz.Principal, *pgxpool.Pool) 
 	data := &store.Store{Pool: pool}
 	registry := NewRegistry(data, time.Hour)
 	t.Cleanup(registry.Close)
-	return New(data, registry), registry, authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}, pool
+	return New(data, registry, privacy.Identified), registry, authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}, pool
 }
 
 func insertOrg(t *testing.T, pool *pgxpool.Pool, name, slug string) int64 {
@@ -576,4 +577,13 @@ func insertOrg(t *testing.T, pool *pgxpool.Pool, name, slug string) int64 {
 		t.Fatal(err)
 	}
 	return id
+}
+
+func TestAnonymousServiceRejectsProfileEscalationBeforeStorage(t *testing.T) {
+	enabled := true
+	service := New(nil, nil)
+	_, err := service.Update(context.Background(), authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}, 1, SitePatch{ProfilesEnabled: &enabled})
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("error=%v", err)
+	}
 }

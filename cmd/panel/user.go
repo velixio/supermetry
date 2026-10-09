@@ -124,7 +124,7 @@ func resetUserPassword(ctx context.Context, args []string, output io.Writer) err
 }
 
 func userServices(ctx context.Context) (config.Config, *store.Store, *platformauth.Auth, func(), error) {
-	cfg, err := config.Load(os.Getenv)
+	cfg, err := config.LoadLookup(os.LookupEnv)
 	if err != nil {
 		return config.Config{}, nil, nil, func() {}, err
 	}

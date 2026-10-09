@@ -15,10 +15,12 @@ import (
 	"panel/internal/db"
 	"panel/internal/platform/authz"
 	"panel/internal/platform/sitesvc"
+	"panel/internal/privacy"
 	coresites "panel/internal/sites"
 )
 
 type siteResponse struct {
+	TrackingPolicy        trackingPolicyResponse    `json:"tracking_policy"`
 	ID                    int32                     `json:"id"`
 	OrgID                 int64                     `json:"org_id"`
 	PublicID              string                    `json:"public_id"`
@@ -169,6 +171,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 	result := make([]siteResponse, len(items))
 	for index := range items {
 		result[index] = items[index].response
+		result[index].TrackingPolicy = h.trackingPolicy(result[index].ProfilesEnabled)
 	}
 	return result, next, nil
 }
@@ -289,6 +292,10 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "only owners and admins can change profiles")
 		return
 	}
+	if request.ProfilesEnabled != nil && *request.ProfilesEnabled && h.deps.TrackingMode != privacy.Identified {
+		writeProblem(w, http.StatusConflict, "Conflict", "profiles require PANEL_TRACKING_MODE=identified")
+		return
+	}
 	if (request.Tracker != nil || request.ExcludeCountries != nil) && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "only owners and admins can change tracker settings and country exclusions")
 		return
@@ -354,7 +361,8 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		timezone = site.TZ.String()
 	}
 	response := siteResponse{
-		ID: site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Timezone: timezone,
+		TrackingPolicy: h.trackingPolicy(site.ProfilesEnabled),
+		ID:             site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Timezone: timezone,
 		RetentionDays: int(site.Retention), AllowedHosts: append([]string(nil), site.AllowedHosts...),
 		ExcludeIPs: append([]string{}, site.Exclusions.IPRules...), ExcludePaths: append([]string{}, site.Exclusions.PathRules...),
 		ExcludeCountries: append([]string{}, site.Exclusions.CountryRules...),

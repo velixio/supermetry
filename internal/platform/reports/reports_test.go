@@ -2,6 +2,7 @@ package reports
 
 import (
 	"context"
+	"panel/internal/privacy"
 	"testing"
 	"time"
 
@@ -146,6 +147,7 @@ func newReportsTest(t *testing.T, enabled bool) (*Reports, *fakeSender, *fakeEng
 	engine := &fakeEngine{}
 	registry := staticRegistry{site: sites.Site{ID: siteID, PublicID: "example-site", TZ: mustLocation(t, "Asia/Kathmandu")}}
 	service := New(data, engine, registry, sender)
+	service.SetTrackingMode(privacy.Identified)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
 	if err := service.Subscribe(ctx, principal, siteID, Weekly); err != nil {
 		t.Fatal(err)

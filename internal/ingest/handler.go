@@ -19,6 +19,7 @@ import (
 	"panel/internal/dict"
 	"panel/internal/enrich"
 	"panel/internal/health"
+	"panel/internal/privacy"
 	"panel/internal/salts"
 	"panel/internal/session"
 	"panel/internal/sites"
@@ -43,6 +44,8 @@ type Clock interface {
 // or in-memory stores on the normal path; the bounded Writer applies the final
 // nonblocking backpressure decision.
 type Handler struct {
+	TrackingMode      privacy.Mode
+	PathPolicy        privacy.PathPolicy
 	Sites             sites.Registry
 	Enricher          *enrich.Enricher
 	Salts             *salts.Store
@@ -92,12 +95,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
-	if site.RespectPrivacySignals && (r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1") {
+	if r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1" {
 		health.PrivacySignalsDropped.Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
-	profileID, profileTraits, profileSupplied, err := payload.Identity(site.ProfilesEnabled)
+	identityAllowed := h.TrackingMode == privacy.Identified && site.ProfilesEnabled
+	profileID, profileTraits, profileSupplied, err := payload.Identity(identityAllowed)
 	if err != nil {
 		h.invalid(w)
 		return
@@ -106,7 +110,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		profileID = ""
 		profileTraits = nil
 	}
-	if !site.ProfilesEnabled && payload.Name == identifyEvent {
+	if !identityAllowed && payload.Name == identifyEvent {
 		// The tracker sends identify only for opted-in use; on other sites
 		// it would just add one anonymous custom event per page load.
 		health.IngestProfilesSuppressed.Add(1)
@@ -117,6 +121,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil || !site.Allows(strings.ToLower(pageURL.Hostname())) {
 		h.invalid(w)
 		return
+	}
+	originalURL := payload.URL
+	if !identityAllowed {
+		// Arbitrary property values and URL query/fragment values can contain
+		// identity even when no profile_id was supplied. Path policy is applied
+		// below, after exclusions have inspected the original request path.
+		payload.Props = nil
+		payload.URL = privacy.AnonymousURL(payload.URL)
+		payload.Referrer = privacy.AnonymousURL(payload.Referrer)
 	}
 	if payload.Name == "heatmap" && !site.HeatmapsEnabled {
 		health.HeatmapDropped.Add(1)
@@ -142,6 +155,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
+	var pathValue privacy.PathValue
+	if !identityAllowed {
+		pathValue = h.PathPolicy.SanitizePath(originalURL)
+		// Only the server output reaches path interning, sessions and heatmaps.
+		// Keep the original host only for enrichment; it was validated above.
+		pageURL.Path, pageURL.RawPath = pathValue.Path, ""
+		pageURL.RawQuery, pageURL.Fragment, pageURL.RawFragment = "", "", ""
+	}
 	if len(site.Exclusions.Countries) != 0 {
 		country := h.Enricher.Country(ip)
 		if country != "" && site.Exclusions.ExcludesCountry(country) {
@@ -163,6 +184,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.acceptHeatmap(w, r.Context(), payload, pageURL, site)
+		return
+	}
+
+	// Preserve privacy, validation, exclusions, rate limits and independent
+	// heatmaps above. Known overload takes precedence over bot/stale-ping
+	// suppression below, before enrichment or session/dictionary mutation.
+	if h.Writer.RejectEventIfUnavailable() {
+		h.unavailable(w)
 		return
 	}
 
@@ -219,6 +248,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
+	if !identityAllowed && hit.Kind == 0 {
+		event.PathSanitizerVersion = pathValue.Version
+		event.PathPolicyID = pathValue.Policy
+	}
 	event.Hit = hit
 	event.VisitorID = result.VisitorID
 	event.SessionID = result.SessionID
@@ -231,7 +264,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	recordAcceptedActivity(h.Sessions, hit, result.VisitorID)
-	if !site.ProfilesEnabled && profileSupplied {
+	if !identityAllowed && profileSupplied {
 		health.IngestProfilesSuppressed.Add(1)
 	}
 	if payload.RevenueInvalid {

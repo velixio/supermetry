@@ -49,14 +49,15 @@ export async function putReplaySettings(siteId: number, settings: SiteSettings):
   })))
 }
 
-// Fields set in .env are locked and the server rejects any value for them, so
-// they are left out. The on/off switch is env-only and never sent.
+// Submit the project opt-in and privacy constraints; the server rejects any
+// attempted escalation beyond the instance policy.
 export function replaySettingsBody(settings: SiteSettings) {
   return {
+    ...(settings.configured_enabled === undefined ? {} : { enabled: settings.configured_enabled }),
     ...(settings.mask.locked ? {} : { mask: settings.mask.value }),
-    ...(settings.sample_rate.locked ? {} : { sample_rate: settings.sample_rate.value }),
-    ...(settings.retention_days.locked ? {} : { retention_days: settings.retention_days.value }),
-    ...(settings.quota_bytes.locked ? {} : { quota_bytes: settings.quota_bytes.value }),
+    sample_rate: settings.sample_rate.value,
+    retention_days: settings.retention_days.value,
+    quota_bytes: settings.quota_bytes.value,
     triggers: settings.triggers,
     consent: settings.consent,
   }

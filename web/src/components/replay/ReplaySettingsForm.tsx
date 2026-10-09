@@ -9,28 +9,25 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { SiteSettings } from '@/lib/replay-api'
 
-// Recording is switched on only by PANEL_REPLAY_ENABLED; the dashboard just
-// reports it.
-function ReplayStatus({ enabled }: { enabled: boolean }) {
+function ReplayStatus({ settings }: { settings: SiteSettings }) {
   return (
     <Field>
-      <FieldLabel>Session replay</FieldLabel>
-      <div className="flex items-center gap-2">
-        <Badge variant={enabled ? 'default' : 'secondary'}>{enabled ? 'On' : 'Off'}</Badge>
-      </div>
-      <FieldDescription>
-        {enabled ? (
-          <>On: enabled by <code>PANEL_REPLAY_ENABLED</code> for every site.</>
-        ) : (
-          <>Off: set <code>PANEL_REPLAY_ENABLED=true</code> in .env and restart panel to enable it.</>
-        )}
-      </FieldDescription>
+      <FieldLabel>Effective recording</FieldLabel>
+      <Badge className="self-start" variant={settings.enabled ? 'default' : 'secondary'}>{settings.enabled ? 'On' : 'Off'}</Badge>
+      <FieldDescription>Project opt-in: {settings.configured_enabled ? 'on' : 'off'}. Instance permission: {settings.instance_enabled ? 'on' : 'off'}.</FieldDescription>
+      {settings.instance_enabled === false ? <FieldDescription>Instance replay is off. An instance administrator must enable replay and restart the server before a project can opt in.</FieldDescription> : null}
+      {settings.restrictions?.includes('project_replay_disabled') ? <FieldDescription>This project has not opted in to recording.</FieldDescription> : null}
+      {settings.instance_enabled === undefined ? <FieldDescription>Instance policy is unavailable. Reload settings before enabling replay.</FieldDescription> : null}
+      <FieldDescription>Recording requires both permissions and visitor consent rules. Identified tracking alone does not enable replay. Changes below take effect after saving.</FieldDescription>
     </Field>
   )
 }
 
-function LockedNote({ locked }: { locked: boolean }) {
-  return locked ? <FieldDescription>Set by environment variable</FieldDescription> : null
+function ConstraintNote({ setting }: { setting: SiteSettings['sample_rate'] }) {
+  return <>
+    {setting.configured !== undefined ? <FieldDescription>Configured: {setting.configured}. Effective: {setting.value}.</FieldDescription> : null}
+    {setting.maximum !== undefined ? <FieldDescription>Instance maximum: {setting.maximum}. This project can choose a lower value.</FieldDescription> : null}
+  </>
 }
 
 function ToggleField({
@@ -74,7 +71,7 @@ export function ReplaySettingsForm({
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    onSave(draft)
+    if (editable && !saving) onSave(draft)
   }
 
   const updateTrigger = (key: keyof Omit<SiteSettings['triggers'], 'url_patterns'>, value: boolean) =>
@@ -85,11 +82,17 @@ export function ReplaySettingsForm({
       <Card>
         <CardHeader>
           <CardTitle>Session replay</CardTitle>
-          <CardDescription>Capture sampled browser sessions with privacy controls and explicit triggers.</CardDescription>
+          <CardDescription>Capture sampled browser sessions within instance privacy limits.</CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
-            <ReplayStatus enabled={draft.enabled} />
+            <ReplayStatus settings={settings} />
+            <ToggleField
+              checked={draft.configured_enabled ?? false}
+              disabled={!editable || saving || (settings.instance_enabled !== true && !draft.configured_enabled)}
+              label="Enable session replay for this project"
+              onCheckedChange={(configured_enabled) => setDraft((current) => ({ ...current, configured_enabled }))}
+            />
             <Field data-disabled={draft.mask.locked || !editable || undefined}>
               <ToggleField
                 checked={draft.mask.value}
@@ -97,57 +100,61 @@ export function ReplaySettingsForm({
                 label="Mask page content"
                 onCheckedChange={(value) => setDraft((current) => ({ ...current, mask: { ...current.mask, value } }))}
               />
-              <LockedNote locked={draft.mask.locked} />
+              {settings.mask.configured !== undefined ? <FieldDescription>Configured masking: {settings.mask.configured ? 'on' : 'off'}. Effective masking: {settings.mask.value ? 'on' : 'off'}.</FieldDescription> : null}
+              {draft.mask.locked ? <FieldDescription>Masking is required by the instance.</FieldDescription> : null}
             </Field>
-            <Field data-disabled={draft.sample_rate.locked || !editable || undefined}>
+            <Field data-disabled={!editable || saving || undefined}>
               <FieldLabel htmlFor="replay-sample-rate">Sample rate (%)</FieldLabel>
               <Input
                 id="replay-sample-rate"
                 type="number"
                 min={0}
-                max={100}
+                max={settings.sample_rate.maximum ?? 100}
                 value={draft.sample_rate.value}
-                disabled={draft.sample_rate.locked || !editable}
+                disabled={!editable || saving}
                 onChange={(event) => setDraft((current) => ({ ...current, sample_rate: { ...current.sample_rate, value: Number(event.target.value) } }))}
               />
-              <LockedNote locked={draft.sample_rate.locked} />
+              <ConstraintNote setting={settings.sample_rate} />
             </Field>
-            <Field data-disabled={draft.retention_days.locked || !editable || undefined}>
+            <Field data-disabled={!editable || saving || undefined}>
               <FieldLabel htmlFor="replay-retention">Retention (days)</FieldLabel>
               <Input
                 id="replay-retention"
                 type="number"
+                max={settings.retention_days.maximum ?? 365}
                 min={1}
                 value={draft.retention_days.value}
-                disabled={draft.retention_days.locked || !editable}
+                disabled={!editable || saving}
                 onChange={(event) => setDraft((current) => ({ ...current, retention_days: { ...current.retention_days, value: Number(event.target.value) } }))}
               />
-              <LockedNote locked={draft.retention_days.locked} />
+              <ConstraintNote setting={settings.retention_days} />
             </Field>
-            <Field data-disabled={draft.quota_bytes.locked || !editable || undefined}>
+            <Field data-disabled={!editable || saving || undefined}>
               <FieldLabel htmlFor="replay-quota">Quota (bytes)</FieldLabel>
               <Input
                 id="replay-quota"
                 type="number"
-                min={0}
+                max={settings.quota_bytes.maximum}
+                min={1}
                 value={draft.quota_bytes.value}
-                disabled={draft.quota_bytes.locked || !editable}
+                disabled={!editable || saving}
                 onChange={(event) => setDraft((current) => ({ ...current, quota_bytes: { ...current.quota_bytes, value: Number(event.target.value) } }))}
               />
-              <LockedNote locked={draft.quota_bytes.locked} />
+              <ConstraintNote setting={settings.quota_bytes} />
             </Field>
             <FieldSet>
               <FieldLegend>Recording triggers</FieldLegend>
-              <ToggleField checked={draft.triggers.error} disabled={!editable} label="JavaScript errors" onCheckedChange={(value) => updateTrigger('error', value)} />
-              <ToggleField checked={draft.triggers.rage_click} disabled={!editable} label="Rage clicks" onCheckedChange={(value) => updateTrigger('rage_click', value)} />
-              <ToggleField checked={draft.triggers.url} disabled={!editable} label="Matching URLs" onCheckedChange={(value) => updateTrigger('url', value)} />
-              <ToggleField checked={draft.triggers.manual} disabled={!editable} label="Manual trigger" onCheckedChange={(value) => updateTrigger('manual', value)} />
+              <FieldDescription>Triggered capture is unavailable under the sampling ceiling; enabled sampled sessions are recorded in full. Stored trigger settings are preserved.</FieldDescription>
+              <ToggleField checked={draft.triggers.error} disabled label="JavaScript errors" onCheckedChange={(value) => updateTrigger('error', value)} />
+              <ToggleField checked={draft.triggers.rage_click} disabled label="Rage clicks" onCheckedChange={(value) => updateTrigger('rage_click', value)} />
+              <ToggleField checked={draft.triggers.url} disabled label="Matching URLs" onCheckedChange={(value) => updateTrigger('url', value)} />
+              <ToggleField checked={draft.triggers.manual} disabled label="Manual trigger" onCheckedChange={(value) => updateTrigger('manual', value)} />
             </FieldSet>
             <Field>
               <FieldLabel htmlFor="replay-url-patterns">URL patterns</FieldLabel>
               <Textarea
                 id="replay-url-patterns"
-                disabled={!editable}
+                disabled
                 placeholder="/checkout/*"
                 value={draft.triggers.url_patterns.join('\n')}
                 onChange={(event) => setDraft((current) => ({

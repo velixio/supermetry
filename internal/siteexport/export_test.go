@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/csv"
 	"io"
+	"panel/internal/privacy"
 	"slices"
 	"testing"
 	"time"
@@ -51,6 +52,7 @@ func TestExporterWritesCompleteZIP(t *testing.T) {
 
 	var output bytes.Buffer
 	exporter := siteexport.New(pool)
+	exporter.SetTrackingMode(privacy.Identified)
 	if err := exporter.Write(ctx, &output, 7, day("2026-10-01"), day("2026-10-03")); err != nil {
 		t.Fatal(err)
 	}

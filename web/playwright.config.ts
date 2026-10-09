@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Existing feature/auth fixtures deliberately exercise identified reads and replay.
+// Anonymous policy is verified separately with e2e/privacy.spec.ts.
+process.env.PANEL_TRACKING_MODE ??= 'identified'
+process.env.PANEL_REPLAY_ENABLED ??= 'true'
+
 const port = Number(process.env.PANEL_E2E_PORT ?? '18089')
 const baseURL = `http://127.0.0.1:${port}`
 const schema = `panel_e2e_${process.pid}`
@@ -66,6 +71,8 @@ export default defineConfig({
     command: serverCommand,
     cwd: '.',
     env: {
+      PANEL_TRACKING_MODE: process.env.PANEL_TRACKING_MODE,
+      PANEL_REPLAY_ENABLED: process.env.PANEL_REPLAY_ENABLED,
       PANEL_TEST_DSN: testDSN,
       PANEL_E2E_DSN: schemaDSN.toString(),
       PANEL_E2E_SCHEMA: schema,

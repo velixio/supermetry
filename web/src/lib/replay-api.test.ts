@@ -31,9 +31,11 @@ describe('normalizeReplaySettings', () => {
 })
 
 describe('replaySettingsBody', () => {
-  it('leaves out fields locked by the environment so saving never hits 409', () => {
+  it('sends project opt-in and numeric constraints, preserving required masking', () => {
     const body = replaySettingsBody({
       enabled: true,
+      configured_enabled: true,
+      instance_enabled: true,
       mask: { value: true, locked: true },
       sample_rate: { value: 20, locked: false },
       retention_days: { value: 30, locked: true },
@@ -42,8 +44,8 @@ describe('replaySettingsBody', () => {
       consent: 'auto',
     })
     expect(body).not.toHaveProperty('mask')
-    expect(body).not.toHaveProperty('retention_days')
-    expect(body).not.toHaveProperty('enabled')
+    expect(body).toHaveProperty('retention_days', 30)
+    expect(body).toHaveProperty('enabled', true)
     expect(body).toMatchObject({ sample_rate: 20, quota_bytes: 1024, consent: 'auto' })
   })
 })

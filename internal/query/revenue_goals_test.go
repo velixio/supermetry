@@ -138,5 +138,5 @@ func setupRevenueGoalFixture(t *testing.T) *query.Engine {
 		{ID: 5, SiteID: 1, Kind: "page", Match: "exact", Value: "/checkout", Currency: "USD"},
 		{ID: 6, SiteID: 1, Kind: "scroll", Match: "exact", Value: "/checkout", ScrollThreshold: 75, Currency: "USD"},
 	}
-	return query.NewEngine(pool, dictionary, registry{site: sites.Site{ID: 1, PublicID: "revenue-test", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}, goals)
+	return identifiedEngine(pool, dictionary, registry{site: sites.Site{ID: 1, PublicID: "revenue-test", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}, goals)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"panel/internal/api"
+	"panel/internal/closer"
 	"panel/internal/platform/audit"
 	"panel/internal/platform/authz"
 	"panel/internal/replay"
@@ -31,8 +32,9 @@ func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
 	if !authorizeSensitiveExport(w, r, principal, site.ID, authz.ActionProfilesRead) {
 		return
 	}
-	// Profiles stored while the setting was on stay listed after it is turned
-	// off, so they can still be found and erased.
+	if !h.allowHistoricalIdentity(w) {
+		return
+	}
 	if h.deps.Store == nil {
 		unavailable(w, "profile")
 		return
@@ -232,8 +234,10 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 	// Erasure works whether or not profiles are currently enabled. It removes
 	// the profile's events and every row of the sessions and visitor-days it
 	// was identified in, in both tiers: the anonymous events of those
-	// sessions, the hot session rows, sessions_closed and custom_closed.
-	// Aggregates (cube_day, visitor_day, rollups) hold counts, not rows, and
+	// sessions, the hot session rows, sessions_closed, custom_closed and the
+	// verified_page_sessions projection.
+	// Aggregates (cube_day, visitor_day, verified_page_day, rollups) hold
+	// counts, not session rows, and
 	// are not adjusted; the audit entry records that.
 	if h.deps.ProfileTombstones == nil {
 		unavailable(w, "profile erasure")
@@ -242,6 +246,11 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 	var replaySessionIDs []int64
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		ctx := r.Context()
+		// Serialize with the closer before selecting linkage or deleting raw
+		// rows, so a concurrent close cannot reinsert erased session rows.
+		if err := closer.LockRollupRefresh(ctx, tx); err != nil {
+			return err
+		}
 		if err := h.deps.ProfileTombstones.RememberTx(ctx, tx, site.ID, profile.ExternalId); err != nil {
 			return err
 		}
@@ -286,6 +295,11 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 			`delete from sessions_closed s using profile_erasure k
 			 where s.site_id=$1 and s.session_id=k.session_id
 			   and s.day between k.local_day - 1 and k.local_day`,
+			// Verified rows are grouped by event day, unlike session-start-day
+			// projections: the raw erasure window also covers the next day.
+			`delete from verified_page_sessions s using profile_erasure k
+             where s.site_id=$1 and s.session_id=k.session_id
+               and s.day between k.local_day - 1 and k.local_day + 1`,
 			`delete from custom_closed c using profile_erasure k
 			 where c.site_id=$1 and c.visitor_id=k.visitor_id and c.day=k.local_day`,
 		} {
@@ -325,6 +339,9 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 func (h *handler) profilePrincipal(w http.ResponseWriter, r *http.Request, action authz.Action, roles ...authz.Role) (authz.Principal, coresites.Site, api.Profile, bool) {
 	principal, ok := h.principal(w, r)
 	if !ok {
+		return authz.Principal{}, coresites.Site{}, api.Profile{}, false
+	}
+	if action == authz.ActionProfilesRead && !h.allowHistoricalIdentity(w) {
 		return authz.Principal{}, coresites.Site{}, api.Profile{}, false
 	}
 	id, err := parseInt64(r.PathValue("profile"))

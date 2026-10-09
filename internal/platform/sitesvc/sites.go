@@ -22,6 +22,7 @@ import (
 	"panel/internal/platform/audit"
 	"panel/internal/platform/authz"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	coresites "panel/internal/sites"
 	siteicon "panel/internal/sites/icon"
 )
@@ -52,6 +53,7 @@ type SitePatch struct {
 }
 
 type Sites struct {
+	trackingMode privacy.Mode
 	store        *store.Store
 	registry     *Registry
 	discoverIcon func(context.Context, string) string
@@ -59,8 +61,12 @@ type Sites struct {
 
 var malformedTrackerLogged sync.Map
 
-func New(data *store.Store, registry *Registry) *Sites {
-	return &Sites{store: data, registry: registry, discoverIcon: siteicon.Discover}
+func New(data *store.Store, registry *Registry, modes ...privacy.Mode) *Sites {
+	mode := privacy.Anonymous
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	return &Sites{store: data, registry: registry, discoverIcon: siteicon.Discover, trackingMode: mode}
 }
 
 func (s *Sites) Create(ctx context.Context, principal authz.Principal, name string, hosts []string, timezone string, retentionDays int) (coresites.Site, error) {
@@ -109,9 +115,12 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	if !authz.Can(principal, authz.ActionSiteEdit, id) {
 		return coresites.Site{}, ErrForbidden
 	}
-	if (patch.HeatmapsEnabled != nil || patch.Tracker != nil || patch.ExcludeCountries != nil) &&
+	if (patch.ProfilesEnabled != nil || patch.HeatmapsEnabled != nil || patch.Tracker != nil || patch.ExcludeCountries != nil) &&
 		principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
 		return coresites.Site{}, ErrForbidden
+	}
+	if patch.ProfilesEnabled != nil && *patch.ProfilesEnabled && s.trackingMode != privacy.Identified {
+		return coresites.Site{}, fmt.Errorf("%w: profiles require PANEL_TRACKING_MODE=identified", ErrInvalid)
 	}
 	var updated store.Site
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {

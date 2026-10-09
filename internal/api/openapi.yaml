@@ -2238,11 +2238,23 @@ components:
         compare:
           type: string
           enum: [previous_period, previous_year]
+    QueryPrivacy:
+      type: object
+      additionalProperties: false
+      required: [view, path_sanitizer_version, policy_id, coverage, unverified_excluded, imports_excluded]
+      properties:
+        view: { type: string, enum: [verified_paths] }
+        path_sanitizer_version: { type: integer }
+        policy_id: { type: string }
+        coverage: { type: string, enum: [verified_only] }
+        unverified_excluded: { type: boolean }
+        imports_excluded: { type: boolean }
     QueryMeta:
       type: object
       additionalProperties: false
       required: [sources_used, cached, imported_included]
       properties:
+        privacy: { $ref: '#/components/schemas/QueryPrivacy' }
         sources_used:
           type: array
           items:
@@ -2573,6 +2585,8 @@ components:
       required: [value, locked]
       properties:
         value: { type: boolean }
+        configured: { type: boolean }
+        restriction: { type: string }
         locked: { type: boolean }
     ReplayValueInteger:
       type: object
@@ -2580,6 +2594,9 @@ components:
       required: [value, locked]
       properties:
         value: { type: integer, format: int64 }
+        configured: { type: integer, format: int64 }
+        maximum: { type: integer, format: int64 }
+        restriction: { type: string }
         locked: { type: boolean }
     ReplayValueString:
       type: object
@@ -2615,6 +2632,9 @@ components:
       required: [enabled, mask, sample_rate, retention_days, quota_bytes, triggers, consent]
       properties:
         enabled: { type: boolean }
+        configured_enabled: { type: boolean }
+        instance_enabled: { type: boolean }
+        restrictions: { type: array, items: { type: string } }
         mask: { $ref: '#/components/schemas/ReplayValueBoolean' }
         sample_rate: { $ref: '#/components/schemas/ReplayValueInteger' }
         retention_days: { $ref: '#/components/schemas/ReplayValueInteger' }

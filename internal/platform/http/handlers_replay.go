@@ -279,22 +279,8 @@ func (h *handler) putReplaySettings(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 		return
 	}
-	// Recording is switched on only by PANEL_REPLAY_ENABLED. Clients may echo the
-	// current value back, but never change it, and it is not stored per site.
-	var switchField struct {
-		Enabled *bool `json:"enabled"`
-	}
-	_ = json.Unmarshal(raw, &switchField)
-	if switchField.Enabled != nil && *switchField.Enabled != h.deps.ReplayEnv.Enabled {
-		writeProblem(w, http.StatusConflict, "Conflict", "session replay is turned on or off only by PANEL_REPLAY_ENABLED")
-		return
-	}
-	in.Enabled = false
-	if (in.Mask != nil && h.deps.ReplayEnv.Mask != nil) ||
-		(in.SampleRate != nil && h.deps.ReplayEnv.SampleRate != nil) ||
-		(in.RetentionDays != nil && h.deps.ReplayEnv.Retention != nil) ||
-		(in.QuotaBytes != nil && h.deps.ReplayEnv.QuotaBytes != nil) {
-		writeProblem(w, http.StatusConflict, "Conflict", "a replay setting is locked by the environment")
+	if err := validateReplayPolicy(h.deps.ReplayEnv, in); err != nil {
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 		return
 	}
 	encoded, _ := json.Marshal(in)
@@ -501,6 +487,9 @@ func validAdminBearer(header, key string) bool {
 func (h *handler) replaySitePrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, coresites.Site, bool) {
 	principal, site, ok := h.sitePrincipal(w, r, authz.ActionReplayRead, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
 	if !ok || !authorizeSensitiveExport(w, r, principal, site.ID, authz.ActionReplayRead) {
+		return authz.Principal{}, coresites.Site{}, false
+	}
+	if !h.allowHistoricalIdentity(w) {
 		return authz.Principal{}, coresites.Site{}, false
 	}
 	return principal, site, true

@@ -212,7 +212,7 @@ values
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: siteID, PublicID: "goalsite0001", TZ: time.UTC, Retention: db.Ret30}}
-	return pool, query.NewEngine(pool, dictionary, reg, lookup), ids
+	return pool, identifiedEngine(pool, dictionary, reg, lookup), ids
 }
 
 func goalFilterRequest(id int64) api.QueryRequest {

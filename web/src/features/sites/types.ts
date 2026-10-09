@@ -1,3 +1,10 @@
+export type TrackingPolicy = {
+  instance_mode: 'anonymous' | 'identified'
+  configured_profiles_enabled: boolean
+  effective_mode: 'anonymous' | 'identified'
+  restrictions: string[]
+}
+
 export type RetentionDays = 0 | 7 | 30 | 90 | 365
 
 export type SiteInput = {
@@ -26,6 +33,7 @@ export type SiteUpdate = {
 }
 
 export type ManagedSite = {
+  tracking_policy?: TrackingPolicy
   id: number
   org_id?: number
   public_id: string

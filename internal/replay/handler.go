@@ -78,7 +78,6 @@ type uploadState struct {
 	busy         chan struct{}
 	nextSequence uint64
 	hasPage      bool
-	admitted     bool
 	expires      time.Time
 }
 
@@ -132,13 +131,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type startRequest struct {
-	Site string `json:"s"`
-	URL  string `json:"u"`
+	Site    string `json:"s"`
+	URL     string `json:"u"`
+	Consent bool   `json:"c"`
 }
 
 type startResponse struct {
 	Mode     string           `json:"m"`
 	Mask     bool             `json:"mask"`
+	Version  string           `json:"v"`
 	Triggers responseTriggers `json:"t"`
 }
 
@@ -177,8 +178,8 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	settings := ResolveSite(h.deps.Replay, site.Replay)
-	response := startResponse{Mode: "off", Mask: settings.Mask.V, Triggers: wireTriggers(settings.Triggers)}
-	if !settings.Enabled || h.diskGuard() {
+	response := startResponse{Mode: "off", Mask: settings.Mask.V, Version: policyVersion(settings), Triggers: wireTriggers(settings.Triggers)}
+	if !settings.Enabled || !collectionAllowed(r, settings, request.Consent) || h.diskGuard() {
 		writeStart(w, response)
 		return
 	}
@@ -199,8 +200,6 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 	if Sampled(current, settings.SampleRate.V) || previous != 0 && Sampled(previous, settings.SampleRate.V) {
 		response.Mode = "full"
-	} else if hasTrigger(settings.Triggers) {
-		response.Mode = "trigger"
 	}
 	writeStart(w, response)
 }
@@ -228,6 +227,10 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 	settings := ResolveSite(h.deps.Replay, site.Replay)
 	if !ok || !settings.Enabled || !originAllowed(site, r.Header.Get("Origin")) {
 		h.reject(w, http.StatusBadRequest)
+		return
+	}
+	if !collectionAllowed(r, settings, query.Get("c") == "1") || query.Get("v") != policyVersion(settings) {
+		h.reject(w, http.StatusForbidden)
 		return
 	}
 	if h.diskGuard() {
@@ -282,8 +285,7 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sampled := Sampled(current, settings.SampleRate.V) || previous != 0 && Sampled(previous, settings.SampleRate.V)
-	admit := !state.admitted && !sampled && triggerAllowed(settings.Triggers, trigger)
-	if !sampled && !state.admitted && !admit {
+	if !sampled {
 		h.reject(w, http.StatusBadRequest)
 		return
 	}
@@ -296,13 +298,18 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 		h.reject(w, http.StatusBadRequest)
 		return
 	}
+	// Body reads and session admission may have waited. Recheck the cached
+	// policy immediately before committing the upload.
+	currentSite, currentOK := h.site(query.Get("s"))
+	currentSettings := ResolveSite(h.deps.Replay, currentSite.Replay)
+	if !currentOK || !currentSettings.Enabled || query.Get("v") != policyVersion(currentSettings) || !collectionAllowed(r, currentSettings, query.Get("c") == "1") {
+		h.reject(w, http.StatusForbidden)
+		return
+	}
 	written, err := h.deps.Blobs.Append(r.Context(), SessionKey(site.ID, day, result.SessionID), body)
 	if err != nil {
 		h.drop(w)
 		return
-	}
-	if admit {
-		state.admitted = true
 	}
 	state.hasPage = true
 	state.nextSequence = sequence + 1
@@ -402,25 +409,6 @@ func wireTriggers(triggers Triggers) responseTriggers {
 	return responseTriggers{Error: triggers.Error, RageClick: triggers.RageClick, URLPatterns: patterns, Manual: triggers.Manual}
 }
 
-func hasTrigger(triggers Triggers) bool {
-	return triggers.Error || triggers.RageClick || triggers.Manual || triggers.URL && len(triggers.URLPatterns) != 0
-}
-
-func triggerAllowed(triggers Triggers, reason string) bool {
-	switch reason {
-	case "error":
-		return triggers.Error
-	case "rage-click":
-		return triggers.RageClick
-	case "url":
-		return triggers.URL
-	case "":
-		return false
-	default:
-		return triggers.Manual
-	}
-}
-
 func (h *Handler) acquireUploadState(key uploadKey, now time.Time) (*uploadState, bool) {
 	h.statesMu.Lock()
 	defer h.statesMu.Unlock()
@@ -484,4 +472,37 @@ func (h *Handler) drop(w http.ResponseWriter) {
 	health.ReplayDropped.Add(1)
 	w.Header().Set("Retry-After", "1")
 	w.WriteHeader(http.StatusServiceUnavailable)
+}
+
+// Consent is an explicit client assertion, not authenticated proof. GPC and DNT
+// always veto collection, including a forged/stale client requesting consent.
+func collectionAllowed(r *http.Request, settings SiteSettings, consent bool) bool {
+	return r.Header.Get("Sec-GPC") != "1" && r.Header.Get("DNT") != "1" && (settings.Consent != "always" || consent)
+}
+
+// CollectionGuard applies the same current cached project policy to auxiliary
+// uploads (CSS). Resolve must not perform database work on the request path.
+func CollectionGuard(registry sites.Registry, env config.ReplayEnv, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+		site, ok := registry.ByPublicID(r.URL.Query().Get("s"))
+		settings := ResolveSite(env, site.Replay)
+		if !ok || !settings.Enabled || settings.SampleRate.V <= 0 || !originAllowed(site, r.Header.Get("Origin")) || !collectionAllowed(r, settings, r.URL.Query().Get("c") == "1") || r.URL.Query().Get("v") != policyVersion(settings) {
+			setCSSCORS(w, r)
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// This public fingerprint detects stale recorder settings; it is not a proof
+// of consent or masking. Recompute from cached settings, without database I/O.
+func policyVersion(settings SiteSettings) string {
+	encoded, _ := json.Marshal(settings)
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:16])
 }

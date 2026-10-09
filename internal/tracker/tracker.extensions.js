@@ -162,6 +162,7 @@
 
   if (d.heatmap == "true") {
     let points = [];
+    p._clearHeatmap = () => { points = []; };
     const root = document.documentElement;
 
     function bound(value, max) {
@@ -169,6 +170,7 @@
     }
 
     function heatClick(e) {
+      if (!p._allowed()) { points = []; return; }
       const width = root.scrollWidth || 1;
       if (points.length < 200) points.push([
         bound(e.pageX * 1000 / width, 1000),
@@ -177,6 +179,7 @@
     }
 
     function sendHeatmap() {
+      if (!p._allowed()) { points = []; return; }
       if (!points.length) return;
       const payload = {
         site: d.site,
@@ -188,7 +191,7 @@
         vw: bound(innerWidth, 10000)
       };
       points = [];
-      // _post honours the visitor opt-out.
+      // _post rechecks consent, opt-out, GPC and DNT at upload time.
       p._post(payload);
     }
 

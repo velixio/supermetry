@@ -14,67 +14,26 @@ import (
 
 func ptr[T any](value T) *T { return &value }
 
-func TestResolveSitePrecedence(t *testing.T) {
-	const defaultQuota = int64(5 * 1024 * 1024 * 1024)
-	tests := []struct {
-		name string
-		env  config.ReplayEnv
-		in   sites.ReplaySiteInput
-		want SiteSettings
+func TestResolveSitePrivacyBounds(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		env               config.ReplayEnv
+		in                sites.ReplaySiteInput
+		enabled, mask     bool
+		sample, retention int
+		quota             int64
 	}{
-		{
-			name: "environment and UI unset use defaults",
-			want: SiteSettings{
-				Mask:          Value[bool]{V: false},
-				SampleRate:    Value[int]{V: 15},
-				RetentionDays: Value[int]{V: 30},
-				QuotaBytes:    Value[int64]{V: defaultQuota},
-				Triggers: Triggers{
-					Error: true, RageClick: true, URL: true, Manual: true, URLPatterns: []string{},
-				},
-				Consent: "auto",
-			},
-		},
-		{
-			name: "UI values override defaults",
-			env:  config.ReplayEnv{Enabled: true},
-			in: sites.ReplaySiteInput{
-				Enabled: true, Mask: ptr(true), SampleRate: ptr(40), RetentionDays: ptr(60), QuotaBytes: ptr(int64(1024)),
-				Triggers: sites.ReplayTriggersInput{Error: ptr(false), RageClick: ptr(false), URL: ptr(false), Manual: ptr(false), URLPatterns: []string{"/checkout/*"}},
-				Consent:  ptr("always"),
-			},
-			want: SiteSettings{
-				Enabled:       true,
-				Mask:          Value[bool]{V: true},
-				SampleRate:    Value[int]{V: 40},
-				RetentionDays: Value[int]{V: 60},
-				QuotaBytes:    Value[int64]{V: 1024},
-				Triggers:      Triggers{Error: false, RageClick: false, URL: false, Manual: false, URLPatterns: []string{"/checkout/*"}},
-				Consent:       "always",
-			},
-		},
-		{
-			name: "environment values override and lock UI values",
-			env: config.ReplayEnv{
-				Enabled: true, Mask: ptr(false), SampleRate: ptr(75), Retention: ptr(120), QuotaBytes: ptr(int64(2048)),
-			},
-			in: sites.ReplaySiteInput{Enabled: true, Mask: ptr(true), SampleRate: ptr(40), RetentionDays: ptr(60), QuotaBytes: ptr(int64(1024))},
-			want: SiteSettings{
-				Enabled:       true,
-				Mask:          Value[bool]{V: false, Locked: true},
-				SampleRate:    Value[int]{V: 75, Locked: true},
-				RetentionDays: Value[int]{V: 120, Locked: true},
-				QuotaBytes:    Value[int64]{V: 2048, Locked: true},
-				Triggers:      Triggers{Error: true, RageClick: true, URL: true, Manual: true, URLPatterns: []string{}},
-				Consent:       "auto",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := ResolveSite(tt.env, tt.in); !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("ResolveSite() = %#v, want %#v", got, tt.want)
+		{name: "safe defaults", sample: 15, retention: 30, quota: defaultQuotaBytes},
+		{name: "instance permission alone", env: config.ReplayEnv{Enabled: true}, sample: 15, retention: 30, quota: defaultQuotaBytes},
+		{name: "project opt in alone", in: sites.ReplaySiteInput{Enabled: true}, sample: 15, retention: 30, quota: defaultQuotaBytes},
+		{name: "both switches", env: config.ReplayEnv{Enabled: true}, in: sites.ReplaySiteInput{Enabled: true}, enabled: true, sample: 15, retention: 30, quota: defaultQuotaBytes},
+		{name: "project stricter than environment", env: config.ReplayEnv{Enabled: true, Mask: ptr(false), SampleRate: ptr(75), Retention: ptr(120), QuotaBytes: ptr(int64(2048))}, in: sites.ReplaySiteInput{Enabled: true, Mask: ptr(true), SampleRate: ptr(40), RetentionDays: ptr(60), QuotaBytes: ptr(int64(1024))}, enabled: true, mask: true, sample: 40, retention: 60, quota: 1024},
+		{name: "environment caps project", env: config.ReplayEnv{Enabled: true, Mask: ptr(true), SampleRate: ptr(5), Retention: ptr(7), QuotaBytes: ptr(int64(512))}, in: sites.ReplaySiteInput{Enabled: true, Mask: ptr(false), SampleRate: ptr(40), RetentionDays: ptr(60), QuotaBytes: ptr(int64(1024))}, enabled: true, mask: true, sample: 5, retention: 7, quota: 512},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ResolveSite(tc.env, tc.in)
+			if got.Enabled != tc.enabled || got.Mask.V != tc.mask || got.SampleRate.V != tc.sample || got.RetentionDays.V != tc.retention || got.QuotaBytes.V != tc.quota {
+				t.Fatalf("unexpected effective settings: %+v", got)
 			}
 		})
 	}
@@ -171,5 +130,18 @@ func TestResolveSiteEncodesEmptyURLPatternsAsArray(t *testing.T) {
 	}
 	if !strings.Contains(string(encoded), `"url_patterns":[]`) {
 		t.Fatalf("encoded settings = %s, want url_patterns as an empty array", encoded)
+	}
+}
+
+func TestResolveSiteReportsConfiguredValuesAndRestrictions(t *testing.T) {
+	got := ResolveSite(config.ReplayEnv{Mask: ptr(true), SampleRate: ptr(5)}, sites.ReplaySiteInput{Enabled: true, Mask: ptr(false), SampleRate: ptr(50)})
+	if got.Enabled || !got.ConfiguredEnabled || got.InstanceEnabled || !reflect.DeepEqual(got.Restrictions, []string{"instance_replay_disabled"}) {
+		t.Fatalf("gate metadata=%+v", got)
+	}
+	if got.Mask.Configured == nil || *got.Mask.Configured || !got.Mask.V || !got.Mask.Locked || got.Mask.Restriction != "instance_mask_required" {
+		t.Fatalf("mask metadata=%+v", got.Mask)
+	}
+	if got.SampleRate.Configured == nil || *got.SampleRate.Configured != 50 || got.SampleRate.Maximum == nil || *got.SampleRate.Maximum != 5 || got.SampleRate.V != 5 || got.SampleRate.Restriction != "instance_sample_rate_cap" {
+		t.Fatalf("sample metadata=%+v", got.SampleRate)
 	}
 }

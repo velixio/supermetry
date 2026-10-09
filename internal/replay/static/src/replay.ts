@@ -3,11 +3,13 @@ import { record, type eventWithTime } from "rrweb";
 type ReplayConfig = {
   s: string;
   o: string;
+  v?: string;
 };
 
 type StartResponse = {
   m: "full" | "trigger" | "off";
   mask: boolean;
+  v: string;
   t: { e: boolean; r: boolean; u: string[]; x: boolean };
 };
 
@@ -17,6 +19,8 @@ declare global {
       _replay?: ReplayConfig;
       _replayTrigger?: string;
       _replayDenied?: number | boolean;
+      _replayConsent?: boolean;
+      _allowed?: () => boolean;
       _replayStop?: () => void;
       replay?: { trigger(reason?: string): void };
     };
@@ -29,13 +33,13 @@ const config = panel?._replay;
 if (panel && config) void start(panel, config);
 
 async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) {
-  if (panel._replayDenied) return;
+  if (!allowed(panel)) return;
   let response: Response;
   try {
     response = await fetch(config.o + "/api/replay/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ s: config.s, u: location.href }),
+      body: JSON.stringify({ s: config.s, u: location.href, c: !!panel._replayConsent }),
     });
   } catch {
     panel._replay = undefined;
@@ -48,11 +52,12 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
 
   const startConfig = await response.json() as StartResponse;
   if (startConfig.m === "off") return;
-  if (panel._replayDenied) {
+  if (!allowed(panel)) {
     panel._replay = undefined;
     return;
   }
 
+  config.v = startConfig.v;
   let mode = startConfig.m;
   let sequence = 0;
   let firstChunk = true;
@@ -83,9 +88,11 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   let stop: ReturnType<typeof record>;
   stop = record({
     emit(event) {
-      if (stopped) return;
+      if (stopped || !allowed(panel)) return;
       eventChain = eventChain.then(async () => {
-        await deduplicateSnapshotCSS(event, sentCSS, config);
+        if (cancelUploads || !allowed(panel)) return;
+        await deduplicateSnapshotCSS(event, sentCSS, config, panel, () => !cancelUploads && allowed(panel));
+        if (cancelUploads || !allowed(panel)) return;
         acceptEvent(event);
       });
     },
@@ -109,6 +116,7 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   }
 
   function acceptEvent(event: eventWithTime) {
+    if (cancelUploads || !allowed(panel)) { halt(false, true); return; }
     if (Date.now() - recordedAt >= 30 * 60_000 || Date.now() - lastActivity >= 2 * 60_000 || totalBytes >= 5 * 1024 * 1024) {
       halt(true);
       return;
@@ -164,7 +172,7 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
       if (!batch.length) return;
       const plain = batch.map((event) => JSON.stringify(event)).join("\n") + "\n";
       const compressed = await gzip(plain);
-      if (cancelUploads) return;
+      if (cancelUploads || !allowed(panel)) return;
       if (totalBytes + compressed.byteLength > 5 * 1024 * 1024) {
         halt(false, true);
         return;
@@ -173,6 +181,8 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
         s: config.s,
         q: String(sequence++),
         p: startsPage ? "1" : "0",
+        c: panel._replayConsent ? "1" : "0",
+        v: startConfig.v,
       });
       if (trigger) query.set("t", trigger);
       totalBytes += compressed.byteLength;
@@ -203,6 +213,7 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   }
 
   function halt(flush: boolean, discard = false) {
+    if (discard) { cancelUploads = true; pending = []; pendingBytes = 0; ringSegments = [[]]; ringSizes = [0]; }
     if (stopped) return;
     if (flush && mode === "full") queueFlush(true);
     if (discard) cancelUploads = true;
@@ -222,6 +233,7 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   }
 
   function trigger(reason = "manual") {
+    if (!allowed(panel)) { halt(false, true); return; }
     if (stopped || mode !== "trigger") return;
     const buffered = ringSegments.flat();
     ringSegments = [[]];
@@ -307,7 +319,7 @@ type SnapshotNode = {
   childNodes?: SnapshotNode[];
 };
 
-async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, config: ReplayConfig) {
+async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, config: ReplayConfig, panel: NonNullable<Window["panel"]>, canUpload: () => boolean) {
   if (event.type !== 2) return;
   const root = (event.data as { node?: SnapshotNode }).node;
   if (!root) return;
@@ -320,10 +332,12 @@ async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, c
     try {
       const hash = await sha256hex(css);
       if (!sent.has(hash)) {
-        const response = await fetch(config.o + "/api/replay/css/" + hash + "?s=" + encodeURIComponent(config.s), {
+        const body = await gzip(css);
+        if (!canUpload()) return;
+        const response = await fetch(config.o + "/api/replay/css/" + hash + "?s=" + encodeURIComponent(config.s) + "&c=" + (panel._replayConsent ? "1" : "0") + "&v=" + encodeURIComponent(config.v || ""), {
           method: "PUT",
           headers: { "Content-Type": "application/gzip" },
-          body: await gzip(css),
+          body,
         });
         if (!response.ok) continue;
         sent.add(hash);
@@ -344,4 +358,8 @@ async function sha256hex(value: string): Promise<string> {
 function glob(pattern: string): RegExp {
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replaceAll("*", ".*");
   return new RegExp("^" + escaped + "$");
+}
+
+function allowed(panel: NonNullable<Window["panel"]>): boolean {
+  return !panel._replayDenied && !(navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl && navigator.doNotTrack !== "1" && (panel._allowed?.() ?? true);
 }

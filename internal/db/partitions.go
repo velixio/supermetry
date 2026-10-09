@@ -29,6 +29,8 @@ var monthlyDayTables = []string{
 	"heatmap_cells",
 	"replay_sessions",
 	"sessions_closed",
+	"verified_page_sessions",
+	"verified_page_day",
 	"custom_closed",
 	"cube_day",
 	"visitor_day",

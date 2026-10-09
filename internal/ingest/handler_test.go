@@ -25,6 +25,7 @@ import (
 	"panel/internal/enrich"
 	"panel/internal/health"
 	"panel/internal/ingest"
+	"panel/internal/privacy"
 	"panel/internal/salts"
 	"panel/internal/session"
 	"panel/internal/sites"
@@ -145,6 +146,8 @@ func TestBackpressureReturns503Fast(t *testing.T) {
 
 func TestUTMSourcePersistsRawValueSeparatelyFromBlendedSource(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
+	f.h.TrackingMode = privacy.Identified
+	setProfilesEnabled(t, f, true)
 	body := `{"site":"abc123","name":"pageview","url":"https://example.com/?utm_source=google"}`
 	if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
@@ -286,7 +289,7 @@ func TestHeatmapEnabledAggregatesWithoutRawEvent(t *testing.T) {
 	}
 }
 
-func TestPrivacySignalsAreDroppedOnlyWhenSiteSettingIsEnabled(t *testing.T) {
+func TestPrivacySignalsAreDroppedRegardlessOfSiteSetting(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		header  string
@@ -295,8 +298,8 @@ func TestPrivacySignalsAreDroppedOnlyWhenSiteSettingIsEnabled(t *testing.T) {
 	}{
 		{name: "GPC enabled", header: "Sec-GPC", enabled: true, want: 0},
 		{name: "DNT enabled", header: "DNT", enabled: true, want: 0},
-		{name: "GPC disabled", header: "Sec-GPC", enabled: false, want: 1},
-		{name: "DNT disabled", header: "DNT", enabled: false, want: 1},
+		{name: "GPC disabled", header: "Sec-GPC", enabled: false, want: 0},
+		{name: "DNT disabled", header: "DNT", enabled: false, want: 0},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
@@ -320,10 +323,7 @@ func TestPrivacySignalsAreDroppedOnlyWhenSiteSettingIsEnabled(t *testing.T) {
 			if events != test.want {
 				t.Fatalf("events=%d, want %d", events, test.want)
 			}
-			wantDelta := uint64(0)
-			if test.enabled {
-				wantDelta = 1
-			}
+			wantDelta := uint64(1)
 			if got := health.PrivacySignalsDropped.Load() - before; got != wantDelta {
 				t.Fatalf("privacy signal drop delta=%d, want %d", got, wantDelta)
 			}
@@ -735,6 +735,7 @@ func TestDisabledProfilesAreSuppressedAndCounted(t *testing.T) {
 
 func TestEnabledProfilesRejectTraitsOutsideIdentify(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
+	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
 	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusBadRequest {
@@ -745,6 +746,7 @@ func TestEnabledProfilesRejectTraitsOutsideIdentify(t *testing.T) {
 func TestEnabledIdentifyWithoutTraitsUpsertsAndLinks(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	seedProfileSite(t, f.pool)
+	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
 	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1"}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
@@ -765,6 +767,7 @@ func TestEnabledIdentifyWithoutTraitsUpsertsAndLinks(t *testing.T) {
 func TestTombstonedProfileIsRemovedBeforeQueueing(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	seedProfileSite(t, f.pool)
+	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
 	f.h.ProfileTombstones = allProfilesTombstoned{}
 	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
@@ -785,6 +788,7 @@ func TestTombstonedProfileIsRemovedBeforeQueueing(t *testing.T) {
 func TestEnabledProfilesUpsertTraitsAndLinkEvents(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	seedProfileSite(t, f.pool)
+	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
 	first := `{"site":"abc123","name":"identify","url":"https://example.com/first","profile_id":"customer-1","traits":{"plan":"free","region":"apac"}}`
 	second := `{"site":"abc123","name":"identify","url":"https://example.com/second","profile_id":"customer-1","traits":{"plan":"pro"}}`
@@ -870,6 +874,7 @@ func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *han
 	primeDictionary(t, dictionary)
 	sessions := session.NewMemory(4, clk)
 	w := writer.New(pool, sessions, queueSize, time.Hour, time.Hour, noneClosed{})
+	w.SetPathPolicy(privacy.PathPolicy{}, dictionary)
 	runCtx, cancel := context.WithCancel(context.Background())
 	stopped := make(chan error, 1)
 	go func() { stopped <- w.Run(runCtx) }()
@@ -949,6 +954,7 @@ func setProfilesEnabled(t *testing.T, fixture *handlerFixture, enabled bool) {
 	}
 	site.ProfilesEnabled = enabled
 	fixture.h.Sites = siteRegistry{site: site}
+	fixture.writer.SetTrackingPolicy(fixture.h.TrackingMode, fixture.h.Sites)
 }
 
 func setHeatmapsEnabled(t *testing.T, fixture *handlerFixture, enabled bool) {
@@ -1051,6 +1057,7 @@ func TestDisabledProfilesDropIdentifyEvents(t *testing.T) {
 func TestEnabledProfilesCapMergedTraits(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	seedProfileSite(t, f.pool)
+	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
 	const siteID = 1 // seedProfileSite
 	stored := make([]string, 15)

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"panel/internal/config"
+	"panel/internal/privacy"
 	"panel/internal/replay"
 	"panel/internal/sites"
 )
@@ -21,7 +22,7 @@ func TestBuildScriptDefaultsToFullTracker(t *testing.T) {
 
 	const publicID = "abc123def456"
 	got := BuildScript(publicID, (sites.TrackerSettingsInput{}).Resolve(true), noReplay())
-	wantPrelude := `(d=>{d.site??="abc123def456";d.api??=new URL(document.currentScript.src).origin+"/api/public/v1/events";d.heatmap??="true";})(document.currentScript.dataset);` + "\n"
+	wantPrelude := `(d=>{d.site??="abc123def456";d.api??=new URL(document.currentScript.src).origin+"/api/public/v1/events";d.heatmap??="true";d.replay="";})(document.currentScript.dataset);` + "\n"
 	if !bytes.HasPrefix(got.Body, []byte(wantPrelude)) {
 		t.Fatalf("body prefix = %q, want %q", got.Body[:min(len(got.Body), len(wantPrelude))], wantPrelude)
 	}
@@ -49,11 +50,11 @@ func TestBuildScriptEmitsOnlyNonDefaultSwitches(t *testing.T) {
 		settings sites.TrackerSettings
 		want     string
 	}{
-		{name: "outbound off", settings: sites.TrackerSettings{Downloads: true, Forms: true, Vitals: true, NotFound: true}, want: `d.outbound??="false";`},
-		{name: "downloads off", settings: sites.TrackerSettings{Outbound: true, Forms: true, Vitals: true, NotFound: true}, want: `d.downloads??="false";`},
-		{name: "forms off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Vitals: true, NotFound: true}, want: `d.forms??="false";`},
-		{name: "vitals off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, NotFound: true}, want: `d.vitals??="false";`},
-		{name: "not found off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true}, want: `d[404]??="false";`},
+		{name: "outbound off", settings: sites.TrackerSettings{Downloads: true, Forms: true, Vitals: true, NotFound: true}, want: `d.outbound="false";`},
+		{name: "downloads off", settings: sites.TrackerSettings{Outbound: true, Forms: true, Vitals: true, NotFound: true}, want: `d.downloads="false";`},
+		{name: "forms off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Vitals: true, NotFound: true}, want: `d.forms="false";`},
+		{name: "vitals off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, NotFound: true}, want: `d.vitals="false";`},
+		{name: "not found off", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true}, want: `d[404]="false";`},
 		{name: "clicks on", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true, NotFound: true, Clicks: true}, want: `d.heatmap??="true";`},
 		{name: "hash on", settings: sites.TrackerSettings{Outbound: true, Downloads: true, Forms: true, Vitals: true, NotFound: true, Hash: true}, want: `d.hash??="true";`},
 	}
@@ -68,8 +69,9 @@ func TestBuildScriptEmitsOnlyNonDefaultSwitches(t *testing.T) {
 			if !strings.Contains(prelude, test.want) {
 				t.Fatalf("prelude = %q, want assignment %q", prelude, test.want)
 			}
-			if got := strings.Count(prelude, "??="); got != 3 {
-				t.Fatalf("prelude = %q, nullish assignments = %d, want site, endpoint and one switch", prelude, got)
+			wantDefaults := 2 + strings.Count(test.want, "??=")
+			if got := strings.Count(prelude, "??="); got != wantDefaults {
+				t.Fatalf("defaults=%d want=%d", got, wantDefaults)
 			}
 		})
 	}
@@ -240,10 +242,10 @@ func TestScriptHasNoReplayWhenDisabled(t *testing.T) {
 		env  config.ReplayEnv
 		site sites.ReplaySiteInput
 	}{
-		// PANEL_REPLAY_ENABLED is the only switch, so a stored site value cannot
-		// turn replay on.
+		// Both instance permission and project opt-in are required.
 		{name: "instance off", site: sites.ReplaySiteInput{Enabled: true}},
 		{name: "instance off, site never set"},
+		{name: "project off", env: config.ReplayEnv{Enabled: true}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -254,8 +256,8 @@ func TestScriptHasNoReplayWhenDisabled(t *testing.T) {
 			if !ok {
 				t.Fatal("script has no prelude separator")
 			}
-			if bytes.Contains(prelude, []byte("replay")) {
-				t.Fatalf("disabled script prelude contains replay config: %q", prelude)
+			if !bytes.Contains(prelude, []byte(`d.replay="";`)) {
+				t.Fatalf("disabled script prelude must override supplied replay config: %q", prelude)
 			}
 		})
 	}
@@ -274,7 +276,7 @@ func TestScriptHasReplayConfigWhenEnabled(t *testing.T) {
 	if !ok {
 		t.Fatal("script has no prelude separator")
 	}
-	if !bytes.Contains(prelude, []byte(`d.replay??="always";`)) {
+	if !bytes.Contains(prelude, []byte(`d.replay="always";`)) {
 		t.Fatalf("enabled script prelude = %q, want replay consent config", prelude)
 	}
 	if !bytes.Equal(source, fullScript) {
@@ -307,5 +309,32 @@ func TestBuildScriptUsesConfiguredEventPath(t *testing.T) {
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
 	if !strings.Contains(body, `origin+"/x/collect";`) {
 		t.Fatalf("script does not use the configured event path:\n%s", body[:200])
+	}
+}
+
+func TestSiteHandlerIdentityPolicyInvalidatesCachedScript(t *testing.T) {
+	reg := scriptRegistry{"abc123def456": {PublicID: "abc123def456", ProfilesEnabled: true}}
+	handler := SiteHandlerWithPolicy(reg, config.ReplayEnv{}, privacy.Identified)
+	first := httptest.NewRecorder()
+	handler.ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js", nil))
+	if bytes.Contains(first.Body.Bytes(), []byte(`d.profiles="false"`)) {
+		t.Fatal("identified opted-in project blocked")
+	}
+	site := reg["abc123def456"]
+	site.ProfilesEnabled = false
+	reg["abc123def456"] = site
+	req := httptest.NewRequest(http.MethodGet, "/js/abc123def456.js", nil)
+	req.Header.Set("If-None-Match", first.Header().Get("ETag"))
+	second := httptest.NewRecorder()
+	handler.ServeHTTP(second, req)
+	if second.Code != http.StatusOK || !bytes.Contains(second.Body.Bytes(), []byte(`d.profiles="false"`)) {
+		t.Fatalf("project downgrade=%d %s", second.Code, second.Body.String())
+	}
+	site.ProfilesEnabled = true
+	reg["abc123def456"] = site
+	anonymous := httptest.NewRecorder()
+	SiteHandlerWithPolicy(reg, config.ReplayEnv{}, privacy.Anonymous).ServeHTTP(anonymous, req)
+	if anonymous.Code != http.StatusOK || !bytes.Contains(anonymous.Body.Bytes(), []byte(`d.profiles="false"`)) {
+		t.Fatal("anonymous instance did not veto project opt in")
 	}
 }

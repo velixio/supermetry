@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"panel/internal/platform/authz"
+	"panel/internal/privacy"
 )
 
 func TestSensitiveReadCapabilitiesBeforeStorage(t *testing.T) {
@@ -25,7 +26,7 @@ func TestSensitiveReadCapabilitiesBeforeStorage(t *testing.T) {
 				if grant {
 					principal.Capabilities = []string{route.grant}
 				}
-				h := New(Deps{Authenticator: importTestAuth{principal}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
+				h := New(Deps{TrackingMode: privacy.Identified, Authenticator: importTestAuth{principal}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
 				response := httptest.NewRecorder()
 				h.ServeHTTP(response, httptest.NewRequest("GET", route.path, nil))
 				want := http.StatusForbidden
@@ -43,7 +44,7 @@ func TestSensitiveReadCapabilitiesBeforeStorage(t *testing.T) {
 func TestSensitiveReadsHideTenantAndRestrictedSites(t *testing.T) {
 	for _, principal := range []authz.Principal{{OrgID: 8, Role: authz.RoleViewer}, {OrgID: 7, Role: authz.RoleViewer, SiteIDs: []int32{}}, {OrgID: 7, Role: authz.RoleViewer, SiteIDs: []int32{2}, Capabilities: []string{"profiles.read", "replay.read"}}} {
 		for _, path := range []string{"/api/private/sites/1/profiles", "/api/private/sites/1/replays", "/api/private/sites/1/replays/123/data", "/api/private/sites/1/replays/css/" + strings.Repeat("a", 64)} {
-			h := New(Deps{Authenticator: importTestAuth{principal}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
+			h := New(Deps{TrackingMode: privacy.Identified, Authenticator: importTestAuth{principal}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
 			response := httptest.NewRecorder()
 			h.ServeHTTP(response, httptest.NewRequest("GET", path, nil))
 			if response.Code != http.StatusNotFound {
@@ -60,7 +61,7 @@ func TestExportCapabilityIsIndependentOfEditing(t *testing.T) {
 			if grant {
 				principal.Capabilities = []string{"data.export"}
 			}
-			h := New(Deps{Authenticator: importTestAuth{principal}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}, Exporter: importTestExporter{}})
+			h := New(Deps{TrackingMode: privacy.Identified, Authenticator: importTestAuth{principal}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}, Exporter: importTestExporter{}})
 			response := httptest.NewRecorder()
 			h.ServeHTTP(response, httptest.NewRequest("GET", "/api/private/sites/1/export?from=2026-10-01&to=2026-10-09", nil))
 			want := http.StatusForbidden

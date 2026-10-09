@@ -121,7 +121,7 @@ func TestRetentionReport(t *testing.T) {
 
 func TestReportsAuthorization(t *testing.T) {
 	t.Run("public journey cannot read another site", func(t *testing.T) {
-		router := api.NewRouter(api.Deps{
+		router := identifiedRouter(api.Deps{
 			Config:      config.Config{},
 			Query:       reportsQueryStub{},
 			PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{2}}},
@@ -139,7 +139,7 @@ func TestReportsAuthorization(t *testing.T) {
 			{"/api/public/v1/journeys/query", `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"steps":99,"limit":5}`},
 			{"/api/public/v1/retention/query", `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"interval":"year"}`},
 		} {
-			router := api.NewRouter(api.Deps{
+			router := identifiedRouter(api.Deps{
 				Config:      config.Config{},
 				Query:       reportsQueryStub{},
 				PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{2}}},
@@ -153,7 +153,7 @@ func TestReportsAuthorization(t *testing.T) {
 	})
 
 	t.Run("missing stats:read scope is forbidden", func(t *testing.T) {
-		router := api.NewRouter(api.Deps{
+		router := identifiedRouter(api.Deps{
 			Config:      config.Config{},
 			Query:       reportsQueryStub{},
 			PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"sites:write"}, SiteIDs: []int32{1}}},
@@ -166,7 +166,7 @@ func TestReportsAuthorization(t *testing.T) {
 	})
 
 	t.Run("private retention requires CSRF", func(t *testing.T) {
-		router := api.NewRouter(api.Deps{
+		router := identifiedRouter(api.Deps{
 			Config:      config.Config{},
 			Query:       reportsQueryStub{},
 			PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
@@ -182,7 +182,7 @@ func TestReportsAuthorization(t *testing.T) {
 
 func reportRequest(t *testing.T, query reportsQueryStub, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:      config.Config{},
 		Query:       query,
 		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{1}}},

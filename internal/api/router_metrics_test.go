@@ -72,7 +72,7 @@ func TestMetricsAccessPolicy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := api.NewRouter(api.Deps{Config: config.Config{
+			router := identifiedRouter(api.Deps{Config: config.Config{
 				MetricsToken:   tt.token,
 				TrustedProxies: tt.trusted,
 			}})

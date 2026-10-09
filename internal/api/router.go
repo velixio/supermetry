@@ -19,6 +19,7 @@ import (
 	"panel/internal/config"
 	"panel/internal/dict"
 	"panel/internal/ingest"
+	"panel/internal/privacy"
 	"panel/internal/realtime"
 	"panel/internal/replay"
 	"panel/internal/session"
@@ -79,7 +80,11 @@ func NewRouter(deps Deps) http.Handler {
 		deps.RateLimiter = ingest.NewTokenBuckets(2, 30)
 	}
 
-	h := &handlers{query: deps.Query, sessions: deps.SessionExplore, heatmaps: deps.Heatmaps, now: deps.Now}
+	queries := deps.Query
+	if deps.Config.Tracking.Mode != privacy.Identified && queries != nil {
+		queries = anonymousQueries{queryService: queries, paths: deps.Config.TrackingPaths}
+	}
+	h := &handlers{query: queries, sessions: deps.SessionExplore, heatmaps: deps.Heatmaps, now: deps.Now}
 	explore, hasExplore := deps.Query.(exploreService)
 	mux := http.NewServeMux()
 
@@ -90,7 +95,7 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	registerSessionExplore(public, publicPrefix, h)
 	public.Handle("POST "+publicPrefix+"/mcp", NewMCPHandler(MCPDeps{
-		Query: deps.Query, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
+		Query: queries, TrackingMode: deps.Config.Tracking.Mode, TrackingPaths: deps.Config.TrackingPaths, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
 		Dictionary: deps.Dictionary, MinuteSource: deps.MinuteSource,
 	}))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
@@ -102,7 +107,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	public.HandleFunc("GET "+publicPrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, public)))
+	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, trackingReads(deps.Config.Tracking.Mode, public))))
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
@@ -120,7 +125,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("GET "+privatePrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(private)))
+	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, private))))
 	registerPlatformRoutes(mux, deps.Platform, deps.RateLimiter)
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
@@ -141,7 +146,7 @@ func NewRouter(deps Deps) http.Handler {
 		mux.Handle("GET "+tracker.FullPath(deps.Config.TrackerPath), tracker.FullHandler())
 		if deps.Sites != nil {
 			tracker.SetEventPath(deps.Config.EventPath)
-			mux.Handle("GET "+path.Dir(deps.Config.TrackerPath)+"/", tracker.SiteHandler(deps.Sites, deps.Config.Replay))
+			mux.Handle("GET "+path.Dir(deps.Config.TrackerPath)+"/", tracker.SiteHandlerWithPolicy(deps.Sites, deps.Config.Replay, deps.Config.Tracking.Mode))
 		}
 	}
 	mux.HandleFunc("GET /replay.js", func(w http.ResponseWriter, request *http.Request) {

@@ -149,10 +149,10 @@ func (b *RollupBackfill) initialize(ctx context.Context) (RollupBackfillProgress
 		if plan.mode != rollupBackfillNone {
 			if err := tx.QueryRow(ctx, `
 				select day, site_id from day_close
-				where status='done' and exists (
+				where status='done' and (exists (
 				  select 1 from sessions_closed
 				  where sessions_closed.site_id=day_close.site_id and sessions_closed.day=day_close.day
-				)
+				) or exists (select 1 from verified_page_sessions verified where verified.site_id=day_close.site_id and verified.day=day_close.day))
 				order by day desc, site_id desc limit 1`).Scan(&throughDay, &throughSite); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 				return err
 			}
@@ -179,7 +179,7 @@ func (b *RollupBackfill) initialize(ctx context.Context) (RollupBackfillProgress
 		if err := tx.QueryRow(ctx, `
 			select count(*) from day_close
 			where status='done' and (day,site_id) <= ($1::date,$2::int)
-			  and exists (select 1 from sessions_closed where sessions_closed.site_id=day_close.site_id and sessions_closed.day=day_close.day)`,
+			  and (exists (select 1 from sessions_closed where sessions_closed.site_id=day_close.site_id and sessions_closed.day=day_close.day) or exists (select 1 from verified_page_sessions verified where verified.site_id=day_close.site_id and verified.day=day_close.day))`,
 			*throughDay, *throughSite).Scan(&progress.TotalDays); err != nil {
 			return err
 		}
@@ -225,8 +225,8 @@ func (b *RollupBackfill) next(ctx context.Context) (rollupBackfillItem, bool, er
 		  and (closed.day,closed.site_id) <= (state.through_day,state.through_site_id)
 		  and (state.last_processed_day is null or
 		       (closed.day,closed.site_id) > (state.last_processed_day,state.last_processed_site_id))
-		  and exists (select 1 from sessions_closed sessions
-		              where sessions.site_id=closed.site_id and sessions.day=closed.day)
+		  and (exists (select 1 from sessions_closed sessions
+		              where sessions.site_id=closed.site_id and sessions.day=closed.day) or exists (select 1 from verified_page_sessions verified where verified.site_id=closed.site_id and verified.day=closed.day))
 		order by closed.day, closed.site_id limit 1`).Scan(&item.day, &item.siteID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return rollupBackfillItem{}, false, nil

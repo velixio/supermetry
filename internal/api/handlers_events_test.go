@@ -115,7 +115,7 @@ func newEventsExploreRouter(service *eventsExploreStub, principal api.Principal)
 		1: sites.Site{ID: 1, OrgID: 7, TZ: time.UTC, Retention: db.Ret30},
 		2: sites.Site{ID: 2, OrgID: 8, TZ: time.UTC, Retention: db.Ret30},
 	}
-	return api.NewRouter(api.Deps{
+	return identifiedRouter(api.Deps{
 		Config: config.Config{}, Query: service,
 		PublicAuth: principalAuth{principal: principal}, PrivateAuth: principalAuth{principal: principal},
 		Sites: registry, RateLimiter: ingest.NewTokenBuckets(0, 30),

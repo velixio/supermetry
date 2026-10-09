@@ -13,7 +13,6 @@ import (
 	"panel/internal/api"
 	"panel/internal/db"
 	"panel/internal/dict"
-	"panel/internal/query"
 	"panel/internal/sites"
 	"panel/internal/testpg"
 )
@@ -122,7 +121,7 @@ func TestSessionsHasReplayFilter(t *testing.T) {
 	if err := dictionary.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
-	engine := query.NewEngine(pool, dictionary, sitesRegistry{{ID: 1, PublicID: "replay", TZ: time.UTC, Retention: db.Ret30}})
+	engine := identifiedEngine(pool, dictionary, sitesRegistry{{ID: 1, PublicID: "replay", TZ: time.UTC, Retention: db.Ret30}})
 	hasReplay := true
 	response, err := engine.Sessions(ctx, 1, api.ListSessionsParams{
 		From:      openapi_types.Date{Time: day("2026-10-06")},
@@ -218,7 +217,7 @@ update sessions_closed set profile_id=1 where site_id=1 and session_id=201`); er
 	if err := dictionary.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
-	engine := query.NewEngine(pool, dictionary, sitesRegistry{
+	engine := identifiedEngine(pool, dictionary, sitesRegistry{
 		{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30},
 		{ID: 2, PublicID: "other", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true},
 	})

@@ -12,6 +12,7 @@ import (
 	"panel/internal/api"
 	"panel/internal/db"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 	"panel/internal/sites"
 )
 
@@ -31,6 +32,9 @@ type normalizedVitals struct {
 // Vitals returns Web Vitals aggregates from raw events. Unlike the general
 // query engine this report intentionally has no rollup fallback.
 func (e *Engine) Vitals(ctx context.Context, req api.VitalsRequest) (api.VitalsResponse, error) {
+	if e.trackingMode != privacy.Identified {
+		return api.VitalsResponse{}, api.ErrAnonymousHistory
+	}
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.VitalsResponse{}, errors.New("query engine is not configured")
 	}

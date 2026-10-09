@@ -9,7 +9,7 @@ function buildSource(full) {
   return source.replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "");
 }
 
-function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, ignored = false} = {}) {
+function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, doNotTrack = "0", ignored = false} = {}) {
   const events = new Map();
   const listeners = new Map();
   const payloads = [];
@@ -110,6 +110,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
     location,
     navigator: {
       globalPrivacyControl,
+      doNotTrack,
       webdriver: false,
       sendBeacon(_endpoint, body) {
         payloads.push(JSON.parse(body.parts.join("")));
@@ -407,12 +408,12 @@ function testConsentQueuesManualPageview() {
   assert.equal(tracker.payloads.at(-1).url, "https://example.com/consented");
 }
 
-function testConsentIsNoOpWithoutGate() {
+function testConsentWithdrawalWithoutGate() {
   const tracker = loadTracker({full: true});
   tracker.panel.consent(false);
   tracker.panel.track("Still enabled");
 
-  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "Still enabled"]);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
 }
 
 function testFormSubmitContainsOnlySafeMetadata() {
@@ -600,7 +601,7 @@ testConsentQueueOverflowKeepsPageview();
 testConsentDenialClearsQueueAndDropsUntilGranted();
 testConsentGrantIsIdempotent();
 testConsentQueuesManualPageview();
-testConsentIsNoOpWithoutGate();
+testConsentWithdrawalWithoutGate();
 testFormSubmitContainsOnlySafeMetadata();
 testFormTrackingCanBeDisabled();
 testClassTaggedFormReplacesAutomaticFormEvent();
@@ -612,3 +613,31 @@ testOptOutStopsSendsAndOptInResumes();
 testStoredOptOutSuppressesInitialPageview();
 testHeatmapIsOffByDefaultAndExplicitlyEnabled();
 testGeneratedPreludeAppliesDefaultsWithoutOverridingAttributes();
+
+function testPrivacySignalsBlockAllCollection() {
+ for(const signal of [{globalPrivacyControl:true},{doNotTrack:"1"}]) {
+  const tracker=loadTracker({...signal,full:true,withExtensions:true,dataset:{heatmap:"true"}});
+  tracker.panel.optIn();tracker.panel.consent(true);tracker.panel.identify("visitor");tracker.panel.track("custom");
+  tracker.events.get("document:click")({button:0,pageX:12,pageY:34,target:element()});tracker.events.get("window:pagehide")();
+  assert.deepEqual(tracker.payloads,[],"privacy signal must veto every collection path");
+ }
+}
+function testHeatmapConsentWithdrawalDiscardsPoints() {
+ const tracker=loadTracker({full:true,withExtensions:true,dataset:{heatmap:"true",consent:"required"}});
+ const click=()=>tracker.events.get("document:click")({button:0,pageX:12,pageY:34,target:element()});
+ click();tracker.events.get("window:pagehide")();
+ assert.deepEqual(tracker.payloads,[],"heatmap must respect required consent");
+ tracker.panel.consent(true);click();tracker.panel.consent(false);tracker.panel.consent(true);
+ tracker.events.get("window:pagehide")();
+ assert.equal(tracker.payloads.some(p=>p.name==="heatmap"),false,"withdrawal must discard clicks even after regrant");
+ click();tracker.events.get("window:pagehide")();
+ assert.equal(tracker.payloads.filter(p=>p.name==="heatmap").length,1);
+}
+function testDisabledProfilesDoNotCollectIdentity() {
+ const tracker=loadTracker({dataset:{profiles:"false"}});
+ tracker.panel.identify("visitor",{email:"private"});tracker.panel.track("custom");
+ assert.equal(tracker.payloads.some(p=>p.profile_id||p.traits||p.name==="identify"),false);
+}
+testPrivacySignalsBlockAllCollection();
+testHeatmapConsentWithdrawalDiscardsPoints();
+testDisabledProfilesDoNotCollectIdentity();

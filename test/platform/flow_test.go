@@ -169,7 +169,7 @@ func TestSiteErasureCatchesShutdownFlush(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("site erasure job did not run")
+			t.Fatalf("site erasure job did not run; server logs:\n%s", env.logs.String())
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

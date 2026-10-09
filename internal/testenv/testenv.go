@@ -27,6 +27,7 @@ import (
 	"panel/internal/db"
 	"panel/internal/dict"
 	"panel/internal/ingest"
+	"panel/internal/privacy"
 	"panel/internal/query"
 	"panel/internal/salts"
 	"panel/internal/session"
@@ -123,14 +124,16 @@ func Start(t *testing.T) *Env {
 	}
 	sessions := session.NewMemory(16, clock)
 	w := writer.New(pool, sessions, 65536, 20*time.Millisecond, 20*time.Millisecond, noClosedDays{})
+	w.SetTrackingPolicy(privacy.Identified, reg)
 	writerCtx, stopWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
 	go func() { writerDone <- w.Run(writerCtx) }()
 
 	handler := &truthIntake{sites: reg, salts: saltStore, dict: dictionary, sessions: sessions, writer: w}
 	engine := query.NewEngine(pool, dictionary, reg)
+	engine.SetTrackingMode(privacy.Identified)
 	router := api.NewRouter(api.Deps{
-		Config: config.Config{EventPath: "/api/public/v1/events", AdminAPIKey: TestAPIKey},
+		Config: config.Config{Tracking: config.TrackingMode{Mode: privacy.Identified}, EventPath: "/api/public/v1/events", AdminAPIKey: TestAPIKey},
 		Query:  engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, Now: clock.Now,
 		RateLimiter: ingest.NewTokenBuckets(100_000, 100_000), Ready: func() bool { return true },
 	})
@@ -542,7 +545,7 @@ func loadRegistry(t *testing.T, path string) *registry {
 		if err != nil {
 			t.Fatal(err)
 		}
-		site := sites.Site{ID: record.ID, PublicID: strconv.Itoa(int(record.ID)), TZ: location, Retention: db.Ret30, AllowedHosts: []string{record.Host}}
+		site := sites.Site{ProfilesEnabled: true, ID: record.ID, PublicID: strconv.Itoa(int(record.ID)), TZ: location, Retention: db.Ret30, AllowedHosts: []string{record.Host}}
 		r.byPublic[site.PublicID] = site
 		r.byID[site.ID] = site
 		r.all = append(r.all, site)

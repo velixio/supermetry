@@ -14,7 +14,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"panel/internal/dict"
+	"panel/internal/privacy"
 	"panel/internal/session"
+	"panel/internal/sites"
 )
 
 const (
@@ -34,15 +37,17 @@ var Dropped, Written atomic.Int64
 // never contain an IP address or a full user-agent string.
 type Event struct {
 	session.Hit
-	SessionID         int64
-	ProfileExternalID string
-	ProfileTraits     map[string]string
-	ProfileID         int64
-	Props             map[string]string
-	Screen            int16
-	ReferrerID        int32
-	RevenueMicros     int64
-	RevenueCurrency   string
+	SessionID            int64
+	PathSanitizerVersion int16
+	PathPolicyID         string
+	ProfileExternalID    string
+	ProfileTraits        map[string]string
+	ProfileID            int64
+	Props                map[string]string
+	Screen               int16
+	ReferrerID           int32
+	RevenueMicros        int64
+	RevenueCurrency      string
 }
 
 // ClosedDays reports whether a site-local day has already been compacted.
@@ -62,6 +67,12 @@ type Writer struct {
 	sessionFlush      time.Duration
 	closed            ClosedDays
 	profileTombstones ProfileTombstones
+
+	trackingMu     sync.RWMutex
+	trackingMode   privacy.Mode
+	trackingSites  sites.Registry
+	pathPolicy     privacy.PathPolicy
+	pathDictionary *dict.Dict
 
 	poolMu sync.RWMutex
 	pool   *pgxpool.Pool
@@ -96,6 +107,20 @@ func New(pool *pgxpool.Pool, sess session.Store, size int, flushEvery, sessionFl
 		pool:         pool,
 		accepting:    true,
 	}
+}
+
+// RejectEventIfUnavailable rejects known-full or stopped intake without reserving
+// capacity. Slots include queued, in-flight and retrying events. A false result
+// is only a hint: callers must still use Enqueue as the final capacity check.
+// A true result accounts for exactly one dropped event; do not enqueue it again.
+func (w *Writer) RejectEventIfUnavailable() bool {
+	w.stateMu.RLock()
+	defer w.stateMu.RUnlock()
+	if !w.accepting || len(w.slots) == cap(w.slots) {
+		Dropped.Add(1)
+		return true
+	}
+	return false
 }
 
 // Enqueue transfers ownership of e to the writer. It never blocks and returns
@@ -243,6 +268,7 @@ func (w *Writer) stopAccepting() {
 
 func (w *Writer) retryEvents(waitCtx, attemptCtx context.Context, batch []Event, write func(context.Context, []Event) error) error {
 	return retryOperation(waitCtx, attemptCtx, func(ctx context.Context) error {
+		w.suppressRestrictedIdentity(batch)
 		return write(ctx, batch)
 	})
 }
@@ -345,7 +371,7 @@ var eventColumns = []string{
 	"browser_ver_id", "os_ver_id", "language_id", "hostname_id", "device", "screen",
 	"engagement_ms", "scroll_pct", "props",
 	"revenue_micros", "revenue_currency",
-	"profile_id",
+	"profile_id", "path_sanitizer_version", "path_policy_id",
 }
 
 func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
@@ -353,6 +379,7 @@ func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
 	if pool == nil {
 		return errors.New("writer: database pool is nil")
 	}
+	w.suppressRestrictedIdentity(events)
 	w.suppressTombstonedProfiles(events)
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if err := upsertProfiles(ctx, tx, events); err != nil {
@@ -533,7 +560,7 @@ type siteDay struct {
 type eventSource struct {
 	events []Event
 	index  int
-	row    [33]any
+	row    [35]any
 }
 
 func (s *eventSource) Next() bool {
@@ -549,14 +576,14 @@ func (s *eventSource) Values() ([]any, error) {
 	if event.Props != nil {
 		props = event.Props
 	}
-	s.row = [33]any{
+	s.row = [35]any{
 		event.SiteID, event.Retention, event.LocalDay, event.TS, event.VisitorID, event.SessionID, event.Kind,
 		event.NameID, event.PathID, event.ReferrerID, event.Source, event.UTMSource, event.Medium, event.Campaign,
 		int32(0), int32(0), event.Country, event.Region, event.City, event.Browser, event.OS,
 		event.BrowserVer, event.OSVer, event.Language, event.Hostname, event.Device, event.Screen,
 		event.EngagementMS, event.ScrollPct, props,
 		event.RevenueMicros, nullableString(event.RevenueCurrency),
-		nullableInt64(event.ProfileID),
+		nullableInt64(event.ProfileID), event.PathSanitizerVersion, event.PathPolicyID,
 	}
 	return s.row[:], nil
 }
@@ -583,6 +610,7 @@ var sessionColumns = []string{
 }
 
 func (w *Writer) upsertSessions(ctx context.Context, snapshots []session.Snapshot) error {
+	w.suppressRestrictedSessions(snapshots)
 	pool := w.currentPool()
 	if pool == nil {
 		return errors.New("writer: database pool is nil")

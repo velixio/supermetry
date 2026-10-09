@@ -1,3 +1,4 @@
+import type { TrackingPolicy } from "@/features/sites/types";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { copyText } from "@/lib/clipboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +73,7 @@ type Site = {
   timezone: string;
   retention_days: number;
   profiles_enabled: boolean;
+  tracking_policy?: TrackingPolicy;
   last_event_received_at?: string;
   icon_url?: string;
 };
@@ -268,6 +270,7 @@ export function SiteGeneralPage({
               </Field>
               <ProfilesSettings
                 enabled={site.data.profiles_enabled}
+                policy={site.data.tracking_policy}
                 role={role}
                 onChange={(profiles_enabled) => save.mutate({ profiles_enabled })}
               />

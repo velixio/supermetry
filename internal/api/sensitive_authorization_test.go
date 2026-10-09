@@ -52,7 +52,7 @@ func TestSensitiveEventReplayMetadata(t *testing.T) {
 		if grant {
 			scopes = append(scopes, "replay:read")
 		}
-		router := api.NewRouter(api.Deps{Query: &sensitiveEventsStub{}, PublicAuth: principalAuth{api.Principal{OrgID: 7, Scopes: scopes}}, Sites: orgSites{1: {ID: 1, OrgID: 7}}, RateLimiter: ingest.NewTokenBuckets(0, 30)})
+		router := identifiedRouter(api.Deps{Query: &sensitiveEventsStub{}, PublicAuth: principalAuth{api.Principal{OrgID: 7, Scopes: scopes}}, Sites: orgSites{1: {ID: 1, OrgID: 7}}, RateLimiter: ingest.NewTokenBuckets(0, 30)})
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, httptest.NewRequest("GET", "/api/public/v1/sites/1/events?from=2026-10-01&to=2026-10-08", nil))
 		if response.Code != 200 || strings.Contains(response.Body.String(), `"has_replay":true`) != grant {
@@ -75,7 +75,7 @@ func TestCSVExportRequiresSeparateScope(t *testing.T) {
 						scopes = append(scopes, "data:export")
 					}
 					principal := api.Principal{OrgID: 7, Scopes: scopes}
-					router := api.NewRouter(api.Deps{Query: queryStub{}, PublicAuth: principalAuth{principal}, PrivateAuth: principalAuth{principal}, Sites: orgSites{1: {ID: 1, OrgID: 7}}, RateLimiter: ingest.NewTokenBuckets(0, 30)})
+					router := identifiedRouter(api.Deps{Query: queryStub{}, PublicAuth: principalAuth{principal}, PrivateAuth: principalAuth{principal}, Sites: orgSites{1: {ID: 1, OrgID: 7}}, RateLimiter: ingest.NewTokenBuckets(0, 30)})
 					path := "/api/public/v1" + endpoint
 					if strings.Contains(variant, "format") {
 						path += "&format=csv"
@@ -121,7 +121,7 @@ func TestProfileRetentionRequiresProfileRead(t *testing.T) {
 		if grant {
 			scopes = append(scopes, "profiles:read")
 		}
-		router := api.NewRouter(api.Deps{Query: queryStub{}, PublicAuth: principalAuth{api.Principal{OrgID: 7, Scopes: scopes}}, Sites: orgSites{1: {ID: 1, OrgID: 7}}, RateLimiter: ingest.NewTokenBuckets(0, 30)})
+		router := identifiedRouter(api.Deps{Query: queryStub{}, PublicAuth: principalAuth{api.Principal{OrgID: 7, Scopes: scopes}}, Sites: orgSites{1: {ID: 1, OrgID: 7}}, RateLimiter: ingest.NewTokenBuckets(0, 30)})
 		request := httptest.NewRequest("POST", "/api/public/v1/retention/query", strings.NewReader(`{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-08"},"interval":"day","identity":"profile"}`))
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)

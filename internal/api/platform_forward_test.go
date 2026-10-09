@@ -46,7 +46,7 @@ func TestEveryPlatformRouteIsForwarded(t *testing.T) {
 	}
 
 	platform := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(218) })
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Platform:    platform,
 		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
 		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7}},

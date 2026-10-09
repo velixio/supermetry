@@ -210,7 +210,7 @@ func setupEventsExplore(t *testing.T) (*pgxpool.Pool, *Engine) {
 	}
 	dictionary := dict.New(pool)
 	registry := vitalsRegistry{site: sites.Site{ID: 1, PublicID: "events", TZ: time.UTC, Retention: db.Ret30}}
-	engine := NewEngine(pool, dictionary, registry)
+	engine := identifiedEngine(pool, dictionary, registry)
 	engine.now = func() time.Time { return exploreDay("2026-10-08") }
 	return pool, engine
 }

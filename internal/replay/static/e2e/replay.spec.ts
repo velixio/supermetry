@@ -271,3 +271,19 @@ test("keeps stylesheet text inline when the CSS upload fails", async ({ page }) 
   expect(JSON.stringify(snapshot)).toContain('"_cssText"');
   expect(JSON.stringify(snapshot)).not.toContain('"_cssRef"');
 });
+
+for (const signal of ["globalPrivacyControl", "doNotTrack"] as const) {
+  test(`${signal} prevents replay even after explicit consent`, async ({ page }) => {
+    await page.addInitScript((name) => Object.defineProperty(navigator, name, {
+      configurable: true, get: () => name === "globalPrivacyControl" ? true : "1",
+    }), signal);
+    await page.goto("/full");
+    await page.evaluate(() => {
+      const panel = (window as typeof window & { panel?: { consent?(granted: boolean): void; optIn?(): void } }).panel;
+      panel?.consent?.(true); panel?.optIn?.();
+    });
+    await page.waitForTimeout(200);
+    expect((await state(page)).starts).toBe(0);
+    expect((await state(page)).uploads).toHaveLength(0);
+  });
+}

@@ -245,6 +245,7 @@ func cloneResponse(response api.QueryResponse) api.QueryResponse {
 		cloned.Totals[key] = value
 	}
 	cloned.Meta.SourcesUsed = append([]string(nil), response.Meta.SourcesUsed...)
+	cloned.Meta.Privacy = clonePointer(response.Meta.Privacy)
 	cloned.NextCursor = clonePointer(response.NextCursor)
 	if response.Comparison != nil {
 		comparison := *response.Comparison

@@ -16,8 +16,7 @@ const (
 )
 
 func writeCSV(w http.ResponseWriter, response QueryResponse, filename string) {
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	writeCSVHeaders(w, response, filename)
 	writer := csv.NewWriter(w)
 	writer.UseCRLF = true
 	writeCSVRows(writer, response.Columns, response.Rows, true)
@@ -25,8 +24,6 @@ func writeCSV(w http.ResponseWriter, response QueryResponse, filename string) {
 }
 
 func streamQueryCSV(w http.ResponseWriter, r *http.Request, service queryService, request QueryRequest, filename string) {
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	writer := csv.NewWriter(w)
 	writer.UseCRLF = true
 	written := 0
@@ -40,6 +37,9 @@ func streamQueryCSV(w http.ResponseWriter, r *http.Request, service queryService
 				writeQueryError(w, err)
 			}
 			return
+		}
+		if header {
+			writeCSVHeaders(w, response, filename)
 		}
 		rows := response.Rows
 		if remaining := csvMaxRows - written; len(rows) > remaining {
@@ -57,6 +57,21 @@ func streamQueryCSV(w http.ResponseWriter, r *http.Request, service queryService
 		}
 		request.Cursor = response.NextCursor
 	}
+}
+
+// Privacy metadata has already been validated by the anonymous query wrapper.
+// CSV keeps the existing table shape; headers and the filename declare its scope.
+func writeCSVHeaders(w http.ResponseWriter, response QueryResponse, filename string) {
+	if scope := response.Meta.Privacy; scope != nil {
+		w.Header().Set("X-Panel-Privacy-Scope", "verified-only")
+		w.Header().Set("X-Panel-Privacy-Path-Sanitizer-Version", strconv.Itoa(scope.PathSanitizerVersion))
+		w.Header().Set("X-Panel-Privacy-Policy-Id", scope.PolicyId)
+		w.Header().Set("X-Panel-Privacy-Unverified-Excluded", strconv.FormatBool(scope.UnverifiedExcluded))
+		w.Header().Set("X-Panel-Privacy-Imports-Excluded", strconv.FormatBool(scope.ImportsExcluded))
+		filename = strings.TrimSuffix(filename, ".csv") + "-verified-only.csv"
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 }
 
 func writeCSVRows(writer *csv.Writer, columns []string, rows []map[string]any, header bool) {

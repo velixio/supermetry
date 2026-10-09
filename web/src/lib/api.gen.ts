@@ -1240,7 +1240,18 @@ export interface components {
             /** @enum {string} */
             compare?: "previous_period" | "previous_year";
         };
+        QueryPrivacy: {
+            /** @enum {string} */
+            view: "verified_paths";
+            path_sanitizer_version: number;
+            policy_id: string;
+            /** @enum {string} */
+            coverage: "verified_only";
+            unverified_excluded: boolean;
+            imports_excluded: boolean;
+        };
         QueryMeta: {
+            privacy?: components["schemas"]["QueryPrivacy"];
             sources_used: string[];
             cached: boolean;
             imported_included: boolean;
@@ -1433,11 +1444,18 @@ export interface components {
         };
         ReplayValueBoolean: {
             value: boolean;
+            configured?: boolean;
+            restriction?: string;
             locked: boolean;
         };
         ReplayValueInteger: {
             /** Format: int64 */
             value: number;
+            /** Format: int64 */
+            configured?: number;
+            /** Format: int64 */
+            maximum?: number;
+            restriction?: string;
             locked: boolean;
         };
         ReplayValueString: {
@@ -1464,6 +1482,9 @@ export interface components {
         };
         ReplaySiteSettings: {
             enabled: boolean;
+            configured_enabled?: boolean;
+            instance_enabled?: boolean;
+            restrictions?: string[];
             mask: components["schemas"]["ReplayValueBoolean"];
             sample_rate: components["schemas"]["ReplayValueInteger"];
             retention_days: components["schemas"]["ReplayValueInteger"];

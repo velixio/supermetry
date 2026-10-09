@@ -14,11 +14,15 @@ import (
 
 	"panel/internal/api"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 )
 
 // Funnel returns exact session counts for ordered page and custom-event steps.
 // A later step must occur after the preceding step in the same session.
 func (e *Engine) Funnel(ctx context.Context, req api.FunnelRequest) (api.FunnelResponse, error) {
+	if e.trackingMode != privacy.Identified {
+		return api.FunnelResponse{}, api.ErrAnonymousHistory
+	}
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.FunnelResponse{}, errors.New("query engine is not configured")
 	}

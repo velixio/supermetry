@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"panel/internal/db"
+	"panel/internal/privacy"
 	"panel/internal/sites"
 	"panel/internal/testpg"
 )
@@ -71,5 +72,49 @@ func TestLoadReplaysNDJSON(t *testing.T) {
 	}
 	if count != 100 {
 		t.Fatalf("stored events = %d, want 100", count)
+	}
+}
+
+func TestLoadPublicPathsRemainUnverified(t *testing.T) {
+	for _, mode := range []privacy.Mode{privacy.Anonymous, privacy.Identified} {
+		t.Run(mode.String(), func(t *testing.T) {
+			pool, _ := testpg.New(t)
+			ctx := context.Background()
+			if err := db.Migrate(ctx, pool); err != nil {
+				t.Fatal(err)
+			}
+			sitesPath := filepath.Join(t.TempDir(), "sites.json")
+			if err := os.WriteFile(sitesPath, []byte(`[{"id":1,"public_id":"public.test","timezone":"UTC","retention_days":365,"allowed_hosts":["public.test"]}]`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			registry, err := sites.LoadFile(sitesPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			policy, err := privacy.NewPathPolicy([]string{"/pricing"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			input := bytes.NewBufferString(`{"ts":"2026-09-01T00:00:00Z","site":1,"host":"public.test","path":"/pricing","name":"pageview","ip":"192.0.2.1","ua":"fixture-browser","country":"US","browser":"Fixture","os":"FixtureOS","device":"desktop"}` + "\n")
+			stats, err := loadEventsWithPolicy(ctx, pool, registry, input, 256, time.Millisecond, time.Millisecond, mode, policy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stats.Events != 1 {
+				t.Fatalf("events=%d", stats.Events)
+			}
+			var version int16
+			var policyID string
+			var pathID int32
+			if err := pool.QueryRow(ctx, `select path_sanitizer_version,path_policy_id,path_id from events`).Scan(&version, &policyID, &pathID); err != nil {
+				t.Fatal(err)
+			}
+			if version != 0 || policyID != "" {
+				t.Fatalf("historical load promoted: version=%d policy=%q", version, policyID)
+			}
+			if mode == privacy.Anonymous && pathID != 0 {
+				t.Fatalf("unverified anonymous path=%d", pathID)
+			}
+		})
 	}
 }

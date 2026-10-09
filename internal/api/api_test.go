@@ -179,7 +179,7 @@ func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 	// Sites 1 and 2 belong to org 7; principals are scoped to org 7.
 	registry := orgSites{1: {ID: 1, OrgID: 7}, 2: {ID: 2, OrgID: 7}}
 	private := principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}}
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:      config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"},
 		Query:       queryStub{},
 		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{2}}},
@@ -197,7 +197,7 @@ func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 	})
 
 	t.Run("public principal needs stats scope", func(t *testing.T) {
-		noScopeRouter := api.NewRouter(api.Deps{
+		noScopeRouter := identifiedRouter(api.Deps{
 			Config:      config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"},
 			Query:       queryStub{},
 			PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"sites:write"}}},
@@ -235,7 +235,7 @@ func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
 	platform := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(218)
 	})
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Platform:    platform,
 		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
 		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7}},
@@ -283,7 +283,7 @@ func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
 }
 
 func TestRouterRecoversWithoutExposingPanic(t *testing.T) {
-	router := api.NewRouter(api.Deps{
+	router := identifiedRouter(api.Deps{
 		Config:      config.Config{AdminAPIKey: "test-key"},
 		Query:       panicQuery{},
 		RateLimiter: ingest.NewTokenBuckets(0, 30),
@@ -378,7 +378,7 @@ func newTestRouter() http.Handler {
 }
 
 func newTestRouterWithSites(registry sites.Registry) http.Handler {
-	return api.NewRouter(api.Deps{
+	return identifiedRouter(api.Deps{
 		Config: config.Config{
 			AdminAPIKey: "test-key",
 			EventPath:   "/api/public/v1/events",

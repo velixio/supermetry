@@ -301,6 +301,36 @@ func (e Period) Valid() bool {
 	}
 }
 
+// Defines values for QueryPrivacyCoverage.
+const (
+	VerifiedOnly QueryPrivacyCoverage = "verified_only"
+)
+
+// Valid indicates whether the value is a known member of the QueryPrivacyCoverage enum.
+func (e QueryPrivacyCoverage) Valid() bool {
+	switch e {
+	case VerifiedOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryPrivacyView.
+const (
+	VerifiedPaths QueryPrivacyView = "verified_paths"
+)
+
+// Valid indicates whether the value is a known member of the QueryPrivacyView enum.
+func (e QueryPrivacyView) Valid() bool {
+	switch e {
+	case VerifiedPaths:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QueryRequestCompare.
 const (
 	PreviousPeriod QueryRequestCompare = "previous_period"
@@ -942,10 +972,27 @@ type PropertyValueCount struct {
 
 // QueryMeta defines model for QueryMeta.
 type QueryMeta struct {
-	Cached           bool     `json:"cached"`
-	ImportedIncluded bool     `json:"imported_included"`
-	SourcesUsed      []string `json:"sources_used"`
+	Cached           bool          `json:"cached"`
+	ImportedIncluded bool          `json:"imported_included"`
+	Privacy          *QueryPrivacy `json:"privacy,omitempty"`
+	SourcesUsed      []string      `json:"sources_used"`
 }
+
+// QueryPrivacy defines model for QueryPrivacy.
+type QueryPrivacy struct {
+	Coverage             QueryPrivacyCoverage `json:"coverage"`
+	ImportsExcluded      bool                 `json:"imports_excluded"`
+	PathSanitizerVersion int                  `json:"path_sanitizer_version"`
+	PolicyId             string               `json:"policy_id"`
+	UnverifiedExcluded   bool                 `json:"unverified_excluded"`
+	View                 QueryPrivacyView     `json:"view"`
+}
+
+// QueryPrivacyCoverage defines model for QueryPrivacy.Coverage.
+type QueryPrivacyCoverage string
+
+// QueryPrivacyView defines model for QueryPrivacy.View.
+type QueryPrivacyView string
 
 // QueryRequest defines model for QueryRequest.
 type QueryRequest struct {
@@ -1060,13 +1107,16 @@ type ReplayList struct {
 
 // ReplaySiteSettings defines model for ReplaySiteSettings.
 type ReplaySiteSettings struct {
-	Consent       ReplaySiteSettingsConsent `json:"consent"`
-	Enabled       bool                      `json:"enabled"`
-	Mask          ReplayValueBoolean        `json:"mask"`
-	QuotaBytes    ReplayValueInteger        `json:"quota_bytes"`
-	RetentionDays ReplayValueInteger        `json:"retention_days"`
-	SampleRate    ReplayValueInteger        `json:"sample_rate"`
-	Triggers      ReplayTriggers            `json:"triggers"`
+	ConfiguredEnabled *bool                     `json:"configured_enabled,omitempty"`
+	Consent           ReplaySiteSettingsConsent `json:"consent"`
+	Enabled           bool                      `json:"enabled"`
+	InstanceEnabled   *bool                     `json:"instance_enabled,omitempty"`
+	Mask              ReplayValueBoolean        `json:"mask"`
+	QuotaBytes        ReplayValueInteger        `json:"quota_bytes"`
+	Restrictions      *[]string                 `json:"restrictions,omitempty"`
+	RetentionDays     ReplayValueInteger        `json:"retention_days"`
+	SampleRate        ReplayValueInteger        `json:"sample_rate"`
+	Triggers          ReplayTriggers            `json:"triggers"`
 }
 
 // ReplaySiteSettingsConsent defines model for ReplaySiteSettings.Consent.
@@ -1161,14 +1211,19 @@ type ReplayTriggers struct {
 
 // ReplayValueBoolean defines model for ReplayValueBoolean.
 type ReplayValueBoolean struct {
-	Locked bool `json:"locked"`
-	Value  bool `json:"value"`
+	Configured  *bool   `json:"configured,omitempty"`
+	Locked      bool    `json:"locked"`
+	Restriction *string `json:"restriction,omitempty"`
+	Value       bool    `json:"value"`
 }
 
 // ReplayValueInteger defines model for ReplayValueInteger.
 type ReplayValueInteger struct {
-	Locked bool  `json:"locked"`
-	Value  int64 `json:"value"`
+	Configured  *int64  `json:"configured,omitempty"`
+	Locked      bool    `json:"locked"`
+	Maximum     *int64  `json:"maximum,omitempty"`
+	Restriction *string `json:"restriction,omitempty"`
+	Value       int64   `json:"value"`
 }
 
 // ReplayValueString defines model for ReplayValueString.

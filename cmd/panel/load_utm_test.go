@@ -17,6 +17,7 @@ import (
 	"panel/internal/closer"
 	"panel/internal/db"
 	"panel/internal/dict"
+	"panel/internal/privacy"
 	"panel/internal/query"
 	"panel/internal/sites"
 	"panel/internal/testpg"
@@ -47,7 +48,7 @@ func TestLoadPreservesUTMBreakdownsAcrossStorageTiers(t *testing.T) {
 		}
 	}
 
-	if _, err := loadEvents(ctx, pool, registry, &input); err != nil {
+	if _, err := loadEvents(ctx, pool, registry, &input, privacy.Identified); err != nil {
 		t.Fatal(err)
 	}
 	engine := loadUTMQueryEngine(t, pool, registry)
@@ -78,7 +79,7 @@ func loadUTMRegistry(t *testing.T, pool *pgxpool.Pool) sites.Registry {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "sites.json")
-	if err := os.WriteFile(path, []byte(`[{"id":1,"public_id":"site1.test","timezone":"UTC","retention_days":365,"allowed_hosts":["site1.test"]}]`), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(`[{"id":1,"public_id":"site1.test","timezone":"UTC","retention_days":365,"allowed_hosts":["site1.test"],"profiles_enabled":true}]`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	registry, err := sites.LoadFile(path)
@@ -94,7 +95,9 @@ func loadUTMQueryEngine(t *testing.T, pool *pgxpool.Pool, registry sites.Registr
 	if err := dictionary.Load(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	return query.NewEngine(pool, dictionary, registry)
+	engine := query.NewEngine(pool, dictionary, registry)
+	engine.SetTrackingMode(privacy.Identified)
+	return engine
 }
 
 func assertLoadUTMBreakdowns(t *testing.T, engine *query.Engine, day time.Time) {

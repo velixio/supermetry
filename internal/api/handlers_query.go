@@ -146,6 +146,10 @@ func (h *handlers) currentTime() time.Time {
 }
 
 func writeQueryError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrAnonymousHistory) {
+		writeProblem(w, forbidden(ErrAnonymousHistory.Error()))
+		return
+	}
 	detail := err.Error()
 	if isClientQueryError(detail) {
 		writeProblem(w, badRequest(detail))

@@ -30,6 +30,7 @@ import (
 	"panel/internal/platform/shares"
 	"panel/internal/platform/sitesvc"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	"panel/internal/replay"
 	coresites "panel/internal/sites"
 )
@@ -58,8 +59,9 @@ type siteIconMutationService interface {
 }
 
 type Deps struct {
-	BaseURL     string
-	TrackerPath string
+	TrackingMode privacy.Mode
+	BaseURL      string
+	TrackerPath  string
 	// SecureCookies forces the Secure flag on every cookie. Set it when
 	// PANEL_BASE_URL is https so production never downgrades, even behind a
 	// proxy that omits X-Forwarded-Proto.
