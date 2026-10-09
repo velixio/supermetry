@@ -36,6 +36,9 @@ func TestEngine_EventsExploreNewestFirstWithFiltersAndCursor(t *testing.T) {
 	if got := first.Data[0].SessionId; got != "20" {
 		t.Fatalf("session_id = %q, want 20", got)
 	}
+	if first.Total != 2 || first.TotalCapped {
+		t.Fatalf("filtered total=%d capped=%t, want 2/false", first.Total, first.TotalCapped)
+	}
 
 	second, err := engine.Events(context.Background(), api.EventExploreRequest{
 		SiteID: 1, From: exploreDay("2026-10-06"), To: exploreDay("2026-10-07"), Filters: filters, Limit: 1, Cursor: first.NextCursor,
@@ -45,6 +48,9 @@ func TestEngine_EventsExploreNewestFirstWithFiltersAndCursor(t *testing.T) {
 	}
 	if len(second.Data) != 1 || second.Data[0].Kind != "pageview" || second.Data[0].Name != "pageview" || second.Data[0].Page != "/" || second.NextCursor != nil {
 		t.Fatalf("second page = %+v", second)
+	}
+	if second.Total != first.Total || second.TotalCapped {
+		t.Fatalf("second total=%d capped=%t, want %d/false", second.Total, second.TotalCapped, first.Total)
 	}
 }
 
@@ -90,6 +96,9 @@ func TestEngine_EventsExploreNameAndPropertyReports(t *testing.T) {
 	}
 	if len(events.Data) != 2 || events.Data[0].Name != "signup" || events.Data[1].Name != "signup" {
 		t.Fatalf("named events = %+v", events.Data)
+	}
+	if events.Total != 2 || events.TotalCapped {
+		t.Fatalf("name-filtered total=%d capped=%t, want 2/false", events.Total, events.TotalCapped)
 	}
 
 	properties, err := engine.Properties(context.Background(), api.PropertyExploreRequest{

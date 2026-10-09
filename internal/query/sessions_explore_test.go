@@ -47,6 +47,9 @@ update sessions_closed set profile_id=1 where site_id=1 and session_id=201`); er
 	if response.NextCursor == nil {
 		t.Fatal("next_cursor is nil")
 	}
+	if response.Total != 7 || response.TotalCapped {
+		t.Fatalf("total=%d capped=%t, want 7/false", response.Total, response.TotalCapped)
+	}
 	if response.Data[1].ExternalId == nil || *response.Data[1].ExternalId != "ada-42" {
 		t.Fatalf("hot profile external_id = %v", response.Data[1].ExternalId)
 	}
@@ -67,6 +70,9 @@ update sessions_closed set profile_id=1 where site_id=1 and session_id=201`); er
 	if got, want := sessionIDs(second.Data), []string{"201", "103", "102"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("second page IDs = %v, want %v", got, want)
 	}
+	if second.Total != response.Total || second.TotalCapped {
+		t.Fatalf("second total=%d capped=%t, want %d/false", second.Total, second.TotalCapped, response.Total)
+	}
 }
 
 func TestSessionsValidatesAndFilters(t *testing.T) {
@@ -82,6 +88,9 @@ func TestSessionsValidatesAndFilters(t *testing.T) {
 	}
 	if got, want := sessionIDs(response.Data), []string{"301", "201", "103", "101"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("filtered IDs = %v, want %v", got, want)
+	}
+	if response.Total != 4 || response.TotalCapped {
+		t.Fatalf("filtered total=%d capped=%t, want 4/false", response.Total, response.TotalCapped)
 	}
 
 	_, err = engine.Sessions(ctx, 1, api.ListSessionsParams{

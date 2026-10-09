@@ -154,6 +154,10 @@ func TestReplayListPaginates(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+values ($1,999,'2026-10-10 10:00Z','2026-10-10 10:00Z','2026-10-10',100,2,'outside-range')`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
 	first := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09&limit=2", f.siteID), "")
 	if first.Code != http.StatusOK {
 		t.Fatalf("first status=%d body=%s", first.Code, first.Body.String())
@@ -162,17 +166,62 @@ func TestReplayListPaginates(t *testing.T) {
 		Data []struct {
 			SessionID int64 `json:"session_id,string"`
 		} `json:"data"`
-		NextCursor *string `json:"next_cursor"`
+		NextCursor  *string `json:"next_cursor"`
+		Total       int     `json:"total"`
+		TotalCapped bool    `json:"total_capped"`
 	}
 	if err := json.NewDecoder(first.Body).Decode(&page); err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Data) != 2 || page.Data[0].SessionID != 102 || page.NextCursor == nil {
+	if len(page.Data) != 2 || page.Data[0].SessionID != 102 || page.NextCursor == nil || page.Total != 3 || page.TotalCapped {
 		t.Fatalf("first page=%+v", page)
 	}
 	second := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09&limit=2&cursor=%s", f.siteID, *page.NextCursor), "")
 	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"session_id":"100"`) {
 		t.Fatalf("second status=%d body=%s", second.Code, second.Body.String())
+	}
+	page = struct {
+		Data []struct {
+			SessionID int64 `json:"session_id,string"`
+		} `json:"data"`
+		NextCursor  *string `json:"next_cursor"`
+		Total       int     `json:"total"`
+		TotalCapped bool    `json:"total_capped"`
+	}{}
+	if err := json.NewDecoder(second.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 3 || page.TotalCapped {
+		t.Fatalf("second page total=%d capped=%t, want 3/false", page.Total, page.TotalCapped)
+	}
+}
+
+func TestReplayListTotalRespectsDateRangeAndCaps(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
+	ctx := context.Background()
+	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions
+  (site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+select $1,g,'2026-10-08 10:00Z','2026-10-08 10:00Z','2026-10-08',1,1,'cap/'||g
+from generate_series(1,10001) g`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+values ($1,20000,'2026-10-01 10:00Z','2026-10-01 10:00Z','2026-10-01',1,1,'outside')`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	response := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-08&to=2026-10-08&limit=1", f.siteID), "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var page struct {
+		Total       int  `json:"total"`
+		TotalCapped bool `json:"total_capped"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 10000 || !page.TotalCapped {
+		t.Fatalf("total=%d capped=%t, want 10000/true", page.Total, page.TotalCapped)
 	}
 }
 

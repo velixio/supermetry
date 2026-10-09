@@ -650,8 +650,10 @@ type EventExploreItemKind string
 
 // EventExploreList defines model for EventExploreList.
 type EventExploreList struct {
-	Data       []EventExploreItem `json:"data"`
-	NextCursor *string            `json:"next_cursor,omitempty"`
+	Data        []EventExploreItem `json:"data"`
+	NextCursor  *string            `json:"next_cursor,omitempty"`
+	Total       int                `json:"total"`
+	TotalCapped bool               `json:"total_capped"`
 }
 
 // EventPayload defines model for EventPayload.
@@ -894,6 +896,8 @@ type ProfileDetail struct {
 	Sessions    int64             `json:"sessions"`
 	SiteId      int32             `json:"site_id"`
 	Timeline    []ProfileEvent    `json:"timeline"`
+	Total       int               `json:"total"`
+	TotalCapped bool              `json:"total_capped"`
 	Traits      map[string]string `json:"traits"`
 }
 
@@ -913,6 +917,8 @@ type ProfileList struct {
 	Data            []Profile `json:"data"`
 	NextCursor      *string   `json:"next_cursor,omitempty"`
 	ProfilesEnabled bool      `json:"profiles_enabled"`
+	Total           int       `json:"total"`
+	TotalCapped     bool      `json:"total_capped"`
 }
 
 // PropertyKeyCount defines model for PropertyKeyCount.
@@ -1039,8 +1045,10 @@ type RecentActivity struct {
 
 // ReplayList defines model for ReplayList.
 type ReplayList struct {
-	Data       []ReplaySummary `json:"data"`
-	NextCursor *string         `json:"next_cursor,omitempty"`
+	Data        []ReplaySummary `json:"data"`
+	NextCursor  *string         `json:"next_cursor,omitempty"`
+	Total       int             `json:"total"`
+	TotalCapped bool            `json:"total_capped"`
 }
 
 // ReplaySiteSettings defines model for ReplaySiteSettings.
@@ -1247,8 +1255,10 @@ type SessionDetail struct {
 
 // SessionList defines model for SessionList.
 type SessionList struct {
-	Data       []SessionSummary `json:"data"`
-	NextCursor *string          `json:"next_cursor,omitempty"`
+	Data        []SessionSummary `json:"data"`
+	NextCursor  *string          `json:"next_cursor,omitempty"`
+	Total       int              `json:"total"`
+	TotalCapped bool             `json:"total_capped"`
 }
 
 // SessionSummary defines model for SessionSummary.

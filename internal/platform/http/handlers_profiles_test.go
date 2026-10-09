@@ -133,6 +133,8 @@ func TestProfilesListAndDetail(t *testing.T) {
 	}
 	var list struct {
 		ProfilesEnabled bool `json:"profiles_enabled"`
+		Total           int  `json:"total"`
+		TotalCapped     bool `json:"total_capped"`
 		Data            []struct {
 			ID         int64          `json:"id"`
 			ExternalID string         `json:"external_id"`
@@ -147,19 +149,34 @@ func TestProfilesListAndDetail(t *testing.T) {
 	if !list.ProfilesEnabled || len(list.Data) != 1 || list.Data[0].ID != f.profileID || list.Data[0].ExternalID != "user-123" || list.Data[0].Traits["plan"] != "pro" || list.Data[0].Sessions != 2 || list.Data[0].Events != 3 {
 		t.Fatalf("list=%+v", list)
 	}
+	if list.Total != 1 || list.TotalCapped {
+		t.Fatalf("filtered total=%d capped=%t, want 1/false", list.Total, list.TotalCapped)
+	}
+	var otherProfileID int64
+	if err := f.pool.QueryRow(context.Background(), `insert into profiles(site_id,external_id,first_seen_at,last_seen_at)
+values ($1,'other-profile','2026-10-09T08:00:00Z','2026-10-09T08:00:00Z') returning id`, f.siteID).Scan(&otherProfileID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(context.Background(), `insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,profile_id)
+values ($1,30,'2026-10-09','2026-10-09T08:00:00Z',99,999,1,$2)`, f.siteID, otherProfileID); err != nil {
+		t.Fatal(err)
+	}
 
 	detail := f.request(t, "viewer", http.MethodGet, fmt.Sprintf("/api/private/profiles/%d?limit=2", f.profileID))
 	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), `"external_id":"user-123"`) || !strings.Contains(detail.Body.String(), `"name":"signup"`) || !strings.Contains(detail.Body.String(), `"path":"/pricing"`) || !strings.Contains(detail.Body.String(), `"next_cursor":`) {
 		t.Fatalf("detail status=%d body=%s", detail.Code, detail.Body.String())
 	}
 	var page struct {
-		Timeline   []api.ProfileEvent `json:"timeline"`
-		NextCursor *string            `json:"next_cursor"`
+		Timeline    []api.ProfileEvent `json:"timeline"`
+		NextCursor  *string            `json:"next_cursor"`
+		Total       int                `json:"total"`
+		TotalCapped bool               `json:"total_capped"`
 	}
 	if err := json.NewDecoder(detail.Body).Decode(&page); err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Timeline) != 2 || page.NextCursor == nil {
+	if len(page.Timeline) != 2 || page.NextCursor == nil || page.Total != 3 || page.TotalCapped {
 		t.Fatalf("first timeline page=%+v", page)
 	}
 	if got := page.Timeline[0].SessionId; got != "101" {
@@ -170,14 +187,56 @@ func TestProfilesListAndDetail(t *testing.T) {
 		t.Fatalf("next detail status=%d body=%s", next.Code, next.Body.String())
 	}
 	page = struct {
-		Timeline   []api.ProfileEvent `json:"timeline"`
-		NextCursor *string            `json:"next_cursor"`
+		Timeline    []api.ProfileEvent `json:"timeline"`
+		NextCursor  *string            `json:"next_cursor"`
+		Total       int                `json:"total"`
+		TotalCapped bool               `json:"total_capped"`
 	}{}
 	if err := json.NewDecoder(next.Body).Decode(&page); err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Timeline) != 1 || page.NextCursor != nil {
+	if len(page.Timeline) != 1 || page.NextCursor != nil || page.Total != 3 || page.TotalCapped {
 		t.Fatalf("second timeline page=%+v", page)
+	}
+}
+
+func TestProfileListTotalIsStableAcrossPages(t *testing.T) {
+	f := newProfileFixture(t)
+	ctx := context.Background()
+	if _, err := f.pool.Exec(ctx, `insert into profiles(site_id,external_id,first_seen_at,last_seen_at) values
+  ($1,'user-456','2026-10-08T09:00:00Z','2026-10-09T09:00:00Z'),
+  ($1,'other-789','2026-10-08T09:00:00Z','2026-10-09T08:00:00Z')`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	first := f.request(t, "viewer", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/profiles?limit=1", f.siteID))
+	var page struct {
+		NextCursor  *string `json:"next_cursor"`
+		Total       int     `json:"total"`
+		TotalCapped bool    `json:"total_capped"`
+	}
+	if first.Code != http.StatusOK {
+		t.Fatalf("first status=%d body=%s", first.Code, first.Body.String())
+	}
+	if err := json.NewDecoder(first.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if page.NextCursor == nil || page.Total != 3 || page.TotalCapped {
+		t.Fatalf("first page=%+v", page)
+	}
+	second := f.request(t, "viewer", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/profiles?limit=1&cursor=%s", f.siteID, *page.NextCursor))
+	page = struct {
+		NextCursor  *string `json:"next_cursor"`
+		Total       int     `json:"total"`
+		TotalCapped bool    `json:"total_capped"`
+	}{}
+	if second.Code != http.StatusOK {
+		t.Fatalf("second status=%d body=%s", second.Code, second.Body.String())
+	}
+	if err := json.NewDecoder(second.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 3 || page.TotalCapped {
+		t.Fatalf("second page=%+v", page)
 	}
 }
 

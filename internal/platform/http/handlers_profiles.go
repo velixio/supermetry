@@ -49,15 +49,25 @@ func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "cursor is invalid")
 		return
 	}
+	whereSQL := profileListWhereSQL(false)
+	var count int
+	err = h.deps.Store.Pool.QueryRow(r.Context(), `select count(*) from (
+		select 1 from profiles p
+		`+whereSQL+`
+		limit $3
+	) t`, site.ID, search, listResultTotalCap+1).Scan(&count)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	total, totalCapped := capListTotal(count)
 	rows, err := h.deps.Store.Pool.Query(r.Context(), `
 		select p.id,p.site_id,p.external_id,p.traits,p.first_seen_at,p.last_seen_at,
 		       count(distinct e.session_id)::int8,count(e.profile_id)::int8,
 		       exists(select 1 from replay_sessions rr where rr.site_id=p.site_id and rr.profile_id=p.id)
 		from profiles p
 		left join events e on e.site_id=p.site_id and e.profile_id=p.id
-		where p.site_id=$1
-		  and ($2='' or position(lower($2) in lower(p.external_id))>0)
-		  and ($3::boolean=false or (p.last_seen_at,p.id)<($4,$5))
+		`+profileListWhereSQL(true)+`
 		group by p.id
 		order by p.last_seen_at desc,p.id desc
 		limit $6`, site.ID, search, hasCursor, cursor.LastSeenAt, cursor.ID, limit+1)
@@ -86,7 +96,20 @@ func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
 		next = &value
 		items = items[:limit]
 	}
-	writeJSON(w, http.StatusOK, api.ProfileList{ProfilesEnabled: site.ProfilesEnabled, Data: items, NextCursor: next})
+	writeJSON(w, http.StatusOK, api.ProfileList{
+		ProfilesEnabled: site.ProfilesEnabled, Data: items, NextCursor: next,
+		Total: total, TotalCapped: totalCapped,
+	})
+}
+
+func profileListWhereSQL(includeCursor bool) string {
+	where := `where p.site_id=$1
+		  and ($2='' or position(lower($2) in lower(p.external_id))>0)`
+	if includeCursor {
+		where += `
+		  and ($3::boolean=false or (p.last_seen_at,p.id)<($4,$5))`
+	}
+	return where
 }
 
 type profileScanner interface{ Scan(...any) error }
@@ -121,13 +144,23 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "cursor is invalid")
 		return
 	}
+	whereSQL := profileTimelineWhereSQL()
+	var count int
+	err = h.deps.Store.Pool.QueryRow(r.Context(), `select count(*) from (
+		select 1 from events e `+whereSQL+` limit $3
+	) t`, site.ID, profile.Id, listResultTotalCap+1).Scan(&count)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	total, totalCapped := capListTotal(count)
 	rows, err := h.deps.Store.Pool.Query(r.Context(), `
 		select e.ts,e.kind,coalesce(n.value,''),coalesce(p.value,''),e.props,e.session_id::text,
 		       exists (select 1 from replay_sessions rr where rr.site_id=e.site_id and rr.session_id=e.session_id)
 		from events e
 		left join dict n on n.kind=7 and n.id=e.name_id
 		left join dict p on p.kind=0 and p.id=e.path_id
-		where e.site_id=$1 and e.profile_id=$2
+		`+profileTimelineWhereSQL()+`
 		order by e.ts desc,e.session_id desc,e.name_id desc,e.path_id desc
 		offset $3 limit $4`, site.ID, profile.Id, offset, limit+1)
 	if err != nil {
@@ -167,8 +200,13 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 		Id: profile.Id, SiteId: profile.SiteId, ExternalId: profile.ExternalId, Traits: profile.Traits,
 		FirstSeenAt: profile.FirstSeenAt, LastSeenAt: profile.LastSeenAt, Sessions: profile.Sessions,
 		Events: profile.Events, HasReplay: profile.HasReplay, Timeline: timeline, NextCursor: next,
+		Total: total, TotalCapped: totalCapped,
 	}
 	writeJSON(w, http.StatusOK, detail)
+}
+
+func profileTimelineWhereSQL() string {
+	return `where e.site_id=$1 and e.profile_id=$2`
 }
 
 func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
