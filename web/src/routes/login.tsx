@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { createApi } from '@/lib/api'
+import { resetAfterLogin } from '@/lib/session-lifecycle'
 import { applyPreferredTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 
@@ -133,6 +134,7 @@ function LoginPage() {
       }
       next={safeNext(search.next ?? '/')}
       onSuccess={(next) => {
+        resetAfterLogin()
         applyPreferredTheme()
         // Server routes (such as the emailed email-change link) need a full load.
         if (next.startsWith('/api/')) window.location.assign(next)

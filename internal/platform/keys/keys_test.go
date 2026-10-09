@@ -182,6 +182,9 @@ func newKeys(t *testing.T) (*Keys, authz.Principal, *pgxpool.Pool) {
 	if _, err := pool.Exec(ctx, `insert into memberships(org_id, user_id, role) values ($1, $2, 'owner')`, orgID, userID); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := pool.Exec(ctx, `insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values (10,$1,'keysite00010','Ten','UTC',30),(20,$1,'keysite00020','Twenty','UTC',30)`, orgID); err != nil {
+		t.Fatal(err)
+	}
 	service := New(&store.Store{Pool: pool})
 	t.Cleanup(service.Close)
 	return service, authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}, pool

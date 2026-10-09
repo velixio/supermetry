@@ -67,6 +67,12 @@ func (h exploreHandlers) events(w http.ResponseWriter, r *http.Request) {
 		writeQueryError(w, err)
 		return
 	}
+	if !requestHasScope(r, "replay:read") {
+		response.Data = append(response.Data[:0:0], response.Data...)
+		for i := range response.Data {
+			response.Data[i].HasReplay = false
+		}
+	}
 	writeJSON(w, http.StatusOK, response)
 }
 

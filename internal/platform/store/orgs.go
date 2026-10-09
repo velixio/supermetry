@@ -14,13 +14,15 @@ import (
 )
 
 type Membership struct {
-	OrgID     int64
-	UserID    int64
-	OrgName   string
-	OrgSlug   string
-	Role      string
-	SiteIDs   []int32
-	CreatedAt time.Time
+	OrgID        int64
+	UserID       int64
+	OrgName      string
+	OrgSlug      string
+	Role         string
+	SiteIDs      []int32
+	Capabilities []string
+	BillingAdmin bool
+	CreatedAt    time.Time
 }
 
 func CreateOrg(ctx context.Context, tx pgx.Tx, name string, ownerID int64) (int64, error) {
@@ -55,7 +57,7 @@ func CreateOrg(ctx context.Context, tx pgx.Tx, name string, ownerID int64) (int6
 
 func MembershipsFor(ctx context.Context, db *Store, userID int64) ([]Membership, error) {
 	rows, err := db.Pool.Query(ctx, `
-		select m.org_id, m.user_id, o.name, o.slug, m.role, m.site_ids, m.created_at
+		select m.org_id, m.user_id, o.name, o.slug, m.role, m.site_ids, m.capabilities, m.billing_admin, m.created_at
 		from memberships m
 		join orgs o on o.id = m.org_id
 		where m.user_id = $1 and o.deleted_at is null
@@ -71,7 +73,7 @@ func MembershipsFor(ctx context.Context, db *Store, userID int64) ([]Membership,
 		if err := rows.Scan(
 			&membership.OrgID, &membership.UserID, &membership.OrgName,
 			&membership.OrgSlug, &membership.Role, &membership.SiteIDs,
-			&membership.CreatedAt,
+			&membership.Capabilities, &membership.BillingAdmin, &membership.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan membership: %w", err)
 		}

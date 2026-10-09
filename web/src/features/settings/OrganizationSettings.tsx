@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 const organizationSettingsTabs = [
+  ['settings', 'Overview', '/$org/settings'],
   ['members', 'Members', '/$org/settings/members'],
   ['invites', 'Invitations', '/$org/settings/invites'],
   ['api-keys', 'API keys', '/$org/settings/api-keys'],
@@ -10,11 +11,11 @@ const organizationSettingsTabs = [
   ['replay-storage', 'Replay storage', '/$org/settings/replay-storage'],
 ] as const
 
-export function OrganizationSettingsTabs({ org, current, showReplay = false }: { org: string; current: string; showReplay?: boolean }) {
+export function OrganizationSettingsTabs({ org, current, showReplay = false, canManage = true }: { org: string; current: string; showReplay?: boolean; canManage?: boolean }) {
   return (
     <nav aria-label="Organization settings" className="overflow-x-auto border-b">
       <div role="tablist" className="flex min-w-max gap-5">
-        {organizationSettingsTabs.filter(([value]) => value !== 'replay-storage' || showReplay).map(([value, label, to]) => (
+        {organizationSettingsTabs.filter(([value]) => value === 'settings' || (canManage && (value !== 'replay-storage' || showReplay))).map(([value, label, to]) => (
           <Link
             key={value}
             aria-current={current === value ? 'page' : undefined}

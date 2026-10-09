@@ -1,3 +1,4 @@
+import { useCapability } from '@/lib/authorization'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -19,7 +20,7 @@ type RetentionPageProps = {
   onIdentityChange: (identity: RetentionIdentity) => void
 }
 
-export function RetentionPage({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange }: RetentionPageProps) {
+function RetentionContent({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange }: RetentionPageProps) {
   const report = useRetentionReport(siteId, dateRange, filters, interval, identity)
 
   return (
@@ -83,4 +84,9 @@ export function RetentionPage({ siteId, dateRange, filters, interval, identity, 
       )}
     </main>
   )
+}
+
+export function RetentionPage(props: RetentionPageProps) {
+  const canReadProfiles = useCapability('profiles.read')
+  return <RetentionContent {...props} profilesEnabled={props.profilesEnabled && canReadProfiles} identity={canReadProfiles ? props.identity : 'anonymous'} />
 }

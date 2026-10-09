@@ -1,7 +1,8 @@
+import { renderAuthorized as render } from '@/test/authorization'
 import '@testing-library/jest-dom/vitest'
 
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ReplayLink } from './ReplayLink'

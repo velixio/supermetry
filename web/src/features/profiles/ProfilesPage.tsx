@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react'
+import { useCapability, AccessDenied } from '@/lib/authorization'
 import { Link } from '@tanstack/react-router'
 import { SearchIcon, UserRoundIcon } from 'lucide-react'
 
@@ -17,7 +19,7 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
 }
 
-export function ProfilesPage({
+function ProfilesPageContent({
   siteId,
   orgId,
   orgSlug,
@@ -132,4 +134,10 @@ export function ProfilesPage({
       )}
     </main>
   )
+}
+
+export function ProfilesPage(props: ComponentProps<typeof ProfilesPageContent>) {
+  const allowed = useCapability('profiles.read')
+  if (!allowed) return <AccessDenied subject="read profiles" />
+  return <ProfilesPageContent {...props} />
 }

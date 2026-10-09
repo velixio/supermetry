@@ -1,3 +1,4 @@
+import { useCapability } from '@/lib/authorization'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DownloadIcon, Trash2Icon, UploadIcon } from 'lucide-react'
@@ -71,6 +72,7 @@ function Surface({
 }
 
 export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: number }) {
+  const canExport = useCapability('data.export')
   const client = useQueryClient()
   const [source, setSource] = useState<ImportSource>('plausible')
   const [file, setFile] = useState<File>()
@@ -108,6 +110,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
 
   function submitExport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!canExport) return
     const data = new FormData(event.currentTarget)
     exportData.mutate({
       from: String(data.get('from') ?? ''),
@@ -209,7 +212,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
         ) : null}
       </Surface>
 
-      <Surface title="Export site data" description="Download daily totals, dimensions, and custom events as CSV files in one ZIP.">
+      {canExport ? <Surface title="Export site data" description="Download daily totals, dimensions, and custom events as CSV files in one ZIP.">
         <form className="flex flex-col gap-5" onSubmit={submitExport}>
           <FieldGroup className="sm:flex-row">
             <Field>
@@ -227,7 +230,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
           </Button>
           {exportData.error ? <p role="alert" className="text-sm text-destructive">{exportData.error.message}</p> : null}
         </form>
-      </Surface>
+      </Surface> : null}
     </div>
   )
 }

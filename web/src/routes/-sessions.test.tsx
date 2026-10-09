@@ -18,6 +18,7 @@ const me = {
   memberships: [{
     org: { id: 1, name: 'Acme', slug: 'acme' },
     role: 'viewer',
+    effective_capabilities: ['profiles.read', 'replay.read'],
     sites: [{ id: 7, name: 'Example', slug: 'example', timezone: 'UTC' }],
   }],
 }

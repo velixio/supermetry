@@ -1,3 +1,4 @@
+import { useCapability } from '@/lib/authorization'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
@@ -46,6 +47,7 @@ export function EventsPage({
   siteId, orgId, dateRange, filters, name, propertyKey, cursor, page,
   onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site, replayId, onReplayChange,
 }: EventsPageProps) {
+  const canReplay = useCapability('replay.read')
   const [draftName, setDraftName] = useState(name)
   useEffect(() => setDraftName(name), [name])
   const events = useEvents(siteId, orgId, dateRange, filters, name, cursor)
@@ -130,14 +132,14 @@ export function EventsPage({
           <Table aria-label="Events">
             <TableHeader><TableRow>
               <TableHead>Time</TableHead><TableHead>Kind</TableHead><TableHead>Name</TableHead><TableHead>Page</TableHead>
-              <TableHead>Replay</TableHead>
+              {canReplay ? <TableHead>Replay</TableHead> : null}
               <TableHead>Properties</TableHead><TableHead>Location</TableHead><TableHead>Browser</TableHead><TableHead>OS</TableHead><TableHead>Device</TableHead><TableHead>Source</TableHead>
             </TableRow></TableHeader>
             <TableBody>{(events.data.data as EventRow[]).map((event, index) => (
               <TableRow key={`${event.ts}:${event.name}:${event.page}:${index}`}>
                 <TableCell className="whitespace-nowrap">{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.ts))}</TableCell>
                 <TableCell>{event.kind}</TableCell><TableCell>{event.name}</TableCell><TableCell>{event.page || '—'}</TableCell>
-                <TableCell>{org && site ? <ReplayLink hasReplay={event.has_replay} org={org} site={site} sessionId={event.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell>
+                {canReplay ? <TableCell>{org && site ? <ReplayLink hasReplay={event.has_replay} org={org} site={site} sessionId={event.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell> : null}
                 <TableCell>{event.props ? Object.entries(event.props).map(([key, value]) => <span className="mr-2 whitespace-nowrap" key={key}>{key}: {value}</span>) : '—'}</TableCell>
                 <TableCell><Location city={event.city} country={event.country} /></TableCell>
                 <TableCell><BrowserLabel value={event.browser} /></TableCell>
@@ -163,7 +165,7 @@ export function EventsPage({
           onPrevious={onPrevious}
         />
       ) : null}
-      {org && site && onReplayChange ? (
+      {canReplay && org && site && onReplayChange ? (
         <ReplayOverlay
           open={Boolean(replayId)}
           org={org}

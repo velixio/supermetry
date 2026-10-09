@@ -309,6 +309,17 @@ func (h *handler) principal(w http.ResponseWriter, r *http.Request, allowedRoles
 }
 
 func (h *handler) privatePrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, bool) {
+	if accountRequest(r) {
+		principal, ok := h.principal(w, r)
+		if !ok {
+			return authz.Principal{}, false
+		}
+		if principal.UserID == 0 || principal.Role == authz.RoleKey || principal.Role == authz.RoleShare {
+			writeProblem(w, http.StatusForbidden, "Forbidden", "a user session is required")
+			return authz.Principal{}, false
+		}
+		return principal, true
+	}
 	return h.principal(w, r, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
 }
 
@@ -475,7 +486,8 @@ func serviceError(w http.ResponseWriter, err error) {
 		errors.Is(err, orgs.ErrForbidden), errors.Is(err, invites.ErrForbidden),
 		errors.Is(err, shares.ErrForbidden), errors.Is(err, reports.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
-	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, orgs.ErrInvalidRole),
+	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, keys.ErrInvalid), errors.Is(err, orgs.ErrInvalidRole),
+		errors.Is(err, orgs.ErrInvalidAccess),
 		errors.Is(err, orgs.ErrLastOwner), errors.Is(err, invites.ErrInvalid),
 		errors.Is(err, shares.ErrInvalid), errors.Is(err, shares.ErrPasswordRequired),
 		errors.Is(err, reports.ErrInvalidCadence), errors.Is(err, platformauth.ErrInvalid):

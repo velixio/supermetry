@@ -94,11 +94,21 @@ func (e invalidMCPParams) Error() string { return e.detail }
 var errMCPSiteNotFound = errors.New("site not found")
 
 // requireSite enforces the key's organization and site restriction for a
-// tool's site argument. Scope was checked once for the whole request.
+// tool's site argument before checking capabilities, including direct query paths.
 func requireSite(r *http.Request, siteID int32) error {
 	principal, ok := r.Context().Value(principalContextKey{}).(Principal)
 	if !ok || !siteAllowed(r, principal, siteID) {
 		return errMCPSiteNotFound
+	}
+	return requireMCPScopes(r)
+}
+
+func requireMCPScopes(r *http.Request) error {
+	if !requestHasScope(r, "stats:read") {
+		return errors.New("the credential does not grant the required scope")
+	}
+	if (wantsCSV(r) || r.URL.Query().Get("limit") == "all") && !requestHasScope(r, "data:export") {
+		return errors.New("the credential does not grant the data:export scope")
 	}
 	return nil
 }
@@ -118,13 +128,19 @@ func (h *mcpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, badRequest("MCP-Protocol-Version is unsupported"))
 		return
 	}
-	if !authorizeRequest(w, r, 0, "stats:read") {
+	if _, ok := r.Context().Value(principalContextKey{}).(Principal); !ok {
+		writeProblem(w, unauthorized())
 		return
 	}
 
 	request, hasID, responseOnly, parseError := decodeMCPRequest(w, r)
 	if parseError != nil {
 		writeMCPError(w, nil, parseError.Code, parseError.Message, parseError.Data)
+		return
+	}
+	// Site tools check ownership first, then scopes inside requireSite. Global
+	// protocol operations have no site to resolve.
+	if request.Method != "tools/call" && !authorizeRequest(w, r, 0, "stats:read") {
 		return
 	}
 	if !hasID || responseOnly {
@@ -194,6 +210,9 @@ func (h *mcpHandler) callTool(w http.ResponseWriter, r *http.Request, request mc
 func (h *mcpHandler) runTool(ctx context.Context, r *http.Request, name string, arguments json.RawMessage) (any, error) {
 	switch name {
 	case "list_sites":
+		if err := requireMCPScopes(r); err != nil {
+			return nil, err
+		}
 		var input struct{}
 		if err := decodeMCPParams(arguments, &input); err != nil {
 			return nil, invalidMCPParams{err.Error()}

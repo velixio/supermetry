@@ -6,6 +6,8 @@ import { createSite as createManagedSite } from '@/features/sites/api'
 import { SiteForm } from '@/features/sites/SiteForm'
 import type { ManagedSite, SiteInput } from '@/features/sites/types'
 import { en } from '@/messages/en'
+import { canCreateSites } from '@/components/Sidebar'
+import { AccountFrame } from '@/components/AccountFrame'
 import { useMe, type Me } from './$org'
 
 export const Route = createFileRoute('/')({
@@ -34,11 +36,15 @@ function IndexPage() {
     )
   }
 
+  const membership = me.data.memberships[0]
+  if (membership && (membership.sites.length > 0 || !canCreateSites(membership.role))) {
+    return <Onboarding me={me.data} navigate={navigate} />
+  }
   return (
-    <Onboarding
+    <AccountFrame me={me.data}><Onboarding
       me={me.data}
       navigate={navigate}
-    />
+    /></AccountFrame>
   )
 }
 
@@ -70,15 +76,16 @@ export function Onboarding({
   const existingSite = membership?.sites[0]
 
   useEffect(() => {
-    if (!membership || !existingSite) return
-    navigate(`/${membership.org.slug}/${siteSlug(existingSite)}`, true)
+    if (!membership) return
+    if (existingSite) navigate(`/${membership.org.slug}/${siteSlug(existingSite)}`, true)
+    else if (!canCreateSites(membership.role)) navigate(`/${membership.org.slug}/settings`, true)
   }, [existingSite, membership, navigate])
 
   if (!membership) {
-    return <OnboardingError detail="Your account does not belong to an organization." />
+    return <section className="mx-auto max-w-lg py-12"><h1 className="text-2xl font-semibold">No organization access</h1><p className="mt-2 text-muted-foreground">Ask an organization owner for an invitation. Your account settings are available from the Account menu.</p></section>
   }
 
-  if (existingSite) {
+  if (existingSite || !canCreateSites(membership.role)) {
     return (
       <main className="grid min-h-dvh place-items-center px-6">
         <p className="text-sm text-muted-foreground">{en.loadingDashboard}</p>

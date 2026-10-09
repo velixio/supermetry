@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrgRouteImport } from './routes/$org'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -32,6 +33,7 @@ import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retent
 import { Route as OrgSiteSessionsRouteImport } from './routes/$org.$site.sessions'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
 import { Route as OrgSiteVitalsRouteImport } from './routes/$org.$site.vitals'
+import { Route as OrgSettingsIndexRouteImport } from './routes/$org.settings.index'
 import { Route as OrgSettingsApiRouteImport } from './routes/$org.settings.api'
 import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
@@ -68,6 +70,11 @@ const OrgRoute = OrgRouteImport.update({
   path: '/$org',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -94,19 +101,19 @@ const OrgSettingsRoute = OrgSettingsRouteImport.update({
   getParentRoute: () => OrgRoute,
 } as any)
 const AccountProfileRoute = AccountProfileRouteImport.update({
-  id: '/account/profile',
-  path: '/account/profile',
-  getParentRoute: () => rootRouteImport,
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AccountRoute,
 } as any)
 const AccountSecurityRoute = AccountSecurityRouteImport.update({
-  id: '/account/security',
-  path: '/account/security',
-  getParentRoute: () => rootRouteImport,
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AccountRoute,
 } as any)
 const AccountSessionsRoute = AccountSessionsRouteImport.update({
-  id: '/account/sessions',
-  path: '/account/sessions',
-  getParentRoute: () => rootRouteImport,
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => AccountRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
@@ -172,6 +179,11 @@ const OrgSiteVitalsRoute = OrgSiteVitalsRouteImport.update({
   id: '/$site/vitals',
   path: '/$site/vitals',
   getParentRoute: () => OrgRoute,
+} as any)
+const OrgSettingsIndexRoute = OrgSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrgSettingsRoute,
 } as any)
 const OrgSettingsApiRoute = OrgSettingsApiRouteImport.update({
   id: '/api',
@@ -305,6 +317,7 @@ const OrgSiteSettingsTrackingRoute = OrgSiteSettingsTrackingRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$org': typeof OrgRouteWithChildren
+  '/account': typeof AccountRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
@@ -334,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/settings/': typeof OrgSettingsIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
@@ -355,11 +369,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$org': typeof OrgRouteWithChildren
+  '/account': typeof AccountRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
-  '/$org/settings': typeof OrgSettingsRouteWithChildren
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/sessions': typeof AccountSessionsRoute
@@ -384,6 +398,7 @@ export interface FileRoutesByTo {
   '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site': typeof OrgSiteIndexRoute
+  '/$org/settings': typeof OrgSettingsIndexRoute
   '/$org/sites': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
@@ -406,6 +421,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$org': typeof OrgRouteWithChildren
+  '/account': typeof AccountRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
@@ -435,6 +451,7 @@ export interface FileRoutesById {
   '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/settings/': typeof OrgSettingsIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
@@ -458,6 +475,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$org'
+    | '/account'
     | '/login'
     | '/setup'
     | '/signup'
@@ -487,6 +505,7 @@ export interface FileRouteTypes {
     | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site/'
+    | '/$org/settings/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
@@ -508,11 +527,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$org'
+    | '/account'
     | '/login'
     | '/setup'
     | '/signup'
     | '/$org/health'
-    | '/$org/settings'
     | '/account/profile'
     | '/account/security'
     | '/account/sessions'
@@ -537,6 +556,7 @@ export interface FileRouteTypes {
     | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site'
+    | '/$org/settings'
     | '/$org/sites'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
@@ -558,6 +578,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$org'
+    | '/account'
     | '/login'
     | '/setup'
     | '/signup'
@@ -587,6 +608,7 @@ export interface FileRouteTypes {
     | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site/'
+    | '/$org/settings/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
@@ -609,12 +631,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   OrgRoute: typeof OrgRouteWithChildren
+  AccountRoute: typeof AccountRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
   SignupRoute: typeof SignupRoute
-  AccountProfileRoute: typeof AccountProfileRoute
-  AccountSecurityRoute: typeof AccountSecurityRoute
-  AccountSessionsRoute: typeof AccountSessionsRoute
   InviteTokenRoute: typeof InviteTokenRoute
   ResetTokenRoute: typeof ResetTokenRoute
   ShareSlugRoute: typeof ShareSlugRoute
@@ -634,6 +654,13 @@ declare module '@tanstack/react-router' {
       path: '/$org'
       fullPath: '/$org'
       preLoaderRoute: typeof OrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -673,24 +700,24 @@ declare module '@tanstack/react-router' {
     }
     '/account/profile': {
       id: '/account/profile'
-      path: '/account/profile'
+      path: '/profile'
       fullPath: '/account/profile'
       preLoaderRoute: typeof AccountProfileRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AccountRoute
     }
     '/account/security': {
       id: '/account/security'
-      path: '/account/security'
+      path: '/security'
       fullPath: '/account/security'
       preLoaderRoute: typeof AccountSecurityRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AccountRoute
     }
     '/account/sessions': {
       id: '/account/sessions'
-      path: '/account/sessions'
+      path: '/sessions'
       fullPath: '/account/sessions'
       preLoaderRoute: typeof AccountSessionsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AccountRoute
     }
     '/invite/$token': {
       id: '/invite/$token'
@@ -782,6 +809,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$org/$site/vitals'
       preLoaderRoute: typeof OrgSiteVitalsRouteImport
       parentRoute: typeof OrgRoute
+    }
+    '/$org/settings/': {
+      id: '/$org/settings/'
+      path: '/'
+      fullPath: '/$org/settings/'
+      preLoaderRoute: typeof OrgSettingsIndexRouteImport
+      parentRoute: typeof OrgSettingsRoute
     }
     '/$org/settings/api': {
       id: '/$org/settings/api'
@@ -969,6 +1003,7 @@ interface OrgSettingsRouteChildren {
   OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
   OrgSettingsNotificationsRoute: typeof OrgSettingsNotificationsRoute
   OrgSettingsReplayStorageRoute: typeof OrgSettingsReplayStorageRoute
+  OrgSettingsIndexRoute: typeof OrgSettingsIndexRoute
 }
 
 const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
@@ -979,6 +1014,7 @@ const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
   OrgSettingsMembersRoute: OrgSettingsMembersRoute,
   OrgSettingsNotificationsRoute: OrgSettingsNotificationsRoute,
   OrgSettingsReplayStorageRoute: OrgSettingsReplayStorageRoute,
+  OrgSettingsIndexRoute: OrgSettingsIndexRoute,
 }
 
 const OrgSettingsRouteWithChildren = OrgSettingsRoute._addFileChildren(
@@ -1063,15 +1099,28 @@ const OrgRouteChildren: OrgRouteChildren = {
 
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  OrgRoute: OrgRouteWithChildren,
-  LoginRoute: LoginRoute,
-  SetupRoute: SetupRoute,
-  SignupRoute: SignupRoute,
+interface AccountRouteChildren {
+  AccountProfileRoute: typeof AccountProfileRoute
+  AccountSecurityRoute: typeof AccountSecurityRoute
+  AccountSessionsRoute: typeof AccountSessionsRoute
+}
+
+const AccountRouteChildren: AccountRouteChildren = {
   AccountProfileRoute: AccountProfileRoute,
   AccountSecurityRoute: AccountSecurityRoute,
   AccountSessionsRoute: AccountSessionsRoute,
+}
+
+const AccountRouteWithChildren =
+  AccountRoute._addFileChildren(AccountRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  OrgRoute: OrgRouteWithChildren,
+  AccountRoute: AccountRouteWithChildren,
+  LoginRoute: LoginRoute,
+  SetupRoute: SetupRoute,
+  SignupRoute: SignupRoute,
   InviteTokenRoute: InviteTokenRoute,
   ResetTokenRoute: ResetTokenRoute,
   ShareSlugRoute: ShareSlugRoute,

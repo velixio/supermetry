@@ -1,3 +1,4 @@
+import { useCapability } from '@/lib/authorization'
 import { useState } from 'react'
 import { ChevronDownIcon, DownloadIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,9 +37,11 @@ const exportOptions: ExportOption[] = [
 ]
 
 export function DashboardExportMenu({ query }: { query: StatsQuery }) {
+  const canExport = useCapability('data.export')
   const [exporting, setExporting] = useState(false)
 
   const exportCSV = async (option: ExportOption) => {
+    if (!canExport) return
     setExporting(true)
     try {
       await downloadStatsCSV({
@@ -57,6 +60,7 @@ export function DashboardExportMenu({ query }: { query: StatsQuery }) {
     }
   }
 
+  if (!canExport) return null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

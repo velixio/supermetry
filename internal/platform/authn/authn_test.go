@@ -76,7 +76,7 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 			name:    "private session uses only membership",
 			path:    "/api/private/stats/summary",
 			cookies: []*http.Cookie{{Name: auth.CookieName, Value: env.session}},
-			want:    api.Principal{OrgID: env.orgID, Scopes: []string{"*"}},
+			want:    api.Principal{OrgID: env.orgID, Scopes: authz.APIScopes(authz.Principal{OrgID: env.orgID, Role: authz.RoleOwner})},
 			wantOK:  true,
 		},
 		{
@@ -93,7 +93,7 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 				"X-Panel-Org": integer(env.orgID),
 			},
 			cookies: []*http.Cookie{{Name: auth.CookieName, Value: env.session}},
-			want:    api.Principal{OrgID: env.orgID, Scopes: []string{"*"}},
+			want:    api.Principal{OrgID: env.orgID, Scopes: authz.APIScopes(authz.Principal{OrgID: env.orgID, Role: authz.RoleOwner})},
 			wantOK:  true,
 		},
 		{

@@ -28,7 +28,7 @@ import { AppShell } from './AppShell'
 const membership: Membership = {
   org: { id: 1, name: 'Acme', slug: 'acme' },
   role: 'owner',
-  sites: [{ id: 7, name: 'Docs', public_id: 'docs-public' }],
+  sites: [{ id: 8, name: 'Other', slug: 'other' }, { id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public' }],
 }
 
 const me: Me = {
@@ -123,6 +123,14 @@ describe('AppShell live visitor badge', () => {
 
     fireEvent.click(badge)
     await waitFor(() => expect(router.state.location.pathname).toBe('/acme/docs-public/realtime'))
+  })
+
+  it.each(['docs', 'docs-public', '7'])('keeps current site context for the %s alias', async (alias) => {
+    renderShell(`/acme/${alias}/settings/general`)
+    expect(await screen.findByRole('link', { name: '12 active now, 48 in the last 30 minutes' })).toHaveAttribute('href', `/acme/${alias}/realtime`)
+    expect(useLiveSummary).toHaveBeenCalledWith(7)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Settings' }), { key: 'ArrowDown' })
+    expect(await screen.findByRole('menuitem', { name: /Site settings\s*Docs/ })).toHaveAttribute('href', '/acme/docs/settings/general')
   })
 
   it('uses the same live label for one visitor', async () => {

@@ -139,9 +139,10 @@ func (h *handler) setAuthCookies(w http.ResponseWriter, r *http.Request, token, 
 }
 
 func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.privatePrincipal(w, r); !ok {
-		return
-	}
+	// The router enforces CSRF. Delete only the presented session directly:
+	// authentication lookups collapse database errors into unauthenticated, which
+	// cannot establish that logout succeeded. DELETE is idempotent for expired
+	// and already-revoked sessions and propagates operational failures.
 	if h.deps.Auth == nil {
 		unavailable(w, "authentication")
 		return

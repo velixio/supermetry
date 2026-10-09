@@ -1,3 +1,4 @@
+import { hasCapability, AccessDenied } from '@/lib/authorization'
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 
@@ -25,8 +26,10 @@ function ReplaysRoute() {
   const navigate = Route.useNavigate()
   const membership = useMe().data?.memberships.find((item) => item.org.slug === org)
   const site = membership?.sites.find((item) => item.slug === siteSlug || item.public_id === siteSlug || String(item.id) === siteSlug)
-  const replay = useReplayAvailability(site?.id)
+  const allowed = hasCapability(membership, 'replay.read')
+  const replay = useReplayAvailability(allowed ? site?.id : undefined)
   if (!site) return null
+  if (!allowed) return <AccessDenied subject="watch replays" />
   if (!replay.enabled) return null
   const range = resolveRange(search.period, site.timezone || 'UTC', new Date(), search.from, search.to)
   return (

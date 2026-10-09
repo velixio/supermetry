@@ -57,6 +57,7 @@ func ReportSubscriptions(ctx context.Context, data *Store) ([]ReportSubscription
 		from report_subscriptions rs
 		join users u on u.id = rs.user_id
 		join sites s on s.id = rs.site_id
+        join orgs o on o.id=s.org_id and o.deleted_at is null
 		-- Re-check access at delivery time: the recipient must still be a member of
 		-- the site's org, and a site restriction must still include this site.
 		join memberships m on m.user_id = rs.user_id and m.org_id = s.org_id
@@ -98,4 +99,23 @@ func MarkReportSent(ctx context.Context, data *Store, id int64, sentAt time.Time
 		return pgx.ErrNoRows
 	}
 	return nil
+}
+
+// ReportRecipient rechecks the live subscription and scope immediately before
+// delivery, including changes made while the report was being rendered.
+func ReportRecipient(ctx context.Context, data *Store, id int64) (string, bool, error) {
+	var email string
+	err := data.Pool.QueryRow(ctx, `select u.email from report_subscriptions rs
+ join users u on u.id=rs.user_id
+ join sites s on s.id=rs.site_id and s.deleted_at is null
+ join orgs o on o.id=s.org_id and o.deleted_at is null
+ join memberships m on m.org_id=s.org_id and m.user_id=rs.user_id
+ where rs.id=$1 and (m.site_ids is null or rs.site_id=any(m.site_ids))`, id).Scan(&email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return email, true, nil
 }

@@ -45,7 +45,7 @@ type replayCursor struct {
 }
 
 func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
-	_, site, ok := h.replaySitePrincipal(w, r)
+	principal, site, ok := h.replaySitePrincipal(w, r)
 	if !ok {
 		return
 	}
@@ -131,6 +131,9 @@ func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
 			serviceError(w, err)
 			return
 		}
+		if !authz.Can(principal, authz.ActionProfilesRead, site.ID) {
+			item.ProfileID = nil
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -188,13 +191,18 @@ func (h *handler) replayData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var key string
-	err = h.deps.Store.Pool.QueryRow(r.Context(), `select blob_key from replay_sessions where site_id=$1 and session_id=$2 order by started_at desc limit 1`, site.ID, sessionID).Scan(&key)
+	var day time.Time
+	err = h.deps.Store.Pool.QueryRow(r.Context(), `select blob_key,day from replay_sessions where site_id=$1 and session_id=$2 order by started_at desc limit 1`, site.ID, sessionID).Scan(&key, &day)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeProblem(w, http.StatusNotFound, "Not found", "replay not found")
 		return
 	}
 	if err != nil {
 		serviceError(w, err)
+		return
+	}
+	if key != replay.SessionKey(site.ID, day, sessionID) {
+		writeProblem(w, http.StatusNotFound, "Not found", "replay not found")
 		return
 	}
 	body, err := h.deps.ReplayStore.Open(r.Context(), key)
@@ -240,12 +248,12 @@ func (h *handler) replayCSS(w http.ResponseWriter, r *http.Request) {
 	defer body.Close()
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	w.Header().Set("Content-Encoding", "gzip")
-	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	w.Header().Set("Cache-Control", "private, no-store")
 	_, _ = io.Copy(w, body)
 }
 
 func (h *handler) getReplaySettings(w http.ResponseWriter, r *http.Request) {
-	_, site, ok := h.replaySitePrincipal(w, r)
+	_, site, ok := h.sitePrincipal(w, r, authz.ActionStatsRead, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
 	if !ok {
 		return
 	}
@@ -491,7 +499,11 @@ func validAdminBearer(header, key string) bool {
 }
 
 func (h *handler) replaySitePrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, coresites.Site, bool) {
-	return h.sitePrincipal(w, r, authz.ActionStatsRead, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionReplayRead, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
+	if !ok || !authorizeSensitiveExport(w, r, principal, site.ID, authz.ActionReplayRead) {
+		return authz.Principal{}, coresites.Site{}, false
+	}
+	return principal, site, true
 }
 
 func encodeReplayCursor(cursor replayCursor) string {

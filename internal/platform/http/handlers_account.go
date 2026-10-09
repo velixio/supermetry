@@ -2,6 +2,7 @@ package platformhttp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -55,9 +56,12 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 			Name string `json:"name"`
 			Slug string `json:"slug"`
 		} `json:"org"`
-		Role    authz.Role     `json:"role"`
-		SiteIDs []int32        `json:"site_ids,omitempty"`
-		Sites   []siteResponse `json:"sites"`
+		Role                  authz.Role     `json:"role"`
+		SiteIDs               []int32        `json:"site_ids"`
+		Capabilities          []string       `json:"capabilities"`
+		BillingAdmin          bool           `json:"billing_admin"`
+		EffectiveCapabilities []string       `json:"effective_capabilities"`
+		Sites                 []siteResponse `json:"sites"`
 	}
 	items := make([]membershipResponse, 0, len(memberships))
 	for _, membership := range memberships {
@@ -66,7 +70,10 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 			serviceError(w, err)
 			return
 		}
-		item := membershipResponse{Role: membership.Role, SiteIDs: membership.SiteIDs, Sites: sites}
+		item := membershipResponse{Role: membership.Role, SiteIDs: membership.SiteIDs, Sites: sites,
+			Capabilities: membership.Capabilities, BillingAdmin: membership.BillingAdmin,
+			EffectiveCapabilities: authz.EffectiveCapabilities(authz.Principal{UserID: membership.UserID, OrgID: membership.OrgID, Role: membership.Role, SiteIDs: membership.SiteIDs, Capabilities: membership.Capabilities, BillingAdmin: membership.BillingAdmin}),
+		}
 		item.Org.ID = membership.OrgID
 		item.Org.Name = membership.OrgName
 		item.Org.Slug = membership.OrgSlug
@@ -253,24 +260,26 @@ func (h *handler) listMembers(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot manage members")
 		return
 	}
-	rows, err := h.deps.Store.Pool.Query(r.Context(), `select u.id,u.email,u.name,m.role,m.site_ids,m.created_at from memberships m join users u on u.id=m.user_id where m.org_id=$1 order by m.created_at,u.id`, orgID)
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `select u.id,u.email,u.name,m.role,m.site_ids,m.capabilities,m.billing_admin,m.created_at from memberships m join users u on u.id=m.user_id where m.org_id=$1 order by m.created_at,u.id`, orgID)
 	if err != nil {
 		serviceError(w, err)
 		return
 	}
 	defer rows.Close()
 	type member struct {
-		UserID    int64      `json:"user_id"`
-		Email     string     `json:"email"`
-		Name      string     `json:"name"`
-		Role      authz.Role `json:"role"`
-		SiteIDs   []int32    `json:"site_ids,omitempty"`
-		CreatedAt time.Time  `json:"created_at"`
+		UserID       int64      `json:"user_id"`
+		Email        string     `json:"email"`
+		Name         string     `json:"name"`
+		Role         authz.Role `json:"role"`
+		SiteIDs      []int32    `json:"site_ids"`
+		Capabilities []string   `json:"capabilities"`
+		BillingAdmin bool       `json:"billing_admin"`
+		CreatedAt    time.Time  `json:"created_at"`
 	}
 	members := make([]member, 0)
 	for rows.Next() {
 		var item member
-		if err := rows.Scan(&item.UserID, &item.Email, &item.Name, &item.Role, &item.SiteIDs, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.UserID, &item.Email, &item.Name, &item.Role, &item.SiteIDs, &item.Capabilities, &item.BillingAdmin, &item.CreatedAt); err != nil {
 			serviceError(w, err)
 			return
 		}
@@ -289,8 +298,10 @@ func (h *handler) updateMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Role    authz.Role `json:"role"`
-		SiteIDs []int32    `json:"site_ids,omitempty"`
+		Role         *orgs.Role      `json:"role"`
+		SiteIDs      json.RawMessage `json:"site_ids"`
+		Capabilities json.RawMessage `json:"capabilities"`
+		BillingAdmin *bool           `json:"billing_admin"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -299,7 +310,24 @@ func (h *handler) updateMember(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "organization")
 		return
 	}
-	if err := h.deps.Orgs.SetRole(r.Context(), principal, userID, orgs.Role(request.Role), request.SiteIDs); err != nil {
+	update := orgs.AccessUpdate{Role: request.Role, BillingAdmin: request.BillingAdmin}
+	if len(request.SiteIDs) != 0 {
+		var sites []int32
+		if err := json.Unmarshal(request.SiteIDs, &sites); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "site_ids must be an array or null")
+			return
+		}
+		update.SiteIDs = &sites
+	}
+	if len(request.Capabilities) != 0 {
+		var capabilities []string
+		if err := json.Unmarshal(request.Capabilities, &capabilities); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "capabilities must be an array or null")
+			return
+		}
+		update.Capabilities = &capabilities
+	}
+	if err := h.deps.Orgs.UpdateAccess(r.Context(), principal, userID, update); err != nil {
 		serviceError(w, err)
 		return
 	}

@@ -78,11 +78,11 @@ func (a *Authenticator) authenticateSession(r *http.Request) (api.Principal, boo
 	if !ok {
 		return api.Principal{}, false
 	}
-	return api.Principal{
-		OrgID:   membership.OrgID,
-		Scopes:  membershipScopes(membership.Role),
-		SiteIDs: cloneSites(membership.SiteIDs),
-	}, true
+	principal := authz.Principal{
+		UserID: session.UserID, OrgID: membership.OrgID, Role: membership.Role,
+		SiteIDs: cloneSites(membership.SiteIDs), Capabilities: cloneStrings(membership.Capabilities), BillingAdmin: membership.BillingAdmin,
+	}
+	return apiPrincipal(principal, authz.APIScopes(principal)), true
 }
 
 func (a *Authenticator) authenticateShare(r *http.Request, slug string) (api.Principal, bool) {
@@ -124,17 +124,6 @@ func apiPrincipal(principal authz.Principal, scopes []string) api.Principal {
 		OrgID:   principal.OrgID,
 		Scopes:  cloneStrings(scopes),
 		SiteIDs: cloneSites(principal.SiteIDs),
-	}
-}
-
-func membershipScopes(role orgs.Role) []string {
-	switch role {
-	case orgs.RoleOwner, orgs.RoleAdmin:
-		return []string{"*"}
-	case orgs.RoleEditor, orgs.RoleViewer:
-		return []string{"stats:read"}
-	default:
-		return nil
 	}
 }
 

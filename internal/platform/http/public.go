@@ -74,6 +74,9 @@ func (h *handler) shareStats(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the credential cannot use this route")
 		return
 	}
+	if !authorizeSensitiveExport(w, r, principal, principal.SiteIDs[0]) {
+		return
+	}
 	h.statsResponse(w, r, principal.SiteIDs[0])
 }
 

@@ -1,3 +1,4 @@
+import { registerPrivateTask } from "@/lib/session-lifecycle";
 import { api } from "@/lib/api";
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
@@ -53,34 +54,66 @@ export function uploadSiteImport<T>(
   source: ImportSource,
   file: File,
   onProgress: (percent: number) => void,
+  register: typeof registerPrivateTask = registerPrivateTask,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open("POST", `/api/private/sites/${siteId}/imports`);
-    request.setRequestHeader("X-Panel-Org", String(orgId));
-    const csrf = cookie("panel_csrf");
-    if (csrf) request.setRequestHeader("X-CSRF-Token", csrf);
-    request.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
+    let settled = false;
+    let unregister = () => {};
+    const cleanup = () => {
+      settled = true;
+      unregister();
+      request.upload.removeEventListener("progress", progress);
+      request.removeEventListener("load", load);
+      request.removeEventListener("error", error);
+      request.removeEventListener("abort", abort);
+    };
+    const fail = (reason: unknown) => {
+      if (settled) return;
+      cleanup();
+      reject(reason);
+    };
+    const progress = (event: ProgressEvent) => {
+      if (!settled && event.lengthComputable) {
         onProgress(Math.round((event.loaded / event.total) * 100));
       }
-    });
-    request.addEventListener("load", () => {
+    };
+    const load = () => {
+      if (settled) return;
       if (request.status >= 200 && request.status < 300) {
         try {
-          resolve(JSON.parse(request.responseText) as T);
+          const result = JSON.parse(request.responseText) as T;
+          cleanup();
+          resolve(result);
         } catch {
-          reject(new Error("The server returned an invalid import response"));
+          fail(new Error("The server returned an invalid import response"));
         }
         return;
       }
-      reject(new Error(`Upload failed (${request.status})`));
-    });
-    request.addEventListener("error", () => reject(new Error("Upload failed")));
-    const body = new FormData();
-    body.set("source", source);
-    body.set("file", file);
-    request.send(body);
+      fail(new Error(`Upload failed (${request.status})`));
+    };
+    const error = () => fail(new Error("Upload failed"));
+    const abort = () => fail(new DOMException("Session changed", "AbortError"));
+    try {
+      unregister = register(() => {
+        abort();
+        request.abort();
+      });
+      request.open("POST", `/api/private/sites/${siteId}/imports`);
+      request.setRequestHeader("X-Panel-Org", String(orgId));
+      const csrf = cookie("panel_csrf");
+      if (csrf) request.setRequestHeader("X-CSRF-Token", csrf);
+      request.upload.addEventListener("progress", progress);
+      request.addEventListener("load", load);
+      request.addEventListener("error", error);
+      request.addEventListener("abort", abort);
+      const body = new FormData();
+      body.set("source", source);
+      body.set("file", file);
+      request.send(body);
+    } catch (reason) {
+      fail(reason);
+    }
   });
 }
 

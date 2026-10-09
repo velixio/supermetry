@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -25,6 +26,15 @@ func newHandler(files fs.FS) http.Handler {
 		}
 
 		path := r.URL.Path
+		// Issued invitations use a query token; the SPA accepts a path token.
+		// Keep already-issued links working without caching their credentials.
+		if path == "/invite" {
+			if token := r.URL.Query().Get("token"); token != "" {
+				w.Header().Set("Cache-Control", "no-store")
+				http.Redirect(w, r, "/invite/"+url.PathEscape(token), http.StatusFound)
+				return
+			}
+		}
 		if path == "/api" || strings.HasPrefix(path, "/api/") {
 			http.NotFound(w, r)
 			return

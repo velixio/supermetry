@@ -1,9 +1,11 @@
+import type { ComponentProps } from 'react'
+import { useCapability, AccessDenied } from '@/lib/authorization'
 import { useCallback } from 'react'
 
 import { ReplayPlayer } from './ReplayPlayer'
 import { getReplayCSS, getReplayData } from '@/lib/replay-api'
 
-export function ReplayPlayerPage({ siteId, sessionId }: { siteId: number; sessionId: string }) {
+function ReplayPlayerPageContent({ siteId, sessionId }: { siteId: number; sessionId: string }) {
 	const load = useCallback((signal: AbortSignal) => getReplayData(siteId, sessionId, signal), [siteId, sessionId])
 	const fetchCSS = useCallback((hash: string) => getReplayCSS(siteId, hash), [siteId])
   return (
@@ -15,4 +17,10 @@ export function ReplayPlayerPage({ siteId, sessionId }: { siteId: number; sessio
 		<ReplayPlayer load={load} fetchCSS={fetchCSS} />
     </main>
   )
+}
+
+export function ReplayPlayerPage(props: ComponentProps<typeof ReplayPlayerPageContent>) {
+  const allowed = useCapability('replay.read')
+  if (!allowed) return <AccessDenied subject="watch replays" />
+  return <ReplayPlayerPageContent {...props} />
 }

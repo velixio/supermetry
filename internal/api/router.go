@@ -398,12 +398,19 @@ func authorizeRequest(w http.ResponseWriter, r *http.Request, siteID int32, scop
 		writeProblem(w, unauthorized())
 		return false
 	}
+	// Hide foreign and unassigned sites before reporting any missing capability.
+	if siteID != 0 && !siteAllowed(r, principal, siteID) {
+		writeProblem(w, notFound("site not found"))
+		return false
+	}
 	if !principal.hasScope(scope) {
 		writeProblem(w, forbidden("the credential does not grant the required scope"))
 		return false
 	}
-	if siteID != 0 && !siteAllowed(r, principal, siteID) {
-		writeProblem(w, notFound("site not found"))
+	// Negotiation and the streaming variant must not turn an ordinary read
+	// credential (including a shared dashboard) into an export credential.
+	if scope == "stats:read" && (wantsCSV(r) || r.URL.Query().Get("limit") == "all") && !principal.hasScope("data:export") {
+		writeProblem(w, forbidden("the credential does not grant the data:export scope"))
 		return false
 	}
 	return true
