@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"panel/internal/dict"
 	"panel/internal/enrich"
 	"panel/internal/health"
 	"panel/internal/ingest"
@@ -61,9 +62,9 @@ func TestFullEventQueuePreservesIntakeOrdering(t *testing.T) {
 		}},
 		{name: "rate limit", body: okBody, want: 429, setup: func(_ *testing.T, f *handlerFixture) { f.h.Limiter = denyLimiter{} }},
 		{name: "disabled heatmap", body: heatmap, want: 202},
-		{name: "independent heatmap capacity", body: heatmap, want: 202, heatmapAccepted: 1, setup: func(t *testing.T, f *handlerFixture) { setHeatmapsEnabled(t, f, true) }},
+		{name: "independent heatmap capacity", body: heatmap, want: 202, heatmapAccepted: 1, setup: func(t *testing.T, f *handlerFixture) { primeIndependentHeatmap(t, f) }},
 		{name: "heatmap own queue full", body: heatmap, want: 503, dropped: 1, setup: func(t *testing.T, f *handlerFixture) {
-			setHeatmapsEnabled(t, f, true)
+			primeIndependentHeatmap(t, f)
 			if !f.h.Writer.EnqueueHeatmap(writer.HeatmapEvent{}) {
 				t.Fatal("fill heatmap queue")
 			}
@@ -154,5 +155,16 @@ func TestHandlerFinalEnqueueRejectsCapacityFilledAfterPreflight(t *testing.T) {
 	snapshot := original.(session.RichRealtimeStore).RealtimeSnapshot(1, f.clock.Now())
 	if snapshot.Pageviews != 0 || len(snapshot.RecentActivity) != 0 {
 		t.Fatalf("rejected event reached realtime: %+v", snapshot)
+	}
+}
+
+func primeIndependentHeatmap(t *testing.T, f *handlerFixture) {
+	t.Helper()
+	setHeatmapsEnabled(t, f, true)
+	// Heatmaps legitimately intern their sanitized path independently of event
+	// capacity. Only these fixtures are warmed; rejected event paths stay cold.
+	path := f.h.PathPolicy.SanitizePath("https://example.com/").Path
+	if _, err := f.h.Dict.IDs(context.Background(), dict.Path, []string{path}); err != nil {
+		t.Fatal(err)
 	}
 }
