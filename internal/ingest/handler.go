@@ -187,6 +187,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Preserve privacy, validation, exclusions, rate limits and independent
+	// heatmaps above. Known overload takes precedence over bot/stale-ping
+	// suppression below, before enrichment or session/dictionary mutation.
+	if h.Writer.RejectEventIfUnavailable() {
+		h.unavailable(w)
+		return
+	}
+
 	location := h.Enricher.City(ip)
 	if h.Diag {
 		h.logDiag(r, ip, location)
