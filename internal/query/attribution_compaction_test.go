@@ -78,6 +78,11 @@ values
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := revenueGoalRequest(1, tc.from, tc.to, "USD")
+			filters := append(*req.Filters,
+				filter("utm_source", api.Is, "Purchase B"),
+				filter("utm_medium", api.Is, "email"),
+			)
+			req.Filters = &filters
 			dimensions := []string{"source", "channel", "utm_campaign"}
 			req.Dimensions = &dimensions
 			response := mustQuery(t, engine, req)
