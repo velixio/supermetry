@@ -18,6 +18,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"panel/internal/db"
 )
 
 func TestBackupHelpDocumentsReplayExclusion(t *testing.T) {
@@ -113,6 +115,7 @@ func TestBackupArchiveLayoutAndManifest(t *testing.T) {
 func TestRestoreRefusals(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	latestMigrationVersion := latestEmbeddedMigrationVersion(t)
 	valid := filepath.Join(dir, "valid.tar.gz")
 	writeTestArchive(t, valid, backupManifest{CreatedAt: time.Now().UTC().Format(time.RFC3339), SchemaVersion: latestMigrationVersion, PGDumpVersion: "pg_dump 17"}, []byte("dump"))
 	newer := filepath.Join(dir, "newer.tar.gz")
@@ -164,6 +167,7 @@ func TestBackupRemovesPartialOutputOnFailure(t *testing.T) {
 
 func TestFakePostgresClientsExerciseBackupAndRestore(t *testing.T) {
 	dir := t.TempDir()
+	latestMigrationVersion := latestEmbeddedMigrationVersion(t)
 	logFile := filepath.Join(dir, "client.log")
 	writeFakeClient(t, dir, "pg_dump", `
 if [ "$1" = "--version" ]; then echo 'pg_dump (PostgreSQL) 17.2'; exit 0; fi
@@ -259,6 +263,7 @@ func TestBackupRestoreIntegration(t *testing.T) {
 
 func fakeRuntime(t *testing.T, dir string) backupRuntime {
 	t.Helper()
+	latestMigrationVersion := latestEmbeddedMigrationVersion(t)
 	client := filepath.Join(dir, "fake-client")
 	writeFakeClient(t, dir, "fake-client", `
 if [ "$1" = "--version" ]; then echo 'pg_dump (PostgreSQL) 17.2'; else echo 'fake database dump'; fi
@@ -268,6 +273,15 @@ if [ "$1" = "--version" ]; then echo 'pg_dump (PostgreSQL) 17.2'; else echo 'fak
 	rt.schemaVersion = func(context.Context, string) (int, error) { return latestMigrationVersion, nil }
 	rt.reachable = func(context.Context, string) error { return nil }
 	return rt
+}
+
+func latestEmbeddedMigrationVersion(t *testing.T) int {
+	t.Helper()
+	version, err := db.LatestMigrationVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return version
 }
 
 func testGetenv(key string) string {
