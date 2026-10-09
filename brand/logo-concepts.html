@@ -4,104 +4,61 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Supermetry logo concepts</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap">
 <style>
-/* Layout: one column of concept sheets; each = blue hero lockup, light/dark pair, size strip. */
-:root {
-  --bg: #f3f5fb;
-  --surface: #ffffff;
-  --ink: #0a1033;
-  --muted: #545b80;
-  --line: #dde1ef;
-  --blue: #1d3cff;
-  --night: #050a24;
-  --pick: #e3e8ff;
-  --font: "Outfit", "Avenir Next", system-ui, sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #070b22; --surface: #0f1536; --ink: #eef1ff; --muted: #9ea6cc; --line: #232b5c; --pick: #1c2670; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #070b22; --surface: #0f1536; --ink: #eef1ff; --muted: #9ea6cc; --line: #232b5c; --pick: #1c2670; color-scheme: dark;
-}
-* { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font); margin: 0; }
-main { max-width: 1000px; margin: 0 auto; padding-inline: 20px; padding-block: 48px 72px; display: grid; gap: 40px; }
-header { display: grid; gap: 10px; max-width: 64ch; }
-h1 { font-weight: 800; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; letter-spacing: -0.04em; margin: 0; text-wrap: balance; }
-header p { margin: 0; color: var(--muted); }
-.warn { border-left: 3px solid var(--blue); padding: 10px 14px; background: var(--surface); border-radius: 0 8px 8px 0; color: var(--ink); font-size: .95rem; }
-.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 24px; display: grid; gap: 16px; }
-.sheet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; padding-bottom: 6px; }
-.sheet h2 { font-weight: 700; font-size: 1.6rem; line-height: 1.1; letter-spacing: -0.03em; margin: 0; }
-.badge { font-size: .8rem; font-weight: 600; color: var(--blue); background: var(--pick); padding: 3px 10px; border-radius: 99px; }
-:root[data-theme="dark"] .badge { color: #b9c4ff; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge { color: #b9c4ff; } }
-.sheet-head p { flex: 0 0 100%; margin: 0; color: var(--muted); }
-.sheet-head { max-width: 70ch; }
-.mk g { stroke: var(--c); }
-.lockup { display: flex; align-items: center; gap: .42em; font-size: clamp(2.2rem, 7vw, 4.6rem); }
-.lockup svg { width: 1.2em; height: 1.2em; flex: none; }
-.lockup span { font-weight: 700; line-height: 1; letter-spacing: -0.045em; color: var(--c); padding-bottom: .12em; }
-.lockup.sm { font-size: clamp(1.6rem, 3.6vw, 2.3rem); }
-.hero-board { --c: #ffffff; border-radius: 14px; min-height: 260px; display: grid; place-items: center; padding: 40px 20px;
-  background: radial-gradient(120% 90% at 50% 120%, #2f6bff 0%, #1d3cff 35%, #0b1a8f 62%, var(--night) 100%); }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.board { border-radius: 14px; display: grid; place-items: center; padding: 30px 20px; min-height: 150px; min-width: 0; }
-.board.paper { background: #ffffff; border: 1px solid var(--line); --c: #0a1033; }
-.board.paper .mk g { stroke: #1d3cff; }
-.board.ink { background: var(--night); --c: #ffffff; }
-.sizes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 22px; border-top: 1px solid var(--line); padding-block: 18px 0; margin-top: 4px; }
-.size { --c: var(--ink); display: grid; justify-items: center; gap: 6px; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
-.tab { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px 8px 0 0; padding: 7px 14px; font-size: .85rem; color: var(--ink); }
-.tab svg { width: 16px; height: 16px; }
-footer { color: var(--muted); font-size: .9rem; max-width: 64ch; }
-@media (max-width: 640px) {
-  .pair { grid-template-columns: 1fr; }
-  .sheet { padding: 16px; }
-  .hero-board { min-height: 200px; }
-}
+/* Layout: one column of concept sheets; each = wide lockup, then icon tiles. */
+:root{--bg:#f2f4fb;--surface:#fff;--ink:#0a1033;--muted:#535a7e;--line:#dde1ef;--pick:#e3e8ff;--accent:#2f6bff;--font:"Sora","Avenir Next",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#060a1f;--surface:#0e1433;--ink:#eef1ff;--muted:#9ea6cc;--line:#232b5c;--pick:#1c2670;--accent:#8fb0ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#060a1f;--surface:#0e1433;--ink:#eef1ff;--muted:#9ea6cc;--line:#232b5c;--pick:#1c2670;--accent:#8fb0ff;color-scheme:dark}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--font);margin:0}
+main{max-width:1000px;margin:0 auto;padding-inline:20px;padding-block:48px 72px;display:grid;gap:36px}
+header{display:grid;gap:10px;max-width:66ch}h1{font-weight:600;font-size:clamp(2rem,5vw,2.8rem);line-height:1.1;letter-spacing:-.03em;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted)}.warn{border-left:3px solid var(--accent);padding:10px 14px;background:var(--surface);border-radius:0 8px 8px 0;color:var(--ink);font-size:.93rem}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px;display:grid;gap:16px}
+.head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;max-width:72ch}.head h2{margin:0;font-weight:600;font-size:1.5rem;letter-spacing:-.02em}
+.badge{font-size:.78rem;font-weight:600;color:var(--accent);background:var(--pick);padding:3px 10px;border-radius:99px}.head p{flex:0 0 100%;margin:0;color:var(--muted)}
+img{display:block;max-width:100%;height:auto;border-radius:14px}.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tiles figure{margin:0;display:grid;gap:6px;min-width:0}.tiles figcaption{font-size:.82rem;color:var(--muted)}
+.check{background:#fff;background-image:conic-gradient(#eef0f6 25%,#fff 0 50%,#eef0f6 0 75%,#fff 0);background-size:24px 24px;border:1px solid var(--line)}
+footer{color:var(--muted);font-size:.9rem;max-width:66ch}
+@media (max-width:640px){.tiles{grid-template-columns:1fr 1fr}.sheet{padding:16px}}
 </style>
 </head>
 <body>
 <main>
   <header>
     <h1>Supermetry logo concepts</h1>
-    <p>Round two, in the direction of your example: a heavy geometric wordmark, a mark built from thick straight strokes, white on electric blue. Each concept is shown as a hero lockup, on light and dark, and at favicon sizes.</p>
+    <p>Round three: no letters. Each mark is a symbol with a meaning, in a modern sci-fi style: deep space blue, electric cyan, soft glow. Every file here is a PNG you can download from the repo’s brand/png folder.</p>
     <p class="warn">Before you commit: Supermetrics (with an s) is an established marketing-analytics company. Run a trademark search on “Supermetry” before you spend money on the brand.</p>
   </header>
   <section class="sheet">
-    <div class="sheet-head"><h2>Split S</h2><span class="badge">Recommended</span><p>An S drawn as two square brackets that almost meet, like the crop marks you measure a page with. It’s symmetric when rotated, and the gap in the middle gives it the same broken-stroke tension as your example. The most ownable of the three.</p></div>
-    <div class="hero-board"><div class="lockup"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg><span>supermetry</span></div></div>
-    <div class="pair">
-      <div class="board paper"><div class="lockup sm"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg><span>supermetry</span></div></div>
-      <div class="board ink"><div class="lockup sm"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg><span>supermetry</span></div></div>
+    <div class="head"><h2>Orbit</h2><span class="badge">Recommended</span><p>Your site is the planet. Supermetry is the satellite in orbit above it, measuring from a distance and beaming back readings. “Super” means above and “-metry” means measuring, so the name is literally telemetry from orbit. The strongest meaning and the easiest to remember.</p></div>
+    <img src="png/supermetry-orbit-lockup.png" alt="Supermetry Orbit logo on deep blue" width="2400" height="900">
+    <div class="tiles">
+      <figure><img src="png/supermetry-orbit-appicon.png" alt="Orbit app icon" width="1024" height="1024"><figcaption>App icon</figcaption></figure>
+      <figure><img class="check" src="png/supermetry-orbit-icon.png" alt="Orbit mark, transparent" width="1024" height="1024"><figcaption>Mark, transparent PNG</figcaption></figure>
+      <figure><img src="png/supermetry-orbit-lockup-light.png" alt="Orbit lockup on white" width="2400" height="900"><figcaption>On white</figcaption></figure>
     </div>
-    <div class="sizes"><div class="size"><svg class="mk " width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg>64 px</div><div class="size"><svg class="mk " width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg>32 px</div><div class="size"><svg class="mk " width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg>24 px</div><div class="size"><svg class="mk " width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg>16 px</div><div class="size"><div class="tab"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M38 9 H10 V24 H19"/><path d="M29 24 H38 V39 H10"/></g></svg>Supermetry · Dashboard</div>browser tab</div></div>
   </section>
   <section class="sheet">
-    <div class="sheet-head"><h2>Gauge</h2><p>A measuring dial with the needle pushed past the top: the reading is going up. “-metry” means measuring, and the needle points up and to the right, which is the “super” part. Built from five straight strokes, so it holds up at 16 px.</p></div>
-    <div class="hero-board"><div class="lockup"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg><span>supermetry</span></div></div>
-    <div class="pair">
-      <div class="board paper"><div class="lockup sm"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg><span>supermetry</span></div></div>
-      <div class="board ink"><div class="lockup sm"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg><span>supermetry</span></div></div>
+    <div class="head"><h2>Radar</h2><p>A live radar sweep that picks up who is on your site right now. Each blip is a visitor, never a face, which is the privacy promise. The most sci-fi of the three and it matches the realtime view.</p></div>
+    <img src="png/supermetry-radar-lockup.png" alt="Supermetry Radar logo on deep blue" width="2400" height="900">
+    <div class="tiles">
+      <figure><img src="png/supermetry-radar-appicon.png" alt="Radar app icon" width="1024" height="1024"><figcaption>App icon</figcaption></figure>
+      <figure><img class="check" src="png/supermetry-radar-icon.png" alt="Radar mark, transparent" width="1024" height="1024"><figcaption>Mark, transparent PNG</figcaption></figure>
+      <figure><img src="png/supermetry-radar-lockup-light.png" alt="Radar lockup on white" width="2400" height="900"><figcaption>On white</figcaption></figure>
     </div>
-    <div class="sizes"><div class="size"><svg class="mk " width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg>64 px</div><div class="size"><svg class="mk " width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg>32 px</div><div class="size"><svg class="mk " width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg>24 px</div><div class="size"><svg class="mk " width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg>16 px</div><div class="size"><div class="tab"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="13.00" y1="34.00" x2="4.00" y2="34.00"/><line x1="16.22" y1="26.22" x2="9.86" y2="19.86"/><line x1="24.00" y1="23.00" x2="24.00" y2="14.00"/><line x1="35.00" y1="34.00" x2="44.00" y2="34.00"/><line x1="24.00" y1="34.00" x2="38.85" y2="19.15"/></g></svg>Supermetry · Dashboard</div>browser tab</div></div>
   </section>
   <section class="sheet">
-    <div class="sheet-head"><h2>Exponent</h2><p>Three rising bars with a short stroke raised off the top right, like the 2 in x². Bars mean analytics; the raised stroke means “super”. The most literal of the three.</p></div>
-    <div class="hero-board"><div class="lockup"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg><span>supermetry</span></div></div>
-    <div class="pair">
-      <div class="board paper"><div class="lockup sm"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg><span>supermetry</span></div></div>
-      <div class="board ink"><div class="lockup sm"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg><span>supermetry</span></div></div>
+    <div class="head"><h2>Constellation</h2><p>Every visitor is an anonymous point of light, and their journeys trace a rising path to the brightest star: your goal. Elegant, but it reads partly as a line chart. Works on dark backgrounds only.</p></div>
+    <img src="png/supermetry-constellation-lockup.png" alt="Supermetry Constellation logo on deep blue" width="2400" height="900">
+    <div class="tiles">
+      <figure><img src="png/supermetry-constellation-appicon.png" alt="Constellation app icon" width="1024" height="1024"><figcaption>App icon</figcaption></figure>
+      <figure><img class="check" src="png/supermetry-constellation-icon.png" alt="Constellation mark, transparent" width="1024" height="1024"><figcaption>Mark, transparent PNG</figcaption></figure>
+      
     </div>
-    <div class="sizes"><div class="size"><svg class="mk " width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg>64 px</div><div class="size"><svg class="mk " width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg>32 px</div><div class="size"><svg class="mk " width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg>24 px</div><div class="size"><svg class="mk " width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg>16 px</div><div class="size"><div class="tab"><svg class="mk " viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="9.00" y1="40.00" x2="9.00" y2="31.00"/><line x1="19.00" y1="40.00" x2="19.00" y2="25.00"/><line x1="29.00" y1="40.00" x2="29.00" y2="19.00"/><line x1="36.00" y1="14.00" x2="43.00" y2="7.00"/></g></svg>Supermetry · Dashboard</div>browser tab</div></div>
   </section>
-  <footer>The wordmark is set in Outfit Bold (OFL, free for commercial use) and will be converted to outlines for the final files. The marks are plain SVG strokes.</footer>
+  <footer>Wordmark set in Sora SemiBold (OFL, free for commercial use). Marks are also saved as SVG in brand/svg for any size.</footer>
 </main>
 </body>
 </html>

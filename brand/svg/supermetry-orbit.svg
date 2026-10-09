@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+  <feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>
+  <radialGradient id="pl" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="#bfe6ff"/><stop offset=".28" stop-color="#2f6bff"/><stop offset=".7" stop-color="#0b1a8f"/><stop offset="1" stop-color="#050a24"/></radialGradient>
+  <linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#8a5cff"/><stop offset=".55" stop-color="#6ff6ff"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
+  <linearGradient id="bm" gradientUnits="userSpaceOnUse" x1="378.7" y1="316.6" x2="361.8" y2="308.2"><stop offset="0" stop-color="#6ff6ff" stop-opacity=".85"/><stop offset="1" stop-color="#6ff6ff" stop-opacity="0"/></linearGradient>
+</defs>
+<circle cx="256" cy="256" r="150" fill="#2f6bff" opacity=".45" filter="url(#soft)"/>
+<g transform="rotate(-24 256 256)" fill="none" stroke-linecap="round">
+  <path d="M42 256 A214 74 0 0 1 470 256" stroke="url(#rg)" stroke-width="9" opacity=".35"/>
+</g>
+<circle cx="256" cy="256" r="122" fill="url(#pl)"/>
+<circle cx="256" cy="256" r="122" fill="none" stroke="#6ff6ff" stroke-width="3" opacity=".45"/>
+<g transform="rotate(-24 256 256)">
+  <path d="M42 256 A214 74 0 0 0 470 256" fill="none" stroke="url(#rg)" stroke-width="11" stroke-linecap="round"/>
+  <polygon points="378.7,316.6 382.2,267.0 341.4,349.5" fill="url(#bm)"/>
+  <circle cx="378.7" cy="316.6" r="19" fill="#ffffff" filter="url(#glow)"/>
+  <circle cx="378.7" cy="316.6" r="31" fill="none" stroke="#6ff6ff" stroke-width="4" opacity=".7"/>
+</g></svg>
