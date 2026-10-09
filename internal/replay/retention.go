@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"panel/internal/config"
@@ -268,9 +270,18 @@ func EraseSessions(ctx context.Context, pool *pgxpool.Pool, store BlobStore, sit
 	if pool == nil || store == nil {
 		return fmt.Errorf("erase replay sessions for site %d: database pool and blob store are required", siteID)
 	}
+	return eraseSessions(ctx, pool, store, siteID, sessionIDs)
+}
+
+type replayEraserDB interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}
+
+func eraseSessions(ctx context.Context, database replayEraserDB, store BlobStore, siteID int32, sessionIDs []int64) error {
 	ids := append([]int64(nil), sessionIDs...)
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	rows, err := pool.Query(ctx, `
+	rows, err := database.Query(ctx, `
 		select session_id, started_at, last_seen_at, day, bytes, blob_key, profile_id
 		from replay_sessions where site_id=$1 and session_id=any($2::bigint[])
 		order by started_at, session_id`, siteID, ids)
@@ -292,11 +303,28 @@ func EraseSessions(ctx context.Context, pool *pgxpool.Pool, store BlobStore, sit
 	}
 	rows.Close()
 	for _, row := range selected {
-		if err := deleteReplaySession(ctx, pool, store, siteID, row); err != nil {
-			return err
+		if _, err := store.Delete(ctx, row.blobKey); err != nil {
+			return fmt.Errorf("delete replay session %d for site %d: %w", row.sessionID, siteID, err)
+		}
+		if _, err := database.Exec(ctx, `delete from replay_sessions where site_id=$1 and session_id=$2 and started_at=$3`, siteID, row.sessionID, row.startedAt); err != nil {
+			return fmt.Errorf("delete replay index session %d for site %d: %w", row.sessionID, siteID, err)
 		}
 	}
 	return nil
+}
+
+// EraseSessionsTx removes selected replay blobs and index rows as part of a
+// caller-owned database transaction. Blob deletion happens before each index
+// row is removed so a storage failure leaves the row available for a retry
+// when the transaction is rolled back.
+func EraseSessionsTx(ctx context.Context, tx pgx.Tx, store BlobStore, siteID int32, sessionIDs []int64) error {
+	if len(sessionIDs) == 0 {
+		return nil
+	}
+	if tx == nil || store == nil {
+		return fmt.Errorf("erase replay sessions for site %d: database transaction and blob store are required", siteID)
+	}
+	return eraseSessions(ctx, tx, store, siteID, sessionIDs)
 }
 
 func dayBefore(day time.Time, cutoff time.Time) bool {
