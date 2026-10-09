@@ -23,10 +23,12 @@ email-report subscriptions, keep their existing role behavior.
 
 Billing Admin is an independent `billing_admin` assignment. Only an Owner may
 change this assignment. An Admin cannot grant themselves billing authority.
-For a billing-only member, choose Viewer, no sites (`site_ids: []`), and Billing
-Admin. This does not permit analytics, profiles, recordings, exports, or member
+A billing-only API assignment combines Viewer, no sites (`site_ids: []`), and
+`billing_admin: true`. This does not permit analytics, profiles, recordings, exports, or member
 management. This release establishes billing authorization only; it does not
-add payment-provider checkout or a separate billing service.
+add payment-provider checkout or a separate billing service. The open-source UI
+hides billing cards, badges, copy and grant controls. It omits billing fields from
+member edits and invitations, preserving existing grants on unrelated edits.
 
 ## Scope and API payloads
 
@@ -84,3 +86,23 @@ minimum additional permissions, and test before deploying.
 Collection/privacy settings and environment overrides remain independent ceilings.
 A capability never enables collection or overrides a disabled recording service.
 No new provider credentials, checkout, hosted service, or deployment is implied.
+
+## Account navigation and sessions
+
+The header contains Settings for the current organization and permitted current
+site, plus Account with the signed-in identity, Account settings and Log out.
+Settings pages retain their existing deep links and local navigation. Account
+pages work with zero, one or multiple memberships; self-service requests resolve
+the user session without attaching organization grants. Tenant requests still
+require a valid membership and explicit organization when ambiguous.
+
+Logout revokes only the presented session under CSRF protection. Missing,
+expired or already-revoked sessions complete idempotently; database failures do
+not clear the cookie or claim success. The client hides private content, cancels
+requests and uploads, clears query/mutation state, suppresses late responses and
+replaces the location with `/login` after confirmation. Failures offer retry or a
+return to the app. Other tabs react to session changes; theme preference remains.
+
+Issued `/invite?token=...` URLs redirect without caching to the existing
+`/invite/$token` application route. The invitation's validation and acceptance
+contract remains unchanged.
