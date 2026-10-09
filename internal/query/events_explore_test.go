@@ -33,6 +33,9 @@ func TestEngine_EventsExploreNewestFirstWithFiltersAndCursor(t *testing.T) {
 	if first.Data[0].Props == nil || (*first.Data[0].Props)["plan"] != "pro" || first.NextCursor == nil {
 		t.Fatalf("first page props/cursor = %+v", first)
 	}
+	if got := first.Data[0].SessionId; got != "20" {
+		t.Fatalf("session_id = %q, want 20", got)
+	}
 
 	second, err := engine.Events(context.Background(), api.EventExploreRequest{
 		SiteID: 1, From: exploreDay("2026-10-06"), To: exploreDay("2026-10-07"), Filters: filters, Limit: 1, Cursor: first.NextCursor,

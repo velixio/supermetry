@@ -122,7 +122,8 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := h.deps.Store.Pool.Query(r.Context(), `
-		select e.ts,e.kind,coalesce(n.value,''),coalesce(p.value,''),e.props
+		select e.ts,e.kind,coalesce(n.value,''),coalesce(p.value,''),e.props,e.session_id::text,
+		       exists (select 1 from replay_sessions rr where rr.site_id=e.site_id and rr.session_id=e.session_id)
 		from events e
 		left join dict n on n.kind=7 and n.id=e.name_id
 		left join dict p on p.kind=0 and p.id=e.path_id
@@ -138,7 +139,7 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var event api.ProfileEvent
 		var props []byte
-		if err := rows.Scan(&event.Ts, &event.Kind, &event.Name, &event.Path, &props); err != nil {
+		if err := rows.Scan(&event.Ts, &event.Kind, &event.Name, &event.Path, &props, &event.SessionId, &event.HasReplay); err != nil {
 			serviceError(w, err)
 			return
 		}

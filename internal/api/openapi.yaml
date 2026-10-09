@@ -2757,12 +2757,14 @@ components:
     ProfileEvent:
       type: object
       additionalProperties: false
-      required: [ts, kind, name, path]
+      required: [ts, kind, name, path, session_id, has_replay]
       properties:
         ts: { type: string, format: date-time }
         kind: { type: integer }
         name: { type: string }
         path: { type: string }
+        session_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        has_replay: { type: boolean }
         props:
           type: [object, 'null']
           additionalProperties: true
@@ -2780,7 +2782,7 @@ components:
     EventExploreItem:
       type: object
       additionalProperties: false
-      required: [ts, kind, name, page, country, city, device, browser, os, source, has_replay]
+      required: [ts, kind, name, page, country, city, device, browser, os, source, session_id, has_replay]
       properties:
         ts: { type: string, format: date-time }
         kind:
@@ -2798,6 +2800,7 @@ components:
         browser: { type: string }
         os: { type: string }
         source: { type: string }
+        session_id: { type: string, pattern: '^[1-9][0-9]*$' }
         has_replay: { type: boolean }
     EventExploreList:
       type: object

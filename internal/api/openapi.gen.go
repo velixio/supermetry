@@ -640,6 +640,7 @@ type EventExploreItem struct {
 	Os        string               `json:"os"`
 	Page      string               `json:"page"`
 	Props     *map[string]string   `json:"props,omitempty"`
+	SessionId string               `json:"session_id"`
 	Source    string               `json:"source"`
 	Ts        time.Time            `json:"ts"`
 }
@@ -898,11 +899,13 @@ type ProfileDetail struct {
 
 // ProfileEvent defines model for ProfileEvent.
 type ProfileEvent struct {
-	Kind  int                     `json:"kind"`
-	Name  string                  `json:"name"`
-	Path  string                  `json:"path"`
-	Props *map[string]interface{} `json:"props,omitempty"`
-	Ts    time.Time               `json:"ts"`
+	HasReplay bool                    `json:"has_replay"`
+	Kind      int                     `json:"kind"`
+	Name      string                  `json:"name"`
+	Path      string                  `json:"path"`
+	Props     *map[string]interface{} `json:"props,omitempty"`
+	SessionId string                  `json:"session_id"`
+	Ts        time.Time               `json:"ts"`
 }
 
 // ProfileList defines model for ProfileList.
