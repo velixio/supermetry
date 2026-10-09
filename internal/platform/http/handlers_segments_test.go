@@ -40,6 +40,9 @@ func newSegmentHarness(t *testing.T) segmentHarness {
 	if err := dbPool.QueryRow(ctx, `insert into orgs(name,slug) values ('Segment org','segment-org') returning id`).Scan(&orgID); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := dbPool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
 	data := &store.Store{Pool: dbPool}
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)

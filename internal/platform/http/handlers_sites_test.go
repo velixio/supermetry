@@ -159,6 +159,9 @@ func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Profiles Settings','profiles-settings') returning id`).Scan(&orgID); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
 	data := &store.Store{Pool: pool}
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)

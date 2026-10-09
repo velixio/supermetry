@@ -85,6 +85,16 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 
 	var created store.Site
 	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
+		current, err := currentSitePrincipal(ctx, tx, principal)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		if !authz.Can(current, authz.ActionSiteCreate, 0) {
+			return ErrForbidden
+		}
 		for attempt := 0; attempt < maxCreateAttempts; attempt++ {
 			publicID, err := newPublicID()
 			if err != nil {
@@ -246,12 +256,16 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 
 func (s *Sites) SetQueryInvalidator(invalidate func(int32)) { s.invalidateSite = invalidate }
 
+// Invalidate reloads the active-site registry after a transaction that changes
+// several sites at once, such as organization deletion.
+func (s *Sites) Invalidate() error { return s.registry.Invalidate() }
+
 func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32) error {
 	if !authz.Can(principal, authz.ActionSiteDelete, id) {
 		return ErrForbidden
 	}
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
-		current, err := currentDeletePrincipal(ctx, tx, principal)
+		current, err := currentSitePrincipal(ctx, tx, principal)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrForbidden
 		}
@@ -278,9 +292,13 @@ func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32)
 	return nil
 }
 
-func currentDeletePrincipal(ctx context.Context, tx pgx.Tx, principal authz.Principal) (authz.Principal, error) {
+func currentSitePrincipal(ctx context.Context, tx pgx.Tx, principal authz.Principal) (authz.Principal, error) {
 	if principal.Role != authz.RoleKey {
 		return store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+	}
+	var orgID int64
+	if err := tx.QueryRow(ctx, `select id from orgs where id=$1 and deleted_at is null for share`, principal.OrgID).Scan(&orgID); err != nil {
+		return authz.Principal{}, err
 	}
 	key, err := store.APIKeyForDelegation(ctx, tx, principal.OrgID, principal.KeyID)
 	if err != nil {

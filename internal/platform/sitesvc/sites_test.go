@@ -379,6 +379,36 @@ func TestCreateValidates(t *testing.T) {
 	}
 }
 
+func TestCreateRevalidatesAPIKeyAndOrganization(t *testing.T) {
+	service, _, owner, pool := newSites(t)
+	ctx := context.Background()
+	var keyID int64
+	if err := pool.QueryRow(ctx, `
+		insert into api_keys(org_id,name,prefix,hash,scopes,site_ids,created_by)
+		values ($1,'Provisioner','create01',decode(repeat('05',32),'hex'),array['sites:write'],null,$2)
+		returning id`, owner.OrgID, owner.UserID).Scan(&keyID); err != nil {
+		t.Fatal(err)
+	}
+	key := authz.Principal{KeyID: keyID, OrgID: owner.OrgID, Role: authz.RoleKey, Scopes: []string{"sites:write"}}
+	if _, err := service.Create(ctx, key, "Key site", []string{"key-create.example.com"}, "UTC", 30, "USD"); err != nil {
+		t.Fatalf("active unrestricted key Create error = %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `update api_keys set revoked_at=now() where id=$1`, keyID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Create(ctx, key, "Revoked", []string{"revoked-create.example.com"}, "UTC", 30, "USD"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("revoked key Create error = %v, want ErrForbidden", err)
+	}
+
+	if _, err := pool.Exec(ctx, `update orgs set deleted_at=now() where id=$1`, owner.OrgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Create(ctx, owner, "Deleted org", []string{"deleted-org.example.com"}, "UTC", 30, "USD"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("deleted organization Create error = %v, want ErrForbidden", err)
+	}
+}
+
 func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
