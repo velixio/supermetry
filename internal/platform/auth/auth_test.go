@@ -271,7 +271,7 @@ func TestResetTokenExpiresAndRevokesSessions(t *testing.T) {
 func TestTOTPRequiredAfterEnroll(t *testing.T) {
 	env := newAuth(t)
 	uid := createUser(t, env, "u@x.io", "pw-123456789")
-	otpauthURL, recovery, err := env.a.EnrollTOTP(ctx, uid)
+	otpauthURL, recovery, err := env.a.EnrollTOTP(ctx, uid, "pw-123456789", "")
 	if err != nil {
 		t.Fatal(err)
 	}

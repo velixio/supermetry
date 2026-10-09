@@ -203,9 +203,16 @@ func (h *handler) enrollTOTP(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "authentication")
 		return
 	}
-	url, recovery, err := h.deps.Auth.EnrollTOTP(r.Context(), principal.UserID)
+	var request struct {
+		CurrentPassword string `json:"current_password"`
+		Code            string `json:"code"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	url, recovery, err := h.deps.Auth.EnrollTOTP(h.clientContext(r), principal.UserID, request.CurrentPassword, request.Code)
 	if err != nil {
-		serviceError(w, err)
+		writeTOTPReauthenticationError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"url": url, "recovery_codes": recovery})
@@ -231,6 +238,66 @@ func (h *handler) confirmTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) disableTOTP(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		CurrentPassword string `json:"current_password"`
+		Code            string `json:"code"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if h.deps.Auth == nil || principal.UserID == 0 {
+		unavailable(w, "authentication")
+		return
+	}
+	if err := h.deps.Auth.DisableTOTP(h.clientContext(r), principal.UserID, request.CurrentPassword, request.Code); err != nil {
+		writeTOTPReauthenticationError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) regenerateTOTPRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		CurrentPassword string `json:"current_password"`
+		Code            string `json:"code"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if h.deps.Auth == nil || principal.UserID == 0 {
+		unavailable(w, "authentication")
+		return
+	}
+	recovery, err := h.deps.Auth.RegenerateTOTPRecoveryCodes(h.clientContext(r), principal.UserID, request.CurrentPassword, request.Code)
+	if err != nil {
+		writeTOTPReauthenticationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"recovery_codes": recovery})
+}
+
+func writeTOTPReauthenticationError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, platformauth.ErrRateLimited):
+		rateLimited(w)
+	case errors.Is(err, platformauth.ErrTOTPRequired):
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "a current authentication or recovery code is required")
+	case errors.Is(err, platformauth.ErrInvalid):
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "current password or authentication code is invalid")
+	default:
+		serviceError(w, err)
+	}
 }
 
 func (h *handler) listOrgs(w http.ResponseWriter, r *http.Request) {

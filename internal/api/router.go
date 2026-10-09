@@ -249,6 +249,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter i
 		"DELETE " + privatePrefix + "/me/sessions/{session}",
 		"POST " + privatePrefix + "/me/totp",
 		"PATCH " + privatePrefix + "/me/totp",
+		"DELETE " + privatePrefix + "/me/totp",
+		"POST " + privatePrefix + "/me/totp/recovery-codes",
 		"GET " + privatePrefix + "/orgs",
 		"GET " + privatePrefix + "/orgs/{org}",
 		"GET " + privatePrefix + "/orgs/{org}/members",

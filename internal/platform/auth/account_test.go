@@ -142,7 +142,7 @@ func TestDeleteAccountRequiresSecondFactorAndRefusesLastOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	otpauthURL, _, err := env.a.EnrollTOTP(ctx, user.ID)
+	otpauthURL, _, err := env.a.EnrollTOTP(ctx, user.ID, "pw-123456789", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,9 +150,13 @@ func TestDeleteAccountRequiresSecondFactorAndRefusesLastOwner(t *testing.T) {
 	if err := env.a.ConfirmTOTP(ctx, user.ID, code); err != nil {
 		t.Fatal(err)
 	}
+	if err := env.a.DeleteAccount(ctx, user.ID, "pw-123456789", code); !errors.Is(err, auth.ErrInvalid) {
+		t.Fatalf("replayed confirmation TOTP = %v", err)
+	}
 	if err := env.a.DeleteAccount(ctx, user.ID, "pw-123456789", ""); !errors.Is(err, auth.ErrTOTPRequired) {
 		t.Fatalf("missing TOTP = %v", err)
 	}
+	env.clock.Advance(30 * time.Second)
 	code = codeFor(t, otpauthURL, env.clock.Now())
 	if err := env.a.DeleteAccount(ctx, user.ID, "pw-123456789", code); !errors.Is(err, auth.ErrLastOwner) {
 		t.Fatalf("last owner = %v", err)
@@ -168,6 +172,7 @@ func TestDeleteAccountRequiresSecondFactorAndRefusesLastOwner(t *testing.T) {
 	if _, err := env.store.Pool.Exec(ctx, `insert into invitations(org_id,email,role,token_hash,invited_by,expires_at) values ($1,'invitee@example.test','viewer',$2,$3,$4)`, orgID, make([]byte, 32), user.ID, env.clock.Now().Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
+	env.clock.Advance(30 * time.Second)
 	code = codeFor(t, otpauthURL, env.clock.Now())
 	if err := env.a.DeleteAccount(ctx, user.ID, "pw-123456789", code); err != nil {
 		t.Fatal(err)

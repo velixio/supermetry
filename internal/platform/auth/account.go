@@ -204,8 +204,11 @@ func (a *Auth) DeleteAccount(ctx context.Context, userID int64, password, totpCo
 		if strings.TrimSpace(totpCode) == "" {
 			return ErrTOTPRequired
 		}
-		valid, err := a.validTOTP(user.TOTPSecretEnc, totpCode, a.clock.Now())
-		if err != nil || !valid {
+		valid, err := a.validSecondFactor(ctx, user, totpCode, a.clock.Now())
+		if err != nil {
+			return err
+		}
+		if !valid {
 			return ErrInvalid
 		}
 	}
