@@ -50,6 +50,14 @@ type Event struct {
 	RevenueCurrency      string
 }
 
+// EventReservation owns one bounded writer slot. Call Commit or Cancel exactly
+// once. Holding the writer read lock until then keeps graceful shutdown from
+// finishing its drain before an accepted reservation reaches the queue.
+type EventReservation struct {
+	w    *Writer
+	once sync.Once
+}
+
 // ClosedDays reports whether a site-local day has already been compacted.
 type ClosedDays interface {
 	IsClosed(site int32, day time.Time) bool
@@ -123,22 +131,69 @@ func (w *Writer) RejectEventIfUnavailable() bool {
 	return false
 }
 
-// Enqueue transfers ownership of e to the writer. It never blocks and returns
-// false when all capacity is occupied by queued or not-yet-committed events.
-func (w *Writer) Enqueue(e Event) bool {
+// ReserveEvent claims capacity before callers mutate state derived from an
+// event. A successful reservation guarantees that Commit can enqueue without
+// a competing producer taking its slot. Callers must defer Cancel immediately;
+// Commit consumes the reservation and makes the deferred Cancel a no-op.
+func (w *Writer) ReserveEvent() (*EventReservation, bool) {
 	w.stateMu.RLock()
-	defer w.stateMu.RUnlock()
 	if !w.accepting {
+		w.stateMu.RUnlock()
 		Dropped.Add(1)
-		return false
+		return nil, false
 	}
 	select {
 	case w.slots <- struct{}{}:
+		return &EventReservation{w: w}, true
 	default:
+		w.stateMu.RUnlock()
 		Dropped.Add(1)
+		return nil, false
+	}
+}
+
+// Enqueue transfers ownership of e to the writer. It never blocks and returns
+// false when all capacity is occupied by queued or not-yet-committed events.
+func (w *Writer) Enqueue(e Event) bool {
+	reservation, ok := w.ReserveEvent()
+	if !ok {
 		return false
 	}
+	return reservation.Commit(e)
+}
 
+// Commit transfers ownership of e to the writer and consumes the reservation.
+// It returns false if this reservation was already committed or cancelled.
+func (r *EventReservation) Commit(e Event) bool {
+	if r == nil || r.w == nil {
+		return false
+	}
+	committed := false
+	r.once.Do(func() {
+		w := r.w
+		defer w.stateMu.RUnlock()
+		copyEventMaps(&e)
+		// ReserveEvent guarantees queue capacity. A blocking send avoids a
+		// lossy fallback if that invariant is accidentally weakened later.
+		w.ch <- e
+		committed = true
+	})
+	return committed
+}
+
+// Cancel releases an unused reservation. It is safe to defer and becomes a
+// no-op after Commit or an earlier Cancel.
+func (r *EventReservation) Cancel() {
+	if r == nil || r.w == nil {
+		return
+	}
+	r.once.Do(func() {
+		<-r.w.slots
+		r.w.stateMu.RUnlock()
+	})
+}
+
+func copyEventMaps(e *Event) {
 	if e.Props != nil {
 		props := make(map[string]string, len(e.Props))
 		for key, value := range e.Props {
@@ -152,14 +207,6 @@ func (w *Writer) Enqueue(e Event) bool {
 			traits[key] = value
 		}
 		e.ProfileTraits = traits
-	}
-	select {
-	case w.ch <- e:
-		return true
-	default:
-		<-w.slots
-		Dropped.Add(1)
-		return false
 	}
 }
 

@@ -133,28 +133,49 @@ func TestFullEventQueuePreservesIntakeOrdering(t *testing.T) {
 	}
 }
 
-func TestHandlerFinalEnqueueRejectsCapacityFilledAfterPreflight(t *testing.T) {
+func TestHandlerReservationPreventsSessionMutationRace(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
-	w := writer.New(nil, f.h.Sessions, 1, time.Hour, time.Hour, nil)
+	f.stop(t)
+	w := writer.New(f.pool, f.h.Sessions, 1, time.Hour, time.Hour, noneClosed{})
 	f.h.Writer = w
 	original := f.h.Sessions
+	var competingAccepted bool
 	spy := &preflightSessionSpy{Store: original, beforeTouch: func() {
-		if !w.Enqueue(writer.Event{}) {
-			t.Fatal("competing producer could not fill capacity")
-		}
+		competingAccepted = w.Enqueue(writer.Event{})
 	}}
 	f.h.Sessions = spy
+	runCtx, cancel := context.WithCancel(context.Background())
+	stopped := make(chan error, 1)
+	go func() { stopped <- w.Run(runCtx) }()
 	drops, healthDrops, accepted := writer.Dropped.Load(), health.IngestDropped.Load(), health.IngestAccepted.Load()
 	response := post(t, f.h, okBody, testUA, "198.51.100.7:5555")
-	if response.Code != 503 || response.Header().Get("Retry-After") != "1" || spy.touches != 1 {
-		t.Fatal("request did not reach final queue rejection")
+	if response.Code != http.StatusAccepted || response.Header().Get("Retry-After") != "" || spy.touches != 1 {
+		t.Fatalf("status=%d retry=%q touches=%d", response.Code, response.Header().Get("Retry-After"), spy.touches)
 	}
-	if writer.Dropped.Load() != drops+1 || health.IngestDropped.Load() != healthDrops+1 || health.IngestAccepted.Load() != accepted {
-		t.Fatal("final enqueue rejection accounting differs")
+	if competingAccepted {
+		t.Fatal("competing producer took reserved capacity")
 	}
-	snapshot := original.(session.RichRealtimeStore).RealtimeSnapshot(1, f.clock.Now())
-	if snapshot.Pageviews != 0 || len(snapshot.RecentActivity) != 0 {
-		t.Fatalf("rejected event reached realtime: %+v", snapshot)
+	if writer.Dropped.Load() != drops+1 || health.IngestDropped.Load() != healthDrops || health.IngestAccepted.Load() != accepted+1 {
+		t.Fatal("reservation accounting differs")
+	}
+	cancel()
+	select {
+	case err := <-stopped:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(12 * time.Second):
+		t.Fatal("reserved writer did not stop")
+	}
+	var sessions, events int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from sessions`).Scan(&sessions); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if sessions != 1 || events != 1 {
+		t.Fatalf("accepted event persisted sessions=%d events=%d", sessions, events)
 	}
 }
 
