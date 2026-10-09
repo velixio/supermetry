@@ -188,12 +188,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Preserve privacy, validation, exclusions, rate limits and independent
-	// heatmaps above. Known overload takes precedence over bot/stale-ping
-	// suppression below, before enrichment or session/dictionary mutation.
-	if h.Writer.RejectEventIfUnavailable() {
+	// heatmaps above. Reserve capacity before enrichment or session/dictionary
+	// mutation so a later producer cannot turn a touched session into a 503.
+	reservation, ok := h.Writer.ReserveEvent()
+	if !ok {
 		h.unavailable(w)
 		return
 	}
+	defer reservation.Cancel()
 
 	location := h.Enricher.City(ip)
 	if h.Diag {
@@ -257,11 +259,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	event.SessionID = result.SessionID
 	event.ProfileExternalID = profileID
 	event.ProfileTraits = profileTraits
-	if !h.Writer.Enqueue(event) {
-		health.IngestDropped.Add(1)
-		w.Header().Set("Retry-After", "1")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		return
+	if !reservation.Commit(event) {
+		// The handler owns this reservation and commits it exactly once.
+		panic("ingest: event reservation already consumed")
 	}
 	recordAcceptedActivity(h.Sessions, hit, result.VisitorID)
 	if !identityAllowed && profileSupplied {
