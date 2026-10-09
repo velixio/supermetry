@@ -79,19 +79,39 @@ describe('Web Vitals page', () => {
     ])
   })
 
-  it('switches the breakdown from pages to devices', async () => {
+  it.each([
+    ['Device', 'device'],
+    ['Country', 'country'],
+    ['Browser', 'browser'],
+  ] as const)('switches the breakdown to %s', async (label, dimension) => {
     renderPage()
     expect(await screen.findByRole('cell', { name: '/pricing' })).toBeVisible()
 
-    const device = screen.getByRole('tab', { name: 'Device' })
-    fireEvent.mouseDown(device, { button: 0 })
-    fireEvent.click(device)
+    const tab = screen.getByRole('tab', { name: label })
+    fireEvent.mouseDown(tab, { button: 0 })
+    fireEvent.click(tab)
 
     await waitFor(() =>
       expect(post).toHaveBeenLastCalledWith('/api/private/vitals/query', {
-        body: expect.objectContaining({ dimension: 'device' }),
+        body: expect.objectContaining({ dimension }),
       }),
     )
+    expect(await screen.findByRole('columnheader', { name: label })).toBeVisible()
+  })
+
+  it('renders country names instead of raw country codes', async () => {
+    post.mockResolvedValue({
+      data: { ...response, breakdown: [{ ...response.breakdown[0], value: 'US' }] },
+      response: new Response(null, { status: 200 }),
+    })
+    renderPage()
+
+    const country = await screen.findByRole('tab', { name: 'Country' })
+    fireEvent.mouseDown(country, { button: 0 })
+    fireEvent.click(country)
+
+    expect(await screen.findByRole('cell', { name: 'United States' })).toBeVisible()
+    expect(screen.queryByRole('cell', { name: 'US' })).not.toBeInTheDocument()
   })
 
   it('explains that empty reports need the full tracker', async () => {
