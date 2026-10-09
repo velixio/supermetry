@@ -21,6 +21,7 @@ const eventsSearch = dashboardSearch.extend({
   name: z.string().catch(''),
   property: z.string().catch(''),
   cursor: z.string().optional(),
+  replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
 })
 
 export const Route = createFileRoute('/$org/$site/events')({
@@ -72,6 +73,7 @@ function EventsRoute() {
         name={search.name}
         orgId={membership.org.id}
         org={org}
+        replayId={search.replay}
         propertyKey={search.property}
         siteId={site.id}
         site={siteSlug}
@@ -79,6 +81,7 @@ function EventsRoute() {
         onNext={(cursor) => void navigate({ search: { ...search, cursor } })}
         onPrevious={() => void navigate({ search: { ...search, cursor: undefined } })}
         onPropertyChange={(property) => void navigate({ search: { ...search, property } })}
+        onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace })}
       />
     </div>
   )

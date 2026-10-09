@@ -9,7 +9,10 @@ import { en } from '@/messages/en'
 
 import { useMe } from './$org'
 
-const replaySearch = dashboardSearch.extend({ cursor: z.string().optional() })
+const replaySearch = dashboardSearch.extend({
+  cursor: z.string().optional(),
+  replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
+})
 
 export const Route = createFileRoute('/$org/$site/replays/')({
   validateSearch: (search) => replaySearch.parse(search),
@@ -35,10 +38,12 @@ function ReplaysRoute() {
         cursor={search.cursor}
         from={range.from}
         org={org}
+        replayId={search.replay}
         site={siteSlug}
         siteId={site.id}
         to={range.to}
         onCursorChange={(cursor) => void navigate({ search: { ...search, cursor } })}
+        onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace })}
       />
     </div>
   )

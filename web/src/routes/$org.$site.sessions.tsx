@@ -15,7 +15,8 @@ import { useMe } from './$org'
 const sessionsSearch = dashboardSearch.extend({
   cursor: z.string().optional(),
   session: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
-  replay: z.boolean().optional().catch(false),
+  has_replay: z.boolean().optional().catch(false),
+  replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
 })
 
 export const Route = createFileRoute('/$org/$site/sessions')({
@@ -57,16 +58,18 @@ function SessionsRoute() {
         />
       </div>
       <Field orientation="horizontal">
-        <Checkbox id="sessions-has-replay" checked={search.replay ?? false} onCheckedChange={(checked) => void navigate({ search: { ...search, replay: checked === true, cursor: undefined } })} />
+        <Checkbox id="sessions-has-replay" checked={search.has_replay ?? false} onCheckedChange={(checked) => void navigate({ search: { ...search, has_replay: checked === true, cursor: undefined } })} />
         <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
       </Field>
       <SessionsPage
         cursor={search.cursor}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         filters={filters}
-        hasReplayOnly={search.replay}
+        hasReplayOnly={search.has_replay}
         org={org}
+        replayId={search.replay}
         onCursorChange={(cursor) => void navigate({ search: { ...search, cursor } })}
+        onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace })}
         onSelect={(session) => void navigate({ search: { ...search, session } })}
         selectedSessionId={search.session}
         siteId={site.id}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
 import { ReplayLink } from '@/components/replay/ReplayLink'
+import { ReplayOverlay, type ReplayOverlayRow } from '@/components/replay/ReplayOverlay'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +35,8 @@ export function ProfileDetailPage({
   onDeleted,
   org,
   site,
+  replayId,
+  onReplayChange,
 }: {
   profileId: number
   siteId?: number
@@ -42,6 +45,8 @@ export function ProfileDetailPage({
   onDeleted: () => void
   org?: string
   site?: string
+  replayId?: string
+  onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }) {
   const [cursors, setCursors] = useState<string[]>([])
   const cursor = cursors.at(-1)
@@ -52,6 +57,15 @@ export function ProfileDetailPage({
   if (profile.isError) return <ErrorState detail={profile.error?.message} onRetry={() => void profile.refetch?.()} />
   if (profile.isPending || !profile.data) return <Skeleton className="h-72 w-full" />
 
+  const replayRows: ReplayOverlayRow[] = []
+  const replayIDs = new Set<string>()
+  for (const event of profile.data.timeline) {
+    if (!event.has_replay || replayIDs.has(event.session_id)) continue
+    replayIDs.add(event.session_id)
+    replayRows.push({ sessionId: event.session_id })
+  }
+  const firstReplayId = replayRows[0]?.sessionId
+
   return (
     <main className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -59,7 +73,7 @@ export function ProfileDetailPage({
           <p className="text-sm text-muted-foreground">Profile</p>
           <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.data.external_id}</h1>
         </header>
-        {org && site ? <ReplayLink hasReplay={(profile.data as typeof profile.data & { has_replay?: boolean }).has_replay} org={org} site={site} /> : null}
+        {org && site ? <ReplayLink hasReplay={Boolean(firstReplayId)} org={org} site={site} sessionId={firstReplayId} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}
         {canDelete ? (
           <AlertDialog>
             <AlertDialogTrigger asChild><Button variant="destructive">Delete profile</Button></AlertDialogTrigger>
@@ -113,7 +127,7 @@ export function ProfileDetailPage({
                     <TableCell>{new Date(event.ts).toLocaleString()}</TableCell>
                     <TableCell className="font-medium">{event.name || event.kind}</TableCell>
                     <TableCell>{event.path || '—'}</TableCell>
-                    <TableCell>{org && site ? <ReplayLink hasReplay={(event as { has_replay?: boolean }).has_replay} org={org} site={site} /> : null}</TableCell>
+                    <TableCell>{org && site ? <ReplayLink hasReplay={event.has_replay} org={org} site={site} sessionId={event.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -125,6 +139,18 @@ export function ProfileDetailPage({
           <Button disabled={!profile.data.next_cursor || profile.isFetching} variant="outline" onClick={() => profile.data.next_cursor && setCursors((value) => [...value, profile.data.next_cursor!])}>Next page</Button>
         </div>
       </section>
+      {org && site && onReplayChange ? (
+        <ReplayOverlay
+          open={Boolean(replayId)}
+          org={org}
+          rows={replayRows}
+          sessionId={replayId}
+          site={site}
+          siteId={siteId}
+          onOpenChange={(open) => !open && onReplayChange(undefined, { replace: true })}
+          onSessionChange={(id) => onReplayChange(id, { replace: true })}
+        />
+      ) : null}
     </main>
   )
 }

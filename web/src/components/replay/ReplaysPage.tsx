@@ -1,4 +1,5 @@
 import { ReplayLink } from './ReplayLink'
+import { ReplayOverlay, type ReplayOverlayRow } from './ReplayOverlay'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,7 +32,9 @@ export function ReplaysPage({
   from,
   to,
   cursor,
+  replayId,
   onCursorChange,
+  onReplayChange,
 }: {
   siteId: number
   org: string
@@ -39,9 +42,23 @@ export function ReplaysPage({
   from: string
   to: string
   cursor?: string
+  replayId?: string
   onCursorChange: (cursor?: string) => void
+  onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }) {
   const replays = useReplays(siteId, from, to, cursor)
+  const replayRows: ReplayOverlayRow[] = (replays.data?.items as ReplayRow[] | undefined)?.map((replay) => ({
+    sessionId: replay.session_id,
+    startedAt: replay.started_at,
+    browser: replay.browser,
+    os: replay.os,
+    device: replay.device,
+    city: replay.city,
+    country: replay.country,
+    durationMs: replay.duration_s * 1000,
+    actions: replay.actions,
+    pages: replay.pages,
+  })) ?? []
   return (
     <main className="flex min-w-0 flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -65,7 +82,7 @@ export function ReplaysPage({
             </TableRow></TableHeader>
             <TableBody>{(replays.data.items as ReplayRow[]).map((replay) => (
               <TableRow key={replay.session_id}>
-                <TableCell><ReplayLink hasReplay org={org} site={site} sessionId={replay.session_id} /></TableCell>
+                <TableCell><ReplayLink hasReplay org={org} site={site} sessionId={replay.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /></TableCell>
                 <TableCell><time dateTime={replay.started_at}>{new Date(replay.started_at).toLocaleString()}</time></TableCell>
                 <TableCell><Location city={replay.city} country={replay.country} /></TableCell>
                 <TableCell><BrowserLabel value={replay.browser} /></TableCell>
@@ -84,6 +101,18 @@ export function ReplaysPage({
         <Button disabled={!cursor || replays.isFetching} variant="outline" onClick={() => onCursorChange(undefined)}>First page</Button>
         <Button disabled={!replays.data?.next_cursor || replays.isFetching} variant="outline" onClick={() => onCursorChange(replays.data?.next_cursor ?? undefined)}>Next page</Button>
       </div>
+      {onReplayChange ? (
+        <ReplayOverlay
+          open={Boolean(replayId)}
+          org={org}
+          rows={replayRows}
+          sessionId={replayId}
+          site={site}
+          siteId={siteId}
+          onOpenChange={(open) => !open && onReplayChange(undefined, { replace: true })}
+          onSessionChange={(id) => onReplayChange(id, { replace: true })}
+        />
+      ) : null}
     </main>
   )
 }
