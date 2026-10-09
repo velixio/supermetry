@@ -1,5 +1,5 @@
 import { ReplayLink } from './ReplayLink'
-import { Button } from '@/components/ui/button'
+import { ListPager } from '@/components/ListPager'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -19,6 +19,8 @@ type ReplayRow = ReplayListItem & Partial<{
   os: string
 }>
 
+type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
+
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.round(seconds)}s`
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
@@ -31,7 +33,10 @@ export function ReplaysPage({
   from,
   to,
   cursor,
-  onCursorChange,
+  page,
+  onFirst,
+  onPrevious,
+  onNext,
 }: {
   siteId: number
   org: string
@@ -39,9 +44,13 @@ export function ReplaysPage({
   from: string
   to: string
   cursor?: string
-  onCursorChange: (cursor?: string) => void
+  page: number
+  onFirst: () => void
+  onPrevious: () => void
+  onNext: (cursor: string) => void
 }) {
   const replays = useReplays(siteId, from, to, cursor)
+  const data = replays.data as Paged<NonNullable<typeof replays.data>> | undefined
   return (
     <main className="flex min-w-0 flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -80,10 +89,20 @@ export function ReplaysPage({
           </Table>
         </div>
       )}
-      <div className="flex justify-end gap-2">
-        <Button disabled={!cursor || replays.isFetching} variant="outline" onClick={() => onCursorChange(undefined)}>First page</Button>
-        <Button disabled={!replays.data?.next_cursor || replays.isFetching} variant="outline" onClick={() => onCursorChange(replays.data?.next_cursor ?? undefined)}>Next page</Button>
-      </div>
+      {!replays.isPending && !replays.isError ? (
+        <ListPager
+          fetching={replays.isFetching}
+          hasNext={Boolean(data?.next_cursor)}
+          page={page}
+          pageSize={50}
+          rowCount={data?.items.length ?? 0}
+          total={data?.total}
+          totalCapped={data?.total_capped}
+          onFirst={onFirst}
+          onNext={() => data?.next_cursor && onNext(data.next_cursor)}
+          onPrevious={onPrevious}
+        />
+      ) : null}
     </main>
   )
 }

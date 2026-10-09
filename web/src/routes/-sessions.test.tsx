@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }))
@@ -31,6 +31,24 @@ function renderPath(path: string) {
   })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>)
+  return router
+}
+
+const session = {
+  id: '301',
+  started_at: '2026-10-08T08:00:00Z',
+  duration_ms: 120000,
+  pageviews: 2,
+  events: 1,
+  entry_page: '/',
+  exit_page: '/pricing',
+  source: 'Google',
+  country: 'US',
+  city: 'San Francisco',
+  device: 'desktop',
+  browser: 'Chrome',
+  os: 'Linux',
+  external_id: 'ada-42',
 }
 
 describe('sessions route', () => {
@@ -59,5 +77,43 @@ describe('sessions route', () => {
         query: expect.objectContaining({ from: '2026-10-01', to: '2026-10-08', filter: ['country:is:IN'] }),
       }) }),
     ))
+  })
+
+  it('returns to page 1 and the original cursor after Next then Previous', async () => {
+    get.mockImplementation((path: string) => Promise.resolve({
+      data: path === '/api/private/me' ? me : { data: [session], next_cursor: 'cursor-2', total: 2, total_capped: false },
+      response: new Response(null, { status: 200 }),
+    }))
+    const router = renderPath('/acme/example/sessions')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Next' }))
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ page: '2', cursors: ['cursor-2'] }))
+    await waitFor(() => expect(get).toHaveBeenCalledWith(
+      '/api/private/sites/{site_id}/sessions',
+      expect.objectContaining({ params: expect.objectContaining({ query: expect.objectContaining({ cursor: 'cursor-2' }) }) }),
+    ))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ page: '1' }))
+    expect(router.state.location.search).not.toHaveProperty('cursors')
+    await waitFor(() => {
+      const calls = get.mock.calls.filter(([path]) => path === '/api/private/sites/{site_id}/sessions')
+      expect(calls.at(-1)?.[1]).toEqual(expect.objectContaining({
+        params: expect.objectContaining({ query: expect.objectContaining({ cursor: undefined }) }),
+      }))
+    })
+  })
+
+  it('resets pagination when a filter changes', async () => {
+    get.mockImplementation((path: string) => Promise.resolve({
+      data: path === '/api/private/me' ? me : { data: [session], next_cursor: null, total: 2, total_capped: false },
+      response: new Response(null, { status: 200 }),
+    }))
+    const router = renderPath('/acme/example/sessions?page=2&cursors=cursor-2')
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Has replay' }))
+
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ page: '1', replay: true }))
+    expect(router.state.location.search).not.toHaveProperty('cursors')
   })
 })

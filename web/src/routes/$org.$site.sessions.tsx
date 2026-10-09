@@ -7,13 +7,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
 import { countryName } from '@/lib/country'
-import { dashboardSearch, parseFilters, removeFilter, replaceFilters, resolveRange } from '@/lib/search'
+import { currentCursor, dashboardSearch, firstPage, nextPage, paginationSearch, parseFilters, previousPage, removeFilter, replaceFilters, resolveRange } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { useMe } from './$org'
 
 const sessionsSearch = dashboardSearch.extend({
-  cursor: z.string().optional(),
+  ...paginationSearch,
   session: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
   replay: z.boolean().optional().catch(false),
 })
@@ -45,28 +45,31 @@ function SessionsRoute() {
           filters={filters}
           invalidNotice={en.dashboard.invalidFilter}
           removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          onRemove={(index) => void navigate({ search: { ...search, ...removeFilter(search, index), cursor: undefined } })}
+          onRemove={(index) => void navigate({ search: firstPage({ ...search, ...removeFilter(search, index) }) })}
           siteId={site.id}
           canEdit={membership?.role !== 'viewer'}
-          onApply={(segmentFilters) => void navigate({ search: { ...search, ...replaceFilters(search, segmentFilters), cursor: undefined } })}
+          onApply={(segmentFilters) => void navigate({ search: firstPage({ ...search, ...replaceFilters(search, segmentFilters) }) })}
         />
         <DatePicker
           labels={en.dashboard}
           search={search}
-          onChange={(next) => void navigate({ search: { ...search, ...next, cursor: undefined } })}
+          onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
         />
       </div>
       <Field orientation="horizontal">
-        <Checkbox id="sessions-has-replay" checked={search.replay ?? false} onCheckedChange={(checked) => void navigate({ search: { ...search, replay: checked === true, cursor: undefined } })} />
+        <Checkbox id="sessions-has-replay" checked={search.replay ?? false} onCheckedChange={(checked) => void navigate({ search: firstPage({ ...search, replay: checked === true }) })} />
         <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
       </Field>
       <SessionsPage
-        cursor={search.cursor}
+        cursor={currentCursor(search)}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         filters={filters}
         hasReplayOnly={search.replay}
         org={org}
-        onCursorChange={(cursor) => void navigate({ search: { ...search, cursor } })}
+        page={search.page ?? 1}
+        onFirst={() => void navigate({ search: firstPage(search) })}
+        onNext={(cursor) => void navigate({ search: nextPage(search, cursor) })}
+        onPrevious={() => void navigate({ search: previousPage(search) })}
         onSelect={(session) => void navigate({ search: { ...search, session } })}
         selectedSessionId={search.session}
         siteId={site.id}

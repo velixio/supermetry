@@ -26,7 +26,7 @@ describe('ReplaysPage', () => {
       isFetching: false,
     })
 
-    render(<ReplaysPage siteId={7} org="acme" site="example" from="2026-10-01" to="2026-10-08" onCursorChange={() => undefined} />)
+    render(<ReplaysPage siteId={7} org="acme" site="example" from="2026-10-01" to="2026-10-08" page={1} onFirst={() => undefined} onNext={() => undefined} onPrevious={() => undefined} />)
 
     for (const name of ['Play', 'Started', 'Location', 'Browser', 'OS', 'Device', 'Actions', 'Duration', 'Pages', 'Trigger']) {
       expect(screen.getByRole('columnheader', { name })).toBeVisible()
