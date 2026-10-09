@@ -35,8 +35,9 @@ type journeyOptions struct {
 	startPath, endPath *string
 }
 
-// Journey returns a raw-event path flow. Consecutive duplicate pageviews in
-// each session are collapsed before steps and links are counted.
+// Journey returns an exact path flow across durable closed sequences and hot
+// events. Consecutive duplicate pageviews in each session are collapsed before
+// steps and links are counted.
 func (e *Engine) Journey(ctx context.Context, req api.JourneyRequest) (api.JourneyResponse, error) {
 	if e.trackingMode != privacy.Identified {
 		return api.JourneyResponse{}, api.ErrAnonymousHistory
@@ -51,15 +52,20 @@ func (e *Engine) Journey(ctx context.Context, req api.JourneyRequest) (api.Journ
 	if err := validateJourneyRequest(req, site, e.reportNow()); err != nil {
 		return api.JourneyResponse{}, err
 	}
-	querySQL, args, err := buildJourneySQL(req, site.Retention, site.TZ, e.reportNow())
-	if err != nil {
-		return api.JourneyResponse{}, err
-	}
-	response := api.JourneyResponse{Nodes: []api.JourneyNode{}, Links: []api.JourneyLink{}}
 	if err := globalQuerySlots.Acquire(ctx, 1); err != nil {
 		return api.JourneyResponse{}, fmt.Errorf("query journeys: %w", err)
 	}
 	defer globalQuerySlots.Release(1)
+	from, to := civilDate(req.DateRange.From.Time), civilDate(req.DateRange.To.Time)
+	closedThrough, err := e.closedThrough(ctx, req.SiteId, from, to)
+	if err != nil {
+		return api.JourneyResponse{}, err
+	}
+	querySQL, args, err := buildJourneySQL(req, site.Retention, site.TZ, e.reportNow(), closedThrough)
+	if err != nil {
+		return api.JourneyResponse{}, err
+	}
+	response := api.JourneyResponse{Nodes: []api.JourneyNode{}, Links: []api.JourneyLink{}}
 	err = WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
 		rows, queryErr := tx.Query(ctx, querySQL, args...)
 		if queryErr != nil {
@@ -98,49 +104,85 @@ func validateJourneyRequest(req api.JourneyRequest, site sites.Site, now time.Ti
 	if req.StartPath != nil && req.EndPath != nil {
 		return errors.New("provide start_path or end_path, not both")
 	}
-	return validateRawReportRange(req.SiteId, req.DateRange, filtersFrom(req.Filters), site, now)
+	return validateReportRange(req.SiteId, req.DateRange, filtersFrom(req.Filters), site)
 }
 
-func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, location *time.Location, now time.Time) (string, []any, error) {
+func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, location *time.Location, now, closedThrough time.Time) (string, []any, error) {
 	builder := &sqlBuilder{}
-	filters := filtersFrom(req.Filters)
-	pageFilters, remaining := splitPageFilters(filters)
-	specialFilters, sessionFilters := splitSpecialFilters(remaining)
-	resolver := reportSessionResolver("s")
-	conditions, err := filterConditions(builder, sessionFilters, resolver)
-	if err != nil {
-		return "", nil, err
-	}
-	for _, filter := range pageFilters {
-		matches, matchErr := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
-			return "pe.path_id", dictionaryKind(dict.Path), nil
-		})
-		if matchErr != nil {
-			return "", nil, matchErr
-		}
-		conditions = append(conditions, "exists (select 1 from events pe where pe.site_id=s.site_id and pe.session_id=s.session_id and pe.retention_class=s.retention_class and pe.local_day=s.local_day and pe.kind=0 and "+matches[0]+")")
-	}
-	specialConditions, err := hotSpecialConditions(builder, specialFilters)
-	if err != nil {
-		return "", nil, err
-	}
-	conditions = append(conditions, constrainReportEventConditions(specialConditions)...)
 	from, to := civilDate(req.DateRange.From.Time), civilDate(req.DateRange.To.Time)
 	if location == nil {
 		location = time.UTC
 	}
-	startTS := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, location)
-	endTS := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, location).AddDate(0, 0, 1)
 	siteArg := builder.arg(req.SiteId)
-	retentionArg := builder.arg(retention)
-	fromArg, toArg := builder.arg(dateParam(from)), builder.arg(dateParam(to))
-	startArg, endArg := builder.arg(startTS), builder.arg(endTS)
-	endedBeforeArg := builder.arg(now.Add(-session.IdleTimeout))
 	stepsArg, limitArg := builder.arg(req.Steps), builder.arg(req.Limit)
-	conditions = constrainReportEventTimes(conditions, startArg, endArg)
-	where := "s.site_id=" + siteArg + " and s.retention_class=" + retentionArg +
-		" and s.local_day between " + fromArg + "::date and " + toArg + "::date" +
-		" and s.start >= " + startArg + " and s.start < " + endArg + andSQL(conditions)
+
+	var sequenceQueries []string
+	closedTo := minTime(to, civilDate(closedThrough))
+	if !closedTo.Before(from) {
+		conditions, err := buildJourneyTierConditions(builder, filtersFrom(req.Filters), true)
+		if err != nil {
+			return "", nil, err
+		}
+		fromArg, toArg := builder.arg(dateParam(from)), builder.arg(dateParam(closedTo))
+		sequenceQueries = append(sequenceQueries, `select s.day as local_day,s.visitor_id,s.session_id,true as ended,
+       array_agg(d.value order by u.ord) as paths
+from sessions_closed s
+cross join lateral (
+  select code,ord,lag(code >> 2) over(order by ord) as previous_path
+  from unnest(s.seq) with ordinality sequence(code,ord)
+  where code>0
+) u
+join dict d on d.kind=`+fmt.Sprint(dict.Path)+` and d.id=(u.code >> 2)
+where s.site_id=`+siteArg+` and s.day between `+fromArg+`::date and `+toArg+`::date
+  and (u.code >> 2) is distinct from u.previous_path`+andSQL(conditions)+`
+group by s.day,s.visitor_id,s.session_id`)
+	}
+
+	var hotCTEs []string
+	hotFrom := maxTime(from, civilDate(closedThrough).AddDate(0, 0, 1))
+	if !hotFrom.After(to) {
+		conditions, err := buildJourneyTierConditions(builder, filtersFrom(req.Filters), false)
+		if err != nil {
+			return "", nil, err
+		}
+		retentionArg := builder.arg(retention)
+		fromArg, toArg := builder.arg(dateParam(hotFrom)), builder.arg(dateParam(to))
+		startTS := time.Date(hotFrom.Year(), hotFrom.Month(), hotFrom.Day(), 0, 0, 0, 0, location)
+		endTS := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, location).AddDate(0, 0, 1)
+		startArg, endArg := builder.arg(startTS), builder.arg(endTS)
+		endedBeforeArg := builder.arg(now.Add(-session.IdleTimeout))
+		conditions = constrainReportEventTimes(conditions, startArg, endArg)
+		where := "s.site_id=" + siteArg + " and s.retention_class=" + retentionArg +
+			" and s.local_day between " + fromArg + "::date and " + toArg + "::date" +
+			" and s.start >= " + startArg + " and s.start < " + endArg + andSQL(conditions)
+		hotCTEs = append(hotCTEs, `selected_sessions as (
+  select s.site_id,s.local_day,s.visitor_id,s.session_id,
+         (s.last < `+endArg+` and s.last < `+endedBeforeArg+`) as ended
+  from sessions s
+  where `+where+`
+)`, `numbered as (
+  select e.site_id,ss.local_day,ss.visitor_id,e.session_id,ss.ended,e.path_id,e.ts,
+         row_number() over (partition by e.site_id,e.session_id order by e.ts,e.path_id desc) as event_order
+  from selected_sessions ss
+  join events e on e.site_id=ss.site_id and e.session_id=ss.session_id
+  where e.site_id=`+siteArg+` and e.retention_class=`+retentionArg+`
+    and e.local_day between `+fromArg+`::date and `+toArg+`::date
+    and e.ts>=`+startArg+` and e.ts<`+endArg+` and e.kind=0
+)`, `compared as (
+  select *,lag(path_id) over (partition by site_id,session_id order by event_order) as previous_path
+  from numbered
+)`)
+		sequenceQueries = append(sequenceQueries, `select c.local_day,c.visitor_id,c.session_id,c.ended,
+       array_agg(d.value order by c.event_order) as paths
+from compared c
+join dict d on d.kind=`+fmt.Sprint(dict.Path)+` and d.id=c.path_id
+where c.previous_path is distinct from c.path_id
+group by c.local_day,c.visitor_id,c.session_id,c.ended`)
+	}
+	if len(sequenceQueries) == 0 {
+		sequenceQueries = append(sequenceQueries, "select null::date local_day,0::int8 visitor_id,0::int8 session_id,false ended,'{}'::text[] paths where false")
+	}
+
 	anchorIndex := "1"
 	anchorPredicate := "true"
 	displayPaths := "paths[1:" + stepsArg + "]"
@@ -160,29 +202,8 @@ func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, locati
 	if appendExit {
 		displayPaths = "case when ended and cardinality(" + displayPaths + ") < " + stepsArg + " then " + displayPaths + " || 'exit'::text else " + displayPaths + " end"
 	}
-	querySQL := `with selected_sessions as (
-  select s.site_id, s.local_day, s.visitor_id, s.session_id,
-         (s.last < ` + endArg + ` and s.last < ` + endedBeforeArg + `) as ended
-  from sessions s
-  where ` + where + `
-), numbered as (
-  select e.site_id, ss.local_day, ss.visitor_id, e.session_id, ss.ended, e.path_id, e.ts,
-         row_number() over (partition by e.site_id, e.session_id order by e.ts, e.path_id) as event_order
-  from selected_sessions ss
-  join events e on e.site_id=ss.site_id and e.session_id=ss.session_id
-  where e.site_id=` + siteArg + ` and e.retention_class=` + retentionArg + `
-    and e.local_day between ` + fromArg + `::date and ` + toArg + `::date
-    and e.ts >= ` + startArg + ` and e.ts < ` + endArg + ` and e.kind=0
-), compared as (
-  select *, lag(path_id) over (partition by site_id, session_id order by event_order) as previous_path
-  from numbered
-), sequences as (
-  select c.local_day, c.visitor_id, c.session_id, c.ended, array_agg(d.value order by c.event_order) as paths
-  from compared c
-  join dict d on d.kind=` + fmt.Sprint(dict.Path) + ` and d.id=c.path_id
-  where c.previous_path is distinct from c.path_id
-  group by c.local_day, c.visitor_id, c.session_id, c.ended
-), indexed as (
+	ctes := append(hotCTEs, "sequences as ("+strings.Join(sequenceQueries, "\nunion all\n")+")")
+	querySQL := `with ` + strings.Join(ctes, ",\n") + `, indexed as (
   select *, ` + anchorIndex + ` as anchor_index from sequences
 ), displayed as (
   select local_day, visitor_id, session_id, ended, ` + displayPaths + ` as paths
@@ -217,6 +238,49 @@ func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, locati
 select kind,step,path,to_path,visitors from result
 order by case kind when 'node' then 0 else 1 end,step,visitors desc,path,to_path nulls first`
 	return querySQL, builder.args, nil
+}
+
+func buildJourneyTierConditions(builder *sqlBuilder, filters []api.Filter, closed bool) ([]string, error) {
+	pageFilters, remaining := splitPageFilters(filters)
+	specialFilters, sessionFilters := splitSpecialFilters(remaining)
+	resolver := reportSessionResolver("s")
+	if closed {
+		resolver = reportClosedSessionResolver("s")
+	}
+	conditions, err := filterConditions(builder, sessionFilters, resolver)
+	if err != nil {
+		return nil, err
+	}
+	for _, filter := range pageFilters {
+		column := "pe.path_id"
+		if closed {
+			column = "u.code >> 2"
+		}
+		matches, matchErr := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
+			return column, dictionaryKind(dict.Path), nil
+		})
+		if matchErr != nil {
+			return nil, matchErr
+		}
+		if closed {
+			conditions = append(conditions, "exists (select 1 from unnest(s.seq) u(code) where u.code>0 and "+matches[0]+")")
+		} else {
+			conditions = append(conditions, "exists (select 1 from events pe where pe.site_id=s.site_id and pe.session_id=s.session_id and pe.retention_class=s.retention_class and pe.local_day=s.local_day and pe.kind=0 and "+matches[0]+")")
+		}
+	}
+	var specialConditions []string
+	if closed {
+		specialConditions, err = closedSpecialConditions(builder, specialFilters)
+	} else {
+		specialConditions, err = hotSpecialConditions(builder, specialFilters)
+		if err == nil {
+			specialConditions = constrainReportEventConditions(specialConditions)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return append(conditions, specialConditions...), nil
 }
 
 func buildJourney(visits []journeyVisit, options journeyOptions) api.JourneyResponse {
@@ -428,6 +492,16 @@ func reportSessionResolver(alias string) dimensionResolver {
 	}
 }
 
+func reportClosedSessionResolver(alias string) dimensionResolver {
+	base := reportSessionResolver(alias)
+	return func(dimension string) (string, *dict.Kind, error) {
+		if dimension == "time" {
+			return alias + ".day", nil, nil
+		}
+		return base(dimension)
+	}
+}
+
 func filtersFrom(filters *[]api.Filter) []api.Filter {
 	if filters == nil {
 		return nil
@@ -458,6 +532,25 @@ func (e *Engine) reportNow() time.Time {
 }
 
 func validateRawReportRange(siteID int32, dateRange api.DateRange, filters []api.Filter, site sites.Site, now time.Time) error {
+	if err := validateReportRange(siteID, dateRange, filters, site); err != nil {
+		return err
+	}
+	from := civilDate(dateRange.From.Time)
+	if site.Retention != db.RetForever {
+		location := site.TZ
+		if location == nil {
+			location = time.UTC
+		}
+		today := civilDate(now.In(location))
+		earliest := today.AddDate(0, 0, -int(site.Retention)+1)
+		if from.Before(earliest) {
+			return errors.New("date range must be within the raw retention window")
+		}
+	}
+	return nil
+}
+
+func validateReportRange(siteID int32, dateRange api.DateRange, filters []api.Filter, site sites.Site) error {
 	from, to := civilDate(dateRange.From.Time), civilDate(dateRange.To.Time)
 	if siteID != site.ID {
 		return errors.New("site_id does not match the requested site")
@@ -474,17 +567,6 @@ func validateRawReportRange(siteID int32, dateRange api.DateRange, filters []api
 	for _, filter := range filters {
 		if !knownDimension(filter.Dimension) || !filter.Operator.Valid() || len(filter.Values) == 0 {
 			return fmt.Errorf("invalid filter %q", filter.Dimension)
-		}
-	}
-	if site.Retention != db.RetForever {
-		location := site.TZ
-		if location == nil {
-			location = time.UTC
-		}
-		today := civilDate(now.In(location))
-		earliest := today.AddDate(0, 0, -int(site.Retention)+1)
-		if from.Before(earliest) {
-			return errors.New("date range must be within the raw retention window")
 		}
 	}
 	return nil
