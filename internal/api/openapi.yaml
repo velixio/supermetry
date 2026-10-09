@@ -445,6 +445,12 @@ paths:
         - $ref: '#/components/parameters/Filters'
         - $ref: '#/components/parameters/Compare'
         - $ref: '#/components/parameters/Format'
+        - name: include_imported
+          in: query
+          description: Include imported analytics rows when available.
+          schema:
+            type: boolean
+            default: true
         - name: interval
           in: query
           schema:
@@ -1703,7 +1709,7 @@ components:
     Filters:
       name: filter
       in: query
-      description: "Repeat up to ten times as dimension:operator:value1,value2."
+      description: "Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component."
       style: form
       explode: true
       schema:
@@ -2280,13 +2286,14 @@ components:
       properties:
         dimension:
           type: string
-          description: Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
+          description: Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. Region and city accept the legacy one-value [place] form for any country and the country-scoped [place, ISO country code] form.
         operator:
           type: string
           enum: [is, is_not, contains, starts_with]
         values:
           type: array
           minItems: 1
+          description: Match values. Region and city accept either [place] (legacy, any country) or [place, ISO country code]; the pair identifies one scoped place and is not an OR list.
           items:
             type: string
     OrderBy:
@@ -2574,10 +2581,11 @@ components:
           type: string
         prop_key:
           type: string
-          description: Reserved for property-aware funnels; currently not applied by funnel queries.
+          description: >-
+            Custom-event property key that must match for this step.
         prop_value:
           type: string
-          description: Reserved for property-aware funnels; currently not applied by funnel queries.
+          description: Exact custom-event property value required by prop_key.
     FunnelRequest:
       type: object
       additionalProperties: false
@@ -2589,6 +2597,18 @@ components:
           minimum: 1
         date_range:
           $ref: '#/components/schemas/DateRange'
+        count_by:
+          type: string
+          enum: [sessions, visitors]
+          x-enum-varnames: [FunnelCountBySessions, FunnelCountByVisitors]
+          default: sessions
+          description: Count completed steps by sessions (the default) or visitors. Profile-linked visitors can complete steps across sessions inside a non-session window. Anonymous visitors use the daily salted visitor ID and therefore link only within one site-local day.
+        window:
+          type: string
+          enum: [session, 1h, 24h, 7d]
+          x-enum-varnames: [FunnelWindowSession, FunnelWindow1h, FunnelWindow24h, FunnelWindow7d]
+          default: session
+          description: Maximum elapsed time from step 1 through each later ordered step. session keeps every step in one session and is the default. Closed rows compacted before event timestamps were stored use their stable session ordering when raw data is no longer available for reconstruction.
         steps:
           type: array
           minItems: 2
@@ -2597,23 +2617,33 @@ components:
     FunnelStepResult:
       type: object
       additionalProperties: false
-      required: [step, visitors, conversion]
+      required: [step, count, visitors, conversion]
       properties:
         step:
           type: integer
           minimum: 1
+        count:
+          type: integer
+          format: int64
+          description: Number of sessions or visitors, as selected by count_by, that completed this ordered step.
         visitors:
           type: integer
           format: int64
-          description: Number of site-local sessions that completed this ordered step.
+          deprecated: true
+          description: Deprecated alias of count; always identical.
         conversion:
           type: number
           format: double
     FunnelResponse:
       type: object
       additionalProperties: false
-      required: [steps]
+      required: [count_by, steps]
       properties:
+        count_by:
+          type: string
+          enum: [sessions, visitors]
+          x-enum-varnames: [FunnelResponseCountBySessions, FunnelResponseCountByVisitors]
+          description: Entity counted in every step count.
         steps:
           type: array
           items:

@@ -119,6 +119,37 @@ describe('AddFilterPicker', () => {
       ['language', 'Language'],
       ['hostname', 'Hostname'],
     ]))
+    expect(options).not.toEqual(expect.arrayContaining([
+      ['utm_content', 'UTM content'],
+      ['utm_term', 'UTM term'],
+    ]))
+  })
+
+  it.each(['region', 'city'])('requires a country code for a %s filter', (dimension) => {
+    const onAdd = vi.fn()
+    render(
+      <AddFilterPicker
+        siteId={7}
+        orgId={3}
+        dateRange={{ from: '2026-10-01', to: '2026-10-08' }}
+        onAdd={onAdd}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add filter' }))
+    fireEvent.change(screen.getByLabelText('Dimension'), { target: { value: dimension } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'Springfield' } })
+
+    expect(screen.getByLabelText('Country code')).toBeRequired()
+    expect(screen.getByRole('button', { name: 'Apply filter' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Country code'), { target: { value: 'us' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filter' }))
+
+    expect(onAdd).toHaveBeenCalledWith({
+      dimension,
+      operator: 'is',
+      values: ['Springfield', 'US'],
+    })
   })
 
   it('offers fixed screen-size buckets and adds the selected bucket', async () => {

@@ -18,8 +18,8 @@ import (
 var (
 	legacyRollupDimensions  = []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
 	currentRollupDimensions = []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}
-	currentLayout           = closer.NewRollupLayout(currentRollupDimensions, closer.RollupCounterColumns())
-	legacyLayout            = closer.NewRollupLayout(legacyRollupDimensions, closer.RollupCounterColumns())
+	currentLayout           = closer.NewRollupLayout(currentRollupDimensions, append(closer.RollupCounterColumns(), "custom_closed.session_id", "sessions_closed.seq_at"))
+	legacyLayout            = closer.NewRollupLayout(legacyRollupDimensions, append(closer.RollupCounterColumns(), "custom_closed.session_id", "sessions_closed.seq_at"))
 )
 
 func storeRollupLayout(t *testing.T, pool *pgxpool.Pool, layout closer.RollupLayout, done int) {
@@ -139,6 +139,135 @@ func TestRollupBackfillCounterChangeRunsFullRecompute(t *testing.T) {
 	}
 	if version != currentLayout.Version() {
 		t.Fatalf("stored version = %q, want current %q", version, currentLayout.Version())
+	}
+}
+
+func TestRollupBackfillRebuildsCustomSessionProjectionWhenRawDayIsComplete(t *testing.T) {
+	pool, _ := testpg.New(t)
+	loadFixture(t, pool)
+	ctx := context.Background()
+	if _, err := closer.CloseDay(ctx, pool, []int32{1}, utc(2026, 10, 7, 0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update custom_closed set session_id=null where site_id=1 and day='2026-10-07'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into events(site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id)
+values (1,30,null,'2026-10-07 10:00:45Z',101,10,1,101,1)`); err != nil {
+		t.Fatal(err)
+	}
+	var unaffectedSeq, unaffectedEngage []int32
+	var unaffectedScroll []int16
+	if err := pool.QueryRow(ctx, `
+		select seq,seq_engage,seq_scroll from sessions_closed
+		where site_id=1 and day='2026-10-07' and session_id=20`).Scan(
+		&unaffectedSeq, &unaffectedEngage, &unaffectedScroll,
+	); err != nil {
+		t.Fatal(err)
+	}
+	oldLayout := closer.NewRollupLayout(currentRollupDimensions, closer.RollupCounterColumns())
+	storeRollupLayout(t, pool, oldLayout, 0)
+
+	if _, err := closer.NewRollupBackfill(pool, currentLayout, nil).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var sessionID *int64
+	if err := pool.QueryRow(ctx, `select session_id from custom_closed where site_id=1 and day='2026-10-07' and name_id=100`).Scan(&sessionID); err != nil {
+		t.Fatal(err)
+	}
+	if sessionID == nil || *sessionID != 11 {
+		t.Fatalf("custom session_id=%v, want 11 after projection backfill", sessionID)
+	}
+	var seq, seqEngage []int32
+	var seqScroll []int16
+	var seqAt []time.Time
+	if err := pool.QueryRow(ctx, `
+		select seq,seq_engage,seq_scroll,seq_at from sessions_closed
+		where site_id=1 and day='2026-10-07' and session_id=10`).Scan(
+		&seq, &seqEngage, &seqScroll, &seqAt,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(seq, []int32{7, 11, -101}) {
+		t.Fatalf("rebuilt seq=%v, want page flags preserved in [7 11 -101]", seq)
+	}
+	if !reflect.DeepEqual(seqEngage, []int32{1_000, 4_000, 0}) || !reflect.DeepEqual(seqScroll, []int16{25, 80, 0}) {
+		t.Fatalf("rebuilt seq_engage=%v seq_scroll=%v, want aligned engagement and scroll", seqEngage, seqScroll)
+	}
+	if len(seqAt) != len(seq) || len(seqEngage) != len(seq) || len(seqScroll) != len(seq) {
+		t.Fatalf("rebuilt sequence cardinalities seq=%d engage=%d scroll=%d at=%d, want all equal", len(seq), len(seqEngage), len(seqScroll), len(seqAt))
+	}
+
+	var gotUnaffectedSeq, gotUnaffectedEngage []int32
+	var gotUnaffectedScroll []int16
+	if err := pool.QueryRow(ctx, `
+		select seq,seq_engage,seq_scroll from sessions_closed
+		where site_id=1 and day='2026-10-07' and session_id=20`).Scan(
+		&gotUnaffectedSeq, &gotUnaffectedEngage, &gotUnaffectedScroll,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(gotUnaffectedSeq, unaffectedSeq) ||
+		!reflect.DeepEqual(gotUnaffectedEngage, unaffectedEngage) ||
+		!reflect.DeepEqual(gotUnaffectedScroll, unaffectedScroll) {
+		t.Fatalf("unaffected session changed from seq=%v engage=%v scroll=%v to seq=%v engage=%v scroll=%v",
+			unaffectedSeq, unaffectedEngage, unaffectedScroll,
+			gotUnaffectedSeq, gotUnaffectedEngage, gotUnaffectedScroll)
+	}
+	if !reflect.DeepEqual(gotUnaffectedSeq, []int32{7}) ||
+		!reflect.DeepEqual(gotUnaffectedEngage, []int32{0}) ||
+		!reflect.DeepEqual(gotUnaffectedScroll, []int16{0}) {
+		t.Fatalf("unaffected session seq=%v engage=%v scroll=%v, want [7]/[0]/[0]",
+			gotUnaffectedSeq, gotUnaffectedEngage, gotUnaffectedScroll)
+	}
+	var rebuiltCustom int
+	if err := pool.QueryRow(ctx, `select count(*) from custom_closed where site_id=1 and day='2026-10-07' and name_id=101`).Scan(&rebuiltCustom); err != nil {
+		t.Fatal(err)
+	}
+	if rebuiltCustom != 1 {
+		t.Fatalf("null-local_day custom rows=%d, want 1", rebuiltCustom)
+	}
+
+	type pathRollup struct {
+		pathID       int32
+		visitors     int64
+		visits       int64
+		pageviews    int64
+		bounces      int64
+		engagementMS int64
+		scrollSum    int64
+		scrollN      int64
+	}
+	rows, err := pool.Query(ctx, `
+		select value_id,visitors,visits,pageviews,bounces,engagement_ms,scroll_sum,scroll_n
+		from rollup_day_dim
+		where site_id=1 and day='2026-10-07' and dim=1
+		order by value_id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rollups := make([]pathRollup, 0, 2)
+	for rows.Next() {
+		var rollup pathRollup
+		if err := rows.Scan(&rollup.pathID, &rollup.visitors, &rollup.visits, &rollup.pageviews,
+			&rollup.bounces, &rollup.engagementMS, &rollup.scrollSum, &rollup.scrollN); err != nil {
+			rows.Close()
+			t.Fatal(err)
+		}
+		rollups = append(rollups, rollup)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		t.Fatal(err)
+	}
+	rows.Close()
+	wantRollups := []pathRollup{
+		{pathID: 1, visitors: 2, visits: 2, pageviews: 2, bounces: 1, engagementMS: 1_000, scrollSum: 25, scrollN: 1},
+		{pathID: 2, visitors: 1, visits: 1, pageviews: 1, engagementMS: 4_000, scrollSum: 80, scrollN: 1},
+	}
+	if !reflect.DeepEqual(rollups, wantRollups) {
+		t.Fatalf("path rollups=%+v, want %+v", rollups, wantRollups)
 	}
 }
 

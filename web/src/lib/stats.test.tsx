@@ -12,7 +12,7 @@ vi.mock('./api', () => ({
   api: { GET: get, POST: post },
 }))
 
-import { useRealtime, useStats, type StatsQuery } from './stats'
+import { useRealtime, useStats, useTimeseries, type StatsQuery } from './stats'
 
 function setup() {
   const client = new QueryClient({
@@ -120,6 +120,42 @@ describe('useRealtime', () => {
     expect(
       client.getQueryCache().getAll()[0].observers[0]?.options.refetchInterval,
     ).toEqual(expect.any(Function))
+  })
+})
+
+describe('useTimeseries', () => {
+  it('requests the complete interval endpoint with stable filters and import scope', async () => {
+    get.mockResolvedValue({
+      data: {
+        columns: ['time', 'visitors'],
+        rows: [{ time: '2026-09-01', visitors: 4 }],
+        totals: { visitors: 4 },
+        meta: { sources_used: ['daily'], cached: false },
+      },
+      response: { status: 200 },
+    })
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useTimeseries({
+      ...closedQuery,
+      filters: [{ dimension: 'city', operator: 'is', values: ['Springfield', 'US'] }],
+      includeImported: false,
+    }, 'week'), { wrapper })
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(get).toHaveBeenCalledWith('/api/private/stats/timeseries', {
+      params: { query: {
+        site_id: 7,
+        period: 'custom',
+        date_from: '2026-09-01',
+        date_to: '2026-09-30',
+        timezone: 'UTC',
+        metrics: 'visitors',
+        filter: ['city:is:Springfield,US'],
+        interval: 'week',
+        include_imported: false,
+      } },
+      signal: expect.any(AbortSignal),
+    })
   })
 })
 

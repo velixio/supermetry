@@ -242,6 +242,9 @@ func (b *RollupBackfill) recompute(ctx context.Context, item rollupBackfillItem,
 	err := pgx.BeginFunc(ctx, b.pool, func(tx pgx.Tx) error {
 		siteIDs := []int32{item.siteID}
 		if plan.mode == rollupBackfillFull {
+			if err := recomputeCustomProjection(ctx, tx, item.day, siteIDs); err != nil {
+				return err
+			}
 			if err := recomputeDayRollups(ctx, tx, item.day, siteIDs); err != nil {
 				return err
 			}
@@ -266,6 +269,58 @@ func (b *RollupBackfill) recompute(ctx context.Context, item rollupBackfillItem,
 		b.notify(item.siteID)
 	}
 	return progress, nil
+}
+
+func recomputeCustomProjection(ctx context.Context, tx pgx.Tx, day time.Time, siteIDs []int32) error {
+	rows, err := tx.Query(ctx, `
+select requested.site_id
+from unnest($2::int[]) requested(site_id)
+where exists (
+  select 1 from sessions_closed closed where closed.site_id=requested.site_id and closed.day=$1
+)
+and not exists (
+  select 1 from sessions_closed closed
+  where closed.site_id=requested.site_id and closed.day=$1
+    and not exists (
+      select 1 from sessions hot where hot.site_id=closed.site_id and hot.session_id=closed.session_id
+    )
+)`, day, siteIDs)
+	if err != nil {
+		return fmt.Errorf("find complete raw custom projections: %w", err)
+	}
+	complete, err := pgx.CollectRows(rows, pgx.RowTo[int32])
+	if err != nil {
+		return fmt.Errorf("collect complete raw custom projections: %w", err)
+	}
+	if len(complete) == 0 {
+		return nil
+	}
+	windowStart, windowEnd := dayWindow(day)
+	if _, err := tx.Exec(ctx, `
+with candidate_sessions as (
+  select hot.*
+  from sessions hot
+  join sessions_closed closed using (site_id,session_id)
+  where closed.day=$1 and hot.local_day=$1 and hot.start >= $2 and hot.start < $3
+    and hot.site_id=any($4)
+), `+sessionSequencesSQL+`
+update sessions_closed closed set
+  seq=source.seq,
+  seq_engage=source.seq_engage,
+  seq_scroll=source.seq_scroll,
+  seq_at=source.seq_at
+from sequences source
+where closed.site_id=source.site_id and closed.session_id=source.session_id and closed.day=$1`,
+		day, windowStart, windowEnd, complete); err != nil {
+		return fmt.Errorf("rebuild closed sequences: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `delete from custom_closed where day=$1 and site_id=any($2)`, day, complete); err != nil {
+		return fmt.Errorf("delete custom projection: %w", err)
+	}
+	if _, err := tx.Exec(ctx, recloseCustomSQL, day, complete, windowStart, windowEnd); err != nil {
+		return fmt.Errorf("rebuild custom projection: %w", err)
+	}
+	return nil
 }
 
 // recomputeDayDimensions replaces only the given dimensions of one closed day

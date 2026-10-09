@@ -43,7 +43,8 @@ func RollupDimensionSet() []int16 {
 // CurrentRollupLayout is the rollup layout produced by this binary: the
 // dimension codes above plus the counter columns the closer writes.
 func CurrentRollupLayout() closer.RollupLayout {
-	return closer.NewRollupLayout(RollupDimensionSet(), closer.RollupCounterColumns())
+	artifacts := append(closer.RollupCounterColumns(), "custom_closed.session_id", "sessions_closed.seq_at")
+	return closer.NewRollupLayout(RollupDimensionSet(), artifacts)
 }
 
 func (e *Engine) queryRollup(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {

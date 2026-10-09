@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { fmt } from '@/lib/format'
-import { useStats } from '@/lib/stats'
+import { useStats, type StatsQuery } from '@/lib/stats'
 
 import { useGoals, useSaveGoal } from './api'
 import { GoalEditor } from './GoalEditor'
@@ -11,14 +11,27 @@ import type { Goal } from './types'
 type GoalsPageProps = {
   siteId: number
   dateRange: { from: string; to: string }
+  timezone?: string
   revenueCurrency?: string
   revenueCurrencyState?: 'unconfigured' | 'configured' | 'conflict'
 }
 
-export function GoalsPage({ siteId, dateRange, revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
+export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
   const goals = useGoals(siteId)
   const save = useSaveGoal(siteId)
   const [editing, setEditing] = useState<Goal>()
+  const conversions = useStats({
+    siteId,
+    dateRange,
+    metrics: ['conversions', 'visits'] as StatsQuery['metrics'],
+    dimensions: ['goal'],
+    filters: [],
+    timezone,
+  })
+  const conversionByGoal = new Map(
+    (conversions.data?.rows ?? []).map((row) => [String(row.goal ?? ''), Number(row.conversions)]),
+  )
+  const visits = conversions.data?.totals?.visits
 
   return (
     <main className="flex min-w-0 flex-col gap-6">
@@ -31,7 +44,17 @@ export function GoalsPage({ siteId, dateRange, revenueCurrency, revenueCurrencyS
           <table className="w-full text-sm">
             <thead className="border-b text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Goal</th><th className="px-4 py-3 text-right font-medium">Conversions</th><th className="px-4 py-3 text-right font-medium">Rate</th><th className="px-4 py-3 text-right font-medium">Revenue</th><th className="px-4 py-3 text-right font-medium">Average revenue</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
-              {(goals.data ?? []).map((goal) => <GoalRow dateRange={dateRange} goal={goal} key={goal.id} siteId={siteId} onEdit={() => setEditing(goal)} />)}
+              {(goals.data ?? []).map((goal) => <GoalRow
+                conversionsQuery={conversions}
+                conversions={conversions.data ? (conversionByGoal.get(String(goal.id)) ?? 0) : undefined}
+                dateRange={dateRange}
+                goal={goal}
+                key={goal.id}
+                siteId={siteId}
+                timezone={timezone}
+                visits={visits}
+                onEdit={() => setEditing(goal)}
+              />)}
             </tbody>
           </table>
           {goals.isPending ? <p className="p-5 text-sm text-muted-foreground" role="status">Loading goals…</p> : null}
@@ -54,19 +77,18 @@ export function GoalsPage({ siteId, dateRange, revenueCurrency, revenueCurrencyS
   )
 }
 
-function GoalRow({ goal, siteId, dateRange, onEdit }: { goal: Goal; siteId: number; dateRange: GoalsPageProps['dateRange']; onEdit: () => void }) {
-  const matched = useStats({
-    siteId,
-    dateRange,
-    metrics: ['visitors'],
-    filters: [{ dimension: 'goal_id', operator: 'is', values: [String(goal.id)] }],
-    timezone: 'UTC',
-  })
-  const all = useStats({ siteId, dateRange, metrics: ['visitors'], filters: [], timezone: 'UTC' })
-  const conversions = matched.data?.totals?.visitors
-  const visitors = all.data?.totals?.visitors
-  const rate = conversions === undefined || visitors === undefined || !Number.isFinite(conversions) || !Number.isFinite(visitors)
-    ? undefined : visitors > 0 ? (conversions / visitors) * 100 : 0
+function GoalRow({ goal, siteId, dateRange, timezone, conversionsQuery, conversions, visits, onEdit }: {
+  goal: Goal
+  siteId: number
+  dateRange: GoalsPageProps['dateRange']
+  timezone: string
+  conversionsQuery: ReturnType<typeof useStats>
+  conversions: number | undefined
+  visits: number | undefined
+  onEdit: () => void
+}) {
+  const rate = conversions === undefined || visits === undefined || !Number.isFinite(conversions) || !Number.isFinite(visits)
+    ? undefined : visits > 0 ? (conversions / visits) * 100 : 0
   const description = goal.kind === 'scroll' ? `Scroll ≥ ${goal.scroll_threshold}% on ${goal.value}` : null
   return (
     <tr className="border-b last:border-0">
@@ -74,10 +96,10 @@ function GoalRow({ goal, siteId, dateRange, onEdit }: { goal: Goal; siteId: numb
         <span className="block truncate">{goal.name}</span>
         {description ? <span className="block truncate text-xs font-normal text-muted-foreground">{description}</span> : null}
       </th>
-      <MetricCell label="conversions" queries={[matched]} value={conversions} format={fmt.number} />
-      <MetricCell label="conversion rate" queries={[matched, all]} value={rate} format={fmt.percent} />
+      <MetricCell label="conversions" queries={[conversionsQuery]} value={conversions} format={fmt.number} />
+      <MetricCell label="conversion rate" queries={[conversionsQuery]} value={rate} format={fmt.percent} />
       {goal.currency ? goal.kind === 'event'
-        ? <RevenueCells currency={goal.currency} dateRange={dateRange} goal={goal} siteId={siteId} />
+        ? <RevenueCells currency={goal.currency} dateRange={dateRange} goal={goal} siteId={siteId} timezone={timezone} />
         : <td colSpan={2} className="px-4 py-3 text-right text-muted-foreground">Revenue unavailable for this goal</td>
         : <><td className="px-4 py-3 text-right text-muted-foreground">—</td><td className="px-4 py-3 text-right text-muted-foreground">—</td></>}
       <td className="px-4 py-2 text-right"><Button size="sm" type="button" variant="ghost" onClick={onEdit}>Edit</Button></td>
@@ -85,7 +107,7 @@ function GoalRow({ goal, siteId, dateRange, onEdit }: { goal: Goal; siteId: numb
   )
 }
 
-function RevenueCells({ goal, siteId, dateRange, currency }: { goal: Goal; siteId: number; dateRange: GoalsPageProps['dateRange']; currency: string }) {
+function RevenueCells({ goal, siteId, dateRange, currency, timezone }: { goal: Goal; siteId: number; dateRange: GoalsPageProps['dateRange']; currency: string; timezone: string }) {
   const revenue = useStats({
     siteId,
     dateRange,
@@ -94,7 +116,7 @@ function RevenueCells({ goal, siteId, dateRange, currency }: { goal: Goal; siteI
       { dimension: 'goal_id', operator: 'is', values: [String(goal.id)] },
       { dimension: 'revenue_currency', operator: 'is', values: [currency] },
     ],
-    timezone: 'UTC',
+    timezone,
   })
   const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency })
   if (revenue.isPending || revenue.isFetching || revenue.isError || !Number.isFinite(revenue.data?.totals?.total_revenue) || !Number.isFinite(revenue.data?.totals?.average_revenue)) {

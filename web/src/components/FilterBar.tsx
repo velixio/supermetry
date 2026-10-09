@@ -57,7 +57,12 @@ type FilterBarProps = {
 function sameFilters(left: Filter[], right: Filter[]): boolean {
   const canonical = (filters: Filter[]) =>
     serializeFilters(
-      filters.map((filter) => ({ ...filter, values: [...filter.values].sort() })),
+      filters.map((filter) => ({
+        ...filter,
+        values: filter.dimension === 'region' || filter.dimension === 'city'
+          ? filter.values
+          : [...filter.values].sort(),
+      })),
     ).sort()
   return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
 }

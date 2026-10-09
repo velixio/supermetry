@@ -278,11 +278,11 @@ func buildSessionExploreSources(siteID int32, retention db.RetentionClass, locat
 	siteArg, retentionArg := builder.arg(siteID), builder.arg(retention)
 	fromArg, toArg := builder.arg(dateParam(from)), builder.arg(dateParam(to))
 	startArg, endArg := builder.arg(startTS), builder.arg(endTS)
-	closedConditions, err := sessionExploreConditions(builder, filters, true)
+	closedConditions, err := sessionExploreConditions(builder, filters, true, Part{From: from, To: to})
 	if err != nil {
 		return sessionExploreSources{}, err
 	}
-	hotConditions, err := sessionExploreConditions(builder, filters, false)
+	hotConditions, err := sessionExploreConditions(builder, filters, false, Part{})
 	if err != nil {
 		return sessionExploreSources{}, err
 	}
@@ -336,7 +336,7 @@ func cappedTotal(count int) (int, bool) {
 	return count, false
 }
 
-func sessionExploreConditions(builder *sqlBuilder, filters []api.Filter, closed bool) ([]string, error) {
+func sessionExploreConditions(builder *sqlBuilder, filters []api.Filter, closed bool, part Part) ([]string, error) {
 	pageFilters, remaining := splitPageFilters(filters)
 	special, sessionFilters := splitSpecialFilters(remaining)
 	conditions, err := filterConditions(builder, sessionFilters, reportSessionResolver("s"))
@@ -364,7 +364,7 @@ func sessionExploreConditions(builder *sqlBuilder, filters []api.Filter, closed 
 	}
 	var specialConditions []string
 	if closed {
-		specialConditions, err = closedSpecialConditions(builder, special)
+		specialConditions, err = closedSpecialConditions(builder, special, part)
 	} else {
 		specialConditions, err = hotSpecialConditions(builder, special)
 		specialConditions = constrainReportEventConditions(specialConditions)

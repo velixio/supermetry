@@ -5,13 +5,14 @@ import { describe, expect, it } from 'vitest'
 import { FunnelChart } from './FunnelChart'
 
 describe('FunnelChart', () => {
-  it('computes each step conversion from the preceding visitor count', () => {
+  it('computes each step conversion from the preceding session count', () => {
     render(
       <FunnelChart
+        countLabel="Sessions"
         steps={[
-          { label: 'Landing', visitors: 100 },
-          { label: 'Signup', visitors: 40 },
-          { label: 'Purchase', visitors: 10 },
+          { label: 'Landing', count: 100 },
+          { label: 'Signup', count: 40 },
+          { label: 'Purchase', count: 10 },
         ]}
       />,
     )
@@ -20,5 +21,7 @@ describe('FunnelChart', () => {
     expect(screen.getAllByText('25%')).not.toHaveLength(0)
     expect(screen.getAllByText('60% drop-off')).not.toHaveLength(0)
     expect(screen.getAllByText('75% drop-off')).not.toHaveLength(0)
+    expect(screen.getByRole('columnheader', { name: 'Sessions' })).toBeVisible()
+    expect(screen.getByText(/Funnel step sessions and conversion/i)).toBeInTheDocument()
   })
 })

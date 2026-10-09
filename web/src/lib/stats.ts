@@ -2,6 +2,7 @@ import { useQuery, useQueryClient, type QueryKey, type UseQueryOptions, type Use
 
 import { api } from './api'
 import type { components } from './api.gen'
+import { serializeFilters } from './search'
 
 type DateRange = components['schemas']['DateRange']
 type Metric = components['schemas']['Metric']
@@ -12,6 +13,18 @@ type QueryResponse = components['schemas']['QueryResponse']
 type Realtime = components['schemas']['RealtimeResponse']
 type Problem = components['schemas']['Problem']
 type Compare = 'off' | 'previous_period' | 'previous_year'
+export type TimeseriesInterval = 'hour' | 'day' | 'week' | 'month'
+type TimeseriesApi = {
+  GET: (
+    path: '/api/private/stats/timeseries',
+    options: {
+      params: { query: Record<string, string | number | boolean | string[] | undefined> }
+      signal?: AbortSignal
+    },
+  ) => Promise<{ data?: QueryResponse | string; error?: Problem; response: Response }>
+}
+
+const timeseriesApi = api as unknown as TimeseriesApi
 
 export type StatsQuery = {
   siteId: number
@@ -126,6 +139,46 @@ export function useStats(
       if (!data || typeof data === 'string') {
         throw missingResponse(response.status)
       }
+      return data
+    },
+    staleTime: current ? 30_000 : 300_000,
+    refetchInterval: query.live === true && current
+      ? (state) => terminalAuthorizationError(state.state.error) ? false : 30_000
+      : false,
+  })
+}
+
+export function useTimeseries(
+  query: StatsQuery,
+  interval: TimeseriesInterval,
+  enabled = true,
+): UseQueryResult<QueryResponse, Problem> {
+  const params = {
+    site_id: query.siteId,
+    period: 'custom' as const,
+    date_from: query.dateRange.from,
+    date_to: query.dateRange.to,
+    timezone: query.timezone,
+    metrics: query.metrics.join(','),
+    filter: serializeFilters(query.filters),
+    ...(query.compare === 'previous_period' ? { compare: query.compare } : {}),
+    interval,
+    include_imported: query.includeImported !== false,
+  }
+  const current = includesToday(query)
+  const queryKey = ['stats', query.siteId, 'timeseries', params, ...(query.trackingMode ? [query.trackingMode] : [])]
+  const retry = useStatsRetry(queryKey)
+  return useQuery<QueryResponse, Problem>({
+    queryKey,
+    enabled,
+    retry,
+    queryFn: async ({ signal }) => {
+      const { data, error, response } = await timeseriesApi.GET(
+        '/api/private/stats/timeseries',
+        { params: { query: params }, signal },
+      )
+      if (error) throw error
+      if (!data || typeof data === 'string') throw missingResponse(response.status)
       return data
     },
     staleTime: current ? 30_000 : 300_000,

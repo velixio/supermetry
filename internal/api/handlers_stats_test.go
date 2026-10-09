@@ -24,15 +24,47 @@ import (
 )
 
 type queryFunc struct {
-	query func(api.QueryRequest) (api.QueryResponse, error)
+	query  func(api.QueryRequest) (api.QueryResponse, error)
+	funnel func(api.FunnelRequest) (api.FunnelResponse, error)
 }
 
 func (q queryFunc) Query(_ context.Context, request api.QueryRequest) (api.QueryResponse, error) {
 	return q.query(request)
 }
 
-func (queryFunc) Funnel(context.Context, api.FunnelRequest) (api.FunnelResponse, error) {
+func (q queryFunc) Funnel(_ context.Context, request api.FunnelRequest) (api.FunnelResponse, error) {
+	if q.funnel != nil {
+		return q.funnel(request)
+	}
 	return api.FunnelResponse{}, nil
+}
+
+func TestFunnelResponseKeepsDeprecatedVisitorsAlias(t *testing.T) {
+	router := statsTestRouter(queryFunc{
+		query: func(api.QueryRequest) (api.QueryResponse, error) { return emptyQueryResponse(), nil },
+		funnel: func(api.FunnelRequest) (api.FunnelResponse, error) {
+			return api.FunnelResponse{
+				CountBy: api.FunnelResponseCountBySessions,
+				Steps:   []api.FunnelStepResult{{Step: 1, Count: 7, Visitors: 7, Conversion: 100}},
+			}, nil
+		},
+	}, nil)
+	request := httptest.NewRequest(http.MethodPost, "/api/public/v1/funnels/query", strings.NewReader(`{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-01"},"steps":[{"type":"page","match":"exact","value":"/"},{"type":"event","match":"exact","value":"signup"}]}`))
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		Steps []map[string]any `json:"steps"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Steps) != 1 || body.Steps[0]["count"] != float64(7) || body.Steps[0]["visitors"] != float64(7) {
+		t.Fatalf("steps=%v, want equal count and visitors", body.Steps)
+	}
 }
 
 func TestStatsGETTranslatesParametersToQuery(t *testing.T) {
@@ -67,6 +99,54 @@ func TestStatsGETTranslatesParametersToQuery(t *testing.T) {
 	}
 	if got.Compare == nil || *got.Compare != api.PreviousPeriod {
 		t.Fatalf("compare = %v", got.Compare)
+	}
+}
+
+func TestStatsGETDecodesSerializedFilterComponentsAfterSplitting(t *testing.T) {
+	var got api.QueryRequest
+	router := statsTestRouter(queryFunc{query: func(request api.QueryRequest) (api.QueryResponse, error) {
+		got = request
+		return emptyQueryResponse(), nil
+	}}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/timeseries?site_id=1&period=7d&filter=page:is:%252Fdocs%252Capi%2520guide", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if got.Filters == nil || len(*got.Filters) != 1 || fmt.Sprint((*got.Filters)[0].Values) != "[/docs,api guide]" {
+		t.Fatalf("filters=%+v", got.Filters)
+	}
+}
+
+func TestStatsGETPreservesPlusAndBarePercentFilterValues(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "c plus plus path", path: "/api/public/v1/stats/timeseries?site_id=1&period=7d&filter=page:is:%2Fc%2B%2B", want: "/c++"},
+		{name: "literal percent", path: "/api/public/v1/stats/timeseries?site_id=1&period=7d&filter=page:is:50%25", want: "50%"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got api.QueryRequest
+			router := statsTestRouter(queryFunc{query: func(request api.QueryRequest) (api.QueryResponse, error) {
+				got = request
+				return emptyQueryResponse(), nil
+			}}, nil)
+			request := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			request.Header.Set("Authorization", "Bearer test-key")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+			if got.Filters == nil || len(*got.Filters) != 1 || len((*got.Filters)[0].Values) != 1 || (*got.Filters)[0].Values[0] != tt.want {
+				t.Fatalf("filters=%+v, want %q", got.Filters, tt.want)
+			}
+		})
 	}
 }
 
@@ -140,6 +220,24 @@ func TestStatsTimeseriesOrdersAndZeroFillsDays(t *testing.T) {
 	}
 	if len(body.Rows) != 3 || body.Rows[0]["time"] != "2026-10-01" || body.Rows[1]["time"] != "2026-10-02" || body.Rows[1]["visitors"] != float64(0) || body.Rows[2]["time"] != "2026-10-03" {
 		t.Fatalf("rows = %#v", body.Rows)
+	}
+}
+
+func TestStatsTimeseriesForwardsImportedDataPreference(t *testing.T) {
+	var got api.QueryRequest
+	router := statsTestRouter(queryFunc{query: func(request api.QueryRequest) (api.QueryResponse, error) {
+		got = request
+		return emptyQueryResponse(), nil
+	}}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/timeseries?site_id=1&period=7d&include_imported=false", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if got.IncludeImported == nil || *got.IncludeImported {
+		t.Fatalf("include_imported=%v, want false", got.IncludeImported)
 	}
 }
 

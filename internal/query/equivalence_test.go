@@ -3,6 +3,7 @@ package query_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"reflect"
 	"strings"
@@ -52,8 +53,8 @@ func TestRouteEquivalence(t *testing.T) {
 		{name: "entry", req: queryRequest([]string{"entry"}, nil), eligible: []query.Route{query.RouteRollup, query.RouteHot}},
 		{name: "country filter", req: queryRequest([]string{"source"}, []api.Filter{filter("country", api.Is, "US")}), eligible: []query.Route{query.RouteCube, query.RouteHot}},
 		{name: "country and source", req: queryRequest([]string{"country"}, []api.Filter{filter("country", api.Is, "US"), filter("source", api.Is, "Google")}), eligible: []query.Route{query.RouteCube, query.RouteHot}},
-		{name: "region filter", req: queryRequest([]string{"city"}, []api.Filter{filter("region", api.Is, "California")}), eligible: []query.Route{query.RouteHot}},
-		{name: "city filter", req: queryRequest([]string{"source"}, []api.Filter{filter("city", api.Is, "Bengaluru")}), eligible: []query.Route{query.RouteHot}},
+		{name: "region filter", req: queryRequest([]string{"city"}, []api.Filter{filter("region", api.Is, "California", "US")}), eligible: []query.Route{query.RouteHot}},
+		{name: "city filter", req: queryRequest([]string{"source"}, []api.Filter{filter("city", api.Is, "Bengaluru", "IN")}), eligible: []query.Route{query.RouteHot}},
 		{name: "language filter", req: queryRequest([]string{"source"}, []api.Filter{filter("language", api.Is, "en")}), eligible: []query.Route{query.RouteHot}},
 		{name: "page contains", req: queryRequest([]string{"page"}, []api.Filter{filter("page", api.Contains, "/blog")}), eligible: []query.Route{query.RouteHot}},
 	}
@@ -338,6 +339,35 @@ func TestRegionAndCityBreakdownsUseLabelsAndExcludeUnknown(t *testing.T) {
 	}
 }
 
+func TestCityIsNotKeepsOtherCountriesAcrossStorageTiers(t *testing.T) {
+	_, engine := setupLocationFilterFixture(t)
+	filter := []api.Filter{{Dimension: "city", Operator: api.IsNot, Values: []string{"Paris", "FR"}}}
+	for _, tt := range []struct {
+		name  string
+		route query.Route
+		day   string
+	}{
+		{name: "closed", route: query.RouteClosed, day: "2026-10-06"},
+		{name: "hot", route: query.RouteHot, day: "2026-10-08"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			request := queryRequestRange(tt.day, tt.day, []string{"city"}, filter)
+			request.Metrics = []api.Metric{api.Visits}
+			got := mustQuery(t, engine.WithForcedRoute(tt.route), request)
+			if got.Totals["visits"] != 2 {
+				t.Fatalf("totals=%v, want Lyon FR and Berlin DE", got.Totals)
+			}
+			cities := make([]string, 0, len(got.Rows))
+			for _, row := range got.Rows {
+				cities = append(cities, fmt.Sprint(row["city"]))
+			}
+			if !containsString(cities, "Lyon") || !containsString(cities, "Berlin") || containsString(cities, "Paris") {
+				t.Fatalf("cities=%v, want Lyon and Berlin", cities)
+			}
+		})
+	}
+}
+
 func TestQueryMergesClosedAndHotParts(t *testing.T) {
 	_, engine := setupTiny(t)
 	req := queryRequestRange("2026-10-06", "2026-10-08", []string{"country"}, nil)
@@ -481,7 +511,7 @@ func TestCustomEventBreakdowns(t *testing.T) {
 
 func TestCustomEventRegionFilterMatchesClosedAndHot(t *testing.T) {
 	_, engine := setupTiny(t)
-	req := queryRequest([]string{"event", "region"}, []api.Filter{filter("region", api.Is, "California")})
+	req := queryRequest([]string{"event", "region"}, []api.Filter{filter("region", api.Is, "California", "US")})
 	req.Metrics = []api.Metric{api.Events, api.Conversions}
 	want := mustQuery(t, engine.WithForcedRoute(query.RouteClosed), req)
 	got := mustQuery(t, engine.WithForcedRoute(query.RouteHot), req)
@@ -553,7 +583,7 @@ func TestFunnelMatchesTruth(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []int64{4, 3, 2}
-	if visitors := stepVisitors(got); !reflect.DeepEqual(visitors, want) {
+	if visitors := stepCounts(got); !reflect.DeepEqual(visitors, want) {
 		t.Fatalf("step visitors = %v, want %v", visitors, want)
 	}
 	if conversions := []float64{got.Steps[0].Conversion, got.Steps[1].Conversion, got.Steps[2].Conversion}; !closeFloats(conversions, []float64{100, 75, 50}) {
@@ -590,7 +620,7 @@ func TestFunnelMatchModesAcrossStorageTiers(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if visitors := stepVisitors(got); !reflect.DeepEqual(visitors, tt.want) {
+			if visitors := stepCounts(got); !reflect.DeepEqual(visitors, tt.want) {
 				t.Fatalf("step visitors = %v, want %v", visitors, tt.want)
 			}
 		})
@@ -627,10 +657,176 @@ func TestFunnelEscapedLiteralsAndSiteIsolation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if visitors := stepVisitors(got); !reflect.DeepEqual(visitors, tt.want) {
+			if visitors := stepCounts(got); !reflect.DeepEqual(visitors, tt.want) {
 				t.Fatalf("step visitors = %v, want %v", visitors, tt.want)
 			}
 		})
+	}
+}
+
+func TestFunnelPropertyConditionsApplyAcrossStorageTiers(t *testing.T) {
+	pool, engine := setupFunnelMatching(t)
+	if _, err := pool.Exec(context.Background(), `
+insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,
+   entry_path,exit_path,pageviews,events,engagement_ms,bounce)
+values (1,30,99999,10401,'2026-10-06 11:00Z','2026-10-06 11:01Z','2026-10-06',5,5,1,1,0,false);
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,props)
+values
+  (1,30,'2026-10-06','2026-10-06 10:01:30Z',10401,1401,1,21,5,'{"plan":"pro"}'),
+  (1,30,'2026-10-06','2026-10-06 11:00Z',10401,99999,0,0,5,null),
+  (1,30,'2026-10-06','2026-10-06 11:01Z',10401,99999,1,21,5,'{"plan":"free"}')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closer.CloseDay(context.Background(), pool, []int32{1}, day("2026-10-06")); err != nil {
+		t.Fatal(err)
+	}
+	key, value := "plan", "pro"
+	for _, tt := range []struct {
+		name string
+		from string
+		to   string
+		want []int64
+	}{
+		{name: "closed visitor-day property assigned to one session", from: "2026-10-06", to: "2026-10-06", want: []int64{2, 1}},
+		{name: "hot mismatching property", from: "2026-10-08", to: "2026-10-08", want: []int64{1, 0}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := engine.Funnel(context.Background(), api.FunnelRequest{
+				SiteId: 1, DateRange: dateRange(tt.from, tt.to),
+				Steps: []api.FunnelStep{
+					{Type: api.Page, Match: api.FunnelStepMatchExact, Value: "/literal%_star*value"},
+					{Type: api.Event, Match: api.FunnelStepMatchExact, Value: "evt%_star*done", PropKey: &key, PropValue: &value},
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if counts := stepCounts(got); !reflect.DeepEqual(counts, tt.want) {
+				t.Fatalf("step counts = %v, want %v", counts, tt.want)
+			}
+		})
+	}
+}
+
+func TestFunnelCountBySessionsAndVisitors(t *testing.T) {
+	pool, engine := setupFunnelMatching(t)
+	if _, err := pool.Exec(context.Background(), `
+insert into sessions
+  (site_id, retention_class, session_id, visitor_id, start, last, local_day,
+   entry_path, exit_path, pageviews, events, engagement_ms, bounce)
+values (1,30,9991,10601,'2026-10-08 12:00Z','2026-10-08 12:01Z','2026-10-08',5,5,1,1,60000,false);
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind, name_id, path_id, engagement_ms, props)
+values
+  (1,30,'2026-10-08','2026-10-08 12:00Z',10601,9991,0,0,5,0,null),
+  (1,30,'2026-10-08','2026-10-08 12:01Z',10601,9991,1,21,5,0,null)`); err != nil {
+		t.Fatal(err)
+	}
+	steps := []api.FunnelStep{
+		{Type: api.Page, Match: api.FunnelStepMatchExact, Value: "/literal%_star*value"},
+		{Type: api.Event, Match: api.FunnelStepMatchExact, Value: "evt%_star*done"},
+	}
+	for _, tt := range []struct {
+		name    string
+		countBy *api.FunnelRequestCountBy
+		wantBy  api.FunnelResponseCountBy
+		want    []int64
+	}{
+		{name: "default sessions", wantBy: api.FunnelResponseCountBySessions, want: []int64{2, 2}},
+		{name: "visitors", countBy: ptr(api.FunnelCountByVisitors), wantBy: api.FunnelResponseCountByVisitors, want: []int64{1, 1}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := engine.Funnel(context.Background(), api.FunnelRequest{
+				SiteId: 1, DateRange: dateRange("2026-10-08", "2026-10-08"), CountBy: tt.countBy, Steps: steps,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.CountBy != tt.wantBy || !reflect.DeepEqual(stepCounts(got), tt.want) {
+				t.Fatalf("response = %+v, want count_by=%s counts=%v", got, tt.wantBy, tt.want)
+			}
+		})
+	}
+}
+
+func TestFunnelWindowsForSessionsAndCrossSessionVisitors(t *testing.T) {
+	_, engine := setupFunnelWindowFixture(t)
+	steps := []api.FunnelStep{
+		{Type: api.Page, Match: api.FunnelStepMatchExact, Value: "/start"},
+		{Type: api.Event, Match: api.FunnelStepMatchExact, Value: "finish"},
+	}
+	for _, tt := range []struct {
+		name    string
+		countBy api.FunnelRequestCountBy
+		window  api.FunnelRequestWindow
+		want    []int64
+	}{
+		{name: "sessions session", countBy: api.FunnelCountBySessions, window: api.FunnelWindowSession, want: []int64{5, 2}},
+		{name: "sessions one hour", countBy: api.FunnelCountBySessions, window: api.FunnelWindow1h, want: []int64{5, 1}},
+		{name: "sessions twenty four hours", countBy: api.FunnelCountBySessions, window: api.FunnelWindow24h, want: []int64{5, 2}},
+		{name: "sessions seven days", countBy: api.FunnelCountBySessions, window: api.FunnelWindow7d, want: []int64{5, 2}},
+		{name: "visitors session", countBy: api.FunnelCountByVisitors, window: api.FunnelWindowSession, want: []int64{4, 2}},
+		{name: "visitors one hour", countBy: api.FunnelCountByVisitors, window: api.FunnelWindow1h, want: []int64{4, 2}},
+		{name: "visitors twenty four hours", countBy: api.FunnelCountByVisitors, window: api.FunnelWindow24h, want: []int64{4, 4}},
+		{name: "visitors seven days", countBy: api.FunnelCountByVisitors, window: api.FunnelWindow7d, want: []int64{4, 4}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := engine.Funnel(context.Background(), api.FunnelRequest{
+				SiteId: 1, DateRange: dateRange("2026-10-08", "2026-10-09"), Steps: steps,
+				CountBy: &tt.countBy, Window: &tt.window,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if counts := stepCounts(got); !reflect.DeepEqual(counts, tt.want) {
+				t.Fatalf("step counts=%v, want %v", counts, tt.want)
+			}
+		})
+	}
+}
+
+func TestTimedFunnelKeepsCodesPairedWithTimestampsAfterBackfill(t *testing.T) {
+	pool, engine := setupFunnelWindowFixture(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `
+insert into events(site_id,retention_class,local_day,ts,visitor_id,session_id,profile_id,kind,name_id,path_id)
+values (1,30,null,'2026-10-08 16:30Z',106,6,1002,1,999,5)`); err != nil {
+		t.Fatal(err)
+	}
+	oldLayout := closer.NewRollupLayout([]int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}, closer.RollupCounterColumns())
+	if _, err := pool.Exec(ctx, `
+insert into rollup_state(singleton,layout_version,dimension_set,counter_set,days_done,total_days,started_at,finished_at)
+values (true,$1,$2,$3,0,0,now(),now())`, oldLayout.Version(), oldLayout.Dimensions, oldLayout.Counters); err != nil {
+		t.Fatal(err)
+	}
+	currentLayout := closer.NewRollupLayout(oldLayout.Dimensions,
+		append(closer.RollupCounterColumns(), "custom_closed.session_id", "sessions_closed.seq_at"))
+	if _, err := closer.NewRollupBackfill(pool, currentLayout, nil).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var codes, timestamps int
+	if err := pool.QueryRow(ctx, `select cardinality(seq),cardinality(seq_at) from sessions_closed where site_id=1 and day='2026-10-08' and session_id=6`).Scan(&codes, &timestamps); err != nil {
+		t.Fatal(err)
+	}
+	if codes != timestamps {
+		t.Fatalf("closed sequence cardinalities=(%d,%d), want equal paired arrays", codes, timestamps)
+	}
+
+	window := api.FunnelWindow1h
+	got, err := engine.Funnel(ctx, api.FunnelRequest{
+		SiteId: 1, DateRange: dateRange("2026-10-08", "2026-10-08"), Window: &window,
+		Steps: []api.FunnelStep{
+			{Type: api.Page, Match: api.FunnelStepMatchExact, Value: "/start"},
+			{Type: api.Event, Match: api.FunnelStepMatchExact, Value: "finish"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts := stepCounts(got); !reflect.DeepEqual(counts, []int64{5, 1}) {
+		t.Fatalf("timed funnel step counts=%v, want [5 1] with the 18:00 finish outside one hour", counts)
 	}
 }
 
@@ -655,6 +851,45 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}
+	return pool, identifiedEngine(pool, dictionary, reg)
+}
+
+func setupLocationFilterFixture(t *testing.T) (*pgxpool.Pool, *query.Engine) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, day("2026-10-06"), day("2026-10-09")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into dict(kind,id,value) values (0,1,'/'),(12,601,'Paris'),(12,602,'Lyon'),(12,603,'Berlin');
+insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,country,city_id,pageviews,events,engagement_ms,bounce)
+select 1,30,id,id,day_value + offset_value,day_value + offset_value,day_value::date,1,1,country,city_id,1,0,0,true
+from (values
+  (1, '2026-10-06'::timestamptz, interval '10 hours', 'FR'::char(2), 601),
+  (2, '2026-10-06'::timestamptz, interval '11 hours', 'FR'::char(2), 602),
+  (3, '2026-10-06'::timestamptz, interval '12 hours', 'DE'::char(2), 603),
+  (4, '2026-10-08'::timestamptz, interval '10 hours', 'FR'::char(2), 601),
+  (5, '2026-10-08'::timestamptz, interval '11 hours', 'FR'::char(2), 602),
+  (6, '2026-10-08'::timestamptz, interval '12 hours', 'DE'::char(2), 603)
+) fixture(id,day_value,offset_value,country,city_id);
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,path_id,country,city_id)
+select site_id,retention_class,local_day,start,visitor_id,session_id,0,1,country,city_id from sessions`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closer.CloseDay(ctx, pool, []int32{1}, day("2026-10-06")); err != nil {
+		t.Fatal(err)
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := registry{site: sites.Site{ID: 1, PublicID: "locations", TZ: time.UTC, Retention: db.Ret30}}
 	return pool, identifiedEngine(pool, dictionary, reg)
 }
 
@@ -697,6 +932,9 @@ from sessions where site_id in (1, 2) and entry_path=5;`)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := pool.Exec(ctx, `update events set props=case when local_day='2026-10-08' then '{"plan":"free"}'::jsonb else '{"plan":"pro"}'::jsonb end where site_id=1 and name_id=21`); err != nil {
+		t.Fatal(err)
+	}
 	for _, value := range []string{"2026-10-06", "2026-10-07"} {
 		if _, err := closer.CloseDay(ctx, pool, []int32{1, 2}, day(value)); err != nil {
 			t.Fatal(err)
@@ -707,6 +945,62 @@ from sessions where site_id in (1, 2) and entry_path=5;`)
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "funnel-matching", TZ: time.UTC, Retention: db.Ret30}}
+	return pool, identifiedEngine(pool, dictionary, reg)
+}
+
+func setupFunnelWindowFixture(t *testing.T) (*pgxpool.Pool, *query.Engine) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, day("2026-10-08"), day("2026-10-10")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into dict(kind,id,value) values (0,5,'/start'),(7,21,'finish');
+insert into orgs(id,name,slug) overriding system value values (1,'Funnels','funnels');
+insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value
+values (1,1,'funnelwin001','Funnel windows','UTC',30);
+insert into profiles(id,site_id,external_id,first_seen_at,last_seen_at) overriding system value values
+  (1001,1,'profile-1','2026-10-08 10:00Z','2026-10-08 12:30Z'),
+  (1002,1,'profile-2','2026-10-08 16:00Z','2026-10-08 18:00Z'),
+  (1003,1,'profile-3','2026-10-08 20:00Z','2026-10-09 00:30Z');
+insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,pageviews,events,engagement_ms,bounce)
+values
+  (1,30,1,101,'2026-10-08 10:00Z','2026-10-08 10:30Z','2026-10-08',5,5,1,1,0,false),
+  (1,30,2,102,'2026-10-08 12:00Z','2026-10-08 12:01Z','2026-10-08',5,5,1,0,0,true),
+  (1,30,3,103,'2026-10-08 12:30Z','2026-10-08 12:31Z','2026-10-08',0,0,0,1,0,false),
+  (1,30,4,200,'2026-10-08 14:00Z','2026-10-08 14:01Z','2026-10-08',5,5,1,0,0,true),
+  (1,30,5,200,'2026-10-08 14:30Z','2026-10-08 14:31Z','2026-10-08',0,0,0,1,0,false),
+  (1,30,6,106,'2026-10-08 16:00Z','2026-10-08 18:00Z','2026-10-08',5,5,1,1,0,false),
+  (1,30,7,107,'2026-10-08 20:00Z','2026-10-08 20:01Z','2026-10-08',5,5,1,0,0,true),
+  (1,30,8,108,'2026-10-09 00:30Z','2026-10-09 00:31Z','2026-10-09',0,0,0,1,0,false);
+insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,profile_id,kind,name_id,path_id)
+values
+  (1,30,'2026-10-08','2026-10-08 10:00Z',101,1,1001,0,0,5),
+  (1,30,'2026-10-08','2026-10-08 10:30Z',101,1,1001,1,21,5),
+  (1,30,'2026-10-08','2026-10-08 12:00Z',102,2,1001,0,0,5),
+  (1,30,'2026-10-08','2026-10-08 12:30Z',103,3,1001,1,21,0),
+  (1,30,'2026-10-08','2026-10-08 14:00Z',200,4,NULL,0,0,5),
+  (1,30,'2026-10-08','2026-10-08 14:30Z',200,5,NULL,1,21,0),
+  (1,30,'2026-10-08','2026-10-08 16:00Z',106,6,1002,0,0,5),
+  (1,30,'2026-10-08','2026-10-08 18:00Z',106,6,1002,1,21,5),
+  (1,30,'2026-10-08','2026-10-08 20:00Z',107,7,1003,0,0,5),
+  (1,30,'2026-10-09','2026-10-09 00:30Z',108,8,1003,1,21,0)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closer.CloseDay(ctx, pool, []int32{1}, day("2026-10-08")); err != nil {
+		t.Fatal(err)
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := registry{site: sites.Site{ID: 1, PublicID: "funnel-window", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
 	return pool, identifiedEngine(pool, dictionary, reg)
 }
 
@@ -966,12 +1260,12 @@ func containsString(values []string, want string) bool {
 	return false
 }
 
-func stepVisitors(response api.FunnelResponse) []int64 {
-	visitors := make([]int64, len(response.Steps))
+func stepCounts(response api.FunnelResponse) []int64 {
+	counts := make([]int64, len(response.Steps))
 	for i, step := range response.Steps {
-		visitors[i] = step.Visitors
+		counts[i] = step.Count
 	}
-	return visitors
+	return counts
 }
 
 func closeFloats(got, want []float64) bool {

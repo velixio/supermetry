@@ -1,18 +1,7 @@
 package closer
 
-const closeSessionsSQL = `
-insert into sessions_closed (
-  site_id, day, visitor_id, session_id, started_at, profile_id, source_id, utm_source_id, medium_id, campaign_id,
-  utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
-  browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket, device,
-  entry_path, exit_path, pageviews, custom, duration_ms, engagement_ms,
-  vd_n, flags, seq, seq_engage, seq_scroll
-)
-with candidate_sessions as (
-  select s.*
-  from sessions s
-  where s.local_day = $1 and s.start >= $2 and s.start < $3 and s.site_id = any($4)
-), pageviews as (
+const sessionSequencesSQL = `
+pageviews as (
   select e.site_id, e.session_id, s.visitor_id, e.ts, e.path_id,
          lead(e.ts) over (partition by e.site_id, e.session_id order by e.ts, e.path_id) as next_ts,
          row_number() over (partition by e.site_id, e.session_id, e.path_id order by e.ts) as in_session,
@@ -47,10 +36,25 @@ with candidate_sessions as (
   select site_id, session_id,
          array_agg(code order by ts, code desc) as seq,
          array_agg(engagement_ms order by ts, code desc) as seq_engage,
-         array_agg(scroll_pct order by ts, code desc) as seq_scroll
+         array_agg(scroll_pct order by ts, code desc) as seq_scroll,
+         array_agg(ts order by ts, code desc) as seq_at
   from sequence
   group by site_id, session_id
-), first_attribution as (
+)`
+
+const closeSessionsSQL = `
+insert into sessions_closed (
+  site_id, day, visitor_id, session_id, started_at, profile_id, source_id, utm_source_id, medium_id, campaign_id,
+  utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
+  browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket, device,
+  entry_path, exit_path, pageviews, custom, duration_ms, engagement_ms,
+  vd_n, flags, seq, seq_engage, seq_scroll, seq_at
+)
+with candidate_sessions as (
+  select s.*
+  from sessions s
+  where s.local_day = $1 and s.start >= $2 and s.start < $3 and s.site_id = any($4)
+), ` + sessionSequencesSQL + `, first_attribution as (
   select distinct on (e.site_id, e.session_id)
          e.site_id, e.session_id, e.utm_content_id, e.utm_term_id
   from events e
@@ -118,21 +122,21 @@ select s.site_id, $1, s.visitor_id, s.session_id, s.start, s.profile_id,
        s.browser_ver_id, s.os_ver_id, s.language_id, s.hostname_id, s.screen_bucket,
        s.device, s.entry_path, s.exit_path,
        s.pageviews, s.custom, s.duration_ms, s.engagement_ms,
-       s.vd_n, s.flags, q.seq, q.seq_engage, q.seq_scroll
+       s.vd_n, s.flags, q.seq, q.seq_engage, q.seq_scroll, q.seq_at
 from session_rows s
 join sequences q using (site_id, session_id)
 order by s.site_id, s.country, s.visitor_id, s.start, s.session_id`
 
 const closeCustomSQL = `
 insert into custom_closed (
-  site_id, day, visitor_id, name_id, path_id, source_id, utm_source_id, medium_id,
+  site_id, day, visitor_id, session_id, name_id, path_id, source_id, utm_source_id, medium_id,
   campaign_id, utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
   browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket,
   device, entry_path, exit_path, props, revenue_micros, revenue_currency,
   event_source_id, event_utm_source_id, event_utm_medium_id,
   event_utm_campaign_id, event_utm_content_id, event_utm_term_id
 )
-select c.site_id, $1, c.visitor_id, e.name_id, e.path_id,
+select c.site_id, $1, c.visitor_id, e.session_id, e.name_id, e.path_id,
        c.source_id, c.utm_source_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
        c.country, c.region_id, c.city_id, c.browser_id, c.os_id,
        c.browser_ver_id, c.os_ver_id, c.language_id, c.hostname_id, c.screen_bucket,
@@ -144,3 +148,25 @@ join sessions_closed c
   on c.site_id = e.site_id and c.session_id = e.session_id and c.day = $1
 where e.ts >= $2 and e.ts < $3 and e.site_id = any($4) and e.kind = 1
 order by c.site_id, e.ts, e.session_id`
+
+const recloseCustomSQL = `
+insert into custom_closed (
+  site_id, day, visitor_id, session_id, name_id, path_id, source_id, utm_source_id, medium_id,
+  campaign_id, utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
+  browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket,
+  device, entry_path, exit_path, props, revenue_micros, revenue_currency,
+  event_source_id, event_utm_source_id, event_utm_medium_id,
+  event_utm_campaign_id, event_utm_content_id, event_utm_term_id
+)
+select c.site_id, $1, c.visitor_id, e.session_id, e.name_id, e.path_id,
+       c.source_id, c.utm_source_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
+       c.country, c.region_id, c.city_id, c.browser_id, c.os_id,
+       c.browser_ver_id, c.os_ver_id, c.language_id, c.hostname_id, c.screen_bucket,
+       c.device, c.entry_path, c.exit_path, e.props,
+       e.revenue_micros, e.revenue_currency,
+       e.source_id, e.utm_source_id, e.medium_id, e.campaign_id, e.utm_content_id, e.utm_term_id
+from events e
+join sessions_closed c
+  on c.site_id=e.site_id and c.session_id=e.session_id and c.day=$1
+where e.ts >= $3 and e.ts < $4 and e.site_id=any($2) and e.kind=1
+order by c.site_id,e.ts,e.session_id`

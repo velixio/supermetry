@@ -154,6 +154,66 @@ func (e FilterOperator) Valid() bool {
 	}
 }
 
+// Defines values for FunnelRequestCountBy.
+const (
+	FunnelCountBySessions FunnelRequestCountBy = "sessions"
+	FunnelCountByVisitors FunnelRequestCountBy = "visitors"
+)
+
+// Valid indicates whether the value is a known member of the FunnelRequestCountBy enum.
+func (e FunnelRequestCountBy) Valid() bool {
+	switch e {
+	case FunnelCountBySessions:
+		return true
+	case FunnelCountByVisitors:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FunnelRequestWindow.
+const (
+	FunnelWindow1h      FunnelRequestWindow = "1h"
+	FunnelWindow24h     FunnelRequestWindow = "24h"
+	FunnelWindow7d      FunnelRequestWindow = "7d"
+	FunnelWindowSession FunnelRequestWindow = "session"
+)
+
+// Valid indicates whether the value is a known member of the FunnelRequestWindow enum.
+func (e FunnelRequestWindow) Valid() bool {
+	switch e {
+	case FunnelWindow1h:
+		return true
+	case FunnelWindow24h:
+		return true
+	case FunnelWindow7d:
+		return true
+	case FunnelWindowSession:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FunnelResponseCountBy.
+const (
+	FunnelResponseCountBySessions FunnelResponseCountBy = "sessions"
+	FunnelResponseCountByVisitors FunnelResponseCountBy = "visitors"
+)
+
+// Valid indicates whether the value is a known member of the FunnelResponseCountBy enum.
+func (e FunnelResponseCountBy) Valid() bool {
+	switch e {
+	case FunnelResponseCountBySessions:
+		return true
+	case FunnelResponseCountByVisitors:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FunnelStepMatch.
 const (
 	FunnelStepMatchExact    FunnelStepMatch = "exact"
@@ -922,10 +982,12 @@ type EventPayloadV int
 
 // Filter defines model for Filter.
 type Filter struct {
-	// Dimension Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data.
+	// Dimension Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. Region and city accept the legacy one-value [place] form for any country and the country-scoped [place, ISO country code] form.
 	Dimension string         `json:"dimension"`
 	Operator  FilterOperator `json:"operator"`
-	Values    []string       `json:"values"`
+
+	// Values Match values. Region and city accept either [place] (legacy, any country) or [place, ISO country code]; the pair identifies one scoped place and is not an OR list.
+	Values []string `json:"values"`
 }
 
 // FilterOperator defines model for Filter.Operator.
@@ -933,25 +995,41 @@ type FilterOperator string
 
 // FunnelRequest defines model for FunnelRequest.
 type FunnelRequest struct {
-	DateRange DateRange    `json:"date_range"`
-	SiteId    int32        `json:"site_id"`
-	Steps     []FunnelStep `json:"steps"`
+	// CountBy Count completed steps by sessions (the default) or visitors. Profile-linked visitors can complete steps across sessions inside a non-session window. Anonymous visitors use the daily salted visitor ID and therefore link only within one site-local day.
+	CountBy   *FunnelRequestCountBy `json:"count_by,omitempty"`
+	DateRange DateRange             `json:"date_range"`
+	SiteId    int32                 `json:"site_id"`
+	Steps     []FunnelStep          `json:"steps"`
+
+	// Window Maximum elapsed time from step 1 through each later ordered step. session keeps every step in one session and is the default. Closed rows compacted before event timestamps were stored use their stable session ordering when raw data is no longer available for reconstruction.
+	Window *FunnelRequestWindow `json:"window,omitempty"`
 }
+
+// FunnelRequestCountBy Count completed steps by sessions (the default) or visitors. Profile-linked visitors can complete steps across sessions inside a non-session window. Anonymous visitors use the daily salted visitor ID and therefore link only within one site-local day.
+type FunnelRequestCountBy string
+
+// FunnelRequestWindow Maximum elapsed time from step 1 through each later ordered step. session keeps every step in one session and is the default. Closed rows compacted before event timestamps were stored use their stable session ordering when raw data is no longer available for reconstruction.
+type FunnelRequestWindow string
 
 // FunnelResponse defines model for FunnelResponse.
 type FunnelResponse struct {
-	Steps []FunnelStepResult `json:"steps"`
+	// CountBy Entity counted in every step count.
+	CountBy FunnelResponseCountBy `json:"count_by"`
+	Steps   []FunnelStepResult    `json:"steps"`
 }
+
+// FunnelResponseCountBy Entity counted in every step count.
+type FunnelResponseCountBy string
 
 // FunnelStep defines model for FunnelStep.
 type FunnelStep struct {
 	// Match Anchored value matching. Exact and prefix treat every character literally. Wildcard treats only `*` as matching any characters; `%` and `_` remain literal. The wildcard grammar has no escape for matching a literal `*`.
 	Match FunnelStepMatch `json:"match"`
 
-	// PropKey Reserved for property-aware funnels; currently not applied by funnel queries.
+	// PropKey Custom-event property key that must match for this step.
 	PropKey *string `json:"prop_key,omitempty"`
 
-	// PropValue Reserved for property-aware funnels; currently not applied by funnel queries.
+	// PropValue Exact custom-event property value required by prop_key.
 	PropValue *string        `json:"prop_value,omitempty"`
 	Type      FunnelStepType `json:"type"`
 	Value     string         `json:"value"`
@@ -966,9 +1044,13 @@ type FunnelStepType string
 // FunnelStepResult defines model for FunnelStepResult.
 type FunnelStepResult struct {
 	Conversion float64 `json:"conversion"`
-	Step       int     `json:"step"`
 
-	// Visitors Number of site-local sessions that completed this ordered step.
+	// Count Number of sessions or visitors, as selected by count_by, that completed this ordered step.
+	Count int64 `json:"count"`
+	Step  int   `json:"step"`
+
+	// Visitors Deprecated alias of count; always identical.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Visitors int64 `json:"visitors"`
 }
 
@@ -1869,7 +1951,7 @@ type ListEventsParams struct {
 	To   openapi_types.Date `form:"to" json:"to"`
 	Name *string            `form:"name,omitempty" json:"name,omitempty"`
 
-	// Filter Repeat up to ten times as dimension:operator:value1,value2.
+	// Filter Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component.
 	Filter *Filters `form:"filter,omitempty" json:"filter,omitempty"`
 	Cursor *Cursor  `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *int     `form:"limit,omitempty" json:"limit,omitempty"`
@@ -1931,7 +2013,7 @@ type StatsBreakdownParams struct {
 	// Metrics Comma-separated metric names. Endpoint defaults apply when omitted.
 	Metrics *Metrics `form:"metrics,omitempty" json:"metrics,omitempty"`
 
-	// Filter Repeat up to ten times as dimension:operator:value1,value2.
+	// Filter Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component.
 	Filter  *Filters `form:"filter,omitempty" json:"filter,omitempty"`
 	Compare *Compare `form:"compare,omitempty" json:"compare,omitempty"`
 	Format  *Format  `form:"format,omitempty" json:"format,omitempty"`
@@ -1959,7 +2041,7 @@ type StatsSummaryParams struct {
 	// Metrics Comma-separated metric names. Endpoint defaults apply when omitted.
 	Metrics *Metrics `form:"metrics,omitempty" json:"metrics,omitempty"`
 
-	// Filter Repeat up to ten times as dimension:operator:value1,value2.
+	// Filter Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component.
 	Filter  *Filters `form:"filter,omitempty" json:"filter,omitempty"`
 	Compare *Compare `form:"compare,omitempty" json:"compare,omitempty"`
 	Format  *Format  `form:"format,omitempty" json:"format,omitempty"`
@@ -1980,11 +2062,14 @@ type StatsTimeseriesParams struct {
 	// Metrics Comma-separated metric names. Endpoint defaults apply when omitted.
 	Metrics *Metrics `form:"metrics,omitempty" json:"metrics,omitempty"`
 
-	// Filter Repeat up to ten times as dimension:operator:value1,value2.
-	Filter   *Filters `form:"filter,omitempty" json:"filter,omitempty"`
-	Compare  *Compare `form:"compare,omitempty" json:"compare,omitempty"`
-	Format   *Format  `form:"format,omitempty" json:"format,omitempty"`
-	Interval *string  `form:"interval,omitempty" json:"interval,omitempty"`
+	// Filter Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component.
+	Filter  *Filters `form:"filter,omitempty" json:"filter,omitempty"`
+	Compare *Compare `form:"compare,omitempty" json:"compare,omitempty"`
+	Format  *Format  `form:"format,omitempty" json:"format,omitempty"`
+
+	// IncludeImported Include imported analytics rows when available.
+	IncludeImported *bool   `form:"include_imported,omitempty" json:"include_imported,omitempty"`
+	Interval        *string `form:"interval,omitempty" json:"interval,omitempty"`
 }
 
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
@@ -4646,6 +4731,19 @@ func (siw *ServerInterfaceWrapper) StatsTimeseries(w http.ResponseWriter, r *htt
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "format"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "format", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "include_imported" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_imported", r.URL.Query(), &params.IncludeImported, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_imported"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_imported", Err: err})
 		}
 		return
 	}

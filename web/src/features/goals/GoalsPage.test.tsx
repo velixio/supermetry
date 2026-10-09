@@ -78,28 +78,46 @@ describe('GoalsPage', () => {
     expect(get).toHaveBeenCalledTimes(2)
   })
 
-  it('queries and displays conversions with the server-side goal id filter', async () => {
+  it('loads all goal conversions in one site-timezone breakdown query', async () => {
     get.mockReset()
     useStats.mockReset()
     get.mockResolvedValue({
-      data: [{ id: 4, site_id: 7, kind: 'page', match: 'exact', value: '/thanks', name: 'Signup complete' }],
+      data: [
+        { id: 4, site_id: 7, kind: 'page', match: 'exact', value: '/thanks', name: 'Signup complete' },
+        { id: 5, site_id: 7, kind: 'page', match: 'exact', value: '/paid', name: 'Paid complete' },
+      ],
       response: { status: 200 },
     })
-    useStats.mockImplementation((query: { filters: { dimension: string; values: string[] }[] }) => ({
-      data: { totals: query.filters.length > 0 ? { visitors: 8 } : { visitors: 80 } },
+    useStats.mockReturnValue({
+      data: {
+        rows: [
+          { goal: '4', conversions: 8 },
+          { goal: '5', conversions: 2 },
+        ],
+        totals: { visits: 40 },
+      },
       isPending: false,
       isError: false,
-    }))
+    })
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-    render(<QueryClientProvider client={client}><GoalsPage siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} /></QueryClientProvider>)
+    render(<QueryClientProvider client={client}><GoalsPage siteId={7} timezone="Asia/Kolkata" dateRange={{ from: '2026-10-01', to: '2026-10-07' }} /></QueryClientProvider>)
 
     expect(await screen.findByText('Signup complete')).toBeVisible()
     expect(screen.getByText('8')).toBeVisible()
-    expect(screen.getByText('10%')).toBeVisible()
-    expect(useStats).toHaveBeenCalledWith(expect.objectContaining({
-      filters: [{ dimension: 'goal_id', operator: 'is', values: ['4'] }],
-    }))
+    expect(screen.getByText('20%')).toBeVisible()
+    expect(screen.getByText('Paid complete')).toBeVisible()
+    expect(screen.getByText('2')).toBeVisible()
+    expect(screen.getByText('5%')).toBeVisible()
+    expect(new Set(useStats.mock.calls.map(([statsQuery]) => JSON.stringify(statsQuery))).size).toBe(1)
+    expect(useStats).toHaveBeenCalledWith({
+      siteId: 7,
+      dateRange: { from: '2026-10-01', to: '2026-10-07' },
+      metrics: ['conversions', 'visits'],
+      dimensions: ['goal'],
+      filters: [],
+      timezone: 'Asia/Kolkata',
+    })
   })
 
   it('describes scroll-depth goals in the goals list', async () => {

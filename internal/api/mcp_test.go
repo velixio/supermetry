@@ -35,7 +35,7 @@ func (*mcpQueryStub) Retention(context.Context, RetentionRequest) (RetentionResp
 
 func (s *mcpQueryStub) Funnel(_ context.Context, request FunnelRequest) (FunnelResponse, error) {
 	s.funnels = append(s.funnels, request)
-	return FunnelResponse{Steps: []FunnelStepResult{{Step: 1, Visitors: 3, Conversion: 100}}}, nil
+	return FunnelResponse{CountBy: FunnelResponseCountBySessions, Steps: []FunnelStepResult{{Step: 1, Count: 3, Conversion: 100}}}, nil
 }
 
 type mcpSessionStub struct{}

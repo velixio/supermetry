@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -211,6 +212,13 @@ func (h *handlers) statsQuery(r *http.Request, defaults []Metric, dimensions []s
 		return QueryRequest{}, statsRange{}, false, problem
 	}
 	request := QueryRequest{SiteId: siteID, Metrics: defaults}
+	if raw := r.URL.Query().Get("include_imported"); raw != "" {
+		includeImported, err := strconv.ParseBool(raw)
+		if err != nil {
+			return QueryRequest{}, statsRange{}, false, problemPointer(badRequest("include_imported must be true or false"))
+		}
+		request.IncludeImported = &includeImported
+	}
 	dateRange, problem := h.parseStatsRange(r, siteID, &request)
 	if problem != nil {
 		return QueryRequest{}, statsRange{}, false, problem
@@ -367,10 +375,14 @@ func parseStatsFilters(values []string) ([]Filter, *Problem) {
 			problem := badRequest("filter must be dimension:operator:value[,value]")
 			return nil, &problem
 		}
-		for _, value := range filter.Values {
+		for index, value := range filter.Values {
 			if value == "" {
 				problem := badRequest("filter values must not be empty")
 				return nil, &problem
+			}
+			decoded, err := url.PathUnescape(value)
+			if err == nil {
+				filter.Values[index] = decoded
 			}
 		}
 		filters = append(filters, filter)

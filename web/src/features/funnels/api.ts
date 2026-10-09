@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { components } from '@/lib/api.gen'
 
-import type { FunnelResult, FunnelStep, SavedFunnel } from './types'
+import type { FunnelCountBy, FunnelResult, FunnelStep, FunnelWindow, SavedFunnel } from './types'
 
 type Problem = components['schemas']['Problem']
 type ApiResult<T> = Promise<{ data?: T; error?: Problem; response: Response }>
@@ -19,7 +19,7 @@ type FunnelApi = {
     ): ApiResult<SavedFunnel>
     (
       path: '/api/private/funnels/query',
-      options: { body: { site_id: number; date_range: { from: string; to: string }; steps: FunnelStep[] } },
+      options: { body: { site_id: number; date_range: { from: string; to: string }; steps: FunnelStep[]; count_by: FunnelCountBy; window: FunnelWindow } },
     ): ApiResult<FunnelResult>
   }
   PATCH: (
@@ -32,8 +32,8 @@ const funnelApi = api as unknown as FunnelApi
 
 export const funnelKeys = {
   all: (siteId: number) => ['funnels', siteId] as const,
-  result: (siteId: number, steps: FunnelStep[], from: string, to: string) =>
-    ['funnels', siteId, 'result', steps, from, to] as const,
+  result: (siteId: number, steps: FunnelStep[], from: string, to: string, countBy: FunnelCountBy, window: FunnelWindow) =>
+    ['funnels', siteId, 'result', steps, from, to, countBy, window] as const,
 }
 
 export function useFunnels(siteId: number) {
@@ -90,13 +90,15 @@ export function useFunnelResult(
   siteId: number,
   dateRange: { from: string; to: string },
   steps: FunnelStep[],
+  countBy: FunnelCountBy,
+  window: FunnelWindow,
 ) {
   return useQuery<FunnelResult, Problem>({
-    queryKey: funnelKeys.result(siteId, steps, dateRange.from, dateRange.to),
+    queryKey: funnelKeys.result(siteId, steps, dateRange.from, dateRange.to, countBy, window),
     enabled: steps.length >= 2 && steps.every((step) => step.value.trim() !== ''),
     queryFn: async () => {
       const { data, error } = await funnelApi.POST('/api/private/funnels/query', {
-        body: { site_id: siteId, date_range: dateRange, steps },
+        body: { site_id: siteId, date_range: dateRange, steps, count_by: countBy, window },
       })
       if (error) throw error
       if (!data) throw new Error('The funnel result was empty.')

@@ -111,6 +111,22 @@ describe('saved segments', () => {
     expect(await screen.findByRole('button', { name: 'Segments: India traffic' })).toBeVisible()
   })
 
+  it('treats swapped place and country tuple values as a changed segment', async () => {
+    get.mockResolvedValue(response([{
+      ...saved,
+      filters: [{ dimension: 'city', operator: 'is', values: ['US', 'Springfield'] }],
+    }]))
+
+    renderBar({
+      current: [{ dimension: 'city', operator: 'is', values: ['Springfield', 'US'] }],
+    })
+
+    await openSegments()
+    expect(await screen.findByRole('menuitem', { name: 'India traffic' })).toBeVisible()
+    expect(screen.getByRole('menu', { name: 'Segments' })).toBeVisible()
+    expect(screen.queryByRole('menu', { name: 'Segments: India traffic' })).not.toBeInTheDocument()
+  })
+
   it('saves the current filters with a valid name and refetches the list', async () => {
     renderBar({ current: filters })
 

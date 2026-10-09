@@ -26,6 +26,12 @@ func TestCurrentRollupLayoutCombinesDimensionsAndClosedCounters(t *testing.T) {
 	if !slices.Contains(layout.Counters, "engaged_n") {
 		t.Fatalf("layout counters = %v, want engaged_n registered", layout.Counters)
 	}
+	if !slices.Contains(layout.Counters, "custom_closed.session_id") {
+		t.Fatalf("layout markers = %v, want custom_closed.session_id registered", layout.Counters)
+	}
+	if !slices.Contains(layout.Counters, "sessions_closed.seq_at") {
+		t.Fatalf("layout markers = %v, want sessions_closed.seq_at registered", layout.Counters)
+	}
 	if layout.Version() == "" || layout.Version() != CurrentRollupLayout().Version() {
 		t.Fatal("layout version is empty or unstable")
 	}

@@ -19,8 +19,9 @@ function GoalsRoute() {
   if (!site) return null
   return (
     <GoalsPage
-      dateRange={resolveRange('30d', 'UTC', new Date())}
+      dateRange={resolveRange('30d', site.timezone || 'UTC', new Date())}
       siteId={site.id}
+      timezone={site.timezone || 'UTC'}
       revenueCurrency={site.revenue_currency}
       revenueCurrencyState={site.revenue_currency_state}
     />

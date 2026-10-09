@@ -213,6 +213,11 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	if err := e.resolveGoalFilters(&normalized); err != nil {
 		return api.QueryResponse{}, err
 	}
+	if containsDimension(normalized.Dimensions, "goal") {
+		if err := e.resolveGoalBreakdown(&normalized); err != nil {
+			return api.QueryResponse{}, err
+		}
+	}
 	metadata, err := e.closeMemo.closeMetadata(ctx, e, normalized.SiteID)
 	if err != nil {
 		return api.QueryResponse{}, err
@@ -305,6 +310,18 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 	if importedIncluded {
 		sources = append(sources, "imported")
 	}
+	goalConversionTotal := int64(0)
+	if len(normalized.Dimensions) == 1 && normalized.Dimensions[0] == "goal" {
+		visible := rows[:0]
+		for _, row := range rows {
+			if len(row.dimensions) == 1 && row.dimensions[0] == goalConversionTotalRow {
+				goalConversionTotal += row.sums.Converted
+				continue
+			}
+			visible = append(visible, row)
+		}
+		rows = visible
+	}
 	totalSums, totalImported := Sums{}, Sums{}
 	if len(normalized.Dimensions) == 0 || hasPageMetric(normalized.Metrics) {
 		for _, row := range rows {
@@ -314,6 +331,11 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 	} else {
 		totalReq := normalized
 		totalReq.Dimensions = nil
+		if len(normalized.Dimensions) == 1 && normalized.Dimensions[0] == "goal" {
+			// Goal rows are event-derived, but their dashboard denominator is the
+			// filtered session population rather than event-attributed sessions.
+			totalReq.EventAttribution = false
+		}
 		totalRows, _, queryErr := e.queryParts(ctx, totalReq, parts)
 		if queryErr != nil {
 			return api.QueryResponse{}, queryErr
@@ -329,6 +351,12 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 			totalImported.add(row.imported)
 		}
 		importedIncluded = importedIncluded || totalsIncluded
+	}
+	if len(normalized.Dimensions) == 1 && normalized.Dimensions[0] == "goal" {
+		// Visits and visitors remain the whole-site denominators returned by the
+		// dimensionless totals query. Conversions count each matching session
+		// once even when it satisfies several saved goals.
+		totalSums.Converted = goalConversionTotal
 	}
 	if importedIncluded && !containsStringValue(sources, "imported") {
 		sources = append(sources, "imported")
@@ -390,6 +418,11 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 		}
 		if err := e.resolveGoalFilters(&comparisonNormalized); err != nil {
 			return api.QueryResponse{}, err
+		}
+		if containsDimension(comparisonNormalized.Dimensions, "goal") {
+			if err := e.resolveGoalBreakdown(&comparisonNormalized); err != nil {
+				return api.QueryResponse{}, err
+			}
 		}
 		comparisonResponse, comparisonErr := e.queryNormalized(ctx, comparisonRequest, site, comparisonNormalized, now, metadata)
 		if comparisonErr != nil {

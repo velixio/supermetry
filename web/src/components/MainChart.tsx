@@ -1,5 +1,5 @@
 import { ErrorState } from './ErrorState'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   Area,
   AreaChart,
@@ -13,6 +13,14 @@ import { FlagIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Tooltip as AnnotationTooltip,
   TooltipContent,
   TooltipProvider,
@@ -21,7 +29,7 @@ import {
 import type { Annotation } from '@/features/annotations/types'
 import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
-import { useStats, type StatsQuery } from '../lib/stats'
+import { useTimeseries, type StatsQuery } from '../lib/stats'
 
 export type ChartInterval = 'hour' | 'day' | 'week' | 'month'
 
@@ -108,8 +116,37 @@ function timeValue(row: Record<string, unknown>): string {
   return typeof row.time === 'string' ? row.time : ''
 }
 
+function timeBucketLabel(value: string, interval: ChartInterval, timezone: string): string {
+  if (interval !== 'hour') return fmt.date(value, timezone)
+  const isSiteLocalBucket = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)
+  const instant = new Date(isSiteLocalBucket ? `${value}Z` : value)
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: isSiteLocalBucket ? 'UTC' : timezone,
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(instant)
+  } catch {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'UTC',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(instant)
+  }
+}
+
 function chronological(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
   return [...rows].sort((left, right) => timeValue(left).localeCompare(timeValue(right)))
+}
+
+function rangeDays(from: string, to: string): number {
+  return Math.floor((dateAtUTC(to).getTime() - dateAtUTC(from).getTime()) / 86_400_000) + 1
 }
 
 function ChartContainer({ children }: { children: ReactNode }) {
@@ -204,10 +241,7 @@ function AnnotationMarkers({
 }
 
 export function autoInterval(from: string, to: string): ChartInterval {
-  const days =
-    Math.floor(
-      (dateAtUTC(to).getTime() - dateAtUTC(from).getTime()) / 86_400_000,
-    ) + 1
+  const days = rangeDays(from, to)
   if (days <= 2) return 'hour'
   if (days <= 92) return 'day'
   if (days <= 183) return 'week'
@@ -224,22 +258,34 @@ export function MainChart({
   onEditAnnotation,
   onDeleteAnnotation,
 }: MainChartProps) {
+  const [selectedInterval, setSelectedInterval] = useState<ChartInterval | undefined>(interval)
+
+  useEffect(() => {
+    setSelectedInterval(interval)
+  }, [interval])
   const chartMetric: ChartMetric = metric === 'exit_rate' || metric === 'time_on_page'
     ? 'visitors'
     : metric
+  const automaticInterval = autoInterval(query.dateRange.from, query.dateRange.to)
+  const requestedInterval = selectedInterval ?? automaticInterval
+  const resolvedInterval = requestedInterval === 'hour' && rangeDays(query.dateRange.from, query.dateRange.to) > 7
+    ? automaticInterval
+    : requestedInterval
   const currentQuery: StatsQuery = {
     ...query,
     metrics: [chartMetric],
-    dimensions: ['time'],
-    compare: undefined,
+    dimensions: undefined,
+    compare: compare === 'previous_period' ? compare : undefined,
   }
   const comparisonQuery: StatsQuery = {
     ...currentQuery,
     dateRange: comparisonRange(query.dateRange, compare),
   }
-  const current = useStats(currentQuery)
-  const comparison = useStats(comparisonQuery)
-  const comparisonRows = chronological(comparison.data?.rows ?? [])
+  const current = useTimeseries(currentQuery, resolvedInterval, true)
+  const previousYearResult = useTimeseries(comparisonQuery, resolvedInterval, compare === 'previous_year')
+  const comparisonRows = chronological(compare === 'previous_period'
+    ? current.data?.comparison?.rows ?? []
+    : previousYearResult.data?.rows ?? [])
   const points: ChartPoint[] = chronological(current.data?.rows ?? []).map((row, index) => ({
     time: timeValue(row),
     value: numeric(row, chartMetric),
@@ -247,21 +293,35 @@ export function MainChart({
       ? {}
       : { comparison: numeric(comparisonRows[index] ?? {}, chartMetric) }),
   }))
-  const resolvedInterval =
-    interval ?? autoInterval(query.dateRange.from, query.dateRange.to)
   const label = `${metricLabel(chartMetric)} over time`
-  if (current.isError || (compare !== 'off' && comparison.isError)) {
-    const failed = current.isError ? current : comparison
+  const timezone = query.timezone ?? 'UTC'
+  if (current.isError || (compare === 'previous_year' && previousYearResult.isError)) {
+    const failed = current.isError ? current : previousYearResult
     return <ErrorState detail={failed.error?.detail} onRetry={() => void failed.refetch()} />
   }
 
   return (
     <section
-      aria-busy={current.isLoading || comparison.isLoading}
+      aria-busy={current.isLoading || previousYearResult.isLoading}
       aria-label={label}
       data-interval={resolvedInterval}
       className="rounded-lg border bg-card p-4 text-card-foreground"
     >
+      <div className="mb-3 flex justify-end">
+        <Select value={resolvedInterval} onValueChange={(value) => setSelectedInterval(value as ChartInterval)}>
+          <SelectTrigger aria-label="Chart interval" size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem disabled={rangeDays(query.dateRange.from, query.dateRange.to) > 7} value="hour">Hour</SelectItem>
+              <SelectItem value="day">Day</SelectItem>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
       <ChartContainer>
         <AnnotationMarkers
           annotations={annotations}
@@ -280,9 +340,9 @@ export function MainChart({
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} />
-            <XAxis dataKey="time" axisLine={false} tickLine={false} />
+            <XAxis dataKey="time" axisLine={false} tickLine={false} tickFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
             <YAxis axisLine={false} tickLine={false} width={40} />
-            <Tooltip />
+            <Tooltip labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
             <Area
               dataKey="value"
               fill="url(#main-chart-fill)"
@@ -313,7 +373,7 @@ export function MainChart({
         <tbody>
           {points.map((point) => (
             <tr key={point.time}>
-              <th scope="row">{fmt.date(point.time, query.timezone ?? 'UTC')}</th>
+              <th scope="row">{timeBucketLabel(point.time, resolvedInterval, timezone)}</th>
               <td>{metricValue(chartMetric, point.value)}</td>
               {compare === 'off' ? null : (
                 <td>{metricValue(chartMetric, point.comparison ?? 0)}</td>

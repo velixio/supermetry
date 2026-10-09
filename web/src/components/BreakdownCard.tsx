@@ -50,6 +50,12 @@ function breakdownLabel(dimension: string, value: string): string {
   return value
 }
 
+function filterAccessibleLabel(dimension: string, label: string, display: string, country: string): string {
+  if (dimension === 'country') return display
+  if (dimension === 'region' || dimension === 'city') return `${label}, ${countryLabel(country)}`
+  return label
+}
+
 export function BreakdownCard({ title, tabs, query, onFilter, map = false, allowSearch = true, allowFilter = true, verifiedPaths = false, description }: BreakdownCardProps) {
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
   const [view, setView] = useState<'list' | 'map'>('list')
@@ -175,17 +181,25 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
               {rows.map((row, index) => {
                 const label = String(row[activeTab.dimension] ?? '')
                 const display = breakdownLabel(activeTab.dimension, label)
+                const placeCountry = String(row.country ?? '')
+                const placeWithoutCountry = (activeTab.dimension === 'region' || activeTab.dimension === 'city') && placeCountry === ''
                 return (
                   <tr key={`${label}:${index}`} className="border-t">
                     <td className="min-w-0 px-2 py-1">
-                      {label === '' || !allowFilter ? (
+                      {label === '' || !allowFilter || placeWithoutCountry ? (
                         <span className="block min-w-0 px-2 py-2 font-medium text-muted-foreground">{display}</span>
                       ) : (
                         <button
-                          aria-label={`Filter by ${activeTab.dimension} ${activeTab.dimension === 'country' ? display : label}`}
+                          aria-label={`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, placeCountry)}`}
                           className="w-full min-w-0 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                           type="button"
-                          onClick={() => onFilter({ dimension: activeTab.dimension, operator: 'is', values: [label] })}
+                          onClick={() => onFilter({
+                            dimension: activeTab.dimension,
+                            operator: 'is',
+                            values: activeTab.dimension === 'region' || activeTab.dimension === 'city'
+                              ? [label, placeCountry]
+                              : [label],
+                          })}
                         >
                           <span className="block min-w-0 truncate font-medium" title={display}>{display}</span>
                         </button>
@@ -208,12 +222,13 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
             const label = String(row[activeTab.dimension] ?? '')
             const display = breakdownLabel(activeTab.dimension, label)
             const country = String(row.country ?? (activeTab.dimension === 'country' ? label : ''))
+            const placeWithoutCountry = (activeTab.dimension === 'region' || activeTab.dimension === 'city') && country === ''
             const rawValue = Number(row[activeTab.metric] ?? 0)
             const value = Number.isFinite(rawValue) ? rawValue : 0
             const width = maximum > 0 ? `${Math.max(2, (value / maximum) * 100)}%` : '0%'
             return (
               <li key={`${label}:${index}`} className="min-w-0">
-                {label === '' || !allowFilter ? (
+                {label === '' || !allowFilter || placeWithoutCountry ? (
                   <div className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-muted-foreground">
                     <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
                     <span className="relative min-w-0 truncate text-sm" title={display}>{display}</span>
@@ -221,14 +236,16 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
                   </div>
                 ) : (
                   <button
-                    aria-label={`Filter by ${activeTab.dimension} ${activeTab.dimension === 'country' ? display : label}`}
+                    aria-label={`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, country)}`}
                     className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                     type="button"
                     onClick={() =>
                       onFilter({
                         dimension: activeTab.dimension,
                         operator: 'is',
-                        values: [label],
+                        values: activeTab.dimension === 'region' || activeTab.dimension === 'city'
+                          ? [label, country]
+                          : [label],
                       })
                     }
                   >

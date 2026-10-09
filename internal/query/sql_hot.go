@@ -25,6 +25,9 @@ func (e *Engine) queryHot(ctx context.Context, req Normalized, part Part) ([]res
 }
 
 func buildHotSQL(req Normalized, part Part) (string, []any, error) {
+	if len(req.Dimensions) == 1 && req.Dimensions[0] == "goal" {
+		return buildGoalBreakdownSQL(req, part, tierHot)
+	}
 	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) || req.EventAttribution {
 		return buildCustomHotSQL(req, part)
 	}
@@ -207,7 +210,9 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		exits = "count(*) filter (where s.exit_path=s.entry_path)::int8"
 	}
 	converted := "0::int8"
-	if hasEventFilter(specialFilters) {
+	if hasGoalIDFilter(specialFilters) {
+		converted = "count(*)::int8"
+	} else if hasEventFilter(specialFilters) {
 		converted = "count(distinct (s.local_day, s.visitor_id))::int8"
 	}
 	sums := []string{

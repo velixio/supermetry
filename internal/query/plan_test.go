@@ -20,8 +20,8 @@ func TestPlanRoutes(t *testing.T) {
 		{name: "one visitor dimension", filters: []api.Filter{filter("country", api.Is, "US")}, want: query.RouteVisitorDay},
 		{name: "two visitor dimensions", filters: []api.Filter{filter("country", api.Is, "US"), filter("browser", api.Is, "Chrome")}, want: query.RouteVisitorDay},
 		{name: "session dimension", filters: []api.Filter{filter("source", api.Is, "Google")}, want: query.RouteCube},
-		{name: "region filter", filters: []api.Filter{filter("region", api.Is, "California")}, want: query.RouteClosed},
-		{name: "city filter", filters: []api.Filter{filter("city", api.Is, "Bengaluru")}, want: query.RouteClosed},
+		{name: "region filter", filters: []api.Filter{filter("region", api.Is, "California", "US")}, want: query.RouteClosed},
+		{name: "city filter", filters: []api.Filter{filter("city", api.Is, "Bengaluru", "IN")}, want: query.RouteClosed},
 		{name: "screen size filter", filters: []api.Filter{filter("screen_size", api.Is, "laptop")}, want: query.RouteClosed},
 		{name: "page operator", filters: []api.Filter{filter("page", api.Contains, "/blog")}, want: query.RouteClosed},
 	}

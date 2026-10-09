@@ -119,7 +119,7 @@ func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, locati
 	var sequenceQueries []string
 	closedTo := minTime(to, civilDate(closedThrough))
 	if !closedTo.Before(from) {
-		conditions, err := buildJourneyTierConditions(builder, filtersFrom(req.Filters), true)
+		conditions, err := buildJourneyTierConditions(builder, filtersFrom(req.Filters), true, Part{From: from, To: closedTo})
 		if err != nil {
 			return "", nil, err
 		}
@@ -141,7 +141,7 @@ group by s.day,s.visitor_id,s.session_id`)
 	var hotCTEs []string
 	hotFrom := maxTime(from, civilDate(closedThrough).AddDate(0, 0, 1))
 	if !hotFrom.After(to) {
-		conditions, err := buildJourneyTierConditions(builder, filtersFrom(req.Filters), false)
+		conditions, err := buildJourneyTierConditions(builder, filtersFrom(req.Filters), false, Part{})
 		if err != nil {
 			return "", nil, err
 		}
@@ -240,7 +240,7 @@ order by case kind when 'node' then 0 else 1 end,step,visitors desc,path,to_path
 	return querySQL, builder.args, nil
 }
 
-func buildJourneyTierConditions(builder *sqlBuilder, filters []api.Filter, closed bool) ([]string, error) {
+func buildJourneyTierConditions(builder *sqlBuilder, filters []api.Filter, closed bool, part Part) ([]string, error) {
 	pageFilters, remaining := splitPageFilters(filters)
 	specialFilters, sessionFilters := splitSpecialFilters(remaining)
 	resolver := reportSessionResolver("s")
@@ -270,7 +270,7 @@ func buildJourneyTierConditions(builder *sqlBuilder, filters []api.Filter, close
 	}
 	var specialConditions []string
 	if closed {
-		specialConditions, err = closedSpecialConditions(builder, specialFilters)
+		specialConditions, err = closedSpecialConditions(builder, specialFilters, part)
 	} else {
 		specialConditions, err = hotSpecialConditions(builder, specialFilters)
 		if err == nil {

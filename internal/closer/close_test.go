@@ -119,16 +119,20 @@ update events set profile_id=1 where site_id=1 and session_id=10`); err != nil {
 
 	var seq, seqEngage []int32
 	var seqScroll []int16
+	var seqAt []time.Time
 	var utmContent, utmTerm int32
 	if err := pool.QueryRow(ctx, `
-		select seq, seq_engage, seq_scroll, utm_content_id, utm_term_id from sessions_closed
+		select seq, seq_engage, seq_scroll, seq_at, utm_content_id, utm_term_id from sessions_closed
 		where site_id = 1 and day = '2026-10-07' and session_id = 10`).Scan(
-		&seq, &seqEngage, &seqScroll, &utmContent, &utmTerm,
+		&seq, &seqEngage, &seqScroll, &seqAt, &utmContent, &utmTerm,
 	); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(seq, []int32{7, 11}) || !reflect.DeepEqual(seqEngage, []int32{1_000, 4_000}) || !reflect.DeepEqual(seqScroll, []int16{25, 80}) {
 		t.Fatalf("seq=%v engage=%v scroll=%v", seq, seqEngage, seqScroll)
+	}
+	if len(seqAt) != 2 || !seqAt[0].Equal(utc(2026, 10, 7, 10, 0)) || !seqAt[1].Equal(utc(2026, 10, 7, 10, 0).Add(30*time.Second)) {
+		t.Fatalf("seq_at=%v, want page timestamps", seqAt)
 	}
 	if utmContent != 41 || utmTerm != 42 {
 		t.Fatalf("utm_content_id=%d utm_term_id=%d", utmContent, utmTerm)
@@ -143,13 +147,14 @@ update events set profile_id=1 where site_id=1 and session_id=10`); err != nil {
 	if want := utc(2026, 10, 7, 10, 0); !startedAt.Equal(want) || profileID == nil || *profileID != 1 {
 		t.Fatalf("closed identity metadata=%s/%v, want %s/1", startedAt, profileID, want)
 	}
+	var customSessionID *int64
 	if err := pool.QueryRow(ctx, `
-		select utm_content_id, utm_term_id from custom_closed
-		where site_id = 1 and day = '2026-10-07' and name_id = 100`).Scan(&utmContent, &utmTerm); err != nil {
+		select utm_content_id, utm_term_id, session_id from custom_closed
+		where site_id = 1 and day = '2026-10-07' and name_id = 100`).Scan(&utmContent, &utmTerm, &customSessionID); err != nil {
 		t.Fatal(err)
 	}
-	if utmContent != 51 || utmTerm != 52 {
-		t.Fatalf("custom utm_content_id=%d utm_term_id=%d", utmContent, utmTerm)
+	if utmContent != 51 || utmTerm != 52 || customSessionID == nil || *customSessionID != 11 {
+		t.Fatalf("custom utm_content_id=%d utm_term_id=%d session_id=%v", utmContent, utmTerm, customSessionID)
 	}
 	var revenueMicros int64
 	var revenueCurrency string

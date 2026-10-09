@@ -96,6 +96,34 @@ func TestLatestMigrationVersionMatchesEmbeddedMigrations(t *testing.T) {
 	}
 }
 
+func TestCustomClosedSessionMigrationMatchesEventSessionType(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var dataType string
+	var nullable string
+	if err := pool.QueryRow(ctx, `
+select data_type, is_nullable
+from information_schema.columns
+where table_schema=current_schema() and table_name='custom_closed' and column_name='session_id'`).Scan(&dataType, &nullable); err != nil {
+		t.Fatal(err)
+	}
+	if dataType != "bigint" || nullable != "YES" {
+		t.Fatalf("custom_closed.session_id = %s nullable=%s, want bigint nullable", dataType, nullable)
+	}
+	if err := pool.QueryRow(ctx, `
+select data_type, is_nullable
+from information_schema.columns
+where table_schema=current_schema() and table_name='sessions_closed' and column_name='seq_at'`).Scan(&dataType, &nullable); err != nil {
+		t.Fatal(err)
+	}
+	if dataType != "ARRAY" || nullable != "YES" {
+		t.Fatalf("sessions_closed.seq_at = %s nullable=%s, want timestamp array nullable", dataType, nullable)
+	}
+}
+
 func TestRollupStateMigrationSchema(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()

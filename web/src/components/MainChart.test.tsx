@@ -5,13 +5,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import type { StatsQuery } from '../lib/stats'
 
-const { useStats } = vi.hoisted(() => ({ useStats: vi.fn() }))
+const { useStats, useTimeseries } = vi.hoisted(() => ({ useStats: vi.fn(), useTimeseries: vi.fn() }))
 
-vi.mock('../lib/stats', () => ({ useStats }))
+vi.mock('../lib/stats', () => ({ useStats, useTimeseries }))
 
 import { autoInterval, MainChart } from './MainChart'
 
 beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn()
   vi.stubGlobal('ResizeObserver', class {
     observe() {}
     unobserve() {}
@@ -42,7 +43,7 @@ function result(rows: Array<Record<string, number | string>>) {
 
 function mockSeries(series: Array<[string, number]>) {
   const rows = series.map(([time, visitors]) => ({ time, visitors }))
-  useStats.mockReturnValue(result(rows))
+  useTimeseries.mockReturnValue(result(rows))
 }
 
 describe('MainChart', () => {
@@ -50,10 +51,11 @@ describe('MainChart', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    useTimeseries.mockReturnValue(result([]))
   })
 
   it('shows failed analytics as an error rather than an empty chart', () => {
-    useStats.mockReturnValue({ isError: true, isLoading: false, error: { detail: 'Policy denied this chart' }, refetch: vi.fn() })
+    useTimeseries.mockReturnValue({ isError: true, isLoading: false, error: { detail: 'Policy denied this chart' }, refetch: vi.fn() })
     render(<MainChart query={query} metric="visitors" compare="off" />)
     expect(screen.getByText('Policy denied this chart')).toBeVisible()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
@@ -84,6 +86,58 @@ describe('MainChart', () => {
     expect(autoInterval('2026-09-08', '2026-10-07')).toBe('day')
   })
 
+  it('requests every chronological hourly bucket for today', () => {
+    useTimeseries.mockReturnValue(result([
+      { time: '2026-10-01T01:00:00+00:00', visitors: 2 },
+      { time: '2026-10-01T00:00:00+00:00', visitors: 1 },
+    ]))
+    render(<MainChart query={{ ...query, dateRange: { from: '2026-10-01', to: '2026-10-01' } }} metric="visitors" compare="off" />)
+
+    expect(useTimeseries).toHaveBeenCalledWith(expect.objectContaining({
+      metrics: ['visitors'],
+      dateRange: { from: '2026-10-01', to: '2026-10-01' },
+    }), 'hour', true)
+    const rows = screen.getAllByRole('row')
+    expect(rows[1]).toHaveTextContent('Oct 1, 2026')
+    expect(rows[1]).toHaveTextContent('12:00 AM')
+    expect(rows[1]).toHaveTextContent('1')
+    expect(rows[2]).toHaveTextContent('1:00 AM')
+    expect(rows[2]).toHaveTextContent('2')
+  })
+
+  it('renders offset-free hourly buckets as site-local wall-clock times', () => {
+    useTimeseries.mockReturnValue(result([
+      { time: '2026-10-01T01:00:00', visitors: 2 },
+    ]))
+
+    render(<MainChart query={{ ...query, timezone: 'America/Los_Angeles', dateRange: { from: '2026-10-01', to: '2026-10-01' } }} metric="visitors" compare="off" />)
+
+    const row = screen.getAllByRole('row')[1]
+    expect(row).toHaveTextContent('Oct 1, 2026')
+    expect(row).toHaveTextContent('1:00 AM')
+    expect(row).not.toHaveTextContent('Sep 30')
+  })
+
+  it('lets the reader switch to weekly buckets', () => {
+    useTimeseries.mockReturnValue(result([]))
+    render(<MainChart query={query} metric="visitors" compare="off" />)
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chart interval' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Week' }))
+
+    expect(useTimeseries).toHaveBeenCalledWith(expect.anything(), 'week', true)
+  })
+
+  it('follows interval prop changes after the chart is mounted', () => {
+    const { rerender } = render(<MainChart query={query} metric="visitors" compare="off" interval="day" />)
+    expect(screen.getByRole('combobox', { name: 'Chart interval' })).toHaveTextContent('Day')
+
+    rerender(<MainChart query={query} metric="visitors" compare="off" interval="week" />)
+
+    expect(screen.getByRole('combobox', { name: 'Chart interval' })).toHaveTextContent('Week')
+    expect(useTimeseries).toHaveBeenCalledWith(expect.anything(), 'week', true)
+  })
+
   it.each(['exit_rate', 'time_on_page'] as const)(
     'falls back from the page-only %s URL metric to a supported chart metric',
     (metric) => {
@@ -97,10 +151,9 @@ describe('MainChart', () => {
         />,
       )
 
-      expect(useStats).toHaveBeenCalledWith(expect.objectContaining({
-        dimensions: ['time'],
+      expect(useTimeseries).toHaveBeenCalledWith(expect.objectContaining({
         metrics: ['visitors'],
-      }))
+      }), expect.any(String), true)
       expect(screen.getByRole('region', { name: 'visitors over time' })).toBeVisible()
     },
   )

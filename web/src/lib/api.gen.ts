@@ -822,7 +822,7 @@ export interface paths {
                 from: string;
                 to: string;
                 name?: string;
-                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component. */
                 filter?: components["parameters"]["Filters"];
                 cursor?: components["parameters"]["Cursor"];
                 limit?: number;
@@ -1311,10 +1311,11 @@ export interface components {
          */
         Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "exit_rate" | "time_on_page" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
         Filter: {
-            /** @description Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. */
+            /** @description Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. Region and city accept the legacy one-value [place] form for any country and the country-scoped [place, ISO country code] form. */
             dimension: string;
             /** @enum {string} */
             operator: "is" | "is_not" | "contains" | "starts_with";
+            /** @description Match values. Region and city accept either [place] (legacy, any country) or [place, ISO country code]; the pair identifies one scoped place and is not an OR list. */
             values: string[];
         };
         OrderBy: {
@@ -1496,28 +1497,51 @@ export interface components {
              */
             match: "exact" | "prefix" | "wildcard";
             value: string;
-            /** @description Reserved for property-aware funnels; currently not applied by funnel queries. */
+            /** @description Custom-event property key that must match for this step. */
             prop_key?: string;
-            /** @description Reserved for property-aware funnels; currently not applied by funnel queries. */
+            /** @description Exact custom-event property value required by prop_key. */
             prop_value?: string;
         };
         FunnelRequest: {
             /** Format: int32 */
             site_id: number;
             date_range: components["schemas"]["DateRange"];
+            /**
+             * @description Count completed steps by sessions (the default) or visitors. Profile-linked visitors can complete steps across sessions inside a non-session window. Anonymous visitors use the daily salted visitor ID and therefore link only within one site-local day.
+             * @default sessions
+             * @enum {string}
+             */
+            count_by: "sessions" | "visitors";
+            /**
+             * @description Maximum elapsed time from step 1 through each later ordered step. session keeps every step in one session and is the default. Closed rows compacted before event timestamps were stored use their stable session ordering when raw data is no longer available for reconstruction.
+             * @default session
+             * @enum {string}
+             */
+            window: "session" | "1h" | "24h" | "7d";
             steps: components["schemas"]["FunnelStep"][];
         };
         FunnelStepResult: {
             step: number;
             /**
              * Format: int64
-             * @description Number of site-local sessions that completed this ordered step.
+             * @description Number of sessions or visitors, as selected by count_by, that completed this ordered step.
+             */
+            count: number;
+            /**
+             * Format: int64
+             * @deprecated
+             * @description Deprecated alias of count; always identical.
              */
             visitors: number;
             /** Format: double */
             conversion: number;
         };
         FunnelResponse: {
+            /**
+             * @description Entity counted in every step count.
+             * @enum {string}
+             */
+            count_by: "sessions" | "visitors";
             steps: components["schemas"]["FunnelStepResult"][];
         };
         JourneyRequest: {
@@ -2113,7 +2137,7 @@ export interface components {
         Timezone: string;
         /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
         Metrics: string;
-        /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+        /** @description Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component. */
         Filters: string[];
         Compare: string;
         Format: string;
@@ -2717,7 +2741,7 @@ export interface operations {
                 timezone?: components["parameters"]["Timezone"];
                 /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
                 metrics?: components["parameters"]["Metrics"];
-                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component. */
                 filter?: components["parameters"]["Filters"];
                 compare?: components["parameters"]["Compare"];
                 format?: components["parameters"]["Format"];
@@ -2749,10 +2773,12 @@ export interface operations {
                 timezone?: components["parameters"]["Timezone"];
                 /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
                 metrics?: components["parameters"]["Metrics"];
-                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component. */
                 filter?: components["parameters"]["Filters"];
                 compare?: components["parameters"]["Compare"];
                 format?: components["parameters"]["Format"];
+                /** @description Include imported analytics rows when available. */
+                include_imported?: boolean;
                 interval?: string;
             };
             header?: never;
@@ -2782,7 +2808,7 @@ export interface operations {
                 timezone?: components["parameters"]["Timezone"];
                 /** @description Comma-separated metric names. Endpoint defaults apply when omitted. */
                 metrics?: components["parameters"]["Metrics"];
-                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component. */
                 filter?: components["parameters"]["Filters"];
                 compare?: components["parameters"]["Compare"];
                 format?: components["parameters"]["Format"];
@@ -3812,7 +3838,7 @@ export interface operations {
                 from: string;
                 to: string;
                 name?: string;
-                /** @description Repeat up to ten times as dimension:operator:value1,value2. */
+                /** @description Repeat up to ten times as dimension:operator:value1,value2. Region and city accept place alone for any country or place,ISO-country-code for a scoped match, for example city:is:Paris,FR. Percent-encode each value component. */
                 filter?: components["parameters"]["Filters"];
                 cursor?: components["parameters"]["Cursor"];
                 limit?: number;

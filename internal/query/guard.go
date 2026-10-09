@@ -115,6 +115,9 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 			return Normalized{}, badQuery(fmt.Sprintf("unknown dimension %q", dimension))
 		}
 	}
+	if containsDimension(dimensions, "goal") && (len(dimensions) != 1 || dimensions[0] != "goal") {
+		return Normalized{}, badQuery("goal cannot be combined with another dimension")
+	}
 	for _, metric := range req.Metrics {
 		if !pageMetricSupportsDimensions(metric, dimensions) {
 			return Normalized{}, badQuery(fmt.Sprintf("metric %q is unsupported for the requested dimensions", metric))
@@ -171,6 +174,9 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 	}
 
 	limit := defaultLimit
+	if len(dimensions) == 1 && dimensions[0] == "goal" {
+		limit = maxLimit
+	}
 	if req.Limit != nil {
 		limit = *req.Limit
 	}
@@ -265,6 +271,11 @@ func ValidateFilters(filters []api.Filter) error {
 		}
 		if len(filter.Values) == 0 {
 			return fmt.Errorf("filter %q must contain at least one value", filter.Dimension)
+		}
+		// Region and city accept the legacy place-only value as well as the
+		// country-scoped [place, country_code] representation.
+		if (filter.Dimension == "region" || filter.Dimension == "city") && len(filter.Values) > 2 {
+			return fmt.Errorf("filter %q accepts place or place and country values", filter.Dimension)
 		}
 	}
 	return nil

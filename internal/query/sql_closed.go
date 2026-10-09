@@ -65,12 +65,13 @@ var dimensionDefs = map[string]dimensionDef{
 	"utm_medium":      {kind: dictionaryKind(dict.Medium)},
 	"utm_campaign":    {kind: dictionaryKind(dict.Campaign)},
 	"event":           {kind: dictionaryKind(dict.EventName)},
-	"goal":            {kind: dictionaryKind(dict.EventName)},
-	"region":          {kind: dictionaryKind(dict.Region)},
-	"city":            {kind: dictionaryKind(dict.City)},
-	"country":         {},
-	"device":          {},
-	"time":            {},
+	// Goal breakdown rows expose stable saved-goal IDs, not event names.
+	"goal":    {},
+	"region":  {kind: dictionaryKind(dict.Region)},
+	"city":    {kind: dictionaryKind(dict.City)},
+	"country": {},
+	"device":  {},
+	"time":    {},
 }
 
 func (e *Engine) queryClosed(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {
@@ -116,6 +117,9 @@ func (e *Engine) queryClosedChunks(ctx context.Context, req Normalized, part Par
 }
 
 func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
+	if len(req.Dimensions) == 1 && req.Dimensions[0] == "goal" {
+		return buildGoalBreakdownSQL(req, part, tierClosed)
+	}
 	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) || req.EventAttribution {
 		return buildCustomClosedSQL(req, part)
 	}
@@ -231,7 +235,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		return "", nil, err
 	}
 	conditions = append(conditions, presentConditions...)
-	specialConditions, err := closedSpecialConditions(builder, specialFilters, req.GoalDefinitions)
+	specialConditions, err := closedSpecialConditions(builder, specialFilters, part, req.GoalDefinitions)
 	if err != nil {
 		return "", nil, err
 	}
@@ -263,7 +267,9 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		exits = "count(*) filter (where s.exit_path=s.entry_path)::int8"
 	}
 	converted := "0::int8"
-	if hasEventFilter(specialFilters) {
+	if hasGoalIDFilter(specialFilters) {
+		converted = "count(*)::int8"
+	} else if hasEventFilter(specialFilters) {
 		converted = "count(distinct (s.day, s.visitor_id))::int8"
 	}
 	sums := []string{
@@ -447,6 +453,20 @@ func dimensionText(column string, kind *dict.Kind, dimension string) string {
 func filterConditions(builder *sqlBuilder, filters []api.Filter, resolver dimensionResolver) ([]string, error) {
 	conditions := make([]string, 0, len(filters))
 	for _, filter := range filters {
+		country := ""
+		if filter.Dimension == "region" || filter.Dimension == "city" {
+			if len(filter.Values) > 2 {
+				return nil, fmt.Errorf("filter %q accepts place or place and country values", filter.Dimension)
+			}
+			if len(filter.Values) == 2 {
+				country = filter.Values[1]
+				filter.Values = []string{filter.Values[0]}
+			}
+		}
+		negateScopedLocation := country != "" && filter.Operator == api.IsNot
+		if negateScopedLocation {
+			filter.Operator = api.Is
+		}
 		column, kind, err := resolver(filter.Dimension)
 		if err != nil {
 			return nil, err
@@ -461,6 +481,16 @@ func filterConditions(builder *sqlBuilder, filters []api.Filter, resolver dimens
 		}
 		if kind != nil {
 			match = column + " in (select fd.id from dict fd where fd.kind=" + strconv.Itoa(int(*kind)) + " and " + match + ")"
+		}
+		if country != "" {
+			countryColumn, _, countryErr := resolver("country")
+			if countryErr != nil {
+				return nil, countryErr
+			}
+			match = "(" + match + " and " + countryColumn + " = " + builder.arg(country) + ")"
+			if negateScopedLocation {
+				match = "not " + match
+			}
 		}
 		conditions = append(conditions, match)
 	}
@@ -525,7 +555,7 @@ func splitSpecialFilters(filters []api.Filter) (special, other []api.Filter) {
 	return special, other
 }
 
-func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefinitions ...map[int64]platformgoals.Goal) ([]string, error) {
+func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter, part Part, goalDefinitions ...map[int64]platformgoals.Goal) ([]string, error) {
 	conditions := make([]string, 0, len(filters))
 	var definitions map[int64]platformgoals.Goal
 	if len(goalDefinitions) > 0 {
@@ -534,7 +564,7 @@ func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefi
 	for _, filter := range filters {
 		switch {
 		case filter.Dimension == "goal_id":
-			condition, err := goalFilterCondition(builder, filter, tierClosed, definitions)
+			condition, err := goalFilterCondition(builder, filter, tierClosed, definitions, part)
 			if err != nil {
 				return nil, err
 			}
@@ -566,6 +596,15 @@ func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefi
 func hasEventFilter(filters []api.Filter) bool {
 	for _, filter := range filters {
 		if filter.Dimension == "event" || filter.Dimension == "goal" || filter.Dimension == "goal_id" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasGoalIDFilter(filters []api.Filter) bool {
+	for _, filter := range filters {
+		if filter.Dimension == "goal_id" {
 			return true
 		}
 	}

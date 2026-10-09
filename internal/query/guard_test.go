@@ -45,6 +45,7 @@ func TestNormalizeRejectsWithProblems(t *testing.T) {
 		{name: "unknown metric", req: func() api.QueryRequest { r := requestPeriod(api.N7d); r.Metrics = []api.Metric{"money"}; return r }()},
 		{name: "unknown operator", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "country", Operator: "matches", Values: []string{"US"}})},
 		{name: "filter without values", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "country", Operator: api.Is})},
+		{name: "city filter with too many values", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "city", Operator: api.Is, Values: []string{"Springfield", "US", "extra"}})},
 		{name: "goal id wrong operator", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "goal_id", Operator: api.Contains, Values: []string{"1"}})},
 		{name: "goal id multiple values", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "goal_id", Operator: api.Is, Values: []string{"1", "2"}})},
 		{name: "goal id not numeric", req: withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "goal_id", Operator: api.Is, Values: []string{"signup"}})},
@@ -80,6 +81,9 @@ func TestValidateFiltersUsesDashboardQueryRules(t *testing.T) {
 		{name: "unknown dimension", filters: []api.Filter{{Dimension: "planet", Operator: api.Is, Values: []string{"earth"}}}, wantErr: true},
 		{name: "unknown operator", filters: []api.Filter{{Dimension: "country", Operator: "matches", Values: []string{"US"}}}, wantErr: true},
 		{name: "empty values", filters: []api.Filter{{Dimension: "country", Operator: api.Is}}, wantErr: true},
+		{name: "region accepts legacy place only", filters: []api.Filter{{Dimension: "region", Operator: api.Is, Values: []string{"Georgia"}}}},
+		{name: "city accepts place and country", filters: []api.Filter{{Dimension: "city", Operator: api.Is, Values: []string{"Springfield", "US"}}}},
+		{name: "city rejects extra values", filters: []api.Filter{{Dimension: "city", Operator: api.Is, Values: []string{"Springfield", "US", "extra"}}}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -157,17 +161,45 @@ func TestNormalizeAcceptsMaximumRangeAndLimit(t *testing.T) {
 	}
 }
 
+func TestNormalizeGoalBreakdownDefaultsToEverySupportedRow(t *testing.T) {
+	t.Parallel()
+	req := withDimensions(requestPeriod(api.N7d), "goal")
+	normalized, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC}, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC))
+	if problem != nil {
+		t.Fatalf("Normalize() problem = %+v", problem)
+	}
+	if normalized.Limit != 1000 {
+		t.Fatalf("Limit = %d, want 1000 for the complete goal breakdown", normalized.Limit)
+	}
+}
+
+func TestNormalizeRejectsGoalCombinedWithAnotherDimension(t *testing.T) {
+	t.Parallel()
+	req := withDimensions(requestPeriod(api.N7d), "goal", "country")
+	if _, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC}, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)); problem == nil {
+		t.Fatal("Normalize() problem = nil, want goal-only dimension rejection")
+	}
+}
+
 func TestNormalizeAcceptsRegionAndCityDimensionsAndFilters(t *testing.T) {
 	t.Parallel()
 
 	req := withDimensions(requestPeriod(api.N7d), "region", "city")
-	req = withFilters(req, api.Filter{Dimension: "region", Operator: api.Is, Values: []string{"California"}})
+	req = withFilters(req, api.Filter{Dimension: "region", Operator: api.Is, Values: []string{"California", "US"}})
 	normalized, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC}, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC))
 	if problem != nil {
 		t.Fatalf("Normalize() problem = %+v", problem)
 	}
 	if !reflect.DeepEqual(normalized.Dimensions, []string{"region", "city"}) || len(normalized.Filters) != 1 {
 		t.Fatalf("Normalize() = dimensions %v filters %v", normalized.Dimensions, normalized.Filters)
+	}
+}
+
+func TestNormalizeAcceptsLegacyPlaceOnlyRegionFilter(t *testing.T) {
+	t.Parallel()
+	req := withFilters(requestPeriod(api.N7d), api.Filter{Dimension: "region", Operator: api.Is, Values: []string{"California"}})
+	if _, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC}, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)); problem != nil {
+		t.Fatalf("Normalize() problem = %+v", problem)
 	}
 }
 

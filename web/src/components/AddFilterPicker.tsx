@@ -36,8 +36,7 @@ const dimensions = [
   { value: 'utm_source', label: 'UTM source' },
   { value: 'utm_medium', label: 'UTM medium' },
   { value: 'utm_campaign', label: 'UTM campaign' },
-  { value: 'utm_content', label: 'UTM content' },
-  { value: 'utm_term', label: 'UTM term' },
+  // UTM content and term arrive here once event ingest stores those dimensions.
   { value: 'event', label: 'Event' },
   { value: 'property', label: 'Property' },
 ] as const
@@ -84,11 +83,15 @@ export function AddFilterPicker({
   const [open, setOpen] = useState(false)
   const [dimension, setDimension] = useState<string>('page')
   const [propertyKey, setPropertyKey] = useState('')
+  const [countryCode, setCountryCode] = useState('')
   const [operator, setOperator] = useState<FilterOperator>('is')
   const [value, setValue] = useState('')
   const actualDimension = dimension === 'property'
     ? propertyKey.trim() === '' ? '' : `prop:${propertyKey.trim()}`
     : dimension
+  const placeNeedsCountry = actualDimension === 'region' || actualDimension === 'city'
+  const normalizedCountry = countryCode.trim().toUpperCase()
+  const validCountry = /^[A-Z]{2}$/.test(normalizedCountry)
   const suggestionDimension = useDebounced(actualDimension, suggestionDelayMs)
   const suggestionQuery = useDebounced(value, suggestionDelayMs)
   const suggestions = useSuggestions(
@@ -118,8 +121,12 @@ export function AddFilterPicker({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmed = value.trim()
-    if (trimmed === '' || actualDimension === '') return
-    onAdd({ dimension: actualDimension, operator, values: [trimmed] })
+    if (trimmed === '' || actualDimension === '' || (placeNeedsCountry && !validCountry)) return
+    onAdd({
+      dimension: actualDimension,
+      operator,
+      values: placeNeedsCountry ? [trimmed, normalizedCountry] : [trimmed],
+    })
     setOpen(false)
     setValue('')
   }
@@ -148,6 +155,7 @@ export function AddFilterPicker({
                 onChange={(event) => {
                   setDimension(event.target.value)
                   setPropertyKey('')
+                  setCountryCode('')
                   setValue('')
                 }}
               >
@@ -164,6 +172,21 @@ export function AddFilterPicker({
                   autoComplete="off"
                   value={propertyKey}
                   onChange={(event) => { setPropertyKey(event.target.value); setValue('') }}
+                />
+              </Field>
+            ) : null}
+            {placeNeedsCountry ? (
+              <Field>
+                <FieldLabel htmlFor="filter-country-code">Country code</FieldLabel>
+                <Input
+                  id="filter-country-code"
+                  autoComplete="off"
+                  maxLength={2}
+                  pattern="[A-Za-z]{2}"
+                  placeholder="US"
+                  required
+                  value={countryCode}
+                  onChange={(event) => setCountryCode(event.target.value)}
                 />
               </Field>
             ) : null}
@@ -231,7 +254,7 @@ export function AddFilterPicker({
           </FieldGroup>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-            <Button disabled={value.trim() === '' || actualDimension === ''} type="submit">Apply filter</Button>
+            <Button disabled={value.trim() === '' || actualDimension === '' || (placeNeedsCountry && !validCountry)} type="submit">Apply filter</Button>
           </DialogFooter>
         </form>
       </DialogContent>

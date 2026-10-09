@@ -44,6 +44,7 @@ describe('dashboard breakdown route', () => {
     get.mockResolvedValue({ data: me, response: new Response(null, { status: 200 }) })
     post.mockImplementation(
       (_path: string, options: { body: { dimensions?: string[]; metrics: string[] } }) => {
+        const dimensions = options.body.dimensions ?? []
         const dimension = options.body.dimensions?.[0] ?? 'page'
         const metric = options.body.metrics[0]
         const label =
@@ -65,8 +66,8 @@ describe('dashboard breakdown route', () => {
         )
         return Promise.resolve({
           data: {
-            columns: [dimension, metric],
-            rows: [{ [dimension]: label, ...totals }],
+            columns: [...dimensions, metric],
+            rows: [{ [dimension]: label, ...(dimension !== 'country' && dimensions.includes('country') ? { country: 'US' } : {}), ...totals }],
             totals,
             meta: { sources_used: ['daily'], cached: false, ...(dimension === 'page' ? { privacy: { view: 'verified_paths', coverage: 'verified_only', policy_id: 'fixture-policy', path_sanitizer_version: 1, imports_excluded: true, unverified_excluded: true } } : {}) },
           },
@@ -227,8 +228,8 @@ describe('dashboard breakdown route', () => {
   })
 
   it.each([
-    ['Regions', 'region', 'California', 'region:is:California'],
-    ['Cities', 'city', 'San Francisco', 'city:is:San%20Francisco'],
+    ['Regions', 'region', 'California', 'region:is:California,US'],
+    ['Cities', 'city', 'San Francisco', 'city:is:San%20Francisco,US'],
   ])(
     'clicking a %s row adds its filter to router search',
     async (tab, dimension, label, encoded) => {
@@ -238,7 +239,7 @@ describe('dashboard breakdown route', () => {
       fireEvent.click(within(locations).getByRole('tab', { name: tab }))
       fireEvent.click(
         await within(locations).findByRole('button', {
-          name: `Filter by ${dimension} ${label}`,
+          name: `Filter by ${dimension} ${label}, United States`,
         }),
       )
 

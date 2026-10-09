@@ -236,8 +236,11 @@ func verifyAgainstTruth(t *testing.T, env *testenv.Env, path string) int {
 				{Type: api.Event, Match: "exact", Value: "signup"},
 			},
 		})
+		if funnel.CountBy != api.FunnelResponseCountBySessions {
+			report("site %d %s funnel count_by: got %q want sessions", truth.Site, truth.Date, funnel.CountBy)
+		}
 		for index, want := range truth.FunnelF {
-			if got := funnel.Steps[index].Visitors; got != want {
+			if got := funnel.Steps[index].Count; got != want {
 				report("site %d %s funnel step %d: got %d want %d", truth.Site, truth.Date, index+1, got, want)
 			}
 		}

@@ -141,7 +141,7 @@ describe('BreakdownCard', () => {
     expect(within(sources).getByRole('button', { name: /retry/i })).toBeEnabled()
   })
 
-  it('queries country with region and displays its flag without changing the raw filter', () => {
+  it('scopes a region filter to its country', () => {
     useStats.mockReturnValue(result({
       data: {
         ...data('region', 'California', 5),
@@ -155,8 +155,40 @@ describe('BreakdownCard', () => {
 
     expect(useStats).toHaveBeenCalledWith(expect.objectContaining({ dimensions: ['region', 'country'] }))
     expect(screen.getByRole('presentation', { hidden: true })).toHaveAttribute('src', '/flags/us.svg')
-    fireEvent.click(screen.getByRole('button', { name: /filter by region California/i }))
-    expect(onFilter).toHaveBeenCalledWith({ dimension: 'region', operator: 'is', values: ['California'] })
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by region California, United States' }))
+    expect(onFilter).toHaveBeenCalledWith({ dimension: 'region', operator: 'is', values: ['California', 'US'] })
+  })
+
+  it('keeps identically named cities in different countries separate', () => {
+    useStats.mockReturnValue(result({
+      data: {
+        columns: ['country', 'city', 'visitors'],
+        rows: [
+          { country: 'US', city: 'Springfield', visitors: 5 },
+          { country: 'CA', city: 'Springfield', visitors: 3 },
+        ],
+        totals: { visitors: 8 },
+        meta: { sources_used: ['closed'], cached: false },
+      },
+    }))
+    const onFilter = vi.fn()
+
+    render(<BreakdownCard title="Cities" tabs={tabs('city')} query={baseQuery} onFilter={onFilter} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by city Springfield, United States' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by city Springfield, Canada' }))
+    expect(onFilter).toHaveBeenNthCalledWith(1, { dimension: 'city', operator: 'is', values: ['Springfield', 'US'] })
+    expect(onFilter).toHaveBeenNthCalledWith(2, { dimension: 'city', operator: 'is', values: ['Springfield', 'CA'] })
+  })
+
+  it('does not offer an invalid place filter when its country is unknown', () => {
+    useStats.mockReturnValue(result({ data: data('city', 'Springfield', 5) }))
+    const onFilter = vi.fn()
+
+    render(<BreakdownCard title="Cities" tabs={tabs('city')} query={baseQuery} onFilter={onFilter} />)
+
+    expect(screen.queryByRole('button', { name: /filter by city Springfield/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Springfield')).toBeVisible()
   })
 
   it('queries country with region in the details table', () => {
