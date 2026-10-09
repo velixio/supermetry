@@ -166,10 +166,10 @@ func RecomputeRollups(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 select closed.day, array_agg(closed.site_id order by closed.site_id)::int[]
 from day_close closed
 where closed.status='done'
-  and exists (
+  and (exists (
     select 1 from sessions_closed sessions
     where sessions.site_id=closed.site_id and sessions.day=closed.day
-  )
+  ) or exists (select 1 from verified_page_sessions verified where verified.site_id=closed.site_id and verified.day=closed.day))
 group by closed.day
 order by closed.day`)
 	if err != nil {
@@ -220,6 +220,9 @@ where day=$1 and site_id=any($2) and status='done'`, day, siteIDs)
 func recomputeDayRollups(ctx context.Context, tx pgx.Tx, day time.Time, siteIDs []int32) error {
 	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, rollupRefreshLockID); err != nil {
 		return fmt.Errorf("lock rollup refresh: %w", err)
+	}
+	if err := rebuildVerifiedPageDay(ctx, tx, day, siteIDs); err != nil {
+		return err
 	}
 	for _, table := range []string{"rollup_day", "rollup_day_dim"} {
 		if _, err := tx.Exec(ctx, `delete from `+table+` where day=$1 and site_id=any($2)`, day, siteIDs); err != nil {

@@ -81,6 +81,9 @@ func CloseDay(ctx context.Context, pool *pgxpool.Pool, siteIDs []int32, day time
 				return err
 			}
 		}
+		if err := refreshVerifiedPages(ctx, tx, day, windowStart, windowEnd, siteIDs); err != nil {
+			return err
+		}
 		for _, table := range []string{
 			"rollup_day", "rollup_day_dim", "visitor_day", "cube_day", "custom_closed", "sessions_closed",
 		} {
