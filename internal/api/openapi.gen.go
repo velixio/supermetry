@@ -301,6 +301,39 @@ func (e Period) Valid() bool {
 	}
 }
 
+// Defines values for QueryEventAttributionBasis.
+const (
+	QueryEventAttributionBasisEvent QueryEventAttributionBasis = "event"
+)
+
+// Valid indicates whether the value is a known member of the QueryEventAttributionBasis enum.
+func (e QueryEventAttributionBasis) Valid() bool {
+	switch e {
+	case QueryEventAttributionBasisEvent:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryEventAttributionCoverage.
+const (
+	QueryEventAttributionCoverageAvailableOnly QueryEventAttributionCoverage = "available_only"
+	QueryEventAttributionCoverageExact         QueryEventAttributionCoverage = "exact"
+)
+
+// Valid indicates whether the value is a known member of the QueryEventAttributionCoverage enum.
+func (e QueryEventAttributionCoverage) Valid() bool {
+	switch e {
+	case QueryEventAttributionCoverageAvailableOnly:
+		return true
+	case QueryEventAttributionCoverageExact:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QueryPrivacyCoverage.
 const (
 	VerifiedOnly QueryPrivacyCoverage = "verified_only"
@@ -620,9 +653,10 @@ type AnnotationPatch struct {
 
 // ComparisonResult defines model for ComparisonResult.
 type ComparisonResult struct {
-	DateRange DateRange                `json:"date_range"`
-	Rows      []map[string]interface{} `json:"rows"`
-	Totals    map[string]float64       `json:"totals"`
+	DateRange        DateRange                `json:"date_range"`
+	EventAttribution *QueryEventAttribution   `json:"event_attribution,omitempty"`
+	Rows             []map[string]interface{} `json:"rows"`
+	Totals           map[string]float64       `json:"totals"`
 }
 
 // CreateAPIKeyRequest defines model for CreateAPIKeyRequest.
@@ -970,12 +1004,26 @@ type PropertyValueCount struct {
 	Value  string `json:"value"`
 }
 
+// QueryEventAttribution defines model for QueryEventAttribution.
+type QueryEventAttribution struct {
+	Basis          QueryEventAttributionBasis    `json:"basis"`
+	Coverage       QueryEventAttributionCoverage `json:"coverage"`
+	LegacyExcluded bool                          `json:"legacy_excluded"`
+}
+
+// QueryEventAttributionBasis defines model for QueryEventAttribution.Basis.
+type QueryEventAttributionBasis string
+
+// QueryEventAttributionCoverage defines model for QueryEventAttribution.Coverage.
+type QueryEventAttributionCoverage string
+
 // QueryMeta defines model for QueryMeta.
 type QueryMeta struct {
-	Cached           bool          `json:"cached"`
-	ImportedIncluded bool          `json:"imported_included"`
-	Privacy          *QueryPrivacy `json:"privacy,omitempty"`
-	SourcesUsed      []string      `json:"sources_used"`
+	Cached           bool                   `json:"cached"`
+	EventAttribution *QueryEventAttribution `json:"event_attribution,omitempty"`
+	ImportedIncluded bool                   `json:"imported_included"`
+	Privacy          *QueryPrivacy          `json:"privacy,omitempty"`
+	SourcesUsed      []string               `json:"sources_used"`
 }
 
 // QueryPrivacy defines model for QueryPrivacy.

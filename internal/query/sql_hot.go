@@ -25,7 +25,7 @@ func (e *Engine) queryHot(ctx context.Context, req Normalized, part Part) ([]res
 }
 
 func buildHotSQL(req Normalized, part Part) (string, []any, error) {
-	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) {
+	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) || req.EventAttribution {
 		return buildCustomHotSQL(req, part)
 	}
 	builder := &sqlBuilder{}

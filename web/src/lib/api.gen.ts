@@ -1252,9 +1252,17 @@ export interface components {
         };
         QueryMeta: {
             privacy?: components["schemas"]["QueryPrivacy"];
+            event_attribution?: components["schemas"]["QueryEventAttribution"];
             sources_used: string[];
             cached: boolean;
             imported_included: boolean;
+        };
+        QueryEventAttribution: {
+            /** @enum {string} */
+            basis: "event";
+            /** @enum {string} */
+            coverage: "exact" | "available_only";
+            legacy_excluded: boolean;
         };
         /**
          * @example {
@@ -1312,6 +1320,7 @@ export interface components {
          *     }
          */
         ComparisonResult: {
+            event_attribution?: components["schemas"]["QueryEventAttribution"];
             date_range: components["schemas"]["DateRange"];
             rows: {
                 [key: string]: unknown;

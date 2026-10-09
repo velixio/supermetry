@@ -70,6 +70,9 @@ type Normalized struct {
 	Compare         *api.QueryRequestCompare
 	IncludeImported bool
 	GoalDefinitions map[int64]platformgoals.Goal
+	// EventAttribution keeps event-scoped attribution semantics when derived
+	// queries (notably totals) remove their displayed dimensions.
+	EventAttribution bool
 }
 
 // Normalize validates req and resolves its date range in the requested time
@@ -169,19 +172,46 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 
 	includeImported := req.IncludeImported == nil || *req.IncludeImported
 	return Normalized{
-		SiteID:          req.SiteId,
-		From:            from,
-		To:              to,
-		Location:        location,
-		Metrics:         append([]api.Metric(nil), req.Metrics...),
-		Dimensions:      dimensions,
-		Filters:         filters,
-		OrderBy:         orderBy,
-		Limit:           limit,
-		Cursor:          clonePointer(req.Cursor),
-		Compare:         clonePointer(req.Compare),
-		IncludeImported: includeImported,
+		SiteID:           req.SiteId,
+		From:             from,
+		To:               to,
+		Location:         location,
+		Metrics:          append([]api.Metric(nil), req.Metrics...),
+		Dimensions:       dimensions,
+		Filters:          filters,
+		OrderBy:          orderBy,
+		Limit:            limit,
+		Cursor:           clonePointer(req.Cursor),
+		Compare:          clonePointer(req.Compare),
+		IncludeImported:  includeImported,
+		EventAttribution: needsEventAttribution(dimensions, filters, req.Metrics),
 	}, nil
+}
+
+func needsEventAttribution(dimensions []string, filters []api.Filter, metrics []api.Metric) bool {
+	if !hasCustomDimension(dimensions) && !hasRevenueMetric(metrics) {
+		return false
+	}
+	for _, dimension := range dimensions {
+		if isAttributionDimension(dimension) {
+			return true
+		}
+	}
+	for _, filter := range filters {
+		if isAttributionDimension(filter.Dimension) {
+			return true
+		}
+	}
+	return false
+}
+
+func isAttributionDimension(dimension string) bool {
+	switch dimension {
+	case "source", "channel", "utm_source", "utm_medium", "utm_campaign":
+		return true
+	default:
+		return false
+	}
 }
 
 func pageMetricSupportsDimensions(metric api.Metric, dimensions []string) bool {
