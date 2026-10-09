@@ -31,7 +31,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -327,11 +326,6 @@ export function PanelSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <span className="truncate px-2 text-xs text-muted-foreground">
-          {me.user.email}
-        </span>
-      </SidebarFooter>
     </Sidebar>
   )
 }
