@@ -250,6 +250,17 @@ func TestNormalizeValidatesRevenueMetricsAndCurrencyFilter(t *testing.T) {
 			}(),
 		},
 		{
+			name: "goal id filter with currency",
+			req: func() api.QueryRequest {
+				r := requestPeriod(api.N7d)
+				r.Metrics = revenueMetrics
+				return withFilters(r,
+					api.Filter{Dimension: "goal_id", Operator: api.Is, Values: []string{"4"}},
+					api.Filter{Dimension: "revenue_currency", Operator: api.Is, Values: []string{"USD"}},
+				)
+			}(),
+		},
+		{
 			name: "goal dimension",
 			req: func() api.QueryRequest {
 				r := withDimensions(requestPeriod(api.N7d), "goal")

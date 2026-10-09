@@ -45,6 +45,9 @@ func (e *Engine) resolveGoalFilters(req *Normalized) error {
 		if found.ID == 0 {
 			return errors.New(`invalid filter "goal_id"`)
 		}
+		if hasRevenueMetric(req.Metrics) && found.Kind != "event" {
+			return errors.New(`invalid filter "goal_id": revenue metrics require an event goal`)
+		}
 		if req.GoalDefinitions == nil {
 			req.GoalDefinitions = make(map[int64]platformgoals.Goal)
 		}
@@ -172,4 +175,34 @@ func goalFilterCondition(builder *sqlBuilder, filter api.Filter, tier tierKind, 
 		return "", errors.New(`invalid filter "goal_id"`)
 	}
 	return goalCondition(builder, tier, goal)
+}
+
+// customFilterConditions applies goal predicates to the revenue-bearing event
+// row itself. A session-level EXISTS would count unrelated events in that session.
+func customFilterConditions(builder *sqlBuilder, req Normalized, resolver dimensionResolver, alias string) ([]string, error) {
+	conditions := make([]string, 0, len(req.Filters))
+	for _, filter := range req.Filters {
+		if filter.Dimension != "goal_id" {
+			ordinary, err := filterConditions(builder, []api.Filter{filter}, resolver)
+			if err != nil {
+				return nil, err
+			}
+			conditions = append(conditions, ordinary...)
+			continue
+		}
+		id, err := strconv.ParseInt(filter.Values[0], 10, 64)
+		goal, ok := req.GoalDefinitions[id]
+		if err != nil || !ok || goal.SiteID != req.SiteID {
+			return nil, errors.New(`invalid filter "goal_id"`)
+		}
+		if goal.Kind != "event" {
+			return nil, errors.New(`invalid filter "goal_id": custom event queries require an event goal`)
+		}
+		condition := alias + ".name_id in (select id from dict where kind=" + strconv.Itoa(int(dict.EventName)) + " and value=" + builder.arg(goal.Value) + ")"
+		if goal.PropKey != "" {
+			condition += " and " + alias + ".props ->> " + builder.arg(goal.PropKey) + " = " + builder.arg(goal.PropValue)
+		}
+		conditions = append(conditions, condition)
+	}
+	return conditions, nil
 }
