@@ -19,9 +19,6 @@ import (
 	"panel/internal/db"
 )
 
-// Keep this in sync with the highest embedded migration in internal/db/migrations.
-const latestMigrationVersion = 25
-
 const (
 	maxManifestSize = 1 << 20
 	maxDumpSize     = int64(16) << 40
@@ -192,6 +189,10 @@ func restoreCommandWithRuntime(ctx context.Context, args []string, output io.Wri
 		return err
 	}
 	defer os.Remove(dumpName)
+	latestMigrationVersion, err := db.LatestMigrationVersion()
+	if err != nil {
+		return fmt.Errorf("read embedded migration version: %w", err)
+	}
 	if manifest.SchemaVersion > latestMigrationVersion {
 		return fmt.Errorf("backup schema version %d is newer than this binary (latest migration %d)", manifest.SchemaVersion, latestMigrationVersion)
 	}

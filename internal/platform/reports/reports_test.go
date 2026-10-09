@@ -2,7 +2,7 @@ package reports
 
 import (
 	"context"
-	"panel/internal/privacy"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +11,7 @@ import (
 	"panel/internal/platform/authz"
 	"panel/internal/platform/mail"
 	"panel/internal/platform/store"
+	"panel/internal/privacy"
 	"panel/internal/sites"
 	"panel/internal/testpg"
 )
@@ -83,10 +84,20 @@ func TestJobSkipsDisabledMail(t *testing.T) {
 
 type fakeSender struct {
 	mail.Fake
-	enabled bool
+	enabled  bool
+	failTo   map[string]error
+	attempts []string
 }
 
 func (f *fakeSender) Enabled() bool { return f.enabled }
+
+func (f *fakeSender) Send(ctx context.Context, message mail.Message) error {
+	f.attempts = append(f.attempts, message.To)
+	if err := f.failTo[message.To]; err != nil {
+		return err
+	}
+	return f.Fake.Send(ctx, message)
+}
 
 type fakeEngine struct {
 	calls   int
@@ -179,4 +190,70 @@ func TestJobRechecksAccessAfterRendering(t *testing.T) {
 	if len(sender.Sent) != 0 {
 		t.Fatal("delivered analytics after access was revoked during rendering")
 	}
+}
+
+func TestJobContinuesAfterOneReportDeliveryFails(t *testing.T) {
+	fixed := time.Date(2026, 10, 5, 8, 15, 0, 0, time.UTC)
+	service, sender, _, siteID, _ := newReportsTest(t, true)
+	service.now = func() time.Time { return fixed }
+	sender.failTo = map[string]error{"owner@example.test": errors.New("mailbox unavailable")}
+
+	ctx := context.Background()
+	var userID, orgID int64
+	if err := service.store.Pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('member@example.test', 'Member', 'hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.store.Pool.QueryRow(ctx, `select org_id from sites where id=$1`, siteID).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.store.Pool.Exec(ctx, `insert into memberships(org_id, user_id, role) values ($1, $2, 'viewer')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Subscribe(ctx, authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleViewer}, siteID, Weekly); err != nil {
+		t.Fatal(err)
+	}
+
+	err := service.Job().Run(ctx)
+	if err == nil || !errors.Is(err, sender.failTo["owner@example.test"]) {
+		t.Fatalf("Run() error = %v, want mailbox failure", err)
+	}
+	if got, want := sender.attempts, []string{"owner@example.test", "member@example.test"}; !equalStrings(got, want) {
+		t.Fatalf("delivery attempts = %v, want %v", got, want)
+	}
+	if len(sender.Sent) != 1 || sender.Sent[0].To != "member@example.test" {
+		t.Fatalf("successful deliveries = %+v, want member", sender.Sent)
+	}
+
+	var ownerSentAt, memberSentAt *time.Time
+	if err := service.store.Pool.QueryRow(ctx, `select rs.last_sent_at from report_subscriptions rs join users u on u.id=rs.user_id where rs.site_id=$1 and u.email='owner@example.test'`, siteID).Scan(&ownerSentAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.store.Pool.QueryRow(ctx, `select rs.last_sent_at from report_subscriptions rs join users u on u.id=rs.user_id where rs.site_id=$1 and u.email='member@example.test'`, siteID).Scan(&memberSentAt); err != nil {
+		t.Fatal(err)
+	}
+	if ownerSentAt != nil {
+		t.Fatalf("failed report last_sent_at = %v, want nil", ownerSentAt)
+	}
+	if memberSentAt == nil || !memberSentAt.Equal(fixed) {
+		t.Fatalf("successful report last_sent_at = %v, want %v", memberSentAt, fixed)
+	}
+
+	if err := service.Job().Run(ctx); err == nil {
+		t.Fatal("second Run() error = nil, want mailbox failure retry")
+	}
+	if got, want := sender.attempts, []string{"owner@example.test", "member@example.test", "owner@example.test"}; !equalStrings(got, want) {
+		t.Fatalf("delivery attempts after retry = %v, want %v", got, want)
+	}
+}
+
+func equalStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }

@@ -138,36 +138,47 @@ func (r *Reports) Job() scheduler.Job {
 		if err != nil {
 			return err
 		}
+		var runErr error
 		for _, subscription := range due {
-			currentRange, previousRange := reportRanges(subscription.Boundary, subscription.Cadence, subscription.Site.TZ)
-			current, err := r.summary(ctx, subscription.Site, subscription.Cadence, currentRange)
-			if err != nil {
-				return fmt.Errorf("build current report for subscription %d: %w", subscription.ID, err)
+			if err := ctx.Err(); err != nil {
+				return errors.Join(runErr, err)
 			}
-			previous, err := r.summary(ctx, subscription.Site, subscription.Cadence, previousRange)
-			if err != nil {
-				return fmt.Errorf("build previous report for subscription %d: %w", subscription.ID, err)
-			}
-			// Rendering/querying may take time. Recheck after that work so a
-			// queued report cannot deliver data after access has been removed.
-			recipient, allowed, err := store.ReportRecipient(ctx, r.store, subscription.ID)
-			if err != nil {
-				return err
-			}
-			if !allowed {
-				continue
-			}
-			message := Render(subscription.Site, current, previous)
-			message.To = recipient
-			if err := r.mailer.Send(ctx, message); err != nil {
-				return fmt.Errorf("send report subscription %d: %w", subscription.ID, err)
-			}
-			if err := store.MarkReportSent(ctx, r.store, subscription.ID, now); err != nil {
-				return err
+			if err := r.deliver(ctx, subscription, now); err != nil {
+				runErr = errors.Join(runErr, err)
 			}
 		}
-		return nil
+		return runErr
 	}}
+}
+
+func (r *Reports) deliver(ctx context.Context, subscription Subscription, sentAt time.Time) error {
+	currentRange, previousRange := reportRanges(subscription.Boundary, subscription.Cadence, subscription.Site.TZ)
+	current, err := r.summary(ctx, subscription.Site, subscription.Cadence, currentRange)
+	if err != nil {
+		return fmt.Errorf("build current report for subscription %d: %w", subscription.ID, err)
+	}
+	previous, err := r.summary(ctx, subscription.Site, subscription.Cadence, previousRange)
+	if err != nil {
+		return fmt.Errorf("build previous report for subscription %d: %w", subscription.ID, err)
+	}
+	// Rendering/querying may take time. Recheck after that work so a queued
+	// report cannot deliver data after access has been removed.
+	recipient, allowed, err := store.ReportRecipient(ctx, r.store, subscription.ID)
+	if err != nil {
+		return fmt.Errorf("recheck report subscription %d: %w", subscription.ID, err)
+	}
+	if !allowed {
+		return nil
+	}
+	message := Render(subscription.Site, current, previous)
+	message.To = recipient
+	if err := r.mailer.Send(ctx, message); err != nil {
+		return fmt.Errorf("send report subscription %d: %w", subscription.ID, err)
+	}
+	if err := store.MarkReportSent(ctx, r.store, subscription.ID, sentAt); err != nil {
+		return fmt.Errorf("mark report subscription %d sent: %w", subscription.ID, err)
+	}
+	return nil
 }
 
 type reportRange struct {
