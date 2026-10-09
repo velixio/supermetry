@@ -71,6 +71,8 @@ type Deps struct {
 	Snippet        func(publicID string, full bool) string
 	Signup         string
 	TrustedProxies []netip.Prefix
+	// SessionCountry consults the local GeoIP database only. Nil means unknown.
+	SessionCountry func(netip.Addr) string
 	Authenticator  Authenticator
 	Sites          coresites.Registry
 	Mutations      MutationService

@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"encoding/base32"
+	"net/http"
+	"strings"
 	"time"
 
 	platformcrypto "panel/internal/platform/crypto"
@@ -19,6 +21,10 @@ type Session struct {
 }
 
 type SessionInfo struct {
+	IPAddress   string
+	CountryCode string
+	Browser     string
+	Current     bool
 	ID          string
 	CreatedAt   time.Time
 	LastSeenAt  time.Time
@@ -27,6 +33,38 @@ type SessionInfo struct {
 }
 
 func (a *Auth) Session(ctx context.Context, cookieValue string) (Session, bool) {
+	return a.session(ctx, cookieValue, true)
+}
+
+// SessionForRequest excludes known read/poll endpoints from activity updates.
+// Authentication, expiry and revocation checks still run on every request.
+func (a *Auth) SessionForRequest(r *http.Request, cookieValue string) (Session, bool) {
+	return a.session(r.Context(), cookieValue, sessionRequestIsActive(r))
+}
+
+func sessionRequestIsActive(r *http.Request) bool {
+	path := r.URL.Path
+	// Query uses POST, but is read-only and polled.
+	if path == "/api/private/query" {
+		return false
+	}
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		switch path {
+		case "/api/private/me/sessions", "/api/private/realtime", "/api/private/realtime/summary", "/api/private/health":
+			return false
+		}
+		// Installation status and import progress are polled by the dashboard.
+		parts := strings.Split(strings.Trim(path, "/"), "/")
+		if len(parts) >= 4 && parts[0] == "api" && parts[1] == "private" && parts[2] == "sites" {
+			if len(parts) == 4 || (len(parts) == 5 && parts[4] == "imports") {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (a *Auth) session(ctx context.Context, cookieValue string, activity bool) (Session, bool) {
 	hash := platformcrypto.HashToken(cookieValue)
 	record, err := a.store.SessionByHash(ctx, hash)
 	if err != nil {
@@ -37,7 +75,7 @@ func (a *Auth) Session(ctx context.Context, cookieValue string) (Session, bool) 
 		_ = a.store.DeleteSession(ctx, hash)
 		return Session{}, false
 	}
-	if now.Sub(record.LastSeenAt) >= time.Minute {
+	if activity && now.Sub(record.LastSeenAt) >= time.Minute {
 		if err := a.store.TouchSession(ctx, hash, now); err != nil {
 			return Session{}, false
 		}
@@ -67,6 +105,7 @@ func (a *Auth) Sessions(ctx context.Context, userID int64) ([]SessionInfo, error
 			LastSeenAt:  record.LastSeenAt,
 			ExpiresAt:   record.ExpiresAt,
 			DeviceLabel: record.DeviceLabel,
+			IPAddress:   record.IPAddress, CountryCode: record.CountryCode, Browser: record.Browser,
 		})
 	}
 	return sessions, nil
@@ -78,4 +117,9 @@ func (a *Auth) Revoke(ctx context.Context, userID int64, sessionID string) error
 		return ErrInvalid
 	}
 	return a.store.RevokeSession(ctx, userID, hash)
+}
+
+// IsCurrentSession compares the public revocation identifier, never the token.
+func IsCurrentSession(id, cookieValue string) bool {
+	return cookieValue != "" && id == sessionIDEncoding.EncodeToString(platformcrypto.HashToken(cookieValue))
 }

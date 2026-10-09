@@ -54,7 +54,7 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 	if err != nil || cookie.Value == "" {
 		return authz.Principal{}, false
 	}
-	session, ok := a.auth.Session(r.Context(), cookie.Value)
+	session, ok := a.auth.SessionForRequest(r, cookie.Value)
 	if !ok {
 		return authz.Principal{}, false
 	}

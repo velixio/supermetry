@@ -11,6 +11,7 @@ import (
 
 	"panel/internal/clientip"
 	"panel/internal/db"
+	platformauth "panel/internal/platform/auth"
 	"panel/internal/platform/authz"
 	"panel/internal/platform/orgs"
 )
@@ -131,6 +132,7 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 }
 
 func (h *handler) listSessions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	principal, ok := h.privatePrincipal(w, r)
 	if !ok {
 		return
@@ -143,6 +145,11 @@ func (h *handler) listSessions(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		serviceError(w, err)
 		return
+	}
+	if cookie, err := r.Cookie(platformauth.CookieName); err == nil {
+		for i := range sessions {
+			sessions[i].Current = platformauth.IsCurrentSession(sessions[i].ID, cookie.Value)
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": sessions})
 }

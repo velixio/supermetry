@@ -66,7 +66,7 @@ func (a *Authenticator) authenticateSession(r *http.Request) (api.Principal, boo
 	if err != nil || cookie.Value == "" {
 		return api.Principal{}, false
 	}
-	session, ok := a.auth.Session(r.Context(), cookie.Value)
+	session, ok := a.auth.SessionForRequest(r, cookie.Value)
 	if !ok {
 		return api.Principal{}, false
 	}
