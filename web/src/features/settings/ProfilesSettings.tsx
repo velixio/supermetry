@@ -33,6 +33,9 @@ export function ProfilesSettings({
       <Field data-disabled={!canChange} orientation="horizontal">
         <FieldContent>
           <FieldLabel htmlFor="profiles-enabled">Enable profiles</FieldLabel>
+          <FieldDescription>
+            This setting controls this project's effective collection mode, not only the Profiles interface. With identified instance tracking and profiles off, collection remains anonymous; new paths outside the declared public path literals are stored as /[redacted]. Enabling profiles on an identified instance permits identifiable data and original paths from new events to be stored. Previously redacted paths cannot be restored.
+          </FieldDescription>
           <FieldDescription>{profilesConsentWarning}</FieldDescription>
           {!canManage ? <FieldDescription>Only owners and admins can change this setting.</FieldDescription> : null}
         </FieldContent>
