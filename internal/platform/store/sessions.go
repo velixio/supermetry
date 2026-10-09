@@ -14,24 +14,29 @@ type UserSession struct {
 	LastSeenAt  time.Time
 	ExpiresAt   time.Time
 	DeviceLabel string
+	IPAddress   string
+	CountryCode string
+	Browser     string
 }
 
 func CreateSession(ctx context.Context, db DBTX, session UserSession) error {
 	_, err := db.Exec(ctx, `
-		insert into user_sessions(id_hash,user_id,created_at,last_seen_at,expires_at,device_label)
-		values ($1,$2,$3,$3,$4,$5)`,
+		insert into user_sessions(id_hash,user_id,created_at,last_seen_at,expires_at,device_label,ip_address,country_code,browser)
+		values ($1,$2,$3,$3,$4,$5,nullif($6,'')::inet,nullif($7,''),nullif($8,''))`,
 		session.IDHash,
 		session.UserID,
 		session.CreatedAt,
 		session.ExpiresAt,
 		session.DeviceLabel,
+		session.IPAddress, session.CountryCode, session.Browser,
 	)
 	return err
 }
 
 func (s *Store) SessionByHash(ctx context.Context, hash []byte) (UserSession, error) {
 	return scanSession(s.Pool.QueryRow(ctx, `
-		select id_hash,user_id,created_at,last_seen_at,expires_at,device_label
+		select id_hash,user_id,created_at,last_seen_at,expires_at,device_label,
+		coalesce(host(ip_address),''),coalesce(country_code,''),coalesce(browser,'')
 		from user_sessions where id_hash=$1`, hash))
 }
 
@@ -44,6 +49,7 @@ func scanSession(row pgx.Row) (UserSession, error) {
 		&session.LastSeenAt,
 		&session.ExpiresAt,
 		&session.DeviceLabel,
+		&session.IPAddress, &session.CountryCode, &session.Browser,
 	)
 	return session, err
 }
@@ -62,9 +68,10 @@ func (s *Store) DeleteSession(ctx context.Context, hash []byte) error {
 
 func (s *Store) SessionsForUser(ctx context.Context, userID int64) ([]UserSession, error) {
 	rows, err := s.Pool.Query(ctx, `
-		select id_hash,user_id,created_at,last_seen_at,expires_at,device_label
+		select id_hash,user_id,created_at,last_seen_at,expires_at,device_label,
+		coalesce(host(ip_address),''),coalesce(country_code,''),coalesce(browser,'')
 		from user_sessions where user_id=$1
-		order by created_at desc,id_hash`, userID)
+		order by last_seen_at desc,created_at desc,id_hash`, userID)
 	if err != nil {
 		return nil, err
 	}
