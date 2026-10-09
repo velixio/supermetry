@@ -8,13 +8,22 @@ export function ReplayLink({
   org,
   site,
   sessionId,
+  onOpen,
 }: {
   hasReplay?: boolean
   org: string
   site: string
   sessionId?: string
+  onOpen?: (sessionId: string) => void
 }) {
   if (!hasReplay) return null
+  if (sessionId && onOpen) {
+    return (
+      <Button aria-label="Play replay" size="icon-sm" type="button" variant="ghost" onClick={() => onOpen(sessionId)}>
+        <PlayIcon />
+      </Button>
+    )
+  }
   const search = { period: '30d' as const, compare: 'off' as const, f: [], metric: 'visitors' as const, include_imported: true }
   return (
     <Button asChild aria-label="Play replay" size="icon-sm" variant="ghost">
