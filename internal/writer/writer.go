@@ -109,6 +109,20 @@ func New(pool *pgxpool.Pool, sess session.Store, size int, flushEvery, sessionFl
 	}
 }
 
+// RejectEventIfUnavailable rejects known-full or stopped intake without reserving
+// capacity. Slots include queued, in-flight and retrying events. A false result
+// is only a hint: callers must still use Enqueue as the final capacity check.
+// A true result accounts for exactly one dropped event; do not enqueue it again.
+func (w *Writer) RejectEventIfUnavailable() bool {
+	w.stateMu.RLock()
+	defer w.stateMu.RUnlock()
+	if !w.accepting || len(w.slots) == cap(w.slots) {
+		Dropped.Add(1)
+		return true
+	}
+	return false
+}
+
 // Enqueue transfers ownership of e to the writer. It never blocks and returns
 // false when all capacity is occupied by queued or not-yet-committed events.
 func (w *Writer) Enqueue(e Event) bool {
