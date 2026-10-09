@@ -191,8 +191,8 @@ func (h *handler) replayData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var key string
-	var day time.Time
-	err = h.deps.Store.Pool.QueryRow(r.Context(), `select blob_key,day from replay_sessions where site_id=$1 and session_id=$2 order by started_at desc limit 1`, site.ID, sessionID).Scan(&key, &day)
+	var dayText string
+	err = h.deps.Store.Pool.QueryRow(r.Context(), `select blob_key,day::text from replay_sessions where site_id=$1 and session_id=$2 order by started_at desc limit 1`, site.ID, sessionID).Scan(&key, &dayText)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeProblem(w, http.StatusNotFound, "Not found", "replay not found")
 		return
@@ -201,7 +201,8 @@ func (h *handler) replayData(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	if key != replay.SessionKey(site.ID, day, sessionID) {
+	day, err := time.Parse(time.DateOnly, dayText)
+	if err != nil || key != replay.SessionKey(site.ID, day, sessionID) {
 		writeProblem(w, http.StatusNotFound, "Not found", "replay not found")
 		return
 	}

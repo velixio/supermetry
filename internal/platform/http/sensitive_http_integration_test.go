@@ -75,7 +75,7 @@ func TestReplayGrantAndSiteBlobIsolation(t *testing.T) {
 	if err := f.pool.Pool.QueryRow(ctx, `insert into profiles(site_id,external_id,first_seen_at,last_seen_at) values ($1,'identified-replay',now(),now()) returning id`, f.siteID).Scan(&profileID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,profile_id,blob_key) values ($1,123,$2::timestamptz,$2::timestamptz,$2::timestamptz::date,100,1,$3,$4)`, f.siteID, day, profileID, key); err != nil {
+	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,profile_id,blob_key) values ($1,123,$2::timestamptz,$2::timestamptz,$3::date,100,1,$4,$5)`, f.siteID, day, day.Format(time.DateOnly), profileID, key); err != nil {
 		t.Fatal(err)
 	}
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte("body{}")))
@@ -85,6 +85,16 @@ func TestReplayGrantAndSiteBlobIsolation(t *testing.T) {
 	paths := []string{fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-01&to=2026-10-09", f.siteID), fmt.Sprintf("/api/private/sites/%d/replays/123/data", f.siteID), fmt.Sprintf("/api/private/sites/%d/replays/css/%s", f.siteID, hash)}
 	for _, actor := range []string{"viewer", "editor", "billing-only", "replay-only", "combined", "owner"} {
 		for _, path := range paths {
+			if strings.HasSuffix(path, "/data") {
+				var storedKey string
+				var storedDay string
+				if err := f.pool.Pool.QueryRow(ctx, `select blob_key,day::text from replay_sessions where site_id=$1 and session_id=123`, f.siteID).Scan(&storedKey, &storedDay); err != nil {
+					t.Fatalf("actor=%s replay row: %v", actor, err)
+				}
+				if wantKey := fmt.Sprintf("replay/%d/%s/123.gz", f.siteID, storedDay); storedKey != wantKey {
+					t.Fatalf("actor=%s stored replay key=%q want=%q", actor, storedKey, wantKey)
+				}
+			}
 			response := f.request(t, actor, "GET", path, "")
 			want := 200
 			if actor == "viewer" || actor == "editor" {
