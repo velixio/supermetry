@@ -189,6 +189,7 @@ printf 'restore argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABA
 	rt := defaultBackupRuntime()
 	rt.schemaVersion = func(context.Context, string) (int, error) { return latestMigrationVersion, nil }
 	rt.reachable = func(context.Context, string) error { return nil }
+	rt.prepareRestore = func(context.Context, string) error { return nil }
 	out := filepath.Join(dir, "full.tar.gz")
 	if err := backupCommandWithRuntime(context.Background(), []string{"--out", out}, io.Discard, getenv, rt); err != nil {
 		t.Fatal(err)
@@ -272,6 +273,7 @@ if [ "$1" = "--version" ]; then echo 'pg_dump (PostgreSQL) 17.2'; else echo 'fak
 	rt.lookupPath = func(string) (string, error) { return client, nil }
 	rt.schemaVersion = func(context.Context, string) (int, error) { return latestMigrationVersion, nil }
 	rt.reachable = func(context.Context, string) error { return nil }
+	rt.prepareRestore = func(context.Context, string) error { return nil }
 	return rt
 }
 
