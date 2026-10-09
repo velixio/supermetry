@@ -14,6 +14,11 @@ const response = {
       inp: { p75: 220, samples: 7, good: 0.4, needs_improvement: 0.4, poor: 0.2 },
     },
   ],
+  timeseries: [
+    { date: '2026-09-28', lcp: { p50: 2100, p75: 2700, p95: 3900, samples: 6 }, cls: { p50: 50, p75: 80, p95: 130, samples: 5 }, inp: { p50: 170, p75: 220, p95: 480, samples: 4 } },
+    { date: '2026-09-29', lcp: { p50: 2200, p75: 2900, p95: 4300, samples: 7 }, cls: { p50: 60, p75: 90, p95: 180, samples: 6 }, inp: { p50: 190, p75: 260, p95: 560, samples: 4 } },
+    { date: '2026-09-30', lcp: { p50: 1900, p75: 2400, p95: 3700, samples: 7 }, cls: { p50: 40, p75: 70, p95: 120, samples: 7 }, inp: { p50: 150, p75: 190, p95: 420, samples: 4 } },
+  ],
 }
 
 test('Web Vitals diagnostic breakdowns work at desktop and mobile widths', async ({ page, owner }) => {
@@ -33,6 +38,12 @@ test('Web Vitals diagnostic breakdowns work at desktop and mobile widths', async
   const vitals = `/app/${owner.orgSlug}/${owner.siteSlug}/vitals?period=custom&from=2026-09-28&to=2026-09-30`
   await page.setViewportSize({ width: 1440, height: 1000 })
   await owner.login(page, vitals)
+
+  const trend = page.getByRole('region', { name: 'Web Vitals trend' })
+  await expect(trend.getByRole('img', { name: 'Largest Contentful Paint daily percentiles' })).toBeVisible()
+  await trend.getByRole('tab', { name: 'CLS' }).click()
+  await expect(trend.getByRole('img', { name: 'Cumulative Layout Shift daily percentiles' })).toBeVisible()
+  await expect(trend.getByText('18 samples shown')).toBeVisible()
 
   const breakdown = page.getByRole('tablist', { name: 'Vitals breakdown' })
   for (const label of ['Page', 'Device', 'Country', 'Browser']) {

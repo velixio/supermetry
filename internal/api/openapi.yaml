@@ -332,7 +332,7 @@ paths:
     post:
       operationId: vitalsQuery
       summary: Query Web Vitals from raw events
-      description: Returns p75 and rating shares for LCP, CLS, and INP. The requested range must be inside the site's raw-data retention window.
+      description: Returns overall and breakdown p75/rating shares plus daily p50, p75, p95, and sample counts for LCP, CLS, and INP. Daily buckets use the site's timezone. The requested range must be inside the raw-data retention window, end no later than the current site-local day, and span at most 366 days.
       requestBody:
         required: true
         content:
@@ -2409,10 +2409,42 @@ components:
           $ref: '#/components/schemas/VitalMetric'
         inp:
           $ref: '#/components/schemas/VitalMetric'
+    VitalTrendMetric:
+      type: object
+      additionalProperties: false
+      required: [samples]
+      properties:
+        p50:
+          type: number
+          format: double
+        p75:
+          type: number
+          format: double
+        p95:
+          type: number
+          format: double
+        samples:
+          type: integer
+          format: int64
+          minimum: 0
+    VitalsTrendPoint:
+      type: object
+      additionalProperties: false
+      required: [date, lcp, cls, inp]
+      properties:
+        date:
+          type: string
+          format: date
+        lcp:
+          $ref: '#/components/schemas/VitalTrendMetric'
+        cls:
+          $ref: '#/components/schemas/VitalTrendMetric'
+        inp:
+          $ref: '#/components/schemas/VitalTrendMetric'
     VitalsResponse:
       type: object
       additionalProperties: false
-      required: [overall, breakdown]
+      required: [overall, breakdown, timeseries]
       properties:
         overall:
           $ref: '#/components/schemas/VitalsMetrics'
@@ -2421,6 +2453,12 @@ components:
           maxItems: 20
           items:
             $ref: '#/components/schemas/VitalsBreakdown'
+        timeseries:
+          type: array
+          description: Daily site-timezone buckets from raw events within the site's retention window. Days without valid samples are included with zero sample counts and omitted percentiles.
+          maxItems: 366
+          items:
+            $ref: '#/components/schemas/VitalsTrendPoint'
     FunnelStep:
       type: object
       additionalProperties: false

@@ -1540,6 +1540,14 @@ type VitalMetric struct {
 	Samples          int64    `json:"samples"`
 }
 
+// VitalTrendMetric defines model for VitalTrendMetric.
+type VitalTrendMetric struct {
+	P50     *float64 `json:"p50,omitempty"`
+	P75     *float64 `json:"p75,omitempty"`
+	P95     *float64 `json:"p95,omitempty"`
+	Samples int64    `json:"samples"`
+}
+
 // VitalsBreakdown defines model for VitalsBreakdown.
 type VitalsBreakdown struct {
 	Cls   VitalMetric `json:"cls"`
@@ -1570,6 +1578,17 @@ type VitalsRequest struct {
 type VitalsResponse struct {
 	Breakdown []VitalsBreakdown `json:"breakdown"`
 	Overall   VitalsMetrics     `json:"overall"`
+
+	// Timeseries Daily site-timezone buckets from raw events within the site's retention window. Days without valid samples are included with zero sample counts and omitted percentiles.
+	Timeseries []VitalsTrendPoint `json:"timeseries"`
+}
+
+// VitalsTrendPoint defines model for VitalsTrendPoint.
+type VitalsTrendPoint struct {
+	Cls  VitalTrendMetric   `json:"cls"`
+	Date openapi_types.Date `json:"date"`
+	Inp  VitalTrendMetric   `json:"inp"`
+	Lcp  VitalTrendMetric   `json:"lcp"`
 }
 
 // Compare defines model for Compare.
