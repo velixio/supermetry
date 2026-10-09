@@ -3,7 +3,7 @@ import { expect, test } from './fixtures'
 const fakeToken = '123456:fake-token-value-for-tests'
 
 test('creates and safely edits a disabled Telegram notification channel', async ({ page, owner }) => {
-  await owner.login(page, `/${owner.orgSlug}/settings/notifications`)
+  await owner.login(page, `/app/${owner.orgSlug}/settings/notifications`)
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Add channel' }).click()

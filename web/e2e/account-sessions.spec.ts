@@ -25,7 +25,7 @@ function seedSessions(owner: Owner) {
 }
 
 test('account sessions show real sign-in metadata, legacy fallbacks, local times and mobile revocation', async ({ page, owner }) => {
-  await owner.login(page, '/account/sessions')
+  await owner.login(page, '/app/account/sessions')
   const response = await page.request.get('/api/private/me/sessions')
   expect(response.ok()).toBe(true)
   const { data } = await response.json()

@@ -11,7 +11,7 @@ const routes = [
 ] as const
 const historyAPI = /\/api\/private\/(?:sites\/\d+\/)?(?:events|properties|sessions|profiles|journeys|heatmaps|replays|funnels|vitals|retention|goals|realtime)(?:\/|\?|$)/
 const restriction = (page: Page) => page.getByRole('status', { name: 'Tracking privacy restriction' })
-const siteRoot = (owner: Owner) => `/${owner.orgSlug}/${owner.siteSlug}`
+const siteRoot = (owner: Owner) => `/app/${owner.orgSlug}/${owner.siteSlug}`
 
 function watchPrivacyRequests(page: Page) {
   const forbidden: string[] = []

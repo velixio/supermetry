@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures'
 
 test('project settings show configured, unconfigured, and conflict currency states', async ({ page, owner }) => {
-  const settings = `/${owner.orgSlug}/${owner.siteSlug}/settings/general`
+  const settings = `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`
   await owner.login(page, settings)
 
   await expect(page.getByLabel('Revenue currency')).toHaveValue('USD')

@@ -7,7 +7,7 @@ import { expect, test } from './fixtures'
 // The normal suite uses identified mode for its existing feature/auth fixtures.
 test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Run the required separate anonymous privacy gate with SUPERMETRY_TRACKING_MODE=anonymous SUPERMETRY_REPLAY_ENABLED=false.')
 test('anonymous settings cannot escalate profiles or recording', async ({ page, owner }) => {
-  await owner.login(page, `/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
+  await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
   await expect(page.getByText(/Effective tracking: anonymous/)).toBeVisible()
   await expect(page.getByRole('switch', { name: 'Enable profiles' })).toBeDisabled()
   await expect(page.getByText(/Historical identity access is disabled/)).toBeVisible()
@@ -18,7 +18,7 @@ test('anonymous settings cannot escalate profiles or recording', async ({ page, 
   })
   expect(profiles.status()).toBe(409)
 
-  await page.goto(`/${owner.orgSlug}/${owner.siteSlug}/settings/replay`)
+  await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/settings/replay`)
   await expect(page.getByRole('switch', { name: 'Enable session replay for this project' })).toBeDisabled()
   await expect(page.getByText(/Instance replay is off/)).toBeVisible()
   const replay = await page.request.put(`/api/private/sites/${owner.siteId}/replay-settings`, {

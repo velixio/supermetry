@@ -68,7 +68,7 @@ test('billing-only no-site member reaches organization and account pages without
   })
   const reads = recordSensitiveReads(page)
   await login(page, email)
-  await expect(page).toHaveURL(`/${owner.orgSlug}/settings`)
+  await expect(page).toHaveURL(`/app/${owner.orgSlug}/settings`)
   await expect(
     page.getByText('No project data access.', { exact: false }),
   ).toBeVisible()
@@ -88,7 +88,7 @@ test('billing-only no-site member reaches organization and account pages without
   await page
     .getByRole('link', { name: 'Account settings', exact: true })
     .click()
-  await expect(page).toHaveURL('/account/profile')
+  await expect(page).toHaveURL('/app/account/profile')
   expect(reads).toEqual([])
 })
 
@@ -109,13 +109,13 @@ test('stats-only viewer cannot fetch sensitive direct URLs or see export and rep
   for (const name of ['Profiles', 'Replays'])
     await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0)
   for (const suffix of ['profiles', 'profiles/123', 'replays', 'replays/123']) {
-    await page.goto(`/${owner.orgSlug}/${owner.siteSlug}/${suffix}`)
+    await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/${suffix}`)
     await expect(
       page.getByRole('alert').filter({ hasText: 'You don’t have permission' }),
     ).toBeVisible()
   }
   await page.goto(
-    `/${owner.orgSlug}/${owner.siteSlug}/sessions?has_replay=true&replay=123`,
+    `/app/${owner.orgSlug}/${owner.siteSlug}/sessions?has_replay=true&replay=123`,
   )
   await expect(
     page.getByRole('heading', { name: 'Sessions', exact: true }),
@@ -152,11 +152,11 @@ test('revoking grants and all project access removes sensitive controls after me
     const response = page.waitForResponse((response) =>
       new URL(response.url()).pathname === `/api/private/sites/${owner.siteId}/${feature}`,
     )
-    await page.goto(`/${owner.orgSlug}/${owner.siteSlug}/${feature}`)
+    await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/${feature}`)
     expect((await response).ok()).toBe(true)
     await expect(page.getByRole('heading', { name: feature === 'profiles' ? 'Profiles' : 'Replays', exact: true })).toBeVisible()
   }
-  await page.goto(`/${owner.orgSlug}/${owner.siteSlug}`)
+  await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}`)
   const changed = await page.request.patch(
     `/api/private/orgs/${owner.orgId}/members/${member}`,
     { headers: owner.apiHeaders, data: { capabilities: [] } },
@@ -178,7 +178,7 @@ test('revoking grants and all project access removes sensitive controls after me
   )
   expect(restricted.ok(), await restricted.text()).toBe(true)
   await page.goto('/')
-  await expect(page).toHaveURL(`/${owner.orgSlug}/settings`)
+  await expect(page).toHaveURL(`/app/${owner.orgSlug}/settings`)
   await expect(
     page.getByText('No project data access.', { exact: false }),
   ).toBeVisible()
@@ -230,7 +230,7 @@ test('owner invitation controls copy a working no-site invitation without billin
   browser,
   owner,
 }) => {
-  await owner.login(page, `/${owner.orgSlug}/settings/invites`)
+  await owner.login(page, `/app/${owner.orgSlug}/settings/invites`)
   await page.getByRole('combobox', { name: 'Site access', exact: true }).selectOption('none')
   await expect(page.getByRole('checkbox', { name: /Billing Admin/ })).toHaveCount(0)
   for (const name of [/Read profiles/, /Watch replays/, /Export data/])
