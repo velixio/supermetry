@@ -14,18 +14,20 @@ import (
 )
 
 const (
-	defaultListen       = ":8080"
-	defaultEventPath    = "/api/public/v1/events"
-	defaultTrackerPath  = "/js/script.js"
-	defaultQueueSize    = 65536
-	defaultFlushEvery   = time.Second
-	defaultSessionFlush = 10 * time.Second
-	defaultQueryTimeout = 10 * time.Second
-	defaultSignup       = "invite"
-	defaultSMTPPort     = 587
-	defaultDataDir      = "./data"
-	defaultMaxMind      = "GeoLite2-City,GeoLite2-ASN"
-	defaultHomepageURL  = "https://supermetry.com"
+	defaultListen           = ":8080"
+	defaultEventPath        = "/api/public/v1/events"
+	defaultTrackerPath      = "/js/script.js"
+	defaultQueueSize        = 65536
+	defaultFlushEvery       = time.Second
+	defaultSessionFlush     = 10 * time.Second
+	defaultQueryTimeout     = 10 * time.Second
+	defaultHTTPReadTimeout  = 30 * time.Second
+	defaultHTTPWriteTimeout = 60 * time.Second
+	defaultSignup           = "invite"
+	defaultSMTPPort         = 587
+	defaultDataDir          = "./data"
+	defaultMaxMind          = "GeoLite2-City,GeoLite2-ASN"
+	defaultHomepageURL      = "https://supermetry.com"
 )
 
 var allowedMaxMindEditions = map[string]bool{
@@ -62,6 +64,8 @@ type Config struct {
 	FlushEvery           time.Duration
 	SessionFlush         time.Duration
 	QueryTimeout         time.Duration
+	HTTPReadTimeout      time.Duration
+	HTTPWriteTimeout     time.Duration
 	AdminAPIKey          string
 	MetricsToken         string
 	TrustedProxies       []netip.Prefix
@@ -122,6 +126,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		FlushEvery:           defaultFlushEvery,
 		SessionFlush:         defaultSessionFlush,
 		QueryTimeout:         defaultQueryTimeout,
+		HTTPReadTimeout:      defaultHTTPReadTimeout,
+		HTTPWriteTimeout:     defaultHTTPWriteTimeout,
 		AdminAPIKey:          getenv("SUPERMETRY_ADMIN_API_KEY"),
 		MetricsToken:         getenv("SUPERMETRY_METRICS_TOKEN"),
 		Signup:               valueOrDefault(getenv("SUPERMETRY_SIGNUP"), defaultSignup),
@@ -254,6 +260,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveDuration(getenv("SUPERMETRY_FLUSH_EVERY"), "SUPERMETRY_FLUSH_EVERY", &c.FlushEvery, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_SESSION_FLUSH"), "SUPERMETRY_SESSION_FLUSH", &c.SessionFlush, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_QUERY_TIMEOUT"), "SUPERMETRY_QUERY_TIMEOUT", &c.QueryTimeout, &errs)
+	parsePositiveDuration(getenv("SUPERMETRY_HTTP_READ_TIMEOUT"), "SUPERMETRY_HTTP_READ_TIMEOUT", &c.HTTPReadTimeout, &errs)
+	parsePositiveDuration(getenv("SUPERMETRY_HTTP_WRITE_TIMEOUT"), "SUPERMETRY_HTTP_WRITE_TIMEOUT", &c.HTTPWriteTimeout, &errs)
 	if raw := getenv("SUPERMETRY_TRUSTED_PROXIES"); raw != "" {
 		for _, item := range strings.Split(raw, ",") {
 			proxy, err := parseTrustedProxy(strings.TrimSpace(item))

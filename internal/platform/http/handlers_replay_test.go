@@ -314,7 +314,10 @@ func TestReplayDataServesGzip(t *testing.T) {
 	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key) values ($1,123,$2,$2,'2026-10-08',$3,1,$4)`, f.siteID, started, compressed.Len(), key); err != nil {
 		t.Fatal(err)
 	}
-	response := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays/123/data", f.siteID), "")
+	request := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/private/sites/%d/replays/123/data", f.siteID), nil)
+	request.Header.Set("X-Test-Actor", "owner")
+	response := &replayDeadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	f.handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || response.Header().Get("Content-Encoding") != "gzip" || response.Header().Get("Content-Type") != "application/x-ndjson" {
 		t.Fatalf("status=%d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
 	}
@@ -329,6 +332,19 @@ func TestReplayDataServesGzip(t *testing.T) {
 	if string(plain) != "{\"event\":1}\n" {
 		t.Fatalf("data=%q", plain)
 	}
+	if !response.writeDeadlineCleared {
+		t.Fatal("replay download did not clear the server write deadline")
+	}
+}
+
+type replayDeadlineRecorder struct {
+	*httptest.ResponseRecorder
+	writeDeadlineCleared bool
+}
+
+func (r *replayDeadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.writeDeadlineCleared = deadline.IsZero()
+	return nil
 }
 
 func TestInstanceStorageNeverReturnsSecret(t *testing.T) {

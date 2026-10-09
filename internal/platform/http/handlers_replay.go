@@ -212,6 +212,8 @@ func (h *handler) replayData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer body.Close()
+	// Large replay downloads can legitimately outlive the server-wide write timeout.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.Header().Set("Content-Encoding", "gzip")
 	w.Header().Set("Cache-Control", "private, no-store")

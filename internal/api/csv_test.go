@@ -5,7 +5,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
+
+type csvDeadlineRecorder struct {
+	*httptest.ResponseRecorder
+	writeDeadlineCleared bool
+}
+
+func (r *csvDeadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.writeDeadlineCleared = deadline.IsZero()
+	return nil
+}
 
 type csvQueryStub struct {
 	queryService
@@ -73,5 +84,15 @@ func TestCSVFailedQueryHasNoSuccessScope(t *testing.T) {
 	}
 	if w.Header().Get("X-Supermetry-Privacy-Scope") != "" || w.Header().Get("Content-Disposition") != "" {
 		t.Fatalf("failed query has export headers: %v", w.Header())
+	}
+}
+
+func TestStreamQueryCSVClearsWriteDeadline(t *testing.T) {
+	w := &csvDeadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	streamQueryCSV(w, httptest.NewRequest("GET", "/query", nil), csvQueryStub{response: QueryResponse{
+		Columns: []string{"page"}, Rows: []map[string]any{{"page": "/"}},
+	}}, QueryRequest{}, "site-query.csv")
+	if !w.writeDeadlineCleared {
+		t.Fatal("streaming CSV did not clear the server write deadline")
 	}
 }

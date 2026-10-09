@@ -79,6 +79,9 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" {
 		t.Fatalf("bad defaults: %+v", c)
 	}
+	if c.HTTPReadTimeout != 30*time.Second || c.HTTPWriteTimeout != 60*time.Second {
+		t.Fatalf("HTTP timeouts = (%s, %s), want (30s, 1m)", c.HTTPReadTimeout, c.HTTPWriteTimeout)
+	}
 	if c.DataDir != "./data" {
 		t.Errorf("DataDir = %q, want ./data", c.DataDir)
 	}
@@ -87,6 +90,29 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	}
 	if want := []string{"GeoLite2-City", "GeoLite2-ASN"}; !reflect.DeepEqual(c.MaxMindEditions, want) {
 		t.Errorf("MaxMindEditions = %v, want %v", c.MaxMindEditions, want)
+	}
+}
+
+func TestLoadHTTPTimeouts(t *testing.T) {
+	values := baseEnv()
+	values["SUPERMETRY_HTTP_READ_TIMEOUT"] = "12s"
+	values["SUPERMETRY_HTTP_WRITE_TIMEOUT"] = "2m"
+	got, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.HTTPReadTimeout != 12*time.Second || got.HTTPWriteTimeout != 2*time.Minute {
+		t.Fatalf("HTTP timeouts = (%s, %s), want (12s, 2m)", got.HTTPReadTimeout, got.HTTPWriteTimeout)
+	}
+
+	for _, name := range []string{"SUPERMETRY_HTTP_READ_TIMEOUT", "SUPERMETRY_HTTP_WRITE_TIMEOUT"} {
+		t.Run(name, func(t *testing.T) {
+			invalid := baseEnv()
+			invalid[name] = "0s"
+			if _, err := Load(env(invalid)); err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("Load() error = %v, want %s validation", err, name)
+			}
+		})
 	}
 }
 

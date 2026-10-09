@@ -103,6 +103,16 @@ func (importTestExporter) Write(_ context.Context, output io.Writer, _ int32, _,
 	return err
 }
 
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	writeDeadlineCleared bool
+}
+
+func (r *deadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.writeDeadlineCleared = deadline.IsZero()
+	return nil
+}
+
 func TestImportAndExportRoutesRequireOwnerOrAdmin(t *testing.T) {
 	t.Parallel()
 	roles := []struct {
@@ -209,10 +219,13 @@ func TestExportRouteStreamsZIP(t *testing.T) {
 		Exporter:      importTestExporter{},
 	})
 	request := httptest.NewRequest(http.MethodGet, "/api/private/sites/7/export?from=2026-10-01&to=2026-10-02", nil)
-	response := httptest.NewRecorder()
+	response := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/zip" || response.Body.String() != "PK\x03\x04" {
 		t.Fatalf("status=%d headers=%v body=%q", response.Code, response.Header(), response.Body.String())
+	}
+	if !response.writeDeadlineCleared {
+		t.Fatal("streaming export did not clear the server write deadline")
 	}
 }
 

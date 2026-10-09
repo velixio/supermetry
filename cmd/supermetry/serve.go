@@ -355,11 +355,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if setupURL, ok := authService.SetupURL(ctx); ok {
 		fmt.Fprintln(os.Stdout, setupURL)
 	}
-	server := &http.Server{
-		Handler:           router,
-		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       time.Minute,
-	}
+	server := newHTTPServer(router, cfg)
 
 	writerCtx, cancelWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
@@ -465,6 +461,31 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		cancelReplayStore()
 	}
 	return errors.Join(cause, httpErr)
+}
+
+func newHTTPServer(handler http.Handler, cfg config.Config) *http.Server {
+	return &http.Server{
+		Handler:           appSecurityHeaders(cfg.BaseURL, handler),
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       time.Minute,
+	}
+}
+
+func appSecurityHeaders(baseURL string, next http.Handler) http.Handler {
+	// The script hash permits only the pre-paint theme initializer in web/index.html.
+	const policy = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	hsts := strings.HasPrefix(strings.ToLower(baseURL), "https://")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", policy)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if hsts {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func pauseRollupBackfill(ctx context.Context) error {

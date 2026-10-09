@@ -260,6 +260,8 @@ func (h *handler) exportSite(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
+	// Exports can legitimately outlive the server-wide write timeout.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="supermetry-site-%d-%s-%s.zip"`, site.ID, from.Format(time.DateOnly), to.Format(time.DateOnly)))
 	if err := h.deps.Exporter.Write(r.Context(), w, site.ID, from, to); err != nil {

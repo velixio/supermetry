@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"supermetry/internal/csvsafe"
 )
@@ -24,6 +25,8 @@ func writeCSV(w http.ResponseWriter, response QueryResponse, filename string) {
 }
 
 func streamQueryCSV(w http.ResponseWriter, r *http.Request, service queryService, request QueryRequest, filename string) {
+	// Cursor exports can legitimately outlive the server-wide write timeout.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 	writer := csv.NewWriter(w)
 	writer.UseCRLF = true
 	written := 0
