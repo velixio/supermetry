@@ -1,8 +1,13 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { Flag } from '@/components/Flag'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { BrowserLabel } from '@/components/visitor/BrowserLabel'
 import { countryName, normalizeCountryCode } from '@/lib/country'
 
@@ -47,6 +52,7 @@ const sessionsKey = ['sessions']
 
 export function AccountSessionsPage() {
   const queryClient = useQueryClient()
+  const [confirmOthers, setConfirmOthers] = useState(false)
   const sessions = useQuery({
     queryKey: sessionsKey,
     queryFn: () => privateRequest<ListResponse<AccountSession>>('GET', '/api/private/me/sessions'),
@@ -55,11 +61,19 @@ export function AccountSessionsPage() {
     mutationFn: (id: string) => privateRequest<void>('DELETE', `/api/private/me/sessions/${encodeURIComponent(id)}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: sessionsKey }),
   })
+  const revokeOthers = useMutation({
+    mutationFn: () => privateRequest<void>('DELETE', '/api/private/me/sessions'),
+    onSuccess: async () => {
+      setConfirmOthers(false)
+      await queryClient.invalidateQueries({ queryKey: sessionsKey })
+    },
+  })
   const ordered = [...(sessions.data?.data ?? [])].sort((a, b) =>
     Number(Boolean(b.Current)) - Number(Boolean(a.Current)) ||
     (timestamp(b.LastSeenAt)?.getTime() ?? 0) - (timestamp(a.LastSeenAt)?.getTime() ?? 0) ||
     (timestamp(b.CreatedAt)?.getTime() ?? 0) - (timestamp(a.CreatedAt)?.getTime() ?? 0),
   )
+  const otherSessionCount = ordered.filter(session => !session.Current).length
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -68,7 +82,27 @@ export function AccountSessionsPage() {
         <p className="text-sm text-muted-foreground">Review devices signed into your account and revoke any you do not recognize.</p>
       </header>
       <section aria-label="Account sessions" className="min-w-0 rounded-xl border bg-card p-5 text-card-foreground">
-        <p className="mb-5 text-sm text-muted-foreground">IP address, approximate country and browser are recorded at sign-in. Times use your local timezone. Last active reflects authenticated activity, updated at most once a minute; known background polling does not update it.</p>
+        <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
+          <p className="text-sm text-muted-foreground">IP address, approximate country and browser are recorded at sign-in. Times use your local timezone. Last active reflects authenticated activity, updated at most once a minute; known background polling does not update it.</p>
+          <Button className="w-full shrink-0 sm:w-auto" variant="outline" disabled={!sessions.isSuccess || otherSessionCount === 0 || revokeOthers.isPending} onClick={() => setConfirmOthers(true)}>
+            Sign out all other devices
+          </Button>
+        </div>
+        <AlertDialog open={confirmOthers} onOpenChange={open => { if (!revokeOthers.isPending) setConfirmOthers(open) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sign out all other devices?</AlertDialogTitle>
+              <AlertDialogDescription>This signs out {otherSessionCount} other {otherSessionCount === 1 ? 'login session' : 'login sessions'} on your account. This session stays signed in.</AlertDialogDescription>
+              {revokeOthers.isError && <p role="alert" className="text-sm text-destructive">Could not sign out the other sessions. Try again.</p>}
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={revokeOthers.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" disabled={revokeOthers.isPending} onClick={(event) => { event.preventDefault(); revokeOthers.mutate() }}>
+                {revokeOthers.isPending ? 'Signing out…' : 'Sign out other sessions'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         {sessions.isPending && <p role="status">Loading sessions…</p>}
         {sessions.isError && <div role="alert" className="flex flex-wrap items-center gap-3"><p>Could not load your sessions.</p><Button variant="outline" size="sm" onClick={() => void sessions.refetch()}>Try again</Button></div>}
         {revoke.isError && <p role="alert" className="mb-4 text-sm text-destructive">Could not revoke this session. Try again.</p>}

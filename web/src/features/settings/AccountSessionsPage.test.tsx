@@ -100,6 +100,61 @@ describe('account active sessions', () => {
     expect(screen.getByRole('button', { name: 'Revoke current session' })).toBeEnabled()
   })
 
+  it('confirms before signing out other sessions, prevents repeat clicks and refreshes the list', async () => {
+    let finish!: () => void
+    let revoked = false
+    const pending = new Promise<void>(resolve => { finish = () => { revoked = true; resolve() } })
+    request.mockImplementation(async (method, path) => {
+      if (method === 'GET') return { data: revoked ? [current] : [current, other] }
+      if (path === '/api/private/me/sessions') return pending
+    })
+    mount()
+    const bulk = await screen.findByRole('button', { name: 'Sign out all other devices' })
+    expect(bulk).toHaveClass('w-full', 'sm:w-auto')
+    await waitFor(() => expect(bulk).toBeEnabled())
+    fireEvent.click(bulk)
+    expect(screen.getByRole('heading', { name: 'Sign out all other devices?' })).toBeVisible()
+    expect(screen.getByText('This signs out 1 other login session on your account. This session stays signed in.')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('heading', { name: 'Sign out all other devices?' })).not.toBeInTheDocument()
+    expect(request).not.toHaveBeenCalledWith('DELETE', '/api/private/me/sessions')
+
+    fireEvent.click(bulk)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out other sessions' }))
+    const pendingButton = await screen.findByRole('button', { name: 'Signing out…' })
+    expect(pendingButton).toBeDisabled()
+    fireEvent.click(pendingButton)
+    expect(request.mock.calls.filter(([method, path]) => method === 'DELETE' && path === '/api/private/me/sessions')).toHaveLength(1)
+    finish()
+    await waitFor(() => expect(request.mock.calls.filter(([method]) => method === 'GET')).toHaveLength(2))
+    await waitFor(() => expect(screen.queryByText('Chrome')).not.toBeInTheDocument())
+    expect(screen.getByText('Firefox')).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Sign out all other devices?' })).not.toBeInTheDocument()
+  })
+
+  it('disables bulk sign-out when there are no other sessions', async () => {
+    request.mockResolvedValue({ data: [current] })
+    mount()
+    expect(await screen.findByRole('button', { name: 'Sign out all other devices' })).toBeDisabled()
+    expect(request.mock.calls.filter(([method]) => method === 'DELETE')).toHaveLength(0)
+  })
+
+  it('keeps sessions visible when bulk sign-out fails', async () => {
+    request.mockImplementation(async (method, path) => {
+      if (method === 'DELETE' && path === '/api/private/me/sessions') throw new Error('offline')
+      return { data: [current, other] }
+    })
+    mount()
+    const bulk = await screen.findByRole('button', { name: 'Sign out all other devices' })
+    await waitFor(() => expect(bulk).toBeEnabled())
+    fireEvent.click(bulk)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out other sessions' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign out the other sessions')
+    expect(screen.getByText('Firefox')).toBeVisible()
+    expect(screen.getByText('Chrome')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Sign out all other devices?' })).toBeVisible()
+  })
+
   it('keeps the current session revocable and reports failures without hiding rows', async () => {
     request.mockImplementation(async (method) => {
       if (method === 'DELETE') throw new Error('denied')
