@@ -32,6 +32,28 @@ export async function privateRequest<T>(
 
 export type ListResponse<T> = { data: T[]; next_cursor?: string | null };
 
+export type TOTPReauthentication = {
+  current_password: string;
+  code: string;
+};
+
+export type TOTPEnrollment = {
+  url: string;
+  recovery_codes: string[];
+};
+
+export function enrollTOTP(body: TOTPReauthentication): Promise<TOTPEnrollment> {
+  return privateRequest("POST", "/api/private/me/totp", { body });
+}
+
+export function disableTOTP(body: TOTPReauthentication): Promise<void> {
+  return privateRequest("DELETE", "/api/private/me/totp", { body });
+}
+
+export function regenerateTOTPRecoveryCodes(body: TOTPReauthentication): Promise<{ recovery_codes: string[] }> {
+  return privateRequest("POST", "/api/private/me/totp/recovery-codes", { body });
+}
+
 export type ImportSource = "plausible" | "umami";
 
 function cookie(name: string): string | undefined {

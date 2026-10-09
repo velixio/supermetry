@@ -1,7 +1,10 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createSessionLifecycle } from '@/lib/session-lifecycle'
-import { uploadSiteImport } from './privateApi'
+import { api } from '@/lib/api'
+import { disableTOTP, enrollTOTP, regenerateTOTPRecoveryCodes, uploadSiteImport } from './privateApi'
+
+vi.mock('@/lib/api', () => ({ api: { POST: vi.fn(), DELETE: vi.fn() } }))
 
 class UploadRequest extends EventTarget {
   static latest: UploadRequest
@@ -60,4 +63,20 @@ it('unregisters failed uploads and prevents uploads after logout starts', async 
   expect(request.abort).not.toHaveBeenCalled()
   await expect(start()).rejects.toMatchObject({ name: 'AbortError' })
   expect(UploadRequest.latest.send).not.toHaveBeenCalled()
+})
+
+it('sends TOTP reauthentication only in request bodies', async () => {
+  const post = vi.mocked(api.POST)
+  const remove = vi.mocked(api.DELETE)
+  post.mockResolvedValue({ data: { url: 'otpauth://totp/test', recovery_codes: ['one'] }, error: undefined, response: new Response(null, { status: 201 }) } as never)
+  remove.mockResolvedValue({ data: undefined, error: undefined, response: new Response(null, { status: 204 }) } as never)
+  const body = { current_password: 'pw-123456789', code: '123456' }
+
+  await enrollTOTP(body)
+  await regenerateTOTPRecoveryCodes(body)
+  await disableTOTP(body)
+
+  expect(post).toHaveBeenNthCalledWith(1, '/api/private/me/totp', { body, params: undefined })
+  expect(post).toHaveBeenNthCalledWith(2, '/api/private/me/totp/recovery-codes', { body, params: undefined })
+  expect(remove).toHaveBeenCalledWith('/api/private/me/totp', { body, params: undefined })
 })
