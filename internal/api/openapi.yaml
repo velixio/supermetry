@@ -2670,10 +2670,12 @@ components:
     ReplayList:
       type: object
       additionalProperties: false
-      required: [data]
+      required: [data, total, total_capped]
       properties:
         data: { type: array, items: { $ref: '#/components/schemas/ReplaySummary' } }
         next_cursor: { type: [string, 'null'] }
+        total: { type: integer, minimum: 0, maximum: 10000 }
+        total_capped: { type: boolean }
     Profile:
       type: object
       additionalProperties: false
@@ -2713,12 +2715,14 @@ components:
     SessionList:
       type: object
       additionalProperties: false
-      required: [data]
+      required: [data, total, total_capped]
       properties:
         data:
           type: array
           items: { $ref: '#/components/schemas/SessionSummary' }
         next_cursor: { type: [string, 'null'] }
+        total: { type: integer, minimum: 0, maximum: 10000 }
+        total_capped: { type: boolean }
     SessionTimelineItem:
       type: object
       additionalProperties: false
@@ -2747,13 +2751,15 @@ components:
     ProfileList:
       type: object
       additionalProperties: false
-      required: [profiles_enabled, data]
+      required: [profiles_enabled, data, total, total_capped]
       properties:
         profiles_enabled: { type: boolean }
         data:
           type: array
           items: { $ref: '#/components/schemas/Profile' }
         next_cursor: { type: [string, 'null'] }
+        total: { type: integer, minimum: 0, maximum: 10000 }
+        total_capped: { type: boolean }
     ProfileEvent:
       type: object
       additionalProperties: false
@@ -2771,12 +2777,14 @@ components:
         - $ref: '#/components/schemas/Profile'
         - type: object
           additionalProperties: false
-          required: [timeline]
+          required: [timeline, total, total_capped]
           properties:
             timeline:
               type: array
               items: { $ref: '#/components/schemas/ProfileEvent' }
             next_cursor: { type: [string, 'null'] }
+            total: { type: integer, minimum: 0, maximum: 10000 }
+            total_capped: { type: boolean }
     EventExploreItem:
       type: object
       additionalProperties: false
@@ -2802,13 +2810,15 @@ components:
     EventExploreList:
       type: object
       additionalProperties: false
-      required: [data]
+      required: [data, total, total_capped]
       properties:
         data:
           type: array
           maxItems: 100
           items: { $ref: '#/components/schemas/EventExploreItem' }
         next_cursor: { type: [string, 'null'] }
+        total: { type: integer, minimum: 0, maximum: 10000 }
+        total_capped: { type: boolean }
     PropertyKeyCount:
       type: object
       additionalProperties: false

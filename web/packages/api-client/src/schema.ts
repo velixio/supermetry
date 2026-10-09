@@ -1519,6 +1519,8 @@ export interface components {
         ReplayList: {
             data: components["schemas"]["ReplaySummary"][];
             next_cursor?: string | null;
+            total: number;
+            total_capped: boolean;
         };
         Profile: {
             /** Format: int64 */
@@ -1563,6 +1565,8 @@ export interface components {
         SessionList: {
             data: components["schemas"]["SessionSummary"][];
             next_cursor?: string | null;
+            total: number;
+            total_capped: boolean;
         };
         SessionTimelineItem: {
             /** Format: date-time */
@@ -1583,6 +1587,8 @@ export interface components {
             profiles_enabled: boolean;
             data: components["schemas"]["Profile"][];
             next_cursor?: string | null;
+            total: number;
+            total_capped: boolean;
         };
         ProfileEvent: {
             /** Format: date-time */
@@ -1597,6 +1603,8 @@ export interface components {
         ProfileDetail: components["schemas"]["Profile"] & {
             timeline: components["schemas"]["ProfileEvent"][];
             next_cursor?: string | null;
+            total: number;
+            total_capped: boolean;
         };
         EventExploreItem: {
             /** Format: date-time */
@@ -1619,6 +1627,8 @@ export interface components {
         EventExploreList: {
             data: components["schemas"]["EventExploreItem"][];
             next_cursor?: string | null;
+            total: number;
+            total_capped: boolean;
         };
         PropertyKeyCount: {
             key: string;
