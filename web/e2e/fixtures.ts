@@ -127,9 +127,33 @@ export default async function globalSetup(config: FullConfig) {
   mkdirSync('e2e/screenshots', { recursive: true })
   await api.dispose()
 
-  return () => {
+  return async () => {
     const testDSN = required('SUPERMETRY_TEST_DSN')
     const schema = required('SUPERMETRY_E2E_SCHEMA')
+    const serverPIDFile = required('SUPERMETRY_E2E_SERVER_PID_FILE')
+    const serverPID = Number(readFileSync(serverPIDFile, 'utf8').trim())
+    if (!Number.isSafeInteger(serverPID) || serverPID <= 1) throw new Error('invalid E2E server PID')
+    try {
+      process.kill(serverPID, 'SIGTERM')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+    }
+    const shutdownDeadline = Date.now() + 5_000
+    while (Date.now() < shutdownDeadline) {
+      try {
+        process.kill(serverPID, 0)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ESRCH') break
+        throw error
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    try {
+      process.kill(serverPID, 0)
+      throw new Error('E2E server did not stop before schema cleanup')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+    }
     execFileSync('psql', [
       testDSN,
       '-v',
@@ -139,6 +163,7 @@ export default async function globalSetup(config: FullConfig) {
     ])
     rmSync(required('SUPERMETRY_E2E_RESET_FILE'), { force: true })
     rmSync(required('SUPERMETRY_E2E_SITES_FILE'), { force: true })
+    rmSync(serverPIDFile, { force: true })
   }
 }
 
