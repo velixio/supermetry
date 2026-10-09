@@ -17,5 +17,12 @@ function GoalsRoute() {
     item.slug === siteSlug || item.public_id === siteSlug || String(item.id) === siteSlug,
   )
   if (!site) return null
-  return <GoalsPage dateRange={resolveRange('30d', 'UTC', new Date())} siteId={site.id} />
+  return (
+    <GoalsPage
+      dateRange={resolveRange('30d', 'UTC', new Date())}
+      siteId={site.id}
+      revenueCurrency={site.revenue_currency}
+      revenueCurrencyState={site.revenue_currency_state}
+    />
+  )
 }

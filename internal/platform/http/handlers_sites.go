@@ -20,23 +20,25 @@ import (
 )
 
 type siteResponse struct {
-	TrackingPolicy        trackingPolicyResponse    `json:"tracking_policy"`
-	ID                    int32                     `json:"id"`
-	OrgID                 int64                     `json:"org_id"`
-	PublicID              string                    `json:"public_id"`
-	Name                  string                    `json:"name"`
-	Timezone              string                    `json:"timezone"`
-	RetentionDays         int                       `json:"retention_days"`
-	AllowedHosts          []string                  `json:"allowed_hosts"`
-	ExcludeIPs            []string                  `json:"exclude_ips"`
-	ExcludePaths          []string                  `json:"exclude_paths"`
-	ExcludeCountries      []string                  `json:"exclude_countries"`
-	Tracker               coresites.TrackerSettings `json:"tracker"`
-	TrackerURL            string                    `json:"tracker_url"`
-	ProfilesEnabled       bool                      `json:"profiles_enabled"`
-	HeatmapsEnabled       bool                      `json:"heatmaps_enabled"`
-	RespectPrivacySignals bool                      `json:"respect_privacy_signals"`
-	IconURL               string                    `json:"icon_url"`
+	TrackingPolicy        trackingPolicyResponse         `json:"tracking_policy"`
+	ID                    int32                          `json:"id"`
+	OrgID                 int64                          `json:"org_id"`
+	PublicID              string                         `json:"public_id"`
+	Name                  string                         `json:"name"`
+	Timezone              string                         `json:"timezone"`
+	RetentionDays         int                            `json:"retention_days"`
+	AllowedHosts          []string                       `json:"allowed_hosts"`
+	ExcludeIPs            []string                       `json:"exclude_ips"`
+	ExcludePaths          []string                       `json:"exclude_paths"`
+	ExcludeCountries      []string                       `json:"exclude_countries"`
+	Tracker               coresites.TrackerSettings      `json:"tracker"`
+	TrackerURL            string                         `json:"tracker_url"`
+	ProfilesEnabled       bool                           `json:"profiles_enabled"`
+	HeatmapsEnabled       bool                           `json:"heatmaps_enabled"`
+	RespectPrivacySignals bool                           `json:"respect_privacy_signals"`
+	IconURL               string                         `json:"icon_url"`
+	RevenueCurrency       string                         `json:"revenue_currency,omitempty"`
+	RevenueCurrencyState  coresites.RevenueCurrencyState `json:"revenue_currency_state"`
 }
 
 func (h *handler) listSites(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +112,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 		coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
-		coalesce(settings->>'icon_url',''),created_at
+		coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,created_at
 		from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 		order by created_at,id limit $3`
 	args := []any{principal.OrgID, principal.SiteIDs, limit + 1}
@@ -121,7 +123,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 			coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 			coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
-			coalesce(settings->>'icon_url',''),created_at
+			coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,created_at
 			from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 			and (created_at,id)>($3,$4) order by created_at,id limit $5`
 		args = []any{principal.OrgID, principal.SiteIDs, cursor.CreatedAt, cursor.ID, limit + 1}
@@ -146,7 +148,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			&item.response.ExcludePaths, &item.response.ExcludeCountries, &trackerRaw,
 			&item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
 			&item.response.RespectPrivacySignals,
-			&item.response.IconURL, &item.createdAt); err != nil {
+			&item.response.IconURL, &item.response.RevenueCurrency, &item.response.RevenueCurrencyState, &item.createdAt); err != nil {
 			return nil, "", err
 		}
 		item.response.Timezone = timezone
@@ -284,12 +286,17 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		ProfilesEnabled       *bool           `json:"profiles_enabled"`
 		HeatmapsEnabled       *bool           `json:"heatmaps_enabled"`
 		RespectPrivacySignals *bool           `json:"respect_privacy_signals"`
+		RevenueCurrency       *string         `json:"revenue_currency"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
 	}
 	if request.ProfilesEnabled != nil && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "only owners and admins can change profiles")
+		return
+	}
+	if request.RevenueCurrency != nil && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "only owners and admins can set the permanent revenue currency")
 		return
 	}
 	if request.ProfilesEnabled != nil && *request.ProfilesEnabled && h.deps.TrackingMode != privacy.Identified {
@@ -323,6 +330,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		ExcludeCountries: request.ExcludeCountries, Tracker: tracker,
 		ProfilesEnabled: request.ProfilesEnabled, HeatmapsEnabled: request.HeatmapsEnabled,
 		RespectPrivacySignals: request.RespectPrivacySignals,
+		RevenueCurrency:       request.RevenueCurrency,
 	})
 	if err != nil {
 		serviceError(w, err)
@@ -371,6 +379,8 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		HeatmapsEnabled:       site.HeatmapsEnabled,
 		RespectPrivacySignals: site.RespectPrivacySignals,
 		IconURL:               site.IconURL,
+		RevenueCurrency:       site.RevenueCurrency,
+		RevenueCurrencyState:  site.RevenueCurrencyState,
 	}
 	if h.deps.Store != nil {
 		_ = h.deps.Store.Pool.QueryRow(r.Context(), `select name,coalesce(settings->>'icon_url','') from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).Scan(&response.Name, &response.IconURL)

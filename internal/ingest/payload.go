@@ -195,7 +195,7 @@ func (p *Payload) normalizeRevenue() {
 		return
 	}
 	micros, ok := parseRevenueMicros(revenue.Amount)
-	if !ok || !validCurrency(revenue.Currency) {
+	if !ok || (revenue.Currency != "" && !validCurrency(revenue.Currency)) {
 		p.Revenue = nil
 		p.RevenueInvalid = true
 		return

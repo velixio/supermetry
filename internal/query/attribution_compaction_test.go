@@ -64,7 +64,7 @@ values
 		t.Fatal(err)
 	}
 	goals := revenueGoalLookup{{ID: 1, SiteID: 1, Kind: "event", Match: "exact", Value: "purchase", Currency: "USD"}}
-	engine := identifiedEngine(pool, dictionary, registry{site: sites.Site{ID: 1, PublicID: "attribution", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}, goals)
+	engine := identifiedEngine(pool, dictionary, registry{site: sites.Site{ID: 1, PublicID: "attribution", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}, goals)
 
 	for _, tc := range []struct {
 		name, from, to string

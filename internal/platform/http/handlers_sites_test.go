@@ -45,7 +45,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, principal, "Example", []string{"example.test"}, "UTC", 30)
+	site, err := sites.Create(ctx, principal, "Example", []string{"example.test"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry, privacy.Identified)
 	owner := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, owner, "Example", []string{"example.test"}, "UTC", 30)
+	site, err := sites.Create(ctx, owner, "Example", []string{"example.test"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -33,6 +33,7 @@ func (w *Writer) identityAllowed(siteID int32) bool {
 func (w *Writer) suppressRestrictedIdentity(events []Event) {
 	for i := range events {
 		e := &events[i]
+		w.enforceRevenueCurrency(e)
 		identityAllowed := w.identityAllowed(e.SiteID)
 		w.validatePathProvenance(e, identityAllowed)
 		if identityAllowed {
@@ -40,6 +41,25 @@ func (w *Writer) suppressRestrictedIdentity(events []Event) {
 		}
 		e.ProfileExternalID, e.ProfileID, e.ProfileTraits, e.Props = "", 0, nil, nil
 		e.ReferrerID, e.Source, e.UTMSource, e.Medium, e.Campaign = 0, 0, 0, 0, 0
+	}
+}
+
+// Recheck queued events against the latest local registry snapshot. This
+// fails closed during initial configuration, conflicts, deletion, and rollout.
+func (w *Writer) enforceRevenueCurrency(event *Event) {
+	if event.RevenueMicros == 0 {
+		return
+	}
+	w.trackingMu.RLock()
+	registry := w.trackingSites
+	w.trackingMu.RUnlock()
+	if registry == nil {
+		event.RevenueMicros, event.RevenueCurrency = 0, ""
+		return
+	}
+	site, ok := registry.Site(event.SiteID)
+	if !ok || site.RevenueCurrencyState != sites.RevenueCurrencyConfigured || event.RevenueCurrency != site.RevenueCurrency {
+		event.RevenueMicros, event.RevenueCurrency = 0, ""
 	}
 }
 

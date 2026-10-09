@@ -303,7 +303,7 @@ func TestMeReturnsUserMembershipsAndSites(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, principal, "Example site", []string{"example.test"}, "Asia/Kathmandu", 30)
+	site, err := sites.Create(ctx, principal, "Example site", []string{"example.test"}, "Asia/Kathmandu", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +383,7 @@ func TestMutationsWriteAudit(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, principal, "Example", []string{"example.test"}, "UTC", 30)
+	site, err := sites.Create(ctx, principal, "Example", []string{"example.test"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,7 +508,7 @@ func TestGoalAndFunnelMutationsWriteAudit(t *testing.T) {
 	t.Cleanup(registry.Close)
 	siteService := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := siteService.Create(ctx, principal, "Routes", []string{"routes.example.test"}, "UTC", 30)
+	site, err := siteService.Create(ctx, principal, "Routes", []string{"routes.example.test"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -526,9 +526,10 @@ func TestGoalAndFunnelMutationsWriteAudit(t *testing.T) {
 	if err := pool.QueryRow(ctx, `select currency from goals where id=$1`, goalID).Scan(&currency); err != nil || currency != "USD" {
 		t.Fatalf("created goal currency=%q error=%v", currency, err)
 	}
-	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"event","match":"exact","value":"purchase","name":"Purchase","currency":"EUR"}`, http.StatusOK)
-	if err := pool.QueryRow(ctx, `select currency from goals where id=$1`, goalID).Scan(&currency); err != nil || currency != "EUR" {
-		t.Fatalf("updated goal currency=%q error=%v", currency, err)
+	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"event","match":"exact","value":"purchase","name":"Purchase","currency":"EUR"}`, http.StatusBadRequest)
+	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"event","match":"exact","value":"purchase","name":"Purchase complete","currency":"USD"}`, http.StatusOK)
+	if err := pool.QueryRow(ctx, `select currency from goals where id=$1`, goalID).Scan(&currency); err != nil || currency != "USD" {
+		t.Fatalf("preserved goal currency=%q error=%v", currency, err)
 	}
 	requestOK(t, handler, http.MethodPatch, fmt.Sprintf("/api/private/goals/%d", goalID), `{"kind":"page","match":"exact","value":"/done","name":"Purchase","currency":"USD"}`, http.StatusBadRequest)
 	requestOK(t, handler, http.MethodDelete, fmt.Sprintf("/api/private/goals/%d", goalID), "", http.StatusNoContent)

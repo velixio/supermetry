@@ -100,6 +100,9 @@ func (h *handler) createGoal(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "goal fields are invalid")
 		return
 	}
+	if !h.validateGoalCurrencyForSite(w, site, input.Currency) {
+		return
+	}
 	if h.deps.Store == nil {
 		unavailable(w, "goal")
 		return
@@ -131,6 +134,10 @@ func (h *handler) updateGoal(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validGoal(input) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "goal fields are invalid")
+		return
+	}
+	site, exists := h.deps.Sites.Site(goal.SiteID)
+	if !exists || !h.validateGoalCurrencyForSite(w, site, input.Currency) {
 		return
 	}
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
@@ -220,6 +227,25 @@ func validGoalCurrency(kind, currency string) bool {
 		if currency[i] < 'A' || currency[i] > 'Z' {
 			return false
 		}
+	}
+	return true
+}
+
+func (h *handler) validateGoalCurrencyForSite(w http.ResponseWriter, site coresites.Site, currency string) bool {
+	if currency == "" {
+		return true
+	}
+	if site.RevenueCurrencyState == coresites.RevenueCurrencyConflict {
+		writeProblem(w, http.StatusConflict, "Conflict", "revenue goals are paused because this project has mixed historical currencies")
+		return false
+	}
+	if site.RevenueCurrencyState != coresites.RevenueCurrencyConfigured {
+		writeProblem(w, http.StatusConflict, "Conflict", "set the project's permanent revenue currency before enabling revenue for a goal")
+		return false
+	}
+	if currency != site.RevenueCurrency {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "goal currency must match the project's permanent revenue currency")
+		return false
 	}
 	return true
 }

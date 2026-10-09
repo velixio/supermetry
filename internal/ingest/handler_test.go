@@ -626,7 +626,7 @@ func TestCustomEventRevenuePersistsExactMicros(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	for _, body := range []string{
 		`{"site":"abc123","name":"purchase-string","url":"https://example.com/","revenue":{"amount":"12.345678","currency":"USD"}}`,
-		`{"site":"abc123","name":"purchase-number","url":"https://example.com/","revenue":{"amount":1000000000000,"currency":"JPY"}}`,
+		`{"site":"abc123","name":"purchase-number","url":"https://example.com/","revenue":{"amount":1000000000000,"currency":"USD"}}`,
 	} {
 		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 			t.Fatalf("code=%d, want 202", rr.Code)
@@ -641,7 +641,7 @@ select revenue_micros, revenue_currency from events order by revenue_micros`)
 	}
 	defer rows.Close()
 	wantMicros := []int64{12_345_678, 1_000_000_000_000_000_000}
-	wantCurrencies := []string{"USD", "JPY"}
+	wantCurrencies := []string{"USD", "USD"}
 	var i int
 	for rows.Next() {
 		var micros int64
@@ -659,6 +659,24 @@ select revenue_micros, revenue_currency from events order by revenue_micros`)
 	}
 	if i != len(wantMicros) {
 		t.Fatalf("rows=%d, want %d", i, len(wantMicros))
+	}
+}
+
+func TestCustomEventRevenueInheritsProjectCurrencyAndRejectsMismatch(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99"}}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("inherited currency status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99","currency":"EUR"}}`, testUA, "198.51.100.8:5555"); rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "permanent currency") {
+		t.Fatalf("mismatch status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	f.stop(t)
+	var currency string
+	if err := f.pool.QueryRow(context.Background(), `select revenue_currency from events`).Scan(&currency); err != nil {
+		t.Fatal(err)
+	}
+	if currency != "USD" {
+		t.Fatalf("stored currency=%q, want USD", currency)
 	}
 }
 
@@ -853,7 +871,7 @@ func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *han
 	}
 
 	path := filepath.Join(t.TempDir(), "sites.json")
-	if err := os.WriteFile(path, []byte(`[{"id":1,"public_id":"abc123","timezone":"UTC","retention_days":30,"allowed_hosts":["example.com"]}]`), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(`[{"id":1,"public_id":"abc123","timezone":"UTC","retention_days":30,"allowed_hosts":["example.com"],"revenue_currency":"USD","revenue_currency_state":"configured"}]`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	registry, err := sites.LoadFile(path)
@@ -874,6 +892,7 @@ func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *han
 	primeDictionary(t, dictionary)
 	sessions := session.NewMemory(4, clk)
 	w := writer.New(pool, sessions, queueSize, time.Hour, time.Hour, noneClosed{})
+	w.SetTrackingPolicy(privacy.Anonymous, registry)
 	w.SetPathPolicy(privacy.PathPolicy{}, dictionary)
 	runCtx, cancel := context.WithCancel(context.Background())
 	stopped := make(chan error, 1)

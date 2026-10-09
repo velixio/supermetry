@@ -97,6 +97,7 @@ export default async function globalSetup(config: FullConfig) {
       hosts: ['site1.test'],
       timezone: 'America/New_York',
       retention_days: 30,
+      revenue_currency: 'USD',
     },
   })
   const site = await responseJSON<Record<string, unknown>>(createdSite)

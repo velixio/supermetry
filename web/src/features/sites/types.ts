@@ -12,6 +12,7 @@ export type SiteInput = {
   hosts: string[]
   timezone: string
   retention_days: RetentionDays
+  revenue_currency: string
 }
 
 export type TrackerSettings = {
@@ -30,6 +31,8 @@ export type SiteUpdate = {
   exclude_paths?: string[]
   exclude_countries?: string[]
   heatmaps_enabled?: boolean
+  revenue_currency?: string
+  revenue_currency_state?: 'unconfigured' | 'configured' | 'conflict'
 }
 
 export type ManagedSite = {

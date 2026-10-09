@@ -261,6 +261,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
+	siteService.SetQueryInvalidator(engine.InvalidateSite)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		TrackingMode: cfg.Tracking.Mode,
 		BaseURL:      cfg.BaseURL, TrackerPath: cfg.TrackerPath,

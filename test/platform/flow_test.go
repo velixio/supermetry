@@ -345,7 +345,7 @@ func (c *client) createSite(t *testing.T, name, host, timezone string) site {
 	t.Helper()
 	var created site
 	c.request(t, http.MethodPost, "/api/private/sites", map[string]any{
-		"name": name, "hosts": []string{host}, "timezone": timezone, "retention_days": 30,
+		"name": name, "hosts": []string{host}, "timezone": timezone, "retention_days": 30, "revenue_currency": "USD",
 	}, http.StatusCreated, &created)
 	return created
 }

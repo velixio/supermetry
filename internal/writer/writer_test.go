@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"panel/internal/db"
+	"panel/internal/privacy"
 	"panel/internal/session"
+	"panel/internal/sites"
 	"panel/internal/testpg"
 	"panel/internal/writer"
 )
@@ -23,6 +25,14 @@ type noneClosed struct{}
 func (noneClosed) IsClosed(int32, time.Time) bool { return false }
 
 type closedOn struct{ day time.Time }
+
+type revenueRegistry struct{ site sites.Site }
+
+func (r revenueRegistry) Site(id int32) (sites.Site, bool) { return r.site, r.site.ID == id }
+func (r revenueRegistry) ByPublicID(id string) (sites.Site, bool) {
+	return r.site, r.site.PublicID == id
+}
+func (r revenueRegistry) All() []sites.Site { return []sites.Site{r.site} }
 
 func (c closedOn) IsClosed(_ int32, day time.Time) bool {
 	return day.Equal(c.day)
@@ -65,6 +75,7 @@ func TestFlushOnShutdownAndLateEventMarksDirty(t *testing.T) {
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	w := writer.New(pool, session.NewMemory(1, realClock{}), 100, time.Hour, time.Hour, closedOn{day: day})
+	w.SetTrackingPolicy(privacy.Anonymous, revenueRegistry{site: sites.Site{ID: 1, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}})
 	stopped := runWriter(w, runCtx)
 	if !w.Enqueue(writer.Event{
 		Hit: session.Hit{

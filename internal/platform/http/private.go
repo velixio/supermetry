@@ -121,10 +121,11 @@ type Services struct {
 }
 
 type CreateSiteRequest struct {
-	Name          string   `json:"name"`
-	Hosts         []string `json:"hosts"`
-	Timezone      string   `json:"timezone"`
-	RetentionDays int      `json:"retention_days"`
+	Name            string   `json:"name"`
+	Hosts           []string `json:"hosts"`
+	Timezone        string   `json:"timezone"`
+	RetentionDays   int      `json:"retention_days"`
+	RevenueCurrency string   `json:"revenue_currency"`
 }
 
 type CreateAPIKeyRequest struct {
@@ -247,7 +248,7 @@ func (s Services) CreateSite(ctx context.Context, principal authz.Principal, req
 	if s.Sites == nil {
 		return coresites.Site{}, errors.New("site service is unavailable")
 	}
-	return s.Sites.Create(ctx, principal, request.Name, request.Hosts, request.Timezone, request.RetentionDays)
+	return s.Sites.Create(ctx, principal, request.Name, request.Hosts, request.Timezone, request.RetentionDays, request.RevenueCurrency)
 }
 
 func (s Services) UpdateSite(ctx context.Context, principal authz.Principal, id int32, patch sitesvc.SitePatch) (coresites.Site, error) {

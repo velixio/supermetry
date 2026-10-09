@@ -76,6 +76,8 @@ type Site = {
   tracking_policy?: TrackingPolicy;
   last_event_received_at?: string;
   icon_url?: string;
+  revenue_currency?: string;
+  revenue_currency_state: "unconfigured" | "configured" | "conflict";
 };
 
 type Member = {
@@ -191,6 +193,9 @@ export function SiteGeneralPage({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const revenueCurrency = String(data.get("revenue_currency") ?? "")
+      .trim()
+      .toUpperCase();
     save.mutate({
       name: String(data.get("name") ?? ""),
       hosts: String(data.get("hosts") ?? "")
@@ -199,6 +204,7 @@ export function SiteGeneralPage({
         .filter(Boolean),
       timezone: String(data.get("timezone") ?? ""),
       retention_days: Number(data.get("retention")),
+      ...(revenueCurrency ? { revenue_currency: revenueCurrency } : {}),
     });
   }
   return (
@@ -218,54 +224,55 @@ export function SiteGeneralPage({
             />
             <form className="flex flex-col gap-5" onSubmit={submit}>
               <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="site-name">Name</FieldLabel>
-                <Input
-                  id="site-name"
-                  name="name"
-                  defaultValue={site.data.name}
+                <Field>
+                  <FieldLabel htmlFor="site-name">Name</FieldLabel>
+                  <Input
+                    id="site-name"
+                    name="name"
+                    defaultValue={site.data.name}
+                  />
+                </Field>
+                <RevenueCurrencySettings site={site.data} role={role} />
+                <Field>
+                  <FieldLabel htmlFor="site-hosts">Allowed hosts</FieldLabel>
+                  <Input
+                    id="site-hosts"
+                    name="hosts"
+                    defaultValue={site.data.allowed_hosts.join(", ")}
+                  />
+                  <FieldDescription>
+                    Separate multiple hosts with commas.
+                  </FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="site-timezone">Time zone</FieldLabel>
+                  <Input
+                    id="site-timezone"
+                    name="timezone"
+                    defaultValue={site.data.timezone}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="site-retention">Retention</FieldLabel>
+                  <select
+                    id="site-retention"
+                    name="retention"
+                    defaultValue={site.data.retention_days}
+                    className="h-9 rounded-lg border bg-background px-3 text-sm"
+                  >
+                    <option value="7">7 days</option>
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                    <option value="365">365 days</option>
+                    <option value="0">Forever</option>
+                  </select>
+                </Field>
+                <ProfilesSettings
+                  enabled={site.data.profiles_enabled}
+                  policy={site.data.tracking_policy}
+                  role={role}
+                  onChange={(profiles_enabled) => save.mutate({ profiles_enabled })}
                 />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="site-hosts">Allowed hosts</FieldLabel>
-                <Input
-                  id="site-hosts"
-                  name="hosts"
-                  defaultValue={site.data.allowed_hosts.join(", ")}
-                />
-                <FieldDescription>
-                  Separate multiple hosts with commas.
-                </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="site-timezone">Time zone</FieldLabel>
-                <Input
-                  id="site-timezone"
-                  name="timezone"
-                  defaultValue={site.data.timezone}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="site-retention">Retention</FieldLabel>
-                <select
-                  id="site-retention"
-                  name="retention"
-                  defaultValue={site.data.retention_days}
-                  className="h-9 rounded-lg border bg-background px-3 text-sm"
-                >
-                  <option value="7">7 days</option>
-                  <option value="30">30 days</option>
-                  <option value="90">90 days</option>
-                  <option value="365">365 days</option>
-                  <option value="0">Forever</option>
-                </select>
-              </Field>
-              <ProfilesSettings
-                enabled={site.data.profiles_enabled}
-                policy={site.data.tracking_policy}
-                role={role}
-                onChange={(profiles_enabled) => save.mutate({ profiles_enabled })}
-              />
               </FieldGroup>
               <Message error={save.error} />
               <Button
@@ -284,6 +291,46 @@ export function SiteGeneralPage({
         )}
       </Surface>
     </Page>
+  );
+}
+
+export function RevenueCurrencySettings({ site, role }: { site: Site; role: Role }) {
+  if (site.revenue_currency_state === "conflict") {
+    return (
+      <div role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm">
+        <strong>Revenue reporting paused.</strong> This project contains mixed historical currencies.
+        Ordinary analytics remain available; resolve the historical data before tracking or totaling revenue.
+      </div>
+    );
+  }
+  if (site.revenue_currency_state === "configured") {
+    return (
+      <Field>
+        <FieldLabel htmlFor="site-revenue-currency">Revenue currency</FieldLabel>
+        <Input id="site-revenue-currency" value={site.revenue_currency ?? ""} readOnly />
+        <FieldDescription>This currency is permanent for the project.</FieldDescription>
+      </Field>
+    );
+  }
+  const allowed = role === "owner" || role === "admin";
+  return (
+    <Field>
+      <FieldLabel htmlFor="site-revenue-currency">Revenue currency</FieldLabel>
+      <Input
+        id="site-revenue-currency"
+        name="revenue_currency"
+        maxLength={3}
+        pattern="[A-Za-z]{3}"
+        placeholder="USD"
+        disabled={!allowed}
+        required={allowed}
+      />
+      <FieldDescription>
+        {allowed
+          ? "Choose the three-letter currency for all project revenue. This choice is permanent."
+          : "An owner or admin must choose the permanent project currency."}
+      </FieldDescription>
+    </Field>
   );
 }
 
@@ -319,6 +366,7 @@ export function InstallationPage({
           snippet={snippet.data?.snippet}
           fullSnippet={snippet.data?.full_snippet}
           lastEventReceivedAt={status.data?.last_event_received_at}
+          revenueCurrency={status.data?.revenue_currency}
         />
       </Surface>
     </Page>

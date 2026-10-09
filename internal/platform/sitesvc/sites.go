@@ -50,13 +50,15 @@ type SitePatch struct {
 	ProfilesEnabled       *bool
 	HeatmapsEnabled       *bool
 	RespectPrivacySignals *bool
+	RevenueCurrency       *string
 }
 
 type Sites struct {
-	trackingMode privacy.Mode
-	store        *store.Store
-	registry     *Registry
-	discoverIcon func(context.Context, string) string
+	trackingMode   privacy.Mode
+	store          *store.Store
+	registry       *Registry
+	discoverIcon   func(context.Context, string) string
+	invalidateSite func(int32)
 }
 
 var malformedTrackerLogged sync.Map
@@ -69,13 +71,16 @@ func New(data *store.Store, registry *Registry, modes ...privacy.Mode) *Sites {
 	return &Sites{store: data, registry: registry, discoverIcon: siteicon.Discover, trackingMode: mode}
 }
 
-func (s *Sites) Create(ctx context.Context, principal authz.Principal, name string, hosts []string, timezone string, retentionDays int) (coresites.Site, error) {
+func (s *Sites) Create(ctx context.Context, principal authz.Principal, name string, hosts []string, timezone string, retentionDays int, currency string) (coresites.Site, error) {
 	if !authz.Can(principal, authz.ActionSiteCreate, 0) {
 		return coresites.Site{}, ErrForbidden
 	}
 	name, hosts, location, retention, err := validateSite(name, hosts, timezone, retentionDays)
 	if err != nil {
 		return coresites.Site{}, err
+	}
+	if !coresites.ValidCurrency(currency) {
+		return coresites.Site{}, fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
 	}
 
 	var created store.Site
@@ -88,7 +93,7 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 			created, err = store.CreateSite(ctx, tx, store.Site{
 				OrgID: principal.OrgID, PublicID: publicID, Name: name,
 				AllowedHosts: hosts, Timezone: location.String(), RetentionClass: int16(retention),
-				RespectPrivacySignals: true,
+				RespectPrivacySignals: true, RevenueCurrency: currency, RevenueCurrencyState: string(coresites.RevenueCurrencyConfigured),
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
 				continue
@@ -97,7 +102,7 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 				return err
 			}
 			return audit.Write(ctx, tx, principal, "site.created", "site", int64(created.ID), map[string]any{
-				"name": name, "timezone": location.String(), "retention_days": retentionDays,
+				"name": name, "timezone": location.String(), "retention_days": retentionDays, "revenue_currency": currency,
 			})
 		}
 		return errors.New("generate unique site public ID")
@@ -115,7 +120,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	if !authz.Can(principal, authz.ActionSiteEdit, id) {
 		return coresites.Site{}, ErrForbidden
 	}
-	if (patch.ProfilesEnabled != nil || patch.HeatmapsEnabled != nil || patch.Tracker != nil || patch.ExcludeCountries != nil) &&
+	if (patch.ProfilesEnabled != nil || patch.HeatmapsEnabled != nil || patch.Tracker != nil || patch.ExcludeCountries != nil || patch.RevenueCurrency != nil) &&
 		principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
 		return coresites.Site{}, ErrForbidden
 	}
@@ -168,6 +173,27 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.RespectPrivacySignals != nil {
 			current.RespectPrivacySignals = *patch.RespectPrivacySignals
 		}
+		if patch.RevenueCurrency != nil {
+			currency := strings.TrimSpace(*patch.RevenueCurrency)
+			if !coresites.ValidCurrency(currency) {
+				return fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
+			}
+			switch coresites.RevenueCurrencyState(current.RevenueCurrencyState) {
+			case coresites.RevenueCurrencyUnconfigured:
+				if _, err := tx.Exec(ctx, `update sites set revenue_currency=$3,revenue_currency_state='configured' where id=$1 and org_id=$2 and revenue_currency_state='unconfigured'`, id, principal.OrgID, currency); err != nil {
+					return fmt.Errorf("set immutable revenue currency: %w", err)
+				}
+				current.RevenueCurrency, current.RevenueCurrencyState = currency, string(coresites.RevenueCurrencyConfigured)
+			case coresites.RevenueCurrencyConfigured:
+				if current.RevenueCurrency != currency {
+					return fmt.Errorf("%w: revenue currency is permanent once selected", ErrInvalid)
+				}
+			case coresites.RevenueCurrencyConflict:
+				return fmt.Errorf("%w: mixed historical revenue currencies require explicit resolution", ErrInvalid)
+			default:
+				return fmt.Errorf("%w: invalid revenue currency state", ErrInvalid)
+			}
+		}
 		name, hosts, location, retention, err := validateSite(
 			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
 		)
@@ -201,6 +227,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.ExcludeCountries != nil {
 			metadata["exclude_countries"] = current.ExcludeCountries
 		}
+		if patch.RevenueCurrency != nil {
+			metadata["revenue_currency"] = current.RevenueCurrency
+		}
 		return audit.Write(ctx, tx, principal, "site.updated", "site", int64(id), metadata)
 	})
 	if err != nil {
@@ -209,8 +238,13 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	if err := s.registry.Invalidate(); err != nil {
 		return coresites.Site{}, fmt.Errorf("refresh site registry: %w", err)
 	}
+	if patch.RevenueCurrency != nil && s.invalidateSite != nil {
+		s.invalidateSite(id)
+	}
 	return coreSite(updated)
 }
+
+func (s *Sites) SetQueryInvalidator(invalidate func(int32)) { s.invalidateSite = invalidate }
 
 func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32) error {
 	if !authz.Can(principal, authz.ActionSiteDelete, id) {
@@ -387,6 +421,8 @@ func coreSite(row store.Site) (coresites.Site, error) {
 		HeatmapsEnabled:       row.HeatmapsEnabled,
 		RespectPrivacySignals: row.RespectPrivacySignals,
 		IconURL:               row.IconURL,
+		RevenueCurrency:       row.RevenueCurrency,
+		RevenueCurrencyState:  coresites.RevenueCurrencyState(row.RevenueCurrencyState),
 	}, nil
 }
 

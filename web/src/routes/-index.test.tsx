@@ -17,6 +17,8 @@ describe('onboarding', () => {
       timezone: 'Asia/Kolkata',
       retention_days: 30,
       allowed_hosts: ['docs.example.com'],
+      revenue_currency: 'USD',
+      revenue_currency_state: 'configured',
     })
     const navigate = vi.fn()
     render(
@@ -48,6 +50,9 @@ describe('onboarding', () => {
     fireEvent.change(screen.getByLabelText('Retention'), {
       target: { value: '90' },
     })
+    fireEvent.change(screen.getByLabelText('Revenue currency'), {
+      target: { value: 'usd' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Create site' }))
 
     await waitFor(() =>
@@ -56,6 +61,7 @@ describe('onboarding', () => {
         hosts: ['docs.example.com'],
         timezone: 'Asia/Kolkata',
         retention_days: 90,
+        revenue_currency: 'USD',
       }),
     )
     await waitFor(() =>

@@ -87,16 +87,16 @@ func (e FilterOperator) Valid() bool {
 
 // Defines values for FunnelStepType.
 const (
-	Event FunnelStepType = "event"
-	Page  FunnelStepType = "page"
+	FunnelStepTypeEvent FunnelStepType = "event"
+	FunnelStepTypePage  FunnelStepType = "page"
 )
 
 // Valid indicates whether the value is a known member of the FunnelStepType enum.
 func (e FunnelStepType) Valid() bool {
 	switch e {
-	case Event:
+	case FunnelStepTypeEvent:
 		return true
-	case Page:
+	case FunnelStepTypePage:
 		return true
 	default:
 		return false
@@ -147,19 +147,19 @@ func (e GoalInputKind) Valid() bool {
 
 // Defines values for GoalInputMatch.
 const (
-	Exact    GoalInputMatch = "exact"
-	Prefix   GoalInputMatch = "prefix"
-	Wildcard GoalInputMatch = "wildcard"
+	GoalInputMatchExact    GoalInputMatch = "exact"
+	GoalInputMatchPrefix   GoalInputMatch = "prefix"
+	GoalInputMatchWildcard GoalInputMatch = "wildcard"
 )
 
 // Valid indicates whether the value is a known member of the GoalInputMatch enum.
 func (e GoalInputMatch) Valid() bool {
 	switch e {
-	case Exact:
+	case GoalInputMatchExact:
 		return true
-	case Prefix:
+	case GoalInputMatchPrefix:
 		return true
-	case Wildcard:
+	case GoalInputMatchWildcard:
 		return true
 	default:
 		return false
@@ -559,6 +559,27 @@ func (e SessionTimelineItemKind) Valid() bool {
 	}
 }
 
+// Defines values for SiteRevenueCurrencyState.
+const (
+	SiteRevenueCurrencyConfigured   SiteRevenueCurrencyState = "configured"
+	SiteRevenueCurrencyConflict     SiteRevenueCurrencyState = "conflict"
+	SiteRevenueCurrencyUnconfigured SiteRevenueCurrencyState = "unconfigured"
+)
+
+// Valid indicates whether the value is a known member of the SiteRevenueCurrencyState enum.
+func (e SiteRevenueCurrencyState) Valid() bool {
+	switch e {
+	case SiteRevenueCurrencyConfigured:
+		return true
+	case SiteRevenueCurrencyConflict:
+		return true
+	case SiteRevenueCurrencyUnconfigured:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateSiteRequestRetentionDays.
 const (
 	UpdateSiteRequestRetentionDaysN0   UpdateSiteRequestRetentionDays = 0
@@ -669,10 +690,11 @@ type CreateAPIKeyRequest struct {
 
 // CreateSiteRequest defines model for CreateSiteRequest.
 type CreateSiteRequest struct {
-	Hosts         []string                       `json:"hosts"`
-	Name          string                         `json:"name"`
-	RetentionDays CreateSiteRequestRetentionDays `json:"retention_days"`
-	Timezone      string                         `json:"timezone"`
+	Hosts           []string                       `json:"hosts"`
+	Name            string                         `json:"name"`
+	RetentionDays   CreateSiteRequestRetentionDays `json:"retention_days"`
+	RevenueCurrency string                         `json:"revenue_currency"`
+	Timezone        string                         `json:"timezone"`
 }
 
 // CreateSiteRequestRetentionDays defines model for CreateSiteRequest.RetentionDays.
@@ -1417,10 +1439,15 @@ type Site struct {
 	PublicId        string   `json:"public_id"`
 
 	// RespectPrivacySignals When true, event ingestion drops requests carrying Sec-GPC 1 or DNT 1.
-	RespectPrivacySignals bool   `json:"respect_privacy_signals"`
-	RetentionDays         int    `json:"retention_days"`
-	Timezone              string `json:"timezone"`
+	RespectPrivacySignals bool                     `json:"respect_privacy_signals"`
+	RetentionDays         int                      `json:"retention_days"`
+	RevenueCurrency       *string                  `json:"revenue_currency,omitempty"`
+	RevenueCurrencyState  SiteRevenueCurrencyState `json:"revenue_currency_state"`
+	Timezone              string                   `json:"timezone"`
 }
+
+// SiteRevenueCurrencyState defines model for Site.RevenueCurrencyState.
+type SiteRevenueCurrencyState string
 
 // SiteList defines model for SiteList.
 type SiteList struct {
@@ -1458,7 +1485,10 @@ type UpdateSiteRequest struct {
 	// RespectPrivacySignals Respect Sec-GPC 1 and DNT 1 request headers during event ingestion.
 	RespectPrivacySignals *bool                           `json:"respect_privacy_signals,omitempty"`
 	RetentionDays         *UpdateSiteRequestRetentionDays `json:"retention_days,omitempty"`
-	Timezone              *string                         `json:"timezone,omitempty"`
+
+	// RevenueCurrency Permanent once selected; only unconfigured projects may set it.
+	RevenueCurrency *string `json:"revenue_currency,omitempty"`
+	Timezone        *string `json:"timezone,omitempty"`
 }
 
 // UpdateSiteRequestRetentionDays defines model for UpdateSiteRequest.RetentionDays.

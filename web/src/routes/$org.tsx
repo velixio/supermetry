@@ -27,6 +27,8 @@ export type Site = {
   profiles_enabled?: boolean
   icon_url?: string
   allowed_hosts?: string[]
+  revenue_currency?: string
+  revenue_currency_state?: 'unconfigured' | 'configured' | 'conflict'
 }
 
 export type Membership = {

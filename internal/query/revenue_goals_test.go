@@ -39,10 +39,8 @@ func TestRevenueGoalQueriesAcrossStorageTiers(t *testing.T) {
 		{"hot property goal excludes other rows and EUR", "2026-10-08", "2026-10-08", "USD", 1, 10, 5},
 		{"closed property goal excludes other rows and EUR", "2026-10-07", "2026-10-07", "USD", 1, 10, 5},
 		{"mixed closed and hot", "2026-10-07", "2026-10-08", "USD", 1, 20, 5},
-		{"EUR excludes USD", "2026-10-07", "2026-10-08", "EUR", 1, 8, 4},
 		{"event goal without property", "2026-10-07", "2026-10-08", "USD", 2, 220, 110.0 / 3},
 		{"no matching events", "2026-10-07", "2026-10-08", "USD", 3, 0, 0},
-		{"no matching currency", "2026-10-07", "2026-10-08", "JPY", 1, 0, 0},
 		{"empty period", "2026-10-01", "2026-10-02", "USD", 1, 0, 0},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -85,6 +83,7 @@ func TestRevenueGoalRejectsUnavailableAndUnsupportedGoals(t *testing.T) {
 	}{
 		{"wrong site", 4, "invalid filter"}, {"nonexistent", 99999, "invalid filter"},
 		{"page goal", 5, "revenue metrics require an event goal"}, {"scroll goal", 6, "revenue metrics require an event goal"},
+		{"legacy mismatching currency", 7, "legacy goal currency EUR does not match project currency USD"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := engine.Query(context.Background(), revenueGoalRequest(tt.id, "2026-10-07", "2026-10-08", "USD"))
@@ -137,6 +136,7 @@ func setupRevenueGoalFixture(t *testing.T) *query.Engine {
 		{ID: 4, SiteID: 2, Kind: "event", Match: "exact", Value: "purchase", Currency: "USD"},
 		{ID: 5, SiteID: 1, Kind: "page", Match: "exact", Value: "/checkout", Currency: "USD"},
 		{ID: 6, SiteID: 1, Kind: "scroll", Match: "exact", Value: "/checkout", ScrollThreshold: 75, Currency: "USD"},
+		{ID: 7, SiteID: 1, Kind: "event", Match: "exact", Value: "purchase", Currency: "EUR"},
 	}
-	return identifiedEngine(pool, dictionary, registry{site: sites.Site{ID: 1, PublicID: "revenue-test", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}, goals)
+	return identifiedEngine(pool, dictionary, registry{site: sites.Site{ID: 1, PublicID: "revenue-test", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}, goals)
 }

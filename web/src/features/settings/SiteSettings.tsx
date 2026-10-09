@@ -154,7 +154,7 @@ const featureSetup: { feature: string; needs: string; code?: string }[] = [
   },
 ]
 
-function FeatureSetup() {
+function FeatureSetup({ currency }: { currency?: string }) {
   return (
     <section aria-label="Feature setup" className="flex flex-col gap-3">
       <h3 className="text-sm font-medium">Feature setup</h3>
@@ -164,7 +164,9 @@ function FeatureSetup() {
             <span className="font-medium">{item.feature}</span>
             <span className="text-muted-foreground">{item.needs}</span>
             {item.code ? (
-              <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs select-all"><code>{item.code}</code></pre>
+              <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs select-all">
+                <code>{item.feature === 'Revenue' && currency ? item.code.replace("'USD'", `'${currency}'`) : item.code}</code>
+              </pre>
             ) : null}
           </li>
         ))}
@@ -173,7 +175,7 @@ function FeatureSetup() {
   )
 }
 
-export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceivedAt, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; lastEventReceivedAt?: string; now?: Date }) {
+export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceivedAt, revenueCurrency, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; lastEventReceivedAt?: string; revenueCurrency?: string; now?: Date }) {
   return (
     <div className="flex flex-col gap-6">
       <TrackingSnippet publicId={publicId} snippet={snippet} fullSnippet={fullSnippet} />
@@ -205,7 +207,7 @@ export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceived
           </ol>
         </TabsContent>
       </Tabs>
-      <FeatureSetup />
+      <FeatureSetup currency={revenueCurrency} />
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Track custom clicks</p>
         <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>

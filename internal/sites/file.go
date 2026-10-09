@@ -18,16 +18,18 @@ type FileRegistry struct {
 }
 
 type fileSite struct {
-	ID                    int32           `json:"id"`
-	OrgID                 int64           `json:"org_id"`
-	PublicID              string          `json:"public_id"`
-	Timezone              string          `json:"timezone"`
-	RetentionDays         int16           `json:"retention_days"`
-	AllowedHosts          []string        `json:"allowed_hosts"`
-	ProfilesEnabled       bool            `json:"profiles_enabled"`
-	HeatmapsEnabled       bool            `json:"heatmaps_enabled"`
-	RespectPrivacySignals *bool           `json:"respect_privacy_signals"`
-	Replay                json.RawMessage `json:"replay"`
+	ID                    int32                `json:"id"`
+	OrgID                 int64                `json:"org_id"`
+	PublicID              string               `json:"public_id"`
+	Timezone              string               `json:"timezone"`
+	RetentionDays         int16                `json:"retention_days"`
+	AllowedHosts          []string             `json:"allowed_hosts"`
+	ProfilesEnabled       bool                 `json:"profiles_enabled"`
+	HeatmapsEnabled       bool                 `json:"heatmaps_enabled"`
+	RespectPrivacySignals *bool                `json:"respect_privacy_signals"`
+	Replay                json.RawMessage      `json:"replay"`
+	RevenueCurrency       string               `json:"revenue_currency"`
+	RevenueCurrencyState  RevenueCurrencyState `json:"revenue_currency_state"`
 }
 
 // LoadFile loads site metadata from a JSON array at path.
@@ -78,6 +80,8 @@ func LoadFile(path string) (*FileRegistry, error) {
 			HeatmapsEnabled:       record.HeatmapsEnabled,
 			RespectPrivacySignals: respectPrivacySignals,
 			Replay:                replaySettings,
+			RevenueCurrency:       record.RevenueCurrency,
+			RevenueCurrencyState:  record.RevenueCurrencyState,
 		}
 		if _, exists := r.byPublicID[site.PublicID]; exists {
 			return nil, fmt.Errorf("site %d: duplicate public_id %q", i, site.PublicID)
