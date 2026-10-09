@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 func TestVerifiedPageSchemaDefaultsFailClosed(t *testing.T) {

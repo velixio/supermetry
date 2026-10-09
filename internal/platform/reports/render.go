@@ -5,8 +5,8 @@ import (
 	"html"
 	"strings"
 
-	"panel/internal/platform/mail"
-	"panel/internal/sites"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/sites"
 )
 
 // Breakdown is one row in a top-pages or top-sources list.

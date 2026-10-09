@@ -37,7 +37,7 @@ export interface Tracker {
   consent(granted: boolean): void;
 }
 
-interface PanelAPI {
+interface SupermetryAPI {
   pageview?: Tracker["pageview"];
   track?: Tracker["track"];
   consent?: Tracker["consent"];
@@ -56,10 +56,10 @@ const noopTracker = (): Tracker => ({
   consent() {},
 });
 
-function panelAPI(create = false): PanelAPI | undefined {
-  const browserWindow = window as Window & { panel?: PanelAPI };
-  if (create) return (browserWindow.panel ??= {});
-  return browserWindow.panel;
+function supermetryAPI(create = false): SupermetryAPI | undefined {
+  const browserWindow = window as Window & { supermetry?: SupermetryAPI };
+  if (create) return (browserWindow.supermetry ??= {});
+  return browserWindow.supermetry;
 }
 
 function setBooleanAttribute(script: HTMLScriptElement, name: string, value: boolean | undefined): void {
@@ -70,7 +70,7 @@ export function init(options: InitOptions): Tracker {
   if (typeof document === "undefined") return noopTracker();
   if (singleton && singletonDocument === document) return singleton;
   if (!options?.site || !options?.src) {
-    throw new TypeError("@panel/tracker init requires site and src");
+    throw new TypeError("@supermetry/tracker init requires site and src");
   }
 
   const script = document.createElement("script");
@@ -87,7 +87,7 @@ export function init(options: InitOptions): Tracker {
   setBooleanAttribute(script, "downloads", options.downloads);
   if (options.allowLocalhost) script.setAttribute("data-allow-localhost", "");
 
-  if (options.beforeSend) panelAPI(true)!.beforeSend = options.beforeSend;
+  if (options.beforeSend) supermetryAPI(true)!.beforeSend = options.beforeSend;
 
   let loaded = false;
   const queue: QueuedCall[] = [];
@@ -96,7 +96,7 @@ export function init(options: InitOptions): Tracker {
       queue.push([method, args]);
       return;
     }
-    const target = panelAPI()?.[method] as ((...values: unknown[]) => void) | undefined;
+    const target = supermetryAPI()?.[method] as ((...values: unknown[]) => void) | undefined;
     target?.(...args);
   };
 

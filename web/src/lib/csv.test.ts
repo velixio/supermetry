@@ -13,7 +13,7 @@ describe('CSV coverage labels', () => {
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download) })
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:test') })
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
-    post.mockResolvedValue({ data: 'page,visitors\n/public,1', response: new Response(null, { headers: { 'Content-Disposition': 'attachment; filename="site-query-verified-only.csv"', 'X-Panel-Privacy-Scope': 'verified-only' } }) })
+    post.mockResolvedValue({ data: 'page,visitors\n/public,1', response: new Response(null, { headers: { 'Content-Disposition': 'attachment; filename="site-query-verified-only.csv"', 'X-Supermetry-Privacy-Scope': 'verified-only' } }) })
     await downloadStatsCSV(query)
     expect(names).toEqual(['site-query-verified-only.csv'])
   })

@@ -3,8 +3,8 @@ package query_test
 import (
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/query"
+	"supermetry/internal/api"
+	"supermetry/internal/query"
 )
 
 func TestUTMSourceDiffersFromBlendedSourceAcrossStorageTiers(t *testing.T) {

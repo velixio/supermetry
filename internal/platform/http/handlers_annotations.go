@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
 )
 
 const annotationDateLayout = "2006-01-02"

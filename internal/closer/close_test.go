@@ -8,10 +8,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/closer"
-	"panel/internal/db"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/closer"
+	"supermetry/internal/db"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 type registry struct {

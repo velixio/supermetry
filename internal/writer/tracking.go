@@ -1,9 +1,9 @@
 package writer
 
 import (
-	"panel/internal/privacy"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/privacy"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 // SetTrackingPolicy sets the process permission ceiling and cached project

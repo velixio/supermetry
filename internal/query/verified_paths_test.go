@@ -3,10 +3,10 @@ package query_test
 import (
 	"context"
 	"errors"
-	"panel/internal/api"
-	"panel/internal/closer"
-	"panel/internal/privacy"
-	"panel/internal/query"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	"supermetry/internal/privacy"
+	"supermetry/internal/query"
 	"testing"
 )
 

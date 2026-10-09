@@ -19,7 +19,7 @@ test('revenue report is currency-safe and responsive', async ({ page, owner }) =
     } })
   })
 
-  const revenue = `/${owner.orgSlug}/${owner.siteSlug}/revenue?period=custom&from=2026-09-28&to=2026-09-30&compare=previous_period`
+  const revenue = `/app/${owner.orgSlug}/${owner.siteSlug}/revenue?period=custom&from=2026-09-28&to=2026-09-30&compare=previous_period`
   await page.setViewportSize({ width: 1440, height: 1000 })
   await owner.login(page, revenue)
 

@@ -8,11 +8,11 @@ import { renderWithRouter } from '@/test/renderWithRouter'
 
 describe('NoDataBanner', () => {
   it('links an eventless site to its installation steps', async () => {
-    renderWithRouter(<NoDataBanner href="/acme/docs/settings/installation" />)
+    renderWithRouter(<NoDataBanner href="/app/acme/docs/settings/installation" />)
     expect(await screen.findByText('No data yet')).toBeVisible()
     expect(screen.getByRole('link', { name: /view installation steps/i })).toHaveAttribute(
       'href',
-      '/acme/docs/settings/installation',
+      '/app/acme/docs/settings/installation',
     )
   })
 })

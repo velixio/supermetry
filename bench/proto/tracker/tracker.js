@@ -34,7 +34,7 @@
   history.replaceState = wrap(history.replaceState);
   addEventListener("popstate", function () { send("pageview"); });
 
-  var panel = window.panel = window.panel || {};
-  panel.track=send;
+  var supermetry = window.supermetry = window.supermetry || {};
+  supermetry.track=send;
   send("pageview");
 }());

@@ -13,10 +13,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/store"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
 )
 
 const shareSessionLifetime = 12 * time.Hour

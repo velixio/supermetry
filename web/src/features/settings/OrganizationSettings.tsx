@@ -1,14 +1,14 @@
 import { Link } from '@tanstack/react-router'
 
 const organizationSettingsTabs = [
-  ['settings', 'Overview', '/$org/settings'],
-  ['members', 'Members', '/$org/settings/members'],
-  ['invites', 'Invitations', '/$org/settings/invites'],
-  ['api-keys', 'API keys', '/$org/settings/api-keys'],
-  ['api', 'API reference', '/$org/settings/api'],
-  ['audit', 'Audit log', '/$org/settings/audit'],
-  ['notifications', 'Notifications', '/$org/settings/notifications'],
-  ['replay-storage', 'Replay storage', '/$org/settings/replay-storage'],
+  ['settings', 'Overview', '/app/$org/settings'],
+  ['members', 'Members', '/app/$org/settings/members'],
+  ['invites', 'Invitations', '/app/$org/settings/invites'],
+  ['api-keys', 'API keys', '/app/$org/settings/api-keys'],
+  ['api', 'API reference', '/app/$org/settings/api'],
+  ['audit', 'Audit log', '/app/$org/settings/audit'],
+  ['notifications', 'Notifications', '/app/$org/settings/notifications'],
+  ['replay-storage', 'Replay storage', '/app/$org/settings/replay-storage'],
 ] as const
 
 export function OrganizationSettingsTabs({ org, current, showReplay = false, canManage = true }: { org: string; current: string; showReplay?: boolean; canManage?: boolean }) {

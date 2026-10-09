@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
+import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
+import { BrandLogo } from '@/components/BrandLogo'
 
 import {
   loadShareSummary,
@@ -147,7 +149,7 @@ export function SharedDashboard({
     <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6">
       <header className="flex items-end justify-between gap-4 border-b pb-5">
         <div className="flex flex-col gap-1 border-l-2 border-accent pl-4">
-          <p className="text-sm text-muted-foreground">{en.appName}</p>
+          <BrandLogo className="h-6 w-auto" />
           <h1 className="text-2xl font-semibold tracking-tight">Shared dashboard</h1>
         </div>
         <p className="text-sm text-muted-foreground">Last 7 days</p>
@@ -170,6 +172,9 @@ export function SharedDashboard({
           </div>
         ))}
       </section>
+      <footer className="text-xs text-muted-foreground">
+        <PoweredBySupermetry className="hover:text-foreground" />
+      </footer>
     </main>
   )
 }

@@ -16,11 +16,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/dict"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/store"
-	"panel/internal/replay"
-	coresites "panel/internal/sites"
+	"supermetry/internal/dict"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/replay"
+	coresites "supermetry/internal/sites"
 )
 
 type replayListItem struct {

@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import type { Page } from '@playwright/test'
-import { expect, test, type Owner } from './fixtures'
+import { expect, fmtCompact, test, type Owner } from './fixtures'
 
 
 const routes = [
@@ -11,7 +11,7 @@ const routes = [
 ] as const
 const historyAPI = /\/api\/private\/(?:sites\/\d+\/)?(?:events|properties|sessions|profiles|journeys|heatmaps|replays|funnels|vitals|retention|goals|realtime)(?:\/|\?|$)/
 const restriction = (page: Page) => page.getByRole('status', { name: 'Tracking privacy restriction' })
-const siteRoot = (owner: Owner) => `/${owner.orgSlug}/${owner.siteSlug}`
+const siteRoot = (owner: Owner) => `/app/${owner.orgSlug}/${owner.siteSlug}`
 
 function watchPrivacyRequests(page: Page) {
   const forbidden: string[] = []
@@ -26,13 +26,13 @@ function watchPrivacyRequests(page: Page) {
 }
 
 test('anonymous direct routes show policy restrictions without forbidden requests or polling', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
   await owner.login(page, `${siteRoot(owner)}/settings/general`)
   const seen = watchPrivacyRequests(page)
   await page.goto(`${siteRoot(owner)}/`)
   await expect(page.getByRole('region', { name: 'Verified pages', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Visitors 0', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Pageviews 0', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Visitors [\d,.]+$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Pageviews [\d,.]+$/ })).toBeVisible()
   for (const route of routes) {
     await test.step(route, async () => {
       await page.goto(`${siteRoot(owner)}/${route}`)
@@ -48,8 +48,8 @@ test('anonymous direct routes show policy restrictions without forbidden request
 })
 
 function syntheticSQL(owner: Owner, sql: string) {
-  if (!/^panel_e2e_\d+$/.test(owner.schema)) throw new Error('Expected an isolated synthetic schema')
-  const dsn = new URL(process.env.PANEL_TEST_DSN!)
+  if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('Expected an isolated synthetic schema')
+  const dsn = new URL(process.env.SUPERMETRY_TEST_DSN!)
   dsn.searchParams.set('options', `-csearch_path=${owner.schema}`)
   return execFileSync('psql', [dsn.toString(), '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql], { stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim()
 }
@@ -80,7 +80,11 @@ function seedLegacyAndVerifiedRows(owner: Owner) {
 }
 
 test('anonymous dashboard keeps canonical totals and labels verified coverage without exposing legacy identity', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  const [baselineVisitors, baselinePageviews, baselineSessions] = syntheticSQL(owner, `
+    select count(distinct visitor_id), coalesce(sum(pageviews),0), count(*)
+    from sessions where site_id=${owner.siteId}
+  `).split('|').map(Number)
   // Warm the live dictionary through the real anonymous ingestion pipeline;
   // inserting dictionary rows only through SQL would leave its cache stale.
   const hit = await page.request.post('/api/public/v1/events', {
@@ -91,7 +95,7 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
   await expect.poll(() => syntheticSQL(owner, "select count(*) from dict where (kind=0 and value='/[redacted]') or (kind=9 and value='Chrome')")).toBe('2')
   seedLegacyAndVerifiedRows(owner)
   // Wait for the ingested session to flush before the first dashboard query is cached.
-  await expect.poll(() => syntheticSQL(owner, `select count(*) from sessions where site_id=${owner.siteId}`)).toBe('3')
+  await expect.poll(() => syntheticSQL(owner, `select count(*) from sessions where site_id=${owner.siteId}`)).toBe(String(baselineSessions + 3))
   await owner.login(page, `${siteRoot(owner)}/settings/general`)
   const seen = watchPrivacyRequests(page)
   const queries: Array<{ dimensions?: string[]; metrics?: string[]; filters?: unknown[] }> = []
@@ -104,8 +108,8 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
   await expect(pages.getByText(/Partial coverage: only verified page data/)).toBeVisible()
   await expect(page.getByRole('region', { name: 'Countries', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Channels', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Visitors 3', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Pageviews 3', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Visitors ${fmtCompact(baselineVisitors + 3)}`, exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Pageviews ${fmtCompact(baselinePageviews + 3)}`, exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /Filter by country United States/ })).toBeVisible()
   await expect(pages.getByText('/[redacted]', { exact: true })).toBeVisible()
   await expect(pages.getByRole('row').filter({ hasText: '/[redacted]' })).toHaveText(/\/\[redacted\]\s*2\s*2/)
@@ -141,7 +145,7 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
 })
 
 test('anonymous mobile navigation and browser history retain policy boundaries', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
   await page.setViewportSize({ width: 390, height: 844 })
   await owner.login(page, `${siteRoot(owner)}/events`)
   const seen = watchPrivacyRequests(page)
@@ -167,7 +171,7 @@ test('anonymous mobile navigation and browser history retain policy boundaries',
 // Accounts exist only in the disposable test schema; authentication still uses
 // the actual login page and server password verification.
 function seedReplayReader(owner: Owner, role: 'admin' | 'viewer') {
-  const email = `privacy-navigation-${role}@panel.test`
+  const email = `privacy-navigation-${role}@supermetry.test`
   syntheticSQL(owner, `
     with account as (
       insert into users(email,name,password_hash)
@@ -191,7 +195,7 @@ async function loginReplayReader(page: Page, owner: Owner, email: string) {
 }
 
 test('identified owners and admins retain replay navigation with profiles off and recording on or off', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'identified' || process.env.PANEL_REPLAY_ENABLED !== 'true', 'Requires real identified mode and instance replay permission.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'identified' || process.env.SUPERMETRY_REPLAY_ENABLED !== 'true', 'Requires real identified mode and instance replay permission.')
   expect(syntheticSQL(owner, `select coalesce(settings->>'profiles_enabled','false') from sites where id=${owner.siteId}`)).toBe('false')
   const admin = seedReplayReader(owner, 'admin')
   const seen = watchPrivacyRequests(page)
@@ -226,7 +230,7 @@ test('identified owners and admins retain replay navigation with profiles off an
 })
 
 test('identified viewer without replay grant has no replay navigation or history requests', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'identified', 'Requires the real identified instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'identified', 'Requires the real identified instance gate.')
   const viewer = seedReplayReader(owner, 'viewer')
   await loginReplayReader(page, owner, viewer)
   const seen = watchPrivacyRequests(page)

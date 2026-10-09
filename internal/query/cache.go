@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/sync/singleflight"
 
-	"panel/internal/api"
+	"supermetry/internal/api"
 )
 
 const defaultCacheCapacity = 1024

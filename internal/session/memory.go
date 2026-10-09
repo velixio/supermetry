@@ -10,7 +10,7 @@ import (
 	"time"
 	"unsafe"
 
-	"panel/internal/db"
+	"supermetry/internal/db"
 )
 
 const (

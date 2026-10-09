@@ -11,10 +11,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 const closeDelay = 45 * time.Minute

@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/privacy"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/privacy"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 type policyRegistry struct{ site sites.Site }

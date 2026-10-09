@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/enrich"
-	"panel/internal/health"
-	"panel/internal/ingest"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/testpg"
-	"panel/internal/writer"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/enrich"
+	"supermetry/internal/health"
+	"supermetry/internal/ingest"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
+	"supermetry/internal/writer"
 )
 
 func BenchmarkHandlerCapacity(b *testing.B) {

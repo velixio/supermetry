@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"panel/internal/api"
+	"supermetry/internal/api"
 )
 
 func TestJourneyReportMatchesRawFixture(t *testing.T) {

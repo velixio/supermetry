@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/dict"
-	"panel/internal/privacy"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/dict"
+	"supermetry/internal/privacy"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 const (

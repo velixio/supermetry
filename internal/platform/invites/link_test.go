@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/platform/authz"
-	"panel/internal/platform/mail"
-	"panel/web"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/mail"
+	"supermetry/web"
 )
 
 // Exercise the issued URL through the real UI handler before accepting its token.

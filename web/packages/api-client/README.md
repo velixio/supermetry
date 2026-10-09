@@ -1,11 +1,11 @@
-# `@panel/api-client`
+# `@supermetry/api-client`
 
-Typed TypeScript client for Panel's versioned public API. The request and response types are generated from the OpenAPI contract shipped with Panel, while `openapi-fetch` keeps the runtime small.
+Typed TypeScript client for Supermetry's versioned public API. The request and response types are generated from the OpenAPI contract shipped with Supermetry, while `openapi-fetch` keeps the runtime small.
 
 ## Install
 
 ```sh
-bun add @panel/api-client
+bun add @supermetry/api-client
 ```
 
 ## Create a client
@@ -13,14 +13,14 @@ bun add @panel/api-client
 Create an API key in **Organization settings → API keys**. Give read integrations the `stats:read` scope and keep the secret on your server.
 
 ```ts
-import { createPanelClient } from '@panel/api-client'
+import { createSupermetryClient } from '@supermetry/api-client'
 
-const panel = createPanelClient({
+const supermetry = createSupermetryClient({
   baseUrl: 'https://analytics.example.com',
-  apiKey: process.env.PANEL_API_KEY!,
+  apiKey: process.env.SUPERMETRY_API_KEY!,
 })
 
-const { data, error, response } = await panel.GET('/api/public/v1/stats/summary', {
+const { data, error, response } = await supermetry.GET('/api/public/v1/stats/summary', {
   params: {
     query: {
       site_id: 42,
@@ -39,7 +39,7 @@ Collection endpoints use cursor pagination. Pass the response's `next_cursor` ba
 
 For CSV exports, call a stats or query endpoint with `format=csv`, or send `Accept: text/csv`. Supported exports accept `limit=all` and stream at most 100,000 rows.
 
-The complete endpoint and schema reference is available inside Panel under **Organization settings → API reference**. MCP clients can connect to `/api/public/v1/mcp` with the same bearer key.
+The complete endpoint and schema reference is available inside Supermetry under **Organization settings → API reference**. MCP clients can connect to `/api/public/v1/mcp` with the same bearer key.
 
 ## Regenerate and build
 

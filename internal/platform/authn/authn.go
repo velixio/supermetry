@@ -6,17 +6,17 @@ import (
 	"strconv"
 	"strings"
 
-	"panel/internal/api"
-	"panel/internal/platform/auth"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/keys"
-	"panel/internal/platform/orgs"
-	"panel/internal/platform/shares"
+	"supermetry/internal/api"
+	"supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/keys"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/shares"
 )
 
 const (
-	orgHeader       = "X-Panel-Org"
-	ShareCookieName = "panel_share"
+	orgHeader       = "X-Supermetry-Org"
+	ShareCookieName = "supermetry_share"
 )
 
 type Authenticator struct {

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "panel-replay-static",
+      "name": "supermetry-replay-static",
       "dependencies": {
         "rrweb": "2.1.7",
       },

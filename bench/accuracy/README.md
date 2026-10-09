@@ -11,7 +11,7 @@ Run from the repository root after building the product:
 
 ```sh
 make build
-PANEL_TEST_DSN='postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable' \
+SUPERMETRY_TEST_DSN='postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable' \
   bench/accuracy/run.sh
 ```
 
@@ -29,12 +29,12 @@ removes its temporary files. Override the thresholds only for testing with
 
 ## Real-traffic comparison
 
-Run this once Panel and Plausible trackers receive the same real traffic:
+Run this once Supermetry and Plausible trackers receive the same real traffic:
 
 ```sh
-export PANEL_URL=https://panel.example.com
-export PANEL_KEY=panel_stats_key
-export PANEL_SITE_ID=1
+export SUPERMETRY_URL=https://supermetry.example.com
+export SUPERMETRY_KEY=supermetry_stats_key
+export SUPERMETRY_SITE_ID=1
 export PLAUSIBLE_URL=https://plausible.example.com
 export PLAUSIBLE_KEY=plausible_stats_key
 export PLAUSIBLE_SITE=example.com

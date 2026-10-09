@@ -13,7 +13,7 @@ import (
 //
 // REGISTER NEW ROLLUP COUNTERS HERE. When a migration adds a counter column
 // to a rollup table and the closer starts filling it, append the column name
-// to this list. That changes RollupLayout.Version, so `panel serve` rebuilds
+// to this list. That changes RollupLayout.Version, so `supermetry serve` rebuilds
 // every closed day in the background with the full per-day recompute after
 // the upgrade (old days would otherwise keep the column default). New rollup
 // dimensions are registered in rollupDimensionCodes in

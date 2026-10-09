@@ -23,7 +23,7 @@ func TestSourceImplementsTrackerContract(t *testing.T) {
 		`history.pushState`,
 		`history.replaceState`,
 		`addEventListener("popstate"`,
-		`window.panel`,
+		`window.supermetry`,
 		`.track=send`,
 		`n:name`,
 		`u:location.href`,
@@ -64,7 +64,7 @@ func TestMinifiedBuildIsCurrentAndPrivate(t *testing.T) {
 	}
 	for _, token := range []string{
 		`send("pageview")`, `history.pushState`, `history.replaceState`,
-		`"popstate"`, `window.panel`, `.track=send`, `navigator.sendBeacon`,
+		`"popstate"`, `window.supermetry`, `.track=send`, `navigator.sendBeacon`,
 		`new Blob`, `type:"text/plain"`, `fetch(`, `keepalive:true`,
 	} {
 		if !strings.Contains(string(got), token) {

@@ -32,7 +32,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/bench/load/internal/rec"
+	"supermetry/bench/load/internal/rec"
 )
 
 type hit struct {

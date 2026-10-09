@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createPanelClient } from "./index";
+import { createSupermetryClient } from "./index";
 
-describe("createPanelClient", () => {
+describe("createSupermetryClient", () => {
   it("sends the API key as a bearer token", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: [] }), {
@@ -10,8 +10,8 @@ describe("createPanelClient", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    const client = createPanelClient({
-      apiKey: "panel_secret",
+    const client = createSupermetryClient({
+      apiKey: "supermetry_secret",
       baseUrl: "https://analytics.example.com",
       fetch: fetchMock,
     });
@@ -22,6 +22,6 @@ describe("createPanelClient", () => {
     expect(request.url).toBe(
       "https://analytics.example.com/api/public/v1/sites",
     );
-    expect(request.headers.get("Authorization")).toBe("Bearer panel_secret");
+    expect(request.headers.get("Authorization")).toBe("Bearer supermetry_secret");
   });
 });

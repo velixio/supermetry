@@ -11,12 +11,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/api"
-	"panel/internal/closer"
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	"panel/internal/replay"
-	coresites "panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/replay"
+	coresites "supermetry/internal/sites"
 )
 
 type profileCursor struct {

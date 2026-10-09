@@ -29,13 +29,13 @@ func RunMigration(ctx context.Context, pool *pgxpool.Pool, from, to BlobStore) (
 		return fmt.Errorf("acquire replay migration connection: %w", err)
 	}
 	defer conn.Release()
-	if _, err := conn.Exec(ctx, `select pg_advisory_lock(hashtext('panel:replay-migration'))`); err != nil {
+	if _, err := conn.Exec(ctx, `select pg_advisory_lock(hashtext('supermetry:replay-migration'))`); err != nil {
 		return fmt.Errorf("lock replay migration: %w", err)
 	}
 	defer func() {
 		unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_, unlockErr := conn.Exec(unlockCtx, `select pg_advisory_unlock(hashtext('panel:replay-migration'))`)
+		_, unlockErr := conn.Exec(unlockCtx, `select pg_advisory_unlock(hashtext('supermetry:replay-migration'))`)
 		if unlockErr != nil {
 			conn.Hijack().Close(unlockCtx)
 			result = errors.Join(result, fmt.Errorf("unlock replay migration: %w", unlockErr))

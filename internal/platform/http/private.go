@@ -17,22 +17,22 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/imports"
-	"panel/internal/platform/audit"
-	platformauth "panel/internal/platform/auth"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/invites"
-	"panel/internal/platform/keys"
-	"panel/internal/platform/orgs"
-	"panel/internal/platform/reports"
-	"panel/internal/platform/shares"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/replay"
-	coresites "panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/imports"
+	"supermetry/internal/platform/audit"
+	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/invites"
+	"supermetry/internal/platform/keys"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/reports"
+	"supermetry/internal/platform/shares"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/replay"
+	coresites "supermetry/internal/sites"
 )
 
 const maxBodyBytes = 1 << 20
@@ -61,13 +61,14 @@ type siteIconMutationService interface {
 type Deps struct {
 	TrackingMode privacy.Mode
 	BaseURL      string
+	HomepageURL  string
 	TrackerPath  string
 	// SecureCookies forces the Secure flag on every cookie. Set it when
-	// PANEL_BASE_URL is https so production never downgrades, even behind a
+	// SUPERMETRY_BASE_URL is https so production never downgrades, even behind a
 	// proxy that omits X-Forwarded-Proto.
 	SecureCookies bool
 	// Snippet returns the tracking snippet (absolute script and event URLs built
-	// from PANEL_BASE_URL) for a site's public ID.
+	// from SUPERMETRY_BASE_URL) for a site's public ID.
 	Snippet        func(publicID string, full bool) string
 	Signup         string
 	TrustedProxies []netip.Prefix
@@ -480,7 +481,7 @@ func csrf(next http.Handler, adminAPIKey string) http.Handler {
 			return
 		}
 		header := r.Header.Get("X-CSRF-Token")
-		cookie, err := r.Cookie("panel_csrf")
+		cookie, err := r.Cookie("supermetry_csrf")
 		if err != nil || header == "" || cookie.Value == "" || subtle.ConstantTimeCompare([]byte(header), []byte(cookie.Value)) != 1 {
 			writeProblem(w, http.StatusForbidden, "Forbidden", "CSRF token is missing or invalid")
 			return
@@ -510,7 +511,7 @@ func writeProblem(w http.ResponseWriter, status int, title, detail string) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(problem{
-		Type:  "https://panel.dev/problems/" + strings.ReplaceAll(strings.ToLower(title), " ", "-"),
+		Type:  "https://supermetry.com/problems/" + strings.ReplaceAll(strings.ToLower(title), " ", "-"),
 		Title: title, Status: status, Detail: detail,
 	})
 }

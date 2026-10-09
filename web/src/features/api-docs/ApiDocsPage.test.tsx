@@ -15,7 +15,7 @@ import type { OpenAPIDocument } from "./reference";
 
 const specification: OpenAPIDocument = {
   openapi: "3.1.0",
-  info: { title: "Panel API", version: "1.0.0" },
+  info: { title: "Supermetry API", version: "1.0.0" },
   paths: {
     "/api/public/v1/stats/summary": {
       get: {
@@ -109,7 +109,7 @@ describe("ApiDocsPage", () => {
     );
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
       credentials: "same-origin",
-      headers: expect.objectContaining({ "X-Panel-Org": "3" }),
+      headers: expect.objectContaining({ "X-Supermetry-Org": "3" }),
     });
     expect(await screen.findByLabelText("Response")).toHaveTextContent(
       '"visitors": 42',

@@ -16,10 +16,10 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/privacy"
-	"panel/internal/realtime"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/privacy"
+	"supermetry/internal/realtime"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 const MCPProtocolVersion = "2025-06-18"
@@ -40,7 +40,7 @@ type MCPDeps struct {
 	Now           func() time.Time
 }
 
-// MCPTool is the tools/list representation of one Panel operation.
+// MCPTool is the tools/list representation of one Supermetry operation.
 type MCPTool struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
@@ -181,7 +181,7 @@ func (h *mcpHandler) initialize(w http.ResponseWriter, request mcpRequest) {
 	writeMCPResult(w, request.ID, map[string]any{
 		"protocolVersion": MCPProtocolVersion,
 		"capabilities":    map[string]any{"tools": map[string]any{"listChanged": false}},
-		"serverInfo":      map[string]string{"name": "panel", "version": "1.0.0"},
+		"serverInfo":      map[string]string{"name": "supermetry", "version": "1.0.0"},
 	})
 }
 
@@ -451,7 +451,7 @@ func (h *mcpHandler) resource(ctx context.Context, source *http.Request, path st
 	if h.deps.Resources == nil {
 		return nil, errors.New("resource service is unavailable")
 	}
-	request := httptest.NewRequest(http.MethodGet, "http://panel.internal"+path, nil).WithContext(ctx)
+	request := httptest.NewRequest(http.MethodGet, "http://supermetry.internal"+path, nil).WithContext(ctx)
 	request.Header = source.Header.Clone()
 	response := httptest.NewRecorder()
 	h.deps.Resources.ServeHTTP(response, request)

@@ -82,16 +82,16 @@ export function SiteIconSettings({
 }
 
 const settingsTabs = [
-  ['general', 'General', '/$org/$site/settings/general'],
-  ['installation', 'Installation', '/$org/$site/settings/installation'],
-  ['tracking', 'Tracking', '/$org/$site/settings/tracking'],
-  ['replay', 'Replay', '/$org/$site/settings/replay'],
-  ['goals', 'Goals', '/$org/$site/settings/goals'],
-  ['funnels', 'Funnels', '/$org/$site/settings/funnels'],
-  ['shares', 'Shares', '/$org/$site/settings/shares'],
-  ['reports', 'Reports', '/$org/$site/settings/reports'],
-  ['alerts', 'Alerts', '/$org/$site/settings/alerts'],
-  ['imports', 'Imports & export', '/$org/$site/settings/imports'],
+  ['general', 'General', '/app/$org/$site/settings/general'],
+  ['installation', 'Installation', '/app/$org/$site/settings/installation'],
+  ['tracking', 'Tracking', '/app/$org/$site/settings/tracking'],
+  ['replay', 'Replay', '/app/$org/$site/settings/replay'],
+  ['goals', 'Goals', '/app/$org/$site/settings/goals'],
+  ['funnels', 'Funnels', '/app/$org/$site/settings/funnels'],
+  ['shares', 'Shares', '/app/$org/$site/settings/shares'],
+  ['reports', 'Reports', '/app/$org/$site/settings/reports'],
+  ['alerts', 'Alerts', '/app/$org/$site/settings/alerts'],
+  ['imports', 'Imports & export', '/app/$org/$site/settings/imports'],
 ] as const
 
 export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean }) {
@@ -132,25 +132,25 @@ function relativeTime(value: string, now: Date): string {
 
 const featureSetup: { feature: string; needs: string; code?: string }[] = [
   { feature: 'Pageviews, sources, countries, devices', needs: 'Either script. Nothing else to do.' },
-  { feature: 'Outbound links, file downloads, data-panel-event clicks', needs: 'Enable them in Site settings → Tracking.' },
+  { feature: 'Outbound links, file downloads, data-supermetry-event clicks', needs: 'Enable them in Site settings → Tracking.' },
   { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Enable Web Vitals in Site settings → Tracking. Data appears after a visitor leaves.' },
-  { feature: '404 pages', needs: 'Enable 404 tracking, then add this tag to your 404 page:', code: '<meta name="panel:404">' },
-  { feature: 'Custom events', needs: 'Either script. Call from your code:', code: "panel.track('Signup', { plan: 'pro' })" },
+  { feature: '404 pages', needs: 'Enable 404 tracking, then add this tag to your 404 page:', code: '<meta name="supermetry:404">' },
+  { feature: 'Custom events', needs: 'Either script. Call from your code:', code: "supermetry.track('Signup', { plan: 'pro' })" },
   {
     feature: 'Revenue',
     needs: 'Either script. Send an amount and currency with an event, then add a revenue goal:',
-    code: "panel.track('Purchase', { plan: 'pro' }, { revenue: { amount: '49.90', currency: 'USD' } })",
+    code: "supermetry.track('Purchase', { plan: 'pro' }, { revenue: { amount: '49.90', currency: 'USD' } })",
   },
   { feature: 'Heatmaps', needs: 'Turn on heatmaps and click tracking in Site settings → Tracking.' },
   {
     feature: 'Visitor opt-out',
-    needs: 'Use this in an opt-out link or button. It stores only panel_ignore="1" in localStorage; call panel.optIn() to resume:',
-    code: 'panel.optOut()',
+    needs: 'Use this in an opt-out link or button. It stores only supermetry_ignore="1" in localStorage; call supermetry.optIn() to resume:',
+    code: 'supermetry.optOut()',
   },
   {
     feature: 'User profiles',
     needs: 'Either script. Turn on profiles in Site settings → General (needs your users\' consent), then on every page load call:',
-    code: "panel.identify('user-123', { plan: 'pro' })",
+    code: "supermetry.identify('user-123', { plan: 'pro' })",
   },
 ]
 
@@ -211,7 +211,7 @@ export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceived
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Track custom clicks</p>
         <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all"><code>{'<button data-panel-event="Signup" data-panel-prop-plan="pro">Start free trial</button>'}</code></pre>
+        <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all"><code>{'<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>'}</code></pre>
       </aside>
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Reduce ad-blocker losses</p>

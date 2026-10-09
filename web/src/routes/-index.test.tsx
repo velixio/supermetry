@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { Onboarding } from './index'
+import { Onboarding } from './app.index'
 
 afterEach(cleanup)
 
@@ -66,7 +66,7 @@ describe('onboarding', () => {
     )
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith(
-        '/acme/site_public_123/settings/installation',
+        '/app/acme/site_public_123/settings/installation',
       ),
     )
   })
@@ -91,6 +91,6 @@ describe('onboarding', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
-    expect(navigate).toHaveBeenCalledWith('/acme/sites')
+    expect(navigate).toHaveBeenCalledWith('/app/acme/sites')
   })
 })

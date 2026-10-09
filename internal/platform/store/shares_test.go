@@ -7,9 +7,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/db"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/testpg"
 )
 
 func TestSharedLinkPersistenceScopesMutationsToOrganization(t *testing.T) {

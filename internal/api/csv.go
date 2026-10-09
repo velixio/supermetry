@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"panel/internal/csvsafe"
+	"supermetry/internal/csvsafe"
 )
 
 const (
@@ -63,11 +63,11 @@ func streamQueryCSV(w http.ResponseWriter, r *http.Request, service queryService
 // CSV keeps the existing table shape; headers and the filename declare its scope.
 func writeCSVHeaders(w http.ResponseWriter, response QueryResponse, filename string) {
 	if scope := response.Meta.Privacy; scope != nil {
-		w.Header().Set("X-Panel-Privacy-Scope", "verified-only")
-		w.Header().Set("X-Panel-Privacy-Path-Sanitizer-Version", strconv.Itoa(scope.PathSanitizerVersion))
-		w.Header().Set("X-Panel-Privacy-Policy-Id", scope.PolicyId)
-		w.Header().Set("X-Panel-Privacy-Unverified-Excluded", strconv.FormatBool(scope.UnverifiedExcluded))
-		w.Header().Set("X-Panel-Privacy-Imports-Excluded", strconv.FormatBool(scope.ImportsExcluded))
+		w.Header().Set("X-Supermetry-Privacy-Scope", "verified-only")
+		w.Header().Set("X-Supermetry-Privacy-Path-Sanitizer-Version", strconv.Itoa(scope.PathSanitizerVersion))
+		w.Header().Set("X-Supermetry-Privacy-Policy-Id", scope.PolicyId)
+		w.Header().Set("X-Supermetry-Privacy-Unverified-Excluded", strconv.FormatBool(scope.UnverifiedExcluded))
+		w.Header().Set("X-Supermetry-Privacy-Imports-Excluded", strconv.FormatBool(scope.ImportsExcluded))
 		filename = strings.TrimSuffix(filename, ".csv") + "-verified-only.csv"
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")

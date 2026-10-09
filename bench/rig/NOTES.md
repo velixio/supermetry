@@ -54,7 +54,7 @@ All of them take `plausible|umami|goatcounter|all` and are idempotent.
   - Hits persist every 10 s (`-store-every`), which dominates its O2 time.
   - The default **rate limit is `count:4/1` (4 req/s per IP)**. Phase B's S1 ingest test needs `-ratelimit count:…` raised, or many source IPs (note in results).
 - **Local PG**: `ensure_pg_db` creates role+db `umami` and `goatcounter` (SCRAM password, over TCP to localhost). `down.sh --purge` drops them. Other apps' databases on this server (cryptoscan, pay, keeper, superadmin) are untouched.
-- **PG tuning**: `pg-tuning.conf` goes in as a `conf.d/90-panel-bench.conf` drop-in (Debian's `include_dir = 'conf.d'` is active). `shared_buffers` and `max_worker_processes` need a **restart**, and a restart drops the other local apps' connections too. Not applied.
+- **PG tuning**: `pg-tuning.conf` goes in as a `conf.d/90-supermetry-bench.conf` drop-in (Debian's `include_dir = 'conf.d'` is active). `shared_buffers` and `max_worker_processes` need a **restart**, and a restart drops the other local apps' connections too. Not applied.
 
 ## State at hand-off (2026-10-07)
 

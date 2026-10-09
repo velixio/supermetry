@@ -6,7 +6,7 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   page,
   owner,
 }) => {
-  const dashboard = `/${owner.orgSlug}/${owner.siteSlug}`
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
   const funnels = `${dashboard}/funnels`
   const realtime = `${dashboard}/realtime`
   let meRequests = 0
@@ -24,7 +24,7 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
 
   const shell = page.locator('[data-slot="sidebar-wrapper"]')
   await shell.evaluate((element) => {
-    ;(element as HTMLElement & { panelShellToken?: string }).panelShellToken = 'persistent'
+    ;(element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken = 'persistent'
   })
   await page.getByRole('button', { name: 'Toggle sidebar' }).click()
   await expect(page.locator('[data-slot="sidebar"][data-state="collapsed"]')).toBeVisible()
@@ -40,13 +40,13 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   expect(
     await shell.evaluate(
       (element) =>
-        (element as HTMLElement & { panelShellToken?: string }).panelShellToken,
+        (element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken,
     ),
   ).toBe('persistent')
   await expect(page.locator('[data-slot="sidebar"][data-state="collapsed"]')).toBeVisible()
 
   await page.goBack()
-  await expect(page).toHaveURL(dashboard)
+  await expect(page).toHaveURL((url) => url.pathname === dashboard)
   await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
     'aria-current',
     'page',
@@ -77,14 +77,14 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
 })
 
 test('serves an authenticated nested route as a direct URL', async ({ page, owner }) => {
-  const settings = `/${owner.orgSlug}/${owner.siteSlug}/settings/general`
-  await owner.login(page, `/${owner.orgSlug}/${owner.siteSlug}`)
+  const settings = `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`
+  await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}`)
   const response = await page.goto(settings)
 
   expect(response?.ok()).toBe(true)
   await expect(page).toHaveURL(settings)
   await expect(page.getByRole('heading', { name: 'Site settings' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'General', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   )
@@ -104,7 +104,7 @@ test('renders auth screens dark without leaking into a light dashboard', async (
   await expect(page.locator('html')).toHaveClass(/dark/)
   await expect(page.getByRole('main')).toHaveClass(/dark/)
 
-  await owner.login(page, `/${owner.orgSlug}/${owner.siteSlug}`)
+  await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}`)
   await expect(page.locator('html')).not.toHaveClass(/dark/)
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
     'content',

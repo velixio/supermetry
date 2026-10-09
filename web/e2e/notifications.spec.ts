@@ -3,7 +3,7 @@ import { expect, test } from './fixtures'
 const fakeToken = '123456:fake-token-value-for-tests'
 
 test('creates and safely edits a disabled Telegram notification channel', async ({ page, owner }) => {
-  await owner.login(page, `/${owner.orgSlug}/settings/notifications`)
+  await owner.login(page, `/app/${owner.orgSlug}/settings/notifications`)
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Add channel' }).click()
@@ -23,7 +23,7 @@ test('creates and safely edits a disabled Telegram notification channel', async 
   await expect(channel).toContainText('Disabled')
   await channel.getByRole('button', { name: 'Edit' }).click()
   await expect(page.getByLabel('Bot token')).toHaveValue('')
-  await page.getByLabel('Chat ID or channel username').fill('@panel_alerts')
+  await page.getByLabel('Chat ID or channel username').fill('@supermetry_alerts')
   await page.getByLabel('Enabled').check()
   const updateResponse = page.waitForResponse((response) =>
     /\/api\/private\/orgs\/\d+\/channels\/\d+$/.test(new URL(response.url()).pathname) &&
@@ -31,7 +31,7 @@ test('creates and safely edits a disabled Telegram notification channel', async 
   )
   await page.getByRole('button', { name: 'Save changes' }).click()
   expect((await updateResponse).ok()).toBe(true)
-  await expect(channel).toContainText('@panel_alerts')
+  await expect(channel).toContainText('@supermetry_alerts')
   await expect(channel).toContainText('Enabled')
 
   const listResponse = await page.request.get(`/api/private/orgs/${owner.orgId}/channels`, {

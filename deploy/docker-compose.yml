@@ -1,5 +1,5 @@
 services:
-  panel:
+  supermetry:
     build:
       context: ..
       dockerfile: Dockerfile
@@ -7,13 +7,13 @@ services:
       # Start with: cp ../.env.example .env
       - .env
     environment:
-      PANEL_DATABASE_URL: postgres://panel:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}@postgres:5432/panel?sslmode=disable
-      PANEL_DATA_DIR: /data
-      PANEL_LISTEN: 0.0.0.0:8787
+      SUPERMETRY_DATABASE_URL: postgres://supermetry:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}@postgres:5432/supermetry?sslmode=disable
+      SUPERMETRY_DATA_DIR: /data
+      SUPERMETRY_LISTEN: 0.0.0.0:8787
     ports:
       - "8787:8787"
     volumes:
-      - panel-data:/data
+      - supermetry-data:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -22,11 +22,11 @@ services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_DB: panel
-      POSTGRES_USER: panel
+      POSTGRES_DB: supermetry
+      POSTGRES_USER: supermetry
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U panel -d panel"]
+      test: ["CMD-SHELL", "pg_isready -U supermetry -d supermetry"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -35,5 +35,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  panel-data:
+  supermetry-data:
   postgres-data:

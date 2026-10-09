@@ -6,12 +6,13 @@ import {
   request as playwrightRequest,
   test as base,
   type APIResponse,
+  type BrowserContext,
   type FullConfig,
   type Page,
 } from '@playwright/test'
 
-const email = 'owner@panel.test'
-const password = 'panel-e2e-password'
+const email = 'owner@supermetry.test'
+const password = 'supermetry-e2e-password'
 
 export type Owner = {
   schema: string
@@ -57,9 +58,9 @@ async function responseJSON<T>(response: APIResponse): Promise<T> {
 
 export default async function globalSetup(config: FullConfig) {
   const baseURL = String(config.projects[0]?.use.baseURL)
-  const resetURL = readFileSync(required('PANEL_E2E_RESET_FILE'), 'utf8').trim()
+  const resetURL = readFileSync(required('SUPERMETRY_E2E_RESET_FILE'), 'utf8').trim()
   const token = new URL(resetURL).searchParams.get('token')
-  if (!token) throw new Error('panel user create did not return a reset token')
+  if (!token) throw new Error('supermetry user create did not return a reset token')
 
   const api = await playwrightRequest.newContext({ baseURL })
   const reset = await api.post('/api/private/auth/password-reset/confirm', {
@@ -75,7 +76,7 @@ export default async function globalSetup(config: FullConfig) {
   expect(login.ok(), loginBody).toBe(true)
 
   const state = await api.storageState()
-  const csrf = state.cookies.find((cookie) => cookie.name === 'panel_csrf')?.value
+  const csrf = state.cookies.find((cookie) => cookie.name === 'supermetry_csrf')?.value
   if (!csrf) throw new Error('login did not set the CSRF cookie')
   const cookie = state.cookies.map((item) => `${item.name}=${item.value}`).join('; ')
   const authHeaders = { Cookie: cookie, 'X-CSRF-Token': csrf }
@@ -88,7 +89,7 @@ export default async function globalSetup(config: FullConfig) {
   if (!membership) throw new Error('owner has no organization')
   const orgId = value<number>(membership, 'org_id', 'OrgID')
   const orgSlug = value<string>(membership, 'org_slug', 'OrgSlug')
-  const apiHeaders = { ...authHeaders, 'X-Panel-Org': String(orgId) }
+  const apiHeaders = { ...authHeaders, 'X-Supermetry-Org': String(orgId) }
 
   const createdSite = await api.post('/api/private/sites', {
     headers: apiHeaders,
@@ -112,7 +113,7 @@ export default async function globalSetup(config: FullConfig) {
   const shareSlug = value<string>(share, 'slug', 'Slug')
 
   const owner: SerializedOwner = {
-    schema: required('PANEL_E2E_SCHEMA'),
+    schema: required('SUPERMETRY_E2E_SCHEMA'),
     email,
     password,
     orgId,
@@ -122,13 +123,13 @@ export default async function globalSetup(config: FullConfig) {
     shareSlug,
     apiHeaders,
   }
-  process.env.PANEL_E2E_OWNER = JSON.stringify(owner)
+  process.env.SUPERMETRY_E2E_OWNER = JSON.stringify(owner)
   mkdirSync('e2e/screenshots', { recursive: true })
   await api.dispose()
 
   return () => {
-    const testDSN = required('PANEL_TEST_DSN')
-    const schema = required('PANEL_E2E_SCHEMA')
+    const testDSN = required('SUPERMETRY_TEST_DSN')
+    const schema = required('SUPERMETRY_E2E_SCHEMA')
     execFileSync('psql', [
       testDSN,
       '-v',
@@ -136,18 +137,57 @@ export default async function globalSetup(config: FullConfig) {
       '-c',
       `drop schema if exists "${schema}" cascade`,
     ])
-    rmSync(required('PANEL_E2E_RESET_FILE'), { force: true })
-    rmSync(required('PANEL_E2E_SITES_FILE'), { force: true })
+    rmSync(required('SUPERMETRY_E2E_RESET_FILE'), { force: true })
+    rmSync(required('SUPERMETRY_E2E_SITES_FILE'), { force: true })
   }
 }
 
+let refreshedAPIHeaders: Record<string, string> | undefined
+let browserCookies: Parameters<BrowserContext['addCookies']>[0] | undefined
+
 export const test = base.extend<{ owner: Owner }>({
-  owner: async ({}, use) => {
-    const serialized = JSON.parse(required('PANEL_E2E_OWNER')) as SerializedOwner
+  owner: async ({ request }, use) => {
+    const serialized = JSON.parse(required('SUPERMETRY_E2E_OWNER')) as SerializedOwner
+    let apiHeaders = refreshedAPIHeaders ?? serialized.apiHeaders
+    const probe = await request.get('/api/private/me', { headers: apiHeaders })
+    if (probe.status() === 401) {
+      const login = await request.post('/api/private/auth/login', {
+        data: { email: serialized.email, password: serialized.password, device_label: 'Playwright API fixture' },
+      })
+      const loginBody = await login.text()
+      expect(login.ok(), loginBody).toBe(true)
+      const state = await request.storageState()
+      const csrf = state.cookies.find((cookie) => cookie.name === 'supermetry_csrf')?.value
+      if (!csrf) throw new Error('refreshed API login did not set the CSRF cookie')
+      const cookie = state.cookies.map((item) => `${item.name}=${item.value}`).join('; ')
+      apiHeaders = { Cookie: cookie, 'X-CSRF-Token': csrf, 'X-Supermetry-Org': String(serialized.orgId) }
+      refreshedAPIHeaders = apiHeaders
+    } else {
+      expect(probe.ok(), await probe.text()).toBe(true)
+    }
     await use({
       ...serialized,
+      apiHeaders,
       async login(page, next = '/') {
-        const destination = new URL(next, 'http://panel.test')
+        const destination = new URL(next, 'http://supermetry.test')
+        const reachedDestination = (url: URL) =>
+          next === '/'
+            ? url.pathname !== '/login'
+            : url.pathname === destination.pathname &&
+              [...destination.searchParams].every(
+                ([name, value]) => url.searchParams.get(name) === value,
+              )
+        if (browserCookies) {
+          await page.context().addCookies(browserCookies)
+          const probe = await page.request.get('/api/private/me')
+          if (probe.ok()) {
+            await page.goto(next)
+            await page.waitForURL(reachedDestination)
+            return
+          }
+          browserCookies = undefined
+          await page.context().clearCookies()
+        }
         await page.goto(`/login?next=${encodeURIComponent(next)}`)
         const emailInput = page.getByLabel('Email')
         await expect(emailInput).toBeVisible()
@@ -158,17 +198,14 @@ export const test = base.extend<{ owner: Owner }>({
             response.url().endsWith('/api/private/auth/login') &&
             response.request().method() === 'POST',
         )
-        const destinationPromise = page.waitForURL((url) =>
-          next === '/'
-            ? url.pathname !== '/login'
-            : url.pathname === destination.pathname && url.search === destination.search,
-        )
+        const destinationPromise = page.waitForURL(reachedDestination)
         const [response] = await Promise.all([
           responsePromise,
           destinationPromise,
           page.getByRole('button', { name: 'Sign in' }).click(),
         ])
         expect(response.ok()).toBe(true)
+        browserCookies = await page.context().cookies()
       },
     })
   },

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/ingest"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/ingest"
 )
 
 type heatmapStub struct{ err error }
@@ -62,7 +62,7 @@ func TestHeatmapRoutesAuthorizeSiteAndScope(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.path, strings.NewReader(tt.body))
 			if tt.csrf {
 				request.Header.Set("X-CSRF-Token", "token")
-				request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+				request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 			}
 			response := httptest.NewRecorder()
 			newRouter(tt.service, tt.scopes).ServeHTTP(response, request)

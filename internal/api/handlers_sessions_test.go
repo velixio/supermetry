@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/ingest"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/ingest"
 )
 
 type sessionExplorerStub struct {

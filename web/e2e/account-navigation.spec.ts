@@ -4,7 +4,7 @@ import type { APIRequestContext, Page } from '@playwright/test'
 
 const password = 'account-navigation-test-password'
 async function member(request: APIRequestContext, owner: Owner, role: 'viewer' | 'editor' | 'admin', suffix: string, noSites = false) {
-  const email = `${suffix}@panel.test`
+  const email = `${suffix}@supermetry.test`
   const invitation = await request.post(`/api/private/orgs/${owner.orgId}/invitations`, {
     headers: owner.apiHeaders,
     data: { email, role, ...(role !== 'admin' ? { site_ids: noSites ? [] : [owner.siteId] } : {}) },
@@ -30,7 +30,7 @@ async function logout(page: Page) {
 }
 
 test('desktop and mobile header menus preserve settings links and keyboard focus', async ({ page, owner }) => {
-  await owner.login(page, `/${owner.orgSlug}/${owner.siteSlug}`)
+  await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}`)
   await expect(page.getByRole('link', { name: 'Organization settings', exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Site settings', exact: true })).toHaveCount(0)
   for (const width of [1280, 375]) {
@@ -39,8 +39,8 @@ test('desktop and mobile header menus preserve settings links and keyboard focus
     await expect(settings).toBeInViewport()
     await settings.focus()
     await page.keyboard.press('ArrowDown')
-    await expect(page.getByRole('menuitem', { name: /Organization settings Acme/ })).toHaveAttribute('href', `/${owner.orgSlug}/settings`)
-    await expect(page.getByRole('menuitem', { name: /Site settings Site 1/ })).toHaveAttribute('href', `/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
+    await expect(page.getByRole('menuitem', { name: /Organization settings Acme/ })).toHaveAttribute('href', `/app/${owner.orgSlug}/settings`)
+    await expect(page.getByRole('menuitem', { name: /Site settings Site 1/ })).toHaveAttribute('href', `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
     await page.keyboard.press('Escape')
     await expect(settings).toBeFocused()
     const account = page.getByRole('button', { name: 'Account', exact: true })
@@ -54,10 +54,10 @@ test('desktop and mobile header menus preserve settings links and keyboard focus
   }
   await page.getByRole('button', { name: 'Account', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
-  await expect(page).toHaveURL('/account/profile')
+  await expect(page).toHaveURL('/app/account/profile')
   await expect(page.getByRole('navigation', { name: 'Account settings' })).toBeVisible()
   await page.getByRole('link', { name: 'Security', exact: true }).click()
-  await expect(page).toHaveURL('/account/security')
+  await expect(page).toHaveURL('/app/account/security')
   await page.screenshot({ path: 'e2e/screenshots/account-mobile.png', fullPage: true })
 })
 
@@ -79,8 +79,8 @@ test('no-site and no-organization users can use account pages and log out', asyn
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await expect(page.getByRole('menuitem', { name: /Site settings/ })).toHaveCount(0)
   await page.keyboard.press('Escape')
-  if (!/^panel_e2e_\d+$/.test(owner.schema)) throw new Error('isolated schema required')
-  execFileSync('psql', [process.env.PANEL_TEST_DSN!, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${owner.schema}`, '-v', `member=${user.id}`], {
+  if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('isolated schema required')
+  execFileSync('psql', [process.env.SUPERMETRY_TEST_DSN!, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${owner.schema}`, '-v', `member=${user.id}`], {
     input: 'SET search_path TO :"schema"; DELETE FROM memberships WHERE user_id=:member;',
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -97,13 +97,13 @@ test('no-site and no-organization users can use account pages and log out', asyn
 
 test('logout clears the current session across tabs and back navigation; next login has fresh identity', async ({ page, owner }) => {
   const next = await member(page.request, owner, 'viewer', 'next-account', true)
-  await owner.login(page, `/${owner.orgSlug}/${owner.siteSlug}`)
+  await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}`)
   await page.getByRole('button', { name: 'Account', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
-  await expect(page).toHaveURL('/account/profile')
+  await expect(page).toHaveURL('/app/account/profile')
   await page.evaluate(() => localStorage.setItem('theme', 'dark'))
   const other = await page.context().newPage()
-  await other.goto(`/${owner.orgSlug}/${owner.siteSlug}`)
+  await other.goto(`/app/${owner.orgSlug}/${owner.siteSlug}`)
   await expect(other.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
   let posts = 0
   page.on('request', request => { if (request.url().endsWith('/auth/logout')) posts++ })
@@ -114,7 +114,7 @@ test('logout clears the current session across tabs and back navigation; next lo
   expect((await page.request.get('/api/private/me')).status()).toBe(401)
   expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
   await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Sign in to Panel' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Supermetry' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0)
   await login(page, next.email)
   await page.getByRole('button', { name: 'Account', exact: true }).click()
@@ -148,10 +148,10 @@ for (const failure of ['network', 'server', 'csrf'] as const) {
 test('logout handles an already expired session', async ({ page, owner }) => {
   const user = await member(page.request, owner, 'admin', 'expired-session')
   await login(page, user.email)
-  await page.goto('/account/profile')
+  await page.goto('/app/account/profile')
   await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('expired-session')
   await page.getByRole('button', { name: 'Account', exact: true }).click()
-  await page.context().clearCookies({ name: 'panel_session' })
+  await page.context().clearCookies({ name: 'supermetry_session' })
   await page.getByRole('menuitem', { name: 'Log out', exact: true }).click()
   await expect(page).toHaveURL('/login')
   await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0)

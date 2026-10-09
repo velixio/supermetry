@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/config"
-	"panel/internal/privacy"
-	"panel/internal/replay"
-	"panel/internal/sites"
+	"supermetry/internal/config"
+	"supermetry/internal/privacy"
+	"supermetry/internal/replay"
+	"supermetry/internal/sites"
 )
 
 func noReplay() replay.SiteSettings { return replay.SiteSettings{} }
@@ -287,13 +287,13 @@ func TestScriptHasReplayConfigWhenEnabled(t *testing.T) {
 func TestSitePath(t *testing.T) {
 	t.Parallel()
 
-	if got, want := SitePath("/assets/panel.js", "abc123def456"), "/assets/abc123def456.js"; got != want {
+	if got, want := SitePath("/assets/supermetry.js", "abc123def456"), "/assets/abc123def456.js"; got != want {
 		t.Fatalf("SitePath = %q, want %q", got, want)
 	}
 }
 
 // A site's snippet is a bare <script src>, so the generated script must point
-// events at the Panel host it was loaded from, not at the page's own origin.
+// events at the Supermetry host it was loaded from, not at the page's own origin.
 func TestBuildScriptSendsEventsToTheScriptOrigin(t *testing.T) {
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
 	prelude, _, _ := strings.Cut(body, "\n")

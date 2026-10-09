@@ -10,11 +10,11 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestSessionsCombinesHotAndClosedNewestFirst(t *testing.T) {

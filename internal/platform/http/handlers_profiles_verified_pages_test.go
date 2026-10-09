@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/closer"
-	"panel/internal/db"
-	"panel/internal/privacy"
+	"supermetry/internal/closer"
+	"supermetry/internal/db"
+	"supermetry/internal/privacy"
 )
 
 func TestDeleteProfileErasesVerifiedPageSessionsPreservingUnrelatedRows(t *testing.T) {

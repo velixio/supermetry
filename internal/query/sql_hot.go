@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"panel/internal/api"
-	"panel/internal/dict"
-	platformgoals "panel/internal/platform/goals"
+	"supermetry/internal/api"
+	"supermetry/internal/dict"
+	platformgoals "supermetry/internal/platform/goals"
 )
 
 func (e *Engine) queryHot(ctx context.Context, req Normalized, part Part) ([]resultRow, error) {

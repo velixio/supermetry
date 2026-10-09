@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/alerts"
-	"panel/internal/platform/authz"
+	"supermetry/internal/alerts"
+	"supermetry/internal/platform/authz"
 )
 
 // AlertsService is the transport-facing subset of the alerts service.

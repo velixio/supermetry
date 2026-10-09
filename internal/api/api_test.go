@@ -7,13 +7,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"panel/internal/sites"
 	"strings"
+	"supermetry/internal/sites"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/ingest"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/ingest"
 )
 
 type queryStub struct{}
@@ -222,7 +222,7 @@ func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 		request := httptest.NewRequest(http.MethodPost, "/api/private/query", strings.NewReader(`{"site_id":1,"period":"30d","metrics":["visitors"]}`))
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("X-CSRF-Token", "present")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "present"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "present"})
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
 		if response.Code != http.StatusOK {
@@ -271,7 +271,7 @@ func TestPlatformSegmentRoutesAreForwarded(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.path, nil)
 			if strings.HasPrefix(tt.path, "/api/private/") && tt.method != http.MethodGet {
 				request.Header.Set("X-CSRF-Token", "token")
-				request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+				request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 			}
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
@@ -360,9 +360,9 @@ func (r routerScriptSites) All() []sites.Site                { return nil }
 
 func TestConfigDefaultsToPublicEventPath(t *testing.T) {
 	values := map[string]string{
-		"PANEL_DATABASE_URL": "postgres://example.test/panel",
-		"PANEL_BASE_URL":     "https://example.test",
-		"PANEL_SECRET_KEY":   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+		"SUPERMETRY_DATABASE_URL": "postgres://example.test/supermetry",
+		"SUPERMETRY_BASE_URL":     "https://example.test",
+		"SUPERMETRY_SECRET_KEY":   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 	}
 	cfg, err := config.Load(func(key string) string { return values[key] })
 	if err != nil {

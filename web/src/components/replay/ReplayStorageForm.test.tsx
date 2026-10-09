@@ -13,7 +13,7 @@ describe('ReplayStorageForm', () => {
       <ReplayStorageForm
         settings={{
           backend: { value: 'disk', locked: false },
-          dir: { value: '/var/lib/panel/replay', locked: false },
+          dir: { value: '/var/lib/supermetry/replay', locked: false },
           s3: { value: { endpoint: '', bucket: '', region: '', access_key: '', prefix: '', secret_key_set: false }, locked: false },
         }}
         saving={false}

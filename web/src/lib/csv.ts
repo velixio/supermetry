@@ -37,7 +37,7 @@ export async function downloadStatsCSV(query: StatsQuery): Promise<void> {
   const link = document.createElement('a')
   link.href = url
   const filename = response?.headers.get('Content-Disposition')?.match(/filename="([A-Za-z0-9._-]+)"/)?.[1]
-  const verified = response?.headers.get('X-Panel-Privacy-Scope') === 'verified-only'
+  const verified = response?.headers.get('X-Supermetry-Privacy-Scope') === 'verified-only'
   link.download = filename ?? `${query.dimensions?.[0] ?? 'analytics'}${verified ? '-verified-only' : ''}.csv`
   link.click()
   URL.revokeObjectURL(url)

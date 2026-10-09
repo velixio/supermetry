@@ -165,7 +165,7 @@ function ReplayOverlayContent({
           </div>
           {sessionId ? (
             <Button asChild variant="outline">
-              <Link params={{ org, site, id: sessionId }} search={search} to="/$org/$site/replays/$id">Open in new page</Link>
+              <Link params={{ org, site, id: sessionId }} search={search} to="/app/$org/$site/replays/$id">Open in new page</Link>
             </Button>
           ) : null}
         </DialogFooter>

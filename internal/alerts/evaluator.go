@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"panel/internal/scheduler"
-	"panel/internal/sites"
+	"supermetry/internal/scheduler"
+	"supermetry/internal/sites"
 )
 
 const (

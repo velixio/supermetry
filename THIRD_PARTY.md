@@ -143,7 +143,7 @@ the License.
 
 This product includes GeoLite2 data created by MaxMind, available from
 <https://www.maxmind.com>. GeoLite2 data is downloaded by each installation
-when configured and is not bundled with Panel.
+when configured and is not bundled with Supermetry.
 
 ## Public-domain and public data
 

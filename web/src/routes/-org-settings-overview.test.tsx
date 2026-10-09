@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { ComponentType, ReactNode } from 'react'
-import { Route } from './$org.settings.index'
+import { Route } from './app.$org.settings.index'
 import { useOrganization } from '@/features/settings/routeContext'
 
 vi.mock('@/features/settings/routeContext', () => ({ useOrganization: vi.fn() }))
@@ -24,6 +24,6 @@ it.each(['owner', 'admin', 'editor', 'viewer'] as const)('shows %s access withou
   render(<Overview />)
   expect(screen.getByRole('heading', { name: 'Acme' })).toBeVisible()
   expect(screen.getByText(/No project data access/)).toBeVisible()
-  expect(screen.getByRole('link', { name: 'Account settings' })).toHaveAttribute('href', '/account/profile')
+  expect(screen.getByRole('link', { name: 'Account settings' })).toHaveAttribute('href', '/app/account/profile')
   expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()
 })

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { queryClient } from './queryClient'
 
 type Status = 'active' | 'pending' | 'failed' | 'leaving'
-const signalKey = 'panel-session-change'
+const signalKey = 'supermetry-session-change'
 const aborted = () => new DOMException('Session changed', 'AbortError')
 
 type Dependencies = {
@@ -106,7 +106,7 @@ export function createSessionLifecycle(deps: Dependencies) {
       clear()
       pending = (async () => {
         try {
-          const raw = deps.cookie().split(';').map((part) => part.trim()).find((part) => part.startsWith('panel_csrf='))?.slice('panel_csrf='.length)
+          const raw = deps.cookie().split(';').map((part) => part.trim()).find((part) => part.startsWith('supermetry_csrf='))?.slice('supermetry_csrf='.length)
           let token: string | undefined
           try { token = raw ? decodeURIComponent(raw) : undefined } catch { /* Server rejects missing CSRF. */ }
           const response = await deps.fetch('/api/private/auth/logout', {

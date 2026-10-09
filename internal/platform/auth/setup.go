@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	platformcrypto "panel/internal/platform/crypto"
+	platformcrypto "supermetry/internal/platform/crypto"
 )
 
 func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {

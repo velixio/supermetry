@@ -6,9 +6,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/db"
-	"panel/internal/enrich"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/enrich"
+	"supermetry/internal/testpg"
 )
 
 func TestChannelSQLMatchesEnrichChannel(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/salts"
-	"panel/internal/session"
+	"supermetry/internal/db"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
 )
 
 type realClock struct{}

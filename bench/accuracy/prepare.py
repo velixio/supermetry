@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Select benchmark sites and convert generator metadata for Panel."""
+"""Select benchmark sites and convert generator metadata for Supermetry."""
 
 import argparse
 import json

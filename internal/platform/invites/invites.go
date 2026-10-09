@@ -12,12 +12,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
 )
 
 const invitationLifetime = 7 * 24 * time.Hour
@@ -144,7 +144,7 @@ func (i *Invites) Create(ctx context.Context, principal authz.Principal, email s
 	}
 	message := mail.Message{
 		To:      email,
-		Subject: "You're invited to Panel",
+		Subject: "You're invited to Supermetry",
 		Text:    "Accept your invitation using this one-time link:\n\n" + link,
 	}
 	if err := i.mail.Send(ctx, message); err != nil {

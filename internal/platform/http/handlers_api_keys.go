@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"panel/internal/platform/authz"
-	"panel/internal/platform/keys"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/keys"
 )
 
 type apiKeyResponse struct {

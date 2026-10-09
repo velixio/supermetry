@@ -17,13 +17,13 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/imports"
-	"panel/internal/platform/authz"
-	platformstore "panel/internal/platform/store"
-	"panel/internal/privacy"
-	coresites "panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/imports"
+	"supermetry/internal/platform/authz"
+	platformstore "supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	coresites "supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestCopyUploadEnforcesFileSizeWithoutBuffering(t *testing.T) {
@@ -142,7 +142,7 @@ func TestImportAndExportRoutesRequireOwnerOrAdmin(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/api/private/sites/7/imports", &body)
 			request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 			request.Header.Set("X-CSRF-Token", "token")
-			request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+			request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
 			if response.Code != tt.want {
@@ -304,7 +304,7 @@ func TestImportAndExportMutationsWriteAuditEntries(t *testing.T) {
 
 func withCSRF(request *http.Request) {
 	request.Header.Set("X-CSRF-Token", "token")
-	request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 }
 
 func TestSaveImportMultipartStreamsFileAndAcceptsSourceAfterIt(t *testing.T) {

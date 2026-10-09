@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/query"
+	"supermetry/internal/api"
+	"supermetry/internal/query"
 )
 
 func TestPlanRoutes(t *testing.T) {

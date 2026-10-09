@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/config"
-	"panel/internal/privacy"
+	"supermetry/internal/config"
+	"supermetry/internal/privacy"
 )
 
 func TestParseTrackingPublicPaths(t *testing.T) {
@@ -69,7 +69,7 @@ func TestLoadLookupTrackingPublicPaths(t *testing.T) {
 		{"valid", `["/pricing"]`, true, false}, {"explicit deny", "[]", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			env := map[string]string{"PANEL_DATABASE_URL": "postgres://localhost/test", "PANEL_BASE_URL": "http://localhost", "PANEL_SECRET_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+			env := map[string]string{"SUPERMETRY_DATABASE_URL": "postgres://localhost/test", "SUPERMETRY_BASE_URL": "http://localhost", "SUPERMETRY_SECRET_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
 			if tc.present {
 				env[config.TrackingPublicPathsEnv] = tc.raw
 			}

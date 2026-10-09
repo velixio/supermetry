@@ -15,7 +15,7 @@
   /*@end*/
   var endpoint = data.api || "/api/public/v1/events";
   var ignored;
-  try { ignored = localStorage.panel_ignore; } catch (_) {}
+  try { ignored = localStorage.supermetry_ignore; } catch (_) {}
   var pageURL = location.href;
   var active = 0;
   var started = /*@full*/ manual ? 0 : /*@end*/ document.hidden ? 0 : Date.now();
@@ -42,7 +42,7 @@
     return data.hash == "true" ? url : url.split("#")[0];
   }
   function run(payload) {
-    var hook = panel.beforeSend || window[data.beforeSend];
+    var hook = supermetry.beforeSend || window[data.beforeSend];
     var result;
     if (typeof hook != "function") return payload;
     try {
@@ -175,46 +175,46 @@
     flushEngagement() : (started = Date.now(), pending = true));
   addEventListener("pagehide", flushEngagement);
 
-  var panel = window.panel = window.panel || {};
+  var supermetry = window.supermetry = window.supermetry || {};
   /*@full*/
   var startReplay;
   var replayGranted;
   if (data.replay) {
     startReplay = () => {
       var connection = navigator.connection;
-      if (!permitted() || panel._replayDenied || panel._replay || connection?.saveData || /^(slow-)?2g$/.test(connection?.effectiveType)) return;
+      if (!permitted() || supermetry._replayDenied || supermetry._replay || connection?.saveData || /^(slow-)?2g$/.test(connection?.effectiveType)) return;
       var origin = new URL(endpoint, location.href).origin;
-      panel._replay = {s: data.site, o: origin};
+      supermetry._replay = {s: data.site, o: origin};
       var replayScript = document.createElement("script");
       replayScript.src = origin + "/replay.js";
       document.head.appendChild(replayScript);
     };
-    panel.replay = {trigger: (reason) => panel._replayTrigger = reason || "manual"};
+    supermetry.replay = {trigger: (reason) => supermetry._replayTrigger = reason || "manual"};
     replayGranted = data.replay == "never" || data.replay == "auto" && !gated;
     if (replayGranted) startReplay();
   }
-  panel._post = post;
-  panel._allowed = permitted;
+  supermetry._post = post;
+  supermetry._allowed = permitted;
   /*@end*/
   // Opt-out is the only thing the tracker ever stores: a flag, no identifier.
   var opt = (value) => () => {
     ignored = value;
     /*@full*/
-    if (value) { profileID = 0; if (paused) paused = []; panel._clearHeatmap?.(); }
+    if (value) { profileID = 0; if (paused) paused = []; supermetry._clearHeatmap?.(); }
     /*@end*/
-    try { value ? localStorage.panel_ignore = 1 : delete localStorage.panel_ignore; } catch (_) {}
+    try { value ? localStorage.supermetry_ignore = 1 : delete localStorage.supermetry_ignore; } catch (_) {}
     /*@full*/
     if (data.replay) {
-      panel._replayDenied = value;
-      if (value) panel._replayStop?.();
+      supermetry._replayDenied = value;
+      if (value) supermetry._replayStop?.();
       else if (replayGranted) startReplay();
     }
     /*@end*/
   };
-  panel.optOut = opt(1);
-  panel.optIn = opt(0);
+  supermetry.optOut = opt(1);
+  supermetry.optIn = opt(0);
   /*@full*/
-  panel.pageview = (options) => {
+  supermetry.pageview = (options) => {
     var url = options?.url;
     try {
       url = url ? new URL(url, location.href).href : location.href;
@@ -224,14 +224,14 @@
     flushEngagement();
     startPage(url, options?.props);
   };
-  panel.consent = (granted) => {
-    panel._replayConsent = !!granted;
+  supermetry.consent = (granted) => {
+    supermetry._replayConsent = !!granted;
     denied = !granted;
-    if (!granted) { profileID = 0; panel._clearHeatmap?.(); }
+    if (!granted) { profileID = 0; supermetry._clearHeatmap?.(); }
     if (data.replay) {
       replayGranted = granted;
-      panel._replayDenied = !granted;
-      if (!granted) panel._replayStop?.();
+      supermetry._replayDenied = !granted;
+      if (!granted) supermetry._replayStop?.();
     }
     if (!gated) {
       if (granted && startReplay) startReplay();
@@ -244,9 +244,9 @@
     if (granted && startReplay) startReplay();
   };
   /*@end*/
-  panel.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);
+  supermetry.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);
   // Identification is memory-only, so call identify on every page load.
-  panel.identify = (id, traits = {}) => {
+  supermetry.identify = (id, traits = {}) => {
     if (data.profiles == "false" || !permitted()) return;
     if (id === null) {
       return profileID = 0;

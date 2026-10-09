@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"panel/bench/load/internal/rec"
+	"supermetry/bench/load/internal/rec"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 // Filter keys. Session dimensions exist on both sessions and events (copied

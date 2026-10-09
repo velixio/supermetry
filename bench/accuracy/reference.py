@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent metric reference for Panel benchmark NDJSON.
+"""Independent metric reference for Supermetry benchmark NDJSON.
 
 This module intentionally uses only Python's standard library and the public
 NDJSON/API contracts. It does not import product code.

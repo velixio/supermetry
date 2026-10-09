@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 // Errors returned by Submit/TrySubmit.

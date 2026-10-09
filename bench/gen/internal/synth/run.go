@@ -140,7 +140,7 @@ func (g *Generator) Run(out io.Writer, truth io.Writer) (Stats, error) {
 	if truth != nil {
 		tw = bufio.NewWriterSize(truth, 1<<20)
 		rows = make([][]byte, len(units))
-		writeTruth(fmt.Sprintf(`{"generator":"panel/bench/gen","tier":%q,"seed":%d,"start":%q,"days":%d,"events_per_day":%d,"sites":%d,`+
+		writeTruth(fmt.Sprintf(`{"generator":"supermetry/bench/gen","tier":%q,"seed":%d,"start":%q,"days":%d,"events_per_day":%d,"sites":%d,`+
 			`"dims":["path","country","source","browser","os","device","entry","exit"],"top_n":%d,"funnel_f_steps":["/","/pricing","signup"],"rows":[`+"\n",
 			g.cfg.Tier, g.seed, g.cfg.Start.Format("2006-01-02"), g.cfg.Days, g.eventsPerDay, nSites, topN))
 	}

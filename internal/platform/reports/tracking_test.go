@@ -2,8 +2,8 @@ package reports
 
 import (
 	"context"
-	"panel/internal/api"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/sites"
 	"testing"
 	"time"
 )

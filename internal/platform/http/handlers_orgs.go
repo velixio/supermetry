@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"panel/internal/platform/authz"
+	"supermetry/internal/platform/authz"
 )
 
 func (h *handler) createAPIKey(w http.ResponseWriter, r *http.Request) {

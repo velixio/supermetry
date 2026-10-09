@@ -2,10 +2,10 @@
 set -euo pipefail
 
 FINAL=$(cd "$(dirname "$0")" && pwd)
-usage() { echo "Usage: bench/final/run.sh <env|panel-m|panel-s|panel-ingest|panel-c2p1|panel-small|plausible|summary> [--dry-run]"; }
+usage() { echo "Usage: bench/final/run.sh <env|supermetry-m|supermetry-s|supermetry-ingest|supermetry-c2p1|supermetry-small|plausible|summary> [--dry-run]"; }
 [[ $# -ge 1 && $# -le 2 ]] || { usage >&2; exit 2; }
 phase=$1; shift
-case $phase in env|panel-m|panel-s|panel-ingest|panel-c2p1|panel-small|plausible|summary) ;; *) usage >&2; exit 2;; esac
+case $phase in env|supermetry-m|supermetry-s|supermetry-ingest|supermetry-c2p1|supermetry-small|plausible|summary) ;; *) usage >&2; exit 2;; esac
 dry=0
 if [[ $# == 1 ]]; then [[ $1 == --dry-run ]] || { usage >&2; exit 2; }; dry=1; fi
 if [[ $dry == 1 && -z ${FINAL_RESULTS_DIR:-} ]]; then

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"panel/internal/platform/authz"
+	"supermetry/internal/platform/authz"
 )
 
 // authorizeSensitiveExport is called only after tenant/site authorization.

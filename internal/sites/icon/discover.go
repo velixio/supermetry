@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"panel/internal/safehttp"
+	"supermetry/internal/safehttp"
 )
 
 const (

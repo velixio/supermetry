@@ -13,9 +13,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/errgroup"
 
-	"panel/internal/api"
-	"panel/internal/dict"
-	platformgoals "panel/internal/platform/goals"
+	"supermetry/internal/api"
+	"supermetry/internal/dict"
+	platformgoals "supermetry/internal/platform/goals"
 )
 
 const queryTimeout = 10 * time.Second

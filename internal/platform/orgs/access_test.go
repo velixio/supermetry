@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"panel/internal/platform/authz"
+	"supermetry/internal/platform/authz"
 )
 
 func TestAccessUpdatePreservesOmittedGrantsAndSiteRestriction(t *testing.T) {

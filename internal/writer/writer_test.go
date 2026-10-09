@@ -8,12 +8,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/privacy"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/testpg"
-	"panel/internal/writer"
+	"supermetry/internal/db"
+	"supermetry/internal/privacy"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
+	"supermetry/internal/writer"
 )
 
 type realClock struct{}

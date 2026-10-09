@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/scheduler"
+	"supermetry/internal/scheduler"
 )
 
 const Window = 48 * time.Hour

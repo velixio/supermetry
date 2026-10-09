@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/closer"
-	"panel/internal/db"
-	"panel/internal/retention"
-	"panel/internal/testpg"
+	"supermetry/internal/closer"
+	"supermetry/internal/db"
+	"supermetry/internal/retention"
+	"supermetry/internal/testpg"
 )
 
 func TestVerifiedPagesClosePreservesPolicyCohortsAndRebuildsAfterRawExpiry(t *testing.T) {

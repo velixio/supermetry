@@ -6,8 +6,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
 )
 
 func TestMetricsAccessPolicy(t *testing.T) {

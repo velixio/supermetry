@@ -10,12 +10,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {

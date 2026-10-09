@@ -12,10 +12,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/api"
-	"panel/internal/csvsafe"
-	"panel/internal/dict"
-	"panel/internal/privacy"
+	"supermetry/internal/api"
+	"supermetry/internal/csvsafe"
+	"supermetry/internal/dict"
+	"supermetry/internal/privacy"
 )
 
 type Exporter struct {

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/session"
+	"supermetry/internal/session"
 )
 
 type benchmarkStore struct{}

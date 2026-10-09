@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 type segmentHarness struct {
@@ -206,7 +206,7 @@ func segmentRawRequest(t *testing.T, handler http.Handler, actor, method, path, 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-Test-Actor", actor)
 	request.Header.Set("X-CSRF-Token", "token")
-	request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != want {

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	platformauth "panel/internal/platform/auth"
+	platformauth "supermetry/internal/platform/auth"
 )
 
 func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +170,7 @@ func (h *handler) deleteAccount(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 	default:
 		h.clearCookie(w, r, platformauth.CookieName, true)
-		h.clearCookie(w, r, "panel_csrf", false)
+		h.clearCookie(w, r, "supermetry_csrf", false)
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

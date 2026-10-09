@@ -20,17 +20,17 @@ import (
 	"github.com/maxmind/mmdbwriter"
 	"github.com/maxmind/mmdbwriter/mmdbtype"
 
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/enrich"
-	"panel/internal/health"
-	"panel/internal/ingest"
-	"panel/internal/privacy"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/testpg"
-	"panel/internal/writer"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/enrich"
+	"supermetry/internal/health"
+	"supermetry/internal/ingest"
+	"supermetry/internal/privacy"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
+	"supermetry/internal/writer"
 )
 
 const (
@@ -1015,7 +1015,7 @@ func writeCityMMDB(t *testing.T) string {
 	tree, err := mmdbwriter.New(mmdbwriter.Options{
 		BuildEpoch:              1_700_000_000,
 		DatabaseType:            "GeoLite2-City",
-		Description:             map[string]string{"en": "Panel ingest test database"},
+		Description:             map[string]string{"en": "Supermetry ingest test database"},
 		IncludeReservedNetworks: true,
 		IPVersion:               4,
 		Languages:               []string{"en"},

@@ -23,7 +23,7 @@ rows += [row('O1','≤2 services; fewer than Plausible','2 services','3 services
  row('O4','standard pg_dump/restore','PASS (prep)','PG + ClickHouse','PG','PG','PASS'),
  row('O5','automatic partition retention','PASS (prep)','no retention','no retention','—','PASS')]
 
-ing=load(results+'/artifacts/panel-ingest/meta.json')
+ing=load(results+'/artifacts/supermetry-ingest/meta.json')
 if ing:
     a=ing['r1']['app_rss_bytes']; st=ing['r1']['stack_bytes']; ok=a['max']<50_000_000 and st['p50']<=689*1048576/4
     rows.append(row('R1','app <50 MB; stack ≤¼ Plausible',f"app max {mib(a['max'])}; stack p50 {mib(st['p50'])}",'689 MiB idle (dev)','69 MiB (dev)','57 MiB (dev)','PASS' if ok else 'FAIL'))
@@ -32,11 +32,11 @@ if ing:
     rows.append(row('R2','app <150 MB; stack ≤½ Plausible',f"app max {mib(a['max'])}; stack p50 {mib(st['p50'])}",f"{pst:.1f} MiB final" if pst else 'pending','≈1.0 GiB (dev)','≈480 MiB (dev)','PASS' if ok else ('PENDING' if pst is None else 'FAIL')))
 else:
     rows += [row('R1','app <50 MB; stack ≤¼ Plausible',pl='689 MiB idle (dev)',um='69 MiB (dev)',gc='57 MiB (dev)'),row('R2','app <150 MB; stack ≤½ Plausible',pl='1,689 MiB load (dev)',um='≈1.0 GiB (dev)',gc='≈480 MiB (dev)')]
-ps=load(results+'/artifacts/panel-s/meta.json')
+ps=load(results+'/artifacts/supermetry-s/meta.json')
 if ps:
     v=ps['bytes_per_million_events']; rows.append(row('R3','≤300 MB/1M; ≤½ Umami',f"{v/1e6:.1f} MB/1M",'34.7 MB/1M (dev)','995 MB/1M (dev)','196 MB/1M (dev)','PASS' if v<=300e6 and v<=497.5e6 else 'FAIL'))
 else: rows.append(row('R3','≤300 MB/1M; ≤½ Umami',pl='34.7 MB/1M (dev)',um='995 MB/1M (dev)',gc='196 MB/1M (dev)'))
-sm=load(results+'/artifacts/panel-small/meta.json'); sc=cases(results+'/artifacts/panel-small/final-panel-small-*.json')
+sm=load(results+'/artifacts/supermetry-small/meta.json'); sc=cases(results+'/artifacts/supermetry-small/final-supermetry-small-*.json')
 if sm and sc:
     p95=max(c['wall']['p95_ms'] for _,c in sc if c.get('scorecard_line')=='S2'); ok=p95<300 and sm['oom_events']==0
     rows.append(row('R4','1 CPU/1 GiB; S2 <300 ms; no OOM',f"S2 p95 {p95:.1f} ms; OOM {sm['oom_events']}",'see final R4','—','—','PASS' if ok else 'FAIL'))
@@ -45,7 +45,7 @@ rows.append(row('R5','binary <30 MB; tracker <1 KB gzip','12,677,385 B; 410 B gz
 
 lt=[]
 if ing:
-    for p in glob.glob(results+'/artifacts/panel-ingest/proto-loadtest-*.json'):
+    for p in glob.glob(results+'/artifacts/supermetry-ingest/proto-loadtest-*.json'):
         x=load(p) or {}; 
         if x.get('target_rate') in (5000,10000,20000,40000): lt.append(x)
 s1=next((x for x in lt if x.get('target_rate')==10000),None)
@@ -54,9 +54,9 @@ if s1:
     rows.append(row('S1','≥10K/s, p99 <50 ms, zero loss',f"{s1['accepted_per_s']:.0f}/s; p99 {s1['latency']['p99_ms']:.1f} ms; codes {s1['codes']}",'12K/s p99 202 ms (dev)','300/s (dev)','16K/s p99 28 ms (dev)','PASS' if ok else 'FAIL'))
 else: rows.append(row('S1','≥10K/s, p99 <50 ms, zero loss',pl='12K/s (dev)',um='300/s (dev)',gc='16K/s (dev)'))
 
-pc=cases(results+'/artifacts/panel-m/final-panel-m-*.json')+cases(results+'/artifacts/panel-s/final-panel-s-*.json')
+pc=cases(results+'/artifacts/supermetry-m/final-supermetry-m-*.json')+cases(results+'/artifacts/supermetry-s/final-supermetry-s-*.json')
 def vals(line,needle=None): return [c['wall']['p95_ms'] for _,c in pc if c.get('scorecard_line')==line and (needle is None or needle in c.get('name',''))]
-s2=vals('S2'); s2keys={(('M' if '/panel-m/' in p else 'S'),int(re.search(r'(\d+)d',c['name']).group(1))) for p,c in pc if c.get('scorecard_line')=='S2'}
+s2=vals('S2'); s2keys={(('M' if '/supermetry-m/' in p else 'S'),int(re.search(r'(\d+)d',c['name']).group(1))) for p,c in pc if c.get('scorecard_line')=='S2'}
 s3s=[c['wall']['p95_ms'] for p,c in pc if c.get('scorecard_line')=='S3' and '90d' in c.get('name','')]; s3m=[c['wall']['p95_ms'] for p,c in pc if c.get('scorecard_line')=='S3' and '14d' in c.get('name','')]
 pq30=load(results+'/artifacts/plausible/queries-30d.json'); pq90=load(results+'/artifacts/plausible/queries-90d.json')
 def qmax(x,line):
@@ -70,7 +70,7 @@ if s3s and s3m:
 else: rows.append(row('S3','S90 <1 s; M14 <3 s; REL thresholds',um='19.2–35.5 s S30 (dev)',gc='n/a'))
 s4=[c['wall']['p95_ms'] for _,c in pc if c.get('scorecard_line')=='S4' and '30d' in c.get('name','')]
 rows.append(row('S4','Tier S 30d p95 <2 s',f"p95 {max(s4):.1f} ms" if s4 else 'pending','n/a','11.5 s (dev)','n/a','PASS' if s4 and max(s4)<2000 else ('FAIL' if s4 else 'PENDING')))
-s5=load(results+'/artifacts/panel-ingest/s5.json')
+s5=load(results+'/artifacts/supermetry-ingest/s5.json')
 rows.append(row('S5','realtime ≤5 s; dashboard ≤60 s',f"realtime {s5['realtime_seconds']:.2f}s; dashboard {s5['dashboard_seconds']:.2f}s" if s5 else 'pending',status='PASS' if s5 and s5.get('pass') else ('FAIL' if s5 else 'PENDING')))
 
 s3row=next(r for r in rows if r['id']=='S3'); s4row=next(r for r in rows if r['id']=='S4')
@@ -79,10 +79,10 @@ f4=[c['wall']['p95_ms'] for _,c in pc if c.get('scorecard_line')=='F4' and '30d'
 rows.append(row('F4','Tier S 30d prop breakdown <1 s',f"worst p95 {max(f4):.1f} ms" if f4 else 'pending',status='PASS' if f4 and max(f4)<1000 else ('FAIL' if f4 else 'PENDING')))
 rows.append(row('F5','MVP dashboard checklist','not measured',status='N/A',gating=False))
 
-c2=load(results+'/artifacts/panel-c2p1/meta.json')
+c2=load(results+'/artifacts/supermetry-c2p1/meta.json')
 rows.append(row('P1','no generated IP/full UA in dump/logs',f"{c2['privacy_matches']} matches" if c2 else 'pending',status='PASS' if c2 and c2['privacy_matches']==0 else ('FAIL' if c2 else 'PENDING')))
 rows += [row('P2','random 48h salt; site-scoped','PASS (prep)',status='PASS'),row('P3','tracker uses no browser storage','PASS (prep)',status='PASS'),row('P4','server computes visitors/sessions','PASS (prep)',status='PASS')]
-ver=load(results+'/artifacts/panel-s/verify.json')
+ver=load(results+'/artifacts/supermetry-s/verify.json')
 rows.append(row('C1','exact counts; duration ±1%',f"{ver.get('mismatches')} mismatches" if ver else 'pending',status='PASS' if ver and ver.get('pass') else ('FAIL' if ver else 'PENDING')))
 rows.append(row('C2','no double count after restart',f"{c2['truth_mismatches']} mismatches" if c2 else 'pending',status='PASS' if c2 and c2.get('truth_mismatches')==0 else ('FAIL' if c2 else 'PENDING')))
 
@@ -101,8 +101,8 @@ if sm and sc:
     by['R4']['rel_status']='PASS' if (ppm is not None and (ppm>=300 or poom)) else ('PENDING' if ppm is None else 'FAIL')
 else: by['R4']['rel_status']='PENDING'
 by['S1']['rel_status']='PASS' if s1 and s1.get('accepted_per_s',0)>=900 else ('PENDING' if not s1 else 'FAIL')
-panel_s30=max((c['wall']['p95_ms'] for p,c in pc if c.get('scorecard_line')=='S2' and '/panel-s/' in p and '30d' in c.get('name','')),default=None); pl_s30=qmax(pq30,'S2')
-by['S2']['rel_status']='PASS' if panel_s30 is not None and pl_s30 is not None and panel_s30<=39560/5 and panel_s30<=pl_s30 else ('PENDING' if panel_s30 is None or pl_s30 is None else 'FAIL')
+supermetry_s30=max((c['wall']['p95_ms'] for p,c in pc if c.get('scorecard_line')=='S2' and '/supermetry-s/' in p and '30d' in c.get('name','')),default=None); pl_s30=qmax(pq30,'S2')
+by['S2']['rel_status']='PASS' if supermetry_s30 is not None and pl_s30 is not None and supermetry_s30<=39560/5 and supermetry_s30<=pl_s30 else ('PENDING' if supermetry_s30 is None or pl_s30 is None else 'FAIL')
 def named(case_list,token): return max((c['wall']['p95_ms'] for _,c in case_list if c.get('scorecard_line')=='S3' and '30d' in c.get('name','') and c.get('name','').endswith(token)),default=None)
 def qnamed(x,token): return max((c['wall']['p95_ms'] for c in (x or {}).get('cases',[]) if c.get('scorecard_line')=='S3' and c.get('name','').endswith(token)),default=None)
 comparisons=[]
@@ -111,7 +111,7 @@ for token,um in [('filter country',35500),('country+source',26800),('country+pat
 by['S3']['rel_status']='PENDING' if any(x is None for x in comparisons) else ('PASS' if all(comparisons) else 'FAIL')
 
 noisy={p.rsplit('/',1)[-1][:-6] for p in glob.glob(results+'/.state/*.noisy')}
-for phase,ids in {'panel-m':('S2','S3'),'panel-s':('S2','S3','S4','F4'),'panel-ingest':('S1','R2'),'panel-small':('R4',),'plausible':('R2','R4','S2','S3')}.items():
+for phase,ids in {'supermetry-m':('S2','S3'),'supermetry-s':('S2','S3','S4','F4'),'supermetry-ingest':('S1','R2'),'supermetry-small':('R4',),'plausible':('R2','R4','S2','S3')}.items():
     if phase in noisy:
         for x in ids:
             if phase != 'plausible' and by[x]['must_status']!='N/A':by[x]['must_status']='PENDING'
@@ -133,7 +133,7 @@ elif axis_possible>=2: verdict='BLOCKED'
 else: verdict='NO-GO'
 with open(out_md,'w',encoding='utf-8') as f:
     f.write('# Final go/no-go benchmark\n\n')
-    f.write('| Line | Target | Panel | Plausible (final) | Umami (dev) | GoatCounter (dev) | Result |\n|---|---|---|---|---|---|---|\n')
+    f.write('| Line | Target | Supermetry | Plausible (final) | Umami (dev) | GoatCounter (dev) | Result |\n|---|---|---|---|---|---|---|\n')
     for r in rows:f.write('| {id} | {target} | {panel} | {plausible} | {umami} | {goatcounter} | {status} |\n'.format(**{k:str(v).replace('|','\\|') for k,v in r.items()}))
     f.write(f"\n## Verdict: {verdict}\n\nAxes: "+', '.join(f'{k}={v}' for k,v in axes.items())+'.\n\n')
     if fails:f.write('Failing lines: '+', '.join(fails)+'.\n')

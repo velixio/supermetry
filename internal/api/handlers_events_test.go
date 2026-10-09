@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/db"
-	"panel/internal/ingest"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/db"
+	"supermetry/internal/ingest"
+	"supermetry/internal/sites"
 )
 
 type eventsExploreStub struct {

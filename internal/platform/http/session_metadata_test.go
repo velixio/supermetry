@@ -12,7 +12,7 @@ import (
 
 	"github.com/maxmind/mmdbwriter"
 	"github.com/maxmind/mmdbwriter/mmdbtype"
-	"panel/internal/enrich"
+	"supermetry/internal/enrich"
 )
 
 func TestAccountSessionMetadataUsesTrustedPeerAndLocalGeoIP(t *testing.T) {

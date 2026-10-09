@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/config"
-	"panel/internal/platform/mail"
+	"supermetry/internal/config"
+	"supermetry/internal/platform/mail"
 )
 
 func TestFakeRecordsMessages(t *testing.T) {
@@ -36,7 +36,7 @@ func TestSMTPDisabledWithoutHost(t *testing.T) {
 func TestSMTPRefusesAuthenticationWithoutSTARTTLS(t *testing.T) {
 	sender := mail.NewSMTP(config.SMTP{
 		Host: "127.0.0.1", Port: 1, User: "mailer", Pass: "secret",
-		From: "panel@example.com", StartTLS: false,
+		From: "supermetry@example.com", StartTLS: false,
 	})
 	err := sender.Send(context.Background(), mail.Message{To: "person@example.com"})
 	if err == nil || !strings.Contains(err.Error(), "authentication requires STARTTLS") {
@@ -53,7 +53,7 @@ func TestSMTPRejectsAddressHeaderInjection(t *testing.T) {
 		wantErr string
 	}{
 		{name: "sender", from: injected, to: "person@example.com", wantErr: "parse SMTP from address"},
-		{name: "recipient", from: "panel@example.com", to: injected, wantErr: "parse SMTP recipient"},
+		{name: "recipient", from: "supermetry@example.com", to: injected, wantErr: "parse SMTP recipient"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -89,7 +89,7 @@ func TestSMTPCancellationStopsStalledExchange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sender := mail.NewSMTP(config.SMTP{Host: host, Port: port, From: "panel@example.com"})
+	sender := mail.NewSMTP(config.SMTP{Host: host, Port: port, From: "supermetry@example.com"})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/db"
+	"supermetry/internal/db"
 )
 
 // FileRegistry is an immutable site registry loaded from a JSON file.

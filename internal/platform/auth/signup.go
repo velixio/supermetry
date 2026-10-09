@@ -8,11 +8,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
 )
 
 func (a *Auth) Signup(ctx context.Context, email, name, password, orgName, deviceLabel string) (string, error) {

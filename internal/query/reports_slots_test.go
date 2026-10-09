@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/privacy"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/privacy"
+	"supermetry/internal/sites"
 )
 
 type oneSiteRegistry struct{ site sites.Site }

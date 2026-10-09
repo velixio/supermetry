@@ -21,7 +21,7 @@ vi.mock('@/components/replay/api', () => ({
 vi.mock('@/lib/shortcuts', () => ({ useShortcuts: () => undefined }))
 vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn() }) }))
 
-import type { Me, Membership } from '@/routes/$org'
+import type { Me, Membership } from '@/routes/app.$org'
 
 import { AppShell } from './AppShell'
 
@@ -32,14 +32,19 @@ const membership: Membership = {
 }
 
 const me: Me = {
-  user: { id: 1, name: 'Owner', email: 'owner@panel.test' },
+  user: { id: 1, name: 'Owner', email: 'owner@supermetry.test' },
   memberships: [membership],
 }
 
 function renderShell(initialEntry: string, shellMembership = membership) {
   const root = createRootRoute({ component: Outlet })
-  const org = createRoute({
+  const app = createRoute({
     getParentRoute: () => root,
+    path: 'app',
+    component: Outlet,
+  })
+  const org = createRoute({
+    getParentRoute: () => app,
     path: '$org',
     component: () => <AppShell me={{ ...me, memberships: [shellMembership] }} membership={shellMembership} />,
   })
@@ -63,10 +68,10 @@ function renderShell(initialEntry: string, shellMembership = membership) {
   })
   const router = createRouter({
     routeTree: root.addChildren([
-      org.addChildren([
+      app.addChildren([org.addChildren([
         site.addChildren([siteSettings.addChildren([siteGeneral]), realtime]),
         orgSettings.addChildren([orgMembers]),
-      ]),
+      ])]),
     ]),
     history: createMemoryHistory({ initialEntries: [initialEntry] }),
   })
@@ -109,13 +114,13 @@ describe('AppShell live visitor badge', () => {
   })
 
   it('shows counts, accessible detail, tooltip, and a realtime link on nested site routes', async () => {
-    const { router } = renderShell('/acme/docs-public/settings/general')
+    const { router } = renderShell('/app/acme/docs-public/settings/general')
 
     const badge = await screen.findByRole('link', {
       name: '12 active now, 48 in the last 30 minutes',
     })
     expect(badge).toHaveTextContent('● 12 live')
-    expect(badge).toHaveAttribute('href', '/acme/docs-public/realtime')
+    expect(badge).toHaveAttribute('href', '/app/acme/docs-public/realtime')
 
     fireEvent.focus(badge)
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
@@ -123,15 +128,15 @@ describe('AppShell live visitor badge', () => {
     )
 
     fireEvent.click(badge)
-    await waitFor(() => expect(router.state.location.pathname).toBe('/acme/docs-public/realtime'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs-public/realtime'))
   })
 
   it.each(['docs', 'docs-public', '7'])('keeps current site context for the %s alias', async (alias) => {
-    renderShell(`/acme/${alias}/settings/general`)
-    expect(await screen.findByRole('link', { name: '12 active now, 48 in the last 30 minutes' })).toHaveAttribute('href', `/acme/${alias}/realtime`)
+    renderShell(`/app/acme/${alias}/settings/general`)
+    expect(await screen.findByRole('link', { name: '12 active now, 48 in the last 30 minutes' })).toHaveAttribute('href', `/app/acme/${alias}/realtime`)
     expect(useLiveSummary).toHaveBeenCalledWith(7)
     fireEvent.keyDown(screen.getByRole('button', { name: 'Settings' }), { key: 'ArrowDown' })
-    expect(await screen.findByRole('menuitem', { name: /Site settings\s*Docs/ })).toHaveAttribute('href', '/acme/docs/settings/general')
+    expect(await screen.findByRole('menuitem', { name: /Site settings\s*Docs/ })).toHaveAttribute('href', '/app/acme/docs/settings/general')
   })
 
   it('uses the same live label for one visitor', async () => {
@@ -140,7 +145,7 @@ describe('AppShell live visitor badge', () => {
       isPending: false,
       isError: false,
     })
-    renderShell('/acme/docs-public/settings/general')
+    renderShell('/app/acme/docs-public/settings/general')
 
     expect(await screen.findByRole('link', {
       name: '1 active now, 9 in the last 30 minutes',
@@ -149,12 +154,12 @@ describe('AppShell live visitor badge', () => {
 
   it('shows a muted placeholder while loading and hides errors', async () => {
     useLiveSummary.mockReturnValue({ data: undefined, isPending: true, isError: false })
-    const { unmount } = renderShell('/acme/docs-public/settings/general')
+    const { unmount } = renderShell('/app/acme/docs-public/settings/general')
     expect((await screen.findByText('— live')).closest('output')).toHaveClass('text-muted-foreground')
 
     unmount()
     useLiveSummary.mockReturnValue({ data: undefined, isPending: false, isError: true })
-    renderShell('/acme/docs-public/settings/general')
+    renderShell('/app/acme/docs-public/settings/general')
     expect(screen.queryByText(/live$/)).not.toBeInTheDocument()
   })
 
@@ -165,12 +170,12 @@ describe('AppShell live visitor badge', () => {
   ])('preserves identified navigation for $name even when project profiles are off', async ({ enabled, grant, visible }) => {
     useReplayAvailability.mockReturnValue({ enabled })
     const identifiedMembership = { ...membership, effective_capabilities: grant ? ['replay.read'] : [] }
-    renderShell('/acme/docs-public/settings/general', identifiedMembership)
+    renderShell('/app/acme/docs-public/settings/general', identifiedMembership)
     await screen.findByRole('heading', { name: 'Site settings' })
     const link = screen.queryByRole('link', { name: 'Replays' })
     if (visible) {
       expect(link).toBeVisible()
-      expect(new URL(link!.getAttribute('href')!, window.location.origin).pathname).toBe('/acme/docs/replays')
+      expect(new URL(link!.getAttribute('href')!, window.location.origin).pathname).toBe('/app/acme/docs/replays')
     } else {
       expect(link).not.toBeInTheDocument()
     }
@@ -179,7 +184,7 @@ describe('AppShell live visitor badge', () => {
 
   it('blocks a direct anonymous route before its outlet mounts and keeps only live counts', async () => {
     const anonymousMembership: Membership = { ...membership, sites: membership.sites.map((site) => ({ ...site, tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] } })) }
-    renderShell('/acme/docs-public/realtime', anonymousMembership)
+    renderShell('/app/acme/docs-public/realtime', anonymousMembership)
     expect(await screen.findByRole('heading', { name: 'Unavailable in anonymous tracking mode' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Realtime page' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('12 active now, 48 in the last 30 minutes')).toHaveTextContent('● 12 live')
@@ -191,7 +196,7 @@ describe('AppShell live visitor badge', () => {
   })
 
   it('does not show the badge on organization-only routes', async () => {
-    renderShell('/acme/settings/members')
+    renderShell('/app/acme/settings/members')
 
     expect(await screen.findByRole('heading', { name: 'Organization members' })).toBeVisible()
     expect(screen.queryByText(/live$/)).not.toBeInTheDocument()

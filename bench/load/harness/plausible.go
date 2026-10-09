@@ -59,7 +59,7 @@ func (p *plausible) req(site int, q map[string]any) Req {
 		Header: map[string]string{"Authorization": "Bearer " + p.key, "Content-Type": "application/json"}}
 }
 
-func (p *plausible) Panel(panel, from, to string, f []Filter) (Req, bool, string) {
+func (p *plausible) Supermetry(panel, from, to string, f []Filter) (Req, bool, string) {
 	filters, note := plFilters(f)
 	q := map[string]any{"date_range": []string{from, to}}
 	if len(filters) > 0 {

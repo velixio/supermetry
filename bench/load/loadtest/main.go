@@ -5,7 +5,7 @@
 // counted as overflow. Timestamps in the stream are ignored (the APIs use server
 // time); ip/ua/path/ref/props come from the stream. Throwaway benchmark code.
 //
-//	gen --tier S --days 1 --start 2026-10-01 --out - | loadtest -product panel -rate 1000 -duration 5m -out f.json
+//	gen --tier S --days 1 --start 2026-10-01 --out - | loadtest -product supermetry -rate 1000 -duration 5m -out f.json
 package main
 
 import (
@@ -26,7 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/bench/load/internal/rec"
+	"supermetry/bench/load/internal/rec"
 )
 
 type siteMap []struct {
@@ -65,7 +65,7 @@ func utmQuery(r *rec.Record) string {
 // build returns the request for one event.
 type builder func(r *rec.Record) (*http.Request, error)
 
-func panelBuilder(base string, ids map[int]string) builder {
+func supermetryBuilder(base string, ids map[int]string) builder {
 	return func(r *rec.Record) (*http.Request, error) {
 		body, err := json.Marshal(map[string]any{
 			"site":         ids[r.Site],
@@ -87,7 +87,7 @@ func panelBuilder(base string, ids map[int]string) builder {
 }
 
 func main() {
-	product := flag.String("product", "", "panel|umami|plausible|goatcounter")
+	product := flag.String("product", "", "supermetry|umami|plausible|goatcounter")
 	base := flag.String("url", "", "base URL (default per product)")
 	rate := flag.Int("rate", 1000, "target events/s")
 	dur := flag.Duration("duration", 60*time.Second, "test length")
@@ -110,11 +110,11 @@ func main() {
 	}
 	var build builder
 	switch *product {
-	case "panel":
+	case "supermetry":
 		if *base == "" {
 			*base = "http://127.0.0.1:8080"
 		}
-		build = panelBuilder(*base, ids)
+		build = supermetryBuilder(*base, ids)
 	case "umami":
 		if *base == "" {
 			*base = "http://127.0.0.1:3030"

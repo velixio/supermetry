@@ -15,7 +15,7 @@ type StartResponse = {
 
 declare global {
   interface Window {
-    panel?: {
+    supermetry?: {
       _replay?: ReplayConfig;
       _replayTrigger?: string;
       _replayDenied?: number | boolean;
@@ -27,33 +27,33 @@ declare global {
   }
 }
 
-const panel = window.panel;
-const config = panel?._replay;
+const supermetry = window.supermetry;
+const config = supermetry?._replay;
 
-if (panel && config) void start(panel, config);
+if (supermetry && config) void start(supermetry, config);
 
-async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) {
-  if (!allowed(panel)) return;
+async function start(supermetry: NonNullable<Window["supermetry"]>, config: ReplayConfig) {
+  if (!allowed(supermetry)) return;
   let response: Response;
   try {
     response = await fetch(config.o + "/api/replay/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ s: config.s, u: location.href, c: !!panel._replayConsent }),
+      body: JSON.stringify({ s: config.s, u: location.href, c: !!supermetry._replayConsent }),
     });
   } catch {
-    panel._replay = undefined;
+    supermetry._replay = undefined;
     return;
   }
   if (!response.ok) {
-    panel._replay = undefined;
+    supermetry._replay = undefined;
     return;
   }
 
   const startConfig = await response.json() as StartResponse;
   if (startConfig.m === "off") return;
-  if (!allowed(panel)) {
-    panel._replay = undefined;
+  if (!allowed(supermetry)) {
+    supermetry._replay = undefined;
     return;
   }
 
@@ -88,11 +88,11 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   let stop: ReturnType<typeof record>;
   stop = record({
     emit(event) {
-      if (stopped || !allowed(panel)) return;
+      if (stopped || !allowed(supermetry)) return;
       eventChain = eventChain.then(async () => {
-        if (cancelUploads || !allowed(panel)) return;
-        await deduplicateSnapshotCSS(event, sentCSS, config, panel, () => !cancelUploads && allowed(panel));
-        if (cancelUploads || !allowed(panel)) return;
+        if (cancelUploads || !allowed(supermetry)) return;
+        await deduplicateSnapshotCSS(event, sentCSS, config, supermetry, () => !cancelUploads && allowed(supermetry));
+        if (cancelUploads || !allowed(supermetry)) return;
         acceptEvent(event);
       });
     },
@@ -116,7 +116,7 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
   }
 
   function acceptEvent(event: eventWithTime) {
-    if (cancelUploads || !allowed(panel)) { halt(false, true); return; }
+    if (cancelUploads || !allowed(supermetry)) { halt(false, true); return; }
     if (Date.now() - recordedAt >= 30 * 60_000 || Date.now() - lastActivity >= 2 * 60_000 || totalBytes >= 5 * 1024 * 1024) {
       halt(true);
       return;
@@ -172,7 +172,7 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
       if (!batch.length) return;
       const plain = batch.map((event) => JSON.stringify(event)).join("\n") + "\n";
       const compressed = await gzip(plain);
-      if (cancelUploads || !allowed(panel)) return;
+      if (cancelUploads || !allowed(supermetry)) return;
       if (totalBytes + compressed.byteLength > 5 * 1024 * 1024) {
         halt(false, true);
         return;
@@ -181,7 +181,7 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
         s: config.s,
         q: String(sequence++),
         p: startsPage ? "1" : "0",
-        c: panel._replayConsent ? "1" : "0",
+        c: supermetry._replayConsent ? "1" : "0",
         v: startConfig.v,
       });
       if (trigger) query.set("t", trigger);
@@ -227,13 +227,13 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
     stop?.();
     if (interval) clearInterval(interval);
     if (discard) {
-      panel._replay = undefined;
-      panel._replayStop = undefined;
+      supermetry._replay = undefined;
+      supermetry._replayStop = undefined;
     }
   }
 
   function trigger(reason = "manual") {
-    if (!allowed(panel)) { halt(false, true); return; }
+    if (!allowed(supermetry)) { halt(false, true); return; }
     if (stopped || mode !== "trigger") return;
     const buffered = ringSegments.flat();
     ringSegments = [[]];
@@ -242,9 +242,9 @@ async function start(panel: NonNullable<Window["panel"]>, config: ReplayConfig) 
     queueBatches(buffered, false, reason);
   }
 
-  panel.replay = { trigger: (reason) => { if (startConfig.t.x) trigger(reason); } };
-  panel._replayStop = () => halt(false, true);
-  if (panel._replayTrigger && startConfig.t.x) trigger(panel._replayTrigger);
+  supermetry.replay = { trigger: (reason) => { if (startConfig.t.x) trigger(reason); } };
+  supermetry._replayStop = () => halt(false, true);
+  if (supermetry._replayTrigger && startConfig.t.x) trigger(supermetry._replayTrigger);
 
   if (startConfig.t.e) {
     addEventListener("error", () => trigger("error"));
@@ -319,7 +319,7 @@ type SnapshotNode = {
   childNodes?: SnapshotNode[];
 };
 
-async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, config: ReplayConfig, panel: NonNullable<Window["panel"]>, canUpload: () => boolean) {
+async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, config: ReplayConfig, supermetry: NonNullable<Window["supermetry"]>, canUpload: () => boolean) {
   if (event.type !== 2) return;
   const root = (event.data as { node?: SnapshotNode }).node;
   if (!root) return;
@@ -334,7 +334,7 @@ async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, c
       if (!sent.has(hash)) {
         const body = await gzip(css);
         if (!canUpload()) return;
-        const response = await fetch(config.o + "/api/replay/css/" + hash + "?s=" + encodeURIComponent(config.s) + "&c=" + (panel._replayConsent ? "1" : "0") + "&v=" + encodeURIComponent(config.v || ""), {
+        const response = await fetch(config.o + "/api/replay/css/" + hash + "?s=" + encodeURIComponent(config.s) + "&c=" + (supermetry._replayConsent ? "1" : "0") + "&v=" + encodeURIComponent(config.v || ""), {
           method: "PUT",
           headers: { "Content-Type": "application/gzip" },
           body,
@@ -360,6 +360,6 @@ function glob(pattern: string): RegExp {
   return new RegExp("^" + escaped + "$");
 }
 
-function allowed(panel: NonNullable<Window["panel"]>): boolean {
-  return !panel._replayDenied && !(navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl && navigator.doNotTrack !== "1" && (panel._allowed?.() ?? true);
+function allowed(supermetry: NonNullable<Window["supermetry"]>): boolean {
+  return !supermetry._replayDenied && !(navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl && navigator.doNotTrack !== "1" && (supermetry._allowed?.() ?? true);
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 type fakeWriter struct {

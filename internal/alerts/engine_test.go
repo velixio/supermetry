@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/platform/goals"
-	queryengine "panel/internal/query"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/platform/goals"
+	queryengine "supermetry/internal/query"
+	"supermetry/internal/sites"
 )
 
 func TestEngineSourceMapsExactInstantsToInclusiveSiteCivilDates(t *testing.T) {

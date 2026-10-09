@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	platformcrypto "panel/internal/platform/crypto"
+	platformcrypto "supermetry/internal/platform/crypto"
 )
 
 func TestSecretBox(t *testing.T) {
@@ -23,7 +23,7 @@ func TestSecretBox(t *testing.T) {
 		t.Fatal("tamper not detected")
 	}
 
-	other, err := platformcrypto.NewSecretBox(bytes.Repeat([]byte{7}, 32), "panel/other/v1")
+	other, err := platformcrypto.NewSecretBox(bytes.Repeat([]byte{7}, 32), "supermetry/other/v1")
 	if err != nil {
 		t.Fatal(err)
 	}

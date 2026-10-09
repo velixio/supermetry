@@ -1,4 +1,4 @@
-// Package tracker serves Panel's embedded browser tracker.
+// Package tracker serves Supermetry's embedded browser tracker.
 package tracker
 
 import (

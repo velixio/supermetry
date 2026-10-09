@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures'
 
 test('API reference renders the embedded contract and runs a private read request', async ({ page, owner }) => {
-  const apiReference = `/${owner.orgSlug}/settings/api`
+  const apiReference = `/app/${owner.orgSlug}/settings/api`
   await owner.login(page, apiReference)
 
   await expect(page.getByRole('heading', { name: 'API reference', exact: true })).toBeVisible()

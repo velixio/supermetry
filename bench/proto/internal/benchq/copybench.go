@@ -13,8 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/store"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/store"
 )
 
 // synthEvents makes n realistic-looking, already-sessionized events spread
@@ -84,7 +84,7 @@ func CmdCopyBench(ctx context.Context, args []string) error {
 			fmt.Fprintf(os.Stderr, "COPY writers=%d batch=%d index=%s: %.0f rows/s, %.0f B/row\n", w, *batch, withIdx, float64(*rows)/r.secs, r.bytesPerRow)
 		}
 	}
-	return writeResult(*out, "proto-copybench", "", map[string]any{"kind": "panel-proto COPY micro-benchmark",
+	return writeResult(*out, "proto-copybench", "", map[string]any{"kind": "supermetry-proto COPY micro-benchmark",
 		"measured_at": time.Now().UTC().Format(time.RFC3339),
 		"note":        "synthetic pre-sessionized events, one day/one partition, stock PG config, BRIN(ts) always present", "results": results})
 }

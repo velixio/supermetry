@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"panel/internal/clientip"
-	"panel/internal/config"
-	"panel/internal/health"
+	"supermetry/internal/clientip"
+	"supermetry/internal/config"
+	"supermetry/internal/health"
 )
 
 func metricsHandler(cfg config.Config) http.HandlerFunc {

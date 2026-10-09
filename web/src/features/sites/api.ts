@@ -43,7 +43,7 @@ export async function refetchSiteIcon(siteId: number, orgId: number): Promise<Ma
   const { data, error, response } = await api.POST('/api/private/sites/{site}/icon/refetch', {
     params: {
       path: { site: siteId },
-      header: { 'X-Panel-Org': String(orgId) },
+      header: { 'X-Supermetry-Org': String(orgId) },
     },
   })
   if (!response.ok || !data) {

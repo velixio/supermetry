@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/privacy"
+	"supermetry/internal/privacy"
 )
 
 const (
@@ -25,6 +25,7 @@ const (
 	defaultSMTPPort     = 587
 	defaultDataDir      = "./data"
 	defaultMaxMind      = "GeoLite2-City,GeoLite2-ASN"
+	defaultHomepageURL  = "https://supermetry.com"
 )
 
 var allowedMaxMindEditions = map[string]bool{
@@ -48,6 +49,7 @@ type Config struct {
 	DatabaseURL          string
 	Listen               string
 	BaseURL              string
+	HomepageURL          string
 	EventPath            string
 	TrackerPath          string
 	GeoIPPath            string
@@ -89,7 +91,7 @@ type S3Env struct {
 	Prefix    string
 }
 
-// Load accepts legacy value-only lookups. Use LoadLookup for process settings
+// Load accepts value-only lookup functions. Use LoadLookup for process settings
 // so explicitly empty tracking values cannot be mistaken for absent values.
 func Load(getenv func(string) string) (Config, error) {
 	return LoadLookup(func(key string) (string, bool) { value := getenv(key); return value, value != "" })
@@ -104,31 +106,32 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	c := Config{
 		Tracking:             tracking,
 		TrackingPaths:        trackingPaths,
-		DatabaseURL:          getenv("PANEL_DATABASE_URL"),
-		Listen:               valueOrDefault(getenv("PANEL_LISTEN"), defaultListen),
-		BaseURL:              getenv("PANEL_BASE_URL"),
-		EventPath:            valueOrDefault(getenv("PANEL_EVENT_PATH"), defaultEventPath),
-		TrackerPath:          valueOrDefault(getenv("PANEL_TRACKER_PATH"), defaultTrackerPath),
+		DatabaseURL:          getenv("SUPERMETRY_DATABASE_URL"),
+		Listen:               valueOrDefault(getenv("SUPERMETRY_LISTEN"), defaultListen),
+		BaseURL:              getenv("SUPERMETRY_BASE_URL"),
+		HomepageURL:          valueOrDefault(getenv("SUPERMETRY_HOMEPAGE_URL"), defaultHomepageURL),
+		EventPath:            valueOrDefault(getenv("SUPERMETRY_EVENT_PATH"), defaultEventPath),
+		TrackerPath:          valueOrDefault(getenv("SUPERMETRY_TRACKER_PATH"), defaultTrackerPath),
 		GeoIPPath:            geo.GeoIPPath,
 		DataDir:              geo.DataDir,
 		MaxMindAccountID:     geo.MaxMindAccountID,
 		MaxMindLicenseKey:    geo.MaxMindLicenseKey,
 		MaxMindEditions:      geo.MaxMindEditions,
-		SitesFile:            getenv("PANEL_SITES_FILE"),
+		SitesFile:            getenv("SUPERMETRY_SITES_FILE"),
 		QueueSize:            defaultQueueSize,
 		FlushEvery:           defaultFlushEvery,
 		SessionFlush:         defaultSessionFlush,
 		QueryTimeout:         defaultQueryTimeout,
-		AdminAPIKey:          getenv("PANEL_ADMIN_API_KEY"),
-		MetricsToken:         getenv("PANEL_METRICS_TOKEN"),
-		Signup:               valueOrDefault(getenv("PANEL_SIGNUP"), defaultSignup),
+		AdminAPIKey:          getenv("SUPERMETRY_ADMIN_API_KEY"),
+		MetricsToken:         getenv("SUPERMETRY_METRICS_TOKEN"),
+		Signup:               valueOrDefault(getenv("SUPERMETRY_SIGNUP"), defaultSignup),
 		AllowPrivateWebhooks: false,
 		SMTP: SMTP{
-			Host:     getenv("PANEL_SMTP_HOST"),
+			Host:     getenv("SUPERMETRY_SMTP_HOST"),
 			Port:     defaultSMTPPort,
-			User:     getenv("PANEL_SMTP_USER"),
-			Pass:     getenv("PANEL_SMTP_PASS"),
-			From:     getenv("PANEL_SMTP_FROM"),
+			User:     getenv("SUPERMETRY_SMTP_USER"),
+			Pass:     getenv("SUPERMETRY_SMTP_PASS"),
+			From:     getenv("SUPERMETRY_SMTP_FROM"),
 			StartTLS: true,
 		},
 	}
@@ -143,54 +146,57 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		errs = append(errs, geoErr)
 	}
 	if c.DatabaseURL == "" {
-		errs = append(errs, errors.New("PANEL_DATABASE_URL is required"))
-	} else if err := validateURL(c.DatabaseURL, "PANEL_DATABASE_URL", nil); err != nil {
+		errs = append(errs, errors.New("SUPERMETRY_DATABASE_URL is required"))
+	} else if err := validateURL(c.DatabaseURL, "SUPERMETRY_DATABASE_URL", nil); err != nil {
 		errs = append(errs, err)
 	}
 	if c.BaseURL == "" {
-		errs = append(errs, errors.New("PANEL_BASE_URL is required"))
-	} else if err := validateURL(c.BaseURL, "PANEL_BASE_URL", map[string]bool{"http": true, "https": true}); err != nil {
+		errs = append(errs, errors.New("SUPERMETRY_BASE_URL is required"))
+	} else if err := validateURL(c.BaseURL, "SUPERMETRY_BASE_URL", map[string]bool{"http": true, "https": true}); err != nil {
 		errs = append(errs, err)
 	}
-	secretKey, err := base64.StdEncoding.Strict().DecodeString(getenv("PANEL_SECRET_KEY"))
+	if err := validateURL(c.HomepageURL, "SUPERMETRY_HOMEPAGE_URL", map[string]bool{"http": true, "https": true}); err != nil {
+		errs = append(errs, err)
+	}
+	secretKey, err := base64.StdEncoding.Strict().DecodeString(getenv("SUPERMETRY_SECRET_KEY"))
 	if err != nil {
-		errs = append(errs, errors.New("PANEL_SECRET_KEY must be valid base64"))
+		errs = append(errs, errors.New("SUPERMETRY_SECRET_KEY must be valid base64"))
 	} else if len(secretKey) < 32 {
-		errs = append(errs, errors.New("PANEL_SECRET_KEY must decode to at least 32 bytes"))
+		errs = append(errs, errors.New("SUPERMETRY_SECRET_KEY must decode to at least 32 bytes"))
 	} else {
 		c.SecretKey = secretKey
 	}
 	if c.Signup != "invite" && c.Signup != "open" {
-		errs = append(errs, errors.New("PANEL_SIGNUP must be invite or open"))
+		errs = append(errs, errors.New("SUPERMETRY_SIGNUP must be invite or open"))
 	}
-	if raw := getenv("PANEL_ALLOW_PRIVATE_WEBHOOKS"); raw != "" {
+	if raw := getenv("SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS"); raw != "" {
 		value, err := strconv.ParseBool(raw)
 		if err != nil {
-			errs = append(errs, errors.New("PANEL_ALLOW_PRIVATE_WEBHOOKS must be a boolean"))
+			errs = append(errs, errors.New("SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS must be a boolean"))
 		} else {
 			c.AllowPrivateWebhooks = value
 		}
 	}
-	parseOptionalBool(getenv("PANEL_REPLAY_ENABLED"), "PANEL_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
-	parseOptionalBoolPointer(getenv("PANEL_REPLAY_MASK"), "PANEL_REPLAY_MASK", &c.Replay.Mask, &errs)
-	parseOptionalIntPointer(getenv("PANEL_REPLAY_SAMPLE_RATE"), "PANEL_REPLAY_SAMPLE_RATE", 0, 100, &c.Replay.SampleRate, &errs)
-	parseOptionalIntPointer(getenv("PANEL_REPLAY_RETENTION_DAYS"), "PANEL_REPLAY_RETENTION_DAYS", 1, 365, &c.Replay.Retention, &errs)
-	if raw := getenv("PANEL_REPLAY_QUOTA"); raw != "" {
+	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
+	parseOptionalBoolPointer(getenv("SUPERMETRY_REPLAY_MASK"), "SUPERMETRY_REPLAY_MASK", &c.Replay.Mask, &errs)
+	parseOptionalIntPointer(getenv("SUPERMETRY_REPLAY_SAMPLE_RATE"), "SUPERMETRY_REPLAY_SAMPLE_RATE", 0, 100, &c.Replay.SampleRate, &errs)
+	parseOptionalIntPointer(getenv("SUPERMETRY_REPLAY_RETENTION_DAYS"), "SUPERMETRY_REPLAY_RETENTION_DAYS", 1, 365, &c.Replay.Retention, &errs)
+	if raw := getenv("SUPERMETRY_REPLAY_QUOTA"); raw != "" {
 		value, err := ParseSize(raw)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("PANEL_REPLAY_QUOTA: %w", err))
+			errs = append(errs, fmt.Errorf("SUPERMETRY_REPLAY_QUOTA: %w", err))
 		} else {
 			c.Replay.QuotaBytes = &value
 		}
 	}
-	c.Replay.Dir = getenv("PANEL_REPLAY_DIR")
+	c.Replay.Dir = getenv("SUPERMETRY_REPLAY_DIR")
 	s3 := S3Env{
-		Endpoint:  getenv("PANEL_REPLAY_S3_ENDPOINT"),
-		Bucket:    getenv("PANEL_REPLAY_S3_BUCKET"),
-		Region:    getenv("PANEL_REPLAY_S3_REGION"),
-		AccessKey: getenv("PANEL_REPLAY_S3_ACCESS_KEY"),
-		SecretKey: getenv("PANEL_REPLAY_S3_SECRET_KEY"),
-		Prefix:    getenv("PANEL_REPLAY_S3_PREFIX"),
+		Endpoint:  getenv("SUPERMETRY_REPLAY_S3_ENDPOINT"),
+		Bucket:    getenv("SUPERMETRY_REPLAY_S3_BUCKET"),
+		Region:    getenv("SUPERMETRY_REPLAY_S3_REGION"),
+		AccessKey: getenv("SUPERMETRY_REPLAY_S3_ACCESS_KEY"),
+		SecretKey: getenv("SUPERMETRY_REPLAY_S3_SECRET_KEY"),
+		Prefix:    getenv("SUPERMETRY_REPLAY_S3_PREFIX"),
 	}
 	// The prefix is optional. A partial S3 setup is an error rather than a
 	// silent fall back to disk.
@@ -205,54 +211,54 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	case set == len(required):
 		c.Replay.S3 = &s3
 	case set > 0 || s3.Prefix != "":
-		errs = append(errs, errors.New("PANEL_REPLAY_S3_ENDPOINT, _BUCKET, _REGION, _ACCESS_KEY and _SECRET_KEY must all be set together"))
+		errs = append(errs, errors.New("SUPERMETRY_REPLAY_S3_ENDPOINT, _BUCKET, _REGION, _ACCESS_KEY and _SECRET_KEY must all be set together"))
 	}
 
 	for name, path := range map[string]string{
-		"PANEL_EVENT_PATH":   c.EventPath,
-		"PANEL_TRACKER_PATH": c.TrackerPath,
+		"SUPERMETRY_EVENT_PATH":   c.EventPath,
+		"SUPERMETRY_TRACKER_PATH": c.TrackerPath,
 	} {
 		if !strings.HasPrefix(path, "/") {
 			errs = append(errs, fmt.Errorf("%s must start with /", name))
 		}
 	}
 
-	if raw := getenv("PANEL_QUEUE_SIZE"); raw != "" {
+	if raw := getenv("SUPERMETRY_QUEUE_SIZE"); raw != "" {
 		value, err := strconv.Atoi(raw)
 		if err != nil || value <= 0 {
-			errs = append(errs, fmt.Errorf("PANEL_QUEUE_SIZE must be a positive integer"))
+			errs = append(errs, fmt.Errorf("SUPERMETRY_QUEUE_SIZE must be a positive integer"))
 		} else {
 			c.QueueSize = value
 		}
 	}
-	if raw := getenv("PANEL_SMTP_PORT"); raw != "" {
+	if raw := getenv("SUPERMETRY_SMTP_PORT"); raw != "" {
 		value, err := strconv.Atoi(raw)
 		if err != nil || value < 1 || value > 65535 {
-			errs = append(errs, errors.New("PANEL_SMTP_PORT must be an integer from 1 to 65535"))
+			errs = append(errs, errors.New("SUPERMETRY_SMTP_PORT must be an integer from 1 to 65535"))
 		} else {
 			c.SMTP.Port = value
 		}
 	}
-	if raw := getenv("PANEL_SMTP_STARTTLS"); raw != "" {
+	if raw := getenv("SUPERMETRY_SMTP_STARTTLS"); raw != "" {
 		value, err := strconv.ParseBool(raw)
 		if err != nil {
-			errs = append(errs, errors.New("PANEL_SMTP_STARTTLS must be a boolean"))
+			errs = append(errs, errors.New("SUPERMETRY_SMTP_STARTTLS must be a boolean"))
 		} else {
 			c.SMTP.StartTLS = value
 		}
 	}
 	if c.SMTP.Host != "" && c.SMTP.From == "" {
-		errs = append(errs, errors.New("PANEL_SMTP_FROM is required when PANEL_SMTP_HOST is set"))
+		errs = append(errs, errors.New("SUPERMETRY_SMTP_FROM is required when SUPERMETRY_SMTP_HOST is set"))
 	}
 
-	parsePositiveDuration(getenv("PANEL_FLUSH_EVERY"), "PANEL_FLUSH_EVERY", &c.FlushEvery, &errs)
-	parsePositiveDuration(getenv("PANEL_SESSION_FLUSH"), "PANEL_SESSION_FLUSH", &c.SessionFlush, &errs)
-	parsePositiveDuration(getenv("PANEL_QUERY_TIMEOUT"), "PANEL_QUERY_TIMEOUT", &c.QueryTimeout, &errs)
-	if raw := getenv("PANEL_TRUSTED_PROXIES"); raw != "" {
+	parsePositiveDuration(getenv("SUPERMETRY_FLUSH_EVERY"), "SUPERMETRY_FLUSH_EVERY", &c.FlushEvery, &errs)
+	parsePositiveDuration(getenv("SUPERMETRY_SESSION_FLUSH"), "SUPERMETRY_SESSION_FLUSH", &c.SessionFlush, &errs)
+	parsePositiveDuration(getenv("SUPERMETRY_QUERY_TIMEOUT"), "SUPERMETRY_QUERY_TIMEOUT", &c.QueryTimeout, &errs)
+	if raw := getenv("SUPERMETRY_TRUSTED_PROXIES"); raw != "" {
 		for _, item := range strings.Split(raw, ",") {
 			proxy, err := parseTrustedProxy(strings.TrimSpace(item))
 			if err != nil {
-				errs = append(errs, fmt.Errorf("PANEL_TRUSTED_PROXIES: %w", err))
+				errs = append(errs, fmt.Errorf("SUPERMETRY_TRUSTED_PROXIES: %w", err))
 				continue
 			}
 			c.TrustedProxies = append(c.TrustedProxies, proxy)
@@ -266,22 +272,22 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 // require database or HTTP server configuration.
 func LoadGeoIP(getenv func(string) string) (Config, error) {
 	c := Config{
-		GeoIPPath:         getenv("PANEL_GEOIP_PATH"),
-		DataDir:           valueOrDefault(getenv("PANEL_DATA_DIR"), defaultDataDir),
-		MaxMindAccountID:  getenv("PANEL_MAXMIND_ACCOUNT_ID"),
-		MaxMindLicenseKey: getenv("PANEL_MAXMIND_LICENSE_KEY"),
-		MaxMindEditions:   strings.Split(valueOrDefault(getenv("PANEL_MAXMIND_EDITIONS"), defaultMaxMind), ","),
+		GeoIPPath:         getenv("SUPERMETRY_GEOIP_PATH"),
+		DataDir:           valueOrDefault(getenv("SUPERMETRY_DATA_DIR"), defaultDataDir),
+		MaxMindAccountID:  getenv("SUPERMETRY_MAXMIND_ACCOUNT_ID"),
+		MaxMindLicenseKey: getenv("SUPERMETRY_MAXMIND_LICENSE_KEY"),
+		MaxMindEditions:   strings.Split(valueOrDefault(getenv("SUPERMETRY_MAXMIND_EDITIONS"), defaultMaxMind), ","),
 	}
 	var errs []error
 	if (c.MaxMindAccountID == "") != (c.MaxMindLicenseKey == "") {
-		errs = append(errs, errors.New("PANEL_MAXMIND_ACCOUNT_ID and PANEL_MAXMIND_LICENSE_KEY must both be set or both be empty"))
+		errs = append(errs, errors.New("SUPERMETRY_MAXMIND_ACCOUNT_ID and SUPERMETRY_MAXMIND_LICENSE_KEY must both be set or both be empty"))
 	}
 	seenEditions := make(map[string]bool, len(c.MaxMindEditions))
 	for index, edition := range c.MaxMindEditions {
 		edition = strings.TrimSpace(edition)
 		c.MaxMindEditions[index] = edition
 		if !allowedMaxMindEditions[edition] || seenEditions[edition] {
-			errs = append(errs, fmt.Errorf("PANEL_MAXMIND_EDITIONS contains invalid or duplicate edition %q", edition))
+			errs = append(errs, fmt.Errorf("SUPERMETRY_MAXMIND_EDITIONS contains invalid or duplicate edition %q", edition))
 			continue
 		}
 		seenEditions[edition] = true

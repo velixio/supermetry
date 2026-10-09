@@ -90,7 +90,7 @@ func (u *umami) query(wid, tz, from, to string, f []Filter) (url.Values, string)
 	return q, strings.Join(notes, "; ")
 }
 
-func (u *umami) Panel(p, from, to string, f []Filter) (Req, bool, string) {
+func (u *umami) Supermetry(p, from, to string, f []Filter) (Req, bool, string) {
 	q, note := u.query(u.wid, u.tz, from, to, f)
 	w := u.base + "/api/websites/" + u.wid
 	get := func(path string) Req { return Req{Method: "GET", URL: w + path + "?" + q.Encode(), Header: u.hdr()} }

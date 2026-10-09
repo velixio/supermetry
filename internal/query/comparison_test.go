@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
+	"supermetry/internal/api"
 )
 
 func TestComparisonRange(t *testing.T) {

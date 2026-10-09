@@ -14,8 +14,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/query"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/query"
 )
 
 // TopEntry is one breakdown entry of truth.json.
@@ -52,7 +52,7 @@ func LoadTruth(r io.Reader) ([]Row, error) {
 	return f.Rows, nil
 }
 
-// DirectLabel is the truth's name for "no referrer"; Panel stores "".
+// DirectLabel is the truth's name for "no referrer"; Supermetry stores "".
 const DirectLabel = "(direct)"
 
 // Options control which tiers are checked.

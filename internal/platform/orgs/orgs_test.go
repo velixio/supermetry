@@ -8,11 +8,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 func TestNoEscalationAndLastOwner(t *testing.T) {

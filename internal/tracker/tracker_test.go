@@ -95,7 +95,7 @@ func TestScriptContract(t *testing.T) {
 		`"popstate"`,
 		`"pagehide"`,
 		`document.addEventListener("visibilitychange"`,
-		`window.panel`,
+		`window.supermetry`,
 		`options?.revenue`,
 		`engagement_ms`,
 		`scroll_pct`,
@@ -122,8 +122,8 @@ func TestScriptContract(t *testing.T) {
 			t.Errorf("full tracker source is missing %q", want)
 		}
 	}
-	if strings.Count(text, "localStorage") == 0 || !strings.Contains(text, `panel_ignore`) {
-		t.Error("tracker source must use only the panel_ignore localStorage opt-out key")
+	if strings.Count(text, "localStorage") == 0 || !strings.Contains(text, `supermetry_ignore`) {
+		t.Error("tracker source must use only the supermetry_ignore localStorage opt-out key")
 	}
 	for _, forbidden := range []string{"sessionStorage", "document.cookie"} {
 		if strings.Contains(text, forbidden) || strings.Contains(fullText, forbidden) {

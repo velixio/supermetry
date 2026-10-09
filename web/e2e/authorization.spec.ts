@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import type { APIRequestContext, Page } from '@playwright/test'
 import { expect, test, type Owner } from './fixtures'
 
-const password = 'panel-authorization-test-password'
+const password = 'supermetry-authorization-test-password'
 
 async function createMember(
   request: APIRequestContext,
@@ -60,7 +60,7 @@ test('billing-only no-site member reaches organization and account pages without
   page,
   owner,
 }) => {
-  const email = 'billing-only@panel.test'
+  const email = 'billing-only@supermetry.test'
   await createMember(page.request, owner, email, {
     site_ids: [],
     capabilities: [],
@@ -68,7 +68,7 @@ test('billing-only no-site member reaches organization and account pages without
   })
   const reads = recordSensitiveReads(page)
   await login(page, email)
-  await expect(page).toHaveURL(`/${owner.orgSlug}/settings`)
+  await expect(page).toHaveURL(`/app/${owner.orgSlug}/settings`)
   await expect(
     page.getByText('No project data access.', { exact: false }),
   ).toBeVisible()
@@ -88,7 +88,7 @@ test('billing-only no-site member reaches organization and account pages without
   await page
     .getByRole('link', { name: 'Account settings', exact: true })
     .click()
-  await expect(page).toHaveURL('/account/profile')
+  await expect(page).toHaveURL('/app/account/profile')
   expect(reads).toEqual([])
 })
 
@@ -96,7 +96,7 @@ test('stats-only viewer cannot fetch sensitive direct URLs or see export and rep
   page,
   owner,
 }) => {
-  const email = 'stats-only@panel.test'
+  const email = 'stats-only@supermetry.test'
   await createMember(page.request, owner, email, {
     site_ids: [owner.siteId],
     capabilities: [],
@@ -109,13 +109,13 @@ test('stats-only viewer cannot fetch sensitive direct URLs or see export and rep
   for (const name of ['Profiles', 'Replays'])
     await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0)
   for (const suffix of ['profiles', 'profiles/123', 'replays', 'replays/123']) {
-    await page.goto(`/${owner.orgSlug}/${owner.siteSlug}/${suffix}`)
+    await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/${suffix}`)
     await expect(
       page.getByRole('alert').filter({ hasText: 'You don’t have permission' }),
     ).toBeVisible()
   }
   await page.goto(
-    `/${owner.orgSlug}/${owner.siteSlug}/sessions?has_replay=true&replay=123`,
+    `/app/${owner.orgSlug}/${owner.siteSlug}/sessions?has_replay=true&replay=123`,
   )
   await expect(
     page.getByRole('heading', { name: 'Sessions', exact: true }),
@@ -130,13 +130,13 @@ test('revoking grants and all project access removes sensitive controls after me
   owner,
 }) => {
   // Recording now requires explicit project opt-in as well as instance permission.
-  // Run this identified-mode authorization fixture with PANEL_REPLAY_ENABLED=true.
+  // Run this identified-mode authorization fixture with SUPERMETRY_REPLAY_ENABLED=true.
   const replayOptIn = await page.request.put(`/api/private/sites/${owner.siteId}/replay-settings`, {
     headers: owner.apiHeaders,
     data: { enabled: true },
   })
   expect(replayOptIn.ok(), await replayOptIn.text()).toBe(true)
-  const email = 'revoked-grants@panel.test'
+  const email = 'revoked-grants@supermetry.test'
   const member = await createMember(page.request, owner, email, {
     site_ids: [owner.siteId],
     capabilities: ['profiles.read', 'replay.read', 'data.export'],
@@ -152,11 +152,11 @@ test('revoking grants and all project access removes sensitive controls after me
     const response = page.waitForResponse((response) =>
       new URL(response.url()).pathname === `/api/private/sites/${owner.siteId}/${feature}`,
     )
-    await page.goto(`/${owner.orgSlug}/${owner.siteSlug}/${feature}`)
+    await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/${feature}`)
     expect((await response).ok()).toBe(true)
     await expect(page.getByRole('heading', { name: feature === 'profiles' ? 'Profiles' : 'Replays', exact: true })).toBeVisible()
   }
-  await page.goto(`/${owner.orgSlug}/${owner.siteSlug}`)
+  await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}`)
   const changed = await page.request.patch(
     `/api/private/orgs/${owner.orgId}/members/${member}`,
     { headers: owner.apiHeaders, data: { capabilities: [] } },
@@ -178,7 +178,7 @@ test('revoking grants and all project access removes sensitive controls after me
   )
   expect(restricted.ok(), await restricted.text()).toBe(true)
   await page.goto('/')
-  await expect(page).toHaveURL(`/${owner.orgSlug}/settings`)
+  await expect(page).toHaveURL(`/app/${owner.orgSlug}/settings`)
   await expect(
     page.getByText('No project data access.', { exact: false }),
   ).toBeVisible()
@@ -188,13 +188,13 @@ test('revoking grants and all project access removes sensitive controls after me
 })
 
 test('organization switching isolates cached profiles from a no-site membership', async ({ page, owner }) => {
-  const email = 'switching@panel.test'
+  const email = 'switching@supermetry.test'
   const member = await createMember(page.request, owner, email, {
     site_ids: [owner.siteId], capabilities: ['profiles.read', 'data.export'],
   })
   const schema = owner.schema
-  const dsn = process.env.PANEL_TEST_DSN
-  if (!schema || !/^panel_e2e_\d+$/.test(schema) || !dsn) throw new Error('isolated e2e database is required')
+  const dsn = process.env.SUPERMETRY_TEST_DSN
+  if (!schema || !/^supermetry_e2e_\d+$/.test(schema) || !dsn) throw new Error('isolated e2e database is required')
   // Seed only the disposable schema owned by this Playwright run.
   execFileSync('psql', [dsn, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${schema}`, '-v', `member=${member}`, '-v', `site=${owner.siteId}`], {
     input: `SET search_path TO :"schema";
@@ -213,7 +213,7 @@ INSERT INTO profiles(site_id,external_id,first_seen_at,last_seen_at) VALUES (:si
   const reads = recordSensitiveReads(page)
   await page.getByRole('button', { name: 'Acme', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Restricted organization', exact: true }).click()
-  await expect(page).toHaveURL('/restricted-org/settings')
+  await expect(page).toHaveURL('/app/restricted-org/settings')
   await expect(page.getByText('Acme-only-profile', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Profiles', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Export CSV', exact: true })).toHaveCount(0)
@@ -230,14 +230,14 @@ test('owner invitation controls copy a working no-site invitation without billin
   browser,
   owner,
 }) => {
-  await owner.login(page, `/${owner.orgSlug}/settings/invites`)
+  await owner.login(page, `/app/${owner.orgSlug}/settings/invites`)
   await page.getByRole('combobox', { name: 'Site access', exact: true }).selectOption('none')
   await expect(page.getByRole('checkbox', { name: /Billing Admin/ })).toHaveCount(0)
   for (const name of [/Read profiles/, /Watch replays/, /Export data/])
     await expect(page.getByRole('checkbox', { name })).not.toBeChecked()
   const inviteEmail = page.getByRole('textbox', { name: 'Email', exact: true })
-  await inviteEmail.fill('billing-invite-ui@panel.test')
-  await expect(inviteEmail).toHaveValue('billing-invite-ui@panel.test')
+  await inviteEmail.fill('billing-invite-ui@supermetry.test')
+  await expect(inviteEmail).toHaveValue('billing-invite-ui@supermetry.test')
   const pending = page.waitForRequest(
     (request) =>
       request.method() === 'POST' &&
@@ -249,7 +249,7 @@ test('owner invitation controls copy a working no-site invitation without billin
   )
   await page.getByRole('button', { name: 'Invite', exact: true }).click()
   expect((await pending).postDataJSON()).toEqual({
-    email: 'billing-invite-ui@panel.test',
+    email: 'billing-invite-ui@supermetry.test',
     role: 'viewer',
     site_ids: [],
     capabilities: [],

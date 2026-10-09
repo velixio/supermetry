@@ -30,11 +30,11 @@ export function ReplayLink({
   return (
     <Button asChild aria-label="Play replay" size="icon-sm" variant="ghost">
       {sessionId ? (
-        <Link to="/$org/$site/replays/$id" params={{ org, site, id: sessionId }} search={search}>
+        <Link to="/app/$org/$site/replays/$id" params={{ org, site, id: sessionId }} search={search}>
           <PlayIcon />
         </Link>
       ) : (
-        <Link to="/$org/$site/replays" params={{ org, site }} search={search}>
+        <Link to="/app/$org/$site/replays" params={{ org, site }} search={search}>
           <PlayIcon />
         </Link>
       )}

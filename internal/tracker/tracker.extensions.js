@@ -1,6 +1,6 @@
 (() => {
   var s = document.currentScript, d = s.dataset;
-  var p = window.panel, t = p?.track;
+  var p = window.supermetry, t = p?.track;
   if (!t) return;
 
   function link(e) {
@@ -21,13 +21,13 @@
     if (d.clicks == "false") return;
     var a = e.target;
     for (var l = 0; a && l < 4; l++, a = a.parentElement) {
-      var n = a.getAttribute?.("data-panel-event");
+      var n = a.getAttribute?.("data-supermetry-event");
       if (n) {
         var p = {};
         for (var i = 0, c = 0, b = 0; i < a.attributes.length && c < 30; i++) {
           var r = a.attributes[i];
-          if (r.name.indexOf("data-panel-prop-") != 0) continue;
-          var k = r.name.slice(16, 91);
+          if (r.name.indexOf("data-supermetry-prop-") != 0) continue;
+          var k = r.name.slice(21, 96);
           if (!k) continue;
           var v = r.value.slice(0, 500);
           if ((b += k.length + v.length) > 700) break;
@@ -49,8 +49,8 @@
   function tagged(el) {
     var name, props = {}, n = 0;
     for (var c of el.classList || []) {
-      if (c.indexOf("panel-event-") != 0) continue;
-      var kv = c.slice(12).replace(/\+/g, " "), i = kv.indexOf("=");
+      if (c.indexOf("supermetry-event-") != 0) continue;
+      var kv = c.slice(17).replace(/\+/g, " "), i = kv.indexOf("=");
       if (i < 0) {
         name = name || kv;
       } else if (i && i <= 64 && kv.length - i - 1 <= 256 && ++n <= 20) {
@@ -67,7 +67,7 @@
   if (d.forms != "false") {
     document.addEventListener("submit", (e) => {
       var f = e.target;
-      if (!f || f.tagName != "FORM" || f.getAttribute?.("data-panel-event") || tagged(f)) return;
+      if (!f || f.tagName != "FORM" || f.getAttribute?.("data-supermetry-event") || tagged(f)) return;
       var a = (f.getAttribute("action") || "").split(/[?#]/)[0].slice(0, 500);
       t("Form: Submit", {
         form_id: (f.getAttribute("id") || "").slice(0, 100),
@@ -76,7 +76,7 @@
       });
     }, true);
   }
-  if (d[404] != "false" && (s.hasAttribute("data-404-page") || document.querySelector('meta[name="panel:404"]'))) {
+  if (d[404] != "false" && (s.hasAttribute("data-404-page") || document.querySelector('meta[name="supermetry:404"]'))) {
     t("404", {path: location.pathname.slice(0, 500)});
   }
 

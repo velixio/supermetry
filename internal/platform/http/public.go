@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"panel/internal/api"
-	"panel/internal/platform/authz"
+	"supermetry/internal/api"
+	"supermetry/internal/platform/authz"
 )
 
 func (h *handler) registerPublic(mux *http.ServeMux) {

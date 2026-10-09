@@ -1,4 +1,4 @@
-module panel/bench/load
+module supermetry/bench/load
 
 go 1.26.0
 

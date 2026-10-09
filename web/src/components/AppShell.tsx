@@ -23,7 +23,7 @@ import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
-import type { Me, Membership } from '@/routes/$org'
+import type { Me, Membership } from '@/routes/app.$org'
 
 import { activeSite, matchesSite, PanelSidebar } from './Sidebar'
 import { HeaderMenus } from './HeaderMenus'
@@ -50,7 +50,7 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
     <Tooltip>
       <TooltipTrigger asChild>
         {detailsAvailable ? (
-          <Link aria-label={description} params={{ org, site }} title={description} to="/$org/$site/realtime">
+          <Link aria-label={description} params={{ org, site }} title={description} to="/app/$org/$site/realtime">
             {badge}
           </Link>
         ) : <span aria-label={description} tabIndex={0}>{badge}</span>}

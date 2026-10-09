@@ -30,7 +30,7 @@ export const eventKeys = {
 
 async function request<T>(path: string, orgId: number, query: Record<string, unknown>): Promise<T> {
   const { data, error, response } = await exploreApi.GET<T>(path, {
-    params: { header: { 'X-Panel-Org': String(orgId) }, query },
+    params: { header: { 'X-Supermetry-Org': String(orgId) }, query },
   })
   if (error || !response.ok) throw new Error(error?.detail ?? `Request failed (${response.status})`)
   if (data === undefined) throw new Error('The response was empty.')

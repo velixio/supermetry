@@ -16,13 +16,13 @@ import (
 	"sync"
 	"time"
 
-	"panel/internal/clientip"
-	"panel/internal/config"
-	"panel/internal/health"
-	"panel/internal/ingest"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/clientip"
+	"supermetry/internal/config"
+	"supermetry/internal/health"
+	"supermetry/internal/ingest"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 const (

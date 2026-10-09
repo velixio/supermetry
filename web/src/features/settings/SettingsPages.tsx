@@ -391,7 +391,7 @@ export function SiteLinksPage({
       <Surface>
         <Button asChild className="self-start">
           <Link
-            to={kind === "goals" ? "/$org/$site/goals" : "/$org/$site/funnels"}
+            to={kind === "goals" ? "/app/$org/$site/goals" : "/app/$org/$site/funnels"}
             params={{ org, site }}
           >
             {`Open ${kind}`}
@@ -974,7 +974,7 @@ function ApiKeysManager({ orgId, orgSlug, sites }: { orgId: number; orgSlug: str
       <Surface>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="link"><a href={`/${orgSlug}/settings/api`}>{en.apiKeys.apiReference}</a></Button>
+            <Button asChild variant="link"><a href={`/app/${orgSlug}/settings/api`}>{en.apiKeys.apiReference}</a></Button>
             <Button asChild variant="link"><a href="/docs/api-auth">{en.apiKeys.authGuide}</a></Button>
           </div>
           <Button type="button" onClick={() => setCreateOpen(true)}>

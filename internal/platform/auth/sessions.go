@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	platformcrypto "panel/internal/platform/crypto"
+	platformcrypto "supermetry/internal/platform/crypto"
 )
 
 const sessionIdleTimeout = 14 * 24 * time.Hour

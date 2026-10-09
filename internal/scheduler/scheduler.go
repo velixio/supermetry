@@ -1,5 +1,5 @@
 // Package scheduler runs periodic in-process jobs with PostgreSQL advisory-lock
-// coordination between Panel instances.
+// coordination between Supermetry instances.
 package scheduler
 
 import (
@@ -147,7 +147,7 @@ func (s *Scheduler) tryRun(ctx context.Context, locks *pgxpool.Pool, job Job) (r
 	defer conn.Release()
 
 	var acquired bool
-	if err := conn.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('panel:job:' || $1))`, job.Name).Scan(&acquired); err != nil {
+	if err := conn.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('supermetry:job:' || $1))`, job.Name).Scan(&acquired); err != nil {
 		// The server may have acquired the session lock before a cancellation
 		// or transport error hid the result. Never return an uncertain session.
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), unlockTimeout)
@@ -164,7 +164,7 @@ func (s *Scheduler) tryRun(ctx context.Context, locks *pgxpool.Pool, job Job) (r
 		defer cancel()
 
 		var unlocked bool
-		unlockErr := conn.QueryRow(cleanupCtx, `select pg_advisory_unlock(hashtext('panel:job:' || $1))`, job.Name).Scan(&unlocked)
+		unlockErr := conn.QueryRow(cleanupCtx, `select pg_advisory_unlock(hashtext('supermetry:job:' || $1))`, job.Name).Scan(&unlocked)
 		if unlockErr == nil && unlocked {
 			return
 		}

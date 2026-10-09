@@ -49,7 +49,7 @@ afterEach(() => {
 
 describe("init", () => {
   test("returns no-op methods during server rendering", () => {
-    const tracker = init({ site: "site-id", src: "https://panel.test/script.js" });
+    const tracker = init({ site: "site-id", src: "https://supermetry.test/script.js" });
 
     expect(() => {
       tracker.pageview();
@@ -74,8 +74,8 @@ describe("init", () => {
 
     const tracker = init({
       site: "site-id",
-      src: "https://panel.test/script.js",
-      api: "https://panel.test/events",
+      src: "https://supermetry.test/script.js",
+      api: "https://supermetry.test/events",
       manual: true,
       hash: true,
       consent: true,
@@ -91,10 +91,10 @@ describe("init", () => {
     expect(appended).toEqual([script]);
     expect(script.async).toBe(true);
     expect(script.defer).toBe(true);
-    expect(script.src).toBe("https://panel.test/script.js");
+    expect(script.src).toBe("https://supermetry.test/script.js");
     expect(Object.fromEntries(script.attributes)).toEqual({
       "data-site": "site-id",
-      "data-api": "https://panel.test/events",
+      "data-api": "https://supermetry.test/events",
       "data-manual": "true",
       "data-hash": "true",
       "data-consent": "required",
@@ -103,14 +103,14 @@ describe("init", () => {
       "data-downloads": "false",
       "data-allow-localhost": "",
     });
-    expect((window as unknown as { panel: { beforeSend: unknown } }).panel.beforeSend).toBe(beforeSend);
+    expect((window as unknown as { supermetry: { beforeSend: unknown } }).supermetry.beforeSend).toBe(beforeSend);
 
     tracker.pageview({ url: "https://example.com/pricing", props: { plan: "pro" } });
     tracker.track("Signup", { plan: "pro" });
     tracker.consent(true);
 
     const calls: unknown[][] = [];
-    Object.assign((window as unknown as { panel: Record<string, unknown> }).panel, {
+    Object.assign((window as unknown as { supermetry: Record<string, unknown> }).supermetry, {
       pageview: (...args: unknown[]) => calls.push(["pageview", ...args]),
       track: (...args: unknown[]) => calls.push(["track", ...args]),
       consent: (...args: unknown[]) => calls.push(["consent", ...args]),
@@ -127,15 +127,15 @@ describe("init", () => {
     expect(calls.at(-1)).toEqual(["track", "Purchase", undefined]);
   });
 
-  test("queues calls made before the tracker creates window.panel", () => {
+  test("queues calls made before the tracker creates window.supermetry", () => {
     const { script } = installBrowser();
     const tracker = init({ site: "site-id", src: "/script.js" });
 
-    expect((window as unknown as { panel?: unknown }).panel).toBeUndefined();
+    expect((window as unknown as { supermetry?: unknown }).supermetry).toBeUndefined();
     tracker.track("Queued");
 
     const calls: unknown[][] = [];
-    (window as unknown as { panel: unknown }).panel = {
+    (window as unknown as { supermetry: unknown }).supermetry = {
       track: (...args: unknown[]) => calls.push(args),
     };
     script.dispatch("load");

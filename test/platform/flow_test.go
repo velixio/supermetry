@@ -21,7 +21,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/testpg"
+	"supermetry/internal/testpg"
 )
 
 const testPassword = "pw-123456789"
@@ -125,7 +125,7 @@ func TestSitesFileBenchmarkCompatibility(t *testing.T) {
 	if err := os.WriteFile(sitesPath, []byte(`[{"id":1,"public_id":"legacy-site","timezone":"UTC","retention_days":30,"allowed_hosts":["legacy.example"]}]`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	env.processEnv = append(env.processEnv, "PANEL_SITES_FILE="+sitesPath)
+	env.processEnv = append(env.processEnv, "SUPERMETRY_SITES_FILE="+sitesPath)
 	startPrepared(t, env)
 	var response struct {
 		Totals map[string]float64 `json:"totals"`
@@ -140,7 +140,7 @@ func TestSitesFileCompatibilityEndsAfterSetup(t *testing.T) {
 	if err := os.WriteFile(sitesPath, []byte(`[{"id":1,"public_id":"legacy-site","timezone":"UTC","retention_days":30,"allowed_hosts":["legacy.example"]}]`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	env.processEnv = append(env.processEnv, "PANEL_SITES_FILE="+sitesPath)
+	env.processEnv = append(env.processEnv, "SUPERMETRY_SITES_FILE="+sitesPath)
 	startPrepared(t, env)
 	owner := env.completeSetup(t, env.setupURL(t), "o@x.io", "Acme")
 	created := owner.createSite(t, "Blog", "blog.example.com", "UTC")
@@ -151,8 +151,8 @@ func TestSitesFileCompatibilityEndsAfterSetup(t *testing.T) {
 
 func TestSiteErasureCatchesShutdownFlush(t *testing.T) {
 	env := prepare(t)
-	env.setProcessEnv("PANEL_FLUSH_EVERY", "1h")
-	env.setProcessEnv("PANEL_SESSION_FLUSH", "1h")
+	env.setProcessEnv("SUPERMETRY_FLUSH_EVERY", "1h")
+	env.setProcessEnv("SUPERMETRY_SESSION_FLUSH", "1h")
 	startPrepared(t, env)
 	owner := env.completeSetup(t, env.setupURL(t), "o@x.io", "Acme")
 	created := owner.createSite(t, "Blog", "blog.example.com", "UTC")
@@ -211,22 +211,22 @@ func prepare(t *testing.T) *testEnv {
 	t.Helper()
 	pool, schema := testpg.New(t)
 	root := filepath.Clean(filepath.Join("..", ".."))
-	binary := filepath.Join(t.TempDir(), "panel")
-	build := exec.Command("go", "build", "-race", "-o", binary, "./cmd/panel")
+	binary := filepath.Join(t.TempDir(), "supermetry")
+	build := exec.Command("go", "build", "-race", "-o", binary, "./cmd/supermetry")
 	build.Dir = root
 	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build panel: %v\n%s", err, output)
+		t.Fatalf("build supermetry: %v\n%s", err, output)
 	}
 
 	address := freeAddress(t)
 	processEnv := append(os.Environ(),
-		"PANEL_DATABASE_URL="+schemaDSN(t, schema),
-		"PANEL_LISTEN="+address,
-		"PANEL_BASE_URL=http://"+address,
-		"PANEL_SECRET_KEY="+base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)),
-		"PANEL_ADMIN_API_KEY=legacy-key",
-		"PANEL_FLUSH_EVERY=10ms",
-		"PANEL_SESSION_FLUSH=10ms",
+		"SUPERMETRY_DATABASE_URL="+schemaDSN(t, schema),
+		"SUPERMETRY_LISTEN="+address,
+		"SUPERMETRY_BASE_URL=http://"+address,
+		"SUPERMETRY_SECRET_KEY="+base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)),
+		"SUPERMETRY_ADMIN_API_KEY=legacy-key",
+		"SUPERMETRY_FLUSH_EVERY=10ms",
+		"SUPERMETRY_SESSION_FLUSH=10ms",
 	)
 	logs := &lockedBuffer{}
 	return &testEnv{t: t, baseURL: "http://" + address, pool: pool, binary: binary, processEnv: processEnv, logs: logs}
@@ -238,7 +238,7 @@ func (e *testEnv) runCLI(t *testing.T, args ...string) string {
 	command.Env = e.processEnv
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("panel %s: %v: %s", strings.Join(args, " "), err, output)
+		t.Fatalf("supermetry %s: %v: %s", strings.Join(args, " "), err, output)
 	}
 	return string(output)
 }
@@ -275,7 +275,7 @@ func (e *testEnv) waitReady(t *testing.T) {
 		select {
 		case err := <-e.done:
 			e.stopped = true
-			t.Fatalf("panel exited before ready: %v\n%s", err, e.logs.String())
+			t.Fatalf("supermetry exited before ready: %v\n%s", err, e.logs.String())
 		default:
 		}
 		response, err := http.Get(e.baseURL + "/readyz")
@@ -287,7 +287,7 @@ func (e *testEnv) waitReady(t *testing.T) {
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	t.Fatalf("panel did not become ready:\n%s", e.logs.String())
+	t.Fatalf("supermetry did not become ready:\n%s", e.logs.String())
 }
 
 func (e *testEnv) setupURL(t *testing.T) string {
@@ -329,9 +329,9 @@ func (e *testEnv) login(t *testing.T, email, password string, orgID int64) *clie
 	result := &client{env: e, email: email, orgID: orgID}
 	for _, cookie := range response.Cookies() {
 		switch cookie.Name {
-		case "panel_session":
+		case "supermetry_session":
 			result.session = cookie
-		case "panel_csrf":
+		case "supermetry_csrf":
 			result.csrf = cookie
 		}
 	}
@@ -468,7 +468,7 @@ func (c *client) auditCount(t *testing.T) int {
 func (c *client) request(t *testing.T, method, path string, body any, want int, target any) *http.Response {
 	t.Helper()
 	headers := make(http.Header)
-	headers.Set("X-Panel-Org", strconv.FormatInt(c.orgID, 10))
+	headers.Set("X-Supermetry-Org", strconv.FormatInt(c.orgID, 10))
 	headers.Set("X-CSRF-Token", c.csrf.Value)
 	return c.env.requestWithCookies(t, method, path, body, headers, want, target, c.session, c.csrf)
 }
@@ -534,7 +534,7 @@ func freeAddress(t *testing.T) string {
 
 func schemaDSN(t *testing.T, schema string) string {
 	t.Helper()
-	parsed, err := url.Parse(os.Getenv("PANEL_TEST_DSN"))
+	parsed, err := url.Parse(os.Getenv("SUPERMETRY_TEST_DSN"))
 	if err != nil {
 		t.Fatal(err)
 	}

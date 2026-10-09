@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { Site } from "@/routes/$org";
+import type { Site } from "@/routes/app.$org";
 import {
   buildCodeSamples,
   buildReference,
@@ -58,7 +58,7 @@ function label(value: string): string {
 }
 
 function csrfToken(): string | undefined {
-  const prefix = "panel_csrf=";
+  const prefix = "supermetry_csrf=";
   const cookie = document.cookie
     .split(";")
     .map((part) => part.trim())
@@ -154,7 +154,7 @@ function TryRequest({
     if (!prepared) return;
     setPending(true);
     try {
-      const headers: Record<string, string> = { "X-Panel-Org": String(orgId) };
+      const headers: Record<string, string> = { "X-Supermetry-Org": String(orgId) };
       let requestBody: string | undefined;
       if (body.trim()) {
         const scoped = preparePrivateRequest(

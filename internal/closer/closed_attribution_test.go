@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"panel/internal/closer"
-	"panel/internal/db"
-	"panel/internal/testpg"
+	"supermetry/internal/closer"
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 func TestCloseCustomPreservesEventAttributionIncludingAbsentValues(t *testing.T) {

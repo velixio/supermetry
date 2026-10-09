@@ -9,9 +9,9 @@ usage() {
 [[ ${1:-} == tier-s && $# == 1 ]] || usage
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-PANEL="$ROOT/bin/panel"
+SUPERMETRY="$ROOT/bin/supermetry"
 THRESHOLDS="$ROOT/bench/product/thresholds.json"
-BASE_DSN=${PANEL_TEST_DSN:-postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable}
+BASE_DSN=${SUPERMETRY_TEST_DSN:-postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable}
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 RESULT_BASE="$ROOT/bench/results/product-$STAMP"
 RESULT="$RESULT_BASE.json"
@@ -32,7 +32,7 @@ FULL_DATA_GB=45
 for command in python3 curl psql go pmap; do
   command -v "$command" >/dev/null || { echo "missing command: $command" >&2; exit 1; }
 done
-[[ -x $PANEL ]] || { echo "build bin/panel first with make build" >&2; exit 1; }
+[[ -x $SUPERMETRY ]] || { echo "build bin/supermetry first with make build" >&2; exit 1; }
 [[ -f $ROOT/internal/enrich/lists/dbip-country-lite.mmdb ]] || { echo "missing bundled GeoIP test database" >&2; exit 1; }
 
 drop_own_schema() {
@@ -62,9 +62,9 @@ cleanup() {
     python3 -I - "$RESULT" "$REPORT" "$SCHEMA" <<'PY'
 import json,sys
 result,report,schema=sys.argv[1:]
-document={"kind":"panel product benchmark","pass":False,"aborted":True,"reason":"low disk","schema":schema,"checks":[]}
+document={"kind":"supermetry product benchmark","pass":False,"aborted":True,"reason":"low disk","schema":schema,"checks":[]}
 open(result,"w",encoding="utf-8").write(json.dumps(document,indent=2)+"\n")
-open(report,"w",encoding="utf-8").write("# Panel product benchmark\n\nOverall: **ABORTED**\n\nAborted: low disk guard crossed 15 GB; the disposable schema was dropped.\n")
+open(report,"w",encoding="utf-8").write("# Supermetry product benchmark\n\nOverall: **ABORTED**\n\nAborted: low disk guard crossed 15 GB; the disposable schema was dropped.\n")
 PY
   fi
   find "$WORK" -depth -delete 2>/dev/null
@@ -116,16 +116,16 @@ env -u PGOPTIONS psql "$BASE_DSN" -v ON_ERROR_STOP=1 -c "create schema \"$SCHEMA
 (trap - EXIT INT TERM; watch_disk $$) &
 WATCHER_PID=$!
 export PGOPTIONS="-csearch_path=$SCHEMA"
-export PANEL_DATABASE_URL="$BASE_DSN"
-export PANEL_BASE_URL=http://127.0.0.1:18080
-export PANEL_LISTEN=127.0.0.1:18080
-export PANEL_SECRET_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-export PANEL_ADMIN_API_KEY=product-benchmark-key
-export PANEL_TRUSTED_PROXIES=127.0.0.1
-export PANEL_GEOIP_PATH="$ROOT/internal/enrich/lists/dbip-country-lite.mmdb"
-export PANEL_QUERY_TIMEOUT=30s
-export PANEL_FLUSH_EVERY=100ms
-export PANEL_SESSION_FLUSH=500ms
+export SUPERMETRY_DATABASE_URL="$BASE_DSN"
+export SUPERMETRY_BASE_URL=http://127.0.0.1:18080
+export SUPERMETRY_LISTEN=127.0.0.1:18080
+export SUPERMETRY_SECRET_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+export SUPERMETRY_ADMIN_API_KEY=product-benchmark-key
+export SUPERMETRY_TRUSTED_PROXIES=127.0.0.1
+export SUPERMETRY_GEOIP_PATH="$ROOT/internal/enrich/lists/dbip-country-lite.mmdb"
+export SUPERMETRY_QUERY_TIMEOUT=30s
+export SUPERMETRY_FLUSH_EVERY=100ms
+export SUPERMETRY_SESSION_FLUSH=500ms
 
 echo "product gate: generate site metadata"
 "$GEN" --tier S --days 1 --seed 42 --out /dev/null --sites "$WORK/gen-sites.json" --truth /dev/null --quiet
@@ -145,18 +145,18 @@ with open(product_path,"w",encoding="utf-8") as handle:
 with open(loadtest_path,"w",encoding="utf-8") as handle:
     json.dump(loadtest,handle,separators=(",",":"))
 PY
-export PANEL_SITES_FILE="$WORK/sites.json"
+export SUPERMETRY_SITES_FILE="$WORK/sites.json"
 
 echo "product gate: generate and load Tier S (90 days)"
 set +e
 if [[ $DATASET_SCOPE == full ]]; then
   "$GEN" --tier S --days 90 --seed 42 --out - --sites "$WORK/gen-sites.json" --truth "$WORK/truth.json" --quiet |
-    "$PANEL" load >"$WORK/load.json" 2>"$WORK/load.log"
+    "$SUPERMETRY" load >"$WORK/load.json" 2>"$WORK/load.log"
   statuses=("${PIPESTATUS[@]}")
 else
   "$GEN" --tier S --days 90 --seed 42 --out - --sites "$WORK/gen-sites.json" --truth "$WORK/truth.json" --quiet |
     awk 'index($0,"\"site\":1,")' |
-    "$PANEL" load >"$WORK/load.json" 2>"$WORK/load.log"
+    "$SUPERMETRY" load >"$WORK/load.json" 2>"$WORK/load.log"
   pipeline_statuses=("${PIPESTATUS[@]}")
   statuses=("${pipeline_statuses[0]}" "${pipeline_statuses[2]}")
 fi
@@ -167,14 +167,14 @@ if (( statuses[0] != 0 || statuses[1] != 0 )); then
 fi
 
 echo "product gate: close site 1 days"
-"$PANEL" close-days --site 1 --from 2026-07-03 --to 2026-09-30 >"$WORK/close.log" 2>&1
+"$SUPERMETRY" close-days --site 1 --from 2026-07-03 --to 2026-09-30 >"$WORK/close.log" 2>&1
 psql "$BASE_DSN" -v ON_ERROR_STOP=1 -c 'analyze sessions_closed, custom_closed, cube_day, visitor_day, rollup_day, rollup_day_dim, rollup_month_dim, rollup_block_dim, day_close, dict' >/dev/null
 
-echo "product gate: start panel serve"
+echo "product gate: start supermetry serve"
 export GOMEMLIMIT=40MiB
 export GOGC=50
 start_ns=$(date +%s%N)
-"$PANEL" serve >"$WORK/server.log" 2>&1 &
+"$SUPERMETRY" serve >"$WORK/server.log" 2>&1 &
 SERVER_PID=$!
 ready=false
 for _ in $(seq 1 2400); do
@@ -212,7 +212,7 @@ echo "product gate: R2 at 1,000 events/s for 60 seconds"
 SAMPLER_PID=$!
 set +e
 "$GEN" --tier S --days 1 --start 2026-10-01 --seed 42 --out - --sites /dev/null --truth /dev/null --quiet |
-  "$LOADTEST" -product panel -url http://127.0.0.1:18080 -sites "$WORK/loadtest-sites.json" -rate 1000 -duration 60s -concurrency 256 -timeout 10s -label product-r2 -out "$WORK/r2-loadtest.json"
+  "$LOADTEST" -product supermetry -url http://127.0.0.1:18080 -sites "$WORK/loadtest-sites.json" -rate 1000 -duration 60s -concurrency 256 -timeout 10s -label product-r2 -out "$WORK/r2-loadtest.json"
 statuses=("${PIPESTATUS[@]}")
 set -e
 kill "$SAMPLER_PID" 2>/dev/null || true
@@ -223,14 +223,14 @@ SAMPLER_PID=
 echo "product gate: S1 at 10,000 events/s for 60 seconds"
 set +e
 "$GEN" --tier S --days 1 --start 2026-10-02 --seed 42 --out - --sites /dev/null --truth /dev/null --quiet |
-  "$LOADTEST" -product panel -url http://127.0.0.1:18080 -sites "$WORK/loadtest-sites.json" -rate 10000 -duration 60s -concurrency 1024 -timeout 10s -label product-s1 -out "$WORK/s1-loadtest.json"
+  "$LOADTEST" -product supermetry -url http://127.0.0.1:18080 -sites "$WORK/loadtest-sites.json" -rate 10000 -duration 60s -concurrency 1024 -timeout 10s -label product-s1 -out "$WORK/s1-loadtest.json"
 statuses=("${PIPESTATUS[@]}")
 set -e
 (( statuses[1] == 0 )) || { echo "S1 load test failed" >&2; exit 1; }
 
-python3 -I - "$WORK/query.json" "$WORK/r1-kb" "$WORK/r2-rss-kb" "$WORK/s1-loadtest.json" "$PANEL" "$WORK/tracker-gzip-bytes" "$WORK/startup-ms" "$WORK/measurements.json" "$WORK/load.json" "$WORK/r2-loadtest.json" "$DATASET_SCOPE" "$DATASET_NOTE" <<'PY'
+python3 -I - "$WORK/query.json" "$WORK/r1-kb" "$WORK/r2-rss-kb" "$WORK/s1-loadtest.json" "$SUPERMETRY" "$WORK/tracker-gzip-bytes" "$WORK/startup-ms" "$WORK/measurements.json" "$WORK/load.json" "$WORK/r2-loadtest.json" "$DATASET_SCOPE" "$DATASET_NOTE" <<'PY'
 import json,os,platform,sys
-query_path,r1_path,r2_path,s1_path,panel_path,tracker_path,startup_path,out_path,load_path,r2_load_path,dataset_scope,dataset_note=sys.argv[1:]
+query_path,r1_path,r2_path,s1_path,supermetry_path,tracker_path,startup_path,out_path,load_path,r2_load_path,dataset_scope,dataset_note=sys.argv[1:]
 query=json.load(open(query_path,encoding="utf-8"))
 timings=query["timings"]
 s1=json.load(open(s1_path,encoding="utf-8"))
@@ -246,11 +246,11 @@ measured={
  "F4_p95_ms":{"S30":timings["F4_S30"]["p95_ms"]},
  "R1_mb":int(open(r1_path).read().strip())/1024,
  "R2_mb":max(int(line) for line in open(r2_path) if line.strip())/1024,
- "binary_mb":os.path.getsize(panel_path)/(1024*1024),
+ "binary_mb":os.path.getsize(supermetry_path)/(1024*1024),
  "tracker_gzip_bytes":int(open(tracker_path).read()),
  "C1_mismatches":query["c1"]["mismatches"],
 }
-document={"kind":"panel product benchmark","tier":"S","days":90,"seed":42,"dataset_scope":dataset_scope,"dataset_note":dataset_note,"measured":measured,"query_details":timings,"c1":query["c1"],"load":json.load(open(load_path)),"r2_loadtest":r2,"s1_loadtest":s1,"rig":{"kernel":platform.release(),"machine":platform.machine(),"python":platform.python_version()}}
+document={"kind":"supermetry product benchmark","tier":"S","days":90,"seed":42,"dataset_scope":dataset_scope,"dataset_note":dataset_note,"measured":measured,"query_details":timings,"c1":query["c1"],"load":json.load(open(load_path)),"r2_loadtest":r2,"s1_loadtest":s1,"rig":{"kernel":platform.release(),"machine":platform.machine(),"python":platform.python_version()}}
 json.dump(document,open(out_path,"w",encoding="utf-8"),indent=2)
 PY
 

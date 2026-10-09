@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"panel/internal/dict"
-	"panel/internal/enrich"
+	"supermetry/internal/dict"
+	"supermetry/internal/enrich"
 )
 
 // channelSQL maps dict ids to a channel label. It embeds only constants from

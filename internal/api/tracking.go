@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"panel/internal/privacy"
+	"supermetry/internal/privacy"
 )
 
 // ErrAnonymousHistory marks reads that could expose historical identifiers.

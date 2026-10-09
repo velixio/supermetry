@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install bench/rig/pg-tuning.conf as a conf.d drop-in for the local PG 18 and restart it.
 #   (no flag)  dry run: show current -> profile values. Changes nothing (no /etc write, no reload).
-#   --apply    copy it to conf.d/90-panel-bench.conf, restart postgresql@18-main, verify
+#   --apply    copy it to conf.d/90-supermetry-bench.conf, restart postgresql@18-main, verify
 #   --revert   remove the drop-in, restart, verify
 # WARNING: a restart drops every connection on this server, including the other local apps' DBs
 # (cryptoscan, pay, keeper, superadmin) and the running incumbents. Coordinate first, and run it once,
@@ -10,7 +10,7 @@ set -euo pipefail
 RIG="$(cd "$(dirname "$0")" && pwd)"
 CLUSTER=${PG_CLUSTER:-18/main}
 CONF_D="/etc/postgresql/$CLUSTER/conf.d"
-DROPIN="$CONF_D/90-panel-bench.conf"
+DROPIN="$CONF_D/90-supermetry-bench.conf"
 UNIT="postgresql@${CLUSTER/\//-}"
 PROFILE="$RIG/pg-tuning.conf"
 mode=${1:-dry-run}

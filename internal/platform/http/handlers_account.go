@@ -9,11 +9,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/clientip"
-	"panel/internal/db"
-	platformauth "panel/internal/platform/auth"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/orgs"
+	"supermetry/internal/clientip"
+	"supermetry/internal/db"
+	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/orgs"
 )
 
 func (h *handler) currentIP(w http.ResponseWriter, r *http.Request) {

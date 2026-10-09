@@ -20,11 +20,11 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/enrich"
-	"panel/internal/testenv"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/enrich"
+	"supermetry/internal/testenv"
+	"supermetry/internal/testpg"
 )
 
 const (
@@ -49,11 +49,11 @@ func TestGracefulShutdownLosesNothing(t *testing.T) {
 	}
 
 	root := filepath.Clean(filepath.Join("..", ".."))
-	binary := filepath.Join(t.TempDir(), "panel")
-	build := exec.Command("go", "build", "-o", binary, "./cmd/panel")
+	binary := filepath.Join(t.TempDir(), "supermetry")
+	build := exec.Command("go", "build", "-o", binary, "./cmd/supermetry")
 	build.Dir = root
 	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build panel: %v\n%s", err, output)
+		t.Fatalf("build supermetry: %v\n%s", err, output)
 	}
 
 	address := freeAddress(t)
@@ -64,14 +64,14 @@ func TestGracefulShutdownLosesNothing(t *testing.T) {
 
 	command := exec.Command(binary, "serve")
 	command.Env = append(os.Environ(),
-		"PANEL_DATABASE_URL="+schemaDSN(t, schema),
-		"PANEL_LISTEN="+address,
-		"PANEL_BASE_URL=http://"+address,
-		"PANEL_SECRET_KEY="+base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)),
-		"PANEL_ADMIN_API_KEY="+testAPIKey,
-		"PANEL_SITES_FILE="+sitesPath,
-		"PANEL_FLUSH_EVERY=1h",
-		"PANEL_SESSION_FLUSH=1h",
+		"SUPERMETRY_DATABASE_URL="+schemaDSN(t, schema),
+		"SUPERMETRY_LISTEN="+address,
+		"SUPERMETRY_BASE_URL=http://"+address,
+		"SUPERMETRY_SECRET_KEY="+base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)),
+		"SUPERMETRY_ADMIN_API_KEY="+testAPIKey,
+		"SUPERMETRY_SITES_FILE="+sitesPath,
+		"SUPERMETRY_FLUSH_EVERY=1h",
+		"SUPERMETRY_SESSION_FLUSH=1h",
 	)
 	var logs bytes.Buffer
 	command.Stdout = &logs
@@ -111,7 +111,7 @@ func TestGracefulShutdownLosesNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := command.Wait(); err != nil {
-		t.Fatalf("panel shutdown: %v\n%s", err, logs.String())
+		t.Fatalf("supermetry shutdown: %v\n%s", err, logs.String())
 	}
 	stopped = true
 
@@ -455,7 +455,7 @@ func freeAddress(t *testing.T) string {
 
 func schemaDSN(t *testing.T, schema string) string {
 	t.Helper()
-	parsed, err := url.Parse(os.Getenv("PANEL_TEST_DSN"))
+	parsed, err := url.Parse(os.Getenv("SUPERMETRY_TEST_DSN"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -479,9 +479,9 @@ func waitReady(t *testing.T, endpoint string, command *exec.Cmd, logs *bytes.Buf
 			}
 		}
 		if command.ProcessState != nil && command.ProcessState.Exited() {
-			t.Fatalf("panel exited before ready: %s", logs.String())
+			t.Fatalf("supermetry exited before ready: %s", logs.String())
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	t.Fatalf("panel did not become ready: %s", logs.String())
+	t.Fatalf("supermetry did not become ready: %s", logs.String())
 }

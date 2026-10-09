@@ -13,7 +13,7 @@ func Open(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse database URL: %w", err)
 	}
-	config.ConnConfig.RuntimeParams["application_name"] = "panel"
+	config.ConnConfig.RuntimeParams["application_name"] = "supermetry"
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {

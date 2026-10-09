@@ -11,13 +11,13 @@ vi.mock('@tanstack/react-router', () => ({
     useNavigate: () => vi.fn(),
   }),
 }))
-vi.mock('./$org', () => ({ useMe: me }))
+vi.mock('./app.$org', () => ({ useMe: me }))
 vi.mock('@/components/replay/api', () => ({ useReplayAvailability: availability }))
 vi.mock('@/components/replay/ReplaysPage', () => ({ ReplaysPage: () => <div>Historical replay list</div> }))
 vi.mock('@/components/replay/ReplayPlayerPage', () => ({ ReplayPlayerPage: () => <div>Historical replay player</div> }))
 vi.mock('@/components/DatePicker', () => ({ DatePicker: () => null }))
-import { Route as ListRoute } from './$org.$site.replays.index'
-import { Route as DetailRoute } from './$org.$site.replays.$id'
+import { Route as ListRoute } from './app.$org.$site.replays.index'
+import { Route as DetailRoute } from './app.$org.$site.replays.$id'
 
 const routes = [
   ['list', ListRoute.options.component!, 'Historical replay list'],
@@ -36,7 +36,7 @@ describe.each(routes)('replay %s route', (_name, Component, history) => {
     expect(screen.getByText(history)).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Recording is off' })).toBeVisible()
     expect(screen.getByText(/This project has not opted in/)).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Replay settings' })).toHaveAttribute('href', '/acme/example/settings/replay')
+    expect(screen.getByRole('link', { name: 'Replay settings' })).toHaveAttribute('href', '/app/acme/example/settings/replay')
   })
   it('explains instance-disabled capture without hiding history', () => {
     availability.mockReturnValue({ enabled: false, isPending: false, data: { enabled: false, instance_enabled: false, configured_enabled: true, restrictions: ['instance_replay_disabled'] } })
@@ -63,7 +63,7 @@ describe.each(routes)('replay %s route', (_name, Component, history) => {
     expect(screen.getByText('Recording settings could not be loaded.')).toBeVisible()
     expect(screen.getByText('Settings unavailable')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Retry recording settings' })).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Replay settings' })).toHaveAttribute('href', '/acme/example/settings/replay')
+    expect(screen.getByRole('link', { name: 'Replay settings' })).toHaveAttribute('href', '/app/acme/example/settings/replay')
     expect(screen.getByText(history)).toBeVisible()
   })
   it('does not mount historical data without the read grant', () => {

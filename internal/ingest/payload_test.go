@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/ingest"
+	"supermetry/internal/ingest"
 )
 
 func TestParsePayloadNormalizesWebVitalsProps(t *testing.T) {

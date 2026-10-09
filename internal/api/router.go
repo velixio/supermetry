@@ -16,15 +16,15 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"panel/internal/config"
-	"panel/internal/dict"
-	"panel/internal/ingest"
-	"panel/internal/privacy"
-	"panel/internal/realtime"
-	"panel/internal/replay"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/tracker"
+	"supermetry/internal/config"
+	"supermetry/internal/dict"
+	"supermetry/internal/ingest"
+	"supermetry/internal/privacy"
+	"supermetry/internal/realtime"
+	"supermetry/internal/replay"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/tracker"
 )
 
 const (
@@ -183,7 +183,7 @@ func NewRouter(deps Deps) http.Handler {
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if deps.Ready != nil && !deps.Ready() {
-			writeProblem(w, newProblem(http.StatusServiceUnavailable, "https://panel.dev/problems/not-ready", "Service unavailable", "the service is not ready"))
+			writeProblem(w, newProblem(http.StatusServiceUnavailable, "https://supermetry.com/problems/not-ready", "Service unavailable", "the service is not ready"))
 			return
 		}
 		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
@@ -463,10 +463,10 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 type registryContextKey struct{}
 
 // validCSRF implements the double-submit check: the X-CSRF-Token header must
-// equal the panel_csrf cookie, compared in constant time.
+// equal the supermetry_csrf cookie, compared in constant time.
 func validCSRF(r *http.Request) bool {
 	header := r.Header.Get("X-CSRF-Token")
-	cookie, err := r.Cookie("panel_csrf")
+	cookie, err := r.Cookie("supermetry_csrf")
 	if header == "" || err != nil || cookie.Value == "" {
 		return false
 	}

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/ingest"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/ingest"
 )
 
 type vitalsQueryStub struct {
@@ -69,7 +69,7 @@ func TestVitalsRoutesAuthorizeSiteAndMapRetentionErrors(t *testing.T) {
 	t.Run("private route returns report with CSRF", func(t *testing.T) {
 		request := httptest.NewRequest(http.MethodPost, "/api/private/vitals/query", strings.NewReader(body))
 		request.Header.Set("X-CSRF-Token", "token")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 		response := httptest.NewRecorder()
 		newRouter(vitalsQueryStub{}).ServeHTTP(response, request)
 		if response.Code != http.StatusOK {

@@ -14,15 +14,15 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 // DefaultDSN is the local benchmark database.
-const DefaultDSN = "postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable"
+const DefaultDSN = "postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable"
 
-// DSN returns $PANEL_DSN or DefaultDSN.
+// DSN returns $SUPERMETRY_DSN or DefaultDSN.
 func DSN() string {
-	if v := os.Getenv("PANEL_DSN"); v != "" {
+	if v := os.Getenv("SUPERMETRY_DSN"); v != "" {
 		return v
 	}
 	return DefaultDSN
@@ -61,7 +61,7 @@ func Open(ctx context.Context, dsn string, o Options) (*Store, error) {
 		cfg.MaxConns = 16
 	}
 	rp := cfg.ConnConfig.RuntimeParams
-	rp["application_name"] = "panel-proto"
+	rp["application_name"] = "supermetry-proto"
 	// Analytics queries: always plan with the actual range/filter values.
 	rp["plan_cache_mode"] = "force_custom_plan"
 	if o.SearchPath != "" {

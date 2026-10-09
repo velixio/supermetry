@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	platformcrypto "panel/internal/platform/crypto"
+	platformcrypto "supermetry/internal/platform/crypto"
 )
 
 func TestTokensAreRandomAndHashed(t *testing.T) {

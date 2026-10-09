@@ -10,70 +10,67 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as OrgRouteImport } from './routes/$org'
-import { Route as AccountRouteImport } from './routes/account'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as OrgHealthRouteImport } from './routes/$org.health'
-import { Route as OrgSettingsRouteImport } from './routes/$org.settings'
-import { Route as AccountProfileRouteImport } from './routes/account.profile'
-import { Route as AccountSecurityRouteImport } from './routes/account.security'
-import { Route as AccountSessionsRouteImport } from './routes/account.sessions'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppOrgRouteImport } from './routes/app.$org'
+import { Route as AppAccountRouteImport } from './routes/app.account'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
-import { Route as OrgSiteIndexRouteImport } from './routes/$org.$site.index'
-import { Route as OrgSiteEventsRouteImport } from './routes/$org.$site.events'
-import { Route as OrgSiteGoalsRouteImport } from './routes/$org.$site.goals'
-import { Route as OrgSiteHeatmapsRouteImport } from './routes/$org.$site.heatmaps'
-import { Route as OrgSiteJourneysRouteImport } from './routes/$org.$site.journeys'
-import { Route as OrgSiteRealtimeRouteImport } from './routes/$org.$site.realtime'
-import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retention'
-import { Route as OrgSiteRevenueRouteImport } from './routes/$org.$site.revenue'
-import { Route as OrgSiteSessionsRouteImport } from './routes/$org.$site.sessions'
-import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
-import { Route as OrgSiteVitalsRouteImport } from './routes/$org.$site.vitals'
-import { Route as OrgSettingsIndexRouteImport } from './routes/$org.settings.index'
-import { Route as OrgSettingsApiRouteImport } from './routes/$org.settings.api'
-import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
-import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
-import { Route as OrgSettingsInvitesRouteImport } from './routes/$org.settings.invites'
-import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
-import { Route as OrgSettingsNotificationsRouteImport } from './routes/$org.settings.notifications'
-import { Route as OrgSettingsReplayStorageRouteImport } from './routes/$org.settings.replay-storage'
-import { Route as OrgSitesIndexRouteImport } from './routes/$org.sites.index'
-import { Route as OrgSitesNewRouteImport } from './routes/$org.sites.new'
-import { Route as OrgSiteFunnelsIndexRouteImport } from './routes/$org.$site.funnels.index'
-import { Route as OrgSiteFunnelsIdRouteImport } from './routes/$org.$site.funnels.$id'
-import { Route as OrgSiteProfilesIndexRouteImport } from './routes/$org.$site.profiles.index'
-import { Route as OrgSiteProfilesIdRouteImport } from './routes/$org.$site.profiles.$id'
-import { Route as OrgSiteReplaysIndexRouteImport } from './routes/$org.$site.replays.index'
-import { Route as OrgSiteReplaysIdRouteImport } from './routes/$org.$site.replays.$id'
-import { Route as OrgSiteSettingsAlertsRouteImport } from './routes/$org.$site.settings.alerts'
-import { Route as OrgSiteSettingsFunnelsRouteImport } from './routes/$org.$site.settings.funnels'
-import { Route as OrgSiteSettingsGeneralRouteImport } from './routes/$org.$site.settings.general'
-import { Route as OrgSiteSettingsGoalsRouteImport } from './routes/$org.$site.settings.goals'
-import { Route as OrgSiteSettingsImportsRouteImport } from './routes/$org.$site.settings.imports'
-import { Route as OrgSiteSettingsInstallationRouteImport } from './routes/$org.$site.settings.installation'
-import { Route as OrgSiteSettingsReplayRouteImport } from './routes/$org.$site.settings.replay'
-import { Route as OrgSiteSettingsReportsRouteImport } from './routes/$org.$site.settings.reports'
-import { Route as OrgSiteSettingsSharesRouteImport } from './routes/$org.$site.settings.shares'
-import { Route as OrgSiteSettingsTrackingRouteImport } from './routes/$org.$site.settings.tracking'
+import { Route as AppOrgHealthRouteImport } from './routes/app.$org.health'
+import { Route as AppOrgSettingsRouteImport } from './routes/app.$org.settings'
+import { Route as AppAccountProfileRouteImport } from './routes/app.account.profile'
+import { Route as AppAccountSecurityRouteImport } from './routes/app.account.security'
+import { Route as AppAccountSessionsRouteImport } from './routes/app.account.sessions'
+import { Route as AppOrgSiteIndexRouteImport } from './routes/app.$org.$site.index'
+import { Route as AppOrgSiteEventsRouteImport } from './routes/app.$org.$site.events'
+import { Route as AppOrgSiteGoalsRouteImport } from './routes/app.$org.$site.goals'
+import { Route as AppOrgSiteHeatmapsRouteImport } from './routes/app.$org.$site.heatmaps'
+import { Route as AppOrgSiteJourneysRouteImport } from './routes/app.$org.$site.journeys'
+import { Route as AppOrgSiteRealtimeRouteImport } from './routes/app.$org.$site.realtime'
+import { Route as AppOrgSiteRetentionRouteImport } from './routes/app.$org.$site.retention'
+import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.revenue'
+import { Route as AppOrgSiteSessionsRouteImport } from './routes/app.$org.$site.sessions'
+import { Route as AppOrgSiteSettingsRouteImport } from './routes/app.$org.$site.settings'
+import { Route as AppOrgSiteVitalsRouteImport } from './routes/app.$org.$site.vitals'
+import { Route as AppOrgSettingsIndexRouteImport } from './routes/app.$org.settings.index'
+import { Route as AppOrgSettingsApiRouteImport } from './routes/app.$org.settings.api'
+import { Route as AppOrgSettingsApiKeysRouteImport } from './routes/app.$org.settings.api-keys'
+import { Route as AppOrgSettingsAuditRouteImport } from './routes/app.$org.settings.audit'
+import { Route as AppOrgSettingsInvitesRouteImport } from './routes/app.$org.settings.invites'
+import { Route as AppOrgSettingsMembersRouteImport } from './routes/app.$org.settings.members'
+import { Route as AppOrgSettingsNotificationsRouteImport } from './routes/app.$org.settings.notifications'
+import { Route as AppOrgSettingsReplayStorageRouteImport } from './routes/app.$org.settings.replay-storage'
+import { Route as AppOrgSitesIndexRouteImport } from './routes/app.$org.sites.index'
+import { Route as AppOrgSitesNewRouteImport } from './routes/app.$org.sites.new'
+import { Route as AppOrgSiteFunnelsIndexRouteImport } from './routes/app.$org.$site.funnels.index'
+import { Route as AppOrgSiteFunnelsIdRouteImport } from './routes/app.$org.$site.funnels.$id'
+import { Route as AppOrgSiteProfilesIndexRouteImport } from './routes/app.$org.$site.profiles.index'
+import { Route as AppOrgSiteProfilesIdRouteImport } from './routes/app.$org.$site.profiles.$id'
+import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
+import { Route as AppOrgSiteReplaysIdRouteImport } from './routes/app.$org.$site.replays.$id'
+import { Route as AppOrgSiteSettingsAlertsRouteImport } from './routes/app.$org.$site.settings.alerts'
+import { Route as AppOrgSiteSettingsFunnelsRouteImport } from './routes/app.$org.$site.settings.funnels'
+import { Route as AppOrgSiteSettingsGeneralRouteImport } from './routes/app.$org.$site.settings.general'
+import { Route as AppOrgSiteSettingsGoalsRouteImport } from './routes/app.$org.$site.settings.goals'
+import { Route as AppOrgSiteSettingsImportsRouteImport } from './routes/app.$org.$site.settings.imports'
+import { Route as AppOrgSiteSettingsInstallationRouteImport } from './routes/app.$org.$site.settings.installation'
+import { Route as AppOrgSiteSettingsReplayRouteImport } from './routes/app.$org.$site.settings.replay'
+import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org.$site.settings.reports'
+import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.$site.settings.shares'
+import { Route as AppOrgSiteSettingsTrackingRouteImport } from './routes/app.$org.$site.settings.tracking'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgRoute = OrgRouteImport.update({
-  id: '/$org',
-  path: '/$org',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountRoute = AccountRouteImport.update({
-  id: '/account',
-  path: '/account',
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -91,30 +88,20 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgHealthRoute = OrgHealthRouteImport.update({
-  id: '/health',
-  path: '/health',
-  getParentRoute: () => OrgRoute,
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
 } as any)
-const OrgSettingsRoute = OrgSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => OrgRoute,
+const AppOrgRoute = AppOrgRouteImport.update({
+  id: '/$org',
+  path: '/$org',
+  getParentRoute: () => AppRoute,
 } as any)
-const AccountProfileRoute = AccountProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AccountRoute,
-} as any)
-const AccountSecurityRoute = AccountSecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => AccountRoute,
-} as any)
-const AccountSessionsRoute = AccountSessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
-  getParentRoute: () => AccountRoute,
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
@@ -131,519 +118,561 @@ const ShareSlugRoute = ShareSlugRouteImport.update({
   path: '/share/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgSiteIndexRoute = OrgSiteIndexRouteImport.update({
+const AppOrgHealthRoute = AppOrgHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSettingsRoute = AppOrgSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppAccountRoute,
+} as any)
+const AppAccountSecurityRoute = AppAccountSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppAccountRoute,
+} as any)
+const AppAccountSessionsRoute = AppAccountSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => AppAccountRoute,
+} as any)
+const AppOrgSiteIndexRoute = AppOrgSiteIndexRouteImport.update({
   id: '/$site/',
   path: '/$site/',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteEventsRoute = OrgSiteEventsRouteImport.update({
+const AppOrgSiteEventsRoute = AppOrgSiteEventsRouteImport.update({
   id: '/$site/events',
   path: '/$site/events',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteGoalsRoute = OrgSiteGoalsRouteImport.update({
+const AppOrgSiteGoalsRoute = AppOrgSiteGoalsRouteImport.update({
   id: '/$site/goals',
   path: '/$site/goals',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteHeatmapsRoute = OrgSiteHeatmapsRouteImport.update({
+const AppOrgSiteHeatmapsRoute = AppOrgSiteHeatmapsRouteImport.update({
   id: '/$site/heatmaps',
   path: '/$site/heatmaps',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteJourneysRoute = OrgSiteJourneysRouteImport.update({
+const AppOrgSiteJourneysRoute = AppOrgSiteJourneysRouteImport.update({
   id: '/$site/journeys',
   path: '/$site/journeys',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteRealtimeRoute = OrgSiteRealtimeRouteImport.update({
+const AppOrgSiteRealtimeRoute = AppOrgSiteRealtimeRouteImport.update({
   id: '/$site/realtime',
   path: '/$site/realtime',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteRetentionRoute = OrgSiteRetentionRouteImport.update({
+const AppOrgSiteRetentionRoute = AppOrgSiteRetentionRouteImport.update({
   id: '/$site/retention',
   path: '/$site/retention',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteRevenueRoute = OrgSiteRevenueRouteImport.update({
+const AppOrgSiteRevenueRoute = AppOrgSiteRevenueRouteImport.update({
   id: '/$site/revenue',
   path: '/$site/revenue',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteSessionsRoute = OrgSiteSessionsRouteImport.update({
+const AppOrgSiteSessionsRoute = AppOrgSiteSessionsRouteImport.update({
   id: '/$site/sessions',
   path: '/$site/sessions',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteSettingsRoute = OrgSiteSettingsRouteImport.update({
+const AppOrgSiteSettingsRoute = AppOrgSiteSettingsRouteImport.update({
   id: '/$site/settings',
   path: '/$site/settings',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteVitalsRoute = OrgSiteVitalsRouteImport.update({
+const AppOrgSiteVitalsRoute = AppOrgSiteVitalsRouteImport.update({
   id: '/$site/vitals',
   path: '/$site/vitals',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSettingsIndexRoute = OrgSettingsIndexRouteImport.update({
+const AppOrgSettingsIndexRoute = AppOrgSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => OrgSettingsRoute,
+  getParentRoute: () => AppOrgSettingsRoute,
 } as any)
-const OrgSettingsApiRoute = OrgSettingsApiRouteImport.update({
+const AppOrgSettingsApiRoute = AppOrgSettingsApiRouteImport.update({
   id: '/api',
   path: '/api',
-  getParentRoute: () => OrgSettingsRoute,
+  getParentRoute: () => AppOrgSettingsRoute,
 } as any)
-const OrgSettingsApiKeysRoute = OrgSettingsApiKeysRouteImport.update({
+const AppOrgSettingsApiKeysRoute = AppOrgSettingsApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
-  getParentRoute: () => OrgSettingsRoute,
+  getParentRoute: () => AppOrgSettingsRoute,
 } as any)
-const OrgSettingsAuditRoute = OrgSettingsAuditRouteImport.update({
+const AppOrgSettingsAuditRoute = AppOrgSettingsAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
-  getParentRoute: () => OrgSettingsRoute,
+  getParentRoute: () => AppOrgSettingsRoute,
 } as any)
-const OrgSettingsInvitesRoute = OrgSettingsInvitesRouteImport.update({
+const AppOrgSettingsInvitesRoute = AppOrgSettingsInvitesRouteImport.update({
   id: '/invites',
   path: '/invites',
-  getParentRoute: () => OrgSettingsRoute,
+  getParentRoute: () => AppOrgSettingsRoute,
 } as any)
-const OrgSettingsMembersRoute = OrgSettingsMembersRouteImport.update({
+const AppOrgSettingsMembersRoute = AppOrgSettingsMembersRouteImport.update({
   id: '/members',
   path: '/members',
-  getParentRoute: () => OrgSettingsRoute,
+  getParentRoute: () => AppOrgSettingsRoute,
 } as any)
-const OrgSettingsNotificationsRoute =
-  OrgSettingsNotificationsRouteImport.update({
+const AppOrgSettingsNotificationsRoute =
+  AppOrgSettingsNotificationsRouteImport.update({
     id: '/notifications',
     path: '/notifications',
-    getParentRoute: () => OrgSettingsRoute,
+    getParentRoute: () => AppOrgSettingsRoute,
   } as any)
-const OrgSettingsReplayStorageRoute =
-  OrgSettingsReplayStorageRouteImport.update({
+const AppOrgSettingsReplayStorageRoute =
+  AppOrgSettingsReplayStorageRouteImport.update({
     id: '/replay-storage',
     path: '/replay-storage',
-    getParentRoute: () => OrgSettingsRoute,
+    getParentRoute: () => AppOrgSettingsRoute,
   } as any)
-const OrgSitesIndexRoute = OrgSitesIndexRouteImport.update({
+const AppOrgSitesIndexRoute = AppOrgSitesIndexRouteImport.update({
   id: '/sites/',
   path: '/sites/',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSitesNewRoute = OrgSitesNewRouteImport.update({
+const AppOrgSitesNewRoute = AppOrgSitesNewRouteImport.update({
   id: '/sites/new',
   path: '/sites/new',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteFunnelsIndexRoute = OrgSiteFunnelsIndexRouteImport.update({
+const AppOrgSiteFunnelsIndexRoute = AppOrgSiteFunnelsIndexRouteImport.update({
   id: '/$site/funnels/',
   path: '/$site/funnels/',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteFunnelsIdRoute = OrgSiteFunnelsIdRouteImport.update({
+const AppOrgSiteFunnelsIdRoute = AppOrgSiteFunnelsIdRouteImport.update({
   id: '/$site/funnels/$id',
   path: '/$site/funnels/$id',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteProfilesIndexRoute = OrgSiteProfilesIndexRouteImport.update({
+const AppOrgSiteProfilesIndexRoute = AppOrgSiteProfilesIndexRouteImport.update({
   id: '/$site/profiles/',
   path: '/$site/profiles/',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteProfilesIdRoute = OrgSiteProfilesIdRouteImport.update({
+const AppOrgSiteProfilesIdRoute = AppOrgSiteProfilesIdRouteImport.update({
   id: '/$site/profiles/$id',
   path: '/$site/profiles/$id',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteReplaysIndexRoute = OrgSiteReplaysIndexRouteImport.update({
+const AppOrgSiteReplaysIndexRoute = AppOrgSiteReplaysIndexRouteImport.update({
   id: '/$site/replays/',
   path: '/$site/replays/',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteReplaysIdRoute = OrgSiteReplaysIdRouteImport.update({
+const AppOrgSiteReplaysIdRoute = AppOrgSiteReplaysIdRouteImport.update({
   id: '/$site/replays/$id',
   path: '/$site/replays/$id',
-  getParentRoute: () => OrgRoute,
+  getParentRoute: () => AppOrgRoute,
 } as any)
-const OrgSiteSettingsAlertsRoute = OrgSiteSettingsAlertsRouteImport.update({
-  id: '/alerts',
-  path: '/alerts',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
-const OrgSiteSettingsFunnelsRoute = OrgSiteSettingsFunnelsRouteImport.update({
-  id: '/funnels',
-  path: '/funnels',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
-const OrgSiteSettingsGeneralRoute = OrgSiteSettingsGeneralRouteImport.update({
-  id: '/general',
-  path: '/general',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
-const OrgSiteSettingsGoalsRoute = OrgSiteSettingsGoalsRouteImport.update({
+const AppOrgSiteSettingsAlertsRoute =
+  AppOrgSiteSettingsAlertsRouteImport.update({
+    id: '/alerts',
+    path: '/alerts',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
+const AppOrgSiteSettingsFunnelsRoute =
+  AppOrgSiteSettingsFunnelsRouteImport.update({
+    id: '/funnels',
+    path: '/funnels',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
+const AppOrgSiteSettingsGeneralRoute =
+  AppOrgSiteSettingsGeneralRouteImport.update({
+    id: '/general',
+    path: '/general',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
+const AppOrgSiteSettingsGoalsRoute = AppOrgSiteSettingsGoalsRouteImport.update({
   id: '/goals',
   path: '/goals',
-  getParentRoute: () => OrgSiteSettingsRoute,
+  getParentRoute: () => AppOrgSiteSettingsRoute,
 } as any)
-const OrgSiteSettingsImportsRoute = OrgSiteSettingsImportsRouteImport.update({
-  id: '/imports',
-  path: '/imports',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
-const OrgSiteSettingsInstallationRoute =
-  OrgSiteSettingsInstallationRouteImport.update({
+const AppOrgSiteSettingsImportsRoute =
+  AppOrgSiteSettingsImportsRouteImport.update({
+    id: '/imports',
+    path: '/imports',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
+const AppOrgSiteSettingsInstallationRoute =
+  AppOrgSiteSettingsInstallationRouteImport.update({
     id: '/installation',
     path: '/installation',
-    getParentRoute: () => OrgSiteSettingsRoute,
+    getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
-const OrgSiteSettingsReplayRoute = OrgSiteSettingsReplayRouteImport.update({
-  id: '/replay',
-  path: '/replay',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
-const OrgSiteSettingsReportsRoute = OrgSiteSettingsReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
-const OrgSiteSettingsSharesRoute = OrgSiteSettingsSharesRouteImport.update({
-  id: '/shares',
-  path: '/shares',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
-const OrgSiteSettingsTrackingRoute = OrgSiteSettingsTrackingRouteImport.update({
-  id: '/tracking',
-  path: '/tracking',
-  getParentRoute: () => OrgSiteSettingsRoute,
-} as any)
+const AppOrgSiteSettingsReplayRoute =
+  AppOrgSiteSettingsReplayRouteImport.update({
+    id: '/replay',
+    path: '/replay',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
+const AppOrgSiteSettingsReportsRoute =
+  AppOrgSiteSettingsReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
+const AppOrgSiteSettingsSharesRoute =
+  AppOrgSiteSettingsSharesRouteImport.update({
+    id: '/shares',
+    path: '/shares',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
+const AppOrgSiteSettingsTrackingRoute =
+  AppOrgSiteSettingsTrackingRouteImport.update({
+    id: '/tracking',
+    path: '/tracking',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/$org': typeof OrgRouteWithChildren
-  '/account': typeof AccountRouteWithChildren
+  '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
-  '/$org/health': typeof OrgHealthRoute
-  '/$org/settings': typeof OrgSettingsRouteWithChildren
-  '/account/profile': typeof AccountProfileRoute
-  '/account/security': typeof AccountSecurityRoute
-  '/account/sessions': typeof AccountSessionsRoute
+  '/app/$org': typeof AppOrgRouteWithChildren
+  '/app/account': typeof AppAccountRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
-  '/$org/$site/events': typeof OrgSiteEventsRoute
-  '/$org/$site/goals': typeof OrgSiteGoalsRoute
-  '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
-  '/$org/$site/journeys': typeof OrgSiteJourneysRoute
-  '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
-  '/$org/$site/retention': typeof OrgSiteRetentionRoute
-  '/$org/$site/revenue': typeof OrgSiteRevenueRoute
-  '/$org/$site/sessions': typeof OrgSiteSessionsRoute
-  '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
-  '/$org/$site/vitals': typeof OrgSiteVitalsRoute
-  '/$org/settings/api': typeof OrgSettingsApiRoute
-  '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
-  '/$org/settings/audit': typeof OrgSettingsAuditRoute
-  '/$org/settings/invites': typeof OrgSettingsInvitesRoute
-  '/$org/settings/members': typeof OrgSettingsMembersRoute
-  '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
-  '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
-  '/$org/sites/new': typeof OrgSitesNewRoute
-  '/$org/$site/': typeof OrgSiteIndexRoute
-  '/$org/settings/': typeof OrgSettingsIndexRoute
-  '/$org/sites/': typeof OrgSitesIndexRoute
-  '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
-  '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
-  '/$org/$site/replays/$id': typeof OrgSiteReplaysIdRoute
-  '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
-  '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
-  '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
-  '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
-  '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
-  '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
-  '/$org/$site/settings/replay': typeof OrgSiteSettingsReplayRoute
-  '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
-  '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
-  '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
-  '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
-  '/$org/$site/profiles/': typeof OrgSiteProfilesIndexRoute
-  '/$org/$site/replays/': typeof OrgSiteReplaysIndexRoute
+  '/app/': typeof AppIndexRoute
+  '/app/$org/health': typeof AppOrgHealthRoute
+  '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
+  '/app/account/profile': typeof AppAccountProfileRoute
+  '/app/account/security': typeof AppAccountSecurityRoute
+  '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
+  '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
+  '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
+  '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
+  '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
+  '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
+  '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
+  '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
+  '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
+  '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
+  '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
+  '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
+  '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
+  '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
+  '/app/$org/sites/new': typeof AppOrgSitesNewRoute
+  '/app/$org/$site/': typeof AppOrgSiteIndexRoute
+  '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
+  '/app/$org/sites/': typeof AppOrgSitesIndexRoute
+  '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
+  '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
+  '/app/$org/$site/settings/general': typeof AppOrgSiteSettingsGeneralRoute
+  '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
+  '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
+  '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
+  '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
+  '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
+  '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$org': typeof OrgRouteWithChildren
-  '/account': typeof AccountRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
-  '/$org/health': typeof OrgHealthRoute
-  '/account/profile': typeof AccountProfileRoute
-  '/account/security': typeof AccountSecurityRoute
-  '/account/sessions': typeof AccountSessionsRoute
+  '/app/$org': typeof AppOrgRouteWithChildren
+  '/app/account': typeof AppAccountRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
-  '/$org/$site/events': typeof OrgSiteEventsRoute
-  '/$org/$site/goals': typeof OrgSiteGoalsRoute
-  '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
-  '/$org/$site/journeys': typeof OrgSiteJourneysRoute
-  '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
-  '/$org/$site/retention': typeof OrgSiteRetentionRoute
-  '/$org/$site/revenue': typeof OrgSiteRevenueRoute
-  '/$org/$site/sessions': typeof OrgSiteSessionsRoute
-  '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
-  '/$org/$site/vitals': typeof OrgSiteVitalsRoute
-  '/$org/settings/api': typeof OrgSettingsApiRoute
-  '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
-  '/$org/settings/audit': typeof OrgSettingsAuditRoute
-  '/$org/settings/invites': typeof OrgSettingsInvitesRoute
-  '/$org/settings/members': typeof OrgSettingsMembersRoute
-  '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
-  '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
-  '/$org/sites/new': typeof OrgSitesNewRoute
-  '/$org/$site': typeof OrgSiteIndexRoute
-  '/$org/settings': typeof OrgSettingsIndexRoute
-  '/$org/sites': typeof OrgSitesIndexRoute
-  '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
-  '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
-  '/$org/$site/replays/$id': typeof OrgSiteReplaysIdRoute
-  '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
-  '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
-  '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
-  '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
-  '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
-  '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
-  '/$org/$site/settings/replay': typeof OrgSiteSettingsReplayRoute
-  '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
-  '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
-  '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
-  '/$org/$site/funnels': typeof OrgSiteFunnelsIndexRoute
-  '/$org/$site/profiles': typeof OrgSiteProfilesIndexRoute
-  '/$org/$site/replays': typeof OrgSiteReplaysIndexRoute
+  '/app': typeof AppIndexRoute
+  '/app/$org/health': typeof AppOrgHealthRoute
+  '/app/account/profile': typeof AppAccountProfileRoute
+  '/app/account/security': typeof AppAccountSecurityRoute
+  '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
+  '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
+  '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
+  '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
+  '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
+  '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
+  '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
+  '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
+  '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
+  '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
+  '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
+  '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
+  '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
+  '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
+  '/app/$org/sites/new': typeof AppOrgSitesNewRoute
+  '/app/$org/$site': typeof AppOrgSiteIndexRoute
+  '/app/$org/settings': typeof AppOrgSettingsIndexRoute
+  '/app/$org/sites': typeof AppOrgSitesIndexRoute
+  '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
+  '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
+  '/app/$org/$site/settings/general': typeof AppOrgSiteSettingsGeneralRoute
+  '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
+  '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
+  '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
+  '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
+  '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/funnels': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
+  '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/$org': typeof OrgRouteWithChildren
-  '/account': typeof AccountRouteWithChildren
+  '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
-  '/$org/health': typeof OrgHealthRoute
-  '/$org/settings': typeof OrgSettingsRouteWithChildren
-  '/account/profile': typeof AccountProfileRoute
-  '/account/security': typeof AccountSecurityRoute
-  '/account/sessions': typeof AccountSessionsRoute
+  '/app/$org': typeof AppOrgRouteWithChildren
+  '/app/account': typeof AppAccountRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
-  '/$org/$site/events': typeof OrgSiteEventsRoute
-  '/$org/$site/goals': typeof OrgSiteGoalsRoute
-  '/$org/$site/heatmaps': typeof OrgSiteHeatmapsRoute
-  '/$org/$site/journeys': typeof OrgSiteJourneysRoute
-  '/$org/$site/realtime': typeof OrgSiteRealtimeRoute
-  '/$org/$site/retention': typeof OrgSiteRetentionRoute
-  '/$org/$site/revenue': typeof OrgSiteRevenueRoute
-  '/$org/$site/sessions': typeof OrgSiteSessionsRoute
-  '/$org/$site/settings': typeof OrgSiteSettingsRouteWithChildren
-  '/$org/$site/vitals': typeof OrgSiteVitalsRoute
-  '/$org/settings/api': typeof OrgSettingsApiRoute
-  '/$org/settings/api-keys': typeof OrgSettingsApiKeysRoute
-  '/$org/settings/audit': typeof OrgSettingsAuditRoute
-  '/$org/settings/invites': typeof OrgSettingsInvitesRoute
-  '/$org/settings/members': typeof OrgSettingsMembersRoute
-  '/$org/settings/notifications': typeof OrgSettingsNotificationsRoute
-  '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
-  '/$org/sites/new': typeof OrgSitesNewRoute
-  '/$org/$site/': typeof OrgSiteIndexRoute
-  '/$org/settings/': typeof OrgSettingsIndexRoute
-  '/$org/sites/': typeof OrgSitesIndexRoute
-  '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
-  '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
-  '/$org/$site/replays/$id': typeof OrgSiteReplaysIdRoute
-  '/$org/$site/settings/alerts': typeof OrgSiteSettingsAlertsRoute
-  '/$org/$site/settings/funnels': typeof OrgSiteSettingsFunnelsRoute
-  '/$org/$site/settings/general': typeof OrgSiteSettingsGeneralRoute
-  '/$org/$site/settings/goals': typeof OrgSiteSettingsGoalsRoute
-  '/$org/$site/settings/imports': typeof OrgSiteSettingsImportsRoute
-  '/$org/$site/settings/installation': typeof OrgSiteSettingsInstallationRoute
-  '/$org/$site/settings/replay': typeof OrgSiteSettingsReplayRoute
-  '/$org/$site/settings/reports': typeof OrgSiteSettingsReportsRoute
-  '/$org/$site/settings/shares': typeof OrgSiteSettingsSharesRoute
-  '/$org/$site/settings/tracking': typeof OrgSiteSettingsTrackingRoute
-  '/$org/$site/funnels/': typeof OrgSiteFunnelsIndexRoute
-  '/$org/$site/profiles/': typeof OrgSiteProfilesIndexRoute
-  '/$org/$site/replays/': typeof OrgSiteReplaysIndexRoute
+  '/app/': typeof AppIndexRoute
+  '/app/$org/health': typeof AppOrgHealthRoute
+  '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
+  '/app/account/profile': typeof AppAccountProfileRoute
+  '/app/account/security': typeof AppAccountSecurityRoute
+  '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
+  '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
+  '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
+  '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
+  '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
+  '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
+  '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
+  '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
+  '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
+  '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
+  '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
+  '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
+  '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
+  '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
+  '/app/$org/sites/new': typeof AppOrgSitesNewRoute
+  '/app/$org/$site/': typeof AppOrgSiteIndexRoute
+  '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
+  '/app/$org/sites/': typeof AppOrgSitesIndexRoute
+  '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
+  '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
+  '/app/$org/$site/settings/general': typeof AppOrgSiteSettingsGeneralRoute
+  '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
+  '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
+  '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
+  '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
+  '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
+  '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/$org'
-    | '/account'
+    | '/app'
     | '/login'
     | '/setup'
     | '/signup'
-    | '/$org/health'
-    | '/$org/settings'
-    | '/account/profile'
-    | '/account/security'
-    | '/account/sessions'
+    | '/app/$org'
+    | '/app/account'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
-    | '/$org/$site/events'
-    | '/$org/$site/goals'
-    | '/$org/$site/heatmaps'
-    | '/$org/$site/journeys'
-    | '/$org/$site/realtime'
-    | '/$org/$site/retention'
-    | '/$org/$site/revenue'
-    | '/$org/$site/sessions'
-    | '/$org/$site/settings'
-    | '/$org/$site/vitals'
-    | '/$org/settings/api'
-    | '/$org/settings/api-keys'
-    | '/$org/settings/audit'
-    | '/$org/settings/invites'
-    | '/$org/settings/members'
-    | '/$org/settings/notifications'
-    | '/$org/settings/replay-storage'
-    | '/$org/sites/new'
-    | '/$org/$site/'
-    | '/$org/settings/'
-    | '/$org/sites/'
-    | '/$org/$site/funnels/$id'
-    | '/$org/$site/profiles/$id'
-    | '/$org/$site/replays/$id'
-    | '/$org/$site/settings/alerts'
-    | '/$org/$site/settings/funnels'
-    | '/$org/$site/settings/general'
-    | '/$org/$site/settings/goals'
-    | '/$org/$site/settings/imports'
-    | '/$org/$site/settings/installation'
-    | '/$org/$site/settings/replay'
-    | '/$org/$site/settings/reports'
-    | '/$org/$site/settings/shares'
-    | '/$org/$site/settings/tracking'
-    | '/$org/$site/funnels/'
-    | '/$org/$site/profiles/'
-    | '/$org/$site/replays/'
+    | '/app/'
+    | '/app/$org/health'
+    | '/app/$org/settings'
+    | '/app/account/profile'
+    | '/app/account/security'
+    | '/app/account/sessions'
+    | '/app/$org/$site/events'
+    | '/app/$org/$site/goals'
+    | '/app/$org/$site/heatmaps'
+    | '/app/$org/$site/journeys'
+    | '/app/$org/$site/realtime'
+    | '/app/$org/$site/retention'
+    | '/app/$org/$site/revenue'
+    | '/app/$org/$site/sessions'
+    | '/app/$org/$site/settings'
+    | '/app/$org/$site/vitals'
+    | '/app/$org/settings/api'
+    | '/app/$org/settings/api-keys'
+    | '/app/$org/settings/audit'
+    | '/app/$org/settings/invites'
+    | '/app/$org/settings/members'
+    | '/app/$org/settings/notifications'
+    | '/app/$org/settings/replay-storage'
+    | '/app/$org/sites/new'
+    | '/app/$org/$site/'
+    | '/app/$org/settings/'
+    | '/app/$org/sites/'
+    | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alerts'
+    | '/app/$org/$site/settings/funnels'
+    | '/app/$org/$site/settings/general'
+    | '/app/$org/$site/settings/goals'
+    | '/app/$org/$site/settings/imports'
+    | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/replay'
+    | '/app/$org/$site/settings/reports'
+    | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/funnels/'
+    | '/app/$org/$site/profiles/'
+    | '/app/$org/$site/replays/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/$org'
-    | '/account'
     | '/login'
     | '/setup'
     | '/signup'
-    | '/$org/health'
-    | '/account/profile'
-    | '/account/security'
-    | '/account/sessions'
+    | '/app/$org'
+    | '/app/account'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
-    | '/$org/$site/events'
-    | '/$org/$site/goals'
-    | '/$org/$site/heatmaps'
-    | '/$org/$site/journeys'
-    | '/$org/$site/realtime'
-    | '/$org/$site/retention'
-    | '/$org/$site/revenue'
-    | '/$org/$site/sessions'
-    | '/$org/$site/settings'
-    | '/$org/$site/vitals'
-    | '/$org/settings/api'
-    | '/$org/settings/api-keys'
-    | '/$org/settings/audit'
-    | '/$org/settings/invites'
-    | '/$org/settings/members'
-    | '/$org/settings/notifications'
-    | '/$org/settings/replay-storage'
-    | '/$org/sites/new'
-    | '/$org/$site'
-    | '/$org/settings'
-    | '/$org/sites'
-    | '/$org/$site/funnels/$id'
-    | '/$org/$site/profiles/$id'
-    | '/$org/$site/replays/$id'
-    | '/$org/$site/settings/alerts'
-    | '/$org/$site/settings/funnels'
-    | '/$org/$site/settings/general'
-    | '/$org/$site/settings/goals'
-    | '/$org/$site/settings/imports'
-    | '/$org/$site/settings/installation'
-    | '/$org/$site/settings/replay'
-    | '/$org/$site/settings/reports'
-    | '/$org/$site/settings/shares'
-    | '/$org/$site/settings/tracking'
-    | '/$org/$site/funnels'
-    | '/$org/$site/profiles'
-    | '/$org/$site/replays'
+    | '/app'
+    | '/app/$org/health'
+    | '/app/account/profile'
+    | '/app/account/security'
+    | '/app/account/sessions'
+    | '/app/$org/$site/events'
+    | '/app/$org/$site/goals'
+    | '/app/$org/$site/heatmaps'
+    | '/app/$org/$site/journeys'
+    | '/app/$org/$site/realtime'
+    | '/app/$org/$site/retention'
+    | '/app/$org/$site/revenue'
+    | '/app/$org/$site/sessions'
+    | '/app/$org/$site/settings'
+    | '/app/$org/$site/vitals'
+    | '/app/$org/settings/api'
+    | '/app/$org/settings/api-keys'
+    | '/app/$org/settings/audit'
+    | '/app/$org/settings/invites'
+    | '/app/$org/settings/members'
+    | '/app/$org/settings/notifications'
+    | '/app/$org/settings/replay-storage'
+    | '/app/$org/sites/new'
+    | '/app/$org/$site'
+    | '/app/$org/settings'
+    | '/app/$org/sites'
+    | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alerts'
+    | '/app/$org/$site/settings/funnels'
+    | '/app/$org/$site/settings/general'
+    | '/app/$org/$site/settings/goals'
+    | '/app/$org/$site/settings/imports'
+    | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/replay'
+    | '/app/$org/$site/settings/reports'
+    | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/funnels'
+    | '/app/$org/$site/profiles'
+    | '/app/$org/$site/replays'
   id:
     | '__root__'
     | '/'
-    | '/$org'
-    | '/account'
+    | '/app'
     | '/login'
     | '/setup'
     | '/signup'
-    | '/$org/health'
-    | '/$org/settings'
-    | '/account/profile'
-    | '/account/security'
-    | '/account/sessions'
+    | '/app/$org'
+    | '/app/account'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
-    | '/$org/$site/events'
-    | '/$org/$site/goals'
-    | '/$org/$site/heatmaps'
-    | '/$org/$site/journeys'
-    | '/$org/$site/realtime'
-    | '/$org/$site/retention'
-    | '/$org/$site/revenue'
-    | '/$org/$site/sessions'
-    | '/$org/$site/settings'
-    | '/$org/$site/vitals'
-    | '/$org/settings/api'
-    | '/$org/settings/api-keys'
-    | '/$org/settings/audit'
-    | '/$org/settings/invites'
-    | '/$org/settings/members'
-    | '/$org/settings/notifications'
-    | '/$org/settings/replay-storage'
-    | '/$org/sites/new'
-    | '/$org/$site/'
-    | '/$org/settings/'
-    | '/$org/sites/'
-    | '/$org/$site/funnels/$id'
-    | '/$org/$site/profiles/$id'
-    | '/$org/$site/replays/$id'
-    | '/$org/$site/settings/alerts'
-    | '/$org/$site/settings/funnels'
-    | '/$org/$site/settings/general'
-    | '/$org/$site/settings/goals'
-    | '/$org/$site/settings/imports'
-    | '/$org/$site/settings/installation'
-    | '/$org/$site/settings/replay'
-    | '/$org/$site/settings/reports'
-    | '/$org/$site/settings/shares'
-    | '/$org/$site/settings/tracking'
-    | '/$org/$site/funnels/'
-    | '/$org/$site/profiles/'
-    | '/$org/$site/replays/'
+    | '/app/'
+    | '/app/$org/health'
+    | '/app/$org/settings'
+    | '/app/account/profile'
+    | '/app/account/security'
+    | '/app/account/sessions'
+    | '/app/$org/$site/events'
+    | '/app/$org/$site/goals'
+    | '/app/$org/$site/heatmaps'
+    | '/app/$org/$site/journeys'
+    | '/app/$org/$site/realtime'
+    | '/app/$org/$site/retention'
+    | '/app/$org/$site/revenue'
+    | '/app/$org/$site/sessions'
+    | '/app/$org/$site/settings'
+    | '/app/$org/$site/vitals'
+    | '/app/$org/settings/api'
+    | '/app/$org/settings/api-keys'
+    | '/app/$org/settings/audit'
+    | '/app/$org/settings/invites'
+    | '/app/$org/settings/members'
+    | '/app/$org/settings/notifications'
+    | '/app/$org/settings/replay-storage'
+    | '/app/$org/sites/new'
+    | '/app/$org/$site/'
+    | '/app/$org/settings/'
+    | '/app/$org/sites/'
+    | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alerts'
+    | '/app/$org/$site/settings/funnels'
+    | '/app/$org/$site/settings/general'
+    | '/app/$org/$site/settings/goals'
+    | '/app/$org/$site/settings/imports'
+    | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/replay'
+    | '/app/$org/$site/settings/reports'
+    | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/funnels/'
+    | '/app/$org/$site/profiles/'
+    | '/app/$org/$site/replays/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  OrgRoute: typeof OrgRouteWithChildren
-  AccountRoute: typeof AccountRouteWithChildren
+  AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
   SignupRoute: typeof SignupRoute
@@ -661,18 +690,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$org': {
-      id: '/$org'
-      path: '/$org'
-      fullPath: '/$org'
-      preLoaderRoute: typeof OrgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/account': {
-      id: '/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AccountRouteImport
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -696,40 +718,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$org/health': {
-      id: '/$org/health'
-      path: '/health'
-      fullPath: '/$org/health'
-      preLoaderRoute: typeof OrgHealthRouteImport
-      parentRoute: typeof OrgRoute
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/$org/settings': {
-      id: '/$org/settings'
-      path: '/settings'
-      fullPath: '/$org/settings'
-      preLoaderRoute: typeof OrgSettingsRouteImport
-      parentRoute: typeof OrgRoute
+    '/app/$org': {
+      id: '/app/$org'
+      path: '/$org'
+      fullPath: '/app/$org'
+      preLoaderRoute: typeof AppOrgRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/account/profile': {
-      id: '/account/profile'
-      path: '/profile'
-      fullPath: '/account/profile'
-      preLoaderRoute: typeof AccountProfileRouteImport
-      parentRoute: typeof AccountRoute
-    }
-    '/account/security': {
-      id: '/account/security'
-      path: '/security'
-      fullPath: '/account/security'
-      preLoaderRoute: typeof AccountSecurityRouteImport
-      parentRoute: typeof AccountRoute
-    }
-    '/account/sessions': {
-      id: '/account/sessions'
-      path: '/sessions'
-      fullPath: '/account/sessions'
-      preLoaderRoute: typeof AccountSessionsRouteImport
-      parentRoute: typeof AccountRoute
+    '/app/account': {
+      id: '/app/account'
+      path: '/account'
+      fullPath: '/app/account'
+      preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
     }
     '/invite/$token': {
       id: '/invite/$token'
@@ -752,393 +760,442 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$org/$site/': {
-      id: '/$org/$site/'
+    '/app/$org/health': {
+      id: '/app/$org/health'
+      path: '/health'
+      fullPath: '/app/$org/health'
+      preLoaderRoute: typeof AppOrgHealthRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/settings': {
+      id: '/app/$org/settings'
+      path: '/settings'
+      fullPath: '/app/$org/settings'
+      preLoaderRoute: typeof AppOrgSettingsRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/account/profile': {
+      id: '/app/account/profile'
+      path: '/profile'
+      fullPath: '/app/account/profile'
+      preLoaderRoute: typeof AppAccountProfileRouteImport
+      parentRoute: typeof AppAccountRoute
+    }
+    '/app/account/security': {
+      id: '/app/account/security'
+      path: '/security'
+      fullPath: '/app/account/security'
+      preLoaderRoute: typeof AppAccountSecurityRouteImport
+      parentRoute: typeof AppAccountRoute
+    }
+    '/app/account/sessions': {
+      id: '/app/account/sessions'
+      path: '/sessions'
+      fullPath: '/app/account/sessions'
+      preLoaderRoute: typeof AppAccountSessionsRouteImport
+      parentRoute: typeof AppAccountRoute
+    }
+    '/app/$org/$site/': {
+      id: '/app/$org/$site/'
       path: '/$site'
-      fullPath: '/$org/$site/'
-      preLoaderRoute: typeof OrgSiteIndexRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/'
+      preLoaderRoute: typeof AppOrgSiteIndexRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/events': {
-      id: '/$org/$site/events'
+    '/app/$org/$site/events': {
+      id: '/app/$org/$site/events'
       path: '/$site/events'
-      fullPath: '/$org/$site/events'
-      preLoaderRoute: typeof OrgSiteEventsRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/events'
+      preLoaderRoute: typeof AppOrgSiteEventsRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/goals': {
-      id: '/$org/$site/goals'
+    '/app/$org/$site/goals': {
+      id: '/app/$org/$site/goals'
       path: '/$site/goals'
-      fullPath: '/$org/$site/goals'
-      preLoaderRoute: typeof OrgSiteGoalsRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/goals'
+      preLoaderRoute: typeof AppOrgSiteGoalsRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/heatmaps': {
-      id: '/$org/$site/heatmaps'
+    '/app/$org/$site/heatmaps': {
+      id: '/app/$org/$site/heatmaps'
       path: '/$site/heatmaps'
-      fullPath: '/$org/$site/heatmaps'
-      preLoaderRoute: typeof OrgSiteHeatmapsRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/heatmaps'
+      preLoaderRoute: typeof AppOrgSiteHeatmapsRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/journeys': {
-      id: '/$org/$site/journeys'
+    '/app/$org/$site/journeys': {
+      id: '/app/$org/$site/journeys'
       path: '/$site/journeys'
-      fullPath: '/$org/$site/journeys'
-      preLoaderRoute: typeof OrgSiteJourneysRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/journeys'
+      preLoaderRoute: typeof AppOrgSiteJourneysRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/realtime': {
-      id: '/$org/$site/realtime'
+    '/app/$org/$site/realtime': {
+      id: '/app/$org/$site/realtime'
       path: '/$site/realtime'
-      fullPath: '/$org/$site/realtime'
-      preLoaderRoute: typeof OrgSiteRealtimeRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/realtime'
+      preLoaderRoute: typeof AppOrgSiteRealtimeRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/retention': {
-      id: '/$org/$site/retention'
+    '/app/$org/$site/retention': {
+      id: '/app/$org/$site/retention'
       path: '/$site/retention'
-      fullPath: '/$org/$site/retention'
-      preLoaderRoute: typeof OrgSiteRetentionRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/retention'
+      preLoaderRoute: typeof AppOrgSiteRetentionRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/revenue': {
-      id: '/$org/$site/revenue'
+    '/app/$org/$site/revenue': {
+      id: '/app/$org/$site/revenue'
       path: '/$site/revenue'
-      fullPath: '/$org/$site/revenue'
-      preLoaderRoute: typeof OrgSiteRevenueRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/revenue'
+      preLoaderRoute: typeof AppOrgSiteRevenueRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/sessions': {
-      id: '/$org/$site/sessions'
+    '/app/$org/$site/sessions': {
+      id: '/app/$org/$site/sessions'
       path: '/$site/sessions'
-      fullPath: '/$org/$site/sessions'
-      preLoaderRoute: typeof OrgSiteSessionsRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/sessions'
+      preLoaderRoute: typeof AppOrgSiteSessionsRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/settings': {
-      id: '/$org/$site/settings'
+    '/app/$org/$site/settings': {
+      id: '/app/$org/$site/settings'
       path: '/$site/settings'
-      fullPath: '/$org/$site/settings'
-      preLoaderRoute: typeof OrgSiteSettingsRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/settings'
+      preLoaderRoute: typeof AppOrgSiteSettingsRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/vitals': {
-      id: '/$org/$site/vitals'
+    '/app/$org/$site/vitals': {
+      id: '/app/$org/$site/vitals'
       path: '/$site/vitals'
-      fullPath: '/$org/$site/vitals'
-      preLoaderRoute: typeof OrgSiteVitalsRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/vitals'
+      preLoaderRoute: typeof AppOrgSiteVitalsRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/settings/': {
-      id: '/$org/settings/'
+    '/app/$org/settings/': {
+      id: '/app/$org/settings/'
       path: '/'
-      fullPath: '/$org/settings/'
-      preLoaderRoute: typeof OrgSettingsIndexRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/'
+      preLoaderRoute: typeof AppOrgSettingsIndexRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/settings/api': {
-      id: '/$org/settings/api'
+    '/app/$org/settings/api': {
+      id: '/app/$org/settings/api'
       path: '/api'
-      fullPath: '/$org/settings/api'
-      preLoaderRoute: typeof OrgSettingsApiRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/api'
+      preLoaderRoute: typeof AppOrgSettingsApiRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/settings/api-keys': {
-      id: '/$org/settings/api-keys'
+    '/app/$org/settings/api-keys': {
+      id: '/app/$org/settings/api-keys'
       path: '/api-keys'
-      fullPath: '/$org/settings/api-keys'
-      preLoaderRoute: typeof OrgSettingsApiKeysRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/api-keys'
+      preLoaderRoute: typeof AppOrgSettingsApiKeysRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/settings/audit': {
-      id: '/$org/settings/audit'
+    '/app/$org/settings/audit': {
+      id: '/app/$org/settings/audit'
       path: '/audit'
-      fullPath: '/$org/settings/audit'
-      preLoaderRoute: typeof OrgSettingsAuditRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/audit'
+      preLoaderRoute: typeof AppOrgSettingsAuditRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/settings/invites': {
-      id: '/$org/settings/invites'
+    '/app/$org/settings/invites': {
+      id: '/app/$org/settings/invites'
       path: '/invites'
-      fullPath: '/$org/settings/invites'
-      preLoaderRoute: typeof OrgSettingsInvitesRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/invites'
+      preLoaderRoute: typeof AppOrgSettingsInvitesRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/settings/members': {
-      id: '/$org/settings/members'
+    '/app/$org/settings/members': {
+      id: '/app/$org/settings/members'
       path: '/members'
-      fullPath: '/$org/settings/members'
-      preLoaderRoute: typeof OrgSettingsMembersRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/members'
+      preLoaderRoute: typeof AppOrgSettingsMembersRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/settings/notifications': {
-      id: '/$org/settings/notifications'
+    '/app/$org/settings/notifications': {
+      id: '/app/$org/settings/notifications'
       path: '/notifications'
-      fullPath: '/$org/settings/notifications'
-      preLoaderRoute: typeof OrgSettingsNotificationsRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/notifications'
+      preLoaderRoute: typeof AppOrgSettingsNotificationsRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/settings/replay-storage': {
-      id: '/$org/settings/replay-storage'
+    '/app/$org/settings/replay-storage': {
+      id: '/app/$org/settings/replay-storage'
       path: '/replay-storage'
-      fullPath: '/$org/settings/replay-storage'
-      preLoaderRoute: typeof OrgSettingsReplayStorageRouteImport
-      parentRoute: typeof OrgSettingsRoute
+      fullPath: '/app/$org/settings/replay-storage'
+      preLoaderRoute: typeof AppOrgSettingsReplayStorageRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
     }
-    '/$org/sites/': {
-      id: '/$org/sites/'
+    '/app/$org/sites/': {
+      id: '/app/$org/sites/'
       path: '/sites'
-      fullPath: '/$org/sites/'
-      preLoaderRoute: typeof OrgSitesIndexRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/sites/'
+      preLoaderRoute: typeof AppOrgSitesIndexRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/sites/new': {
-      id: '/$org/sites/new'
+    '/app/$org/sites/new': {
+      id: '/app/$org/sites/new'
       path: '/sites/new'
-      fullPath: '/$org/sites/new'
-      preLoaderRoute: typeof OrgSitesNewRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/sites/new'
+      preLoaderRoute: typeof AppOrgSitesNewRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/funnels/': {
-      id: '/$org/$site/funnels/'
+    '/app/$org/$site/funnels/': {
+      id: '/app/$org/$site/funnels/'
       path: '/$site/funnels'
-      fullPath: '/$org/$site/funnels/'
-      preLoaderRoute: typeof OrgSiteFunnelsIndexRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/funnels/'
+      preLoaderRoute: typeof AppOrgSiteFunnelsIndexRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/funnels/$id': {
-      id: '/$org/$site/funnels/$id'
+    '/app/$org/$site/funnels/$id': {
+      id: '/app/$org/$site/funnels/$id'
       path: '/$site/funnels/$id'
-      fullPath: '/$org/$site/funnels/$id'
-      preLoaderRoute: typeof OrgSiteFunnelsIdRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/funnels/$id'
+      preLoaderRoute: typeof AppOrgSiteFunnelsIdRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/profiles/': {
-      id: '/$org/$site/profiles/'
+    '/app/$org/$site/profiles/': {
+      id: '/app/$org/$site/profiles/'
       path: '/$site/profiles'
-      fullPath: '/$org/$site/profiles/'
-      preLoaderRoute: typeof OrgSiteProfilesIndexRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/profiles/'
+      preLoaderRoute: typeof AppOrgSiteProfilesIndexRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/profiles/$id': {
-      id: '/$org/$site/profiles/$id'
+    '/app/$org/$site/profiles/$id': {
+      id: '/app/$org/$site/profiles/$id'
       path: '/$site/profiles/$id'
-      fullPath: '/$org/$site/profiles/$id'
-      preLoaderRoute: typeof OrgSiteProfilesIdRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/profiles/$id'
+      preLoaderRoute: typeof AppOrgSiteProfilesIdRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/replays/': {
-      id: '/$org/$site/replays/'
+    '/app/$org/$site/replays/': {
+      id: '/app/$org/$site/replays/'
       path: '/$site/replays'
-      fullPath: '/$org/$site/replays/'
-      preLoaderRoute: typeof OrgSiteReplaysIndexRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/replays/'
+      preLoaderRoute: typeof AppOrgSiteReplaysIndexRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/replays/$id': {
-      id: '/$org/$site/replays/$id'
+    '/app/$org/$site/replays/$id': {
+      id: '/app/$org/$site/replays/$id'
       path: '/$site/replays/$id'
-      fullPath: '/$org/$site/replays/$id'
-      preLoaderRoute: typeof OrgSiteReplaysIdRouteImport
-      parentRoute: typeof OrgRoute
+      fullPath: '/app/$org/$site/replays/$id'
+      preLoaderRoute: typeof AppOrgSiteReplaysIdRouteImport
+      parentRoute: typeof AppOrgRoute
     }
-    '/$org/$site/settings/alerts': {
-      id: '/$org/$site/settings/alerts'
+    '/app/$org/$site/settings/alerts': {
+      id: '/app/$org/$site/settings/alerts'
       path: '/alerts'
-      fullPath: '/$org/$site/settings/alerts'
-      preLoaderRoute: typeof OrgSiteSettingsAlertsRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/alerts'
+      preLoaderRoute: typeof AppOrgSiteSettingsAlertsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/funnels': {
-      id: '/$org/$site/settings/funnels'
+    '/app/$org/$site/settings/funnels': {
+      id: '/app/$org/$site/settings/funnels'
       path: '/funnels'
-      fullPath: '/$org/$site/settings/funnels'
-      preLoaderRoute: typeof OrgSiteSettingsFunnelsRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/funnels'
+      preLoaderRoute: typeof AppOrgSiteSettingsFunnelsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/general': {
-      id: '/$org/$site/settings/general'
+    '/app/$org/$site/settings/general': {
+      id: '/app/$org/$site/settings/general'
       path: '/general'
-      fullPath: '/$org/$site/settings/general'
-      preLoaderRoute: typeof OrgSiteSettingsGeneralRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/general'
+      preLoaderRoute: typeof AppOrgSiteSettingsGeneralRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/goals': {
-      id: '/$org/$site/settings/goals'
+    '/app/$org/$site/settings/goals': {
+      id: '/app/$org/$site/settings/goals'
       path: '/goals'
-      fullPath: '/$org/$site/settings/goals'
-      preLoaderRoute: typeof OrgSiteSettingsGoalsRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/goals'
+      preLoaderRoute: typeof AppOrgSiteSettingsGoalsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/imports': {
-      id: '/$org/$site/settings/imports'
+    '/app/$org/$site/settings/imports': {
+      id: '/app/$org/$site/settings/imports'
       path: '/imports'
-      fullPath: '/$org/$site/settings/imports'
-      preLoaderRoute: typeof OrgSiteSettingsImportsRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/imports'
+      preLoaderRoute: typeof AppOrgSiteSettingsImportsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/installation': {
-      id: '/$org/$site/settings/installation'
+    '/app/$org/$site/settings/installation': {
+      id: '/app/$org/$site/settings/installation'
       path: '/installation'
-      fullPath: '/$org/$site/settings/installation'
-      preLoaderRoute: typeof OrgSiteSettingsInstallationRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/installation'
+      preLoaderRoute: typeof AppOrgSiteSettingsInstallationRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/replay': {
-      id: '/$org/$site/settings/replay'
+    '/app/$org/$site/settings/replay': {
+      id: '/app/$org/$site/settings/replay'
       path: '/replay'
-      fullPath: '/$org/$site/settings/replay'
-      preLoaderRoute: typeof OrgSiteSettingsReplayRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/replay'
+      preLoaderRoute: typeof AppOrgSiteSettingsReplayRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/reports': {
-      id: '/$org/$site/settings/reports'
+    '/app/$org/$site/settings/reports': {
+      id: '/app/$org/$site/settings/reports'
       path: '/reports'
-      fullPath: '/$org/$site/settings/reports'
-      preLoaderRoute: typeof OrgSiteSettingsReportsRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/reports'
+      preLoaderRoute: typeof AppOrgSiteSettingsReportsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/shares': {
-      id: '/$org/$site/settings/shares'
+    '/app/$org/$site/settings/shares': {
+      id: '/app/$org/$site/settings/shares'
       path: '/shares'
-      fullPath: '/$org/$site/settings/shares'
-      preLoaderRoute: typeof OrgSiteSettingsSharesRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/shares'
+      preLoaderRoute: typeof AppOrgSiteSettingsSharesRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/$org/$site/settings/tracking': {
-      id: '/$org/$site/settings/tracking'
+    '/app/$org/$site/settings/tracking': {
+      id: '/app/$org/$site/settings/tracking'
       path: '/tracking'
-      fullPath: '/$org/$site/settings/tracking'
-      preLoaderRoute: typeof OrgSiteSettingsTrackingRouteImport
-      parentRoute: typeof OrgSiteSettingsRoute
+      fullPath: '/app/$org/$site/settings/tracking'
+      preLoaderRoute: typeof AppOrgSiteSettingsTrackingRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
   }
 }
 
-interface OrgSettingsRouteChildren {
-  OrgSettingsApiRoute: typeof OrgSettingsApiRoute
-  OrgSettingsApiKeysRoute: typeof OrgSettingsApiKeysRoute
-  OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
-  OrgSettingsInvitesRoute: typeof OrgSettingsInvitesRoute
-  OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
-  OrgSettingsNotificationsRoute: typeof OrgSettingsNotificationsRoute
-  OrgSettingsReplayStorageRoute: typeof OrgSettingsReplayStorageRoute
-  OrgSettingsIndexRoute: typeof OrgSettingsIndexRoute
+interface AppOrgSettingsRouteChildren {
+  AppOrgSettingsApiRoute: typeof AppOrgSettingsApiRoute
+  AppOrgSettingsApiKeysRoute: typeof AppOrgSettingsApiKeysRoute
+  AppOrgSettingsAuditRoute: typeof AppOrgSettingsAuditRoute
+  AppOrgSettingsInvitesRoute: typeof AppOrgSettingsInvitesRoute
+  AppOrgSettingsMembersRoute: typeof AppOrgSettingsMembersRoute
+  AppOrgSettingsNotificationsRoute: typeof AppOrgSettingsNotificationsRoute
+  AppOrgSettingsReplayStorageRoute: typeof AppOrgSettingsReplayStorageRoute
+  AppOrgSettingsIndexRoute: typeof AppOrgSettingsIndexRoute
 }
 
-const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
-  OrgSettingsApiRoute: OrgSettingsApiRoute,
-  OrgSettingsApiKeysRoute: OrgSettingsApiKeysRoute,
-  OrgSettingsAuditRoute: OrgSettingsAuditRoute,
-  OrgSettingsInvitesRoute: OrgSettingsInvitesRoute,
-  OrgSettingsMembersRoute: OrgSettingsMembersRoute,
-  OrgSettingsNotificationsRoute: OrgSettingsNotificationsRoute,
-  OrgSettingsReplayStorageRoute: OrgSettingsReplayStorageRoute,
-  OrgSettingsIndexRoute: OrgSettingsIndexRoute,
+const AppOrgSettingsRouteChildren: AppOrgSettingsRouteChildren = {
+  AppOrgSettingsApiRoute: AppOrgSettingsApiRoute,
+  AppOrgSettingsApiKeysRoute: AppOrgSettingsApiKeysRoute,
+  AppOrgSettingsAuditRoute: AppOrgSettingsAuditRoute,
+  AppOrgSettingsInvitesRoute: AppOrgSettingsInvitesRoute,
+  AppOrgSettingsMembersRoute: AppOrgSettingsMembersRoute,
+  AppOrgSettingsNotificationsRoute: AppOrgSettingsNotificationsRoute,
+  AppOrgSettingsReplayStorageRoute: AppOrgSettingsReplayStorageRoute,
+  AppOrgSettingsIndexRoute: AppOrgSettingsIndexRoute,
 }
 
-const OrgSettingsRouteWithChildren = OrgSettingsRoute._addFileChildren(
-  OrgSettingsRouteChildren,
+const AppOrgSettingsRouteWithChildren = AppOrgSettingsRoute._addFileChildren(
+  AppOrgSettingsRouteChildren,
 )
 
-interface OrgSiteSettingsRouteChildren {
-  OrgSiteSettingsAlertsRoute: typeof OrgSiteSettingsAlertsRoute
-  OrgSiteSettingsFunnelsRoute: typeof OrgSiteSettingsFunnelsRoute
-  OrgSiteSettingsGeneralRoute: typeof OrgSiteSettingsGeneralRoute
-  OrgSiteSettingsGoalsRoute: typeof OrgSiteSettingsGoalsRoute
-  OrgSiteSettingsImportsRoute: typeof OrgSiteSettingsImportsRoute
-  OrgSiteSettingsInstallationRoute: typeof OrgSiteSettingsInstallationRoute
-  OrgSiteSettingsReplayRoute: typeof OrgSiteSettingsReplayRoute
-  OrgSiteSettingsReportsRoute: typeof OrgSiteSettingsReportsRoute
-  OrgSiteSettingsSharesRoute: typeof OrgSiteSettingsSharesRoute
-  OrgSiteSettingsTrackingRoute: typeof OrgSiteSettingsTrackingRoute
+interface AppOrgSiteSettingsRouteChildren {
+  AppOrgSiteSettingsAlertsRoute: typeof AppOrgSiteSettingsAlertsRoute
+  AppOrgSiteSettingsFunnelsRoute: typeof AppOrgSiteSettingsFunnelsRoute
+  AppOrgSiteSettingsGeneralRoute: typeof AppOrgSiteSettingsGeneralRoute
+  AppOrgSiteSettingsGoalsRoute: typeof AppOrgSiteSettingsGoalsRoute
+  AppOrgSiteSettingsImportsRoute: typeof AppOrgSiteSettingsImportsRoute
+  AppOrgSiteSettingsInstallationRoute: typeof AppOrgSiteSettingsInstallationRoute
+  AppOrgSiteSettingsReplayRoute: typeof AppOrgSiteSettingsReplayRoute
+  AppOrgSiteSettingsReportsRoute: typeof AppOrgSiteSettingsReportsRoute
+  AppOrgSiteSettingsSharesRoute: typeof AppOrgSiteSettingsSharesRoute
+  AppOrgSiteSettingsTrackingRoute: typeof AppOrgSiteSettingsTrackingRoute
 }
 
-const OrgSiteSettingsRouteChildren: OrgSiteSettingsRouteChildren = {
-  OrgSiteSettingsAlertsRoute: OrgSiteSettingsAlertsRoute,
-  OrgSiteSettingsFunnelsRoute: OrgSiteSettingsFunnelsRoute,
-  OrgSiteSettingsGeneralRoute: OrgSiteSettingsGeneralRoute,
-  OrgSiteSettingsGoalsRoute: OrgSiteSettingsGoalsRoute,
-  OrgSiteSettingsImportsRoute: OrgSiteSettingsImportsRoute,
-  OrgSiteSettingsInstallationRoute: OrgSiteSettingsInstallationRoute,
-  OrgSiteSettingsReplayRoute: OrgSiteSettingsReplayRoute,
-  OrgSiteSettingsReportsRoute: OrgSiteSettingsReportsRoute,
-  OrgSiteSettingsSharesRoute: OrgSiteSettingsSharesRoute,
-  OrgSiteSettingsTrackingRoute: OrgSiteSettingsTrackingRoute,
+const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
+  AppOrgSiteSettingsAlertsRoute: AppOrgSiteSettingsAlertsRoute,
+  AppOrgSiteSettingsFunnelsRoute: AppOrgSiteSettingsFunnelsRoute,
+  AppOrgSiteSettingsGeneralRoute: AppOrgSiteSettingsGeneralRoute,
+  AppOrgSiteSettingsGoalsRoute: AppOrgSiteSettingsGoalsRoute,
+  AppOrgSiteSettingsImportsRoute: AppOrgSiteSettingsImportsRoute,
+  AppOrgSiteSettingsInstallationRoute: AppOrgSiteSettingsInstallationRoute,
+  AppOrgSiteSettingsReplayRoute: AppOrgSiteSettingsReplayRoute,
+  AppOrgSiteSettingsReportsRoute: AppOrgSiteSettingsReportsRoute,
+  AppOrgSiteSettingsSharesRoute: AppOrgSiteSettingsSharesRoute,
+  AppOrgSiteSettingsTrackingRoute: AppOrgSiteSettingsTrackingRoute,
 }
 
-const OrgSiteSettingsRouteWithChildren = OrgSiteSettingsRoute._addFileChildren(
-  OrgSiteSettingsRouteChildren,
+const AppOrgSiteSettingsRouteWithChildren =
+  AppOrgSiteSettingsRoute._addFileChildren(AppOrgSiteSettingsRouteChildren)
+
+interface AppOrgRouteChildren {
+  AppOrgHealthRoute: typeof AppOrgHealthRoute
+  AppOrgSettingsRoute: typeof AppOrgSettingsRouteWithChildren
+  AppOrgSiteEventsRoute: typeof AppOrgSiteEventsRoute
+  AppOrgSiteGoalsRoute: typeof AppOrgSiteGoalsRoute
+  AppOrgSiteHeatmapsRoute: typeof AppOrgSiteHeatmapsRoute
+  AppOrgSiteJourneysRoute: typeof AppOrgSiteJourneysRoute
+  AppOrgSiteRealtimeRoute: typeof AppOrgSiteRealtimeRoute
+  AppOrgSiteRetentionRoute: typeof AppOrgSiteRetentionRoute
+  AppOrgSiteRevenueRoute: typeof AppOrgSiteRevenueRoute
+  AppOrgSiteSessionsRoute: typeof AppOrgSiteSessionsRoute
+  AppOrgSiteSettingsRoute: typeof AppOrgSiteSettingsRouteWithChildren
+  AppOrgSiteVitalsRoute: typeof AppOrgSiteVitalsRoute
+  AppOrgSitesNewRoute: typeof AppOrgSitesNewRoute
+  AppOrgSiteIndexRoute: typeof AppOrgSiteIndexRoute
+  AppOrgSitesIndexRoute: typeof AppOrgSitesIndexRoute
+  AppOrgSiteFunnelsIdRoute: typeof AppOrgSiteFunnelsIdRoute
+  AppOrgSiteProfilesIdRoute: typeof AppOrgSiteProfilesIdRoute
+  AppOrgSiteReplaysIdRoute: typeof AppOrgSiteReplaysIdRoute
+  AppOrgSiteFunnelsIndexRoute: typeof AppOrgSiteFunnelsIndexRoute
+  AppOrgSiteProfilesIndexRoute: typeof AppOrgSiteProfilesIndexRoute
+  AppOrgSiteReplaysIndexRoute: typeof AppOrgSiteReplaysIndexRoute
+}
+
+const AppOrgRouteChildren: AppOrgRouteChildren = {
+  AppOrgHealthRoute: AppOrgHealthRoute,
+  AppOrgSettingsRoute: AppOrgSettingsRouteWithChildren,
+  AppOrgSiteEventsRoute: AppOrgSiteEventsRoute,
+  AppOrgSiteGoalsRoute: AppOrgSiteGoalsRoute,
+  AppOrgSiteHeatmapsRoute: AppOrgSiteHeatmapsRoute,
+  AppOrgSiteJourneysRoute: AppOrgSiteJourneysRoute,
+  AppOrgSiteRealtimeRoute: AppOrgSiteRealtimeRoute,
+  AppOrgSiteRetentionRoute: AppOrgSiteRetentionRoute,
+  AppOrgSiteRevenueRoute: AppOrgSiteRevenueRoute,
+  AppOrgSiteSessionsRoute: AppOrgSiteSessionsRoute,
+  AppOrgSiteSettingsRoute: AppOrgSiteSettingsRouteWithChildren,
+  AppOrgSiteVitalsRoute: AppOrgSiteVitalsRoute,
+  AppOrgSitesNewRoute: AppOrgSitesNewRoute,
+  AppOrgSiteIndexRoute: AppOrgSiteIndexRoute,
+  AppOrgSitesIndexRoute: AppOrgSitesIndexRoute,
+  AppOrgSiteFunnelsIdRoute: AppOrgSiteFunnelsIdRoute,
+  AppOrgSiteProfilesIdRoute: AppOrgSiteProfilesIdRoute,
+  AppOrgSiteReplaysIdRoute: AppOrgSiteReplaysIdRoute,
+  AppOrgSiteFunnelsIndexRoute: AppOrgSiteFunnelsIndexRoute,
+  AppOrgSiteProfilesIndexRoute: AppOrgSiteProfilesIndexRoute,
+  AppOrgSiteReplaysIndexRoute: AppOrgSiteReplaysIndexRoute,
+}
+
+const AppOrgRouteWithChildren =
+  AppOrgRoute._addFileChildren(AppOrgRouteChildren)
+
+interface AppAccountRouteChildren {
+  AppAccountProfileRoute: typeof AppAccountProfileRoute
+  AppAccountSecurityRoute: typeof AppAccountSecurityRoute
+  AppAccountSessionsRoute: typeof AppAccountSessionsRoute
+}
+
+const AppAccountRouteChildren: AppAccountRouteChildren = {
+  AppAccountProfileRoute: AppAccountProfileRoute,
+  AppAccountSecurityRoute: AppAccountSecurityRoute,
+  AppAccountSessionsRoute: AppAccountSessionsRoute,
+}
+
+const AppAccountRouteWithChildren = AppAccountRoute._addFileChildren(
+  AppAccountRouteChildren,
 )
 
-interface OrgRouteChildren {
-  OrgHealthRoute: typeof OrgHealthRoute
-  OrgSettingsRoute: typeof OrgSettingsRouteWithChildren
-  OrgSiteEventsRoute: typeof OrgSiteEventsRoute
-  OrgSiteGoalsRoute: typeof OrgSiteGoalsRoute
-  OrgSiteHeatmapsRoute: typeof OrgSiteHeatmapsRoute
-  OrgSiteJourneysRoute: typeof OrgSiteJourneysRoute
-  OrgSiteRealtimeRoute: typeof OrgSiteRealtimeRoute
-  OrgSiteRetentionRoute: typeof OrgSiteRetentionRoute
-  OrgSiteRevenueRoute: typeof OrgSiteRevenueRoute
-  OrgSiteSessionsRoute: typeof OrgSiteSessionsRoute
-  OrgSiteSettingsRoute: typeof OrgSiteSettingsRouteWithChildren
-  OrgSiteVitalsRoute: typeof OrgSiteVitalsRoute
-  OrgSitesNewRoute: typeof OrgSitesNewRoute
-  OrgSiteIndexRoute: typeof OrgSiteIndexRoute
-  OrgSitesIndexRoute: typeof OrgSitesIndexRoute
-  OrgSiteFunnelsIdRoute: typeof OrgSiteFunnelsIdRoute
-  OrgSiteProfilesIdRoute: typeof OrgSiteProfilesIdRoute
-  OrgSiteReplaysIdRoute: typeof OrgSiteReplaysIdRoute
-  OrgSiteFunnelsIndexRoute: typeof OrgSiteFunnelsIndexRoute
-  OrgSiteProfilesIndexRoute: typeof OrgSiteProfilesIndexRoute
-  OrgSiteReplaysIndexRoute: typeof OrgSiteReplaysIndexRoute
+interface AppRouteChildren {
+  AppOrgRoute: typeof AppOrgRouteWithChildren
+  AppAccountRoute: typeof AppAccountRouteWithChildren
+  AppIndexRoute: typeof AppIndexRoute
 }
 
-const OrgRouteChildren: OrgRouteChildren = {
-  OrgHealthRoute: OrgHealthRoute,
-  OrgSettingsRoute: OrgSettingsRouteWithChildren,
-  OrgSiteEventsRoute: OrgSiteEventsRoute,
-  OrgSiteGoalsRoute: OrgSiteGoalsRoute,
-  OrgSiteHeatmapsRoute: OrgSiteHeatmapsRoute,
-  OrgSiteJourneysRoute: OrgSiteJourneysRoute,
-  OrgSiteRealtimeRoute: OrgSiteRealtimeRoute,
-  OrgSiteRetentionRoute: OrgSiteRetentionRoute,
-  OrgSiteRevenueRoute: OrgSiteRevenueRoute,
-  OrgSiteSessionsRoute: OrgSiteSessionsRoute,
-  OrgSiteSettingsRoute: OrgSiteSettingsRouteWithChildren,
-  OrgSiteVitalsRoute: OrgSiteVitalsRoute,
-  OrgSitesNewRoute: OrgSitesNewRoute,
-  OrgSiteIndexRoute: OrgSiteIndexRoute,
-  OrgSitesIndexRoute: OrgSitesIndexRoute,
-  OrgSiteFunnelsIdRoute: OrgSiteFunnelsIdRoute,
-  OrgSiteProfilesIdRoute: OrgSiteProfilesIdRoute,
-  OrgSiteReplaysIdRoute: OrgSiteReplaysIdRoute,
-  OrgSiteFunnelsIndexRoute: OrgSiteFunnelsIndexRoute,
-  OrgSiteProfilesIndexRoute: OrgSiteProfilesIndexRoute,
-  OrgSiteReplaysIndexRoute: OrgSiteReplaysIndexRoute,
+const AppRouteChildren: AppRouteChildren = {
+  AppOrgRoute: AppOrgRouteWithChildren,
+  AppAccountRoute: AppAccountRouteWithChildren,
+  AppIndexRoute: AppIndexRoute,
 }
 
-const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
-
-interface AccountRouteChildren {
-  AccountProfileRoute: typeof AccountProfileRoute
-  AccountSecurityRoute: typeof AccountSecurityRoute
-  AccountSessionsRoute: typeof AccountSessionsRoute
-}
-
-const AccountRouteChildren: AccountRouteChildren = {
-  AccountProfileRoute: AccountProfileRoute,
-  AccountSecurityRoute: AccountSecurityRoute,
-  AccountSessionsRoute: AccountSessionsRoute,
-}
-
-const AccountRouteWithChildren =
-  AccountRoute._addFileChildren(AccountRouteChildren)
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  OrgRoute: OrgRouteWithChildren,
-  AccountRoute: AccountRouteWithChildren,
+  AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
   SignupRoute: SignupRoute,

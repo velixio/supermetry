@@ -40,7 +40,7 @@ describe('profile query authorization scope', () => {
     expect(get).toHaveBeenCalledWith(
       '/api/private/profiles/123',
       expect.objectContaining({
-        params: expect.objectContaining({ header: { 'X-Panel-Org': '2' } }),
+        params: expect.objectContaining({ header: { 'X-Supermetry-Org': '2' } }),
         signal: expect.any(AbortSignal),
       }),
     )

@@ -25,8 +25,8 @@ def render_report(stamp: str, hot: dict[str, Any], closed: dict[str, Any], layer
         "",
         "### Confirmed findings",
         "",
-        "- **Product bug — bulk-load UTM source:** `panel load` derives blended source and medium but never dictionary-encodes the raw `utm_source` or assigns `Hit.UTMSource` (`cmd/panel/load.go:232-238,277-323`). The live ingest path does both (`internal/ingest/handler.go:309-319,351-359`), so the benchmark loader alone loses this dimension.",
-        "- **Product bug — empty UTM sentinel:** untagged medium and campaign use dictionary ID `0` (`cmd/panel/load.go:334-351`); query decoding cannot resolve it and returns the literal string `\"0\"` (`internal/query/sql_closed.go:526-583`), while presence filtering omits these dimensions (`internal/query/sql_closed.go:387-399`). Empty UTM values should be absent from breakdowns.",
+        "- **Product bug — bulk-load UTM source:** `supermetry load` derives blended source and medium but never dictionary-encodes the raw `utm_source` or assigns `Hit.UTMSource` (`cmd/supermetry/load.go:232-238,277-323`). The live ingest path does both (`internal/ingest/handler.go:309-319,351-359`), so the benchmark loader alone loses this dimension.",
+        "- **Product bug — empty UTM sentinel:** untagged medium and campaign use dictionary ID `0` (`cmd/supermetry/load.go:334-351`); query decoding cannot resolve it and returns the literal string `\"0\"` (`internal/query/sql_closed.go:526-583`), while presence filtering omits these dimensions (`internal/query/sql_closed.go:387-399`). Empty UTM values should be absent from breakdowns.",
         "- All required non-UTM summaries, formulas, filters, dimensions, site-local time zones, goal conversions, and hot/closed/rollup routes matched exactly.",
     ]
     if mismatches:

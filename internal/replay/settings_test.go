@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/config"
-	"panel/internal/sites"
+	"supermetry/internal/config"
+	"supermetry/internal/sites"
 )
 
 func ptr[T any](value T) *T { return &value }
@@ -40,7 +40,7 @@ func TestResolveSitePrivacyBounds(t *testing.T) {
 }
 
 func TestResolveStoragePrecedence(t *testing.T) {
-	dataDir := filepath.Join("var", "lib", "panel")
+	dataDir := filepath.Join("var", "lib", "supermetry")
 	stored := StoredStorage{
 		Backend: "s3",
 		Dir:     "/ui/replay",
@@ -100,7 +100,7 @@ func TestStoredStorageSealsS3Secret(t *testing.T) {
 		Dir:     "/srv/replay",
 		S3: S3Settings{
 			Endpoint: "https://s3.example.test", Bucket: "replays", Region: "test-1",
-			AccessKey: "access", SecretKey: "plain-secret", Prefix: "panel",
+			AccessKey: "access", SecretKey: "plain-secret", Prefix: "supermetry",
 		},
 	}
 

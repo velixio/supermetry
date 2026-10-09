@@ -1,4 +1,4 @@
-// Command proto is the throwaway Panel prototype for the go/no-go benchmark
+// Command proto is the throwaway Supermetry prototype for the go/no-go benchmark
 // (bench/CONTRACT.md). See NOTES.md.
 package main
 
@@ -13,7 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	_ "net/http/pprof" // served only when PANEL_PPROF is set
+	_ "net/http/pprof" // served only when SUPERMETRY_PPROF is set
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -21,13 +21,13 @@ import (
 	"syscall"
 	"time"
 
-	"panel/bench/proto/internal/benchq"
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/enrich"
-	"panel/bench/proto/internal/ingest"
-	"panel/bench/proto/internal/query"
-	"panel/bench/proto/internal/store"
-	"panel/bench/proto/internal/verify"
+	"supermetry/bench/proto/internal/benchq"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/enrich"
+	"supermetry/bench/proto/internal/ingest"
+	"supermetry/bench/proto/internal/query"
+	"supermetry/bench/proto/internal/store"
+	"supermetry/bench/proto/internal/verify"
 )
 
 const usage = `usage: proto <command> [flags]
@@ -49,7 +49,7 @@ commands:
   loadtest       HTTP ingest load test against a running server
   reset          drop all raw partitions and rollups (keeps sites)
 
-env: PANEL_DSN (default ` + store.DefaultDSN + `)
+env: SUPERMETRY_DSN (default ` + store.DefaultDSN + `)
 `
 
 type multiFlag []string
@@ -64,7 +64,7 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if addr := os.Getenv("PANEL_PPROF"); addr != "" {
+	if addr := os.Getenv("SUPERMETRY_PPROF"); addr != "" {
 		go http.ListenAndServe(addr, nil)
 	}
 	cmd, args := os.Args[1], os.Args[2:]
@@ -113,7 +113,7 @@ func main() {
 }
 
 func openStore(ctx context.Context, maxConns int32) (*store.Store, error) {
-	st, err := store.Open(ctx, store.DSN(), store.Options{MaxConns: maxConns, RawPartition: strings.ToLower(os.Getenv("PANEL_RAW_PARTITION"))})
+	st, err := store.Open(ctx, store.DSN(), store.Options{MaxConns: maxConns, RawPartition: strings.ToLower(os.Getenv("SUPERMETRY_RAW_PARTITION"))})
 	if err != nil {
 		return nil, err
 	}

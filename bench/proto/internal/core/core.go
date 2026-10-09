@@ -1,4 +1,4 @@
-// Package core holds the pure, DB-free logic of the Panel prototype:
+// Package core holds the pure, DB-free logic of the Supermetry prototype:
 // civil days in a site's time zone, salted visitor hashing, source
 // derivation, the sharded session cache and the in-memory rollup
 // aggregator used by rollup-stream.

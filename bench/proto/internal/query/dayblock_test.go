@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 func TestAvailableDayBlocksFallbackPreservesCompletedDays(t *testing.T) {

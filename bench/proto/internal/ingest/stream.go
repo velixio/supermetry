@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 // StreamOptions configure rollup-stream.

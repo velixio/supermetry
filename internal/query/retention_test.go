@@ -9,9 +9,9 @@ import (
 
 	"github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 func TestBuildRetentionCountsWithinDayReturningSessions(t *testing.T) {

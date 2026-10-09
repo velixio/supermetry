@@ -11,20 +11,20 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/db"
-	"panel/internal/ingest"
-	platformauth "panel/internal/platform/auth"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/orgs"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	coresites "panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/db"
+	"supermetry/internal/ingest"
+	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	coresites "supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 type actorAuthenticator map[string]authz.Principal
@@ -140,7 +140,7 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 				}
 				if strings.HasPrefix(route.path, "/api/private/") && route.method != http.MethodGet {
 					request.Header.Set("X-CSRF-Token", "token")
-					request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+					request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 				}
 				response := httptest.NewRecorder()
 				handler.ServeHTTP(response, request)
@@ -171,7 +171,7 @@ func TestAnonymousAuthRouteMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authService := platformauth.New(data, &mail.Fake{}, box, "https://panel.example")
+	authService := platformauth.New(data, &mail.Fake{}, box, "https://supermetry.example")
 
 	tests := []struct {
 		name   string
@@ -212,7 +212,7 @@ func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authService := platformauth.New(data, &mail.Fake{}, box, "https://panel.example")
+	authService := platformauth.New(data, &mail.Fake{}, box, "https://supermetry.example")
 	handler := platformhttp.New(platformhttp.Deps{Auth: authService, Signup: "open"})
 
 	request := httptest.NewRequest(http.MethodPost, "/api/private/auth/signup", strings.NewReader(`{"email":"owner@example.test","name":"Owner","password":"pw-123456789","org_name":"Acme"}`))
@@ -247,7 +247,7 @@ func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {
 		switch cookie.Name {
 		case platformauth.CookieName:
 			sessionCookie = cookie
-		case "panel_csrf":
+		case "supermetry_csrf":
 			csrfCookie = cookie
 		}
 	}
@@ -275,7 +275,7 @@ func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {
 	configRequest := httptest.NewRequest(http.MethodGet, "/api/private/auth/config", nil)
 	configResponse := httptest.NewRecorder()
 	handler.ServeHTTP(configResponse, configRequest)
-	if configResponse.Code != http.StatusOK || configResponse.Body.String() != "{\"setup_required\":false,\"signup\":\"open\"}\n" {
+	if configResponse.Code != http.StatusOK || configResponse.Body.String() != "{\"setup_required\":false,\"signup\":\"open\",\"homepage_url\":\"https://supermetry.com\"}\n" {
 		t.Fatalf("config status=%d body=%s", configResponse.Code, configResponse.Body.String())
 	}
 }
@@ -397,7 +397,7 @@ func TestMutationsWriteAudit(t *testing.T) {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-Test-Actor", "owner")
 	request.Header.Set("X-CSRF-Token", "token")
-	request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -588,7 +588,7 @@ func requestOK(t *testing.T, handler http.Handler, method, path, body string, wa
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-Test-Actor", "owner")
 	request.Header.Set("X-CSRF-Token", "token")
-	request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != want {

@@ -13,7 +13,7 @@ func TestRequiredBenchmarkScriptsContainSafetyAndEvidenceSteps(t *testing.T) {
 	}{
 		{"scripts/p1-privacy.sh", []string{"pg_dump", "/api/event", `"$tmp/proto" load`, "SIGTERM", "grep"}},
 		{"scripts/c2-restart.sh", []string{"kill -9", "SIGTERM", "/api/event", "sessions", "events"}},
-		{"scripts/o5-retention.sh", []string{"--tier tiny", "PANEL_RAW_PARTITION=daily", "retention --raw-days 7", "schema_bytes"}},
+		{"scripts/o5-retention.sh", []string{"--tier tiny", "SUPERMETRY_RAW_PARTITION=daily", "retention --raw-days 7", "schema_bytes"}},
 	}
 	for _, tc := range tests {
 		b, err := os.ReadFile(tc.name)

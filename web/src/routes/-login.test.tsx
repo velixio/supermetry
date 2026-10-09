@@ -10,7 +10,7 @@ import {
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { loginRedirect } from './$org'
+import { loginRedirect } from './app.$org'
 import { LoginForm, authResultMessage, createAuthApi } from './login'
 import { en } from '@/messages/en'
 
@@ -43,7 +43,7 @@ describe('login form', () => {
 
   it('keeps authentication 401 problems in the login flow', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response('{"type":"https://panel.dev/problems/totp-required"}', {
+      new Response('{"type":"https://supermetry.com/problems/totp-required"}', {
         status: 401,
         headers: { 'Content-Type': 'application/problem+json' },
       }),
@@ -62,7 +62,7 @@ describe('login form', () => {
   it('redirects to login with next on expiry and returns after login', async () => {
     const login = vi.fn().mockResolvedValue({ ok: true })
     const onSuccess = vi.fn()
-    const redirect = loginRedirect('/acme/blog', '?period=30d')
+    const redirect = loginRedirect('/app/acme/blog', '?period=30d')
     const next = new URL(redirect, window.location.origin).searchParams.get('next')
     render(
       <LoginForm
@@ -81,7 +81,7 @@ describe('login form', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() =>
-      expect(onSuccess).toHaveBeenCalledWith('/acme/blog?period=30d'),
+      expect(onSuccess).toHaveBeenCalledWith('/app/acme/blog?period=30d'),
     )
   })
 

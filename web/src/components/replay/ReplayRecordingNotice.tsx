@@ -25,6 +25,6 @@ export function ReplayRecordingNotice({ settings, pending, error, onRetry, org, 
       {settings.enabled ? <p className="text-muted-foreground">New recordings follow the effective sampling and consent settings.</p> : null}
     </> : <p role="status">Recording settings are unavailable.</p>}
     <p className="text-muted-foreground">Existing recordings remain available to authorized viewers.</p>
-    <a className="inline-block font-medium underline underline-offset-4" href={`/${encodeURIComponent(org)}/${encodeURIComponent(site)}/settings/replay`}>Replay settings</a>
+    <a className="inline-block font-medium underline underline-offset-4" href={`/app/${encodeURIComponent(org)}/${encodeURIComponent(site)}/settings/replay`}>Replay settings</a>
   </aside>
 }

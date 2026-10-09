@@ -7,7 +7,7 @@ describe('replay routes', () => {
   // or clicking ▶ changes the URL but keeps showing the list.
   it('mounts the player beside the replay list, not inside it', () => {
     const routes = router.routesById as unknown as Record<string, { parentRoute?: { id: string } }>
-    expect(routes['/$org/$site/replays/$id']?.parentRoute?.id).toBe('/$org')
-    expect(routes['/$org/$site/replays/']).toBeDefined()
+    expect(routes['/app/$org/$site/replays/$id']?.parentRoute?.id).toBe('/app/$org')
+    expect(routes['/app/$org/$site/replays/']).toBeDefined()
   })
 })

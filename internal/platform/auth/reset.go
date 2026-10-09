@@ -9,9 +9,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/users"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/users"
 )
 
 const resetLifetime = time.Hour
@@ -36,7 +36,7 @@ func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
 	}
 	message := mail.Message{
 		To:      user.Email,
-		Subject: "Reset your Panel password",
+		Subject: "Reset your Supermetry password",
 		Text:    "Reset your password using this one-time link:\n\n" + link,
 	}
 	if err := a.mail.Send(ctx, message); err != nil {

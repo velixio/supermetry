@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/ingest"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/ingest"
+	"supermetry/internal/sites"
 )
 
 func TestAuthenticator_KeyCannotReadAnotherOrganizationsSite(t *testing.T) {

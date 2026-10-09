@@ -20,7 +20,7 @@ const scriptOptions = [
     title: "Full script (recommended)",
     size: "~2.3 KB",
     collects:
-      "Everything in core, plus outbound links, file downloads, 404 pages, data-panel-event clicks, Web Vitals and heatmap clicks.",
+      "Everything in core, plus outbound links, file downloads, 404 pages, data-supermetry-event clicks, Web Vitals and heatmap clicks.",
   },
   {
     id: "core",
@@ -28,7 +28,7 @@ const scriptOptions = [
     title: "Core script",
     size: "under 1 KB",
     collects:
-      "Pageviews (including single-page apps), scroll depth, engagement time, panel.track() events, revenue and panel.identify().",
+      "Pageviews (including single-page apps), scroll depth, engagement time, supermetry.track() events, revenue and supermetry.identify().",
   },
 ] as const;
 

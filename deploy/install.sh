@@ -5,9 +5,9 @@ usage() {
     cat <<'EOF'
 Usage: install.sh [--yes] [--release-url URL] [--version VERSION]
 
-Download and install a Panel Linux release. PANEL_RELEASE_URL is required
+Download and install a Supermetry Linux release. SUPERMETRY_RELEASE_URL is required
 unless --release-url is supplied. The URL must be the release asset base and
-normally ends in VERSION. PANEL_VERSION or --version overrides that final
+normally ends in VERSION. SUPERMETRY_VERSION or --version overrides that final
 path component.
 EOF
 }
@@ -18,8 +18,8 @@ die() {
 }
 
 yes=0
-release_url=${PANEL_RELEASE_URL:-}
-version=${PANEL_VERSION:-}
+release_url=${SUPERMETRY_RELEASE_URL:-}
+version=${SUPERMETRY_VERSION:-}
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -51,7 +51,7 @@ if [ ! -t 0 ] && [ "$yes" -ne 1 ]; then
     die "refusing non-interactive or piped installation without --yes"
 fi
 
-[ -n "$release_url" ] || die "set PANEL_RELEASE_URL or pass --release-url"
+[ -n "$release_url" ] || die "set SUPERMETRY_RELEASE_URL or pass --release-url"
 release_url=${release_url%/}
 if [ -z "$version" ]; then
     version=${release_url##*/}
@@ -92,7 +92,7 @@ download() {
     fi
 }
 
-archive=panel_${version}_linux_${arch}.tar.gz
+archive=supermetry_${version}_linux_${arch}.tar.gz
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 
@@ -110,56 +110,57 @@ awk -v file="$archive" '$2 == file || $2 == "*" file { print }' \
 
 mkdir "$tmpdir/unpack"
 tar -xzf "$tmpdir/$archive" -C "$tmpdir/unpack"
-[ -f "$tmpdir/unpack/panel" ] || die "release archive does not contain panel"
-[ -f "$tmpdir/unpack/panel.service" ] || die "release archive does not contain panel.service"
+[ -f "$tmpdir/unpack/supermetry" ] || die "release archive does not contain supermetry"
+[ -f "$tmpdir/unpack/supermetry.service" ] || die "release archive does not contain supermetry.service"
 [ -f "$tmpdir/unpack/LICENSE" ] || die "release archive does not contain LICENSE"
 [ -f "$tmpdir/unpack/NOTICE" ] || die "release archive does not contain NOTICE"
 
-if ! grep -q '^panel:' /etc/group; then
+if ! grep -q '^supermetry:' /etc/group; then
     if command -v groupadd >/dev/null 2>&1; then
-        groupadd --system panel
+        groupadd --system supermetry
     elif command -v addgroup >/dev/null 2>&1; then
-        addgroup -S panel
+        addgroup -S supermetry
     else
         die "groupadd or addgroup is required"
     fi
 fi
 
-if ! id panel >/dev/null 2>&1; then
+if ! id supermetry >/dev/null 2>&1; then
     if command -v useradd >/dev/null 2>&1; then
-        useradd --system --gid panel --home-dir /var/lib/panel \
-            --shell /usr/sbin/nologin panel
+        useradd --system --gid supermetry --home-dir /var/lib/supermetry \
+            --shell /usr/sbin/nologin supermetry
     elif command -v adduser >/dev/null 2>&1; then
-        adduser -S -D -H -G panel -h /var/lib/panel -s /sbin/nologin panel
+        adduser -S -D -H -G supermetry -h /var/lib/supermetry -s /sbin/nologin supermetry
     else
         die "useradd or adduser is required"
     fi
 fi
 
-install -d -m 0700 -o panel -g panel /var/lib/panel
-install -d -m 0750 -o root -g panel /etc/panel
-install -m 0755 "$tmpdir/unpack/panel" /usr/local/bin/panel
-install -m 0644 "$tmpdir/unpack/panel.service" /etc/systemd/system/panel.service
+install -d -m 0700 -o supermetry -g supermetry /var/lib/supermetry
+install -d -m 0750 -o root -g supermetry /etc/supermetry
+install -m 0755 "$tmpdir/unpack/supermetry" /usr/local/bin/supermetry
+install -m 0644 "$tmpdir/unpack/supermetry.service" /etc/systemd/system/supermetry.service
 
-if [ ! -e /etc/panel/panel.env ]; then
+if [ ! -e /etc/supermetry/supermetry.env ]; then
     umask 077
-    cat >/etc/panel/panel.env <<'EOF'
-PANEL_DATABASE_URL=
-PANEL_SECRET_KEY=
-PANEL_BASE_URL=
-PANEL_LISTEN=127.0.0.1:8787
-PANEL_TRUSTED_PROXIES=
+    cat >/etc/supermetry/supermetry.env <<'EOF'
+SUPERMETRY_DATABASE_URL=
+SUPERMETRY_SECRET_KEY=
+SUPERMETRY_BASE_URL=
+SUPERMETRY_HOMEPAGE_URL=https://supermetry.com
+SUPERMETRY_LISTEN=127.0.0.1:8787
+SUPERMETRY_TRUSTED_PROXIES=
 
 # Session replay: off unless true; this is the only switch and applies to every site.
-PANEL_REPLAY_ENABLED=false
+SUPERMETRY_REPLAY_ENABLED=false
 # Optional; when set, each wins over the dashboard (see .env.example for all keys).
-# A custom PANEL_REPLAY_DIR must stay under /var/lib/panel (systemd ReadWritePaths).
-#PANEL_REPLAY_SAMPLE_RATE=15
-#PANEL_REPLAY_RETENTION_DAYS=30
-#PANEL_REPLAY_QUOTA=5GB
-#PANEL_REPLAY_DIR=/var/lib/panel/replay
+# A custom SUPERMETRY_REPLAY_DIR must stay under /var/lib/supermetry (systemd ReadWritePaths).
+#SUPERMETRY_REPLAY_SAMPLE_RATE=15
+#SUPERMETRY_REPLAY_RETENTION_DAYS=30
+#SUPERMETRY_REPLAY_QUOTA=5GB
+#SUPERMETRY_REPLAY_DIR=/var/lib/supermetry/replay
 EOF
-    chown root:panel /etc/panel/panel.env
+    chown root:supermetry /etc/supermetry/supermetry.env
 fi
 
 if command -v systemctl >/dev/null 2>&1; then
@@ -167,13 +168,13 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 
 cat <<'EOF'
-Panel is installed.
+Supermetry is installed.
 
 Next steps:
-  1. Set PANEL_DATABASE_URL, PANEL_SECRET_KEY, and PANEL_BASE_URL in
-     /etc/panel/panel.env.
-  2. If using a reverse proxy, set PANEL_TRUSTED_PROXIES to its IP/CIDR.
-  3. Optional: set PANEL_REPLAY_ENABLED=true to record session replays.
-  4. Run: systemctl enable --now panel
-  5. Check: systemctl status panel
+  1. Set SUPERMETRY_DATABASE_URL, SUPERMETRY_SECRET_KEY, and SUPERMETRY_BASE_URL in
+     /etc/supermetry/supermetry.env.
+  2. If using a reverse proxy, set SUPERMETRY_TRUSTED_PROXIES to its IP/CIDR.
+  3. Optional: set SUPERMETRY_REPLAY_ENABLED=true to record session replays.
+  4. Run: systemctl enable --now supermetry
+  5. Check: systemctl status supermetry
 EOF

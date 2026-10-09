@@ -11,14 +11,14 @@ runuser -u postgres -- psql -p 5433 -v ON_ERROR_STOP=1 <<'SQL'
 CREATE ROLE panel LOGIN PASSWORD 'panel';
 CREATE DATABASE panel OWNER panel;
 SQL
-dsn='postgresql://panel:panel@127.0.0.1:5433/panel?sslmode=disable'
+dsn='postgresql://supermetry:supermetry@127.0.0.1:5433/supermetry?sslmode=disable'
 "$root/bench/load/bin/gen" --tier S --days 1 --seed 42 --out /dev/null --sites "$out/sites.json" --truth /dev/null --quiet  # pre-generate sites.json (race fix)
 "$root/bench/load/bin/gen" --tier S --days 30 --seed 42 --out - --sites "$out/sites.json" --truth "$out/truth.json" --quiet |
-  grep -F '"site":1,' | PANEL_DSN="$dsn" "$root/bench/proto/proto" load --sites "$out/sites.json"
-PANEL_DSN="$dsn" "$root/bench/proto/proto" rollup --from 2026-09-01 --to 2026-09-30 --parallel 2 --drop-hot
-PANEL_DSN="$dsn" "$root/bench/proto/proto" serve --addr=127.0.0.1:18095 --sites "$out/sites.json" --geoip='' >"$out/app.log" 2>&1 & apppid=$!
+  grep -F '"site":1,' | SUPERMETRY_DSN="$dsn" "$root/bench/proto/proto" load --sites "$out/sites.json"
+SUPERMETRY_DSN="$dsn" "$root/bench/proto/proto" rollup --from 2026-09-01 --to 2026-09-30 --parallel 2 --drop-hot
+SUPERMETRY_DSN="$dsn" "$root/bench/proto/proto" serve --addr=127.0.0.1:18095 --sites "$out/sites.json" --geoip='' >"$out/app.log" 2>&1 & apppid=$!
 sleep 1
-PANEL_DSN="$dsn" "$root/bench/proto/proto" bench --tier S-site1 --site 1 --to 2026-09-30 --s2-days 30 --s3-days 30 --cases s2,s3 --warmup 3 --runs 30 --kind final-panel-small --out "$out"
+SUPERMETRY_DSN="$dsn" "$root/bench/proto/proto" bench --tier S-site1 --site 1 --to 2026-09-30 --s2-days 30 --s3-days 30 --cases s2,s3 --warmup 3 --runs 30 --kind final-supermetry-small --out "$out"
 cg=$(awk -F: '$1=="0"{print $3}' /proc/self/cgroup)
 base="/sys/fs/cgroup$cg"
 python3 -I - "$out/cgroup.json" "$base" <<'PY'

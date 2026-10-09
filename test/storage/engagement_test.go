@@ -3,7 +3,7 @@ package storage_test
 import (
 	"testing"
 
-	"panel/internal/testenv"
+	"supermetry/internal/testenv"
 )
 
 func TestEngagementStorageCost(t *testing.T) {

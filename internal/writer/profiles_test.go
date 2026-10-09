@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/privacy"
-	"panel/internal/profiletombstone"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/privacy"
+	"supermetry/internal/profiletombstone"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestCopyEventsUpsertsOneProfileAndLinksBatch(t *testing.T) {

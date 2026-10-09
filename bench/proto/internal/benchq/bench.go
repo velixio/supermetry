@@ -18,10 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/ingest"
-	"panel/bench/proto/internal/query"
-	"panel/bench/proto/internal/store"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/ingest"
+	"supermetry/bench/proto/internal/query"
+	"supermetry/bench/proto/internal/store"
 )
 
 // Dist is a latency distribution in milliseconds.
@@ -324,7 +324,7 @@ func CmdBench(ctx context.Context, args []string, open func(context.Context, int
 	if err != nil {
 		return err
 	}
-	res := map[string]any{"kind": "panel-proto query bench", "tier": *tier, "site": site, "to": to,
+	res := map[string]any{"kind": "supermetry-proto query bench", "tier": *tier, "site": site, "to": to,
 		"filter_values": map[string]string{"country": country, "source": source, "path": page},
 		"runs":          *runs, "warmup": *warm, "rig": meta, "cases": cases, "loadavg_at_start": strings.TrimSpace(string(startLoad)),
 		"engine": map[string]any{"mode": *mode, "fanout": *fanout, "grouping_sets": !*noGrouping, "dashboard_call": *dash,

@@ -11,7 +11,7 @@ test('dashboard numbers equal the API and click-to-filter refetches every card',
   request,
   owner,
 }) => {
-  const dashboard = `/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=${range.from}&to=${range.to}`
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=${range.from}&to=${range.to}`
   const filteredRequests: Array<Record<string, unknown>> = []
   page.on('request', async (candidate: Request) => {
     if (!candidate.url().endsWith('/api/private/query') || candidate.method() !== 'POST') {
@@ -82,7 +82,7 @@ test('dashboard numbers equal the API and click-to-filter refetches every card',
 })
 
 test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, owner }) => {
-  const dashboard = `/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-29&to=2026-09-29`
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-29&to=2026-09-29`
   await owner.login(page, dashboard)
   await page.goto(dashboard)
 

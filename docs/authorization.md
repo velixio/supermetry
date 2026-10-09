@@ -1,6 +1,6 @@
 # Organization and project authorization
 
-Panel continues to use organizations and sites. A site is the project boundary;
+Supermetry continues to use organizations and sites. A site is the project boundary;
 the foundation does not introduce a second project database or membership system.
 All resource lookups must check the owning organization and allowed site before
 checking an operation's capability. `authz.Can` alone cannot establish ownership

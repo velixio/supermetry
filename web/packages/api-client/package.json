@@ -1,7 +1,7 @@
 {
-  "name": "@panel/api-client",
+  "name": "@supermetry/api-client",
   "version": "0.1.0",
-  "description": "Typed TypeScript client for the Panel Analytics API",
+  "description": "Typed TypeScript client for the Supermetry Analytics API",
   "type": "module",
   "sideEffects": false,
   "files": [

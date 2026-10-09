@@ -12,8 +12,8 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"panel/bench/gen/internal/recount"
-	"panel/bench/gen/internal/synth"
+	"supermetry/bench/gen/internal/recount"
+	"supermetry/bench/gen/internal/synth"
 )
 
 type output struct {

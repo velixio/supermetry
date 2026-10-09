@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Query Panel and compare every response with the independent reference."""
+"""Query Supermetry and compare every response with the independent reference."""
 
 from __future__ import annotations
 

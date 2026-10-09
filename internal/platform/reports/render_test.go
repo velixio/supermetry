@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/sites"
+	"supermetry/internal/sites"
 )
 
 func TestRenderIncludesMetricsBreakdownsAndChanges(t *testing.T) {

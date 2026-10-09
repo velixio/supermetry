@@ -23,7 +23,7 @@ describe('refetchSiteIcon', () => {
     expect(post).toHaveBeenCalledWith('/api/private/sites/{site}/icon/refetch', {
       params: {
         path: { site: 7 },
-        header: { 'X-Panel-Org': '3' },
+        header: { 'X-Supermetry-Org': '3' },
       },
     })
   })

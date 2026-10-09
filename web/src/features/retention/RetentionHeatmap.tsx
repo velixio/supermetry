@@ -29,7 +29,7 @@ export function RetentionHeatmap({
         <p className="text-muted-foreground">
           {usesProfiles
             ? `Identity window: ${identityWindow}. This view follows identified users returning across days. Mode: ${retentionMode}.`
-            : `Identity window: ${identityWindow}. Panel cannot identify the same person across days; week and month views group daily cohorts without linking them. Mode: ${retentionMode}.`}
+            : `Identity window: ${identityWindow}. Supermetry cannot identify the same person across days; week and month views group daily cohorts without linking them. Mode: ${retentionMode}.`}
         </p>
       </div>
       <div className="min-w-0 overflow-x-auto rounded-xl border bg-card">

@@ -27,6 +27,6 @@ describe('ReplayLink', () => {
     cleanup()
 
     renderLink(true)
-    expect((await screen.findByRole('link', { name: 'Play replay' })).getAttribute('href')).toContain('/acme/shop/replays/42')
+    expect((await screen.findByRole('link', { name: 'Play replay' })).getAttribute('href')).toContain('/app/acme/shop/replays/42')
   })
 })

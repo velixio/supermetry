@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"net/http"
-	"panel/internal/sites"
 	"strings"
+	"supermetry/internal/sites"
 )
 
 // Principal describes the sites and operations available to an authenticated

@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/query"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/query"
 )
 
 // Server is the HTTP API on :8090.

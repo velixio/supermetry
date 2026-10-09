@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/privacy"
-	"panel/internal/session"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/privacy"
+	"supermetry/internal/session"
+	"supermetry/internal/testpg"
 )
 
 func TestQueuedPathProvenanceValidation(t *testing.T) {

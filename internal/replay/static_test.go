@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/replay"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/replay"
 )
 
 func TestReplayJSReturnsEmbeddedBundleAndStableETag(t *testing.T) {

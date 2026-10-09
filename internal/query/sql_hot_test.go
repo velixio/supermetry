@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"panel/internal/api"
+	"supermetry/internal/api"
 )
 
 func TestBuildHotSQLUsesSetBasedEventAccess(t *testing.T) {

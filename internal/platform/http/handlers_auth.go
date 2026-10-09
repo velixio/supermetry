@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/clientip"
-	platformauth "panel/internal/platform/auth"
+	"supermetry/internal/clientip"
+	platformauth "supermetry/internal/platform/auth"
 )
 
 func (h *handler) registerAuth(mux *http.ServeMux) {
@@ -42,10 +42,15 @@ func (h *handler) authConfig(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Signup == "open" {
 		mode = "open"
 	}
+	homepageURL := h.deps.HomepageURL
+	if homepageURL == "" {
+		homepageURL = "https://supermetry.com"
+	}
 	writeJSON(w, http.StatusOK, struct {
 		SetupRequired bool   `json:"setup_required"`
 		Signup        string `json:"signup"`
-	}{SetupRequired: setupRequired, Signup: mode})
+		HomepageURL   string `json:"homepage_url"`
+	}{SetupRequired: setupRequired, Signup: mode, HomepageURL: homepageURL})
 }
 
 func (h *handler) login(w http.ResponseWriter, r *http.Request) {
@@ -163,7 +168,7 @@ func (h *handler) clientAddress(r *http.Request) string {
 
 func (h *handler) setAuthCookies(w http.ResponseWriter, r *http.Request, token, csrfToken string) {
 	h.setCookie(w, r, platformauth.CookieName, token, 90*24*time.Hour)
-	http.SetCookie(w, &http.Cookie{Name: "panel_csrf", Value: csrfToken, Path: "/", Secure: h.cookieSecure(r), SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: "supermetry_csrf", Value: csrfToken, Path: "/", Secure: h.cookieSecure(r), SameSite: http.SameSiteLaxMode})
 }
 
 func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +187,7 @@ func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.clearCookie(w, r, platformauth.CookieName, true)
-	h.clearCookie(w, r, "panel_csrf", false)
+	h.clearCookie(w, r, "supermetry_csrf", false)
 	w.WriteHeader(http.StatusNoContent)
 }
 

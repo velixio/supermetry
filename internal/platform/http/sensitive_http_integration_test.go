@@ -9,14 +9,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
 	"strings"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
 	"testing"
 	"time"
 
-	"panel/internal/config"
-	"panel/internal/replay"
+	"supermetry/internal/config"
+	"supermetry/internal/replay"
 )
 
 func TestProfileReadGrantsAndDerivedReplayMetadata(t *testing.T) {

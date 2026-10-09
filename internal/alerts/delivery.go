@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"panel/internal/platform/mail"
+	"supermetry/internal/platform/mail"
 )
 
 type Dispatcher struct {
@@ -27,7 +27,7 @@ func (d *Dispatcher) Deliver(ctx context.Context, channel DeliveryChannel, notif
 		message := notificationText(notification)
 		for _, recipient := range channel.Recipients {
 			if err := d.mailer.Send(ctx, mail.Message{
-				To: recipient, Subject: "Panel analytics alert", Text: message,
+				To: recipient, Subject: "Supermetry analytics alert", Text: message,
 			}); err != nil {
 				return fmt.Errorf("send alert email: %w", err)
 			}

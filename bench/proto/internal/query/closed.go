@@ -36,11 +36,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/sync/errgroup"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
-// debugSQL (PANEL_DEBUG_SQL=1) prints each closed-tier statement's time.
-var debugSQL = os.Getenv("PANEL_DEBUG_SQL") != ""
+// debugSQL (SUPERMETRY_DEBUG_SQL=1) prints each closed-tier statement's time.
+var debugSQL = os.Getenv("SUPERMETRY_DEBUG_SQL") != ""
 
 // cpanel is a closed-tier panel.
 type cpanel int

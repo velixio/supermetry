@@ -55,7 +55,7 @@ describe('report routes', () => {
   afterEach(cleanup)
 
   it('passes the dashboard date range and filters to journeys', async () => {
-    renderPath('/acme/example/journeys?period=custom&from=2026-10-01&to=2026-10-08&f=country%3Ais%3AIN&steps=4')
+    renderPath('/app/acme/example/journeys?period=custom&from=2026-10-01&to=2026-10-08&f=country%3Ais%3AIN&steps=4')
     expect(await screen.findByRole('heading', { name: 'User journeys' })).toBeVisible()
     await waitFor(() => expect(post).toHaveBeenCalledWith(
       '/api/private/journeys/query',
@@ -68,7 +68,7 @@ describe('report routes', () => {
   })
 
   it('passes the dashboard state and interval to retention', async () => {
-    renderPath('/acme/example/retention?period=custom&from=2026-10-01&to=2026-10-08&f=device%3Ais%3Adesktop&interval=week')
+    renderPath('/app/acme/example/retention?period=custom&from=2026-10-01&to=2026-10-08&f=device%3Ais%3Adesktop&interval=week')
     expect(await screen.findByRole('heading', { name: 'Retention' })).toBeVisible()
     await waitFor(() => expect(post).toHaveBeenCalledWith(
       '/api/private/retention/query',

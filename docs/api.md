@@ -1,8 +1,8 @@
-# Panel API
+# Supermetry API
 
 Read your analytics, manage sites and send server-side events over HTTP.
 
-- **Base URL:** `https://<your-panel-host>/api/public/v1`
+- **Base URL:** `https://<your-supermetry-host>/api/public/v1`
 - **Auth:** `Authorization: Bearer <api-key>`. See [api-auth.md](api-auth.md) for keys, scopes, errors and rate limits.
 - **Spec:** the full OpenAPI 3.1 document is served at `/api/public/openapi.json`. In the dashboard, **Organization settings → API** shows a readable reference with examples and a "Try it" form.
 - **Client:** a typed TypeScript client lives in `web/packages/api-client`.
@@ -31,7 +31,7 @@ Read your analytics, manage sites and send server-side events over HTTP.
 | GET | `/realtime?site_id` | Visitors live now (last 5 minutes), plus the last 30 minutes per minute and by page, source, country, city, device and event, and a recent-activity feed |
 
 ```sh
-curl "https://panel.example.com/api/public/v1/stats/breakdown?site_id=1&period=30d&dimension=page&metrics=visitors,pageviews" \
+curl "https://supermetry.com/api/public/v1/stats/breakdown?site_id=1&period=30d&dimension=page&metrics=visitors,pageviews" \
   -H "Authorization: Bearer <api-key>"
 ```
 
@@ -80,14 +80,14 @@ Reads need `stats:read`. Every write is recorded in the organization's audit log
 `POST /api/public/v1/events` accepts the same payload as the browser tracker, so you can record signups, purchases or API usage from your backend.
 
 ```sh
-curl -X POST https://panel.example.com/api/public/v1/events \
+curl -X POST https://supermetry.com/api/public/v1/events \
   -H "Content-Type: application/json" \
   -H "User-Agent: $ORIGINAL_USER_AGENT" \
   -H "X-Forwarded-For: $ORIGINAL_CLIENT_IP" \
   -d '{"site":"<public-site-id>","name":"Purchase","url":"https://example.com/checkout","props":{"plan":"pro"},"revenue":{"amount":"49.90","currency":"USD"}}'
 ```
 
-- Forward the visitor's user agent and IP so the event joins the right session and location. Panel parses them and never stores them. `X-Forwarded-For` is trusted only from addresses in `PANEL_TRUSTED_PROXIES`.
+- Forward the visitor's user agent and IP so the event joins the right session and location. Supermetry parses them and never stores them. `X-Forwarded-For` is trusted only from addresses in `SUPERMETRY_TRUSTED_PROXIES`.
 - The body is at most 8 KB, with up to 30 props.
 - The endpoint answers `202 Accepted` and needs no API key; the site's allowed hosts and exclusion rules still apply.
 
@@ -107,4 +107,4 @@ Connection instructions for common clients are under **Organization settings →
 
 ## Operations endpoints
 
-`GET /healthz` (process alive) and `GET /readyz` (ready to serve) are outside `/api` and need no key. `GET /metrics` (Prometheus) needs `Authorization: Bearer <PANEL_METRICS_TOKEN>` when that variable is set; without it, only clients on the same machine (loopback) can read it, and everyone else gets 404.
+`GET /healthz` (process alive) and `GET /readyz` (ready to serve) are outside `/api` and need no key. `GET /metrics` (Prometheus) needs `Authorization: Bearer <SUPERMETRY_METRICS_TOKEN>` when that variable is set; without it, only clients on the same machine (loopback) can read it, and everyone else gets 404.

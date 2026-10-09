@@ -156,7 +156,7 @@ func writeQueryError(w http.ResponseWriter, err error) {
 		return
 	}
 	if errors.Is(err, context.DeadlineExceeded) || strings.Contains(strings.ToLower(detail), "statement timeout") {
-		writeProblem(w, newProblem(http.StatusServiceUnavailable, "https://panel.dev/problems/query-timeout", "Query timed out", "the query exceeded its execution time limit"))
+		writeProblem(w, newProblem(http.StatusServiceUnavailable, "https://supermetry.com/problems/query-timeout", "Query timed out", "the query exceeded its execution time limit"))
 		return
 	}
 	writeProblem(w, internalProblem())

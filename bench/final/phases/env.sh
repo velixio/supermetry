@@ -18,7 +18,7 @@ for p in pathlib.Path('/sys/block').glob('*/queue/rotational'):
     except OSError: pass
 q="show server_version; show shared_buffers; show work_mem; show effective_cache_size; show io_workers; show jit; show max_connections"
 x={"loadavg":open('/proc/loadavg').read().strip(),"nproc":os.cpu_count(),"memory":cmd('free','-b'),"disk":cmd('df','-B1',root),"disk_devices":disk,
-   "postgres_settings":cmd('psql','postgresql://panel:panel@127.0.0.1:5432/panel?sslmode=disable','-At','-c',q),
+   "postgres_settings":cmd('psql','postgresql://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable','-At','-c',q),
    "versions":{"kernel":platform.platform(),"psql":cmd('psql','--version'),"go":cmd('go','version'),"docker":cmd('docker','--version'),"compose":cmd('docker','compose','version'),"python":platform.python_version()},
    "binaries":{p:cmd(p,'--help')[:200] for p in [root+'/bench/proto/proto',root+'/bench/load/bin/gen',root+'/bench/load/bin/harness'] if os.path.exists(p)}}
 json.dump(x,open(out,'w'),indent=2); open(out,'a').write('\n')

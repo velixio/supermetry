@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/enrich"
-	"panel/internal/session"
+	"supermetry/internal/enrich"
+	"supermetry/internal/session"
 )
 
 // Run restores sessions active within the idle window before the later of

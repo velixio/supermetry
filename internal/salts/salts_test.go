@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/salts"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/salts"
+	"supermetry/internal/testpg"
 )
 
 type fakeClock struct {

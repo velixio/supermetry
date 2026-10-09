@@ -4,6 +4,8 @@ import { LoaderCircleIcon } from 'lucide-react'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
+import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
+import { BrandLogo } from '@/components/BrandLogo'
 import {
   Field,
   FieldDescription,
@@ -35,6 +37,7 @@ export type SignupMode = 'open' | 'invite'
 export type AuthConfig = {
   signup: SignupMode
   setup_required: boolean
+  homepage_url: string
 }
 
 type AuthClient = {
@@ -132,7 +135,7 @@ function LoginPage() {
       login={(credentials) =>
         postPrivate('/api/private/auth/login', credentials)
       }
-      next={safeNext(search.next ?? '/')}
+      next={safeNext(search.next ?? '/app')}
       onSuccess={(next) => {
         resetAfterLogin()
         applyPreferredTheme()
@@ -158,11 +161,12 @@ export function AuthScreen({
     <main className="dark grid min-h-dvh place-items-center bg-background px-5 py-12 text-foreground">
       <section className="flex w-full max-w-sm flex-col gap-8">
         <header className="flex flex-col gap-2 border-l-2 border-accent pl-5">
-          <p className="text-sm font-medium text-muted-foreground">{en.appName}</p>
+          <BrandLogo className="h-7 w-auto self-start" />
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         </header>
         {children}
+        <PoweredBySupermetry className="text-xs text-muted-foreground hover:text-foreground" />
       </section>
     </main>
   )
@@ -276,7 +280,7 @@ export function LoginForm({
       </form>
       {signup === 'open' ? (
         <p className="text-sm text-muted-foreground">
-          New to Panel? <Link to="/signup">Create an account</Link>
+          New to Supermetry? <Link to="/signup">Create an account</Link>
         </p>
       ) : null}
     </AuthScreen>

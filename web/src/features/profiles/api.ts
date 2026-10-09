@@ -17,7 +17,7 @@ async function profilesRequest<T>(
 ): Promise<T> {
   const client = api as unknown as LooseClient
   const result = await client[method](path, {
-    params: { header: { 'X-Panel-Org': String(orgId) }, query },
+    params: { header: { 'X-Supermetry-Org': String(orgId) }, query },
     signal,
   })
   if (!result.response.ok) {

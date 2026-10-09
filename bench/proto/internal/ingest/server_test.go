@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 func testServer(t *testing.T, w Writer, queue int) (*Server, *Pipeline) {

@@ -8,9 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	coresites "panel/internal/sites"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	coresites "supermetry/internal/sites"
 )
 
 type goalInput struct {

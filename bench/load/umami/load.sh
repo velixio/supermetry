@@ -14,7 +14,7 @@ u() { pg_as umami umami "$@"; }
 
 (cd "$LOAD" && go build -o bin/umami-load ./umami)
 
-# Same per-role settings Panel's prototype uses (bench/proto/NOTES.md: session-tuned).
+# Same per-role settings Supermetry's prototype uses (bench/proto/NOTES.md: session-tuned).
 pg_admin -c "ALTER ROLE umami SET work_mem = '32MB'" -c "ALTER ROLE umami SET max_parallel_workers_per_gather = 4"
 
 if [ ! -s "$DDL" ]; then

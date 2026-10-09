@@ -10,9 +10,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"panel/internal/api"
-	"panel/internal/privacy"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/privacy"
+	"supermetry/internal/sites"
 )
 
 // The verified view uses only page events, never whole-session counters. A

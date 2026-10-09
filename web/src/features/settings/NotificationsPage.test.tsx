@@ -57,7 +57,7 @@ describe('NotificationsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add channel' }))
     fireEvent.change(screen.getByLabelText('Channel type'), { target: { value: 'webhook' } })
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Deploy hook' } })
-    fireEvent.change(screen.getByLabelText('Endpoint URL'), { target: { value: 'https://hooks.example.test/panel' } })
+    fireEvent.change(screen.getByLabelText('Endpoint URL'), { target: { value: 'https://hooks.example.test/supermetry' } })
     fireEvent.change(screen.getByLabelText('Signing secret'), { target: { value: 'secret-value' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create channel' }))
 
@@ -68,7 +68,7 @@ describe('NotificationsPage', () => {
           kind: 'webhook',
           name: 'Deploy hook',
           enabled: true,
-          config: { url: 'https://hooks.example.test/panel', secret: 'secret-value' },
+          config: { url: 'https://hooks.example.test/supermetry', secret: 'secret-value' },
         },
       }),
     ))
@@ -136,7 +136,7 @@ describe('NotificationsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     expect(screen.getByLabelText('Bot token')).toHaveValue('')
     expect(screen.getByLabelText('Chat ID or channel username')).toHaveValue('-1001234567890')
-    fireEvent.change(screen.getByLabelText('Chat ID or channel username'), { target: { value: '@panel_alerts' } })
+    fireEvent.change(screen.getByLabelText('Chat ID or channel username'), { target: { value: '@supermetry_alerts' } })
     fireEvent.click(screen.getByLabelText('Enabled'))
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
@@ -144,7 +144,7 @@ describe('NotificationsPage', () => {
       '/api/private/orgs/3/channels/10',
       expect.objectContaining({ body: {
         kind: 'telegram', name: 'Telegram ops', enabled: true,
-        config: { bot_token: '', chat_id: '@panel_alerts' },
+        config: { bot_token: '', chat_id: '@supermetry_alerts' },
       } }),
     ))
   })

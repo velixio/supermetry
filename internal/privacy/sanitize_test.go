@@ -1,7 +1,7 @@
 package privacy_test
 
 import (
-	"panel/internal/privacy"
+	"supermetry/internal/privacy"
 	"testing"
 )
 

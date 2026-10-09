@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/store"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/store"
 )
 
 // Open returns a store bound to a fresh schema that is dropped on cleanup.

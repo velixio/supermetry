@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"panel/internal/testpg"
+	"supermetry/internal/testpg"
 )
 
 func TestTelegramChannelMigrationPreservesAndEnablesExistingChannels(t *testing.T) {

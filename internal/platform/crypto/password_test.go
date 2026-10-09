@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	platformcrypto "panel/internal/platform/crypto"
+	platformcrypto "supermetry/internal/platform/crypto"
 )
 
 func TestPasswordHashRoundTripAndPHC(t *testing.T) {

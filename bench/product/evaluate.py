@@ -22,7 +22,7 @@ def build_checks(measured, thresholds):
         check("F4", measured["F4_p95_ms"]["S30"] < 1000, f'{measured["F4_p95_ms"]["S30"]:.1f} ms', "< 1000 ms", "filtered signup plan breakdown p95; 3 warmups + 30 runs"),
         check("R1", measured["R1_mb"] < thresholds["R1_mb"], f'{measured["R1_mb"]:.1f} MB', f'< {thresholds["R1_mb"]} MB', "VmRSS after five idle seconds"),
         check("R2", measured["R2_mb"] < thresholds["R2_mb"], f'{measured["R2_mb"]:.1f} MB', f'< {thresholds["R2_mb"]} MB', "peak VmRSS sampled once per second during 1,000 events/s for 60 seconds"),
-        check("R5-BINARY", measured["binary_mb"] < thresholds["binary_mb"], f'{measured["binary_mb"]:.2f} MB', f'< {thresholds["binary_mb"]} MB', "built bin/panel file size"),
+        check("R5-BINARY", measured["binary_mb"] < thresholds["binary_mb"], f'{measured["binary_mb"]:.2f} MB', f'< {thresholds["binary_mb"]} MB', "built bin/supermetry file size"),
         check("R5-TRACKER", measured["tracker_gzip_bytes"] < thresholds["tracker_gzip_bytes"], f'{measured["tracker_gzip_bytes"]} B gzip', f'< {thresholds["tracker_gzip_bytes"]} B gzip', "gzip level 9 of the served core tracker"),
         check("C1", measured["C1_mismatches"] == thresholds["C1_mismatches"], f'{measured["C1_mismatches"]} mismatches', "0 mismatches; duration within 1%", "30-day totals against deterministic generator truth"),
     ]
@@ -53,7 +53,7 @@ def diagnosis(metric_id):
 
 
 def render_markdown(result):
-    lines = ["# Panel product benchmark", "", f'Overall: **{"PASS" if result["pass"] else "FAIL"}**', "", "| Gate | Result | Measured | Threshold | Method |", "|---|---:|---|---|---|"]
+    lines = ["# Supermetry product benchmark", "", f'Overall: **{"PASS" if result["pass"] else "FAIL"}**', "", "| Gate | Result | Measured | Threshold | Method |", "|---|---:|---|---|---|"]
     for item in result["checks"]:
         lines.append(f'| {item["id"]} | {"PASS" if item["pass"] else "FAIL"} | {item["value"]} | {item["threshold"]} | {item["method"]} |')
     failures = [item for item in result["checks"] if not item["pass"]]

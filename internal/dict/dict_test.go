@@ -5,9 +5,9 @@ import (
 	"sync"
 	"testing"
 
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/testpg"
 )
 
 func TestIDsStableConcurrentAndCached(t *testing.T) {

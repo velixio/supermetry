@@ -10,14 +10,14 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/keys"
-	"panel/internal/platform/orgs"
-	"panel/internal/platform/shares"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/keys"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/shares"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 type orgDeleteFixture struct {

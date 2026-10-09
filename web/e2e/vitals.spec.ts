@@ -35,7 +35,7 @@ test('Web Vitals diagnostic breakdowns work at desktop and mobile widths', async
     await route.fulfill({ json: { ...response, breakdown: [{ ...response.breakdown[0], value }] } })
   })
 
-  const vitals = `/${owner.orgSlug}/${owner.siteSlug}/vitals?period=custom&from=2026-09-28&to=2026-09-30`
+  const vitals = `/app/${owner.orgSlug}/${owner.siteSlug}/vitals?period=custom&from=2026-09-28&to=2026-09-30`
   await page.setViewportSize({ width: 1440, height: 1000 })
   await owner.login(page, vitals)
 

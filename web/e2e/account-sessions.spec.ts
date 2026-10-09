@@ -9,9 +9,9 @@ const legacyLastSeenAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOStr
 const syntheticIP = '2001:db8:1234:5678:abcd:ef01:2345:6789'
 
 function seedSessions(owner: Owner) {
-  if (!/^panel_e2e_\d+$/.test(owner.schema)) throw new Error('isolated e2e schema required')
-  const dsn = process.env.PANEL_TEST_DSN
-  if (!dsn) throw new Error('PANEL_TEST_DSN is required')
+  if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('isolated e2e schema required')
+  const dsn = process.env.SUPERMETRY_TEST_DSN
+  if (!dsn) throw new Error('SUPERMETRY_TEST_DSN is required')
   execFileSync('psql', [dsn, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${owner.schema}`, '-v', `email=${owner.email}`], {
     input: `SET search_path TO :"schema";
       INSERT INTO user_sessions(id_hash,user_id,created_at,last_seen_at,expires_at,device_label,ip_address,country_code,browser)
@@ -25,7 +25,7 @@ function seedSessions(owner: Owner) {
 }
 
 test('account sessions show real sign-in metadata, legacy fallbacks, local times and mobile revocation', async ({ page, owner }) => {
-  await owner.login(page, '/account/sessions')
+  await owner.login(page, '/app/account/sessions')
   const response = await page.request.get('/api/private/me/sessions')
   expect(response.ok()).toBe(true)
   const { data } = await response.json()
@@ -98,7 +98,7 @@ test('account sessions show real sign-in metadata, legacy fallbacks, local times
   await currentRow.getByRole('button', { name: 'Revoke current session', exact: true }).click()
   expect((await currentRevoked).ok()).toBe(true)
   await expect(page).toHaveURL(url => url.pathname === '/login')
-  await expect(page.getByRole('heading', { name: 'Sign in to Panel', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Supermetry', exact: true })).toBeVisible()
   expect((await page.request.get('/api/private/me')).status()).toBe(401)
   await expect(page.getByRole('list', { name: 'Active account sessions' })).toHaveCount(0)
 })

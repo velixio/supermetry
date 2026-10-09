@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"panel/internal/dict"
+	"supermetry/internal/dict"
 )
 
 // OtherValue replaces values past the per-site, per-day distinct limit.

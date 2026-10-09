@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Panel Analytics API
+  title: Supermetry Analytics API
   version: 1.0.0
   description: >-
-    The versioned API for querying Panel analytics and operational health.
+    The versioned API for querying Supermetry analytics and operational health.
     stats:read grants ordinary analytics only. Identified profiles require
     profiles:read, recordings require replay:read, and any CSV export (Accept:
     text/csv, format=csv, or limit=all) additionally requires data:export.
@@ -236,11 +236,11 @@ paths:
       description: |
         Public event intake; no API key is required. Requests are counted against
         per-site and per-visitor-address rate limits. Deployments may configure a
-        different path with `PANEL_EVENT_PATH`.
+        different path with `SUPERMETRY_EVENT_PATH`.
 
         When calling this endpoint through a reverse proxy, forward the visitor's
         address with `X-Forwarded-For` only when that proxy is listed in
-        `PANEL_TRUSTED_PROXIES`. Forward the visitor's `User-Agent` as well so
+        `SUPERMETRY_TRUSTED_PROXIES`. Forward the visitor's `User-Agent` as well so
         device dimensions and bot filtering remain accurate.
       requestBody:
         required: true
@@ -283,7 +283,7 @@ paths:
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': visitorUserAgent,
-                // Only send this through a proxy listed in PANEL_TRUSTED_PROXIES.
+                // Only send this through a proxy listed in SUPERMETRY_TRUSTED_PROXIES.
                 'X-Forwarded-For': visitorAddress,
               },
               body: JSON.stringify({
@@ -1426,9 +1426,9 @@ paths:
       security: []
       summary: Get Prometheus metrics
       description: >-
-        When PANEL_METRICS_TOKEN is set, requires Authorization: Bearer <token> and
+        When SUPERMETRY_METRICS_TOKEN is set, requires Authorization: Bearer <token> and
         returns 401 for missing or invalid credentials. When the token is unset,
-        only loopback clients (resolved through PANEL_TRUSTED_PROXIES) can access
+        only loopback clients (resolved through SUPERMETRY_TRUSTED_PROXIES) can access
         metrics; other clients receive 404. Health and readiness endpoints remain public.
       responses:
         '200':
@@ -1545,7 +1545,7 @@ components:
     cookieAuth:
       type: apiKey
       in: cookie
-      name: panel_session
+      name: supermetry_session
   parameters:
     SiteID:
       name: site_id
@@ -3188,7 +3188,7 @@ components:
           items:
             $ref: '#/components/schemas/ValidationError'
       example:
-        type: https://panel.dev/problems/bad-request
+        type: https://supermetry.com/problems/bad-request
         title: Bad request
         status: 400
         detail: period is required

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/dict"
-	"panel/internal/sites"
+	"supermetry/internal/dict"
+	"supermetry/internal/sites"
 )
 
 func TestValueCapFoldsAfterLimitPerSiteAndDay(t *testing.T) {

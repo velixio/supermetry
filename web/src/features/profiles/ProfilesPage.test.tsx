@@ -24,7 +24,7 @@ describe('ProfilesPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Profiles are disabled' })).toBeVisible()
     expect(screen.getByText(/enable profiles in general site settings/i)).toBeVisible()
-    expect(screen.getByText(/panel\.identify\("user-123"/)).toBeVisible()
+    expect(screen.getByText(/supermetry\.identify\("user-123"/)).toBeVisible()
     expect(screen.getByText(/call identify on every page load/i)).toBeVisible()
   })
 
@@ -57,7 +57,7 @@ describe('ProfilesPage', () => {
     fireEvent.change(await screen.findByRole('searchbox', { name: 'Search profiles' }), { target: { value: 'grace' } })
     expect(onSearchChange).toHaveBeenCalledWith('grace')
 
-    expect(await screen.findByRole('link', { name: 'ada-42' })).toHaveAttribute('href', '/acme/docs/profiles/12')
+    expect(await screen.findByRole('link', { name: 'ada-42' })).toHaveAttribute('href', '/app/acme/docs/profiles/12')
     expect(screen.getByRole('cell', { name: '19' })).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(onNext).toHaveBeenCalledWith('next-1')

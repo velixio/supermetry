@@ -100,7 +100,7 @@ describe("settings security boundaries", () => {
   it("renders a TOTP QR locally without a network request", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     render(
-      <TotpQr uri="otpauth://totp/Panel:test@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Panel" />,
+      <TotpQr uri="otpauth://totp/Supermetry:test@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Supermetry" />,
     );
 
     expect(

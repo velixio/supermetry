@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/db"
+	"supermetry/internal/db"
 )
 
 // Site is the analytics-core view of a tracked website.
