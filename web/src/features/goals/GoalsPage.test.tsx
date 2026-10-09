@@ -150,4 +150,49 @@ describe('GoalsPage', () => {
       ],
     }))
   })
+  it.each([
+    { name: 'loading', state: { isPending: true }, text: 'Loading revenue…' },
+    { name: 'refetching', state: { isFetching: true, data: { totals: { total_revenue: 0, average_revenue: 0 } } }, text: 'Loading revenue…' },
+    { name: 'failed with stale zero', state: { isError: true, data: { totals: { total_revenue: 0, average_revenue: 0 } } }, text: 'Could not load revenue' },
+    { name: 'missing response', state: {}, text: 'Revenue unavailable' },
+    { name: 'missing totals', state: { data: { rows: [] } }, text: 'Revenue unavailable' },
+    { name: 'missing metric', state: { data: { totals: {} } }, text: 'Revenue unavailable' },
+    { name: 'nonfinite metric', state: { data: { totals: { total_revenue: NaN, average_revenue: Infinity } } }, text: 'Revenue unavailable' },
+  ])('does not render zero for $name revenue', async ({ state, text }) => {
+    const refetch = vi.fn()
+    get.mockReset().mockResolvedValue({ data: [{ id: 4, site_id: 7, kind: 'event', match: 'exact', value: 'purchase', name: 'Purchase', currency: 'USD' }], response: { status: 200 } })
+    useStats.mockImplementation((query: { metrics: string[] }) => query.metrics.includes('total_revenue')
+      ? { isPending: false, isError: false, refetch, ...state }
+      : { data: { totals: { visitors: 8 } }, isPending: false, isError: false })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><GoalsPage siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} /></QueryClientProvider>)
+    expect(await screen.findByText(text)).toBeVisible()
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument()
+    if (text !== 'Loading revenue…') {
+      fireEvent.click(screen.getByRole('button', { name: 'Retry revenue' }))
+      expect(refetch).toHaveBeenCalledOnce()
+    }
+  })
+
+  it('renders a genuine zero using the configured currency', async () => {
+    get.mockReset().mockResolvedValue({ data: [{ id: 4, site_id: 7, kind: 'event', match: 'exact', value: 'purchase', name: 'Purchase', currency: 'EUR' }], response: { status: 200 } })
+    useStats.mockReturnValue({ data: { totals: { visitors: 0, total_revenue: 0, average_revenue: 0 } }, isPending: false, isError: false })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><GoalsPage siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} /></QueryClientProvider>)
+    expect(await screen.findAllByText('€0.00')).toHaveLength(2)
+    expect(useStats).toHaveBeenCalledWith(expect.objectContaining({ filters: [
+      { dimension: 'goal_id', operator: 'is', values: ['4'] },
+      { dimension: 'revenue_currency', operator: 'is', values: ['EUR'] },
+    ] }))
+  })
+
+  it('does not request revenue for unsupported page or scroll goals', async () => {
+    get.mockReset().mockResolvedValue({ data: ['page', 'scroll'].map((kind, id) => ({ id, site_id: 7, kind, match: 'exact', value: '/thanks', name: kind, currency: 'USD' })), response: { status: 200 } })
+    useStats.mockReturnValue({ data: { totals: { visitors: 0 } }, isPending: false, isError: false })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><GoalsPage siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} /></QueryClientProvider>)
+    expect(await screen.findAllByText('Revenue unavailable for this goal')).toHaveLength(2)
+    expect(useStats.mock.calls.every(([query]) => !query.metrics.includes('total_revenue'))).toBe(true)
+  })
+
 })
