@@ -75,6 +75,31 @@ func TestWriterDefaultsAnonymous(t *testing.T) {
 	}
 }
 
+func TestBufferedRevenueRecheckedAgainstCurrentProjectCurrency(t *testing.T) {
+	registry := &policyRegistry{site: sites.Site{ID: 1, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}
+	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	w.SetTrackingPolicy(privacy.Anonymous, registry)
+
+	events := []Event{{Hit: session.Hit{SiteID: 1}, RevenueMicros: 4_990_000, RevenueCurrency: "USD"}}
+	w.suppressRestrictedIdentity(events)
+	if events[0].RevenueMicros == 0 {
+		t.Fatal("matching configured revenue was suppressed")
+	}
+
+	registry.site.RevenueCurrencyState = sites.RevenueCurrencyConflict
+	w.suppressRestrictedIdentity(events)
+	if events[0].RevenueMicros != 0 || events[0].RevenueCurrency != "" {
+		t.Fatalf("queued revenue survived conflict: %+v", events[0])
+	}
+
+	registry.site = sites.Site{ID: 1, RevenueCurrency: "EUR", RevenueCurrencyState: sites.RevenueCurrencyConfigured}
+	events = []Event{{Hit: session.Hit{SiteID: 1}, RevenueMicros: 4_990_000, RevenueCurrency: "USD"}}
+	w.suppressRestrictedIdentity(events)
+	if events[0].RevenueMicros != 0 || events[0].RevenueCurrency != "" {
+		t.Fatalf("contradictory queued revenue survived: %+v", events[0])
+	}
+}
+
 func TestSessionDimensionsRecheckedBeforeFlush(t *testing.T) {
 	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
 	registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}

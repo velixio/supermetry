@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -502,7 +503,11 @@ func TestRevenueMetricsMatchHotAndClosedTiers(t *testing.T) {
 		wantAvg   float64
 	}{
 		{name: "USD excludes EUR", currency: "USD", wantTotal: 10, wantAvg: 5},
-		{name: "EUR excludes USD", currency: "EUR", wantTotal: 4, wantAvg: 4},
+	}
+	mismatch := queryRequest(nil, []api.Filter{filter("goal", api.Is, "signup"), filter("revenue_currency", api.Is, "EUR")})
+	mismatch.Metrics = []api.Metric{api.TotalRevenue}
+	if _, err := engine.Query(context.Background(), mismatch); err == nil || !strings.Contains(err.Error(), "permanent currency USD") {
+		t.Fatalf("currency mismatch error=%v", err)
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -576,7 +581,7 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	if err := dictionary.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
-	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
+	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}
 	return pool, identifiedEngine(pool, dictionary, reg)
 }
 

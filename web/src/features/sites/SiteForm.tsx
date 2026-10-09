@@ -46,6 +46,7 @@ export function SiteForm({
           .filter(Boolean),
         timezone: String(data.get('timezone') ?? 'UTC').trim(),
         retention_days: Number(data.get('retention')) as RetentionDays,
+        revenue_currency: String(data.get('revenue_currency') ?? '').trim().toUpperCase(),
       })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The site could not be created.')
@@ -95,6 +96,21 @@ export function SiteForm({
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="site-revenue-currency">Revenue currency</FieldLabel>
+          <Input
+            id="site-revenue-currency"
+            name="revenue_currency"
+            autoCapitalize="characters"
+            maxLength={3}
+            pattern="[A-Za-z]{3}"
+            placeholder="USD"
+            required
+          />
+          <FieldDescription>
+            This three-letter currency applies to all project revenue and cannot be changed after creation.
+          </FieldDescription>
         </Field>
       </FieldGroup>
       <div className="flex flex-wrap gap-2">

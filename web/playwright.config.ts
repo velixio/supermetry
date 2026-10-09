@@ -25,7 +25,7 @@ set -eu
 psql "$PANEL_TEST_DSN" -v ON_ERROR_STOP=1 \
   -c "drop schema if exists \"$PANEL_E2E_SCHEMA\" cascade" \
   -c "create schema \"$PANEL_E2E_SCHEMA\""
-bun -e 'const fs=require("node:fs");const rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));fs.writeFileSync(process.argv[2],JSON.stringify(rows.map(({id,host,timezone})=>({id,org_id:1,public_id:host,timezone,retention_days:30,allowed_hosts:[host]}))))' \
+bun -e 'const fs=require("node:fs");const rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));fs.writeFileSync(process.argv[2],JSON.stringify(rows.map(({id,host,timezone})=>({id,org_id:1,public_id:host,timezone,retention_days:30,allowed_hosts:[host],revenue_currency:"USD",revenue_currency_state:"configured"}))))' \
   ../bench/gen/testdata/tiny.sites.json "$PANEL_E2E_SITES_FILE"
 export PANEL_DATABASE_URL="$PANEL_E2E_DSN"
 export PANEL_BASE_URL="$PANEL_E2E_BASE_URL"

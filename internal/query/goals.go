@@ -48,6 +48,9 @@ func (e *Engine) resolveGoalFilters(req *Normalized) error {
 		if hasRevenueMetric(req.Metrics) && found.Kind != "event" {
 			return errors.New(`invalid filter "goal_id": revenue metrics require an event goal`)
 		}
+		if hasRevenueMetric(req.Metrics) && found.Currency != "" && found.Currency != req.RevenueCurrency {
+			return fmt.Errorf("invalid filter \"goal_id\": legacy goal currency %s does not match project currency %s", found.Currency, req.RevenueCurrency)
+		}
 		if req.GoalDefinitions == nil {
 			req.GoalDefinitions = make(map[int64]platformgoals.Goal)
 		}

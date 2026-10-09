@@ -20,6 +20,7 @@ describe('SiteForm', () => {
     })
     fireEvent.change(screen.getByLabelText('Time zone'), { target: { value: 'Asia/Kathmandu' } })
     fireEvent.change(screen.getByLabelText('Retention'), { target: { value: '365' } })
+    fireEvent.change(screen.getByLabelText('Revenue currency'), { target: { value: 'eur' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
@@ -27,6 +28,7 @@ describe('SiteForm', () => {
       hosts: ['shop.example.com', 'checkout.example.com'],
       timezone: 'Asia/Kathmandu',
       retention_days: 365,
+      revenue_currency: 'EUR',
     }))
   })
 })

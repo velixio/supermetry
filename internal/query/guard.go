@@ -73,6 +73,7 @@ type Normalized struct {
 	// EventAttribution keeps event-scoped attribution semantics when derived
 	// queries (notably totals) remove their displayed dimensions.
 	EventAttribution bool
+	RevenueCurrency  string
 }
 
 // Normalize validates req and resolves its date range in the requested time
@@ -141,7 +142,28 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 			}
 		}
 	}
+	revenueCurrency := ""
 	if hasRevenueMetric(req.Metrics) {
+		if site.RevenueCurrencyState != sites.RevenueCurrencyConfigured {
+			if site.RevenueCurrencyState == sites.RevenueCurrencyConflict {
+				return Normalized{}, badQuery("revenue totals are unavailable because this project has mixed historical currencies")
+			}
+			return Normalized{}, badQuery("set the project's permanent revenue currency before requesting revenue metrics")
+		}
+		revenueCurrency = site.RevenueCurrency
+		foundCurrency := false
+		for _, filter := range filters {
+			if filter.Dimension != "revenue_currency" {
+				continue
+			}
+			foundCurrency = true
+			if filter.Values[0] != revenueCurrency {
+				return Normalized{}, badQuery(fmt.Sprintf("revenue currency %s does not match the project's permanent currency %s", filter.Values[0], revenueCurrency))
+			}
+		}
+		if !foundCurrency {
+			filters = append(filters, api.Filter{Dimension: "revenue_currency", Operator: api.Is, Values: []string{revenueCurrency}})
+		}
 		if !hasEventOrGoalScope(dimensions, filters) {
 			return Normalized{}, badQuery("revenue metrics require an event or goal filter or dimension")
 		}
@@ -185,6 +207,7 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 		Compare:          clonePointer(req.Compare),
 		IncludeImported:  includeImported,
 		EventAttribution: needsEventAttribution(dimensions, filters, req.Metrics),
+		RevenueCurrency:  revenueCurrency,
 	}, nil
 }
 

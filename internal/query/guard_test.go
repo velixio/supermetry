@@ -231,7 +231,7 @@ func TestNormalizeValidatesRevenueMetricsAndCurrencyFilter(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
-	site := sites.Site{ID: 1, TZ: time.UTC}
+	site := sites.Site{ID: 1, TZ: time.UTC, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}
 	revenueMetrics := []api.Metric{api.TotalRevenue, api.AverageRevenue}
 	tests := []struct {
 		name    string
@@ -332,6 +332,29 @@ func TestNormalizeValidatesRevenueMetricsAndCurrencyFilter(t *testing.T) {
 			}
 			if !tt.wantBad && problem != nil {
 				t.Fatalf("Normalize() problem = %+v", problem)
+			}
+		})
+	}
+}
+
+func TestNormalizeAppliesCanonicalProjectCurrency(t *testing.T) {
+	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	req := withDimensions(requestPeriod(api.N7d), "event")
+	req.Metrics = []api.Metric{api.TotalRevenue}
+
+	normalized, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC, RevenueCurrency: "CHF", RevenueCurrencyState: sites.RevenueCurrencyConfigured}, now)
+	if problem != nil {
+		t.Fatal(problem.Title)
+	}
+	if normalized.RevenueCurrency != "CHF" || len(normalized.Filters) != 1 || normalized.Filters[0].Dimension != "revenue_currency" || normalized.Filters[0].Values[0] != "CHF" {
+		t.Fatalf("normalized currency=%q filters=%+v", normalized.RevenueCurrency, normalized.Filters)
+	}
+
+	for _, state := range []sites.RevenueCurrencyState{sites.RevenueCurrencyUnconfigured, sites.RevenueCurrencyConflict} {
+		t.Run(string(state), func(t *testing.T) {
+			_, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC, RevenueCurrencyState: state}, now)
+			if problem == nil {
+				t.Fatal("revenue query accepted without a configured project currency")
 			}
 		})
 	}

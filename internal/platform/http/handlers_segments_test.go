@@ -44,7 +44,7 @@ func newSegmentHarness(t *testing.T) segmentHarness {
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)
 	owner := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sitesvc.New(data, registry).Create(ctx, owner, "Segment site", []string{"segments.example.test"}, "UTC", 30)
+	site, err := sitesvc.New(data, registry).Create(ctx, owner, "Segment site", []string{"segments.example.test"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}

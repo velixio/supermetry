@@ -1063,6 +1063,9 @@ export interface components {
              * @default true
              */
             respect_privacy_signals: boolean;
+            revenue_currency?: string;
+            /** @enum {string} */
+            revenue_currency_state: "unconfigured" | "configured" | "conflict";
         };
         SiteList: {
             data: components["schemas"]["Site"][];
@@ -1074,6 +1077,7 @@ export interface components {
             timezone: string;
             /** @enum {integer} */
             retention_days: 0 | 7 | 30 | 90 | 365;
+            revenue_currency: string;
         };
         UpdateSiteRequest: {
             profiles_enabled?: boolean;
@@ -1082,6 +1086,8 @@ export interface components {
             timezone?: string;
             /** @enum {integer} */
             retention_days?: 0 | 7 | 30 | 90 | 365;
+            /** @description Permanent once selected; only unconfigured projects may set it. */
+            revenue_currency?: string;
             exclude_ips?: string[];
             exclude_paths?: string[];
             heatmaps_enabled?: boolean;

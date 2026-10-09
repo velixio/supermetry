@@ -8,9 +8,14 @@ import { useGoals, useSaveGoal } from './api'
 import { GoalEditor } from './GoalEditor'
 import type { Goal } from './types'
 
-type GoalsPageProps = { siteId: number; dateRange: { from: string; to: string } }
+type GoalsPageProps = {
+  siteId: number
+  dateRange: { from: string; to: string }
+  revenueCurrency?: string
+  revenueCurrencyState?: 'unconfigured' | 'configured' | 'conflict'
+}
 
-export function GoalsPage({ siteId, dateRange }: GoalsPageProps) {
+export function GoalsPage({ siteId, dateRange, revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
   const goals = useGoals(siteId)
   const save = useSaveGoal(siteId)
   const [editing, setEditing] = useState<Goal>()
@@ -34,6 +39,8 @@ export function GoalsPage({ siteId, dateRange }: GoalsPageProps) {
           {!goals.isPending && !goals.isError && goals.data?.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No goals yet.</p> : null}
         </section>
         <GoalEditor
+          projectCurrency={revenueCurrency}
+          currencyState={revenueCurrencyState}
           goal={editing}
           pending={save.isPending}
           onCancel={() => setEditing(undefined)}

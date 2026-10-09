@@ -462,11 +462,13 @@ func normalizedCacheQuery(req Normalized) string {
 		Compare            *api.QueryRequestCompare
 		IncludeImported    bool
 		GoalDefinitions    any
+		RevenueCurrency    string
 	}{
 		From: req.From.Format(time.DateOnly), To: req.To.Format(time.DateOnly), Timezone: req.Location.String(),
 		Metrics: req.Metrics, Dimensions: req.Dimensions, Filters: req.Filters, OrderBy: req.OrderBy,
 		Limit: req.Limit, Cursor: req.Cursor, Compare: req.Compare, IncludeImported: req.IncludeImported,
 		GoalDefinitions: req.GoalDefinitions,
+		RevenueCurrency: req.RevenueCurrency,
 	})
 	return string(encoded)
 }

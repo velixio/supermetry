@@ -107,7 +107,8 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 	rows, err := h.deps.Store.Pool.Query(ctx, `
 		select id,org_id,public_id,name,timezone,retention_class,allowed_hosts,
 		       coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
-		       coalesce(settings->>'icon_url',''),coalesce(settings->'profiles_enabled'='true'::jsonb,false)
+		       coalesce(settings->>'icon_url',''),coalesce(settings->'profiles_enabled'='true'::jsonb,false),
+		       coalesce(revenue_currency::text,''),revenue_currency_state
 		from sites
 		where org_id=$1 and deleted_at is null
 		  and ($2::integer[] is null or id=any($2))
@@ -122,7 +123,8 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 		var site siteResponse
 		var retention int16
 		if err := rows.Scan(&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.Timezone, &retention,
-			&site.AllowedHosts, &site.ExcludeIPs, &site.ExcludePaths, &site.IconURL, &site.ProfilesEnabled); err != nil {
+			&site.AllowedHosts, &site.ExcludeIPs, &site.ExcludePaths, &site.IconURL, &site.ProfilesEnabled,
+			&site.RevenueCurrency, &site.RevenueCurrencyState); err != nil {
 			return nil, err
 		}
 		site.RetentionDays = int(db.RetentionClass(retention))

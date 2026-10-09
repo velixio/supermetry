@@ -22,7 +22,7 @@ func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 	service, registry, principal, _ := newSites(t)
 	ctx := context.Background()
 
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "Asia/Kolkata", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "Asia/Kolkata", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,6 +35,9 @@ func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 	if got.OrgID != principal.OrgID || got.OrgID == 0 {
 		t.Fatalf("registry site OrgID = %d, want %d", got.OrgID, principal.OrgID)
 	}
+	if got.RevenueCurrency != "USD" || got.RevenueCurrencyState != sites.RevenueCurrencyConfigured {
+		t.Fatalf("registry revenue currency=%q/%q", got.RevenueCurrency, got.RevenueCurrencyState)
+	}
 	if byID, ok := registry.Site(site.ID); !ok || byID.OrgID != principal.OrgID {
 		t.Fatalf("registry Site(id) OrgID = %d, want %d", byID.OrgID, principal.OrgID)
 	}
@@ -46,10 +49,130 @@ func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 	}
 }
 
+func TestCreateRequiresUppercaseProjectCurrency(t *testing.T) {
+	service, _, principal, _ := newSites(t)
+	for _, currency := range []string{"", "usd", "US", "USDX"} {
+		if _, err := service.Create(context.Background(), principal, "Bad currency", []string{"example.test"}, "UTC", 30, currency); !errors.Is(err, ErrInvalid) {
+			t.Errorf("currency %q error=%v, want invalid", currency, err)
+		}
+	}
+}
+
+func TestUpdateRevenueCurrencySerializesConcurrentPermanentSelection(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values($1,'legacycur001','Legacy',array['example.test'],'UTC',30) returning id`, principal.OrgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	currencies := []string{"USD", "EUR"}
+	errorsByCurrency := make(chan error, len(currencies))
+	start := make(chan struct{})
+	for _, currency := range currencies {
+		currency := currency
+		go func() {
+			<-start
+			_, err := service.Update(ctx, principal, siteID, SitePatch{RevenueCurrency: &currency})
+			errorsByCurrency <- err
+		}()
+	}
+	close(start)
+	var succeeded, rejected int
+	for range currencies {
+		if err := <-errorsByCurrency; err == nil {
+			succeeded++
+		} else if errors.Is(err, ErrInvalid) {
+			rejected++
+		} else {
+			t.Fatalf("unexpected selection error: %v", err)
+		}
+	}
+	if succeeded != 1 || rejected != 1 {
+		t.Fatalf("successful=%d rejected=%d, want 1/1", succeeded, rejected)
+	}
+	var currency, state string
+	if err := pool.QueryRow(ctx, `select revenue_currency,revenue_currency_state from sites where id=$1`, siteID).Scan(&currency, &state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "configured" || (currency != "USD" && currency != "EUR") {
+		t.Fatalf("stored currency=%q state=%q", currency, state)
+	}
+	loaded, ok := registry.Site(siteID)
+	if !ok || loaded.RevenueCurrency != currency || loaded.RevenueCurrencyState != sites.RevenueCurrencyConfigured {
+		t.Fatalf("registry site=(%+v,%t), want %s configured", loaded, ok, currency)
+	}
+	var auditedCurrency string
+	if err := pool.QueryRow(ctx, `select metadata->>'revenue_currency' from audit_log where action='site.updated' and target_id=$1 order by id desc limit 1`, siteID).Scan(&auditedCurrency); err != nil {
+		t.Fatal(err)
+	}
+	if auditedCurrency != currency {
+		t.Fatalf("audited currency=%q, want %q", auditedCurrency, currency)
+	}
+}
+
+func TestUpdateRevenueCurrencyRequiresOwnerOrAdmin(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values($1,'legacycur002','Legacy',array['example.test'],'UTC',30) returning id`, principal.OrgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	currency := "USD"
+	editor := principal
+	editor.Role = authz.RoleEditor
+	if _, err := service.Update(ctx, editor, siteID, SitePatch{RevenueCurrency: &currency}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("editor selection error=%v, want forbidden", err)
+	}
+}
+
+func TestStaleRegistryCannotSelectContradictoryCurrency(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	data := &store.Store{Pool: pool}
+	staleRegistry := NewRegistry(data, 0)
+	defer staleRegistry.Close()
+	staleService := New(data, staleRegistry)
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values($1,'legacycur003','Legacy',array['example.test'],'UTC',30) returning id`, principal.OrgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := staleRegistry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	usd := "USD"
+	if _, err := service.Update(ctx, principal, siteID, SitePatch{RevenueCurrency: &usd}); err != nil {
+		t.Fatal(err)
+	}
+	stale, ok := staleRegistry.Site(siteID)
+	if !ok || stale.RevenueCurrencyState != sites.RevenueCurrencyUnconfigured {
+		t.Fatalf("second registry was not stale: (%+v,%t)", stale, ok)
+	}
+	eur := "EUR"
+	if _, err := staleService.Update(ctx, principal, siteID, SitePatch{RevenueCurrency: &eur}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("contradictory selection error=%v, want invalid", err)
+	}
+	var stored string
+	if err := pool.QueryRow(ctx, `select revenue_currency from sites where id=$1`, siteID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored != "USD" {
+		t.Fatalf("stored currency=%q, want USD", stored)
+	}
+}
+
 func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Profiles", []string{"profiles.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Profiles", []string{"profiles.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +197,7 @@ func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
 func TestRegistryDefaultsPrivacySignalsOnAndLoadsOverride(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +219,7 @@ func TestRegistryDefaultsPrivacySignalsOnAndLoadsOverride(t *testing.T) {
 func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Icons", []string{"first.example.com", "second.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Icons", []string{"first.example.com", "second.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +255,7 @@ func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
 func TestRefreshIconKeepsStoredIconWhenDiscoveryFindsNothing(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Icons", []string{"example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Icons", []string{"example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +299,7 @@ func TestRefreshIconKeepsStoredIconWhenDiscoveryFindsNothing(t *testing.T) {
 func TestUpdateProfilesEnabledPersistsRefreshesAndAudits(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Profiles", []string{"profiles.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Profiles", []string{"profiles.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,11 +337,11 @@ func TestUpdateProfilesEnabledPersistsRefreshesAndAudits(t *testing.T) {
 func TestListFiltersRestrictedPrincipal(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	ctx := context.Background()
-	a, err := service.Create(ctx, principal, "A", []string{"a.io"}, "UTC", 30)
+	a, err := service.Create(ctx, principal, "A", []string{"a.io"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.Create(ctx, principal, "B", []string{"b.io"}, "UTC", 30); err != nil {
+	if _, err := service.Create(ctx, principal, "B", []string{"b.io"}, "UTC", 30, "USD"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -249,7 +372,7 @@ func TestCreateValidates(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := service.Create(ctx, principal, "Invalid", test.hosts, test.timezone, test.retention); !errors.Is(err, ErrInvalid) {
+			if _, err := service.Create(ctx, principal, "Invalid", test.hosts, test.timezone, test.retention, "USD"); !errors.Is(err, ErrInvalid) {
 				t.Fatalf("Create error = %v, want ErrInvalid", err)
 			}
 		})
@@ -259,7 +382,7 @@ func TestCreateValidates(t *testing.T) {
 func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +414,7 @@ func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 func TestUpdateExclusionsPersistsAndRefreshesRegistry(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +454,7 @@ func TestUpdateExclusionsPersistsAndRefreshesRegistry(t *testing.T) {
 func TestUpdateTrackerAndCountryExclusionsRoundTripsAndOmittedPatchPreserves(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +512,7 @@ func TestUpdateTrackerAndCountryExclusionsRoundTripsAndOmittedPatchPreserves(t *
 func TestRegistryMalformedTrackerUsesDefaults(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -408,7 +531,7 @@ func TestRegistryMalformedTrackerUsesDefaults(t *testing.T) {
 func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +566,7 @@ func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
 func TestUpdatePrivacySignalsPersistsAndRefreshesRegistry(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Privacy", []string{"privacy.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -467,7 +590,7 @@ func TestUpdatePrivacySignalsPersistsAndRefreshesRegistry(t *testing.T) {
 
 func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
 	service, _, principal, _ := newSites(t)
-	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -481,7 +604,7 @@ func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
 
 func TestUpdateTrackerAndCountryExclusionsRejectsEditor(t *testing.T) {
 	service, _, principal, _ := newSites(t)
-	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +632,7 @@ func TestUpdateTrackerAndCountryExclusionsRejectsEditor(t *testing.T) {
 func TestUpdateExclusionsNamesInvalidEntry(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -524,7 +647,7 @@ func TestUpdateExclusionsNamesInvalidEntry(t *testing.T) {
 func TestCrossOrgAndForbiddenWritesAreHiddenOrDenied(t *testing.T) {
 	service, _, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30)
+	site, err := service.Create(ctx, principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -23,6 +23,8 @@ type Site struct {
 	HeatmapsEnabled       bool
 	RespectPrivacySignals bool
 	IconURL               string
+	RevenueCurrency       string
+	RevenueCurrencyState  RevenueCurrencyState
 }
 
 // Registry provides in-memory site lookups for the analytics core.

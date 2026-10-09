@@ -95,6 +95,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	if payload.RevenueMicros > 0 {
+		switch site.RevenueCurrencyState {
+		case sites.RevenueCurrencyConfigured:
+			if payload.RevenueCurrency == "" {
+				payload.RevenueCurrency = site.RevenueCurrency
+			} else if payload.RevenueCurrency != site.RevenueCurrency {
+				h.revenueProblem(w, http.StatusBadRequest, "revenue currency does not match the project's permanent currency")
+				return
+			}
+		case sites.RevenueCurrencyConflict:
+			h.revenueProblem(w, http.StatusConflict, "revenue tracking is paused because this project has mixed historical currencies")
+			return
+		default:
+			h.revenueProblem(w, http.StatusConflict, "set the project's permanent revenue currency before tracking revenue")
+			return
+		}
+	}
 	if r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1" {
 		health.PrivacySignalsDropped.Add(1)
 		w.WriteHeader(http.StatusAccepted)
@@ -485,6 +502,12 @@ func (h *Handler) invalid(w http.ResponseWriter) {
 	Invalid.Add(1)
 	health.IngestInvalid.Add(1)
 	w.WriteHeader(http.StatusBadRequest)
+}
+
+func (h *Handler) revenueProblem(w http.ResponseWriter, status int, detail string) {
+	Invalid.Add(1)
+	health.IngestInvalid.Add(1)
+	http.Error(w, detail, status)
 }
 
 func (h *Handler) unavailable(w http.ResponseWriter) {

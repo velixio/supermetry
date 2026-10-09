@@ -16,6 +16,7 @@ export type CreateSiteInput = {
   hosts: string[]
   timezone: string
   retention_days: 30
+  revenue_currency: string
 }
 
 export type CreatedSite = {
@@ -26,6 +27,8 @@ export type CreatedSite = {
   timezone: string
   retention_days: number
   allowed_hosts: string[]
+  revenue_currency: string
+  revenue_currency_state: 'configured'
 }
 
 type ApiResult = {
@@ -93,7 +96,9 @@ function isCreatedSite(value: unknown): value is CreatedSite {
     typeof value.timezone === 'string' &&
     typeof value.retention_days === 'number' &&
     Array.isArray(value.allowed_hosts) &&
-    value.allowed_hosts.every((host) => typeof host === 'string')
+    value.allowed_hosts.every((host) => typeof host === 'string') &&
+    typeof value.revenue_currency === 'string' &&
+    value.revenue_currency_state === 'configured'
   )
 }
 
