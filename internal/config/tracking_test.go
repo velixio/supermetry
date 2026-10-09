@@ -45,12 +45,54 @@ func TestParseTrackingMode(t *testing.T) {
 	}
 }
 
-func TestTrackingParserRemainsInactive(t *testing.T) {
-	// Existing Load must not start consulting the new environment variable.
-	_, _ = config.Load(func(name string) string {
-		if name == config.TrackingModeEnv {
-			t.Fatal("tracking mode activated in Load")
-		}
-		return ""
-	})
+func TestLoadLookupTrackingMode(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name, raw        string
+		present, wantErr bool
+	}{
+		{"unset", "", false, false}, {"anonymous", "anonymous", true, false},
+		{"identified", "identified", true, false}, {"empty", "", true, true},
+		{"unknown", "identifed", true, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := map[string]string{"PANEL_DATABASE_URL": "postgres://localhost/test", "PANEL_BASE_URL": "http://localhost", "PANEL_SECRET_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+			if tt.present {
+				env[config.TrackingModeEnv] = tt.raw
+			}
+			got, err := config.LoadLookup(func(k string) (string, bool) { v, ok := env[k]; return v, ok })
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err=%v", err)
+			}
+			if !tt.wantErr && got.Tracking.Explicit != tt.present {
+				t.Fatalf("lost presence: %+v", got.Tracking)
+			}
+		})
+	}
+}
+
+func TestValidateTrackingUpgrade(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name              string
+		mode              config.TrackingMode
+		profiles, wantErr bool
+	}{
+		{"fresh", config.TrackingMode{}, false, false},
+		{"legacy profiles require choice", config.TrackingMode{}, true, true},
+		{"explicit keep profiles", config.TrackingMode{Mode: privacy.Identified, Explicit: true}, true, false},
+		{"explicit downgrade", config.TrackingMode{Mode: privacy.Anonymous, Explicit: true}, true, false},
+		{"invalid", config.TrackingMode{Mode: privacy.Mode(255), Explicit: true}, false, true},
+		{"implicit identified forbidden", config.TrackingMode{Mode: privacy.Identified}, false, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.mode.ValidateUpgrade(tt.profiles)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error=%v", err)
+			}
+			if err != nil && !strings.Contains(err.Error(), config.TrackingModeEnv) {
+				t.Fatalf("unactionable error=%v", err)
+			}
+		})
+	}
 }

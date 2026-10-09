@@ -41,6 +41,7 @@ type SMTP struct {
 }
 
 type Config struct {
+	Tracking             TrackingMode
 	DatabaseURL          string
 	Listen               string
 	BaseURL              string
@@ -85,9 +86,19 @@ type S3Env struct {
 	Prefix    string
 }
 
+// Load accepts legacy value-only lookups. Use LoadLookup for process settings
+// so explicitly empty tracking values cannot be mistaken for absent values.
 func Load(getenv func(string) string) (Config, error) {
+	return LoadLookup(func(key string) (string, bool) { value := getenv(key); return value, value != "" })
+}
+
+// LoadLookup preserves environment presence, including explicitly empty values.
+func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
+	getenv := func(key string) string { value, _ := lookup(key); return value }
+	tracking, trackingErr := ParseTrackingMode(lookup(TrackingModeEnv))
 	geo, geoErr := LoadGeoIP(getenv)
 	c := Config{
+		Tracking:             tracking,
 		DatabaseURL:          getenv("PANEL_DATABASE_URL"),
 		Listen:               valueOrDefault(getenv("PANEL_LISTEN"), defaultListen),
 		BaseURL:              getenv("PANEL_BASE_URL"),
@@ -117,6 +128,9 @@ func Load(getenv func(string) string) (Config, error) {
 		},
 	}
 	var errs []error
+	if trackingErr != nil {
+		errs = append(errs, trackingErr)
+	}
 	if geoErr != nil {
 		errs = append(errs, geoErr)
 	}
