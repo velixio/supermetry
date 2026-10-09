@@ -128,6 +128,7 @@ func metricsSupported(metrics []api.Metric, route Route) bool {
 // Engine executes normalized queries against the storage tiers.
 type Engine struct {
 	trackingMode privacy.Mode
+	pathPolicy   privacy.PathPolicy
 	pool         *pgxpool.Pool
 	dict         *dict.Dict
 	registry     sites.Registry
@@ -149,6 +150,9 @@ func NewEngine(pool *pgxpool.Pool, dictionary *dict.Dict, registry sites.Registr
 
 // SetTrackingMode configures the restart-boundary policy before serving requests.
 func (e *Engine) SetTrackingMode(mode privacy.Mode) { e.trackingMode = mode }
+
+// SetPathPolicy configures immutable verified-path reads before serving.
+func (e *Engine) SetPathPolicy(policy privacy.PathPolicy) { e.pathPolicy = policy }
 
 // SetCache attaches the shared closed-range result cache. NewEngine keeps its
 // existing signature so tests and embedders may opt in explicitly.
@@ -226,7 +230,7 @@ func (e *Engine) queryNormalized(ctx context.Context, req api.QueryRequest, site
 	var cacheKey Key
 	cacheable := e.cache != nil && e.forcedRoute == nil && cacheEligible(normalized, site, now, metadata) && partsExcludeHot(parts)
 	if cacheable {
-		cacheKey = CacheKey(normalized.SiteID, fmt.Sprintf("tracking:%d:%s", e.trackingMode, normalizedCacheQuery(normalized)), closedThrough, metadata.maxCloseVersion)
+		cacheKey = CacheKey(normalized.SiteID, fmt.Sprintf("tracking:%d:path-v%d:%s:%s", e.trackingMode, privacy.PathSanitizerVersion, e.pathPolicy.Fingerprint(), normalizedCacheQuery(normalized)), closedThrough, metadata.maxCloseVersion)
 		if response, ok := e.cache.Get(cacheKey); ok {
 			response.Meta.Cached = true
 			return response, nil
@@ -272,6 +276,9 @@ type cachedQueryResult struct {
 }
 
 func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, site sites.Site, normalized Normalized, now time.Time, metadata closeMetadata, parts []Part) (api.QueryResponse, error) {
+	if e.trackingMode != privacy.Identified && api.IsVerifiedPathQuery(req) {
+		return e.queryVerifiedPaths(ctx, req, site, normalized, now, metadata)
+	}
 	rows, sources, err := e.queryParts(ctx, normalized, parts)
 	if err != nil {
 		return api.QueryResponse{}, err

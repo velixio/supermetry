@@ -82,7 +82,7 @@ func NewRouter(deps Deps) http.Handler {
 
 	queries := deps.Query
 	if deps.Config.Tracking.Mode != privacy.Identified && queries != nil {
-		queries = anonymousQueries{queries}
+		queries = anonymousQueries{queryService: queries, paths: deps.Config.TrackingPaths}
 	}
 	h := &handlers{query: queries, sessions: deps.SessionExplore, heatmaps: deps.Heatmaps, now: deps.Now}
 	explore, hasExplore := deps.Query.(exploreService)
@@ -95,7 +95,7 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	registerSessionExplore(public, publicPrefix, h)
 	public.Handle("POST "+publicPrefix+"/mcp", NewMCPHandler(MCPDeps{
-		Query: queries, TrackingMode: deps.Config.Tracking.Mode, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
+		Query: queries, TrackingMode: deps.Config.Tracking.Mode, TrackingPaths: deps.Config.TrackingPaths, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
 		Dictionary: deps.Dictionary, MinuteSource: deps.MinuteSource,
 	}))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)

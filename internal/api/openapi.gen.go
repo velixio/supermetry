@@ -301,6 +301,36 @@ func (e Period) Valid() bool {
 	}
 }
 
+// Defines values for QueryPrivacyCoverage.
+const (
+	VerifiedOnly QueryPrivacyCoverage = "verified_only"
+)
+
+// Valid indicates whether the value is a known member of the QueryPrivacyCoverage enum.
+func (e QueryPrivacyCoverage) Valid() bool {
+	switch e {
+	case VerifiedOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryPrivacyView.
+const (
+	VerifiedPaths QueryPrivacyView = "verified_paths"
+)
+
+// Valid indicates whether the value is a known member of the QueryPrivacyView enum.
+func (e QueryPrivacyView) Valid() bool {
+	switch e {
+	case VerifiedPaths:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QueryRequestCompare.
 const (
 	PreviousPeriod QueryRequestCompare = "previous_period"
@@ -942,10 +972,27 @@ type PropertyValueCount struct {
 
 // QueryMeta defines model for QueryMeta.
 type QueryMeta struct {
-	Cached           bool     `json:"cached"`
-	ImportedIncluded bool     `json:"imported_included"`
-	SourcesUsed      []string `json:"sources_used"`
+	Cached           bool          `json:"cached"`
+	ImportedIncluded bool          `json:"imported_included"`
+	Privacy          *QueryPrivacy `json:"privacy,omitempty"`
+	SourcesUsed      []string      `json:"sources_used"`
 }
+
+// QueryPrivacy defines model for QueryPrivacy.
+type QueryPrivacy struct {
+	Coverage             QueryPrivacyCoverage `json:"coverage"`
+	ImportsExcluded      bool                 `json:"imports_excluded"`
+	PathSanitizerVersion int                  `json:"path_sanitizer_version"`
+	PolicyId             string               `json:"policy_id"`
+	UnverifiedExcluded   bool                 `json:"unverified_excluded"`
+	View                 QueryPrivacyView     `json:"view"`
+}
+
+// QueryPrivacyCoverage defines model for QueryPrivacy.Coverage.
+type QueryPrivacyCoverage string
+
+// QueryPrivacyView defines model for QueryPrivacy.View.
+type QueryPrivacyView string
 
 // QueryRequest defines model for QueryRequest.
 type QueryRequest struct {

@@ -1240,7 +1240,18 @@ export interface components {
             /** @enum {string} */
             compare?: "previous_period" | "previous_year";
         };
+        QueryPrivacy: {
+            /** @enum {string} */
+            view: "verified_paths";
+            path_sanitizer_version: number;
+            policy_id: string;
+            /** @enum {string} */
+            coverage: "verified_only";
+            unverified_excluded: boolean;
+            imports_excluded: boolean;
+        };
         QueryMeta: {
+            privacy?: components["schemas"]["QueryPrivacy"];
             sources_used: string[];
             cached: boolean;
             imported_included: boolean;

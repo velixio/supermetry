@@ -30,13 +30,14 @@ const mcpLegacyProtocolVersion = "2025-03-26"
 // Resources is the platform HTTP handler used for sites, goals, and saved
 // funnels so those tools retain the public API's authorization and behavior.
 type MCPDeps struct {
-	TrackingMode privacy.Mode
-	Query        queryService
-	Resources    http.Handler
-	Sessions     session.Store
-	MinuteSource realtime.MinuteSource
-	Dictionary   dictionaryResolver
-	Now          func() time.Time
+	TrackingMode  privacy.Mode
+	TrackingPaths privacy.PathPolicy
+	Query         queryService
+	Resources     http.Handler
+	Sessions      session.Store
+	MinuteSource  realtime.MinuteSource
+	Dictionary    dictionaryResolver
+	Now           func() time.Time
 }
 
 // MCPTool is the tools/list representation of one Panel operation.
@@ -118,6 +119,9 @@ func requireMCPScopes(r *http.Request) error {
 // NewMCPHandler returns the JSON-only Streamable HTTP MCP endpoint. Mount it
 // below the public Bearer-key authentication and rate-limit middleware.
 func NewMCPHandler(deps MCPDeps) http.Handler {
+	if deps.TrackingMode != privacy.Identified && deps.Query != nil {
+		deps.Query = anonymousQueries{queryService: deps.Query, paths: deps.TrackingPaths}
+	}
 	return &mcpHandler{deps: deps, tools: mcpTools()}
 }
 
@@ -386,7 +390,7 @@ func (h *mcpHandler) query(ctx context.Context, r *http.Request, request QueryRe
 		return nil, errors.New("query failed")
 	}
 	if h.deps.TrackingMode != privacy.Identified {
-		response = SanitizeAnonymousResponse(response, request)
+		return SanitizeAnonymousResponseWithPolicy(response, request, h.deps.TrackingPaths)
 	}
 	return response, nil
 }

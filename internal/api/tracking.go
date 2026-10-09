@@ -14,9 +14,38 @@ import (
 // ErrAnonymousHistory marks reads that could expose historical identifiers.
 var ErrAnonymousHistory = errors.New("anonymous tracking policy restricts historical identity-bearing analytics")
 
-// ValidateAnonymousQuery allows only canonical finite-domain analytics. Free-form
-// filters can probe historical identities even in count-only responses.
+// IsVerifiedPathQuery identifies the deliberately narrow verified-path view.
+// Filters and mixed dimensions would combine verified and legacy populations.
+func IsVerifiedPathQuery(request QueryRequest) bool {
+	if request.Dimensions == nil || len(*request.Dimensions) != 1 || len(request.Metrics) == 0 {
+		return false
+	}
+	dimension := (*request.Dimensions)[0]
+	if dimension != "page" && dimension != "path" {
+		return false
+	}
+	if request.Filters != nil && len(*request.Filters) != 0 {
+		return false
+	}
+	if request.Cursor != nil && !anonymousCursor(*request.Cursor) {
+		return false
+	}
+	for _, metric := range request.Metrics {
+		switch metric {
+		case Visitors, Visits, Pageviews:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// ValidateAnonymousQuery allows canonical finite-domain analytics and the narrow
+// verified-path query shape. Free-form filters can probe historical identities.
 func ValidateAnonymousQuery(request QueryRequest) error {
+	if IsVerifiedPathQuery(request) {
+		return nil
+	}
 	if request.Filters != nil {
 		for _, filter := range *request.Filters {
 			if filter.Operator != Is && filter.Operator != IsNot {
@@ -57,6 +86,45 @@ func anonymousCursor(value string) bool {
 // SanitizeAnonymousResponse is defense in depth for alternate query services.
 // The SQL engine coalesces unknown labels before metric finalization and cache.
 func SanitizeAnonymousResponse(response QueryResponse, request QueryRequest) QueryResponse {
+	clean, _ := SanitizeAnonymousResponseWithPolicy(response, request, privacy.PathPolicy{})
+	return clean
+}
+
+// SanitizeAnonymousResponseWithPolicy rejects unverified page responses, including
+// alternate services that omit or return stale provenance metadata.
+func SanitizeAnonymousResponseWithPolicy(response QueryResponse, request QueryRequest, paths privacy.PathPolicy) (QueryResponse, error) {
+	if err := ValidateAnonymousQuery(request); err != nil {
+		return QueryResponse{}, err
+	}
+	verified := IsVerifiedPathQuery(request)
+	if verified {
+		meta := response.Meta.Privacy
+		if meta == nil || meta.View != "verified_paths" || meta.Coverage != "verified_only" || meta.PathSanitizerVersion != int(privacy.PathSanitizerVersion) || meta.PolicyId != paths.Fingerprint() || !meta.UnverifiedExcluded || !meta.ImportsExcluded || response.Meta.ImportedIncluded {
+			return QueryResponse{}, ErrAnonymousHistory
+		}
+		for _, source := range response.Meta.SourcesUsed {
+			if source != "verified_hot" && source != "verified_day" {
+				return QueryResponse{}, ErrAnonymousHistory
+			}
+		}
+		dimension := (*request.Dimensions)[0]
+		validRows := func(rows []map[string]any) bool {
+			for _, row := range rows {
+				label, ok := row[dimension].(string)
+				if !ok || paths.PublicPath(label) != label {
+					return false
+				}
+			}
+			return true
+		}
+		if !validRows(response.Rows) || (response.Comparison != nil && !validRows(response.Comparison.Rows)) {
+			return QueryResponse{}, ErrAnonymousHistory
+		}
+	} else {
+		// An alternate service cannot attach arbitrary strings as privacy metadata.
+		response.Meta.Privacy = nil
+	}
+
 	dimensions := []string{}
 	if request.Dimensions != nil {
 		dimensions = *request.Dimensions
@@ -67,7 +135,11 @@ func SanitizeAnonymousResponse(response QueryResponse, request QueryRequest) Que
 			item := make(map[string]any, len(dimensions)+len(request.Metrics))
 			for _, dimension := range dimensions {
 				value, _ := row[dimension].(string)
-				item[dimension], _ = privacy.CanonicalDimensionValue(dimension, value)
+				if verified {
+					item[dimension] = value
+				} else {
+					item[dimension], _ = privacy.CanonicalDimensionValue(dimension, value)
+				}
 			}
 			for _, metric := range request.Metrics {
 				item[string(metric)] = number(row[string(metric)])
@@ -86,6 +158,10 @@ func SanitizeAnonymousResponse(response QueryResponse, request QueryRequest) Que
 	response.Totals = cleanTotals(response.Totals)
 	sources := make([]string, 0, len(response.Meta.SourcesUsed))
 	for _, source := range response.Meta.SourcesUsed {
+		if verified {
+			sources = append(sources, source)
+			continue
+		}
 		switch source {
 		case "rollup", "visitor_day", "cube_day", "closed", "hot", "imported":
 			sources = append(sources, source)
@@ -106,17 +182,23 @@ func SanitizeAnonymousResponse(response QueryResponse, request QueryRequest) Que
 	if response.NextCursor != nil && !anonymousCursor(*response.NextCursor) {
 		response.NextCursor = nil
 	}
-	return response
+	return response, nil
 }
 
-type anonymousQueries struct{ queryService }
+type anonymousQueries struct {
+	queryService
+	paths privacy.PathPolicy
+}
 
 func (q anonymousQueries) Query(ctx context.Context, request QueryRequest) (QueryResponse, error) {
 	if err := ValidateAnonymousQuery(request); err != nil {
 		return QueryResponse{}, err
 	}
 	response, err := q.queryService.Query(ctx, request)
-	return SanitizeAnonymousResponse(response, request), err
+	if err != nil {
+		return QueryResponse{}, err
+	}
+	return SanitizeAnonymousResponseWithPolicy(response, request, q.paths)
 }
 func (q anonymousQueries) Funnel(context.Context, FunnelRequest) (FunnelResponse, error) {
 	return FunnelResponse{}, ErrAnonymousHistory
