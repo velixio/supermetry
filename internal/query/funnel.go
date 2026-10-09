@@ -112,11 +112,7 @@ func (e *Engine) resolveFunnelStep(ctx context.Context, step api.FunnelStep) (fu
 		return funnelMatcher{}, fmt.Errorf("unsupported type %q", step.Type)
 	}
 	builder := &sqlBuilder{}
-	filter := api.Filter{Operator: api.FilterOperator(step.Match), Values: []string{step.Value}}
-	if step.Match == "exact" {
-		filter.Operator = api.Is
-	}
-	condition, err := textMatch(builder, "value", filter)
+	condition, err := dictionaryMatchPredicate(builder, string(step.Match), step.Value)
 	if err != nil {
 		return funnelMatcher{}, err
 	}

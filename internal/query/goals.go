@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"panel/internal/api"
 	"panel/internal/dict"
@@ -150,20 +149,9 @@ func scrollGoalCondition(b *sqlBuilder, tier tierKind, goal platformgoals.Goal) 
 }
 
 func goalPathIDs(b *sqlBuilder, match, value string) (string, error) {
-	var predicate string
-	switch match {
-	case "exact":
-		predicate = "value=" + b.arg(value)
-	case "prefix":
-		predicate = "value like " + b.arg(EscapeLike(value)+"%") + ` escape '\'`
-	case "wildcard":
-		parts := strings.Split(value, "*")
-		for i := range parts {
-			parts[i] = EscapeLike(parts[i])
-		}
-		predicate = "value like " + b.arg(strings.Join(parts, "%")) + ` escape '\'`
-	default:
-		return "", fmt.Errorf("unknown goal match %q", match)
+	predicate, err := dictionaryMatchPredicate(b, match, value)
+	if err != nil {
+		return "", fmt.Errorf("goal path: %w", err)
 	}
 	return "select id from dict where kind=" + strconv.Itoa(int(dict.Path)) + " and " + predicate, nil
 }

@@ -561,6 +561,79 @@ func TestFunnelMatchesTruth(t *testing.T) {
 	}
 }
 
+func TestFunnelMatchModesAcrossStorageTiers(t *testing.T) {
+	_, engine := setupTiny(t)
+	tests := []struct {
+		name       string
+		from       string
+		to         string
+		pageMatch  string
+		pageValue  string
+		eventMatch string
+		eventValue string
+		want       []int64
+	}{
+		{name: "prefix closed through close boundary", from: "2026-10-06", to: "2026-10-07", pageMatch: "prefix", pageValue: "/", eventMatch: "prefix", eventValue: "sign", want: []int64{5, 2}},
+		{name: "wildcard hot", from: "2026-10-08", to: "2026-10-08", pageMatch: "wildcard", pageValue: "/*", eventMatch: "wildcard", eventValue: "sign*", want: []int64{2, 0}},
+		{name: "wildcard mixed", from: "2026-10-07", to: "2026-10-08", pageMatch: "wildcard", pageValue: "/*", eventMatch: "wildcard", eventValue: "sign*", want: []int64{4, 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := engine.Funnel(context.Background(), api.FunnelRequest{
+				SiteId:    1,
+				DateRange: dateRange(tt.from, tt.to),
+				Steps: []api.FunnelStep{
+					{Type: api.Page, Match: api.FunnelStepMatch(tt.pageMatch), Value: tt.pageValue},
+					{Type: api.Event, Match: api.FunnelStepMatch(tt.eventMatch), Value: tt.eventValue},
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if visitors := stepVisitors(got); !reflect.DeepEqual(visitors, tt.want) {
+				t.Fatalf("step visitors = %v, want %v", visitors, tt.want)
+			}
+		})
+	}
+}
+
+func TestFunnelEscapedLiteralsAndSiteIsolation(t *testing.T) {
+	_, engine := setupFunnelMatching(t)
+	tests := []struct {
+		name       string
+		from       string
+		to         string
+		pageMatch  string
+		pageValue  string
+		eventMatch string
+		eventValue string
+		want       []int64
+	}{
+		{name: "exact closed", from: "2026-10-06", to: "2026-10-07", pageMatch: "exact", pageValue: "/literal%_star*value", eventMatch: "exact", eventValue: "evt%_star*done", want: []int64{2, 2}},
+		{name: "prefix hot keeps star literal", from: "2026-10-08", to: "2026-10-08", pageMatch: "prefix", pageValue: "/literal%_star*", eventMatch: "prefix", eventValue: "evt%_star*", want: []int64{1, 1}},
+		{name: "wildcard mixed keeps percent and underscore literal", from: "2026-10-07", to: "2026-10-08", pageMatch: "wildcard", pageValue: "/literal%_*value", eventMatch: "wildcard", eventValue: "evt%_*done", want: []int64{2, 2}},
+		{name: "injection text matches nothing", from: "2026-10-06", to: "2026-10-08", pageMatch: "wildcard", pageValue: `' OR true --*`, eventMatch: "wildcard", eventValue: "*", want: []int64{0, 0}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := engine.Funnel(context.Background(), api.FunnelRequest{
+				SiteId:    1,
+				DateRange: dateRange(tt.from, tt.to),
+				Steps: []api.FunnelStep{
+					{Type: api.Page, Match: api.FunnelStepMatch(tt.pageMatch), Value: tt.pageValue},
+					{Type: api.Event, Match: api.FunnelStepMatch(tt.eventMatch), Value: tt.eventValue},
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if visitors := stepVisitors(got); !reflect.DeepEqual(visitors, tt.want) {
+				t.Fatalf("step visitors = %v, want %v", visitors, tt.want)
+			}
+		})
+	}
+}
+
 func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	t.Helper()
 	pool, _ := testpg.New(t)
@@ -582,6 +655,58 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 		t.Fatal(err)
 	}
 	reg := registry{site: sites.Site{ID: 1, PublicID: "tiny", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}
+	return pool, identifiedEngine(pool, dictionary, reg)
+}
+
+func setupFunnelMatching(t *testing.T) (*pgxpool.Pool, *query.Engine) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, day("2026-10-05"), day("2026-10-10")); err != nil {
+		t.Fatal(err)
+	}
+	loadTinyRows(t, pool)
+	_, err := pool.Exec(ctx, `
+insert into dict(kind, id, value) values
+  (0, 5, '/literal%_star*value'), (7, 21, 'evt%_star*done');
+
+insert into sessions
+  (site_id, retention_class, session_id, visitor_id, start, last, local_day,
+   entry_path, exit_path, pageviews, events, engagement_ms, bounce)
+select site_id, 30, site_id * 1000 + day_number, site_id * 10000 + day_number,
+       day_value + interval '10 hours', day_value + interval '10 hours 1 minute', day_value::date,
+       5, 5, 1, 1, 60000, false
+from (values (1), (2)) sites(site_id)
+cross join (values
+  (401, '2026-10-06'::timestamptz),
+  (501, '2026-10-07'::timestamptz),
+  (601, '2026-10-08'::timestamptz)
+) days(day_number, day_value);
+
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind, name_id, path_id, engagement_ms, props)
+select site_id, 30, local_day, start, visitor_id, session_id, 0, 0, 5, 0, null
+from sessions where site_id in (1, 2) and entry_path=5;
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind, name_id, path_id, engagement_ms, props)
+select site_id, 30, local_day, start + interval '1 minute', visitor_id, session_id, 1, 21, 5, 0, null
+from sessions where site_id in (1, 2) and entry_path=5;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"2026-10-06", "2026-10-07"} {
+		if _, err := closer.CloseDay(ctx, pool, []int32{1, 2}, day(value)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dictionary := dict.New(pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := registry{site: sites.Site{ID: 1, PublicID: "funnel-matching", TZ: time.UTC, Retention: db.Ret30}}
 	return pool, identifiedEngine(pool, dictionary, reg)
 }
 

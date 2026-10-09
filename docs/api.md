@@ -45,6 +45,8 @@ curl "https://panel.example.com/api/public/v1/stats/breakdown?site_id=1&period=3
 | POST | `/heatmaps/query` | Click grid and scroll map for a page and device |
 | POST | `/vitals/query` | Web Vitals (LCP, CLS, INP) p75 and ratings, overall or by page, device, country or browser |
 
+Funnel steps are ordered within one site-local session. Page and custom-event values support `exact`, `prefix`, and anchored `wildcard` matching. In wildcard mode only `*` expands to any characters; `%` and `_` are literal. Exact and prefix modes also treat `*` literally. The wildcard grammar does not currently provide an escape for a literal `*`. Funnel `visitors` values count sessions completing each step, not durable people across sessions or days. Step property fields are reserved but are not yet applied by funnel queries.
+
 ## Explore raw data
 
 | Method | Path | Returns |
