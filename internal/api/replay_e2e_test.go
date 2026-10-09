@@ -64,6 +64,13 @@ func TestReplayEndToEnd(t *testing.T) {
 	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Replay E2E','replay-e2e') returning id`).Scan(&orgID); err != nil {
 		t.Fatal(err)
 	}
+	var ownerID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('replay-owner@example.test','Replay Owner','hash') returning id`).Scan(&ownerID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, ownerID); err != nil {
+		t.Fatal(err)
+	}
 	var siteID int32
 	if err := pool.QueryRow(ctx, `
 		insert into sites(org_id,public_id,name,timezone,retention_class,allowed_hosts,settings)
@@ -102,7 +109,7 @@ func TestReplayEndToEnd(t *testing.T) {
 		w.WriteHeader(http.StatusAccepted)
 	})
 	platform := platformhttp.New(platformhttp.Deps{TrackingMode: privacy.Identified,
-		Authenticator: replayE2EAuth{principal: authz.Principal{OrgID: orgID, Role: authz.RoleOwner}},
+		Authenticator: replayE2EAuth{principal: authz.Principal{UserID: ownerID, OrgID: orgID, Role: authz.RoleOwner}},
 		Sites:         registry, Store: platformStore, ReplayStore: blobs, ReplayEnv: replayEnv,
 		Mutations: platformhttp.Services{Sites: sitesvc.New(platformStore, registry)},
 	})

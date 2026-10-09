@@ -251,6 +251,16 @@ func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32)
 		return ErrForbidden
 	}
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
+		current, err := currentDeletePrincipal(ctx, tx, principal)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		if !authz.Can(current, authz.ActionSiteDelete, id) {
+			return ErrForbidden
+		}
 		if err := store.SoftDeleteSite(ctx, tx, principal.OrgID, id); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNotFound
@@ -266,6 +276,23 @@ func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32)
 		return fmt.Errorf("refresh site registry: %w", err)
 	}
 	return nil
+}
+
+func currentDeletePrincipal(ctx context.Context, tx pgx.Tx, principal authz.Principal) (authz.Principal, error) {
+	if principal.Role != authz.RoleKey {
+		return store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+	}
+	key, err := store.APIKeyForDelegation(ctx, tx, principal.OrgID, principal.KeyID)
+	if err != nil {
+		return authz.Principal{}, err
+	}
+	if !authz.ValidScopes(key.Scopes) {
+		return authz.Principal{}, pgx.ErrNoRows
+	}
+	return authz.Principal{
+		OrgID: principal.OrgID, KeyID: key.ID, Role: authz.RoleKey,
+		SiteIDs: key.SiteIDs, Scopes: key.Scopes,
+	}, nil
 }
 
 // RefreshIcon discovers and stores the favicon for the site's first allowed
