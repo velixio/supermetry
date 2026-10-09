@@ -270,6 +270,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		SecureCookies:  strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://"),
 		Signup:         cfg.Signup,
 		TrustedProxies: cfg.TrustedProxies,
+		SessionCountry: enricher.Country,
 		Authenticator:  serviceAuthenticator,
 		Sites:          registry,
 		Mutations: platformhttp.Services{

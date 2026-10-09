@@ -126,12 +126,14 @@ func (a *Auth) Login(ctx context.Context, email, password, totpCode, deviceLabel
 
 func createSession(ctx context.Context, db store.DBTX, userID int64, deviceLabel string, now time.Time) (string, error) {
 	plain, hash := platformcrypto.NewToken("")
+	metadata, _ := ctx.Value(sessionMetadataKey{}).(SessionMetadata)
 	if err := store.CreateSession(ctx, db, store.UserSession{
 		IDHash:      hash,
 		UserID:      userID,
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(90 * 24 * time.Hour),
 		DeviceLabel: sanitizeDeviceLabel(deviceLabel),
+		IPAddress:   metadata.IPAddress, CountryCode: metadata.CountryCode, Browser: metadata.Browser,
 	}); err != nil {
 		return "", err
 	}

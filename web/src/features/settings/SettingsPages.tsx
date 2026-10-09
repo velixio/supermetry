@@ -128,14 +128,6 @@ type AuditEntry = {
   target_id: number;
   created_at: string;
 };
-type Session = {
-  id?: string;
-  ID?: string;
-  device_label?: string;
-  DeviceLabel?: string;
-  last_seen_at?: string;
-  LastSeenAt?: string;
-};
 
 function Page({
   title,
@@ -1285,64 +1277,4 @@ export function AccountSecurityPage() {
   );
 }
 
-export function AccountSessionsPage() {
-  const queryClient = useQueryClient();
-  const key = ["sessions"];
-  const sessions = useQuery({
-    queryKey: key,
-    queryFn: () =>
-      privateRequest<ListResponse<Session>>("GET", "/api/private/me/sessions"),
-  });
-  const revoke = useMutation({
-    mutationFn: (id: string) =>
-      privateRequest<void>(
-        "DELETE",
-        `/api/private/me/sessions/${encodeURIComponent(id)}`,
-      ),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
-  });
-  return (
-    <Page
-      title="Active sessions"
-      description="Review devices signed into your account and revoke any you do not recognize."
-    >
-      <Surface>
-        <ul className="flex flex-col gap-3">
-          {sessions.data?.data.map((session) => {
-            const id = session.id ?? session.ID ?? "";
-            return (
-              <li
-                className="flex items-center justify-between gap-3 border-b pb-3"
-                key={id}
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    {session.device_label ??
-                      session.DeviceLabel ??
-                      "Unknown device"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Last active{" "}
-                    {fmt.date(
-                      session.last_seen_at ??
-                        session.LastSeenAt ??
-                        new Date().toISOString(),
-                      "UTC",
-                    )}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => revoke.mutate(id)}
-                >
-                  Revoke
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-      </Surface>
-    </Page>
-  );
-}
+export { AccountSessionsPage } from "./AccountSessionsPage";

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"github.com/mileusna/useragent"
 	"net/http"
 	"strings"
 	"time"
@@ -123,7 +124,34 @@ func (h *handler) signup(w http.ResponseWriter, r *http.Request) {
 func (h *handler) clientContext(r *http.Request) context.Context {
 	client := h.clientAddress(r)
 	hash := sha256.Sum256([]byte(client))
-	return platformauth.WithClientKey(r.Context(), hex.EncodeToString(hash[:]))
+	ctx := platformauth.WithClientKey(r.Context(), hex.EncodeToString(hash[:]))
+	return platformauth.WithSessionMetadata(ctx, h.sessionMetadata(r))
+}
+
+// Capture only account sign-in metadata. Resolve the nearest untrusted hop,
+// including private clients, rather than accepting arbitrary forwarded headers.
+func (h *handler) sessionMetadata(r *http.Request) platformauth.SessionMetadata {
+	var metadata platformauth.SessionMetadata
+	if ip, ok := clientip.ResolveAccessClient(r, h.deps.TrustedProxies); ok {
+		metadata.IPAddress = ip.String()
+		if ip.IsGlobalUnicast() && !ip.IsPrivate() && !ip.IsLoopback() && h.deps.SessionCountry != nil {
+			metadata.CountryCode = h.deps.SessionCountry(ip)
+		}
+	}
+	// Do not retain the raw header. Oversized values are unknown, not truncated
+	// into a potentially misleading browser identity.
+	if ua := r.UserAgent(); len(ua) <= 1024 {
+		parsed := useragent.Parse(ua)
+		if !parsed.Bot {
+			// The parser's fallback Name may contain raw header text. Persist only
+			// recognized labels, never that fallback or an arbitrary product token.
+			switch name := strings.TrimPrefix(parsed.Name, "Mobile "); name {
+			case "Chrome", "Firefox", "Safari", "Edge", "Internet Explorer", "Opera", "Opera Mini", "Opera Touch", "Vivaldi", "Samsung Browser", "Android Browser", "Facebook App", "Instagram App", "TikTok", "Huawei Browser", "Miui Browser":
+				metadata.Browser = name
+			}
+		}
+	}
+	return metadata
 }
 
 func (h *handler) clientAddress(r *http.Request) string {
