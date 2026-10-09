@@ -50,13 +50,13 @@ const coreNavigation = [
   { label: en.navigation.dashboard, suffix: '', icon: ChartNoAxesCombinedIcon, scope: 'site' },
   { label: en.navigation.events, suffix: '/events', icon: CodeXmlIcon, scope: 'site' },
   { label: en.navigation.sessions, suffix: '/sessions', icon: Rows3Icon, scope: 'site' },
+  { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
   { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { label: en.navigation.profiles, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
   { label: en.navigation.heatmaps, suffix: '/heatmaps', icon: MousePointer2Icon, scope: 'site' },
   { label: en.navigation.vitals, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
   { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
-  { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
   { label: en.navigation.goals, suffix: '/goals', icon: GoalIcon, scope: 'site' },
 ] as const
 
@@ -310,7 +310,7 @@ export function PanelSidebar({
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {item.suffix === '/sessions' && site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read') ? (
+                  {item.suffix === '/realtime' && site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read') ? (
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
