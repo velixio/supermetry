@@ -269,9 +269,33 @@ func TestNormalizeValidatesRevenueMetricsAndCurrencyFilter(t *testing.T) {
 			}(),
 		},
 		{
-			name: "missing event or goal scope",
+			name: "all revenue summary",
 			req: func() api.QueryRequest {
 				r := requestPeriod(api.N7d)
+				r.Metrics = revenueMetrics
+				return r
+			}(),
+		},
+		{
+			name: "all revenue time trend",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "time")
+				r.Metrics = revenueMetrics
+				return r
+			}(),
+		},
+		{
+			name: "all revenue event attribution breakdown",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "source")
+				r.Metrics = revenueMetrics
+				return r
+			}(),
+		},
+		{
+			name: "unrelated unscoped breakdown remains rejected",
+			req: func() api.QueryRequest {
+				r := withDimensions(requestPeriod(api.N7d), "country")
 				r.Metrics = revenueMetrics
 				return r
 			}(),

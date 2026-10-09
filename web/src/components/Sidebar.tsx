@@ -5,6 +5,7 @@ import { Fragment } from 'react'
 import {
   ActivityIcon,
   ChartNoAxesCombinedIcon,
+  CircleDollarSignIcon,
   CircleGaugeIcon,
   CodeXmlIcon,
   FilterIcon,
@@ -58,6 +59,7 @@ const coreNavigation = [
   { label: en.navigation.vitals, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
   { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
   { label: en.navigation.goals, suffix: '/goals', icon: GoalIcon, scope: 'site' },
+  { label: en.navigation.revenue, suffix: '/revenue', icon: CircleDollarSignIcon, scope: 'site' },
 ] as const
 
 const managementNavigation = [
@@ -178,6 +180,8 @@ function navigationLink(
       return <Link to="/app/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':
       return <Link to="/app/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
+    case '/revenue':
+      return <Link to="/app/$org/$site/revenue" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
     case '/sites':
       return <Link to="/app/$org/sites" params={{ org }} {...props}>{content}</Link>
     case '/health':

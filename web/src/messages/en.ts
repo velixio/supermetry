@@ -46,6 +46,7 @@ export const en = {
     funnels: 'Funnels',
     realtime: 'Realtime',
     goals: 'Goals',
+    revenue: 'Revenue',
     settings: 'Site settings',
     organizationSettings: 'Organization settings',
     sites: 'Sites',

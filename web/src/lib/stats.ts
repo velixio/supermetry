@@ -117,9 +117,10 @@ export function useStats(
   return useQuery<QueryResponse, Problem>({
     queryKey,
     retry,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const { data, error, response } = await api.POST('/api/private/query', {
         body,
+        signal,
       })
       if (error) throw error
       if (!data || typeof data === 'string') {

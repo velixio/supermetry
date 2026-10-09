@@ -65,6 +65,7 @@ describe('useStats', () => {
         timezone: 'UTC',
         include_imported: true,
       },
+      signal: expect.any(AbortSignal),
     })
     const query = client.getQueryCache().getAll()[0]
     expect(query.queryKey).toEqual([
@@ -200,7 +201,10 @@ describe('tracking mode cache isolation', () => {
     expect(result.current.realtime.data).toBeUndefined()
     await vi.waitFor(() => expect(result.current.stats.error).toBe(restricted))
     await vi.waitFor(() => expect(result.current.realtime.error).toBe(restricted))
-    expect(post.mock.calls[0]).toEqual(post.mock.calls[1])
+    expect(post.mock.calls[0][0]).toBe(post.mock.calls[1][0])
+    expect(post.mock.calls[0][1].body).toEqual(post.mock.calls[1][1].body)
+    expect(post.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
+    expect(post.mock.calls[1][1].signal).toBeInstanceOf(AbortSignal)
     expect(get.mock.calls[0]).toEqual(get.mock.calls[1])
     expect(client.getQueryCache().getAll()).toHaveLength(4)
     unmount()

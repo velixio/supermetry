@@ -67,6 +67,45 @@ values
 	engine := identifiedEngine(pool, dictionary, registry{site: sites.Site{ID: 1, PublicID: "attribution", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true, RevenueCurrency: "USD", RevenueCurrencyState: sites.RevenueCurrencyConfigured}}, goals)
 
 	for _, tc := range []struct {
+		name, from, to   string
+		full, attributed float64
+		coverage         api.QueryEventAttributionCoverage
+	}{
+		{"report hot", "2026-10-08", "2026-10-08", 11, 11, api.QueryEventAttributionCoverageExact},
+		{"report closed", "2026-10-07", "2026-10-07", 12, 7, api.QueryEventAttributionCoverageAvailableOnly},
+		{"report mixed", "2026-10-07", "2026-10-08", 23, 18, api.QueryEventAttributionCoverageAvailableOnly},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			trend := queryRequestRange(tc.from, tc.to, []string{"time"}, nil)
+			trend.Metrics = []api.Metric{api.TotalRevenue, api.AverageRevenue}
+			trend.Timezone = ptr("America/New_York")
+			trendResponse := mustQuery(t, engine, trend)
+			if trendResponse.Totals["total_revenue"] != tc.full || trendResponse.Meta.EventAttribution != nil {
+				t.Fatalf("full revenue trend=%+v", trendResponse)
+			}
+
+			breakdown := queryRequestRange(tc.from, tc.to, []string{"source"}, nil)
+			breakdown.Metrics = []api.Metric{api.TotalRevenue, api.AverageRevenue}
+			breakdown.Timezone = ptr("America/New_York")
+			breakdownResponse := mustQuery(t, engine, breakdown)
+			if breakdownResponse.Totals["total_revenue"] != tc.attributed || breakdownResponse.Meta.EventAttribution == nil || breakdownResponse.Meta.EventAttribution.Coverage != tc.coverage {
+				t.Fatalf("attributed revenue breakdown=%+v", breakdownResponse)
+			}
+			if tc.coverage == api.QueryEventAttributionCoverageExact && trendResponse.Totals["total_revenue"] != breakdownResponse.Totals["total_revenue"] {
+				t.Fatalf("exact trend total %v != breakdown total %v", trendResponse.Totals, breakdownResponse.Totals)
+			}
+		})
+	}
+
+	reportComparison := queryRequestRange("2026-10-08", "2026-10-08", []string{"source"}, nil)
+	reportComparison.Metrics = []api.Metric{api.TotalRevenue, api.AverageRevenue}
+	reportComparison.Compare = ptr(api.PreviousPeriod)
+	reportComparisonResponse := mustQuery(t, engine, reportComparison)
+	if reportComparisonResponse.Totals["total_revenue"] != 11 || reportComparisonResponse.Comparison == nil || reportComparisonResponse.Comparison.Totals["total_revenue"] != 7 || reportComparisonResponse.Meta.EventAttribution == nil || reportComparisonResponse.Meta.EventAttribution.Coverage != api.QueryEventAttributionCoverageExact || reportComparisonResponse.Comparison.EventAttribution == nil || reportComparisonResponse.Comparison.EventAttribution.Coverage != api.QueryEventAttributionCoverageAvailableOnly {
+		t.Fatalf("report comparison=%+v", reportComparisonResponse)
+	}
+
+	for _, tc := range []struct {
 		name, from, to string
 		wantRevenue    float64
 		coverage       api.QueryEventAttributionCoverage

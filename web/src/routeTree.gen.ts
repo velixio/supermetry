@@ -32,6 +32,7 @@ import { Route as AppOrgSiteHeatmapsRouteImport } from './routes/app.$org.$site.
 import { Route as AppOrgSiteJourneysRouteImport } from './routes/app.$org.$site.journeys'
 import { Route as AppOrgSiteRealtimeRouteImport } from './routes/app.$org.$site.realtime'
 import { Route as AppOrgSiteRetentionRouteImport } from './routes/app.$org.$site.retention'
+import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.revenue'
 import { Route as AppOrgSiteSessionsRouteImport } from './routes/app.$org.$site.sessions'
 import { Route as AppOrgSiteSettingsRouteImport } from './routes/app.$org.$site.settings'
 import { Route as AppOrgSiteVitalsRouteImport } from './routes/app.$org.$site.vitals'
@@ -175,6 +176,11 @@ const AppOrgSiteRealtimeRoute = AppOrgSiteRealtimeRouteImport.update({
 const AppOrgSiteRetentionRoute = AppOrgSiteRetentionRouteImport.update({
   id: '/$site/retention',
   path: '/$site/retention',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteRevenueRoute = AppOrgSiteRevenueRouteImport.update({
+  id: '/$site/revenue',
+  path: '/$site/revenue',
   getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgSiteSessionsRoute = AppOrgSiteSessionsRouteImport.update({
@@ -357,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
+  '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
@@ -409,6 +416,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
+  '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
@@ -464,6 +472,7 @@ export interface FileRoutesById {
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
+  '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
@@ -520,6 +529,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/journeys'
     | '/app/$org/$site/realtime'
     | '/app/$org/$site/retention'
+    | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
     | '/app/$org/$site/vitals'
@@ -572,6 +582,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/journeys'
     | '/app/$org/$site/realtime'
     | '/app/$org/$site/retention'
+    | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
     | '/app/$org/$site/vitals'
@@ -626,6 +637,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/journeys'
     | '/app/$org/$site/realtime'
     | '/app/$org/$site/retention'
+    | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
     | '/app/$org/$site/vitals'
@@ -830,6 +842,13 @@ declare module '@tanstack/react-router' {
       path: '/$site/retention'
       fullPath: '/app/$org/$site/retention'
       preLoaderRoute: typeof AppOrgSiteRetentionRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/revenue': {
+      id: '/app/$org/$site/revenue'
+      path: '/$site/revenue'
+      fullPath: '/app/$org/$site/revenue'
+      preLoaderRoute: typeof AppOrgSiteRevenueRouteImport
       parentRoute: typeof AppOrgRoute
     }
     '/app/$org/$site/sessions': {
@@ -1102,6 +1121,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteJourneysRoute: typeof AppOrgSiteJourneysRoute
   AppOrgSiteRealtimeRoute: typeof AppOrgSiteRealtimeRoute
   AppOrgSiteRetentionRoute: typeof AppOrgSiteRetentionRoute
+  AppOrgSiteRevenueRoute: typeof AppOrgSiteRevenueRoute
   AppOrgSiteSessionsRoute: typeof AppOrgSiteSessionsRoute
   AppOrgSiteSettingsRoute: typeof AppOrgSiteSettingsRouteWithChildren
   AppOrgSiteVitalsRoute: typeof AppOrgSiteVitalsRoute
@@ -1125,6 +1145,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteJourneysRoute: AppOrgSiteJourneysRoute,
   AppOrgSiteRealtimeRoute: AppOrgSiteRealtimeRoute,
   AppOrgSiteRetentionRoute: AppOrgSiteRetentionRoute,
+  AppOrgSiteRevenueRoute: AppOrgSiteRevenueRoute,
   AppOrgSiteSessionsRoute: AppOrgSiteSessionsRoute,
   AppOrgSiteSettingsRoute: AppOrgSiteSettingsRouteWithChildren,
   AppOrgSiteVitalsRoute: AppOrgSiteVitalsRoute,
