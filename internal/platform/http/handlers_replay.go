@@ -73,6 +73,17 @@ func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "cursor is invalid")
 		return
 	}
+	var count int
+	err = h.deps.Store.Pool.QueryRow(r.Context(), `select count(*) from (
+		select 1 from replay_sessions r
+		`+replayListWhereSQL(false)+`
+		limit $4
+	) t`, site.ID, from, to, listResultTotalCap+1).Scan(&count)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	total, totalCapped := capListTotal(count)
 	rows, err := h.deps.Store.Pool.Query(r.Context(), `
 		select r.session_id,r.started_at,greatest(0,extract(epoch from (r.last_seen_at-r.started_at)))::bigint,
 		       r.pages,r.bytes,coalesce(r.trigger,''),r.profile_id,
@@ -104,9 +115,7 @@ func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
 		left join dict browser on browser.kind=$9 and browser.id=details.browser_id
 		left join dict os on os.kind=$10 and os.id=details.os_id
 		left join dict city on city.kind=$11 and city.id=details.city_id
-		where r.site_id=$1 and r.day between $2::date and $3::date
-		  and r.started_at>=$2::date-interval '1 day' and r.started_at<$3::date+interval '2 days'
-		  and ($4::boolean=false or (r.started_at,r.session_id)<($5,$6))
+		`+replayListWhereSQL(true)+`
 		order by r.started_at desc,r.session_id desc limit $7`, site.ID, from, to, hasCursor, cursor.StartedAt, cursor.SessionID, limit+1,
 		site.Retention, dict.Browser, dict.OS, dict.City)
 	if err != nil {
@@ -135,7 +144,19 @@ func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
 		next = &value
 		items = items[:limit]
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items, "next_cursor": next})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": items, "next_cursor": next, "total": total, "total_capped": totalCapped,
+	})
+}
+
+func replayListWhereSQL(includeCursor bool) string {
+	where := `where r.site_id=$1 and r.day between $2::date and $3::date
+		  and r.started_at>=$2::date-interval '1 day' and r.started_at<$3::date+interval '2 days'`
+	if includeCursor {
+		where += `
+		  and ($4::boolean=false or (r.started_at,r.session_id)<($5,$6))`
+	}
+	return where
 }
 
 func (h *handler) replayAsset(w http.ResponseWriter, r *http.Request) {
