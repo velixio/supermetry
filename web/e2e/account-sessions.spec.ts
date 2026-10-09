@@ -77,6 +77,23 @@ test('account sessions show real sign-in metadata, legacy fallbacks, local times
   expect((await after.json()).data.find((session: { ID: string }) => session.ID === current.ID)?.Current).toBe(true)
   expect((await page.request.get('/api/private/me')).ok()).toBe(true)
 
+  const bulkButton = page.getByRole('button', { name: 'Sign out all other devices' })
+  await expect(bulkButton).toBeEnabled()
+  await bulkButton.click()
+  await expect(page.getByRole('heading', { name: 'Sign out all other devices?' })).toBeVisible()
+  await expect(page.getByText(/^This signs out \d+ other login sessions? on your account\. This session stays signed in\.$/)).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(legacy).toHaveCount(1)
+
+  await bulkButton.click()
+  const bulkRevoked = page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === '/api/private/me/sessions')
+  await page.getByRole('button', { name: 'Sign out other sessions' }).click()
+  expect((await bulkRevoked).ok()).toBe(true)
+  await expect(legacy).toHaveCount(0)
+  await expect(currentRow).toHaveCount(1)
+  await expect(bulkButton).toBeDisabled()
+  expect((await page.request.get('/api/private/me')).ok()).toBe(true)
+
   const currentRevoked = page.waitForResponse(response => response.request().method() === 'DELETE' && response.url().includes('/api/private/me/sessions/'))
   await currentRow.getByRole('button', { name: 'Revoke current session', exact: true }).click()
   expect((await currentRevoked).ok()).toBe(true)
