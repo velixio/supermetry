@@ -74,9 +74,9 @@ func TestBuildJourneyAnchorsAtStartOrEndPath(t *testing.T) {
 	}
 }
 
-func TestBuildJourneySQLUsesOrderedWindowAndRawEvents(t *testing.T) {
+func TestBuildJourneySQLRoutesClosedHotAndMixedRanges(t *testing.T) {
 	t.Parallel()
-	querySQL, _, err := buildJourneySQL(api.JourneyRequest{
+	request := api.JourneyRequest{
 		SiteId: 1,
 		DateRange: api.DateRange{
 			From: types.Date{Time: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)},
@@ -84,14 +84,112 @@ func TestBuildJourneySQLUsesOrderedWindowAndRawEvents(t *testing.T) {
 		},
 		Steps: 3,
 		Limit: 10,
-	}, 30, time.UTC, time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC))
+	}
+	for _, tc := range []struct {
+		name          string
+		closedThrough time.Time
+		wantClosed    bool
+		wantHot       bool
+	}{
+		{name: "closed", closedThrough: dateForTest("2026-10-08"), wantClosed: true},
+		{name: "hot", closedThrough: dateForTest("2026-09-30"), wantHot: true},
+		{name: "mixed", closedThrough: dateForTest("2026-10-04"), wantClosed: true, wantHot: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			querySQL, _, err := buildJourneySQL(request, db.Ret30, time.UTC, time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), tc.closedThrough)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lower := strings.ToLower(querySQL)
+			if got := strings.Contains(lower, "from sessions_closed s"); got != tc.wantClosed {
+				t.Errorf("closed source present = %t, want %t:\n%s", got, tc.wantClosed, querySQL)
+			}
+			if got := strings.Contains(lower, "join events e"); got != tc.wantHot {
+				t.Errorf("hot source present = %t, want %t:\n%s", got, tc.wantHot, querySQL)
+			}
+			for _, fragment := range []string{"raw_nodes", "page_ranks", "links"} {
+				if !strings.Contains(lower, fragment) {
+					t.Errorf("SQL missing %q:\n%s", fragment, querySQL)
+				}
+			}
+			if tc.wantClosed && !strings.Contains(lower, "unnest(s.seq) with ordinality") {
+				t.Errorf("closed SQL does not preserve sequence order:\n%s", querySQL)
+			}
+			if tc.wantHot {
+				for _, fragment := range []string{"e.kind=0", "lag(path_id)", "partition by e.site_id,e.session_id", "order by e.ts,e.path_id desc", "e.retention_class", "s.last <"} {
+					if !strings.Contains(lower, fragment) {
+						t.Errorf("hot SQL missing %q:\n%s", fragment, querySQL)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestJourneyCombinesClosedAndHotSequences(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, dateForTest("2026-09-01"), dateForTest("2026-10-09")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into dict(kind,id,value) values (0,1,'/closed'),(0,2,'/done'),(0,3,'/hot');
+insert into sessions_closed
+ (site_id,day,visitor_id,session_id,entry_path,exit_path,pageviews,custom,duration_ms,engagement_ms,vd_n,flags,seq,seq_engage,seq_scroll)
+values (1,'2026-09-01',11,101,1,2,3,0,1000,0,1,1,array[5,6,10],array[0,0,0],array[0,0,0]);
+insert into day_close(site_id,day,status,version) values (1,'2026-09-01','done',1);
+insert into sessions
+ (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,pageviews,bounce)
+values (1,30,102,12,'2026-10-08 12:00Z','2026-10-08 12:01Z','2026-10-08',3,2,2,false);
+insert into events(site_id,retention_class,local_day,ts,visitor_id,session_id,kind,path_id)
+values (1,30,'2026-10-08','2026-10-08 12:00Z',12,102,0,3),
+       (1,30,'2026-10-08','2026-10-08 12:00Z',12,102,0,2)`); err != nil {
+		t.Fatal(err)
+	}
+	engine := identifiedEngine(pool, nil, vitalsRegistry{site: sites.Site{ID: 1, TZ: time.UTC, Retention: db.Ret30}})
+	engine.now = func() time.Time { return time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC) }
+	response, err := engine.Journey(ctx, api.JourneyRequest{
+		SiteId:    1,
+		DateRange: api.DateRange{From: types.Date{Time: dateForTest("2026-09-01")}, To: types.Date{Time: dateForTest("2026-10-08")}},
+		Steps:     2,
+		Limit:     10,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fragment := range []string{"join events e", "e.kind=0", "lag(path_id)", "partition by e.site_id, e.session_id", "order by e.ts", "e.retention_class", "s.last <", "when ended", "raw_nodes", "page_ranks", "links"} {
-		if !strings.Contains(strings.ToLower(querySQL), fragment) {
-			t.Errorf("SQL missing %q:\n%s", fragment, querySQL)
+	wantNodes := []api.JourneyNode{
+		{Step: 1, Path: "/closed", Visitors: 1},
+		{Step: 1, Path: "/hot", Visitors: 1},
+		{Step: 2, Path: "/done", Visitors: 2},
+	}
+	if !reflect.DeepEqual(response.Nodes, wantNodes) {
+		t.Fatalf("nodes = %#v, want %#v", response.Nodes, wantNodes)
+	}
+	if len(response.Links) != 2 {
+		t.Fatalf("links = %#v, want two closed/hot links", response.Links)
+	}
+	for _, link := range response.Links {
+		if link.ToPath != "/done" || link.Visitors != 1 {
+			t.Fatalf("link = %#v, want one visitor ending at /done", link)
 		}
+	}
+	filters := []api.Filter{{Dimension: "page", Operator: api.Is, Values: []string{"/closed"}}}
+	filtered, err := engine.Journey(ctx, api.JourneyRequest{
+		SiteId:    1,
+		DateRange: api.DateRange{From: types.Date{Time: dateForTest("2026-09-01")}, To: types.Date{Time: dateForTest("2026-10-08")}},
+		Filters:   &filters,
+		Steps:     2,
+		Limit:     10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantFiltered := []api.JourneyNode{{Step: 1, Path: "/closed", Visitors: 1}, {Step: 2, Path: "/done", Visitors: 1}}
+	if !reflect.DeepEqual(filtered.Nodes, wantFiltered) {
+		t.Fatalf("filtered nodes = %#v, want %#v", filtered.Nodes, wantFiltered)
 	}
 }
 
@@ -107,7 +205,7 @@ func TestBuildJourneySQLPlans(t *testing.T) {
 	}
 	filters := []api.Filter{{Dimension: "page", Operator: api.Contains, Values: []string{"docs"}}, {Dimension: "event", Operator: api.Is, Values: []string{"signup"}}}
 	request.Filters = &filters
-	querySQL, args, err := buildJourneySQL(request, db.Ret30, time.UTC, time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC))
+	querySQL, args, err := buildJourneySQL(request, db.Ret30, time.UTC, time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +214,7 @@ func TestBuildJourneySQLPlans(t *testing.T) {
 	}
 }
 
-func TestValidateJourneyRequestEnforcesRawRetention(t *testing.T) {
+func TestValidateJourneyRequestAllowsClosedHistory(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	request := api.JourneyRequest{
@@ -127,11 +225,7 @@ func TestValidateJourneyRequestEnforcesRawRetention(t *testing.T) {
 		},
 		Steps: 3, Limit: 10,
 	}
-	err := validateJourneyRequest(request, sites.Site{ID: 1, TZ: time.UTC, Retention: db.Ret30}, now)
-	if err == nil || !strings.Contains(err.Error(), "raw retention window") {
-		t.Fatalf("error = %v, want raw retention window error", err)
-	}
-	if err := validateJourneyRequest(request, sites.Site{ID: 1, TZ: time.UTC, Retention: db.RetForever}, now); err != nil {
-		t.Fatalf("forever retention rejected: %v", err)
+	if err := validateJourneyRequest(request, sites.Site{ID: 1, TZ: time.UTC, Retention: db.Ret30}, now); err != nil {
+		t.Fatalf("closed history rejected: %v", err)
 	}
 }
