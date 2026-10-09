@@ -14,7 +14,7 @@ const identified: Site = { ...anonymous, profiles_enabled: false, tracking_polic
 afterEach(cleanup)
 
 describe('analytics route privacy boundary', () => {
-  it.each(['events', '%65vents', 'EVENTS', 'Replays/123', 'settings/IMPORTS', '%73ettings/%69mports', 'sessions', 'profiles', 'profiles/123', 'replays', 'replays/123', 'journeys', 'heatmaps', 'funnels', 'funnels/12', 'vitals', 'retention', 'goals', 'realtime', 'settings/imports', 'settings/goals', 'settings/funnels'])('prevents child hooks from mounting for anonymous %s', (suffix) => {
+  it.each(['events', '%65vents', 'EVENTS', 'Replays/123', 'settings/IMPORTS', '%73ettings/%69mports', 'sessions', 'profiles', 'profiles/123', 'replays', 'replays/123', 'journeys', 'heatmaps', 'funnels', 'funnels/12', 'vitals', 'retention', 'goals', 'realtime', 'revenue', 'settings/imports', 'settings/goals', 'settings/funnels'])('prevents child hooks from mounting for anonymous %s', (suffix) => {
     const query = vi.fn()
     function RestrictedPage() { useEffect(query, []); return <p>Detailed records</p> }
     render(<AnalyticsPrivacyBoundary site={anonymous} org="acme" requestedSite="docs" pathname={`/acme/docs/${suffix}`}><RestrictedPage /></AnalyticsPrivacyBoundary>)
