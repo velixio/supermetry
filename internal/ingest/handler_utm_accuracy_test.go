@@ -2,6 +2,7 @@ package ingest_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -48,8 +49,12 @@ func TestLiveIngestUTMBreakdownsExcludeUntaggedTrafficAcrossStorageTiers(t *test
 	if _, err := closer.CloseDay(context.Background(), fixture.pool, []int32{1}, fixtureDay); err != nil {
 		t.Fatal(err)
 	}
+	// The scheduler invalidates close metadata after closing days; do the same.
+	engine.InvalidateSite(1)
 	for _, route := range []query.Route{query.RouteClosed, query.RouteRollup} {
-		assertLiveUTMBreakdowns(t, engine.WithForcedRoute(route), fixtureDay)
+		t.Run(fmt.Sprint(route), func(t *testing.T) {
+			assertLiveUTMBreakdowns(t, engine.WithForcedRoute(route), fixtureDay)
+		})
 	}
 }
 

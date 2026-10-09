@@ -135,7 +135,10 @@ where r.site_id=`+siteArg+` and r.dim=`+dimArg)
 		}
 	}
 	if len(inputs) == 0 {
-		inputs = append(inputs, "select "+columns+", 0::int8 as exits from rollup_day_dim where false")
+		// No completed rollup day or block covers the range: the breakdown is
+		// empty. (A constant fallback query would leave the site and dimension
+		// arguments unused, which PostgreSQL rejects.)
+		return nil, nil
 	}
 	dimensionText := rollupValueText("value_id", req.Dimensions[0])
 	where := "true"
