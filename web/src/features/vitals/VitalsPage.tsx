@@ -1,5 +1,15 @@
 import { useState } from 'react'
 import { GaugeIcon } from 'lucide-react'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
 import { Flag } from '@/components/Flag'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +22,7 @@ import { countryName } from '@/lib/country'
 import { cn } from '@/lib/utils'
 import type { Filter } from '@/lib/search'
 
-import { useVitals, type VitalMetric, type VitalMetricName, type VitalsDimension } from './api'
+import { useVitals, type VitalMetric, type VitalMetricName, type VitalsDimension, type VitalsResponse } from './api'
 
 type VitalsPageProps = {
   siteId: number
@@ -83,8 +93,8 @@ function MetricCard({ metric, value, name, short }: { metric: VitalMetricName; v
   )
 }
 
-function LoadingCards() {
-  return <div className="grid gap-4 md:grid-cols-3" aria-label="Loading Web Vitals">{metrics.map(({ key }) => <Skeleton className="h-40 rounded-xl" key={key} />)}</div>
+function LoadingState() {
+  return <div className="flex flex-col gap-4" aria-label="Loading Web Vitals"><div className="grid gap-4 md:grid-cols-3">{metrics.map(({ key }) => <Skeleton className="h-40 rounded-xl" key={key} />)}</div><Skeleton className="h-80 rounded-xl" /></div>
 }
 
 function BreakdownValue({ dimension, value }: { dimension: VitalsDimension; value: string }) {
@@ -93,6 +103,62 @@ function BreakdownValue({ dimension, value }: { dimension: VitalsDimension; valu
   }
   if (dimension === 'browser') return <BrowserLabel value={value} />
   return value
+}
+
+function formatDay(value: string): string {
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
+}
+
+function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }) {
+  const [metric, setMetric] = useState<VitalMetricName>('lcp')
+  const definition = metrics.find((item) => item.key === metric) ?? metrics[0]
+  const [good, poor] = metric === 'lcp' ? [2500, 4000] : metric === 'cls' ? [100, 250] : [200, 500]
+  const points = timeseries.map((point) => ({ date: point.date, ...point[metric] }))
+
+  return (
+    <Card aria-label="Web Vitals trend" role="region">
+      <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+        <div><CardTitle>Daily trend</CardTitle><CardDescription>Site-timezone p50, p75, and p95 from retained raw samples.</CardDescription></div>
+        <Tabs className="w-full sm:w-auto" value={metric} onValueChange={(value) => setMetric(value as VitalMetricName)}>
+          <TabsList aria-label="Vitals trend metric" className="grid w-full grid-cols-3 sm:w-auto">
+            {metrics.map((item) => <TabsTrigger key={item.key} value={item.key}>{item.short}</TabsTrigger>)}
+          </TabsList>
+        </Tabs>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="h-64 min-h-64 w-full" aria-label={`${definition.name} daily percentiles`} role="img">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <LineChart accessibilityLayer data={points} margin={{ left: 4, right: 8 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} minTickGap={24} tickFormatter={formatDay} />
+              <YAxis yAxisId="value" axisLine={false} tickLine={false} width={56} tickFormatter={(value: number) => formatP75(metric, value)} />
+              <YAxis yAxisId="samples" hide />
+              <Tooltip
+                labelFormatter={(value) => formatDay(String(value))}
+                formatter={(value, name) => name === 'samples'
+                  ? [Number(value).toLocaleString(), 'Samples']
+                  : [formatP75(metric, Number(value)), String(name).toUpperCase()]}
+              />
+              <ReferenceLine yAxisId="value" y={good} stroke="var(--chart-2)" strokeDasharray="4 4" />
+              <ReferenceLine yAxisId="value" y={poor} stroke="var(--destructive)" strokeDasharray="4 4" />
+              <Line yAxisId="value" dataKey="p50" name="p50" type="monotone" stroke="var(--chart-3)" strokeWidth={1.5} dot={false} connectNulls={false} />
+              <Line yAxisId="value" dataKey="p75" name="p75" type="monotone" stroke="var(--chart-1)" strokeWidth={2.5} dot={false} connectNulls={false} />
+              <Line yAxisId="value" dataKey="p95" name="p95" type="monotone" stroke="var(--chart-4)" strokeWidth={1.5} dot={false} connectNulls={false} />
+              <Line yAxisId="samples" dataKey="samples" name="samples" stroke="transparent" dot={false} activeDot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span className="flex flex-wrap items-center gap-3"><span><i className="mr-1 inline-block h-0.5 w-3 bg-chart-3 align-middle" />p50</span><span><i className="mr-1 inline-block h-0.5 w-3 bg-chart-1 align-middle" />p75</span><span><i className="mr-1 inline-block h-0.5 w-3 bg-chart-4 align-middle" />p95</span><span><span className="font-medium text-chart-2">Good</span> ≤ {formatP75(metric, good)} · <span className="font-medium text-destructive">Poor</span> &gt; {formatP75(metric, poor)}</span></span>
+          <span>{points.reduce((sum, point) => sum + point.samples, 0).toLocaleString()} samples shown</span>
+        </div>
+        <table className="sr-only" aria-label={`${definition.name} daily trend data`}>
+          <thead><tr><th>Date</th><th>p50</th><th>p75</th><th>p95</th><th>Samples</th></tr></thead>
+          <tbody>{points.map((point) => <tr key={point.date}><th>{point.date}</th><td>{formatP75(metric, point.p50)}</td><td>{formatP75(metric, point.p75)}</td><td>{formatP75(metric, point.p95)}</td><td>{point.samples}</td></tr>)}</tbody>
+        </table>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
@@ -107,7 +173,7 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
         <h1 className="text-xl font-semibold">Web Vitals</h1>
         <p className="text-sm text-muted-foreground">Real-user loading, stability, and responsiveness at the 75th percentile.</p>
       </div>
-      {result.isPending ? <LoadingCards /> : result.isError ? (
+      {result.isPending ? <LoadingState /> : result.isError ? (
         <Empty role="alert"><EmptyHeader><EmptyTitle>Web Vitals could not be loaded</EmptyTitle><EmptyDescription>{result.error.detail ?? 'Try again in a moment.'}</EmptyDescription></EmptyHeader></Empty>
       ) : totalSamples === 0 ? (
         <Empty>
@@ -122,6 +188,7 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
           <div className="grid gap-4 md:grid-cols-3">
             {metrics.map((metric) => <MetricCard key={metric.key} metric={metric.key} name={metric.name} short={metric.short} value={result.data.overall[metric.key]} />)}
           </div>
+          <TrendChart timeseries={result.data.timeseries} />
           <Card aria-label={`Web Vitals by ${dimension}`} role="region">
             <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <div><CardTitle>Breakdown</CardTitle><CardDescription>p75 and samples by {dimension}</CardDescription></div>

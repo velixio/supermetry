@@ -23,6 +23,10 @@ const response = {
       inp: { p75: 220, samples: 7, good: 0.4, needs_improvement: 0.4, poor: 0.2 },
     },
   ],
+  timeseries: [
+    { date: '2026-09-29', lcp: { p50: 2100, p75: 2800, p95: 4200, samples: 8 }, cls: { p50: 50, p75: 80, p95: 160, samples: 7 }, inp: { p50: 180, p75: 240, p95: 550, samples: 5 } },
+    { date: '2026-09-30', lcp: { p50: 1900, p75: 2400, p95: 3900, samples: 12 }, cls: { p50: 40, p75: 70, p95: 140, samples: 11 }, inp: { p50: 160, p75: 200, p95: 480, samples: 7 } },
+  ],
 }
 
 function renderPage() {
@@ -66,17 +70,30 @@ describe('Web Vitals page', () => {
     expect(distribution).toBeVisible()
 
     await waitFor(() => expect(post).toHaveBeenCalled())
-    expect(post.mock.calls[0]).toEqual([
-      '/api/private/vitals/query',
-      {
+    expect(post.mock.calls[0][0]).toBe('/api/private/vitals/query')
+    expect(post.mock.calls[0][1]).toEqual(expect.objectContaining({
         body: {
           site_id: 7,
           date_range: { from: '2026-09-01', to: '2026-09-30' },
           filters: [{ dimension: 'country', operator: 'is', values: ['IN'] }],
           dimension: 'page',
         },
-      },
-    ])
+        signal: expect.any(AbortSignal),
+      }))
+  })
+
+  it('switches trend metrics while retaining percentile and sample context', async () => {
+    renderPage()
+
+    const trend = await screen.findByRole('region', { name: 'Web Vitals trend' })
+    expect(within(trend).getByRole('img', { name: 'Largest Contentful Paint daily percentiles' })).toBeVisible()
+    expect(within(trend).getByText('20 samples shown')).toBeVisible()
+    fireEvent.mouseDown(within(trend).getByRole('tab', { name: 'CLS' }), { button: 0 })
+    fireEvent.click(within(trend).getByRole('tab', { name: 'CLS' }))
+    expect(within(trend).getByRole('img', { name: 'Cumulative Layout Shift daily percentiles' })).toBeVisible()
+    expect(within(trend).getByText('18 samples shown')).toBeVisible()
+    const table = within(trend).getByRole('table', { name: 'Cumulative Layout Shift daily trend data' })
+    expect(table).toHaveTextContent('0.080')
   })
 
   it.each([
@@ -92,9 +109,9 @@ describe('Web Vitals page', () => {
     fireEvent.click(tab)
 
     await waitFor(() =>
-      expect(post).toHaveBeenLastCalledWith('/api/private/vitals/query', {
+      expect(post).toHaveBeenLastCalledWith('/api/private/vitals/query', expect.objectContaining({
         body: expect.objectContaining({ dimension }),
-      }),
+      })),
     )
     expect(await screen.findByRole('columnheader', { name: label })).toBeVisible()
   })
@@ -123,6 +140,7 @@ describe('Web Vitals page', () => {
           inp: { samples: 0, good: 0, needs_improvement: 0, poor: 0 },
         },
         breakdown: [],
+        timeseries: [],
       },
       response: new Response(null, { status: 200 }),
     })
@@ -130,5 +148,16 @@ describe('Web Vitals page', () => {
     renderPage()
 
     expect(await screen.findByText(/full tracker script/i)).toBeVisible()
+  })
+
+  it('shows trend loading and request errors', async () => {
+    post.mockImplementation(() => new Promise(() => {}))
+    renderPage()
+    expect(screen.getByLabelText('Loading Web Vitals')).toBeVisible()
+    cleanup()
+
+    post.mockResolvedValue({ error: { detail: "Web Vitals are available only within the site's 30-day raw retention window" }, response: new Response(null, { status: 400 }) })
+    renderPage()
+    expect(await screen.findByRole('alert')).toHaveTextContent('30-day raw retention window')
   })
 })
