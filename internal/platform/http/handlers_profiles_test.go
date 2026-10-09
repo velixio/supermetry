@@ -3,10 +3,13 @@ package platformhttp_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -33,6 +36,30 @@ type profileFixture struct {
 	profileID   int64
 	tombstones  *profiletombstone.Store
 	replays     replay.BlobStore
+	replayFault *profileReplayFaultStore
+}
+
+type profileReplayFaultStore struct {
+	replay.BlobStore
+	mu         sync.Mutex
+	failDelete error
+}
+
+func (s *profileReplayFaultStore) Delete(ctx context.Context, key string) (int64, error) {
+	s.mu.Lock()
+	err := s.failDelete
+	s.failDelete = nil
+	s.mu.Unlock()
+	if err != nil {
+		return 0, err
+	}
+	return s.BlobStore.Delete(ctx, key)
+}
+
+func (s *profileReplayFaultStore) failNextDelete(err error) {
+	s.mu.Lock()
+	s.failDelete = err
+	s.mu.Unlock()
 }
 
 func newProfileFixture(t *testing.T, modes ...privacy.Mode) profileFixture {
@@ -104,14 +131,15 @@ func newProfileFixture(t *testing.T, modes ...privacy.Mode) profileFixture {
 		"key-no-scope":  {KeyID: 12, OrgID: orgID, Role: authz.RoleKey},
 	}
 	tombstones := profiletombstone.New(pool, nil)
-	replays, err := replay.NewDiskStore(t.TempDir())
+	diskReplays, err := replay.NewDiskStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
+	replays := &profileReplayFaultStore{BlobStore: diskReplays}
 	return profileFixture{
 		handler: platformhttp.New(platformhttp.Deps{TrackingMode: mode, Authenticator: authenticator, Sites: registry, Store: data, ProfileTombstones: tombstones, ReplayStore: replays}),
 		pool:    pool, siteID: siteID, disabledID: disabledID, foreignSite: foreignSite, profileID: profileID,
-		tombstones: tombstones, replays: replays,
+		tombstones: tombstones, replays: replays, replayFault: replays,
 	}
 }
 
@@ -339,6 +367,67 @@ func TestProfileDeleteRemovesReplays(t *testing.T) {
 	}
 	if rows != 0 {
 		t.Fatalf("profile replay rows = %d, want 0", rows)
+	}
+}
+
+func TestProfileDeleteReplayFailureRollsBackAndCanBeRetried(t *testing.T) {
+	f := newProfileFixture(t)
+	ctx := context.Background()
+	day := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
+	key := replay.SessionKey(f.siteID, day, 100)
+	if _, err := f.replays.Append(ctx, key, strings.NewReader("replay")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `
+		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+		values ($1,100,$2,$2,$3,6,1,$4)`, f.siteID, day.Add(time.Hour), day, key); err != nil {
+		t.Fatal(err)
+	}
+
+	f.replayFault.failNextDelete(errors.New("replay storage unavailable"))
+	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("first delete status=%d body=%s", response.Code, response.Body.String())
+	}
+	var profiles, events, replayRows int
+	if err := f.pool.QueryRow(ctx, `select count(*) from profiles where id=$1`, f.profileID).Scan(&profiles); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from events where profile_id=$1`, f.profileID).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&replayRows); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 1 || events == 0 || replayRows != 1 {
+		t.Fatalf("failed erase committed partial state: profiles=%d events=%d replay_rows=%d", profiles, events, replayRows)
+	}
+	reader, err := f.replays.Open(ctx, key)
+	if err != nil {
+		t.Fatalf("failed erase removed replay blob: %v", err)
+	}
+	if _, err := io.ReadAll(reader); err != nil {
+		t.Fatal(err)
+	}
+	if err := reader.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if f.tombstones.Contains(f.siteID, "user-123") {
+		t.Fatal("failed erase left an in-memory tombstone")
+	}
+
+	response = f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("retry status=%d body=%s", response.Code, response.Body.String())
+	}
+	if _, err := f.replays.Open(ctx, key); err == nil {
+		t.Fatal("retry left replay blob")
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&replayRows); err != nil {
+		t.Fatal(err)
+	}
+	if replayRows != 0 {
+		t.Fatalf("retry left %d replay rows", replayRows)
 	}
 }
 

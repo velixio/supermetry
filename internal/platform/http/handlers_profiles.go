@@ -243,9 +243,9 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "profile erasure")
 		return
 	}
-	var replaySessionIDs []int64
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		ctx := r.Context()
+		var replaySessionIDs []int64
 		// Serialize with the closer before selecting linkage or deleting raw
 		// rows, so a concurrent close cannot reinsert erased session rows.
 		if err := closer.LockRollupRefresh(ctx, tx); err != nil {
@@ -311,6 +311,11 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
+		if h.deps.ReplayStore != nil {
+			if err := replay.EraseSessionsTx(ctx, tx, h.deps.ReplayStore, site.ID, replaySessionIDs); err != nil {
+				return err
+			}
+		}
 		tag, err := tx.Exec(r.Context(), `delete from profiles where id=$1 and site_id=$2`, profile.Id, site.ID)
 		if err != nil {
 			return err
@@ -326,12 +331,6 @@ func (h *handler) deleteProfile(w http.ResponseWriter, r *http.Request) {
 		h.deps.ProfileTombstones.ForgetMemory(site.ID, profile.ExternalId)
 		serviceError(w, err)
 		return
-	}
-	if h.deps.ReplayStore != nil {
-		if eraseErr := replay.EraseSessions(r.Context(), h.deps.Store.Pool, h.deps.ReplayStore, site.ID, replaySessionIDs); eraseErr != nil {
-			serviceError(w, eraseErr)
-			return
-		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
