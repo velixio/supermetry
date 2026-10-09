@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"supermetry/internal/db"
 )
 
@@ -32,11 +34,12 @@ type backupManifest struct {
 }
 
 type backupRuntime struct {
-	lookupPath    func(string) (string, error)
-	command       func(context.Context, string, ...string) *exec.Cmd
-	schemaVersion func(context.Context, string) (int, error)
-	reachable     func(context.Context, string) error
-	now           func() time.Time
+	lookupPath     func(string) (string, error)
+	command        func(context.Context, string, ...string) *exec.Cmd
+	schemaVersion  func(context.Context, string) (int, error)
+	reachable      func(context.Context, string) error
+	prepareRestore func(context.Context, string) error
+	now            func() time.Time
 }
 
 func defaultBackupRuntime() backupRuntime {
@@ -63,8 +66,63 @@ func defaultBackupRuntime() backupRuntime {
 			pool.Close()
 			return nil
 		},
-		now: time.Now,
+		prepareRestore: dropInheritedRelations,
+		now:            time.Now,
 	}
+}
+
+// dropInheritedRelations works around a PostgreSQL restore ordering problem:
+// pg_restore --clean cannot drop constraints inherited by partition children.
+// Removing only the current database's inherited tables first leaves pg_restore
+// responsible for cleaning and replacing every remaining object in the dump.
+func dropInheritedRelations(ctx context.Context, dsn string) error {
+	pool, err := db.Open(ctx, dsn)
+	if err != nil {
+		return errors.New("target database is not reachable")
+	}
+	defer pool.Close()
+
+	rows, err := pool.Query(ctx, `
+WITH RECURSIVE inherited(oid, depth) AS (
+    SELECT inhrelid, 1 FROM pg_inherits
+    UNION ALL
+    SELECT child.inhrelid, parent.depth + 1
+    FROM pg_inherits child
+    JOIN inherited parent ON child.inhparent = parent.oid
+)
+SELECT namespace.nspname, class.relname, max(inherited.depth) AS depth
+FROM inherited
+JOIN pg_class class ON class.oid = inherited.oid
+JOIN pg_namespace namespace ON namespace.oid = class.relnamespace
+WHERE namespace.nspname <> 'information_schema'
+  AND namespace.nspname NOT LIKE 'pg\_%' ESCAPE '\'
+GROUP BY namespace.nspname, class.relname
+ORDER BY depth DESC, namespace.nspname, class.relname`)
+	if err != nil {
+		return fmt.Errorf("list inherited tables before restore: %w", err)
+	}
+	defer rows.Close()
+	type relation struct{ schema, name string }
+	var relations []relation
+	for rows.Next() {
+		var item relation
+		var depth int
+		if err := rows.Scan(&item.schema, &item.name, &depth); err != nil {
+			return fmt.Errorf("read inherited table before restore: %w", err)
+		}
+		relations = append(relations, item)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("list inherited tables before restore: %w", err)
+	}
+	rows.Close()
+	for _, item := range relations {
+		identifier := pgx.Identifier{item.schema, item.name}.Sanitize()
+		if _, err := pool.Exec(ctx, "DROP TABLE IF EXISTS "+identifier+" CASCADE"); err != nil {
+			return fmt.Errorf("drop inherited table %s before restore: %w", identifier, err)
+		}
+	}
+	return nil
 }
 
 func backupCommand(ctx context.Context, args []string, output io.Writer, getenv func(string) string) error {
@@ -213,6 +271,9 @@ func restoreCommandWithRuntime(ctx context.Context, args []string, output io.Wri
 	}
 
 	fmt.Fprintln(output, "WARNING: restore replaces existing data in the target database.")
+	if err := rt.prepareRestore(ctx, dsn); err != nil {
+		return fmt.Errorf("prepare target database for restore: %w", err)
+	}
 	argv := []string{"--clean", "--if-exists", "--no-owner", "--dbname", pgEnv["PGDATABASE"], dumpName}
 	cmd := postgresCommandWithRuntime(ctx, rt, pgRestore, argv, pgEnv)
 	cmd.Stdout = output
