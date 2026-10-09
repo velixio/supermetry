@@ -44,20 +44,26 @@ describe.each(routes)('replay %s route', (_name, Component, history) => {
     expect(screen.getByText(history)).toBeVisible()
     expect(screen.getByText(/The instance does not permit new recording/)).toBeVisible()
   })
-  it('shows effective enabled state', () => {
+  it('does not show a recording notice for the effective enabled state', () => {
     availability.mockReturnValue({ enabled: true, isPending: false, data: { enabled: true, instance_enabled: true, configured_enabled: true, restrictions: [] } })
     render(<Component />)
     expect(screen.getByText(history)).toBeVisible()
-    expect(screen.getByRole('heading', { name: 'Recording is on' })).toBeVisible()
+    expect(screen.queryByRole('complementary', { name: 'Recording status' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Replay settings' })).not.toBeInTheDocument()
   })
-  it('shows loading and error states instead of a blank route', () => {
+  it('shows the loading state instead of a blank route', () => {
     availability.mockReturnValue({ enabled: false, isPending: true, data: undefined })
-    const view = render(<Component />)
+    render(<Component />)
     expect(screen.getByText('Loading recording settings…')).toBeVisible()
+    expect(screen.getByText(history)).toBeVisible()
+  })
+  it('shows a meaningful settings error with recovery actions', () => {
     availability.mockReturnValue({ enabled: false, isPending: false, isError: true, error: new Error('Settings unavailable'), refetch: vi.fn() })
-    view.rerender(<Component />)
+    render(<Component />)
     expect(screen.getByText('Recording settings could not be loaded.')).toBeVisible()
     expect(screen.getByText('Settings unavailable')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Retry recording settings' })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Replay settings' })).toHaveAttribute('href', '/acme/example/settings/replay')
     expect(screen.getByText(history)).toBeVisible()
   })
   it('does not mount historical data without the read grant', () => {

@@ -208,10 +208,17 @@ test('identified owners and admins retain replay navigation with profiles off an
         await expect(link).toBeVisible()
         await link.click()
         await expect(page.getByRole('heading', { name: 'Replays', exact: true })).toBeVisible()
-        await expect(page.getByRole('heading', { name: enabled ? 'Recording is on' : 'Recording is off', exact: true })).toBeVisible()
+        const recordingStatus = page.getByRole('complementary', { name: 'Recording status' })
+        if (enabled) {
+          await expect(recordingStatus).toHaveCount(0)
+          await expect(page.getByRole('link', { name: 'Replay settings', exact: true })).toHaveCount(0)
+        } else {
+          await expect(recordingStatus.getByRole('heading', { name: 'Recording is off', exact: true })).toBeVisible()
+          await expect(recordingStatus.getByRole('link', { name: 'Replay settings', exact: true })).toBeVisible()
+        }
         await expect(page.getByText('No replays found', { exact: true })).toBeVisible()
-        await expect(page.getByText('Existing recordings remain available to authorized viewers.', { exact: true })).toBeVisible()
-        await expect(page.getByText(/Instance permission: on\. Project opt-in:/)).toBeVisible()
+        await expect(page.getByText('Existing recordings remain available to authorized viewers.', { exact: true })).toHaveCount(enabled ? 0 : 1)
+        await expect(page.getByText(/Instance permission: on\. Project opt-in:/)).toHaveCount(enabled ? 0 : 1)
         expect(seen.forbidden).toEqual([])
       })
     }
