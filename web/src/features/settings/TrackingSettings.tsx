@@ -27,7 +27,7 @@ const controls: Array<{ key: TrackerKey; label: string; help: string }> = [
   { key: 'downloads', label: 'Track file downloads', help: 'Records clicks on common downloadable file types.' },
   { key: 'forms', label: 'Track form submissions', help: 'Records successful form submissions as custom events.' },
   { key: 'vitals', label: 'Track Web Vitals', help: 'Measures LCP, CLS, and INP when a visitor leaves.' },
-  { key: 'not_found', label: 'Track 404 pages', help: 'Records visits to pages marked with the Panel 404 tag.' },
+  { key: 'not_found', label: 'Track 404 pages', help: 'Records visits to pages marked with the Supermetry 404 tag.' },
   { key: 'hash', label: 'Track hash routes', help: 'Treats URL hash changes as navigation in hash-based apps.' },
   { key: 'clicks', label: 'Track heatmap clicks', help: 'Clicks follow Heatmaps unless changed' },
 ]

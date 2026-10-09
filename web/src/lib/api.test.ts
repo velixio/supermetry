@@ -10,21 +10,21 @@ describe('api client', () => {
     queryClient.setQueryData(['me'], { memberships: [{ org: { id: 1, slug: 'first' } }, { org: { id: 2, slug: 'second' } }] })
     const requests: Request[] = []
     const api = createApi({ fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => { requests.push(input instanceof Request ? input : new Request(input, init)); return new Response('{}') }) })
-    window.history.replaceState({}, '', '/second/site')
+    window.history.replaceState({}, '', '/app/second/site')
     await api.GET('/api/private/me', {})
-    expect(requests[0].headers.get('X-Panel-Org')).toBe('2')
-    await api.GET('/api/private/me', { headers: { 'X-Panel-Org': '1' } })
-    expect(requests[1].headers.get('X-Panel-Org')).toBe('1')
-    window.history.replaceState({}, '', '/account/profile')
+    expect(requests[0].headers.get('X-Supermetry-Org')).toBe('2')
+    await api.GET('/api/private/me', { headers: { 'X-Supermetry-Org': '1' } })
+    expect(requests[1].headers.get('X-Supermetry-Org')).toBe('1')
+    window.history.replaceState({}, '', '/app/account/profile')
     await api.GET('/api/private/me', {})
-    expect(requests[2].headers.has('X-Panel-Org')).toBe(false)
+    expect(requests[2].headers.has('X-Supermetry-Org')).toBe(false)
     queryClient.clear()
-    window.history.replaceState({}, '', '/second/site')
+    window.history.replaceState({}, '', '/app/second/site')
     await api.GET('/api/private/me', {})
-    expect(requests[3].headers.has('X-Panel-Org')).toBe(false)
+    expect(requests[3].headers.has('X-Supermetry-Org')).toBe(false)
   })
   it('sends the CSRF header on POST and redirects on 401', async () => {
-    document.cookie = 'panel_csrf=tok123'
+    document.cookie = 'supermetry_csrf=tok123'
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response('{}', { status: 200 }))
@@ -47,7 +47,7 @@ describe('api client', () => {
   })
 
   it('ignores a malformed CSRF cookie value', async () => {
-    document.cookie = 'panel_csrf=%'
+    document.cookie = 'supermetry_csrf=%'
     const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
     const api = createApi({ fetch: fetchMock })
 

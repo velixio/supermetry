@@ -4,7 +4,7 @@ import type { APIRequestContext, Page } from '@playwright/test'
 
 const password = 'account-navigation-test-password'
 async function member(request: APIRequestContext, owner: Owner, role: 'viewer' | 'editor' | 'admin', suffix: string, noSites = false) {
-  const email = `${suffix}@panel.test`
+  const email = `${suffix}@supermetry.test`
   const invitation = await request.post(`/api/private/orgs/${owner.orgId}/invitations`, {
     headers: owner.apiHeaders,
     data: { email, role, ...(role !== 'admin' ? { site_ids: noSites ? [] : [owner.siteId] } : {}) },
@@ -79,8 +79,8 @@ test('no-site and no-organization users can use account pages and log out', asyn
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await expect(page.getByRole('menuitem', { name: /Site settings/ })).toHaveCount(0)
   await page.keyboard.press('Escape')
-  if (!/^panel_e2e_\d+$/.test(owner.schema)) throw new Error('isolated schema required')
-  execFileSync('psql', [process.env.PANEL_TEST_DSN!, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${owner.schema}`, '-v', `member=${user.id}`], {
+  if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('isolated schema required')
+  execFileSync('psql', [process.env.SUPERMETRY_TEST_DSN!, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${owner.schema}`, '-v', `member=${user.id}`], {
     input: 'SET search_path TO :"schema"; DELETE FROM memberships WHERE user_id=:member;',
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -114,7 +114,7 @@ test('logout clears the current session across tabs and back navigation; next lo
   expect((await page.request.get('/api/private/me')).status()).toBe(401)
   expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
   await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Sign in to Panel' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to Supermetry' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0)
   await login(page, next.email)
   await page.getByRole('button', { name: 'Account', exact: true }).click()
@@ -151,7 +151,7 @@ test('logout handles an already expired session', async ({ page, owner }) => {
   await page.goto('/account/profile')
   await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('expired-session')
   await page.getByRole('button', { name: 'Account', exact: true }).click()
-  await page.context().clearCookies({ name: 'panel_session' })
+  await page.context().clearCookies({ name: 'supermetry_session' })
   await page.getByRole('menuitem', { name: 'Log out', exact: true }).click()
   await expect(page).toHaveURL('/login')
   await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0)

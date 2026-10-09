@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"panel/internal/enrich"
+	"supermetry/internal/enrich"
 )
 
 func TestBotFilter(t *testing.T) {

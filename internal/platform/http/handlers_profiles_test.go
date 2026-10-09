@@ -15,16 +15,16 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/profiletombstone"
-	"panel/internal/replay"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/profiletombstone"
+	"supermetry/internal/replay"
+	"supermetry/internal/testpg"
 )
 
 type profileFixture struct {
@@ -160,7 +160,7 @@ func (f profileFixture) request(t *testing.T, actor, method, path string) *httpt
 	}
 	if method != http.MethodGet {
 		request.Header.Set("X-CSRF-Token", "token")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	}
 	response := httptest.NewRecorder()
 	f.handler.ServeHTTP(response, request)

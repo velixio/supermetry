@@ -10,10 +10,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/query"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/query"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestNormalizeRejectsWithProblems(t *testing.T) {
@@ -428,7 +428,7 @@ func TestWithStatementTimeoutRollsBackAndMapsTimeout(t *testing.T) {
 		t.Fatal("WithStatementTimeout() error = nil, want timeout")
 	}
 	problem := query.QueryProblem(err)
-	if problem == nil || problem.Status != 503 || problem.Type != "https://panel.dev/problems/query-timeout" {
+	if problem == nil || problem.Status != 503 || problem.Type != "https://supermetry.com/problems/query-timeout" {
 		t.Fatalf("QueryProblem() = %+v, want query-timeout status 503", problem)
 	}
 

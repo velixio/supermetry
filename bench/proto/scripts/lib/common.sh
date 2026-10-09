@@ -14,9 +14,9 @@ ops_require() {
 
 ops_validate_db_name() {
   case "$1" in
-    panel|postgres|template0|template1|'') ops_die "refusing unsafe database name: ${1:-<empty>}" ;;
+    supermetry|postgres|template0|template1|'') ops_die "refusing unsafe database name: ${1:-<empty>}" ;;
   esac
-  [[ "$1" =~ ^panel_(o2|o3|o4)_[a-z0-9_]+$ ]] || ops_die "invalid isolated database name: $1"
+  [[ "$1" =~ ^supermetry_(o2|o3|o4)_[a-z0-9_]+$ ]] || ops_die "invalid isolated database name: $1"
 }
 
 ops_admin_psql() {
@@ -25,7 +25,7 @@ ops_admin_psql() {
 
 ops_check_admin() {
 	ops_admin_psql --quiet --tuples-only --no-align --command "SELECT has_database_privilege(current_user, current_database(), 'CREATE')" |
-		grep -qx t || ops_die 'PANEL_TEST_DSN role cannot create isolated schemas'
+		grep -qx t || ops_die 'SUPERMETRY_TEST_DSN role cannot create isolated schemas'
 }
 
 ops_create_db() {
@@ -45,7 +45,7 @@ SQL
 }
 
 ops_base_dsn() {
-	printf '%s\n' "${PANEL_TEST_DSN:-postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable}"
+	printf '%s\n' "${SUPERMETRY_TEST_DSN:-postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable}"
 }
 
 ops_dsn() {

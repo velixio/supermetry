@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	CSRFCookieName = "panel_csrf"
+	CSRFCookieName = "supermetry_csrf"
 	CSRFHeaderName = "X-CSRF-Token"
 )
 

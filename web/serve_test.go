@@ -40,7 +40,7 @@ func TestSPAFallbackAndCaching(t *testing.T) {
 
 func TestAssetCaching(t *testing.T) {
 	h := newHandler(fstest.MapFS{
-		"index.html":    {Data: []byte("<main>Panel</main>")},
+		"index.html":    {Data: []byte("<main>Supermetry</main>")},
 		"assets/app.js": {Data: []byte("export {}")},
 	})
 	rr := httptest.NewRecorder()
@@ -56,7 +56,7 @@ func TestAssetCaching(t *testing.T) {
 
 func TestFlagCaching(t *testing.T) {
 	h := newHandler(fstest.MapFS{
-		"index.html":   {Data: []byte("<main>Panel</main>")},
+		"index.html":   {Data: []byte("<main>Supermetry</main>")},
 		"flags/in.svg": {Data: []byte("<svg></svg>")},
 	})
 	rr := httptest.NewRecorder()
@@ -74,7 +74,7 @@ func TestFlagCaching(t *testing.T) {
 // through to index.html and the dashboard showed text with no logo.
 func TestIconsAreServedAsFiles(t *testing.T) {
 	h := newHandler(fstest.MapFS{
-		"index.html":               {Data: []byte("<main>Panel</main>")},
+		"index.html":               {Data: []byte("<main>Supermetry</main>")},
 		"icons/browser/chrome.png": {Data: []byte("\x89PNG")},
 	})
 	rr := httptest.NewRecorder()

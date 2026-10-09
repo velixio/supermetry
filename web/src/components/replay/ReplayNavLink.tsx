@@ -15,7 +15,7 @@ export function ReplayNavLink({ enabled, org, site, ...props }: ReplayNavLinkPro
     <Link
       {...props}
       aria-label="Replays"
-      to="/$org/$site/replays"
+      to="/app/$org/$site/replays"
       params={{ org, site }}
       search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
     >

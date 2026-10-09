@@ -7,11 +7,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/rehydrate"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/rehydrate"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/testpg"
 )
 
 type realClock struct{}

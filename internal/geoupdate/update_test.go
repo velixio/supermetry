@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/geoupdate"
+	"supermetry/internal/geoupdate"
 )
 
 const (

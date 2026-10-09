@@ -40,10 +40,10 @@ it.each(['logout', 'switch', 'login'])('aborts uploads on %s and discards late p
 })
 it('unregisters completed uploads and keeps organization and CSRF headers', async () => {
   const { session, start } = setup()
-  document.cookie = 'panel_csrf=upload-token'
+  document.cookie = 'supermetry_csrf=upload-token'
   const result = start()
   const request = UploadRequest.latest
-  expect(request.setRequestHeader).toHaveBeenCalledWith('X-Panel-Org', '2')
+  expect(request.setRequestHeader).toHaveBeenCalledWith('X-Supermetry-Org', '2')
   expect(request.setRequestHeader).toHaveBeenCalledWith('X-CSRF-Token', 'upload-token')
   request.dispatchEvent(new Event('load'))
   await expect(result).resolves.toEqual({ id: 12 })

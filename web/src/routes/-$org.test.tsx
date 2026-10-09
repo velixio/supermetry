@@ -6,14 +6,14 @@ import {
   navigationHref,
   organizationHref,
   visibleNavigation,
-} from './$org'
+} from './app.$org'
 
 const identifiedSite = { id: 7, name: 'Docs', tracking_policy: { instance_mode: 'identified' as const, effective_mode: 'anonymous' as const, configured_profiles_enabled: false, restrictions: [] } }
 
 describe('organization shell authentication', () => {
   it('preserves the full dashboard URL when authentication expires', () => {
-    expect(loginRedirect('/acme/blog', '?period=30d')).toBe(
-      '/login?next=%2Facme%2Fblog%3Fperiod%3D30d',
+    expect(loginRedirect('/app/acme/blog', '?period=30d')).toBe(
+      '/login?next=%2Fapp%2Facme%2Fblog%3Fperiod%3D30d',
     )
   })
 
@@ -31,27 +31,27 @@ describe('organization shell authentication', () => {
         role: 'viewer',
         sites: [{ id: 8, name: 'Docs', public_id: 'docs-public' }],
       }),
-    ).toBe('/other/docs-public')
+    ).toBe('/app/other/docs-public')
   })
 
   it('links data health at organization scope', () => {
     const health = visibleNavigation('owner').find(
       (item) => item.label === 'Data health',
     )
-    expect(health && navigationHref(health, 'acme', 'blog')).toBe('/acme/health')
+    expect(health && navigationHref(health, 'acme', 'blog')).toBe('/app/acme/health')
   })
 
   it('links Web Vitals at site scope', () => {
     const vitals = visibleNavigation('viewer', true, undefined, identifiedSite).find(
       (item) => item.label === 'Web Vitals',
     )
-    expect(vitals && navigationHref(vitals, 'acme', 'blog')).toBe('/acme/blog/vitals')
+    expect(vitals && navigationHref(vitals, 'acme', 'blog')).toBe('/app/acme/blog/vitals')
   })
 
   it('links Heatmaps at site scope for every site role', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
       const heatmaps = visibleNavigation(role, true, undefined, identifiedSite).find((item) => item.label === 'Heatmaps')
-      expect(heatmaps && navigationHref(heatmaps, 'acme', 'blog')).toBe('/acme/blog/heatmaps')
+      expect(heatmaps && navigationHref(heatmaps, 'acme', 'blog')).toBe('/app/acme/blog/heatmaps')
     }
   })
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/maxmind/mmdbwriter/mmdbtype"
 
-	"panel/internal/enrich"
+	"supermetry/internal/enrich"
 )
 
 func TestBotHostingOrganizationIsNotABot(t *testing.T) {

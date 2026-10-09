@@ -33,7 +33,7 @@ import (
 	"strings"
 	"time"
 
-	"panel/bench/load/internal/rec"
+	"supermetry/bench/load/internal/rec"
 )
 
 var sourceNames = map[string]string{ // probed via /api/event on CE v3.2.1

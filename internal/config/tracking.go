@@ -3,11 +3,11 @@ package config
 import (
 	"fmt"
 
-	"panel/internal/privacy"
+	"supermetry/internal/privacy"
 )
 
 // TrackingModeEnv selects the instance identity collection and read policy.
-const TrackingModeEnv = "PANEL_TRACKING_MODE"
+const TrackingModeEnv = "SUPERMETRY_TRACKING_MODE"
 
 // TrackingMode retains presence so rollout code can distinguish an unset value
 // from an explicit anonymous choice. The zero value is unset and anonymous.

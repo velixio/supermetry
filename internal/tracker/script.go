@@ -10,10 +10,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"panel/internal/config"
-	"panel/internal/privacy"
-	"panel/internal/replay"
-	"panel/internal/sites"
+	"supermetry/internal/config"
+	"supermetry/internal/privacy"
+	"supermetry/internal/replay"
+	"supermetry/internal/sites"
 )
 
 const maxSiteScriptCacheEntries = 10_000
@@ -46,7 +46,7 @@ const defaultEventPath = "/api/public/v1/events"
 var eventPath atomic.Value // string
 
 // SetEventPath sets the ingest path the generated scripts post to
-// (PANEL_EVENT_PATH). An empty path restores the default. Call it before
+// (SUPERMETRY_EVENT_PATH). An empty path restores the default. Call it before
 // serving scripts; already cached scripts keep the old path.
 func SetEventPath(p string) {
 	if p == "" {
@@ -68,7 +68,7 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 	builder.WriteString(publicID)
 	builder.WriteString(`";`)
 	// The snippet is a bare <script src>: send events to the origin the script
-	// came from (the Panel host, or the site's own proxy), never to a path on
+	// came from (the Supermetry host, or the site's own proxy), never to a path on
 	// the page's origin. An explicit data-api still wins.
 	builder.WriteString(`d.api??=new URL(document.currentScript.src).origin+`)
 	builder.WriteString(strconv.Quote(currentEventPath()))

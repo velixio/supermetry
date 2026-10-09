@@ -11,9 +11,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/users"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/users"
 )
 
 const emailChangeLifetime = time.Hour
@@ -83,7 +83,7 @@ func (a *Auth) StartEmailChange(ctx context.Context, userID int64, newEmail, pas
 	}
 	link := a.baseURL + "/api/private/auth/email-change/confirm?token=" + url.QueryEscape(plain)
 	if err := a.mail.Send(ctx, mail.Message{
-		To: newEmail, Subject: "Confirm your new Panel email",
+		To: newEmail, Subject: "Confirm your new Supermetry email",
 		Text: "Confirm your new email address using this one-time link:\n\n" + link,
 	}); err != nil {
 		_, _ = a.store.Pool.Exec(ctx, `delete from email_changes where token_hash=$1`, hash)
@@ -140,8 +140,8 @@ func (a *Auth) ConfirmEmailChange(ctx context.Context, userID int64, token strin
 	if a.mail != nil && a.mail.Enabled() {
 		// The change is committed; a failed notice must not report failure.
 		_ = a.mail.Send(ctx, mail.Message{
-			To: oldEmail, Subject: "Your Panel email was changed",
-			Text: "Your Panel account email address was changed to " + newEmail + ". If you did not make this change, contact your administrator.",
+			To: oldEmail, Subject: "Your Supermetry email was changed",
+			Text: "Your Supermetry account email address was changed to " + newEmail + ". If you did not make this change, contact your administrator.",
 		})
 	}
 	return nil

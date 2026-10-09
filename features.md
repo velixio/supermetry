@@ -1,13 +1,13 @@
 # Features
 
-Panel compared with Plausible, Umami and OpenPanel, feature by feature.
+Supermetry compared with Plausible, Umami and OpenPanel, feature by feature.
 ✓ has it · – lacks it · ? not verified yet (check `knowledge/` before relying on it).
-**Panel**: ✅ done · ⏳ in progress · ❌ not started · ⏸ deferred.
+**Supermetry**: ✅ done · ⏳ in progress · ❌ not started · ⏸ deferred.
 Evidence for the other products: [findings.md](findings.md). Last updated 2026-10-08.
 
 ## Analytics
 
-| Feature | Plausible | Umami | OpenPanel | Panel |
+| Feature | Plausible | Umami | OpenPanel | Supermetry |
 |---|---|---|---|---|
 | Visitors, pageviews, bounce rate, visit duration | ✓ | ✓ | ✓ | ✅ |
 | Realtime view | ✓ | ✓ | ✓ | ✅ (live feed, per-minute chart) |
@@ -37,32 +37,32 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 
 ## Tracking
 
-| Feature | Plausible | Umami | OpenPanel | Panel |
+| Feature | Plausible | Umami | OpenPanel | Supermetry |
 |---|---|---|---|---|
 | Script under 1 KB gzip | ✓ | – | – | ✅ (936 B core; full script 2.3 KB) |
 | No cookies | ✓ | ✓ | ✓ | ✅ |
 | SPA pageviews | ✓ | ✓ | ✓ | ✅ |
 | Scroll depth and engagement time | ✓ | – | ? | ✅ |
 | Automatic outbound-link, file-download and 404 tracking | ✓ | ✓ | ✓ | ✅ (full script, 1.5 KB gz) |
-| Click tracking from HTML attributes | ✓ | ✓ | ✓ | ✅ (`data-panel-event`) |
+| Click tracking from HTML attributes | ✓ | ✓ | ✓ | ✅ (`data-supermetry-event`) |
 | Server-side events API, with examples | ✓ | ✓ | ✓ | ✅ (`docs/api.md`) |
 | Bot filtering; IP, path and country exclusion | ✓ | ✓ | ✓ | ✅ |
 | Per-site tracker settings (served script) | ✓ | – | – | ✅ (outbound, downloads, forms, 404, hash routing, clicks, Web Vitals, heatmaps) |
 | Hash-based routing, form submissions | ✓ | ✓ | ✓ | ✅ (per-site setting) |
-| Do Not Track / GPC, visitor opt-out | ✓ (opt-out) | ✓ (DNT) | – | ✅ (respected by default; `panel.optOut()`) |
+| Do Not Track / GPC, visitor opt-out | ✓ (opt-out) | ✓ (DNT) | – | ✅ (respected by default; `supermetry.optOut()`) |
 | Consent mode, manual pageviews, `beforeSend` hook | – | ✓ | ✓ (consent) | ✅ |
 | npm tracker package | ✓ | – | ✓ | ✅ |
 | Mobile SDKs | – | – | ✓ | ⏸ |
 
 ## Team, sharing and API
 
-| Feature | Plausible | Umami | OpenPanel | Panel |
+| Feature | Plausible | Umami | OpenPanel | Supermetry |
 |---|---|---|---|---|
 | Teams / orgs with roles | ✓ | ✓ | ✓ | ✅ |
 | Per-site access | ✓ | ✓ | ? | ✅ |
 | Two-factor auth (TOTP) | ✓ | ✓ | ? | ✅ |
 | Account self-service: edit name, change email or password, delete account | ✓ | ✓ | ✓ | ✅ |
-| Invite-only signup by default | ✓ (`DISABLE_REGISTRATION`) | – | – | ✅ (`PANEL_SIGNUP=open` to allow) |
+| Invite-only signup by default | ✓ (`DISABLE_REGISTRATION`) | – | – | ✅ (`SUPERMETRY_SIGNUP=open` to allow) |
 | Audit log | ? | – | – | ✅ |
 | Public share links | ✓ | ✓ | ✓ | ✅ |
 | Email reports | ✓ | – | ? | ✅ |
@@ -81,18 +81,18 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 
 ## Self-hosting
 
-| Feature | Plausible | Umami | OpenPanel | Panel |
+| Feature | Plausible | Umami | OpenPanel | Supermetry |
 |---|---|---|---|---|
 | No ClickHouse | – | ✓ | – | ✅ |
 | Single binary | – | – | – | ✅ |
 | Database | PG + ClickHouse | PG / MySQL | PG + ClickHouse + Redis | PG only |
 | Minimum RAM | ~2 GB | ~150 MB | 2 GB | ⏳ (~90 MB idle, target <50 MB) |
-| Protected metrics endpoint | ✓ | ? | ? | ✅ (`PANEL_METRICS_TOKEN` or localhost only) |
+| Protected metrics endpoint | ✓ | ? | ? | ✅ (`SUPERMETRY_METRICS_TOKEN` or localhost only) |
 | Data retention / purge | ? | – | ? | ✅ (per site, partition drop) |
 | Automatic rollup backfill after upgrades | – | – | – | ✅ (progress on Data health) |
 | Docker image | ✓ | ✓ | ✓ | ✅ (`Dockerfile`, `deploy/docker-compose.yml`) |
-| Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/panel.service`, `deploy/README.md`) |
-| Backup and restore command | – | – | – | ✅ (`panel backup`, `panel restore`) |
+| Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/supermetry.service`, `deploy/README.md`) |
+| Backup and restore command | – | – | – | ✅ (`supermetry backup`, `supermetry restore`) |
 | License | AGPL-3.0 | MIT | AGPL-3.0 | ✅ (Apache-2.0, `LICENSE`) |
 
 ## Priority

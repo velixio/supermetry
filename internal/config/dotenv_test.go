@@ -8,16 +8,16 @@ import (
 
 func TestLoadDotEnv(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	os.WriteFile(path, []byte("# comment\n\nPANEL_T_A=plain\nexport PANEL_T_B=\"quoted value\"\nPANEL_T_C='single'\nPANEL_T_URL=postgres://u:p@h:5432/db?sslmode=disable\nPANEL_T_KEEP=from-file\n"), 0o600)
-	t.Setenv("PANEL_T_KEEP", "from-env")
-	for _, k := range []string{"PANEL_T_A", "PANEL_T_B", "PANEL_T_C", "PANEL_T_URL"} {
+	os.WriteFile(path, []byte("# comment\n\nSUPERMETRY_T_A=plain\nexport SUPERMETRY_T_B=\"quoted value\"\nSUPERMETRY_T_C='single'\nSUPERMETRY_T_URL=postgres://u:p@h:5432/db?sslmode=disable\nSUPERMETRY_T_KEEP=from-file\n"), 0o600)
+	t.Setenv("SUPERMETRY_T_KEEP", "from-env")
+	for _, k := range []string{"SUPERMETRY_T_A", "SUPERMETRY_T_B", "SUPERMETRY_T_C", "SUPERMETRY_T_URL"} {
 		os.Unsetenv(k)
 		t.Cleanup(func() { os.Unsetenv(k) })
 	}
 	if err := LoadDotEnv(path); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"PANEL_T_A": "plain", "PANEL_T_B": "quoted value", "PANEL_T_C": "single", "PANEL_T_URL": "postgres://u:p@h:5432/db?sslmode=disable", "PANEL_T_KEEP": "from-env"}
+	want := map[string]string{"SUPERMETRY_T_A": "plain", "SUPERMETRY_T_B": "quoted value", "SUPERMETRY_T_C": "single", "SUPERMETRY_T_URL": "postgres://u:p@h:5432/db?sslmode=disable", "SUPERMETRY_T_KEEP": "from-env"}
 	for k, v := range want {
 		if got := os.Getenv(k); got != v {
 			t.Errorf("%s = %q, want %q", k, got, v)

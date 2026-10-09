@@ -20,13 +20,13 @@ func TestSpillUploadsOnSessionClose(t *testing.T) {
 	if _, err := store.Append(context.Background(), key, bytes.NewBufferString("second")); err != nil {
 		t.Fatal(err)
 	}
-	if got := fake.object("panel/" + key); got != nil {
+	if got := fake.object("supermetry/" + key); got != nil {
 		t.Fatalf("object uploaded before close: %q", got)
 	}
 	if err := store.CloseSession(context.Background(), key); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(fake.object("panel/" + key)); got != "firstsecond" {
+	if got := string(fake.object("supermetry/" + key)); got != "firstsecond" {
 		t.Fatalf("uploaded object = %q, want firstsecond", got)
 	}
 }
@@ -52,10 +52,10 @@ func TestSpillClosesOnlyIdleSessions(t *testing.T) {
 	if err := store.CloseIdleSessions(context.Background(), now.Add(-30*time.Minute)); err != nil {
 		t.Fatal(err)
 	}
-	if got := fake.object("panel/" + idleKey); got == nil {
+	if got := fake.object("supermetry/" + idleKey); got == nil {
 		t.Fatal("idle spill was not uploaded")
 	}
-	if got := fake.object("panel/" + activeKey); got != nil {
+	if got := fake.object("supermetry/" + activeKey); got != nil {
 		t.Fatal("active spill was uploaded")
 	}
 }
@@ -75,7 +75,7 @@ func TestSpillUploadsOnShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, key := range keys {
-		if got := string(fake.object("panel/" + key)); got != string(rune('a'+i)) {
+		if got := string(fake.object("supermetry/" + key)); got != string(rune('a'+i)) {
 			t.Errorf("object %q = %q", key, got)
 		}
 	}
@@ -88,7 +88,7 @@ func newTestS3Store(t *testing.T, fake *fakeS3) *S3Store {
 	t.Helper()
 	store, err := NewS3Store(S3Settings{
 		Endpoint: fake.URL(), Bucket: "replays", Region: "us-east-1",
-		AccessKey: "test-access", SecretKey: "test-secret", Prefix: "panel",
+		AccessKey: "test-access", SecretKey: "test-secret", Prefix: "supermetry",
 	}, t.TempDir())
 	if err != nil {
 		t.Fatal(err)

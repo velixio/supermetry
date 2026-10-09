@@ -1,4 +1,4 @@
-import { useMe } from "@/routes/$org";
+import { useMe } from "@/routes/app.$org";
 
 export function useOrganization(orgSlug: string) {
   const me = useMe();

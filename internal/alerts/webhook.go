@@ -16,7 +16,7 @@ import (
 	"net/url"
 	"time"
 
-	"panel/internal/safehttp"
+	"supermetry/internal/safehttp"
 )
 
 const (
@@ -89,7 +89,7 @@ func (c *WebhookClient) Send(ctx context.Context, kind ChannelKind, rawURL, secr
 		}
 		request.Header.Set("Content-Type", "application/json")
 		if kind == ChannelWebhook && secret != "" {
-			request.Header.Set("X-Panel-Signature", signWebhook(secret, body))
+			request.Header.Set("X-Supermetry-Signature", signWebhook(secret, body))
 		}
 		response, requestErr := c.client.Do(request)
 		if requestErr == nil {

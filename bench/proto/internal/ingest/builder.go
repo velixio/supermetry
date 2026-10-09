@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/enrich"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/enrich"
 )
 
 // Sites is an immutable lookup of sites by id and host.

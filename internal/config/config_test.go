@@ -15,9 +15,9 @@ func validSecretKey() string {
 
 func baseEnv() map[string]string {
 	return map[string]string{
-		"PANEL_DATABASE_URL": "postgres://x",
-		"PANEL_BASE_URL":     "https://a.example",
-		"PANEL_SECRET_KEY":   validSecretKey(),
+		"SUPERMETRY_DATABASE_URL": "postgres://x",
+		"SUPERMETRY_BASE_URL":     "https://a.example",
+		"SUPERMETRY_SECRET_KEY":   validSecretKey(),
 	}
 }
 
@@ -27,10 +27,10 @@ func env(m map[string]string) func(string) string {
 
 func TestLoadTrustedProxies(t *testing.T) {
 	c, err := Load(env(map[string]string{
-		"PANEL_DATABASE_URL":    "postgres://x",
-		"PANEL_BASE_URL":        "https://a.example",
-		"PANEL_SECRET_KEY":      validSecretKey(),
-		"PANEL_TRUSTED_PROXIES": "192.0.2.1, 2001:db8::/32",
+		"SUPERMETRY_DATABASE_URL":    "postgres://x",
+		"SUPERMETRY_BASE_URL":        "https://a.example",
+		"SUPERMETRY_SECRET_KEY":      validSecretKey(),
+		"SUPERMETRY_TRUSTED_PROXIES": "192.0.2.1, 2001:db8::/32",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -46,10 +46,10 @@ func TestLoadTrustedProxies(t *testing.T) {
 	}
 
 	if _, err := Load(env(map[string]string{
-		"PANEL_DATABASE_URL":    "postgres://x",
-		"PANEL_BASE_URL":        "https://a.example",
-		"PANEL_SECRET_KEY":      validSecretKey(),
-		"PANEL_TRUSTED_PROXIES": "not-an-address",
+		"SUPERMETRY_DATABASE_URL":    "postgres://x",
+		"SUPERMETRY_BASE_URL":        "https://a.example",
+		"SUPERMETRY_SECRET_KEY":      validSecretKey(),
+		"SUPERMETRY_TRUSTED_PROXIES": "not-an-address",
 	})); err == nil {
 		t.Fatal("invalid trusted proxy accepted")
 	}
@@ -57,7 +57,7 @@ func TestLoadTrustedProxies(t *testing.T) {
 
 func TestLoadMetricsToken(t *testing.T) {
 	values := baseEnv()
-	values["PANEL_METRICS_TOKEN"] = "metrics-secret"
+	values["SUPERMETRY_METRICS_TOKEN"] = "metrics-secret"
 	c, err := Load(env(values))
 	if err != nil {
 		t.Fatal(err)
@@ -82,8 +82,73 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	if c.DataDir != "./data" {
 		t.Errorf("DataDir = %q, want ./data", c.DataDir)
 	}
+	if c.HomepageURL != "https://supermetry.com" {
+		t.Errorf("HomepageURL = %q, want canonical default", c.HomepageURL)
+	}
 	if want := []string{"GeoLite2-City", "GeoLite2-ASN"}; !reflect.DeepEqual(c.MaxMindEditions, want) {
 		t.Errorf("MaxMindEditions = %v, want %v", c.MaxMindEditions, want)
+	}
+}
+
+func TestLoadHomepageURL(t *testing.T) {
+	values := baseEnv()
+	values["SUPERMETRY_HOMEPAGE_URL"] = "https://analytics.example/about"
+	c, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.HomepageURL != values["SUPERMETRY_HOMEPAGE_URL"] {
+		t.Fatalf("HomepageURL = %q", c.HomepageURL)
+	}
+	values["SUPERMETRY_HOMEPAGE_URL"] = "javascript:alert(1)"
+	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_HOMEPAGE_URL") {
+		t.Fatalf("unsafe homepage URL error = %v", err)
+	}
+}
+
+func TestLoadRejectsLegacyPrefixAsConfiguration(t *testing.T) {
+	legacyPrefix := "PAN" + "EL_"
+	values := map[string]string{
+		legacyPrefix + "DATABASE_URL": "postgres://legacy.example/analytics",
+		legacyPrefix + "BASE_URL":     "https://legacy.example",
+		legacyPrefix + "SECRET_KEY":   validSecretKey(),
+	}
+	_, err := Load(env(values))
+	if err == nil {
+		t.Fatal("legacy-only configuration must not start the service")
+	}
+	for _, name := range []string{"SUPERMETRY_DATABASE_URL", "SUPERMETRY_BASE_URL", "SUPERMETRY_SECRET_KEY"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("error %q does not identify missing %s", err, name)
+		}
+	}
+}
+
+func TestLoadDoesNotUseLegacyValuesToOverridePolicy(t *testing.T) {
+	legacyPrefix := "PAN" + "EL_"
+	values := baseEnv()
+	values["SUPERMETRY_TRACKING_MODE"] = "anonymous"
+	values["SUPERMETRY_TRACKING_PUBLIC_PATHS"] = `[]`
+	values["SUPERMETRY_REPLAY_ENABLED"] = "false"
+	values[legacyPrefix+"TRACKING_MODE"] = "identified"
+	values[legacyPrefix+"TRACKING_PUBLIC_PATHS"] = `["/private"]`
+	values[legacyPrefix+"REPLAY_ENABLED"] = "true"
+
+	c, err := LoadLookup(func(key string) (string, bool) {
+		value, ok := values[key]
+		return value, ok
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Tracking.Mode.String() != "anonymous" || !c.Tracking.Explicit {
+		t.Fatalf("tracking mode = %+v, want explicit anonymous", c.Tracking)
+	}
+	if c.Replay.Enabled {
+		t.Fatal("legacy replay setting overrode the Supermetry privacy ceiling")
+	}
+	if got := c.TrackingPaths.PublicPath("/private"); got != "/[redacted]" {
+		t.Fatalf("legacy public path resolved to %q, want redacted", got)
 	}
 }
 
@@ -99,18 +164,18 @@ func TestLoadMaxMind(t *testing.T) {
 		{name: "credentials and allowed editions", account: "1234", key: "top-secret", editions: "GeoLite2-Country, GeoLite2-ASN", want: []string{"GeoLite2-Country", "GeoLite2-ASN"}},
 		{name: "account without key", account: "1234", wantErr: "both be set"},
 		{name: "key without account", key: "top-secret", wantErr: "both be set"},
-		{name: "unknown edition", account: "1234", key: "top-secret", editions: "GeoIP2-City", wantErr: "PANEL_MAXMIND_EDITIONS"},
-		{name: "empty edition", account: "1234", key: "top-secret", editions: "GeoLite2-City,", wantErr: "PANEL_MAXMIND_EDITIONS"},
+		{name: "unknown edition", account: "1234", key: "top-secret", editions: "GeoIP2-City", wantErr: "SUPERMETRY_MAXMIND_EDITIONS"},
+		{name: "empty edition", account: "1234", key: "top-secret", editions: "GeoLite2-City,", wantErr: "SUPERMETRY_MAXMIND_EDITIONS"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			values := baseEnv()
-			values["PANEL_MAXMIND_ACCOUNT_ID"] = tt.account
-			values["PANEL_MAXMIND_LICENSE_KEY"] = tt.key
+			values["SUPERMETRY_MAXMIND_ACCOUNT_ID"] = tt.account
+			values["SUPERMETRY_MAXMIND_LICENSE_KEY"] = tt.key
 			if tt.editions != "" {
-				values["PANEL_MAXMIND_EDITIONS"] = tt.editions
+				values["SUPERMETRY_MAXMIND_EDITIONS"] = tt.editions
 			}
-			values["PANEL_DATA_DIR"] = "/var/lib/panel"
+			values["SUPERMETRY_DATA_DIR"] = "/var/lib/supermetry"
 
 			got, err := Load(env(values))
 			if tt.wantErr != "" {
@@ -125,7 +190,7 @@ func TestLoadMaxMind(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.MaxMindAccountID != tt.account || got.MaxMindLicenseKey != tt.key || got.DataDir != "/var/lib/panel" {
+			if got.MaxMindAccountID != tt.account || got.MaxMindLicenseKey != tt.key || got.DataDir != "/var/lib/supermetry" {
 				t.Fatalf("MaxMind config = %+v", got)
 			}
 			if !reflect.DeepEqual(got.MaxMindEditions, tt.want) {
@@ -137,21 +202,21 @@ func TestLoadMaxMind(t *testing.T) {
 
 func TestLoadGeoIPDoesNotRequireServerConfiguration(t *testing.T) {
 	got, err := LoadGeoIP(env(map[string]string{
-		"PANEL_MAXMIND_ACCOUNT_ID":  "1234",
-		"PANEL_MAXMIND_LICENSE_KEY": "top-secret",
-		"PANEL_DATA_DIR":            "/var/lib/panel",
+		"SUPERMETRY_MAXMIND_ACCOUNT_ID":  "1234",
+		"SUPERMETRY_MAXMIND_LICENSE_KEY": "top-secret",
+		"SUPERMETRY_DATA_DIR":            "/var/lib/supermetry",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.DatabaseURL != "" || got.BaseURL != "" || got.MaxMindAccountID != "1234" || got.DataDir != "/var/lib/panel" {
+	if got.DatabaseURL != "" || got.BaseURL != "" || got.MaxMindAccountID != "1234" || got.DataDir != "/var/lib/supermetry" {
 		t.Fatalf("LoadGeoIP() = %+v", got)
 	}
 }
 
 func TestLoadRejectsBadValues(t *testing.T) {
 	base := baseEnv()
-	for k, v := range map[string]string{"PANEL_QUEUE_SIZE": "0", "PANEL_EVENT_PATH": "no-slash", "PANEL_FLUSH_EVERY": "-1s", "PANEL_BASE_URL": "ftp://x"} {
+	for k, v := range map[string]string{"SUPERMETRY_QUEUE_SIZE": "0", "SUPERMETRY_EVENT_PATH": "no-slash", "SUPERMETRY_FLUSH_EVERY": "-1s", "SUPERMETRY_BASE_URL": "ftp://x"} {
 		m := map[string]string{}
 		for a, b := range base {
 			m[a] = b
@@ -175,7 +240,7 @@ func TestConfigRequiresSecretKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			values := baseEnv()
-			values["PANEL_SECRET_KEY"] = tt.key
+			values["SUPERMETRY_SECRET_KEY"] = tt.key
 			if _, err := Load(env(values)); err == nil {
 				t.Fatal("invalid secret key accepted")
 			}
@@ -183,7 +248,7 @@ func TestConfigRequiresSecretKey(t *testing.T) {
 	}
 
 	values := baseEnv()
-	values["PANEL_SIGNUP"] = "maybe"
+	values["SUPERMETRY_SIGNUP"] = "maybe"
 	if _, err := Load(env(values)); err == nil {
 		t.Fatal("invalid signup mode accepted")
 	}
@@ -191,25 +256,25 @@ func TestConfigRequiresSecretKey(t *testing.T) {
 
 func TestLoadSMTP(t *testing.T) {
 	values := baseEnv()
-	values["PANEL_SIGNUP"] = "open"
-	values["PANEL_SMTP_HOST"] = "smtp.example.com"
-	values["PANEL_SMTP_PORT"] = "2525"
-	values["PANEL_SMTP_USER"] = "mailer"
-	values["PANEL_SMTP_PASS"] = "secret"
-	values["PANEL_SMTP_FROM"] = "Panel <panel@example.com>"
-	values["PANEL_SMTP_STARTTLS"] = "true"
+	values["SUPERMETRY_SIGNUP"] = "open"
+	values["SUPERMETRY_SMTP_HOST"] = "smtp.example.com"
+	values["SUPERMETRY_SMTP_PORT"] = "2525"
+	values["SUPERMETRY_SMTP_USER"] = "mailer"
+	values["SUPERMETRY_SMTP_PASS"] = "secret"
+	values["SUPERMETRY_SMTP_FROM"] = "Supermetry <supermetry@example.com>"
+	values["SUPERMETRY_SMTP_STARTTLS"] = "true"
 	c, err := Load(env(values))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Signup != "open" || c.SMTP.Host != "smtp.example.com" || c.SMTP.Port != 2525 || c.SMTP.User != "mailer" || c.SMTP.Pass != "secret" || c.SMTP.From != "Panel <panel@example.com>" || !c.SMTP.StartTLS {
+	if c.Signup != "open" || c.SMTP.Host != "smtp.example.com" || c.SMTP.Port != 2525 || c.SMTP.User != "mailer" || c.SMTP.Pass != "secret" || c.SMTP.From != "Supermetry <supermetry@example.com>" || !c.SMTP.StartTLS {
 		t.Fatalf("bad platform config: %+v", c)
 	}
 }
 
 func TestLoadAllowPrivateWebhooks(t *testing.T) {
 	values := baseEnv()
-	values["PANEL_ALLOW_PRIVATE_WEBHOOKS"] = "true"
+	values["SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS"] = "true"
 	c, err := Load(env(values))
 	if err != nil {
 		t.Fatal(err)
@@ -218,8 +283,8 @@ func TestLoadAllowPrivateWebhooks(t *testing.T) {
 		t.Fatal("AllowPrivateWebhooks = false, want true")
 	}
 
-	values["PANEL_ALLOW_PRIVATE_WEBHOOKS"] = "not-a-boolean"
-	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "PANEL_ALLOW_PRIVATE_WEBHOOKS") {
+	values["SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS"] = "not-a-boolean"
+	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS") {
 		t.Fatalf("Load() error = %v, want webhook boolean validation", err)
 	}
 }
@@ -239,18 +304,18 @@ func TestReplayDisabledByDefault(t *testing.T) {
 
 func TestS3EnvRequiresAllFields(t *testing.T) {
 	values := baseEnv()
-	values["PANEL_REPLAY_S3_ENDPOINT"] = "https://s3.example.test"
-	values["PANEL_REPLAY_S3_REGION"] = "test-1"
-	values["PANEL_REPLAY_S3_ACCESS_KEY"] = "access"
-	values["PANEL_REPLAY_S3_SECRET_KEY"] = "secret"
-	values["PANEL_REPLAY_S3_PREFIX"] = "panel"
+	values["SUPERMETRY_REPLAY_S3_ENDPOINT"] = "https://s3.example.test"
+	values["SUPERMETRY_REPLAY_S3_REGION"] = "test-1"
+	values["SUPERMETRY_REPLAY_S3_ACCESS_KEY"] = "access"
+	values["SUPERMETRY_REPLAY_S3_SECRET_KEY"] = "secret"
+	values["SUPERMETRY_REPLAY_S3_PREFIX"] = "supermetry"
 
 	if _, err := Load(env(values)); err == nil {
 		t.Fatal("Load accepted S3 settings with a missing bucket")
 	}
 
-	values["PANEL_REPLAY_S3_BUCKET"] = "replays"
-	delete(values, "PANEL_REPLAY_S3_PREFIX")
+	values["SUPERMETRY_REPLAY_S3_BUCKET"] = "replays"
+	delete(values, "SUPERMETRY_REPLAY_S3_PREFIX")
 	got, err := Load(env(values))
 	if err != nil {
 		t.Fatal(err)
@@ -259,7 +324,7 @@ func TestS3EnvRequiresAllFields(t *testing.T) {
 		t.Fatalf("Replay.S3 = %+v without a prefix, want S3 with an empty prefix", got.Replay.S3)
 	}
 
-	values["PANEL_REPLAY_S3_PREFIX"] = "panel"
+	values["SUPERMETRY_REPLAY_S3_PREFIX"] = "supermetry"
 	got, err = Load(env(values))
 	if err != nil {
 		t.Fatal(err)
@@ -271,12 +336,12 @@ func TestS3EnvRequiresAllFields(t *testing.T) {
 
 func TestLoadReplayEnvironment(t *testing.T) {
 	values := baseEnv()
-	values["PANEL_REPLAY_ENABLED"] = "true"
-	values["PANEL_REPLAY_MASK"] = "false"
-	values["PANEL_REPLAY_SAMPLE_RATE"] = "25"
-	values["PANEL_REPLAY_RETENTION_DAYS"] = "90"
-	values["PANEL_REPLAY_QUOTA"] = "500MB"
-	values["PANEL_REPLAY_DIR"] = "/srv/replay"
+	values["SUPERMETRY_REPLAY_ENABLED"] = "true"
+	values["SUPERMETRY_REPLAY_MASK"] = "false"
+	values["SUPERMETRY_REPLAY_SAMPLE_RATE"] = "25"
+	values["SUPERMETRY_REPLAY_RETENTION_DAYS"] = "90"
+	values["SUPERMETRY_REPLAY_QUOTA"] = "500MB"
+	values["SUPERMETRY_REPLAY_DIR"] = "/srv/replay"
 
 	got, err := Load(env(values))
 	if err != nil {
@@ -292,11 +357,11 @@ func TestLoadRejectsInvalidReplayEnvironment(t *testing.T) {
 		name  string
 		value string
 	}{
-		{name: "PANEL_REPLAY_ENABLED", value: "sometimes"},
-		{name: "PANEL_REPLAY_MASK", value: "sometimes"},
-		{name: "PANEL_REPLAY_SAMPLE_RATE", value: "101"},
-		{name: "PANEL_REPLAY_RETENTION_DAYS", value: "0"},
-		{name: "PANEL_REPLAY_QUOTA", value: "5XB"},
+		{name: "SUPERMETRY_REPLAY_ENABLED", value: "sometimes"},
+		{name: "SUPERMETRY_REPLAY_MASK", value: "sometimes"},
+		{name: "SUPERMETRY_REPLAY_SAMPLE_RATE", value: "101"},
+		{name: "SUPERMETRY_REPLAY_RETENTION_DAYS", value: "0"},
+		{name: "SUPERMETRY_REPLAY_QUOTA", value: "5XB"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

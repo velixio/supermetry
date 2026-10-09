@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/api"
+	"supermetry/internal/api"
 )
 
 func TestQueryIncludesOnlyCompletedImportedDaysBeforeNativeData(t *testing.T) {

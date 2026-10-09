@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { isAnonymousTracking, trackingPolicyKnown } from '@/lib/tracking-policy'
-import type { Site } from '@/routes/$org'
+import type { Site } from '@/routes/app.$org'
 
 // These screens issue detailed-history requests that anonymous instances deny.
 // Keep this at the outlet: returning a notice from inside a page is too late
@@ -14,10 +14,11 @@ const restrictedScreens = new Set([
 ])
 
 export function anonymousRouteRestricted(pathname: string): boolean {
-  const [, , screen, setting] = pathname.split('/').filter(Boolean).map((segment) => {
+  const [app, , , screen, setting] = pathname.split('/').filter(Boolean).map((segment) => {
     // TanStack matches structural route segments case-insensitively.
     try { return decodeURIComponent(segment).toLowerCase() } catch { return segment.toLowerCase() }
   })
+  if (app !== 'app') return false
   return restrictedScreens.has(screen ?? '') ||
     (screen === 'settings' && ['imports', 'goals', 'funnels'].includes(setting ?? ''))
 }
@@ -52,7 +53,7 @@ export function AnalyticsPrivacyBoundary({
         The dashboard provides supported anonymous analytics. Installation and tracking settings remain available.
       </p>
       {requestedSite ? <Button asChild variant="outline">
-        <Link to="/$org/$site" params={{ org, site: requestedSite }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: false }}>
+        <Link to="/app/$org/$site" params={{ org, site: requestedSite }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: false }}>
           Back to dashboard
         </Link>
       </Button> : null}

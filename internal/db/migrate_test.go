@@ -12,8 +12,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
@@ -439,7 +439,7 @@ func TestMigrateDiscardsConnectionWhenUnlockFails(t *testing.T) {
 	probe, schema := testpg.New(t)
 	ctx := context.Background()
 
-	config, err := pgxpool.ParseConfig(os.Getenv("PANEL_TEST_DSN"))
+	config, err := pgxpool.ParseConfig(os.Getenv("SUPERMETRY_TEST_DSN"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,13 +463,13 @@ func TestMigrateDiscardsConnectionWhenUnlockFails(t *testing.T) {
 	}
 
 	var acquired bool
-	if err := probe.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('panel:migrate'))`).Scan(&acquired); err != nil {
+	if err := probe.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('supermetry:migrate'))`).Scan(&acquired); err != nil {
 		t.Fatal(err)
 	}
 	if !acquired {
 		t.Fatal("migration connection still holds advisory lock")
 	}
-	if _, err := probe.Exec(ctx, `select pg_advisory_unlock(hashtext('panel:migrate'))`); err != nil {
+	if _, err := probe.Exec(ctx, `select pg_advisory_unlock(hashtext('supermetry:migrate'))`); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -15,7 +15,7 @@ const site = {
   public_id: 'abc123def456',
   name: 'Docs',
   timezone: 'UTC',
-  tracker_url: 'https://panel.example/js/abc123def456.js',
+  tracker_url: 'https://supermetry.example/js/abc123def456.js',
   tracker: {
     outbound: true,
     downloads: true,

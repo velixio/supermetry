@@ -3,11 +3,11 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
-schema="panel_p1_${$}"
-port=${PANEL_P1_PORT:-18091}
-db_dsn=${PANEL_TEST_DSN:-postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable}
+schema="supermetry_p1_${$}"
+port=${SUPERMETRY_P1_PORT:-18091}
+db_dsn=${SUPERMETRY_TEST_DSN:-postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable}
 pid=
-export PGPASSWORD=${PGPASSWORD:-panel}
+export PGPASSWORD=${PGPASSWORD:-supermetry}
 export PGOPTIONS="-c search_path=$schema"
 cleanup() {
   if [[ -n ${pid} ]] && kill -0 "$pid" 2>/dev/null; then kill -TERM "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
@@ -25,7 +25,7 @@ http_ua='PanelPrivacyHTTP/1.0 unique-full-UA-4a9d'
 load_ip='203.0.113.202'
 load_ua='PanelPrivacyLoad/1.0 unique-full-UA-7f31'
 
-PANEL_DSN="$db_dsn" "$tmp/proto" serve --addr="127.0.0.1:$port" --sites="$tmp/sites.json" --geoip='' \
+SUPERMETRY_DSN="$db_dsn" "$tmp/proto" serve --addr="127.0.0.1:$port" --sites="$tmp/sites.json" --geoip='' \
   --batch=1 --flush=10ms --session-flush=20ms >"$tmp/server.log" 2>&1 &
 pid=$!
 for _ in {1..100}; do
@@ -44,7 +44,7 @@ wait "$pid"
 pid=
 
 printf '%s\n' "{\"ts\":\"2026-07-01T12:00:00Z\",\"site\":1,\"host\":\"privacy.test\",\"path\":\"/load\",\"ref\":\"\",\"utm_source\":\"\",\"utm_medium\":\"\",\"utm_campaign\":\"\",\"name\":\"pageview\",\"props\":{},\"ip\":\"$load_ip\",\"ua\":\"$load_ua\",\"screen_w\":1440,\"country\":\"IN\",\"browser\":\"Other\",\"os\":\"Other\",\"device\":\"desktop\",\"vk\":\"ignored\",\"sk\":\"ignored\"}" >"$tmp/load.ndjson"
-PANEL_DSN="$db_dsn" "$tmp/proto" load --sites="$tmp/sites.json" --batch=1 --flush=10ms <"$tmp/load.ndjson" >"$tmp/load.log" 2>&1
+SUPERMETRY_DSN="$db_dsn" "$tmp/proto" load --sites="$tmp/sites.json" --batch=1 --flush=10ms <"$tmp/load.ndjson" >"$tmp/load.log" 2>&1
 
 PGOPTIONS= pg_dump --dbname="$db_dsn" --schema="$schema" --format=plain --file="$tmp/dump.sql"
 matches=0

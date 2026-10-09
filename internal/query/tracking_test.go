@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/privacy"
-	"panel/internal/query"
+	"supermetry/internal/api"
+	"supermetry/internal/privacy"
+	"supermetry/internal/query"
 )
 
 func TestAnonymousEngineRejectsBeforeStorageOrCache(t *testing.T) {

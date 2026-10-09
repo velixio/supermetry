@@ -2,19 +2,19 @@
 
 `run.sh tier-s` exercises the built product against the deterministic Tier S
 dataset (90 site-local days, seed 42). It uses a fresh disposable PostgreSQL
-schema, loads NDJSON through `panel load`, closes site 1, starts `panel serve`,
+schema, loads NDJSON through `supermetry load`, closes site 1, starts `supermetry serve`,
 and measures startup, S1–S4, F4, R1, R2, R5, and C1. The dashboard timing fires
 summary, timeseries, 13 breakdowns, and realtime concurrently.
 
 ## Run
 
 ```sh
-PANEL_TEST_DSN='postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable' \
+SUPERMETRY_TEST_DSN='postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable' \
   make build && bench/product/run.sh tier-s
 ```
 
 Requirements: PostgreSQL 18, Go, Python 3, curl, psql, pmap, and the built
-`bin/panel`. The script builds its benchmark tools into a temporary directory
+`bin/supermetry`. The script builds its benchmark tools into a temporary directory
 under `bench/results/tmp/`. It never uses the database's public schema: a
 uniquely named schema is created and dropped on exit, and temporary data is
 removed.
@@ -31,7 +31,7 @@ line is reported as PASS or FAIL, and a run fails when a MUST limit fails or a
 measurement is more than 20% slower than `thresholds.json`. Query timings use
 three warmups and 30 measured requests. R2 and S1 use the open-loop load tester
 for 60 seconds at 1,000 and 10,000 events/s respectively. The tester sends the
-Panel intake envelope directly and never logs IP addresses or User-Agents.
+Supermetry intake envelope directly and never logs IP addresses or User-Agents.
 
 When a speed gate fails, the runner records `EXPLAIN (ANALYZE, BUFFERS)`
 evidence for representative filtered queries. A memory failure records the

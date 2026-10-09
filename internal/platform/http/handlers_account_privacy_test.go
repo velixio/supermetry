@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/orgs"
-	"panel/internal/privacy"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/privacy"
 )
 
 func TestMeMembershipSitesExposeConfiguredAndEffectiveTrackingPolicy(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/privacy"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/privacy"
 )
 
 func TestAnonymousHistoryRoutesAndQueries(t *testing.T) {
@@ -71,7 +71,7 @@ func TestAnonymousPrivateRequestsCannotBypassPolicy(t *testing.T) {
 			r := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 			r.Header.Set("Authorization", "Bearer test-key")
 			r.Header.Set("X-CSRF-Token", "test-csrf")
-			r.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "test-csrf"})
+			r.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "test-csrf"})
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 			if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "anonymous tracking policy") {

@@ -42,17 +42,17 @@ func TestCSVVerifiedScopeHeaders(t *testing.T) {
 			if tc.verified {
 				wantFilename = `attachment; filename="site-query-verified-only.csv"`
 				for key, want := range map[string]string{
-					"X-Panel-Privacy-Scope":                  "verified-only",
-					"X-Panel-Privacy-Path-Sanitizer-Version": "1",
-					"X-Panel-Privacy-Policy-Id":              "verified-policy",
-					"X-Panel-Privacy-Unverified-Excluded":    "true",
-					"X-Panel-Privacy-Imports-Excluded":       "true",
+					"X-Supermetry-Privacy-Scope":                  "verified-only",
+					"X-Supermetry-Privacy-Path-Sanitizer-Version": "1",
+					"X-Supermetry-Privacy-Policy-Id":              "verified-policy",
+					"X-Supermetry-Privacy-Unverified-Excluded":    "true",
+					"X-Supermetry-Privacy-Imports-Excluded":       "true",
 				} {
 					if got := result.Header.Get(key); got != want {
 						t.Errorf("%s=%q want %q", key, got, want)
 					}
 				}
-			} else if result.Header.Get("X-Panel-Privacy-Scope") != "" {
+			} else if result.Header.Get("X-Supermetry-Privacy-Scope") != "" {
 				t.Fatal("ordinary CSV marked verified")
 			}
 			if got := result.Header.Get("Content-Disposition"); got != wantFilename {
@@ -71,7 +71,7 @@ func TestCSVFailedQueryHasNoSuccessScope(t *testing.T) {
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
-	if w.Header().Get("X-Panel-Privacy-Scope") != "" || w.Header().Get("Content-Disposition") != "" {
+	if w.Header().Get("X-Supermetry-Privacy-Scope") != "" || w.Header().Get("Content-Disposition") != "" {
 		t.Fatalf("failed query has export headers: %v", w.Header())
 	}
 }

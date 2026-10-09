@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"panel/internal/api"
-	"panel/internal/dict"
-	platformgoals "panel/internal/platform/goals"
+	"supermetry/internal/api"
+	"supermetry/internal/dict"
+	platformgoals "supermetry/internal/platform/goals"
 )
 
 // GoalLookup supplies the current per-site goal definitions.

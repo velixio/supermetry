@@ -12,9 +12,9 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/api"
-	platformgoals "panel/internal/platform/goals"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	platformgoals "supermetry/internal/platform/goals"
+	"supermetry/internal/sites"
 )
 
 const (
@@ -413,7 +413,7 @@ func clonePointer[T any](value *T) *T {
 
 func badQuery(detail string) *api.Problem {
 	return &api.Problem{
-		Type:   "https://panel.dev/problems/invalid-query",
+		Type:   "https://supermetry.com/problems/invalid-query",
 		Title:  "Invalid query",
 		Status: 400,
 		Detail: &detail,
@@ -449,7 +449,7 @@ func QueryProblem(err error) *api.Problem {
 	}
 	detail := "the query exceeded its execution time limit"
 	return &api.Problem{
-		Type:   "https://panel.dev/problems/query-timeout",
+		Type:   "https://supermetry.com/problems/query-timeout",
 		Title:  "Query timed out",
 		Status: 503,
 		Detail: &detail,

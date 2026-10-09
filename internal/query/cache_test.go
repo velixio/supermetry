@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/query"
+	"supermetry/internal/api"
+	"supermetry/internal/query"
 )
 
 func TestCacheInvalidatesOnReclose(t *testing.T) {

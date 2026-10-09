@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"panel/internal/platform/authz"
-	"panel/internal/platform/invites"
-	"panel/internal/platform/mail"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/invites"
+	"supermetry/internal/platform/mail"
 )
 
 func TestInvitationAccessRoundTripPreservesBillingOnlyScope(t *testing.T) {

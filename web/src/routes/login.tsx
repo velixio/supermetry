@@ -4,6 +4,7 @@ import { LoaderCircleIcon } from 'lucide-react'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
+import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
 import {
   Field,
   FieldDescription,
@@ -35,6 +36,7 @@ export type SignupMode = 'open' | 'invite'
 export type AuthConfig = {
   signup: SignupMode
   setup_required: boolean
+  homepage_url: string
 }
 
 type AuthClient = {
@@ -132,7 +134,7 @@ function LoginPage() {
       login={(credentials) =>
         postPrivate('/api/private/auth/login', credentials)
       }
-      next={safeNext(search.next ?? '/')}
+      next={safeNext(search.next ?? '/app')}
       onSuccess={(next) => {
         resetAfterLogin()
         applyPreferredTheme()
@@ -163,6 +165,7 @@ export function AuthScreen({
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         </header>
         {children}
+        <PoweredBySupermetry className="text-xs text-muted-foreground hover:text-foreground" />
       </section>
     </main>
   )
@@ -276,7 +279,7 @@ export function LoginForm({
       </form>
       {signup === 'open' ? (
         <p className="text-sm text-muted-foreground">
-          New to Panel? <Link to="/signup">Create an account</Link>
+          New to Supermetry? <Link to="/signup">Create an account</Link>
         </p>
       ) : null}
     </AuthScreen>

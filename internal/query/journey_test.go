@@ -9,10 +9,10 @@ import (
 
 	"github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestBuildJourneyCollapsesDuplicatesBucketsOtherAndCountsExits(t *testing.T) {

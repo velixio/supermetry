@@ -3,9 +3,9 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
-schema="panel_o5_${$}"
-db_dsn=${PANEL_TEST_DSN:-postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable}
-export PGPASSWORD=${PGPASSWORD:-panel}
+schema="supermetry_o5_${$}"
+db_dsn=${SUPERMETRY_TEST_DSN:-postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable}
+export PGPASSWORD=${PGPASSWORD:-supermetry}
 export PGOPTIONS="-c search_path=$schema"
 cleanup() {
   PGOPTIONS= psql "$db_dsn" -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS $schema CASCADE" >/dev/null 2>&1 || true
@@ -23,10 +23,10 @@ for offset in $(seq 0 20); do
   day=$(date -u -d "2026-07-01 +${offset} days" +%F)
   "$tmp/gen" --tier tiny --days 1 --start "$day" --seed 42 --out "$tmp/day.ndjson" \
     --sites "$tmp/sites.json" --truth "$tmp/truth.json" --quiet
-  PANEL_DSN="$db_dsn" PANEL_RAW_PARTITION=daily "$tmp/proto" load --sites="$tmp/sites.json" \
+  SUPERMETRY_DSN="$db_dsn" SUPERMETRY_RAW_PARTITION=daily "$tmp/proto" load --sites="$tmp/sites.json" \
     --batch=2000 --flush=20ms <"$tmp/day.ndjson" >/dev/null
-  PANEL_DSN="$db_dsn" PANEL_RAW_PARTITION=daily "$tmp/proto" rollup --from "$day" --to "$day" --parallel=1 >/dev/null
-  PANEL_DSN="$db_dsn" PANEL_RAW_PARTITION=daily "$tmp/proto" retention --raw-days 7 --as-of "$day" >/dev/null
+  SUPERMETRY_DSN="$db_dsn" SUPERMETRY_RAW_PARTITION=daily "$tmp/proto" rollup --from "$day" --to "$day" --parallel=1 >/dev/null
+  SUPERMETRY_DSN="$db_dsn" SUPERMETRY_RAW_PARTITION=daily "$tmp/proto" retention --raw-days 7 --as-of "$day" >/dev/null
   raw_bytes=$(psql "$db_dsn" -Atc "select coalesce(sum(pg_total_relation_size(inhrelid)),0) from pg_inherits where inhparent='events'::regclass")
   db_bytes=$(psql "$db_dsn" -Atc "select coalesce(sum(pg_total_relation_size(c.oid)),0) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname=current_schema() and c.relkind in ('r','p')")
   parts=$(psql "$db_dsn" -Atc "select count(*) from pg_inherits where inhparent='events'::regclass")

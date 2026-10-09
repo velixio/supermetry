@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"panel/bench/load/internal/rec"
+	"supermetry/bench/load/internal/rec"
 )
 
 func TestPanelBuilder(t *testing.T) {

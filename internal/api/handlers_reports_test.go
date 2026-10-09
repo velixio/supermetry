@@ -10,9 +10,9 @@ import (
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/ingest"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/ingest"
 )
 
 type reportsQueryStub struct {

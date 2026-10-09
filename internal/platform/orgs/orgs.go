@@ -8,9 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/store"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
 )
 
 type Role = authz.Role

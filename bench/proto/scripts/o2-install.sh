@@ -11,12 +11,12 @@ usage() {
 Usage: o2-install.sh [--threshold-seconds N]
 
 Run three clean install-to-first-pageview trials. Each trial builds proto,
-creates a fresh panel_o2_* schema, starts the binary (auto-migrations), POSTs
+creates a fresh supermetry_o2_* schema, starts the binary (auto-migrations), POSTs
 one pageview, confirms it in SQL, and drops the schema. The median must be at
 or below 120 seconds by default.
 
 Environment:
-  PANEL_TEST_DSN         base connection (default: local panel DB/role)
+  SUPERMETRY_TEST_DSN         base connection (default: local supermetry DB/role)
 EOF
 }
 
@@ -33,7 +33,7 @@ done
 for cmd in go psql curl mktemp sort awk; do ops_require "$cmd"; done
 ops_check_admin
 
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/panel-o2.XXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/supermetry-o2.XXXXXX")
 declare -a dbs=()
 server_pid=''
 cleanup() {
@@ -49,7 +49,7 @@ trap cleanup EXIT INT TERM
 declare -a elapsed=()
 base_port=$((20000 + ($$ % 20000)))
 for run in 1 2 3; do
-  db="panel_o2_${UID}_$$_${run}"
+  db="supermetry_o2_${UID}_$$_${run}"
   dbs+=("$db")
   bin="$tmp/proto-$run"
   log="$tmp/serve-$run.log"
@@ -59,7 +59,7 @@ for run in 1 2 3; do
   (cd "$proto_dir" && go build -buildvcs=false -trimpath -o "$bin" .)
   ops_create_db "$db"
   dsn=$(ops_dsn "$db")
-  PANEL_DSN="$dsn" "$bin" serve --addr "127.0.0.1:$port" --geoip '' \
+  SUPERMETRY_DSN="$dsn" "$bin" serve --addr "127.0.0.1:$port" --geoip '' \
     --sites "$proto_dir/testdata/fixture_sites.json" >"$log" 2>&1 &
   server_pid=$!
   if ! ops_wait_http "http://127.0.0.1:$port" "$server_pid"; then

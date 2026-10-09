@@ -9,9 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/replay"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/replay"
 )
 
 func TestEndpoints404WhenInstanceDisabled(t *testing.T) {

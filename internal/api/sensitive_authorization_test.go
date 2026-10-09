@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/ingest"
+	"supermetry/internal/api"
+	"supermetry/internal/ingest"
 )
 
 func TestSensitiveSessionMetadataAndReplayFilter(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 // availableDayBlocks recursively replaces an unavailable block with its two

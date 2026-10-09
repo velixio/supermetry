@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
-	"panel/internal/privacy"
 	"strings"
+	"supermetry/internal/privacy"
 	"testing"
 )
 

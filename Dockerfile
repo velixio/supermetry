@@ -18,27 +18,27 @@ ARG VERSION=dev
 ENV CGO_ENABLED=0
 RUN go build -tags embedui -trimpath \
     -ldflags "-s -w -X main.version=${VERSION}" \
-    -o /out/panel ./cmd/panel
+    -o /out/supermetry ./cmd/supermetry
 
 FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates \
-    && addgroup -S -g 65532 panel \
-    && adduser -S -D -H -u 65532 -G panel panel \
+    && addgroup -S -g 65532 supermetry \
+    && adduser -S -D -H -u 65532 -G supermetry supermetry \
     && mkdir -p /data \
-    && chown panel:panel /data
+    && chown supermetry:supermetry /data
 
-COPY --from=go-build --chown=panel:panel /out/panel /panel
-COPY --chown=panel:panel LICENSE NOTICE /
+COPY --from=go-build --chown=supermetry:supermetry /out/supermetry /supermetry
+COPY --chown=supermetry:supermetry LICENSE NOTICE /
 
-ENV PANEL_LISTEN=0.0.0.0:8787 \
-    PANEL_DATA_DIR=/data
+ENV SUPERMETRY_LISTEN=0.0.0.0:8787 \
+    SUPERMETRY_DATA_DIR=/data
 
-USER panel
+USER supermetry
 EXPOSE 8787
 VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8787/healthz"]
 
-ENTRYPOINT ["/panel"]
+ENTRYPOINT ["/supermetry"]
 CMD ["serve"]

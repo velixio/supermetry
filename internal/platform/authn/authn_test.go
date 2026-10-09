@@ -11,18 +11,18 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/platform/auth"
-	"panel/internal/platform/authn"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/keys"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/orgs"
-	"panel/internal/platform/shares"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authn"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/keys"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/shares"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 type disabledMail struct{}
@@ -90,7 +90,7 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 			name: "private session selects membership header",
 			path: "/api/private/stats/summary",
 			headers: map[string]string{
-				"X-Panel-Org": integer(env.orgID),
+				"X-Supermetry-Org": integer(env.orgID),
 			},
 			cookies: []*http.Cookie{{Name: auth.CookieName, Value: env.session}},
 			want:    api.Principal{OrgID: env.orgID, Scopes: authz.APIScopes(authz.Principal{OrgID: env.orgID, Role: authz.RoleOwner})},
@@ -106,7 +106,7 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 			name: "session rejects foreign organization header",
 			path: "/api/private/stats/summary",
 			headers: map[string]string{
-				"X-Panel-Org": integer(env.otherOrgID),
+				"X-Supermetry-Org": integer(env.otherOrgID),
 			},
 			cookies: []*http.Cookie{{Name: auth.CookieName, Value: env.session}},
 		},
@@ -220,7 +220,7 @@ func newTestEnv(t *testing.T) testEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authService := auth.New(data, disabledMail{}, box, "https://panel.example")
+	authService := auth.New(data, disabledMail{}, box, "https://supermetry.example")
 	session := "session-token"
 	now := time.Now()
 	if err := store.CreateSession(ctx, pool, store.UserSession{

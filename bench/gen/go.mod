@@ -1,4 +1,4 @@
-module panel/bench/gen
+module supermetry/bench/gen
 
 go 1.26
 

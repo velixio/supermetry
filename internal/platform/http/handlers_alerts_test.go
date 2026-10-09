@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/alerts"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
+	"supermetry/internal/alerts"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
 )
 
 type fakeAlertsService struct {
@@ -183,11 +183,11 @@ func TestChannelCRUDDelegatesValidatedRequests(t *testing.T) {
 		Authenticator: actorAuthenticator{"admin": {UserID: 2, OrgID: 1, Role: authz.RoleAdmin}},
 		Alerts:        service,
 	})
-	created := requestAs(t, handler, "admin", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"webhook","name":"Deploys","config":{"url":"https://hooks.example.test/panel","secret":"shared"}}`)
+	created := requestAs(t, handler, "admin", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"webhook","name":"Deploys","config":{"url":"https://hooks.example.test/supermetry","secret":"shared"}}`)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create status=%d body=%s", created.Code, created.Body.String())
 	}
-	if service.channelIn.URL != "https://hooks.example.test/panel" || service.channelIn.Secret != "shared" {
+	if service.channelIn.URL != "https://hooks.example.test/supermetry" || service.channelIn.Secret != "shared" {
 		t.Fatalf("create input=%+v", service.channelIn)
 	}
 	if response := requestAs(t, handler, "admin", http.MethodPatch, "/api/private/orgs/1/channels/7", `{"kind":"email","name":"Ops","config":{"recipients":["ops@example.test"]}}`); response.Code != http.StatusOK {
@@ -211,8 +211,8 @@ func TestTelegramChannelCRUDAcceptsWriteOnlyTokenAndDisabledState(t *testing.T) 
 	if created.Code != http.StatusCreated || service.channelIn.BotToken == "" || service.channelIn.ChatID != "-1001234567890" || service.channelIn.Enabled == nil || *service.channelIn.Enabled {
 		t.Fatalf("status=%d input=%+v body=%s", created.Code, service.channelIn, created.Body.String())
 	}
-	updated := requestAs(t, handler, "admin", http.MethodPatch, "/api/private/orgs/1/channels/7", `{"kind":"telegram","name":"Ops","enabled":true,"config":{"bot_token":"","chat_id":"@panel_alerts"}}`)
-	if updated.Code != http.StatusOK || service.channelIn.BotToken != "" || service.channelIn.ChatID != "@panel_alerts" || service.channelIn.Enabled == nil || !*service.channelIn.Enabled {
+	updated := requestAs(t, handler, "admin", http.MethodPatch, "/api/private/orgs/1/channels/7", `{"kind":"telegram","name":"Ops","enabled":true,"config":{"bot_token":"","chat_id":"@supermetry_alerts"}}`)
+	if updated.Code != http.StatusOK || service.channelIn.BotToken != "" || service.channelIn.ChatID != "@supermetry_alerts" || service.channelIn.Enabled == nil || !*service.channelIn.Enabled {
 		t.Fatalf("status=%d input=%+v body=%s", updated.Code, service.channelIn, updated.Body.String())
 	}
 }
@@ -339,7 +339,7 @@ func requestAs(t *testing.T, handler http.Handler, actor, method, path, body str
 	request.Header.Set("X-Test-Actor", actor)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-CSRF-Token", "token")
-	request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response

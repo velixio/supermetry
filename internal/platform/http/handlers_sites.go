@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/privacy"
-	coresites "panel/internal/sites"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/privacy"
+	coresites "supermetry/internal/sites"
 )
 
 type siteResponse struct {
@@ -300,7 +300,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if request.ProfilesEnabled != nil && *request.ProfilesEnabled && h.deps.TrackingMode != privacy.Identified {
-		writeProblem(w, http.StatusConflict, "Conflict", "profiles require PANEL_TRACKING_MODE=identified")
+		writeProblem(w, http.StatusConflict, "Conflict", "profiles require SUPERMETRY_TRACKING_MODE=identified")
 		return
 	}
 	if (request.Tracker != nil || request.ExcludeCountries != nil) && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {

@@ -69,7 +69,7 @@ describe('EventsPage', () => {
     expect(screen.queryByText(/visitor_id|user agent|ip address/i)).not.toBeInTheDocument()
     expect(get).toHaveBeenCalledWith('/api/private/sites/7/events', expect.objectContaining({
       params: expect.objectContaining({
-        header: { 'X-Panel-Org': '3' },
+        header: { 'X-Supermetry-Org': '3' },
         query: expect.objectContaining({ from: '2026-10-01', to: '2026-10-08', limit: 50 }),
       }),
     }))

@@ -232,7 +232,7 @@ describe('full tracker', () => {
   })
 
   it('tracks marked 404 pages after the pageview', () => {
-    const { payloads } = load('', '<meta name="panel:404">')
+    const { payloads } = load('', '<meta name="supermetry:404">')
 
     expect(payloads.map((payload) => payload.name).slice(0, 2)).toEqual(['pageview', '404'])
     expect(event(payloads, '404')?.props.path).toBe('/start')
@@ -241,10 +241,10 @@ describe('full tracker', () => {
   it('tracks click and form attributes with lowercased bounded props', () => {
     const { dom, payloads } = load()
     const button = dom.window.document.createElement('button')
-    button.setAttribute('data-panel-event', 'Signup')
-    button.setAttribute('data-panel-prop-Plan', 'Pro')
+    button.setAttribute('data-supermetry-event', 'Signup')
+    button.setAttribute('data-supermetry-prop-Plan', 'Pro')
     for (let index = 0; index < 31; index++) {
-      button.setAttribute(`data-panel-prop-p${index}`, 'x')
+      button.setAttribute(`data-supermetry-prop-p${index}`, 'x')
     }
     const child = dom.window.document.createElement('span')
     button.append(child)
@@ -252,7 +252,7 @@ describe('full tracker', () => {
     child.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
     const form = dom.window.document.createElement('form')
-    form.setAttribute('data-panel-event', 'Lead')
+    form.setAttribute('data-supermetry-event', 'Lead')
     dom.window.document.body.append(form)
     form.dispatchEvent(new dom.window.Event('submit', { bubbles: true }))
 
@@ -269,7 +269,7 @@ describe('full tracker', () => {
     const { dom, payloads } = load(attributes)
     const link = dom.window.document.createElement('a')
     link.href = href
-    link.setAttribute('data-panel-event', 'Signup')
+    link.setAttribute('data-supermetry-event', 'Signup')
     dom.window.document.body.append(link)
     link.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
@@ -277,7 +277,7 @@ describe('full tracker', () => {
   })
 
   it('honors data-404=false for both 404 markers', () => {
-    const { payloads } = load('data-404="false" data-404-page', '<meta name="panel:404">')
+    const { payloads } = load('data-404="false" data-404-page', '<meta name="supermetry:404">')
 
     expect(event(payloads, '404')).toBeUndefined()
   })

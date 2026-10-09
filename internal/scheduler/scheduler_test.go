@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/testpg"
+	"supermetry/internal/testpg"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -143,7 +143,7 @@ func lockJob(t *testing.T, pool *pgxpool.Pool, name string) func() {
 	}
 
 	var acquired bool
-	if err := conn.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('panel:job:' || $1))`, name).Scan(&acquired); err != nil {
+	if err := conn.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('supermetry:job:' || $1))`, name).Scan(&acquired); err != nil {
 		conn.Release()
 		t.Fatalf("lock job %q: %v", name, err)
 	}
@@ -154,7 +154,7 @@ func lockJob(t *testing.T, pool *pgxpool.Pool, name string) func() {
 
 	return func() {
 		var unlocked bool
-		if err := conn.QueryRow(context.Background(), `select pg_advisory_unlock(hashtext('panel:job:' || $1))`, name).Scan(&unlocked); err != nil {
+		if err := conn.QueryRow(context.Background(), `select pg_advisory_unlock(hashtext('supermetry:job:' || $1))`, name).Scan(&unlocked); err != nil {
 			t.Errorf("unlock job %q: %v", name, err)
 		} else if !unlocked {
 			t.Errorf("unlock job %q: lock was not held", name)

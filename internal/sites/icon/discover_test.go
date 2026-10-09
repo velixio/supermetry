@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"panel/internal/safehttp"
+	"supermetry/internal/safehttp"
 )
 
 func TestDiscoverResolvesRelativeAndAbsoluteIcons(t *testing.T) {

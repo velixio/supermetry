@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"panel/internal/session"
+	"supermetry/internal/session"
 )
 
 const window = 30 * time.Minute

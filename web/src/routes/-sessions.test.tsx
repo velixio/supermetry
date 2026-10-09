@@ -69,7 +69,7 @@ describe('sessions route', () => {
   afterEach(cleanup)
 
   it('loads sessions for a viewer using URL dates and filters', async () => {
-    renderPath('/acme/example/sessions?period=custom&from=2026-10-01&to=2026-10-08&f=country%3Ais%3AIN')
+    renderPath('/app/acme/example/sessions?period=custom&from=2026-10-01&to=2026-10-08&f=country%3Ais%3AIN')
     expect(await screen.findByRole('heading', { name: 'Sessions' })).toBeVisible()
     await waitFor(() => expect(get).toHaveBeenCalledWith(
       '/api/private/sites/{site_id}/sessions',
@@ -85,7 +85,7 @@ describe('sessions route', () => {
       data: path === '/api/private/me' ? me : { data: [session], next_cursor: 'cursor-2', total: 2, total_capped: false },
       response: new Response(null, { status: 200 }),
     }))
-    const router = renderPath('/acme/example/sessions')
+    const router = renderPath('/app/acme/example/sessions')
 
     fireEvent.click(await screen.findByRole('button', { name: 'Next' }))
     await waitFor(() => expect(router.state.location.search).toMatchObject({ page: '2', cursors: ['cursor-2'] }))
@@ -110,7 +110,7 @@ describe('sessions route', () => {
       data: path === '/api/private/me' ? me : { data: [session], next_cursor: null, total: 2, total_capped: false },
       response: new Response(null, { status: 200 }),
     }))
-    const router = renderPath('/acme/example/sessions?page=2&cursors=cursor-2')
+    const router = renderPath('/app/acme/example/sessions?page=2&cursors=cursor-2')
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Has replay' }))
 
@@ -123,7 +123,7 @@ describe('sessions route', () => {
       data: path === '/api/private/me' ? me : { data: [{ ...session, has_replay: true }], next_cursor: null, total: 2, total_capped: false },
       response: new Response(null, { status: 200 }),
     }))
-    const router = renderPath('/acme/example/sessions?page=2&cursors=cursor-2')
+    const router = renderPath('/app/acme/example/sessions?page=2&cursors=cursor-2')
 
     fireEvent.click(await screen.findByRole('button', { name: 'Play replay' }))
 

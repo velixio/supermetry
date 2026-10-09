@@ -9,11 +9,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 func TestShareLifecycle(t *testing.T) {

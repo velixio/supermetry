@@ -1,6 +1,6 @@
 # bench/load: notes (load agent, gate step 4)
 
-Loaders, query harness and HTTP load tester for the incumbents, so the scorecard's REL lines can be filled in against the Panel prototype on **the same data** (gen Tier S, seed 42, 30 days, 2026-09-01..30, 30,296,439 events) and **the same query set** (bench/proto: S2, S3 with 1 and 2 filters, S4, F4; biggest site = site 1, America/New_York).
+Loaders, query harness and HTTP load tester for the incumbents, so the scorecard's REL lines can be filled in against the Supermetry prototype on **the same data** (gen Tier S, seed 42, 30 days, 2026-09-01..30, 30,296,439 events) and **the same query set** (bench/proto: S2, S3 with 1 and 2 filters, S4, F4; biggest site = site 1, America/New_York).
 Results: [../results/incumbents-queries-20261007.md](../results/incumbents-queries-20261007.md). Throwaway code; Go 1.26 module `panel/bench/load` (pgx/v5 only).
 
 ## Layout
@@ -24,11 +24,11 @@ Raw NDJSON is never stored: `bin/gen --tier S --days 30 --seed 42 --out - | load
 
 ### Umami 3.4.0 (local PG 18, db `umami`)
 - `umami/load.sh 30`: saves Umami's own index/PK DDL from `pg_indexes`/`pg_constraint` (33 = 15 on `website_event`, 12 on `session`, 6 on `event_data`; `data/umami-index-ddl.sql`), truncates, drops them, COPYs over 4+1+1 connections (338K ev/s, 90 s), re-creates **exactly the same 33** (507 s, 4 parallel sessions, `maintenance_work_mem` 1 GB per session), then `VACUUM (ANALYZE)` (77 s).
-  - Bulk-built btrees are denser than ones grown by Umami's random-UUID inserts, so R3 is a **lower bound** for an organically grown Umami DB (conservative for Panel's "≤ ½ of Umami").
+  - Bulk-built btrees are denser than ones grown by Umami's random-UUID inserts, so R3 is a **lower bound** for an organically grown Umami DB (conservative for Supermetry's "≤ ½ of Umami").
 - Identity (emulates `/api/send`, MIT code not copied): `session_id` = UUID(website, ip, ua, UTC month), one `session` row per session_id (Umami's monthly-salted "visitor"); `visit_id` = UUID(sk) (true session; CONTRACT allows sk); `event_id` = UUID(sk, ts) (uniform like v4).
 - Value formats probed through the real `/api/send` before loading: `referrer_domain` = host without `www.`, NULL for internal/none; `url_query` '' when empty; utm_* NULL when empty; browser/os labels (`chrome`, `ios`, `crios`, `edge-chromium`, `samsung`, `Android OS`, `Windows 10`, `Mac OS`); `event_data` string rows (data_type 1), 3 per custom event.
 - Not filled (conservative for R3): `page_title`, `region`, `city`; `language` = `en-US`.
-- **PG role settings**: `ALTER ROLE umami SET work_mem = '32MB'`, `max_parallel_workers_per_gather = 4` (= Panel's session-tuned GUCs), and **`TimeZone = 'UTC'`**: the local server's default zone is America/New_York and Umami/Prisma binds naive UTC timestamps, so without it every query window was shifted by the NY offset (found via a temporary per-role `log_min_duration_statement`, since reset). Umami's own compose runs PG in UTC.
+- **PG role settings**: `ALTER ROLE umami SET work_mem = '32MB'`, `max_parallel_workers_per_gather = 4` (= Supermetry's session-tuned GUCs), and **`TimeZone = 'UTC'`**: the local server's default zone is America/New_York and Umami/Prisma binds naive UTC timestamps, so without it every query window was shifted by the NY offset (found via a temporary per-role `log_min_duration_statement`, since reset). Umami's own compose runs PG in UTC.
 - Counts after load: 30,296,439 events, 5,743,273 sessions, 9,081,966 event_data rows, 33 valid indexes (re-checked after the 06:13 reboot).
 
 ### Plausible CE v3.2.1 (its compose ClickHouse 24.12 + PG 16)
@@ -49,7 +49,7 @@ Raw NDJSON is never stored: `bin/gen --tier S --days 30 --seed 42 --out - | load
 
 ## Harness (`harness bench|c1`)
 - The prototype's cases, panels fired concurrently, wall time per dashboard; warm-up then 30 runs; `-budget` would reduce runs for very slow cases (not triggered: Umami's S2 took ~20 min for 32 runs).
-- Panel → API: Umami `stats`, `pageviews?unit=day`, `metrics?type=path|referrer|country|browser|os|device|entry|exit&limit=50`, filters `country=eq.US`, `path=eq./`, `referrer=eq.<host>`; funnel `POST /api/reports/funnel` (window 60); props `event-data/values`. Plausible: one `/api/v2/query` per panel (metrics visitors+pageviews; entry/exit visitors+visits; overview visitors, visits, pageviews, bounce_rate, visit_duration; `time:day`), filters `visit:country`, `visit:source` ("Direct / None"), `event:page`; props `event:props:plan` with `event:goal = signup`. GoatCounter: `stats/total` (also the daily series), `stats/hits`, `stats/{toprefs,locations,browsers,systems,sizes}`, path filter `include_paths` + `path_by_name`; ranges rounded to whole UTC hours.
+- Supermetry → API: Umami `stats`, `pageviews?unit=day`, `metrics?type=path|referrer|country|browser|os|device|entry|exit&limit=50`, filters `country=eq.US`, `path=eq./`, `referrer=eq.<host>`; funnel `POST /api/reports/funnel` (window 60); props `event-data/values`. Plausible: one `/api/v2/query` per panel (metrics visitors+pageviews; entry/exit visitors+visits; overview visitors, visits, pageviews, bounce_rate, visit_duration; `time:day`), filters `visit:country`, `visit:source` ("Direct / None"), `event:page`; props `event:props:plan` with `event:goal = signup`. GoatCounter: `stats/total` (also the daily series), `stats/hits`, `stats/{toprefs,locations,browsers,systems,sizes}`, path filter `include_paths` + `path_by_name`; ranges rounded to whole UTC hours.
 - C1 converts Plausible's bounce_rate (%) and visit_duration (mean s) back to totals, so their error includes the API's rounding.
 
 ## Ingest tests (`ingest.sh`, `loadtest/`, `memsample.sh`)

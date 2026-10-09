@@ -12,18 +12,18 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	platformauth "panel/internal/platform/auth"
-	"panel/internal/platform/authn"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/invites"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/orgs"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authn"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/invites"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
+	"supermetry/internal/testpg"
 )
 
 type membershipHTTPFixture struct {
@@ -69,11 +69,11 @@ func newMembershipHTTPFixture(t *testing.T) membershipHTTPFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := platformauth.New(data, &mail.Fake{}, box, "https://panel.example")
+	a := platformauth.New(data, &mail.Fake{}, box, "https://supermetry.example")
 	o := orgs.New(data)
 	f.authenticator = platformhttp.NewAuthenticator(a, nil, nil, o)
 	f.analyticsAuth = authn.New(a, nil, nil, o)
-	f.handler = platformhttp.New(platformhttp.Deps{Auth: a, Store: data, Orgs: o, Invites: invites.New(data, users.New(data), &mail.Fake{}, "https://panel.example"), Authenticator: f.authenticator})
+	f.handler = platformhttp.New(platformhttp.Deps{Auth: a, Store: data, Orgs: o, Invites: invites.New(data, users.New(data), &mail.Fake{}, "https://supermetry.example"), Authenticator: f.authenticator})
 	return f
 }
 
@@ -81,7 +81,7 @@ func (f membershipHTTPFixture) request(method, path, actor, body string) *httpte
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("X-CSRF-Token", "token")
-	r.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	r.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	r.AddCookie(&http.Cookie{Name: platformauth.CookieName, Value: actor + "-session"})
 	w := httptest.NewRecorder()
 	f.handler.ServeHTTP(w, r)

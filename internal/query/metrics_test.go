@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"panel/internal/query"
+	"supermetry/internal/query"
 )
 
 func TestMetricFormulas(t *testing.T) {

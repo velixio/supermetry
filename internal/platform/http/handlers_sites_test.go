@@ -14,14 +14,14 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	coresites "panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	coresites "supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestSiteExclusionAPI(t *testing.T) {
@@ -52,7 +52,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 	handler := platformhttp.New(platformhttp.Deps{
 		Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
 		Mutations: platformhttp.Services{Sites: sites}, Store: data,
-		BaseURL: "https://panel.example", TrackerPath: "/js/script.js",
+		BaseURL: "https://supermetry.example", TrackerPath: "/js/script.js",
 	})
 	fresh := authenticatedRequest(http.MethodGet, fmt.Sprintf("/api/private/sites/%d", site.ID), "")
 	freshResponse := httptest.NewRecorder()
@@ -60,7 +60,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 	if freshResponse.Code != http.StatusOK || !strings.Contains(freshResponse.Body.String(), `"exclude_ips":[]`) ||
 		!strings.Contains(freshResponse.Body.String(), `"exclude_paths":[]`) ||
 		!strings.Contains(freshResponse.Body.String(), `"exclude_countries":[]`) ||
-		!strings.Contains(freshResponse.Body.String(), `"tracker_url":"https://panel.example/js/`+site.PublicID+`.js"`) ||
+		!strings.Contains(freshResponse.Body.String(), `"tracker_url":"https://supermetry.example/js/`+site.PublicID+`.js"`) ||
 		!strings.Contains(freshResponse.Body.String(), `"tracker":{"outbound":true`) {
 		t.Fatalf("fresh GET status=%d body=%s, want empty arrays", freshResponse.Code, freshResponse.Body.String())
 	}
@@ -85,7 +85,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 	if strings.Join(patched.ExcludeIPs, ",") != "203.0.113.7/32,2001:db8::/32" ||
 		strings.Join(patched.ExcludePaths, ",") != "/admin/*,/preview/**" ||
 		strings.Join(patched.ExcludeCountries, ",") != "RU" || !patched.Tracker.Hash ||
-		patched.TrackerURL != "https://panel.example/js/"+site.PublicID+".js" {
+		patched.TrackerURL != "https://supermetry.example/js/"+site.PublicID+".js" {
 		t.Fatalf("PATCH exclusions = %+v", patched)
 	}
 
@@ -184,7 +184,7 @@ func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 		request.Header.Set("X-Test-Actor", actor)
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("X-CSRF-Token", "token")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
 		return response
@@ -301,7 +301,7 @@ func TestCreateSiteReturnsBeforeIconDiscoveryFinishes(t *testing.T) {
 	handler := platformhttp.New(platformhttp.Deps{
 		Authenticator: actorAuthenticator{"owner": principal},
 		Mutations:     mutations,
-		BaseURL:       "https://panel.example",
+		BaseURL:       "https://supermetry.example",
 		TrackerPath:   "/js/script.js",
 	})
 	request := authenticatedRequest(http.MethodPost, "/api/private/sites", `{"name":"Example","hosts":["example.test"],"timezone":"UTC","retention_days":30}`)
@@ -319,7 +319,7 @@ func TestCreateSiteReturnsBeforeIconDiscoveryFinishes(t *testing.T) {
 		}
 		if body := response.Body.String(); !strings.Contains(body, `"exclude_countries":[]`) ||
 			!strings.Contains(body, `"tracker":{"outbound":true`) ||
-			!strings.Contains(body, `"tracker_url":"https://panel.example/js/abcdefgh2345.js"`) {
+			!strings.Contains(body, `"tracker_url":"https://supermetry.example/js/abcdefgh2345.js"`) {
 			t.Fatalf("create body=%s, want tracker contract", body)
 		}
 	case <-time.After(time.Second):
@@ -470,7 +470,7 @@ func authenticatedRequest(method, path, body string) *http.Request {
 	if method != http.MethodGet {
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("X-CSRF-Token", "token")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	}
 	return request
 }

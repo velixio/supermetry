@@ -7,15 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/db"
-	platformauth "panel/internal/platform/auth"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
+	"supermetry/internal/testpg"
 )
 
 type accountHTTPFixture struct {
@@ -38,7 +38,7 @@ func newAccountHTTPFixture(t *testing.T, sender mail.Sender) accountHTTPFixture 
 	if err != nil {
 		t.Fatal(err)
 	}
-	authService := platformauth.New(data, sender, box, "https://panel.example")
+	authService := platformauth.New(data, sender, box, "https://supermetry.example")
 	userID, err := users.New(data).Create(context.Background(), "owner@example.test", "Owner", "pw-123456789")
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func (f accountHTTPFixture) request(t *testing.T, method, path, body string, csr
 	request.AddCookie(&http.Cookie{Name: platformauth.CookieName, Value: f.cookie})
 	if csrf {
 		request.Header.Set("X-CSRF-Token", "token")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	}
 	response := httptest.NewRecorder()
 	f.handler.ServeHTTP(response, request)
@@ -114,13 +114,13 @@ func TestEmailChangeWithoutSMTPIsConflict(t *testing.T) {
 	}
 	data := &store.Store{Pool: pool}
 	box, _ := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
-	authService := platformauth.New(data, disabledSender{}, box, "https://panel.example")
+	authService := platformauth.New(data, disabledSender{}, box, "https://supermetry.example")
 	userID, _ := users.New(data).Create(context.Background(), "owner@example.test", "Owner", "pw-123456789")
 	handler := platformhttp.New(platformhttp.Deps{Auth: authService, Store: data, Authenticator: actorAuthenticator{"owner": {UserID: userID, OrgID: 1, Role: authz.RoleOwner}}})
 	request := httptest.NewRequest(http.MethodPost, "/api/private/me/email", strings.NewReader(`{"new_email":"new@example.test","password":"pw-123456789"}`))
 	request.Header.Set("X-Test-Actor", "owner")
 	request.Header.Set("X-CSRF-Token", "token")
-	request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusConflict || response.Header().Get("Content-Type") != "application/problem+json" || !strings.Contains(response.Body.String(), "SMTP") {

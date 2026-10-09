@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/testenv"
+	"supermetry/internal/testenv"
 )
 
 func TestNoIPOrUAPersistedAnywhere(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"panel/internal/config"
-	"panel/internal/privacy"
-	coresites "panel/internal/sites"
+	"supermetry/internal/config"
+	"supermetry/internal/privacy"
+	coresites "supermetry/internal/sites"
 )
 
 type trackingPolicyResponse struct {
@@ -44,7 +44,7 @@ func (h *handler) allowHistoricalIdentity(w http.ResponseWriter) bool {
 func validateReplayPolicy(env config.ReplayEnv, in coresites.ReplaySiteInput) error {
 	switch {
 	case in.Enabled && !env.Enabled:
-		return fmt.Errorf("replay requires instance permission through PANEL_REPLAY_ENABLED")
+		return fmt.Errorf("replay requires instance permission through SUPERMETRY_REPLAY_ENABLED")
 	case in.Mask != nil && env.Mask != nil && *env.Mask && !*in.Mask:
 		return fmt.Errorf("replay masking is required by the instance")
 	case in.SampleRate != nil && env.SampleRate != nil && *in.SampleRate > *env.SampleRate:

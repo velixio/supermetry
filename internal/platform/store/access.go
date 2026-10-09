@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5"
-	"panel/internal/platform/authz"
+	"supermetry/internal/platform/authz"
 )
 
 // CurrentMemberForUpdate revalidates a human actor while an authorized mutation

@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/enrich"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/enrich"
 )
 
 // LoadOptions configure a bulk load.

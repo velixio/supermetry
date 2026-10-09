@@ -12,12 +12,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/keys"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/keys"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 func TestPublicAPIKeysRejectEscalation(t *testing.T) {

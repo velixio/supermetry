@@ -12,10 +12,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
 )
 
 var (
@@ -26,7 +26,7 @@ var (
 	ErrLastOwner    = errors.New("account is the last owner of an organization")
 )
 
-const CookieName = "panel_session"
+const CookieName = "supermetry_session"
 
 type Clock interface {
 	Now() time.Time
@@ -60,7 +60,7 @@ var (
 func New(s *store.Store, sender mail.Sender, box *platformcrypto.SecretBox, baseURL string, options ...Option) *Auth {
 	dummyOnce.Do(func() {
 		var err error
-		dummyPHC, err = platformcrypto.HashPassword("panel-dummy-password")
+		dummyPHC, err = platformcrypto.HashPassword("supermetry-dummy-password")
 		if err != nil {
 			panic("initialize password verifier: " + err.Error())
 		}

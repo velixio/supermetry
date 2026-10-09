@@ -70,7 +70,7 @@ test("always consent waits for an explicit grant", async ({ page }) => {
   await page.goto("/consent-always");
   expect((await state(page)).starts).toBe(0);
 
-  await page.evaluate(() => (window as typeof window & { panel?: { consent?(granted: boolean): void } }).panel?.consent?.(true));
+  await page.evaluate(() => (window as typeof window & { supermetry?: { consent?(granted: boolean): void } }).supermetry?.consent?.(true));
   await expect.poll(async () => (await state(page)).starts).toBe(1);
 });
 
@@ -78,7 +78,7 @@ test("manual trigger stays disabled even with a custom reason", async ({ page })
   await page.goto("/trigger/manual-off");
   await expect.poll(async () => (await state(page)).starts).toBe(1);
 
-  await page.evaluate(() => (window as typeof window & { panel?: { replay?: { trigger(reason?: string): void } } }).panel?.replay?.trigger("custom"));
+  await page.evaluate(() => (window as typeof window & { supermetry?: { replay?: { trigger(reason?: string): void } } }).supermetry?.replay?.trigger("custom"));
   await page.waitForTimeout(250);
   expect((await state(page)).uploads).toHaveLength(0);
 });
@@ -115,7 +115,7 @@ test("trigger ring keeps the preceding minute across a checkpoint", async ({ pag
   await page.clock.fastForward(61_000);
   await page.locator("#ordinary").fill("after-wrap-event");
   await page.locator("body").click();
-  await page.evaluate(() => (window as typeof window & { panel?: { replay?: { trigger(): void } } }).panel?.replay?.trigger());
+  await page.evaluate(() => (window as typeof window & { supermetry?: { replay?: { trigger(): void } } }).supermetry?.replay?.trigger());
   await expect.poll(async () => (await state(page)).uploads.length).toBeGreaterThan(0);
 
   const payload = (await state(page)).uploads.map((upload) => upload.text).join("\n");
@@ -144,7 +144,7 @@ test("runtime opt-out stops replay without uploading buffered input", async ({ p
   await page.locator("#ordinary").fill("discard-after-opt-out");
   await page.locator("body").click();
 
-  await page.evaluate(() => (window as typeof window & { panel?: { optOut(): void } }).panel?.optOut());
+  await page.evaluate(() => (window as typeof window & { supermetry?: { optOut(): void } }).supermetry?.optOut());
   await page.evaluate(() => dispatchEvent(new Event("pagehide")));
   await page.waitForTimeout(250);
   expect((await state(page)).uploads).toHaveLength(0);
@@ -152,13 +152,13 @@ test("runtime opt-out stops replay without uploading buffered input", async ({ p
 
 test("consent withdrawal stops an active replay", async ({ page }) => {
   await page.goto("/consent-always");
-  await page.evaluate(() => (window as typeof window & { panel?: { consent(granted: boolean): void } }).panel?.consent(true));
+  await page.evaluate(() => (window as typeof window & { supermetry?: { consent(granted: boolean): void } }).supermetry?.consent(true));
   await expect.poll(async () => (await state(page)).starts).toBe(1);
-  await expect.poll(() => page.evaluate(() => typeof (window as typeof window & { panel?: { _replayStop?: unknown } }).panel?._replayStop)).toBe("function");
+  await expect.poll(() => page.evaluate(() => typeof (window as typeof window & { supermetry?: { _replayStop?: unknown } }).supermetry?._replayStop)).toBe("function");
   await page.locator("#ordinary").fill("discard-after-withdrawal");
   await page.locator("body").click();
 
-  await page.evaluate(() => (window as typeof window & { panel?: { consent(granted: boolean): void } }).panel?.consent(false));
+  await page.evaluate(() => (window as typeof window & { supermetry?: { consent(granted: boolean): void } }).supermetry?.consent(false));
   await page.evaluate(() => dispatchEvent(new Event("pagehide")));
   await page.waitForTimeout(250);
   expect((await state(page)).uploads).toHaveLength(0);
@@ -168,7 +168,7 @@ test("idle timeout flushes the pending tail before stopping", async ({ page }) =
   await page.clock.install();
   await page.goto("/full");
   await expect.poll(async () => (await state(page)).starts).toBe(1);
-  await expect.poll(() => page.evaluate(() => typeof (window as typeof window & { panel?: { _replayStop?: unknown } }).panel?._replayStop)).toBe("function");
+  await expect.poll(() => page.evaluate(() => typeof (window as typeof window & { supermetry?: { _replayStop?: unknown } }).supermetry?._replayStop)).toBe("function");
   await page.locator("#ordinary").fill("idle-tail-event");
   await page.locator("body").click();
 
@@ -180,7 +180,7 @@ test("pagehide stops an untriggered ring without uploading it later", async ({ p
   await page.goto("/trigger");
   await expect.poll(async () => (await state(page)).starts).toBe(1);
   await page.evaluate(() => dispatchEvent(new Event("pagehide")));
-  await page.evaluate(() => (window as typeof window & { panel?: { replay?: { trigger(): void } } }).panel?.replay?.trigger());
+  await page.evaluate(() => (window as typeof window & { supermetry?: { replay?: { trigger(): void } } }).supermetry?.replay?.trigger());
   await page.waitForTimeout(250);
   expect((await state(page)).uploads).toHaveLength(0);
 });
@@ -191,7 +191,7 @@ test("oversized trigger snapshot fails closed without recorder errors", async ({
   await page.goto("/trigger/huge");
   await expect.poll(async () => (await state(page)).starts).toBe(1);
   await page.waitForTimeout(250);
-  await page.evaluate(() => (window as typeof window & { panel?: { replay?: { trigger(): void } } }).panel?.replay?.trigger());
+  await page.evaluate(() => (window as typeof window & { supermetry?: { replay?: { trigger(): void } } }).supermetry?.replay?.trigger());
   await page.waitForTimeout(250);
   await page.evaluate(() => history.pushState({}, "", "/after-oversized-stop"));
   await page.waitForTimeout(50);
@@ -202,16 +202,16 @@ test("oversized trigger snapshot fails closed without recorder errors", async ({
 
 test("consent re-grant starts a fresh replay", async ({ page }) => {
   await page.goto("/consent-always");
-  await page.evaluate(() => (window as typeof window & { panel?: { consent(granted: boolean): void } }).panel?.consent(true));
+  await page.evaluate(() => (window as typeof window & { supermetry?: { consent(granted: boolean): void } }).supermetry?.consent(true));
   await expect.poll(async () => (await state(page)).starts).toBe(1);
   await expect.poll(() => page.evaluate(() =>
-    typeof (window as typeof window & { panel?: { _replayStop?: unknown } }).panel?._replayStop,
+    typeof (window as typeof window & { supermetry?: { _replayStop?: unknown } }).supermetry?._replayStop,
   )).toBe("function");
-  await page.evaluate(() => (window as typeof window & { panel?: { consent(granted: boolean): void } }).panel?.consent(false));
+  await page.evaluate(() => (window as typeof window & { supermetry?: { consent(granted: boolean): void } }).supermetry?.consent(false));
   await expect.poll(() => page.evaluate(() =>
-    Boolean((window as typeof window & { panel?: { _replay?: unknown } }).panel?._replay),
+    Boolean((window as typeof window & { supermetry?: { _replay?: unknown } }).supermetry?._replay),
   )).toBe(false);
-  await page.evaluate(() => (window as typeof window & { panel?: { consent(granted: boolean): void } }).panel?.consent(true));
+  await page.evaluate(() => (window as typeof window & { supermetry?: { consent(granted: boolean): void } }).supermetry?.consent(true));
 
   await expect.poll(async () => (await state(page)).starts).toBe(2);
 });
@@ -220,13 +220,13 @@ test("opt-in starts a fresh replay after runtime opt-out", async ({ page }) => {
   await page.goto("/full");
   await expect.poll(async () => (await state(page)).starts).toBe(1);
   await expect.poll(() => page.evaluate(() =>
-    typeof (window as typeof window & { panel?: { _replayStop?: unknown } }).panel?._replayStop,
+    typeof (window as typeof window & { supermetry?: { _replayStop?: unknown } }).supermetry?._replayStop,
   )).toBe("function");
-  await page.evaluate(() => (window as typeof window & { panel?: { optOut(): void; optIn(): void } }).panel?.optOut());
+  await page.evaluate(() => (window as typeof window & { supermetry?: { optOut(): void; optIn(): void } }).supermetry?.optOut());
   await expect.poll(() => page.evaluate(() =>
-    Boolean((window as typeof window & { panel?: { _replay?: unknown } }).panel?._replay),
+    Boolean((window as typeof window & { supermetry?: { _replay?: unknown } }).supermetry?._replay),
   )).toBe(false);
-  await page.evaluate(() => (window as typeof window & { panel?: { optOut(): void; optIn(): void } }).panel?.optIn());
+  await page.evaluate(() => (window as typeof window & { supermetry?: { optOut(): void; optIn(): void } }).supermetry?.optIn());
 
   await expect.poll(async () => (await state(page)).starts).toBe(2);
 });
@@ -279,8 +279,8 @@ for (const signal of ["globalPrivacyControl", "doNotTrack"] as const) {
     }), signal);
     await page.goto("/full");
     await page.evaluate(() => {
-      const panel = (window as typeof window & { panel?: { consent?(granted: boolean): void; optIn?(): void } }).panel;
-      panel?.consent?.(true); panel?.optIn?.();
+      const supermetry = (window as typeof window & { supermetry?: { consent?(granted: boolean): void; optIn?(): void } }).supermetry;
+      supermetry?.consent?.(true); supermetry?.optIn?.();
     });
     await page.waitForTimeout(200);
     expect((await state(page)).starts).toBe(0);

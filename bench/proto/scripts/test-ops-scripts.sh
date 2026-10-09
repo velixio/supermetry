@@ -14,7 +14,7 @@ for name in o2-install.sh o3-upgrade.sh o4-backup.sh; do
   [[ -x "$path" ]] || fail "$name is not executable"
   bash -n "$path"
   "$path" --help | grep -q '^Usage:' || fail "$name has no Usage help"
-  grep -q 'panel_' "$path" || fail "$name does not name an isolated panel_* schema"
+  grep -q 'supermetry_' "$path" || fail "$name does not name an isolated supermetry_* schema"
   grep -q 'ops_drop_db' "$path" || fail "$name does not clean up its schema"
 done
 

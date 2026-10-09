@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/api"
+	"supermetry/internal/api"
 )
 
 // TestEveryPlatformRouteIsForwarded guards the explicit forward list in
@@ -55,7 +55,7 @@ func TestEveryPlatformRouteIsForwarded(t *testing.T) {
 		request := httptest.NewRequest(route[0], route[1], nil)
 		if strings.HasPrefix(route[1], "/api/private/") && route[0] != http.MethodGet {
 			request.Header.Set("X-CSRF-Token", "token")
-			request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+			request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 		}
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)

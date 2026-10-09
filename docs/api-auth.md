@@ -1,12 +1,12 @@
 # API authentication
 
-Panel's integration API lives under `/api/public/v1`. "Public" means *for integrations*: every request needs an API key. The dashboard uses a separate, unversioned API under `/api/private` with a login session; don't call that one from scripts.
+Supermetry's integration API lives under `/api/public/v1`. "Public" means *for integrations*: every request needs an API key. The dashboard uses a separate, unversioned API under `/api/private` with a login session; don't call that one from scripts.
 
 ## Create a key
 
 1. In the dashboard, open **Organization settings → API keys** and click **Create key**.
 2. Give it a name, choose its **scopes**, and optionally limit it to **some sites** and set an **expiry date**.
-3. Copy the key. It is shown **once**; Panel stores only a hash.
+3. Copy the key. It is shown **once**; Supermetry stores only a hash.
 
 Keys belong to an organization, not to a person, so they keep working when the person who created them leaves. Every key shows when it was last used, and you can revoke it at any time.
 
@@ -19,7 +19,7 @@ Authorization: Bearer <api-key>
 ```
 
 ```sh
-curl https://panel.example.com/api/public/v1/sites \
+curl https://supermetry.com/api/public/v1/sites \
   -H "Accept: application/json" \
   -H "Authorization: Bearer <api-key>"
 ```
@@ -88,4 +88,4 @@ Each key gets a steady 2 requests per second with bursts of up to 30. Responses 
 
 ## Why there's no username and password login for the API
 
-Some tools let scripts trade a username and password for a token. Panel doesn't. A script holding a real password can do everything that person can, including changing their password, and it breaks when two-factor login is on. Scoped, site-limited, expiring keys give a script exactly the access it needs and can be revoked without touching anyone's account.
+Some tools let scripts trade a username and password for a token. Supermetry doesn't. A script holding a real password can do everything that person can, including changing their password, and it breaks when two-factor login is on. Scoped, site-limited, expiring keys give a script exactly the access it needs and can be revoked without touching anyone's account.

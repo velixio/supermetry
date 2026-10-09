@@ -31,8 +31,10 @@ it('submits the canonical invitation route token to the acceptance endpoint', as
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-1234' } })
   fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }))
 
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-  const request = fetchMock.mock.calls[0][0] as Request
+  const requestURL = (input: RequestInfo | URL) => input instanceof Request ? input.url : String(input)
+  await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => requestURL(input).includes(`/invitations/${token}/accept`))).toBe(true))
+  const [input, init] = fetchMock.mock.calls.find(([candidate]) => requestURL(candidate).includes(`/invitations/${token}/accept`)) as unknown as [RequestInfo | URL, RequestInit | undefined]
+  const request = input instanceof Request ? input : new Request(new URL(String(input), window.location.origin), init)
   expect(new URL(request.url).pathname).toBe(`/api/private/invitations/${token}/accept`)
   expect(request.method).toBe('POST')
   expect(await request.json()).toEqual({ name: 'Invited User', password: 'password-1234' })

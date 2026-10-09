@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/closer"
-	panelimports "panel/internal/imports"
-	"panel/internal/query"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	panelimports "supermetry/internal/imports"
+	"supermetry/internal/query"
 )
 
 func TestEngineCachesOnlyEntirelyClosedRanges(t *testing.T) {

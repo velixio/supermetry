@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	platformauth "panel/internal/platform/auth"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/keys"
-	"panel/internal/platform/orgs"
-	"panel/internal/platform/shares"
+	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/keys"
+	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/shares"
 )
 
 // ServiceAuthenticator resolves the three credential families without
@@ -32,7 +32,7 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 			return authz.Principal{}, false
 		}
 		cookieValue := ""
-		if cookie, err := r.Cookie("panel_share"); err == nil {
+		if cookie, err := r.Cookie("supermetry_share"); err == nil {
 			cookieValue = cookie.Value
 		}
 		return a.shares.Principal(r.Context(), slug, cookieValue)
@@ -67,7 +67,7 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 	if err != nil {
 		return authz.Principal{}, false
 	}
-	membership, ok := selectMembership(memberships, r.Header.Get("X-Panel-Org"))
+	membership, ok := selectMembership(memberships, r.Header.Get("X-Supermetry-Org"))
 	if !ok {
 		return authz.Principal{}, false
 	}

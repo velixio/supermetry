@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/platform/authz"
-	"panel/internal/privacy"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/privacy"
 )
 
 func TestSensitiveReadCapabilitiesBeforeStorage(t *testing.T) {

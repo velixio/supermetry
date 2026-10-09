@@ -9,11 +9,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 func TestServiceChannelCRUDEncryptsSecretsAndAudits(t *testing.T) {
@@ -90,26 +90,26 @@ func TestServiceTelegramChannelEncryptsTokenAndPreservesRedactedEdit(t *testing.
 	}
 	disabled := false
 	updated, err := service.UpdateChannel(ctx, principal, created.ID, ChannelInput{
-		Kind: ChannelTelegram, Name: "Telegram incidents", ChatID: "@panel_incidents", Enabled: &disabled,
+		Kind: ChannelTelegram, Name: "Telegram incidents", ChatID: "@supermetry_incidents", Enabled: &disabled,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Enabled || updated.Config.ChatID != "@panel_incidents" {
+	if updated.Enabled || updated.Config.ChatID != "@supermetry_incidents" {
 		t.Fatalf("updated = %+v", updated)
 	}
 	channels, err := service.DeliveryChannels(ctx, []int64{created.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(channels) != 1 || channels[0].BotToken != token || channels[0].ChatID != "@panel_incidents" || channels[0].Enabled {
+	if len(channels) != 1 || channels[0].BotToken != token || channels[0].ChatID != "@supermetry_incidents" || channels[0].Enabled {
 		t.Fatalf("delivery channels = %+v", channels)
 	}
 	var auditPayload string
 	if err := pool.QueryRow(ctx, `select metadata::text from audit_log where action='notification_channel.updated' and target_id=$1 order by id desc limit 1`, created.ID).Scan(&auditPayload); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(auditPayload, token) || strings.Contains(auditPayload, "panel_incidents") {
+	if strings.Contains(auditPayload, token) || strings.Contains(auditPayload, "supermetry_incidents") {
 		t.Fatalf("audit payload leaked Telegram config: %s", auditPayload)
 	}
 }
@@ -131,7 +131,7 @@ func TestServiceTelegramChannelIsTenantScoped(t *testing.T) {
 	if listed, err := service.ListChannels(ctx, other); err != nil || len(listed) != 0 {
 		t.Fatalf("other tenant list = %+v, %v", listed, err)
 	}
-	if _, err := service.UpdateChannel(ctx, other, created.ID, ChannelInput{Kind: ChannelTelegram, Name: "Stolen", ChatID: "@panel_alerts"}); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := service.UpdateChannel(ctx, other, created.ID, ChannelInput{Kind: ChannelTelegram, Name: "Stolen", ChatID: "@supermetry_alerts"}); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("cross-tenant update error = %v, want ErrNoRows", err)
 	}
 	if err := service.TestChannel(ctx, other, created.ID); !errors.Is(err, pgx.ErrNoRows) {

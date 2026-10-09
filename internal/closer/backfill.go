@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/scheduler"
+	"supermetry/internal/scheduler"
 )
 
 const rollupBackfillInterval = 5 * time.Minute

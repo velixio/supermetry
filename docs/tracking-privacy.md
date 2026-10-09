@@ -6,7 +6,7 @@ when tracking mode changes. No production instance is changed by this branch.
 
 ## Installation and changes
 
-`PANEL_TRACKING_MODE` accepts exactly `anonymous` or `identified`. Unknown values,
+`SUPERMETRY_TRACKING_MODE` accepts exactly `anonymous` or `identified`. Unknown values,
 case variants, whitespace and an explicitly empty value fail startup validation.
 `config.LoadLookup` preserves absent versus explicitly anonymous; production
 commands use `os.LookupEnv`. The legacy value-only `config.Load` helper cannot
@@ -59,7 +59,7 @@ through a direct extension upload.
 
 ## Replay is independent
 
-Replay requires **instance `PANEL_REPLAY_ENABLED=true` AND project replay opt-in**.
+Replay requires **instance `SUPERMETRY_REPLAY_ENABLED=true` AND project replay opt-in**.
 Identified mode alone never enables it. Anonymous mode does not automatically
 forbid an explicitly enabled recorder; ordinary historical replay reads remain
 blocked in anonymous mode because recordings can contain identity.
@@ -112,7 +112,7 @@ cannot bypass the engine policy through a previously populated cache.
 
 ### Verified page paths (bounded v1 slice)
 
-`PANEL_TRACKING_PUBLIC_PATHS` is a JSON array of exact public path literals, for
+`SUPERMETRY_TRACKING_PUBLIC_PATHS` is a JSON array of exact public path literals, for
 example `["/", "/pricing", "/docs"]`. Absent or `[]` declares no paths public.
 Explicit empty/malformed input fails startup. At most 128 entries of 512 UTF-8
 bytes each are accepted. No patterns, prefixes, parameter capture or identifier
@@ -154,7 +154,7 @@ No timestamp or matching dictionary value retroactively grants trust.
 The anonymous query/API/MCP view accepts exactly one `page` or `path` dimension,
 no filters, and only `visitors`, `visits`, and/or `pageviews`. It supports sorting,
 pagination, comparisons and query CSV. CSV filenames carry `-verified-only`;
-`X-Panel-Privacy-*` response headers carry the scope, version, policy and exclusions.
+`X-Supermetry-Privacy-*` response headers carry the scope, version, policy and exclusions.
 The CSV body keeps its existing columns and does not embed JSON metadata. Dates use the site's time zone; another
 requested time zone is rejected. Visitors and visits mean daily visitors/sessions
 with at least one verified pageview under the **current exact policy**. Range

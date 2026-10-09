@@ -9,9 +9,9 @@ import (
 	"io"
 	"path/filepath"
 
-	"panel/internal/config"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/sites"
+	"supermetry/internal/config"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/sites"
 )
 
 const (

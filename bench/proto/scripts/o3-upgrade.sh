@@ -10,11 +10,11 @@ usage() {
   cat <<'EOF'
 Usage: o3-upgrade.sh
 
-Build v1 from the current prototype, load its fixture into a fresh panel_o3_*
+Build v1 from the current prototype, load its fixture into a fresh supermetry_o3_*
 schema, then build a temporary v2 with one additional forward migration.
 Run the upgrade with one command (`proto-v2 migrate`) and prove v1 data survives.
 
-Environment: PANEL_TEST_DSN (base connection; isolated schemas are used)
+Environment: SUPERMETRY_TEST_DSN (base connection; isolated schemas are used)
 EOF
 }
 case "${1:-}" in -h|--help) usage; exit 0 ;; '') ;; *) ops_die "unknown argument: $1" ;; esac
@@ -22,8 +22,8 @@ case "${1:-}" in -h|--help) usage; exit 0 ;; '') ;; *) ops_die "unknown argument
 for cmd in go psql mktemp cp; do ops_require "$cmd"; done
 ops_check_admin
 
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/panel-o3.XXXXXX")
-db="panel_o3_${UID}_$$"
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/supermetry-o3.XXXXXX")
+db="supermetry_o3_${UID}_$$"
 cleanup() {
   ops_drop_db "$db" >/dev/null 2>&1 || true
   rm -rf -- "$tmp"
@@ -36,7 +36,7 @@ v2="$tmp/proto-v2"
 ops_create_db "$db"
 dsn=$(ops_dsn "$db")
 
-PANEL_DSN="$dsn" "$v1" load --sites "$proto_dir/testdata/fixture_sites.json" \
+SUPERMETRY_DSN="$dsn" "$v1" load --sites "$proto_dir/testdata/fixture_sites.json" \
   < "$proto_dir/testdata/fixture.ndjson" >/dev/null
 before_events=$(psql -X --set=ON_ERROR_STOP=1 --tuples-only --no-align --dbname "$dsn" \
   --command 'SELECT count(*) FROM events')
@@ -66,8 +66,8 @@ GO
 (cd "$tmp/v2src" && go build -buildvcs=false -trimpath -o "$v2" .)
 
 # This is the complete operator action being tested: one upgrade command.
-PANEL_DSN="$dsn" "$v2" migrate
-PANEL_DSN="$dsn" "$v2" migrate # idempotence: restart/retry applies nothing twice
+SUPERMETRY_DSN="$dsn" "$v2" migrate
+SUPERMETRY_DSN="$dsn" "$v2" migrate # idempotence: restart/retry applies nothing twice
 
 v2_version=$(psql -X --set=ON_ERROR_STOP=1 --tuples-only --no-align --dbname "$dsn" \
   --command 'SELECT max(version) FROM schema_migrations')

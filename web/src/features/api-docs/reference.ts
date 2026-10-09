@@ -241,7 +241,7 @@ function responseExample(
   const title = titles[code] ?? "Request failed";
   return {
     ...(value as Record<string, unknown>),
-    type: `https://panel.dev/problems/${title.toLowerCase().replaceAll(" ", "-")}`,
+    type: `https://supermetry.com/problems/${title.toLowerCase().replaceAll(" ", "-")}`,
     title,
     status: code,
     detail: response?.description,

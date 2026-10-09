@@ -9,7 +9,7 @@ import {
 
 const document: OpenAPIDocument = {
   openapi: "3.1.0",
-  info: { title: "Panel API", version: "1.0.0" },
+  info: { title: "Supermetry API", version: "1.0.0" },
   paths: {
     "/api/public/v1/stats/summary": {
       get: {
@@ -69,7 +69,7 @@ const document: OpenAPIDocument = {
       Problem: {
         type: "object",
         example: {
-          type: "https://panel.dev/problems/bad-request",
+          type: "https://supermetry.com/problems/bad-request",
           title: "Bad request",
           status: 400,
         },
@@ -94,7 +94,7 @@ describe("buildReference", () => {
         {
           status: "401",
           value: {
-            type: "https://panel.dev/problems/unauthorized",
+            type: "https://supermetry.com/problems/unauthorized",
             title: "Unauthorized",
             status: 401,
             detail: "Authentication is required or invalid.",
@@ -123,7 +123,7 @@ describe("buildReference", () => {
       {
         status: "401",
         value: {
-          type: "https://panel.dev/problems/unauthorized",
+          type: "https://supermetry.com/problems/unauthorized",
           title: "Unauthorized",
           status: 401,
           detail: "Authentication is required or invalid.",

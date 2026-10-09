@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/config"
-	"panel/internal/privacy"
+	"supermetry/internal/config"
+	"supermetry/internal/privacy"
 )
 
 func TestParseTrackingMode(t *testing.T) {
@@ -33,7 +33,7 @@ func TestParseTrackingMode(t *testing.T) {
 				t.Fatalf("error = %v, wantErr %t", err, tt.wantErr)
 			}
 			if tt.wantErr {
-				if got != (config.TrackingMode{}) || !strings.Contains(err.Error(), "PANEL_TRACKING_MODE") {
+				if got != (config.TrackingMode{}) || !strings.Contains(err.Error(), "SUPERMETRY_TRACKING_MODE") {
 					t.Fatalf("unsafe result or missing env name: %+v, %v", got, err)
 				}
 				return
@@ -56,7 +56,7 @@ func TestLoadLookupTrackingMode(t *testing.T) {
 		{"unknown", "identifed", true, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			env := map[string]string{"PANEL_DATABASE_URL": "postgres://localhost/test", "PANEL_BASE_URL": "http://localhost", "PANEL_SECRET_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
+			env := map[string]string{"SUPERMETRY_DATABASE_URL": "postgres://localhost/test", "SUPERMETRY_BASE_URL": "http://localhost", "SUPERMETRY_SECRET_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
 			if tt.present {
 				env[config.TrackingModeEnv] = tt.raw
 			}

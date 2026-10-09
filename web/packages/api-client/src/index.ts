@@ -4,14 +4,14 @@ import type { paths } from "./schema";
 
 export type { components, operations, paths } from "./schema";
 
-export type PanelClientOptions = {
+export type SupermetryClientOptions = {
   apiKey: string;
   baseUrl: string;
   fetch?: typeof globalThis.fetch;
 };
 
-/** Creates a typed client for Panel's versioned public API. */
-export function createPanelClient(options: PanelClientOptions) {
+/** Creates a typed client for Supermetry's versioned public API. */
+export function createSupermetryClient(options: SupermetryClientOptions) {
   const apiKey = options.apiKey.trim();
   if (!apiKey) throw new Error("apiKey is required");
   const client = createClient<paths>({
@@ -28,4 +28,4 @@ export function createPanelClient(options: PanelClientOptions) {
   return client;
 }
 
-export type PanelClient = ReturnType<typeof createPanelClient>;
+export type SupermetryClient = ReturnType<typeof createSupermetryClient>;

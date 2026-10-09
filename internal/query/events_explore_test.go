@@ -9,11 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestEngine_EventsExploreNewestFirstWithFiltersAndCursor(t *testing.T) {

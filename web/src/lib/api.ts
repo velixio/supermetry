@@ -65,7 +65,7 @@ type PrivatePaths = {
     post: {
       parameters: {
         path: { site: number }
-        header: { 'X-Panel-Org': string }
+        header: { 'X-Supermetry-Org': string }
       }
       responses: {
         200: {
@@ -95,7 +95,7 @@ type ApiOptions = {
   onUnauthorized?: (loginURL: string) => void
 }
 
-const csrfCookie = 'panel_csrf'
+const csrfCookie = 'supermetry_csrf'
 
 function readCookie(name: string): string | undefined {
   const prefix = `${encodeURIComponent(name)}=`
@@ -125,12 +125,12 @@ export function createApi(options: ApiOptions = {}) {
     options.onUnauthorized ?? ((url: string) => expireSession(url))
   const middleware: Middleware = {
     async onRequest({ request }) {
-      if (!request.headers.has('X-Panel-Org')) {
+      if (!request.headers.has('X-Supermetry-Org')) {
         const me = queryClient.getQueryData<{ memberships: { org: { id: number; slug: string } }[] }>(['me'])
         let slug = ''
-        try { slug = decodeURIComponent(window.location.pathname.split('/')[1] ?? '') } catch { /* Invalid paths have no tenant context. */ }
+        try { slug = decodeURIComponent(window.location.pathname.split('/')[2] ?? '') } catch { /* Invalid paths have no tenant context. */ }
         const membership = me?.memberships.find((item) => item.org.slug === slug)
-        if (membership) request.headers.set('X-Panel-Org', String(membership.org.id))
+        if (membership) request.headers.set('X-Supermetry-Org', String(membership.org.id))
       }
       if (request.method !== 'GET') {
         const token = readCookie(csrfCookie)

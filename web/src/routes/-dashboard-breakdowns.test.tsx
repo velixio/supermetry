@@ -81,7 +81,7 @@ describe('dashboard breakdown route', () => {
   function renderDashboard() {
     const history = createMemoryHistory({
       initialEntries: [
-        '/acme/example?period=custom&from=2026-09-28&to=2026-09-30',
+        '/app/acme/example?period=custom&from=2026-09-28&to=2026-09-30',
       ],
     })
     const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
@@ -119,7 +119,7 @@ describe('dashboard breakdown route', () => {
 
   it('blocks saved unsupported anonymous filters before fetching dashboard data', async () => {
     get.mockResolvedValue({ data: { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }] }] }, response: new Response(null, { status: 200 }) })
-    const history = createMemoryHistory({ initialEntries: ['/acme/example?f=source%3Ais%3Aprivate'] })
+    const history = createMemoryHistory({ initialEntries: ['/app/acme/example?f=source%3Ais%3Aprivate'] })
     const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
     render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><RouterProvider router={router} /></QueryClientProvider>)
     expect(await screen.findByText(/These filters are unavailable in anonymous mode/)).toBeVisible()
@@ -267,7 +267,7 @@ describe('dashboard breakdown route', () => {
 
   it('shows the full country name in an active country filter chip', async () => {
     const history = createMemoryHistory({
-      initialEntries: ['/acme/example?period=30d&f=country%3Ais%3AIN'],
+      initialEntries: ['/app/acme/example?period=30d&f=country%3Ais%3AIN'],
     })
     const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -284,7 +284,7 @@ describe('dashboard breakdown route', () => {
   it('exports every dashboard CSV with the current range and filters', { timeout: 20_000 }, async () => {
     const history = createMemoryHistory({
       initialEntries: [
-        '/acme/example?period=custom&from=2026-09-28&to=2026-09-30&f=country%3Ais%3AIN',
+        '/app/acme/example?period=custom&from=2026-09-28&to=2026-09-30&f=country%3Ais%3AIN',
       ],
     })
     const router = createRouter({ routeTree, history, parseSearch, stringifySearch })

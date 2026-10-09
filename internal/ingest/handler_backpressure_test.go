@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/dict"
-	"panel/internal/enrich"
-	"panel/internal/health"
-	"panel/internal/ingest"
-	"panel/internal/session"
-	"panel/internal/writer"
+	"supermetry/internal/dict"
+	"supermetry/internal/enrich"
+	"supermetry/internal/health"
+	"supermetry/internal/ingest"
+	"supermetry/internal/session"
+	"supermetry/internal/writer"
 )
 
 type preflightSessionSpy struct {

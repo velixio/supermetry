@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	platformauth "panel/internal/platform/auth"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/store"
+	platformauth "supermetry/internal/platform/auth"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
 )
 
 func TestAccountSessionsMetadataIsOwnedCurrentAndRevocable(t *testing.T) {

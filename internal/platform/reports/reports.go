@@ -10,14 +10,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/scheduler"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/scheduler"
+	"supermetry/internal/sites"
 )
 
 const (

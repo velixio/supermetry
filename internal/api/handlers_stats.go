@@ -11,11 +11,11 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/dict"
-	"panel/internal/health"
-	"panel/internal/realtime"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/dict"
+	"supermetry/internal/health"
+	"supermetry/internal/realtime"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 type statsRange struct {

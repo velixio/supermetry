@@ -254,7 +254,7 @@ func WritePrometheus(w io.Writer) {
 }
 
 func writeFamily(w io.Writer, snapshot map[string]float64, name, metricType string) {
-	_, _ = fmt.Fprintf(w, "# TYPE panel_%s %s\n", name, metricType)
+	_, _ = fmt.Fprintf(w, "# TYPE supermetry_%s %s\n", name, metricType)
 	keys := make([]string, 0)
 	for key := range snapshot {
 		if key == name || strings.HasPrefix(key, name+"{") {
@@ -263,7 +263,7 @@ func writeFamily(w io.Writer, snapshot map[string]float64, name, metricType stri
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		_, _ = fmt.Fprintf(w, "panel_%s %s\n", key, strconv.FormatFloat(snapshot[key], 'g', -1, 64))
+		_, _ = fmt.Fprintf(w, "supermetry_%s %s\n", key, strconv.FormatFloat(snapshot[key], 'g', -1, 64))
 	}
 }
 

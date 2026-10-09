@@ -18,13 +18,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/db"
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	coresites "panel/internal/sites"
-	siteicon "panel/internal/sites/icon"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	coresites "supermetry/internal/sites"
+	siteicon "supermetry/internal/sites/icon"
 )
 
 const maxCreateAttempts = 8
@@ -135,7 +135,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		return coresites.Site{}, ErrForbidden
 	}
 	if patch.ProfilesEnabled != nil && *patch.ProfilesEnabled && s.trackingMode != privacy.Identified {
-		return coresites.Site{}, fmt.Errorf("%w: profiles require PANEL_TRACKING_MODE=identified", ErrInvalid)
+		return coresites.Site{}, fmt.Errorf("%w: profiles require SUPERMETRY_TRACKING_MODE=identified", ErrInvalid)
 	}
 	var updated store.Site
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {

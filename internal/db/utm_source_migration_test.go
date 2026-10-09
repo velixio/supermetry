@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"panel/internal/db"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 func TestUTMSourceMigrationAddsDefaultedColumns(t *testing.T) {

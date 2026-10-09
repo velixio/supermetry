@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare Panel and Plausible Stats API results for one real site."""
+"""Compare Supermetry and Plausible Stats API results for one real site."""
 
 from __future__ import annotations
 
@@ -85,10 +85,10 @@ def fetch_plausible(base: str, key: str, site: str, date_from: str, date_to: str
     }
 
 
-def compare_snapshots(panel: dict[str, Any], plausible: dict[str, Any]) -> list[dict[str, Any]]:
+def compare_snapshots(supermetry: dict[str, Any], plausible: dict[str, Any]) -> list[dict[str, Any]]:
     rows = []
     for metric in SUMMARY_METRICS:
-        left = float(panel["totals"].get(metric, 0))
+        left = float(supermetry["totals"].get(metric, 0))
         right = float(plausible["totals"].get(metric, 0))
         if metric in {"pageviews", "events"}:
             passed = left == right
@@ -102,25 +102,25 @@ def compare_snapshots(panel: dict[str, Any], plausible: dict[str, Any]) -> list[
             tolerance = "2%"
         rows.append(_row(metric, left, right, tolerance, passed))
     for metric, key in (("top_pages", "pages"), ("top_sources", "sources")):
-        left = set(panel[key][:10])
+        left = set(supermetry[key][:10])
         right = set(plausible[key][:10])
         rows.append(_row(metric, sorted(left), sorted(right), "same set", left == right))
     return rows
 
 
 def render_delta_table(rows: list[dict[str, Any]]) -> str:
-    output = ["| Metric | Panel | Plausible | Delta | Tolerance | Result |", "|---|---:|---:|---:|---|---|"]
+    output = ["| Metric | Supermetry | Plausible | Delta | Tolerance | Result |", "|---|---:|---:|---:|---|---|"]
     for row in rows:
         output.append(
-            f"| {row['metric']} | {_display(row['panel'])} | {_display(row['plausible'])} | "
+            f"| {row['metric']} | {_display(row['supermetry'])} | {_display(row['plausible'])} | "
             f"{_display(row['delta'])} | {row['tolerance']} | {'PASS' if row['pass'] else 'FAIL'} |"
         )
     return "\n".join(output)
 
 
-def _row(metric: str, panel: Any, plausible: Any, tolerance: str, passed: bool) -> dict[str, Any]:
-    delta = panel - plausible if isinstance(panel, float) else "set"
-    return {"metric": metric, "panel": panel, "plausible": plausible, "delta": delta, "tolerance": tolerance, "pass": passed}
+def _row(metric: str, supermetry: Any, plausible: Any, tolerance: str, passed: bool) -> dict[str, Any]:
+    delta = supermetry - plausible if isinstance(supermetry, float) else "set"
+    return {"metric": metric, "supermetry": supermetry, "plausible": plausible, "delta": delta, "tolerance": tolerance, "pass": passed}
 
 
 def _display(value: Any) -> str:
@@ -140,17 +140,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--from", dest="date_from", required=True)
     parser.add_argument("--to", dest="date_to", required=True)
     args = parser.parse_args(argv)
-    required = ["PANEL_URL", "PANEL_KEY", "PANEL_SITE_ID", "PLAUSIBLE_URL", "PLAUSIBLE_KEY", "PLAUSIBLE_SITE"]
+    required = ["SUPERMETRY_URL", "SUPERMETRY_KEY", "SUPERMETRY_SITE_ID", "PLAUSIBLE_URL", "PLAUSIBLE_KEY", "PLAUSIBLE_SITE"]
     missing = [name for name in required if not os.environ.get(name)]
     if missing:
         parser.error("missing environment variables: " + ", ".join(missing))
-    panel = fetch_panel(
-        os.environ["PANEL_URL"], os.environ["PANEL_KEY"], int(os.environ["PANEL_SITE_ID"]), args.date_from, args.date_to
+    supermetry = fetch_panel(
+        os.environ["SUPERMETRY_URL"], os.environ["SUPERMETRY_KEY"], int(os.environ["SUPERMETRY_SITE_ID"]), args.date_from, args.date_to
     )
     plausible = fetch_plausible(
         os.environ["PLAUSIBLE_URL"], os.environ["PLAUSIBLE_KEY"], os.environ["PLAUSIBLE_SITE"], args.date_from, args.date_to
     )
-    rows = compare_snapshots(panel, plausible)
+    rows = compare_snapshots(supermetry, plausible)
     print(render_delta_table(rows))
     return 0 if all(row["pass"] for row in rows) else 1
 

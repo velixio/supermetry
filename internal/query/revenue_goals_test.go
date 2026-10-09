@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/closer"
-	"panel/internal/db"
-	"panel/internal/dict"
-	platformgoals "panel/internal/platform/goals"
-	"panel/internal/query"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	platformgoals "supermetry/internal/platform/goals"
+	"supermetry/internal/query"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 // These requests match the Goals UI: goal_id and an explicit currency, without

@@ -21,19 +21,19 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/api"
-	"panel/internal/closer"
-	"panel/internal/config"
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/ingest"
-	"panel/internal/privacy"
-	"panel/internal/query"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/testpg"
-	"panel/internal/writer"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	"supermetry/internal/config"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/ingest"
+	"supermetry/internal/privacy"
+	"supermetry/internal/query"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
+	"supermetry/internal/writer"
 )
 
 const TestAPIKey = "golden-test-key"
@@ -332,7 +332,7 @@ func PgDumpSchema(t *testing.T, env *Env) string {
 		t.Skip("pg_dump is not installed")
 	}
 	command := exec.Command(path,
-		"--dbname="+os.Getenv("PANEL_TEST_DSN"),
+		"--dbname="+os.Getenv("SUPERMETRY_TEST_DSN"),
 		"--schema="+env.schema,
 		"--format=plain",
 		"--no-owner",

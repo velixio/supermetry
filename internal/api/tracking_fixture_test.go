@@ -2,8 +2,8 @@ package api_test
 
 import (
 	"net/http"
-	"panel/internal/api"
-	"panel/internal/privacy"
+	"supermetry/internal/api"
+	"supermetry/internal/privacy"
 )
 
 func identifiedRouter(deps api.Deps) http.Handler {

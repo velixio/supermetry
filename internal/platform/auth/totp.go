@@ -10,8 +10,8 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/store"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
 )
 
 const recoveryCodeCount = 10
@@ -22,7 +22,7 @@ func (a *Auth) EnrollTOTP(ctx context.Context, userID int64) (string, []string, 
 		return "", nil, err
 	}
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "Panel",
+		Issuer:      "Supermetry",
 		AccountName: user.Email,
 		Period:      30,
 		SecretSize:  20,

@@ -62,7 +62,7 @@ describe('SitesPage', () => {
     renderWithRouter(<SitesPage org="acme" role="owner" sites={[]} onDelete={vi.fn()} />)
     expect(await screen.findByRole('link', { name: 'Add your first site' })).toHaveAttribute(
       'href',
-      '/acme/sites/new',
+      '/app/acme/sites/new',
     )
   })
 })

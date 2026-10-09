@@ -67,8 +67,8 @@ function ProfilesPageContent({
             <EmptyTitle>Profiles are disabled</EmptyTitle>
             <EmptyDescription>Enable profiles in General site settings, then identify users from your site.</EmptyDescription>
           </EmptyHeader>
-          <code className="max-w-full overflow-x-auto rounded-md bg-muted px-3 py-2 text-sm">panel.identify(&quot;user-123&quot;, {'{ plan: "pro" }'});</code>
-          <p className="text-sm text-muted-foreground">Call identify on every page load. Panel stores nothing in the browser.</p>
+          <code className="max-w-full overflow-x-auto rounded-md bg-muted px-3 py-2 text-sm">supermetry.identify(&quot;user-123&quot;, {'{ plan: "pro" }'});</code>
+          <p className="text-sm text-muted-foreground">Call identify on every page load. Supermetry stores nothing in the browser.</p>
         </Empty>
       ) : (
         <section className="flex flex-col gap-4">
@@ -105,7 +105,7 @@ function ProfilesPageContent({
                   {profiles.data.data.map((profile) => (
                     <TableRow key={profile.id}>
                       <TableCell className="font-medium">
-                        <Link className="hover:underline" params={{ org: orgSlug, site: siteSlug, id: String(profile.id) }} to="/$org/$site/profiles/$id">
+                        <Link className="hover:underline" params={{ org: orgSlug, site: siteSlug, id: String(profile.id) }} to="/app/$org/$site/profiles/$id">
                           {profile.external_id}
                         </Link>
                       </TableCell>

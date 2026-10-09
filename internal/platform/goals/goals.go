@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/internal/platform/store"
+	"supermetry/internal/platform/store"
 )
 
 type Goal struct {

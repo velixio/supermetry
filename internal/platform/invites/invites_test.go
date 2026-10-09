@@ -10,13 +10,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/invites"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/invites"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
+	"supermetry/internal/testpg"
 )
 
 type fakeClock struct{ now time.Time }
@@ -66,7 +66,7 @@ func newInviteEnv(t *testing.T, sender mail.Sender) inviteEnv {
 	data := &store.Store{Pool: pool}
 	clock := &fakeClock{now: time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)}
 	return inviteEnv{
-		service: invites.New(data, users.New(data), sender, "https://panel.example", invites.WithClock(clock)),
+		service: invites.New(data, users.New(data), sender, "https://supermetry.example", invites.WithClock(clock)),
 		pool:    pool,
 		clock:   clock,
 		owner:   authz.Principal{UserID: ownerID, OrgID: orgID, Role: authz.RoleOwner},

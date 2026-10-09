@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"panel/internal/privacy"
+	"supermetry/internal/privacy"
 )
 
 func TestEvaluateGates(t *testing.T) {

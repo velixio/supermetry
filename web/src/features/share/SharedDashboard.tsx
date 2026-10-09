@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
+import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
 
 import {
   loadShareSummary,
@@ -170,6 +171,9 @@ export function SharedDashboard({
           </div>
         ))}
       </section>
+      <footer className="text-xs text-muted-foreground">
+        <PoweredBySupermetry className="hover:text-foreground" />
+      </footer>
     </main>
   )
 }

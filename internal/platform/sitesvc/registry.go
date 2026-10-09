@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/internal/platform/store"
-	coresites "panel/internal/sites"
+	"supermetry/internal/platform/store"
+	coresites "supermetry/internal/sites"
 )
 
 type registrySnapshot struct {

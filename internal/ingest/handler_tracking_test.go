@@ -11,18 +11,18 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/closer"
-	"panel/internal/dict"
-	"panel/internal/ingest"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/query"
-	"panel/internal/rehydrate"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/writer"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	"supermetry/internal/dict"
+	"supermetry/internal/ingest"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/query"
+	"supermetry/internal/rehydrate"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/writer"
 )
 
 func TestAnonymousRejectsForgedIdentityAndProperties(t *testing.T) {

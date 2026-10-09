@@ -49,7 +49,7 @@ func (g *goat) q(site int, from, to string) url.Values {
 	return q
 }
 
-func (g *goat) Panel(panel, from, to string, f []Filter) (Req, bool, string) {
+func (g *goat) Supermetry(panel, from, to string, f []Filter) (Req, bool, string) {
 	q := g.q(g.site, from, to)
 	for _, x := range f {
 		if x.Key != "path" {

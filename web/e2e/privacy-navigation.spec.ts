@@ -26,7 +26,7 @@ function watchPrivacyRequests(page: Page) {
 }
 
 test('anonymous direct routes show policy restrictions without forbidden requests or polling', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
   await owner.login(page, `${siteRoot(owner)}/settings/general`)
   const seen = watchPrivacyRequests(page)
   await page.goto(`${siteRoot(owner)}/`)
@@ -48,8 +48,8 @@ test('anonymous direct routes show policy restrictions without forbidden request
 })
 
 function syntheticSQL(owner: Owner, sql: string) {
-  if (!/^panel_e2e_\d+$/.test(owner.schema)) throw new Error('Expected an isolated synthetic schema')
-  const dsn = new URL(process.env.PANEL_TEST_DSN!)
+  if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('Expected an isolated synthetic schema')
+  const dsn = new URL(process.env.SUPERMETRY_TEST_DSN!)
   dsn.searchParams.set('options', `-csearch_path=${owner.schema}`)
   return execFileSync('psql', [dsn.toString(), '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql], { stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim()
 }
@@ -80,7 +80,7 @@ function seedLegacyAndVerifiedRows(owner: Owner) {
 }
 
 test('anonymous dashboard keeps canonical totals and labels verified coverage without exposing legacy identity', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
   // Warm the live dictionary through the real anonymous ingestion pipeline;
   // inserting dictionary rows only through SQL would leave its cache stale.
   const hit = await page.request.post('/api/public/v1/events', {
@@ -141,7 +141,7 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
 })
 
 test('anonymous mobile navigation and browser history retain policy boundaries', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Requires the real anonymous instance gate.')
   await page.setViewportSize({ width: 390, height: 844 })
   await owner.login(page, `${siteRoot(owner)}/events`)
   const seen = watchPrivacyRequests(page)
@@ -167,7 +167,7 @@ test('anonymous mobile navigation and browser history retain policy boundaries',
 // Accounts exist only in the disposable test schema; authentication still uses
 // the actual login page and server password verification.
 function seedReplayReader(owner: Owner, role: 'admin' | 'viewer') {
-  const email = `privacy-navigation-${role}@panel.test`
+  const email = `privacy-navigation-${role}@supermetry.test`
   syntheticSQL(owner, `
     with account as (
       insert into users(email,name,password_hash)
@@ -191,7 +191,7 @@ async function loginReplayReader(page: Page, owner: Owner, email: string) {
 }
 
 test('identified owners and admins retain replay navigation with profiles off and recording on or off', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'identified' || process.env.PANEL_REPLAY_ENABLED !== 'true', 'Requires real identified mode and instance replay permission.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'identified' || process.env.SUPERMETRY_REPLAY_ENABLED !== 'true', 'Requires real identified mode and instance replay permission.')
   expect(syntheticSQL(owner, `select coalesce(settings->>'profiles_enabled','false') from sites where id=${owner.siteId}`)).toBe('false')
   const admin = seedReplayReader(owner, 'admin')
   const seen = watchPrivacyRequests(page)
@@ -226,7 +226,7 @@ test('identified owners and admins retain replay navigation with profiles off an
 })
 
 test('identified viewer without replay grant has no replay navigation or history requests', async ({ page, owner }) => {
-  test.skip(process.env.PANEL_TRACKING_MODE !== 'identified', 'Requires the real identified instance gate.')
+  test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'identified', 'Requires the real identified instance gate.')
   const viewer = seedReplayReader(owner, 'viewer')
   await loginReplayReader(page, owner, viewer)
   const seen = watchPrivacyRequests(page)

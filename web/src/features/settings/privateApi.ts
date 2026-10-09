@@ -15,7 +15,7 @@ export async function privateRequest<T>(
 ): Promise<T> {
   const client = api as unknown as LooseClient;
   const headers = options.orgId
-    ? { "X-Panel-Org": String(options.orgId) }
+    ? { "X-Supermetry-Org": String(options.orgId) }
     : undefined;
   const result = await client[method](path, {
     body: options.body,
@@ -100,8 +100,8 @@ export function uploadSiteImport<T>(
         request.abort();
       });
       request.open("POST", `/api/private/sites/${siteId}/imports`);
-      request.setRequestHeader("X-Panel-Org", String(orgId));
-      const csrf = cookie("panel_csrf");
+      request.setRequestHeader("X-Supermetry-Org", String(orgId));
+      const csrf = cookie("supermetry_csrf");
       if (csrf) request.setRequestHeader("X-CSRF-Token", csrf);
       request.upload.addEventListener("progress", progress);
       request.addEventListener("load", load);
@@ -124,7 +124,7 @@ export async function downloadSiteExport(
   to: string,
 ): Promise<void> {
   const params = new URLSearchParams({ from, to });
-  const headers = new Headers({ "X-Panel-Org": String(orgId) });
+  const headers = new Headers({ "X-Supermetry-Org": String(orgId) });
   const response = await fetch(`/api/private/sites/${siteId}/export?${params}`, {
     headers,
     credentials: "same-origin",
@@ -133,7 +133,7 @@ export async function downloadSiteExport(
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = url;
-  link.download = `panel-export-${from}-${to}.zip`;
+  link.download = `supermetry-export-${from}-${to}.zip`;
   link.click();
   URL.revokeObjectURL(url);
 }

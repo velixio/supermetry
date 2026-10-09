@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/testpg"
+	"supermetry/internal/testpg"
 )
 
 func TestCustomEventAttributionMigrationPreservesUnknownLegacyValues(t *testing.T) {

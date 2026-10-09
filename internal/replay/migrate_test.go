@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/testpg"
+	"supermetry/internal/testpg"
 )
 
 func TestMigrateCopiesThenDeletes(t *testing.T) {

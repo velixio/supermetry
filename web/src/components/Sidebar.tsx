@@ -41,7 +41,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import type { Me, Membership, Site } from '@/routes/$org'
+import type { Me, Membership, Site } from '@/routes/app.$org'
 import { en } from '@/messages/en'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
@@ -73,7 +73,7 @@ export function visibleNavigation(role: Role, hasSite = true, authorization?: Au
   const items: NavigationItem[] = [...coreNavigation, managementNavigation[0]]
   if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
   return items.filter((item) => (hasSite || item.scope === 'org') &&
-    (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/org/site${item.suffix}`)) && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
+    (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
 }
 
 export function canCreateSites(role: Role): boolean {
@@ -87,8 +87,8 @@ export function siteSlug(site: Site): string {
 export function organizationHref(membership: Membership): string {
   const site = membership.sites[0]
   return site
-    ? `/${membership.org.slug}/${siteSlug(site)}`
-    : `/${membership.org.slug}/settings`
+    ? `/app/${membership.org.slug}/${siteSlug(site)}`
+    : `/app/${membership.org.slug}/settings`
 }
 
 export function navigationHref(
@@ -96,7 +96,7 @@ export function navigationHref(
   org: string,
   site: string,
 ): string {
-  const base = item.scope === 'org' ? `/${org}` : `/${org}/${site}`
+  const base = item.scope === 'org' ? `/app/${org}` : `/app/${org}/${site}`
   return `${base}${item.suffix}`
 }
 
@@ -141,7 +141,7 @@ function navigationLink(
     case '':
       return (
         <Link
-          to="/$org/$site"
+          to="/app/$org/$site"
           params={{ org, site }}
           search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
           {...props}
@@ -150,23 +150,23 @@ function navigationLink(
         </Link>
       )
     case '/funnels':
-      return <Link to="/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
     case '/events':
-      return <Link to="/$org/$site/events" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, name: '', property: '' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/events" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, name: '', property: '' }} {...props}>{content}</Link>
     case '/sessions':
-      return <Link to="/$org/$site/sessions" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/sessions" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
     case '/journeys':
-      return <Link to="/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
     case '/retention':
-      return <Link to="/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, interval: 'day', identity: 'anonymous' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, interval: 'day', identity: 'anonymous' }} {...props}>{content}</Link>
     case '/profiles':
-      return <Link to="/$org/$site/profiles" params={{ org, site }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/profiles" params={{ org, site }} {...props}>{content}</Link>
     case '/heatmaps':
-      return <Link to="/$org/$site/heatmaps" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, path: '', device: 'desktop' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/heatmaps" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, path: '', device: 'desktop' }} {...props}>{content}</Link>
     case '/vitals':
       return (
         <Link
-          to="/$org/$site/vitals"
+          to="/app/$org/$site/vitals"
           params={{ org, site }}
           search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
           {...props}
@@ -175,13 +175,13 @@ function navigationLink(
         </Link>
       )
     case '/realtime':
-      return <Link to="/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':
-      return <Link to="/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
     case '/sites':
-      return <Link to="/$org/sites" params={{ org }} {...props}>{content}</Link>
+      return <Link to="/app/$org/sites" params={{ org }} {...props}>{content}</Link>
     case '/health':
-      return <Link to="/$org/health" params={{ org }} {...props}>{content}</Link>
+      return <Link to="/app/$org/health" params={{ org }} {...props}>{content}</Link>
   }
 
   const unreachable: never = item
@@ -219,7 +219,7 @@ export function PanelSidebar({
                 <DropdownMenuItem key={item.org.id} asChild>
                   {item.sites[0] ? (
                     <Link
-                      to="/$org/$site"
+                      to="/app/$org/$site"
                       params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
                       search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
                       onClick={closeMobile}
@@ -228,7 +228,7 @@ export function PanelSidebar({
                     </Link>
                   ) : (
                     <Link
-                      to="/$org/settings"
+                      to="/app/$org/settings"
                       params={{ org: item.org.slug }}
                       onClick={closeMobile}
                     >
@@ -253,7 +253,7 @@ export function PanelSidebar({
               {membership.sites.map((item) => (
                 <DropdownMenuItem key={item.id} asChild>
                   <Link
-                    to="/$org/$site"
+                    to="/app/$org/$site"
                     params={{ org: membership.org.slug, site: siteSlug(item) }}
                     search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
                     onClick={closeMobile}
@@ -266,7 +266,7 @@ export function PanelSidebar({
               {canCreateSites(membership.role) ? (
                 <DropdownMenuItem asChild>
                   <Link
-                    to="/$org/sites/new"
+                    to="/app/$org/sites/new"
                     params={{ org: membership.org.slug }}
                     onClick={closeMobile}
                   >
@@ -314,7 +314,7 @@ export function PanelSidebar({
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname.startsWith(`/${membership.org.slug}/${currentSite}/replays`)}
+                        isActive={pathname.startsWith(`/app/${membership.org.slug}/${currentSite}/replays`)}
                         tooltip="Replays"
                       >
                         <ReplayNavLink enabled org={membership.org.slug} site={currentSite} onClick={closeMobile} />

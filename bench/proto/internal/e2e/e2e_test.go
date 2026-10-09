@@ -11,13 +11,13 @@ import (
 	"sort"
 	"testing"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/ingest"
-	"panel/bench/proto/internal/query"
-	"panel/bench/proto/internal/ref"
-	"panel/bench/proto/internal/store"
-	"panel/bench/proto/internal/testdb"
-	"panel/bench/proto/internal/verify"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/ingest"
+	"supermetry/bench/proto/internal/query"
+	"supermetry/bench/proto/internal/ref"
+	"supermetry/bench/proto/internal/store"
+	"supermetry/bench/proto/internal/testdb"
+	"supermetry/bench/proto/internal/verify"
 )
 
 const (
@@ -463,7 +463,7 @@ func mustDay(s string) core.Day { d, _ := core.ParseDay(s); return d }
 // The generator's tiny fixture (bench/gen/testdata) must pass verify exactly.
 func TestGenTinyVerify(t *testing.T) {
 	dir := "../../../gen/testdata/"
-	if d := os.Getenv("PANEL_TINY_DIR"); d != "" {
+	if d := os.Getenv("SUPERMETRY_TINY_DIR"); d != "" {
 		dir = d + "/"
 	}
 	ndjson, truthFile, sitesFile := dir+"tiny.ndjson", dir+"tiny.truth.json", dir+"tiny.sites.json"

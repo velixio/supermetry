@@ -10,7 +10,7 @@ fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 
 [[ -x "$FINAL/run.sh" ]] || fail "run.sh is not executable"
 
-phases=(env panel-m panel-s panel-ingest panel-c2p1 panel-small plausible summary)
+phases=(env supermetry-m supermetry-s supermetry-ingest supermetry-c2p1 supermetry-small plausible summary)
 for phase in "${phases[@]}"; do
   out="$TMP/$phase"
   mkdir -p "$out"

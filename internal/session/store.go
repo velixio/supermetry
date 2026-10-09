@@ -5,7 +5,7 @@ package session
 import (
 	"time"
 
-	"panel/internal/db"
+	"supermetry/internal/db"
 )
 
 // IdleTimeout is the maximum gap between hits in one session.

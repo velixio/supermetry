@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import type { Me, Membership } from '@/routes/$org'
+import type { Me, Membership } from '@/routes/app.$org'
 
 import { PanelSidebar } from './Sidebar'
 import { RoutePending } from './RoutePending'
@@ -26,11 +26,11 @@ const membership: Membership = {
 }
 
 const me: Me = {
-  user: { id: 1, name: 'Owner', email: 'owner@panel.test' },
+  user: { id: 1, name: 'Owner', email: 'owner@supermetry.test' },
   memberships: [membership],
 }
 
-function renderSidebar(initialEntry = '/acme/docs-public/realtime') {
+function renderSidebar(initialEntry = '/app/acme/docs-public/realtime') {
   const rootRoute = createRootRoute({
     component: () => (
       <TooltipProvider>
@@ -41,8 +41,13 @@ function renderSidebar(initialEntry = '/acme/docs-public/realtime') {
       </TooltipProvider>
     ),
   })
-  const siteRoute = createRoute({
+  const appRoute = createRoute({
     getParentRoute: () => rootRoute,
+    path: 'app',
+    component: Outlet,
+  })
+  const siteRoute = createRoute({
+    getParentRoute: () => appRoute,
     path: '$org/$site',
     component: () => <Outlet />,
   })
@@ -58,7 +63,7 @@ function renderSidebar(initialEntry = '/acme/docs-public/realtime') {
   })
   const router = createRouter({
     routeTree: rootRoute.addChildren([
-      siteRoute.addChildren([siteIndexRoute, siteSectionRoute]),
+      appRoute.addChildren([siteRoute.addChildren([siteIndexRoute, siteSectionRoute])]),
     ]),
     history: createMemoryHistory({ initialEntries: [initialEntry] }),
   })
@@ -88,7 +93,7 @@ describe('SPA navigation', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }))
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/acme/docs-public'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs-public'))
     expect(screen.getByRole('heading', { name: 'Dashboard page' })).toBeInTheDocument()
   })
 

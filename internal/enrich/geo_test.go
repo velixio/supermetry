@@ -14,7 +14,7 @@ import (
 	"github.com/maxmind/mmdbwriter/mmdbtype"
 	"github.com/oschwald/maxminddb-golang/v2"
 
-	"panel/internal/enrich"
+	"supermetry/internal/enrich"
 )
 
 var testPrefix = netip.MustParsePrefix("192.0.2.0/24")
@@ -300,7 +300,7 @@ func writeMMDB(t *testing.T, edition string, record mmdbtype.Map) string {
 	tree, err := mmdbwriter.New(mmdbwriter.Options{
 		BuildEpoch:              1_700_000_000,
 		DatabaseType:            edition,
-		Description:             map[string]string{"en": "Panel test database"},
+		Description:             map[string]string{"en": "Supermetry test database"},
 		IncludeReservedNetworks: true,
 		IPVersion:               4,
 		Languages:               []string{"en"},

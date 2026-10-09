@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/config"
+	"supermetry/internal/config"
 )
 
 type smtpSender struct {
@@ -124,7 +124,7 @@ func renderMessage(from string, message Message) []byte {
 		data.WriteString(message.Text)
 		return data.Bytes()
 	}
-	const boundary = "panel-alternative-boundary"
+	const boundary = "supermetry-alternative-boundary"
 	fmt.Fprintf(&data, "Content-Type: multipart/alternative; boundary=%q\r\n\r\n", boundary)
 	fmt.Fprintf(&data, "--%s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n", boundary, message.Text)
 	fmt.Fprintf(&data, "--%s\r\nContent-Type: text/html; charset=utf-8\r\n\r\n%s\r\n", boundary, message.HTML)

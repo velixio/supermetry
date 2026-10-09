@@ -144,7 +144,7 @@ describe('server capability UI boundaries', () => {
     expect(navigation.map((item) => item.label)).not.toContain(
       'Organization settings',
     )
-    expect(organizationHref(membership)).toBe('/acme/settings')
+    expect(organizationHref(membership)).toBe('/app/acme/settings')
     expect(
       visibleNavigation('owner', true, { effective_capabilities: [] }).some(
         (item) => item.suffix === '/profiles',

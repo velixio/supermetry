@@ -7,8 +7,8 @@ The shared spec for every agent working under `bench/`. Thresholds and the rig a
 | Dir | Owner | What |
 |---|---|---|
 | `bench/rig/` | rig agent | Docker; Plausible CE, Umami and GoatCounter setup; `up.sh`/`down.sh`/`status.sh`; PG tuning profile |
-| `bench/gen/` | gen agent | Go module `panel/bench/gen`: deterministic synthetic data generator plus ground truth |
-| `bench/proto/` | proto agent | Go module `panel/bench/proto`: the Panel prototype (schema, ingest, rollups, query set) |
+| `bench/gen/` | gen agent | Go module `supermetry/bench/gen`: deterministic synthetic data generator plus ground truth |
+| `bench/proto/` | proto agent | Go module `supermetry/bench/proto`: the Supermetry prototype (schema, ingest, rollups, query set) |
 | `bench/load/` | phase B | Loaders for incumbents, query harness, HTTP load tester |
 | `bench/results/` | everyone | Measured numbers, as markdown/JSON, with date, commit and rig state |
 
@@ -17,8 +17,8 @@ Agents only write inside their own dir, plus `bench/results/`. Each keeps a `NOT
 ## Ports and databases
 
 - Plausible CE: `:8000`, using its own compose PG + ClickHouse.
-- Umami: `:3030`. GoatCounter: `:8083`. Panel prototype: `:8090`. These moved from :3000/:8081 because another project's dev servers hold those ports; see `bench/rig/rig.local.conf`.
-- The local PG 18 server on `:5432` (stock config for now) hosts the databases `umami`, `goatcounter` and `panel`, each with a role of the same name. Create them with `sudo -u postgres`.
+- Umami: `:3030`. GoatCounter: `:8083`. Supermetry prototype: `:8090`. These moved from :3000/:8081 because another project's dev servers hold those ports; see `bench/rig/rig.local.conf`.
+- The local PG 18 server on `:5432` (stock config for now) hosts the databases `umami`, `goatcounter` and `supermetry`, each with a role of the same name. Create them with `sudo -u postgres`.
 - **Do not restart or reconfigure the local PG.** The rig agent only *prepares* `bench/rig/pg-tuning.conf` plus an apply script; it is applied once, before measurement runs.
 
 ## Canonical event stream (NDJSON)
@@ -32,7 +32,7 @@ One JSON object per line, **globally sorted by `ts` ascending**:
 - `name` is `"pageview"` or a custom event name. `props` is a string→string map, non-empty only for custom events, with at most 3 keys.
 - `ip` and `ua` are realistic but synthetic. `country`, `browser`, `os` and `device` are the parsed ground truth, so direct loaders don't need GeoIP or UA parsing.
 - `vk` and `sk` are the **ground-truth** visitor and session keys:
-  - The systems under test must **never** use them for counting. Panel derives IDs from `ip`+`ua`+site, exactly as in production.
+  - The systems under test must **never** use them for counting. Supermetry derives IDs from `ip`+`ua`+site, exactly as in production.
   - The only exception is incumbent loaders that bypass ingest and write storage directly: they may use `sk` to build session rows.
 - The generator also writes `sites.json`: `[{id, host, timezone, share}]`. The 100 sites include `UTC`, `Europe/Berlin`, `America/New_York`, `Asia/Kolkata` (+5:30) and `Asia/Kathmandu` (+5:45).
 
@@ -62,7 +62,7 @@ Per (site, local_date), output:
 |---|---|---|
 | S | 1M events/day × 90 days, ending 2026-09-30 | 100 sites, Zipf traffic; the biggest site is about 30% |
 | M | 10M events/day × 14 days | the raw tier |
-| M-history | 10M/day × 365 days | **Panel rollups only**: streamed through the rollup builder without being stored raw. Incumbents are n/a, because they can't store 3.65B rows on this disk |
+| M-history | 10M/day × 365 days | **Supermetry rollups only**: streamed through the rollup builder without being stored raw. Incumbents are n/a, because they can't store 3.65B rows on this disk |
 
 Shared shape: 2.5 pageviews per session on average, about 55% bounce, 10% custom events, 20K distinct paths on the biggest site, and a daily traffic cycle.
 

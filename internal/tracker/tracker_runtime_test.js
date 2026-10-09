@@ -17,30 +17,30 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
   const forbidStorage = () => {
     throw new Error("tracker accessed browser storage");
   };
-  const storage = new Map(ignored ? [["panel_ignore", "1"]] : []);
+  const storage = new Map(ignored ? [["supermetry_ignore", "1"]] : []);
   const storageTarget = {
     getItem(key) {
-      if (key != "panel_ignore") forbidStorage();
+      if (key != "supermetry_ignore") forbidStorage();
       return storage.get(key) ?? null;
     },
     setItem(key, value) {
-      if (key != "panel_ignore" || value != "1") forbidStorage();
+      if (key != "supermetry_ignore" || value != "1") forbidStorage();
       storage.set(key, value);
     },
     removeItem(key) {
-      if (key != "panel_ignore") forbidStorage();
+      if (key != "supermetry_ignore") forbidStorage();
       storage.delete(key);
     },
   };
-  Object.defineProperty(storageTarget, "panel_ignore", {
+  Object.defineProperty(storageTarget, "supermetry_ignore", {
     configurable: true,
-    get: () => storage.get("panel_ignore"),
+    get: () => storage.get("supermetry_ignore"),
     // Real Storage coerces values to strings.
-    set: (value) => value == "1" ? storage.set("panel_ignore", String(value)) : forbidStorage(),
+    set: (value) => value == "1" ? storage.set("supermetry_ignore", String(value)) : forbidStorage(),
   });
   const localStorage = new Proxy(storageTarget, {
     deleteProperty(target, key) {
-      if (key != "panel_ignore") forbidStorage();
+      if (key != "supermetry_ignore") forbidStorage();
       storage.delete(key);
       return true;
     },
@@ -125,7 +125,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
   if (withExtensions) {
     vm.runInNewContext(extensions, context, {filename: "tracker.extensions.js"});
   }
-  return {context, events, panel: window.panel, payloads, storage};
+  return {context, events, supermetry: window.supermetry, payloads, storage};
 }
 
 function element({tagName = "BUTTON", classes = [], attributes = {}, parentElement = null} = {}) {
@@ -150,8 +150,8 @@ function testIdentifyAndSubsequentEvents() {
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
   assert.equal(tracker.payloads[0].profile_id, undefined);
 
-  tracker.panel.identify("customer-42", {plan: "pro", region: "eu"});
-  tracker.panel.track("Signup", {source: "hero"});
+  tracker.supermetry.identify("customer-42", {plan: "pro", region: "eu"});
+  tracker.supermetry.track("Signup", {source: "hero"});
   tracker.events.get("window:scroll")();
   tracker.events.get("window:pagehide")();
   tracker.context.location.href = "https://example.com/next";
@@ -168,17 +168,17 @@ function testIdentifyAndSubsequentEvents() {
 
 function testClear() {
   const tracker = loadTracker();
-  tracker.panel.identify("customer-42", {});
+  tracker.supermetry.identify("customer-42", {});
   const beforeClear = tracker.payloads.length;
-  tracker.panel.identify(null);
+  tracker.supermetry.identify(null);
   assert.equal(tracker.payloads.length, beforeClear, "clearing must not send an event");
-  tracker.panel.track("Signed out");
+  tracker.supermetry.track("Signed out");
   assert.equal(tracker.payloads.at(-1).profile_id, undefined);
 }
 
 function testOmittedTraits() {
   const tracker = loadTracker();
-  tracker.panel.identify("customer-42");
+  tracker.supermetry.identify("customer-42");
   assert.deepEqual(tracker.payloads.at(-1).traits, {});
   assert.equal(tracker.payloads.at(-1).profile_id, "customer-42");
 }
@@ -206,9 +206,9 @@ function testValidationBoundaries() {
     ["nested value", "a", {key: {nested: "v"}}, false],
   ]) {
     const tracker = loadTracker();
-    tracker.panel.identify(id, traits);
+    tracker.supermetry.identify(id, traits);
     assert.equal(tracker.payloads.length, valid ? 2 : 1, name);
-    tracker.panel.track("After identify");
+    tracker.supermetry.track("After identify");
     assert.equal(tracker.payloads.at(-1).profile_id, valid ? id : undefined, name);
   }
 }
@@ -220,7 +220,7 @@ function testManualPageviews() {
   tracker.context.history.pushState({}, "", "/automatic");
   assert.deepEqual(tracker.payloads, [], "manual mode must suppress pushState pageviews");
 
-  tracker.panel.pageview({url: "https://example.com/a", props: {k: "v"}});
+  tracker.supermetry.pageview({url: "https://example.com/a", props: {k: "v"}});
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
   assert.equal(tracker.payloads[0].url, "https://example.com/a");
   assert.deepEqual(tracker.payloads[0].props, {k: "v"});
@@ -236,7 +236,7 @@ function testManualEngagementRequiresStartedView() {
   assert.deepEqual(tracker.payloads, [], "manual activity before a pageview must be ignored");
 
   tracker.context.document.hidden = false;
-  tracker.panel.pageview();
+  tracker.supermetry.pageview();
   tracker.events.get("window:scroll")();
   tracker.events.get("window:pagehide")();
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "engagement"]);
@@ -244,12 +244,12 @@ function testManualEngagementRequiresStartedView() {
 
 function testManualPageviewResolvesRelativeURLAndIgnoresInvalidURL() {
   const relative = loadTracker({full: true, dataset: {manual: "true"}});
-  relative.panel.pageview({url: "/virtual"});
+  relative.supermetry.pageview({url: "/virtual"});
   assert.deepEqual(relative.payloads.map((payload) => payload.name), ["pageview"]);
   assert.equal(relative.payloads[0].url, "https://example.com/virtual");
 
   const invalid = loadTracker({full: true, dataset: {manual: "true"}});
-  assert.doesNotThrow(() => invalid.panel.pageview({url: "http://"}));
+  assert.doesNotThrow(() => invalid.supermetry.pageview({url: "http://"}));
   assert.deepEqual(invalid.payloads, []);
 }
 
@@ -292,7 +292,7 @@ function testDuplicateNavigationIsDropped() {
 
 function testSameLocationDedupeIgnoresVirtualPageviewURL() {
   const tracker = loadTracker({full: true});
-  tracker.panel.pageview({url: "/virtual"});
+  tracker.supermetry.pageview({url: "/virtual"});
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
     "pageview", "engagement", "pageview",
   ]);
@@ -309,8 +309,8 @@ function testSameLocationDedupeIgnoresVirtualPageviewURL() {
 
 function testBeforeSend() {
   const edited = loadTracker({full: true});
-  edited.panel.beforeSend = (event) => ({...event, props: {x: "1"}, site: "other-site"});
-  edited.panel.track("Edited", {ignored: "yes"});
+  edited.supermetry.beforeSend = (event) => ({...event, props: {x: "1"}, site: "other-site"});
+  edited.supermetry.track("Edited", {ignored: "yes"});
   assert.deepEqual(edited.payloads.at(-1).props, {x: "1"});
   assert.equal(edited.payloads.at(-1).site, "site-1");
 
@@ -321,9 +321,9 @@ function testBeforeSend() {
     ["boolean", () => true],
   ]) {
     const tracker = loadTracker({full: true});
-    tracker.panel.beforeSend = hook;
+    tracker.supermetry.beforeSend = hook;
     const before = tracker.payloads.length;
-    tracker.panel.track("Dropped");
+    tracker.supermetry.track("Dropped");
     assert.equal(tracker.payloads.length, before, `${name} return must fail closed`);
   }
 }
@@ -331,9 +331,9 @@ function testBeforeSend() {
 function testNamedBeforeSendIsResolvedAtSendTime() {
   const tracker = loadTracker({full: true, dataset: {beforeSend: "hook"}});
   tracker.context.window.hook = (event) => ({...event, props: {version: "first"}});
-  tracker.panel.track("First");
+  tracker.supermetry.track("First");
   tracker.context.window.hook = (event) => ({...event, props: {version: "second"}});
-  tracker.panel.track("Second");
+  tracker.supermetry.track("Second");
   assert.deepEqual(tracker.payloads.slice(-2).map((payload) => payload.props), [
     {version: "first"}, {version: "second"},
   ]);
@@ -341,11 +341,11 @@ function testNamedBeforeSendIsResolvedAtSendTime() {
 
 function testConsentGrantFlushesInOrderThroughBeforeSend() {
   const tracker = loadTracker({full: true, dataset: {consent: "required"}});
-  tracker.panel.beforeSend = (event) => ({...event, props: {approved: event.name}});
-  tracker.panel.track("A");
+  tracker.supermetry.beforeSend = (event) => ({...event, props: {approved: event.name}});
+  tracker.supermetry.track("A");
 
   assert.deepEqual(tracker.payloads, [], "consent mode must start paused");
-  tracker.panel.consent(true);
+  tracker.supermetry.consent(true);
 
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "A"]);
   assert.deepEqual(tracker.payloads.map((payload) => payload.props.approved), ["pageview", "A"]);
@@ -354,10 +354,10 @@ function testConsentGrantFlushesInOrderThroughBeforeSend() {
 function testConsentQueueKeepsNewestTwentyEvents() {
   const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
   for (let index = 1; index <= 25; index++) {
-    tracker.panel.track(`Event ${index}`);
+    tracker.supermetry.track(`Event ${index}`);
   }
 
-  tracker.panel.consent(true);
+  tracker.supermetry.consent(true);
 
   assert.deepEqual(tracker.payloads.map((payload) => payload.name),
     Array.from({length: 20}, (_, index) => `Event ${index + 6}`));
@@ -366,10 +366,10 @@ function testConsentQueueKeepsNewestTwentyEvents() {
 function testConsentQueueOverflowKeepsPageview() {
   const tracker = loadTracker({full: true, dataset: {consent: "required"}});
   for (let index = 1; index <= 25; index++) {
-    tracker.panel.track(`Event ${index}`);
+    tracker.supermetry.track(`Event ${index}`);
   }
 
-  tracker.panel.consent(true);
+  tracker.supermetry.consent(true);
 
   assert.equal(tracker.payloads.length, 20);
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
@@ -380,38 +380,38 @@ function testConsentQueueOverflowKeepsPageview() {
 
 function testConsentDenialClearsQueueAndDropsUntilGranted() {
   const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
-  tracker.panel.track("Before denial");
-  tracker.panel.consent(false);
-  tracker.panel.track("While denied");
-  tracker.panel.consent(true);
+  tracker.supermetry.track("Before denial");
+  tracker.supermetry.consent(false);
+  tracker.supermetry.track("While denied");
+  tracker.supermetry.consent(true);
 
   assert.deepEqual(tracker.payloads, []);
-  tracker.panel.track("After grant");
+  tracker.supermetry.track("After grant");
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["After grant"]);
 }
 
 function testConsentGrantIsIdempotent() {
   const tracker = loadTracker({full: true, dataset: {consent: "required"}});
-  tracker.panel.consent(true);
-  tracker.panel.consent(true);
+  tracker.supermetry.consent(true);
+  tracker.supermetry.consent(true);
 
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
 }
 
 function testConsentQueuesManualPageview() {
   const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
-  tracker.panel.pageview({url: "https://example.com/consented"});
+  tracker.supermetry.pageview({url: "https://example.com/consented"});
   assert.deepEqual(tracker.payloads, []);
 
-  tracker.panel.consent(true);
+  tracker.supermetry.consent(true);
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
   assert.equal(tracker.payloads.at(-1).url, "https://example.com/consented");
 }
 
 function testConsentWithdrawalWithoutGate() {
   const tracker = loadTracker({full: true});
-  tracker.panel.consent(false);
-  tracker.panel.track("Still enabled");
+  tracker.supermetry.consent(false);
+  tracker.supermetry.track("Still enabled");
 
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
 }
@@ -457,7 +457,7 @@ function testClassTaggedFormReplacesAutomaticFormEvent() {
   const tracker = loadTracker({full: true, withExtensions: true});
   const form = element({
     tagName: "FORM",
-    classes: ["panel-event-Newsletter+Signup"],
+    classes: ["supermetry-event-Newsletter+Signup"],
     attributes: {action: "/signup"},
   });
 
@@ -469,7 +469,7 @@ function testClassTaggedFormReplacesAutomaticFormEvent() {
 function testClassTaggedClickIncludesValidProperties() {
   const tracker = loadTracker({full: true, withExtensions: true});
   const button = element({
-    classes: ["panel-event-Buy", "panel-event-plan=pro"],
+    classes: ["supermetry-event-Buy", "supermetry-event-plan=pro"],
   });
 
   tracker.events.get("document:click")({button: 0, target: button});
@@ -482,15 +482,15 @@ function testMalformedClassTagsAreIgnored() {
   const tracker = loadTracker({full: true, withExtensions: true});
   tracker.events.get("document:click")({
     button: 0,
-    target: element({classes: ["panel-event-", "panel-event-=x"]}),
+    target: element({classes: ["supermetry-event-", "supermetry-event-=x"]}),
   });
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
 
   const classes = [
-    "panel-event-Limited",
-    `panel-event-${"k".repeat(65)}=value`,
-    `panel-event-long=${"v".repeat(257)}`,
-    ...Array.from({length: 21}, (_, index) => `panel-event-p${index}=v${index}`),
+    "supermetry-event-Limited",
+    `supermetry-event-${"k".repeat(65)}=value`,
+    `supermetry-event-long=${"v".repeat(257)}`,
+    ...Array.from({length: 21}, (_, index) => `supermetry-event-p${index}=v${index}`),
   ];
   tracker.events.get("document:click")({button: 0, target: element({classes})});
 
@@ -505,8 +505,8 @@ function testMalformedClassTagsAreIgnored() {
 function testDataAttributeTakesPrecedenceOverClassTag() {
   const tracker = loadTracker({full: true, withExtensions: true});
   const button = element({
-    classes: ["panel-event-Class+Event"],
-    attributes: {"data-panel-event": "Attribute Event"},
+    classes: ["supermetry-event-Class+Event"],
+    attributes: {"data-supermetry-event": "Attribute Event"},
   });
 
   tracker.events.get("document:click")({button: 0, target: button});
@@ -525,14 +525,14 @@ function testOptOutStopsSendsAndOptInResumes() {
   const tracker = loadTracker();
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
 
-  tracker.panel.optOut();
-  assert.equal(tracker.storage.get("panel_ignore"), "1");
-  tracker.panel.track("Ignored");
+  tracker.supermetry.optOut();
+  assert.equal(tracker.storage.get("supermetry_ignore"), "1");
+  tracker.supermetry.track("Ignored");
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
 
-  tracker.panel.optIn();
-  assert.equal(tracker.storage.has("panel_ignore"), false);
-  tracker.panel.track("Resumed");
+  tracker.supermetry.optIn();
+  assert.equal(tracker.storage.has("supermetry_ignore"), false);
+  tracker.supermetry.track("Resumed");
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview", "Resumed"]);
 }
 
@@ -617,7 +617,7 @@ testGeneratedPreludeAppliesDefaultsWithoutOverridingAttributes();
 function testPrivacySignalsBlockAllCollection() {
  for(const signal of [{globalPrivacyControl:true},{doNotTrack:"1"}]) {
   const tracker=loadTracker({...signal,full:true,withExtensions:true,dataset:{heatmap:"true"}});
-  tracker.panel.optIn();tracker.panel.consent(true);tracker.panel.identify("visitor");tracker.panel.track("custom");
+  tracker.supermetry.optIn();tracker.supermetry.consent(true);tracker.supermetry.identify("visitor");tracker.supermetry.track("custom");
   tracker.events.get("document:click")({button:0,pageX:12,pageY:34,target:element()});tracker.events.get("window:pagehide")();
   assert.deepEqual(tracker.payloads,[],"privacy signal must veto every collection path");
  }
@@ -627,7 +627,7 @@ function testHeatmapConsentWithdrawalDiscardsPoints() {
  const click=()=>tracker.events.get("document:click")({button:0,pageX:12,pageY:34,target:element()});
  click();tracker.events.get("window:pagehide")();
  assert.deepEqual(tracker.payloads,[],"heatmap must respect required consent");
- tracker.panel.consent(true);click();tracker.panel.consent(false);tracker.panel.consent(true);
+ tracker.supermetry.consent(true);click();tracker.supermetry.consent(false);tracker.supermetry.consent(true);
  tracker.events.get("window:pagehide")();
  assert.equal(tracker.payloads.some(p=>p.name==="heatmap"),false,"withdrawal must discard clicks even after regrant");
  click();tracker.events.get("window:pagehide")();
@@ -635,7 +635,7 @@ function testHeatmapConsentWithdrawalDiscardsPoints() {
 }
 function testDisabledProfilesDoNotCollectIdentity() {
  const tracker=loadTracker({dataset:{profiles:"false"}});
- tracker.panel.identify("visitor",{email:"private"});tracker.panel.track("custom");
+ tracker.supermetry.identify("visitor",{email:"private"});tracker.supermetry.track("custom");
  assert.equal(tracker.payloads.some(p=>p.profile_id||p.traits||p.name==="identify"),false);
 }
 testPrivacySignalsBlockAllCollection();

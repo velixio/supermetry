@@ -7,7 +7,7 @@ function setup(fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Re
   client.setQueryData(['me'], { id: 'previous' })
   const replace = vi.fn()
   const broadcast = vi.fn()
-  const session = createSessionLifecycle({ client, fetch, origin: 'http://localhost', cookie: () => 'panel_csrf=csrf%20value', replace, broadcast })
+  const session = createSessionLifecycle({ client, fetch, origin: 'http://localhost', cookie: () => 'supermetry_csrf=csrf%20value', replace, broadcast })
   return { session, client, fetch, replace, broadcast }
 }
 

@@ -19,7 +19,7 @@ func TestS3StoreContract(t *testing.T) {
 	server := newFakeS3(t)
 	store, err := NewS3Store(S3Settings{
 		Endpoint: server.URL(), Bucket: "replays", Region: "us-east-1",
-		AccessKey: "test-access", SecretKey: "test-secret", Prefix: "panel",
+		AccessKey: "test-access", SecretKey: "test-secret", Prefix: "supermetry",
 	}, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +38,7 @@ func TestS3DeletePrefixDoesNotDeleteSiblingPrefix(t *testing.T) {
 	server := newFakeS3(t)
 	store, err := NewS3Store(S3Settings{
 		Endpoint: server.URL(), Bucket: "replays", Region: "us-east-1",
-		AccessKey: "test-access", SecretKey: "test-secret", Prefix: "panel",
+		AccessKey: "test-access", SecretKey: "test-secret", Prefix: "supermetry",
 	}, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -51,7 +51,7 @@ func TestS3DeletePrefixDoesNotDeleteSiblingPrefix(t *testing.T) {
 	if _, err := store.DeletePrefix(context.Background(), "replay/42"); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(server.object("panel/replay/420/keep.gz")); got != "keep" {
+	if got := string(server.object("supermetry/replay/420/keep.gz")); got != "keep" {
 		t.Fatalf("sibling-prefix backing object = %q, want keep", got)
 	}
 	reader, err := store.Open(context.Background(), "replay/420/keep.gz")
@@ -69,16 +69,16 @@ func TestS3DeletePrefixDoesNotDeleteSiblingPrefix(t *testing.T) {
 }
 
 func TestS3StoreMinIO(t *testing.T) {
-	endpoint := os.Getenv("PANEL_TEST_S3")
+	endpoint := os.Getenv("SUPERMETRY_TEST_S3")
 	if endpoint == "" {
-		t.Skip("PANEL_TEST_S3 is not set")
+		t.Skip("SUPERMETRY_TEST_S3 is not set")
 	}
 	store, err := NewS3Store(S3Settings{
 		Endpoint:  endpoint,
-		Bucket:    envOr("PANEL_TEST_S3_BUCKET", "panel-test"),
-		Region:    envOr("PANEL_TEST_S3_REGION", "us-east-1"),
-		AccessKey: envOr("PANEL_TEST_S3_ACCESS_KEY", "minioadmin"),
-		SecretKey: envOr("PANEL_TEST_S3_SECRET_KEY", "minioadmin"),
+		Bucket:    envOr("SUPERMETRY_TEST_S3_BUCKET", "supermetry-test"),
+		Region:    envOr("SUPERMETRY_TEST_S3_REGION", "us-east-1"),
+		AccessKey: envOr("SUPERMETRY_TEST_S3_ACCESS_KEY", "minioadmin"),
+		SecretKey: envOr("SUPERMETRY_TEST_S3_SECRET_KEY", "minioadmin"),
 		Prefix:    "contract",
 	}, t.TempDir())
 	if err != nil {

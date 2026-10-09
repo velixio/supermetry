@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/closer"
-	"panel/internal/dict"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	"supermetry/internal/dict"
 )
 
 // rollupDimensionCodes maps query dimensions to rollup_day_dim.dim codes.
 //
 // REGISTER NEW ROLLUP DIMENSIONS HERE (and build them in the closer's rollup
 // SQL in internal/closer/rollup.go). The code set is part of the rollup layout
-// version (CurrentRollupLayout): after an upgrade that adds a code, `panel
+// version (CurrentRollupLayout): after an upgrade that adds a code, `supermetry
 // serve` backfills only the new dimensions for already-closed days in the
 // background. New counter columns are registered in rollupCounterColumns in
 // internal/closer/layout.go and trigger a full per-day recompute instead.

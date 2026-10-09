@@ -2,43 +2,43 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Existing feature/auth fixtures deliberately exercise identified reads and replay.
 // Anonymous policy is verified separately with e2e/privacy.spec.ts.
-process.env.PANEL_TRACKING_MODE ??= 'identified'
-process.env.PANEL_REPLAY_ENABLED ??= 'true'
+process.env.SUPERMETRY_TRACKING_MODE ??= 'identified'
+process.env.SUPERMETRY_REPLAY_ENABLED ??= 'true'
 
-const port = Number(process.env.PANEL_E2E_PORT ?? '18089')
+const port = Number(process.env.SUPERMETRY_E2E_PORT ?? '18089')
 const baseURL = `http://127.0.0.1:${port}`
-const schema = `panel_e2e_${process.pid}`
+const schema = `supermetry_e2e_${process.pid}`
 const testDSN =
-  process.env.PANEL_TEST_DSN ??
-  'postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable'
+  process.env.SUPERMETRY_TEST_DSN ??
+  'postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable'
 const schemaDSN = new URL(testDSN)
 schemaDSN.searchParams.set('options', `-csearch_path=${schema}`)
 const resetFile = `/tmp/${schema}-reset.txt`
 const sitesFile = `/tmp/${schema}-sites.json`
-process.env.PANEL_TEST_DSN = testDSN
-process.env.PANEL_E2E_SCHEMA = schema
-process.env.PANEL_E2E_RESET_FILE = resetFile
-process.env.PANEL_E2E_SITES_FILE = sitesFile
+process.env.SUPERMETRY_TEST_DSN = testDSN
+process.env.SUPERMETRY_E2E_SCHEMA = schema
+process.env.SUPERMETRY_E2E_RESET_FILE = resetFile
+process.env.SUPERMETRY_E2E_SITES_FILE = sitesFile
 
 const serverCommand = String.raw`
 set -eu
-psql "$PANEL_TEST_DSN" -v ON_ERROR_STOP=1 \
-  -c "drop schema if exists \"$PANEL_E2E_SCHEMA\" cascade" \
-  -c "create schema \"$PANEL_E2E_SCHEMA\""
+psql "$SUPERMETRY_TEST_DSN" -v ON_ERROR_STOP=1 \
+  -c "drop schema if exists \"$SUPERMETRY_E2E_SCHEMA\" cascade" \
+  -c "create schema \"$SUPERMETRY_E2E_SCHEMA\""
 bun -e 'const fs=require("node:fs");const rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));fs.writeFileSync(process.argv[2],JSON.stringify(rows.map(({id,host,timezone})=>({id,org_id:1,public_id:host,timezone,retention_days:30,allowed_hosts:[host],revenue_currency:"USD",revenue_currency_state:"configured"}))))' \
-  ../bench/gen/testdata/tiny.sites.json "$PANEL_E2E_SITES_FILE"
-export PANEL_DATABASE_URL="$PANEL_E2E_DSN"
-export PANEL_BASE_URL="$PANEL_E2E_BASE_URL"
-export PANEL_SECRET_KEY="$PANEL_E2E_SECRET_KEY"
-export PANEL_SITES_FILE="$PANEL_E2E_SITES_FILE"
-../bin/panel migrate
-../bin/panel load < ../bench/gen/testdata/tiny.ndjson
+  ../bench/gen/testdata/tiny.sites.json "$SUPERMETRY_E2E_SITES_FILE"
+export SUPERMETRY_DATABASE_URL="$SUPERMETRY_E2E_DSN"
+export SUPERMETRY_BASE_URL="$SUPERMETRY_E2E_BASE_URL"
+export SUPERMETRY_SECRET_KEY="$SUPERMETRY_E2E_SECRET_KEY"
+export SUPERMETRY_SITES_FILE="$SUPERMETRY_E2E_SITES_FILE"
+../bin/supermetry migrate
+../bin/supermetry load < ../bench/gen/testdata/tiny.ndjson
 for site in $(seq 1 100); do
-  ../bin/panel close-days --site "$site" --from 2026-09-28 --to 2026-09-30 >/dev/null
+  ../bin/supermetry close-days --site "$site" --from 2026-09-28 --to 2026-09-30 >/dev/null
 done
-../bin/panel user create --email owner@panel.test --org Acme > "$PANEL_E2E_RESET_FILE"
-export PANEL_LISTEN="127.0.0.1:$PANEL_E2E_PORT"
-exec ../bin/panel serve
+../bin/supermetry user create --email owner@supermetry.test --org Acme > "$SUPERMETRY_E2E_RESET_FILE"
+export SUPERMETRY_LISTEN="127.0.0.1:$SUPERMETRY_E2E_PORT"
+exec ../bin/supermetry serve
 `
 
 export default defineConfig({
@@ -71,16 +71,16 @@ export default defineConfig({
     command: serverCommand,
     cwd: '.',
     env: {
-      PANEL_TRACKING_MODE: process.env.PANEL_TRACKING_MODE,
-      PANEL_REPLAY_ENABLED: process.env.PANEL_REPLAY_ENABLED,
-      PANEL_TEST_DSN: testDSN,
-      PANEL_E2E_DSN: schemaDSN.toString(),
-      PANEL_E2E_SCHEMA: schema,
-      PANEL_E2E_BASE_URL: baseURL,
-      PANEL_E2E_PORT: String(port),
-      PANEL_E2E_RESET_FILE: resetFile,
-      PANEL_E2E_SITES_FILE: sitesFile,
-      PANEL_E2E_SECRET_KEY: Buffer.alloc(32, 'e').toString('base64'),
+      SUPERMETRY_TRACKING_MODE: process.env.SUPERMETRY_TRACKING_MODE,
+      SUPERMETRY_REPLAY_ENABLED: process.env.SUPERMETRY_REPLAY_ENABLED,
+      SUPERMETRY_TEST_DSN: testDSN,
+      SUPERMETRY_E2E_DSN: schemaDSN.toString(),
+      SUPERMETRY_E2E_SCHEMA: schema,
+      SUPERMETRY_E2E_BASE_URL: baseURL,
+      SUPERMETRY_E2E_PORT: String(port),
+      SUPERMETRY_E2E_RESET_FILE: resetFile,
+      SUPERMETRY_E2E_SITES_FILE: sitesFile,
+      SUPERMETRY_E2E_SECRET_KEY: Buffer.alloc(32, 'e').toString('base64'),
     },
     url: `${baseURL}/readyz`,
     timeout: 180_000,

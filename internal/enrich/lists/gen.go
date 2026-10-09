@@ -1,4 +1,4 @@
-// Package main refreshes the public enrichment datasets embedded by Panel.
+// Package main refreshes the public enrichment datasets embedded by Supermetry.
 package main
 
 //go:generate go run .

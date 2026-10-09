@@ -1,4 +1,4 @@
-# bench/proto: Panel prototype notes
+# bench/proto: Supermetry prototype notes
 
 The throwaway prototype for gate steps 4–5 ([../CONTRACT.md](../CONTRACT.md), [../../scorecard.md](../../scorecard.md)). It is Go 1.26 module `panel/bench/proto`, using pgx/v5 against the local PG 18 database `panel` (role `panel`/`panel`, created with `sudo -u postgres`). PG was neither restarted nor reconfigured globally; the only settings are per role (`ALTER ROLE panel SET work_mem = '64MB', jit = off`, see "Query model").
 
@@ -10,7 +10,7 @@ It faithfully implements the planned hot path (goal.md "Architecture") and query
 go build -o proto .                      # 18 MB static-ish binary
 go test ./...                            # needs local PG; DB tests use a throwaway schema
 ./proto load --sites sites.json < events.ndjson     # bulk load through the ingest pipeline
-PANEL_RAW_PARTITION=daily ./proto load ...           # O5 only: daily raw-event partitions
+SUPERMETRY_RAW_PARTITION=daily ./proto load ...           # O5 only: daily raw-event partitions
 ./proto retention --raw-days 7 [--as-of 2026-07-21] # DROP expired raw-event partitions
 ./proto rollup --from 2026-09-01 --to 2026-09-30 [--parallel 4] [--drop-hot]
                                                     # close days: closed-day tables + rollups (idempotent), monthly rollups
@@ -29,7 +29,7 @@ PANEL_RAW_PARTITION=daily ./proto load ...           # O5 only: daily raw-event 
 ./proto reset                                       # drop raw and closed partitions, truncate rollups, salts, dict
 ```
 
-Env: `PANEL_DSN` (default `postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable`). Extra DSN params become session GUCs. `PANEL_PPROF=127.0.0.1:6061` serves pprof. `PANEL_DEBUG_SQL=1` prints each closed-tier statement's time.
+Env: `SUPERMETRY_DSN` (default `postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable`). Extra DSN params become session GUCs. `SUPERMETRY_PPROF=127.0.0.1:6061` serves pprof. `SUPERMETRY_DEBUG_SQL=1` prints each closed-tier statement's time.
 
 Query names: `overview timeseries pages sources countries browsers os devices entry exit funnel props realtime` (+ `dashboard` in `proto query`). Filters: `path source country browser os device entry exit utm_source utm_medium utm_campaign`, combinable (AND). `--mode auto|rollup|raw|hot`.
 
@@ -53,7 +53,7 @@ Migration 1, the hot tier:
 sites(id int PK, host text UNIQUE, tz text)
 salts(site_id, day date, salt bytea, created_at)            PK (site_id, day); purged after 48 h
 events   PARTITION BY RANGE (ts), monthly (events_pYYYY_MM) by default;
-         daily (events_dYYYYMMDD) with PANEL_RAW_PARTITION=daily for O5
+         daily (events_dYYYYMMDD) with SUPERMETRY_RAW_PARTITION=daily for O5
   site_id int, local_date date, ts timestamptz, visitor_id bigint, session_id bigint,
   name text, path text, source, country, browser, os, device text NOT NULL,   -- session dims copied on
   utm_source/medium/campaign text NULL, props jsonb NULL

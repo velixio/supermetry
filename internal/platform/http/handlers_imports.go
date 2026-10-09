@@ -14,9 +14,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/imports"
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
+	"supermetry/internal/imports"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
 )
 
 var errImportTooLarge = errors.New("import file exceeds size limit")
@@ -76,7 +76,7 @@ func saveImportMultipart(r *http.Request, tempDir string, max int64) (upload imp
 				part.Close()
 				return upload, errors.New("exactly one import file is required")
 			}
-			file, err := os.CreateTemp(tempDir, "panel-import-*")
+			file, err := os.CreateTemp(tempDir, "supermetry-import-*")
 			if err != nil {
 				part.Close()
 				return upload, fmt.Errorf("create import temp file: %w", err)
@@ -261,7 +261,7 @@ func (h *handler) exportSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="panel-site-%d-%s-%s.zip"`, site.ID, from.Format(time.DateOnly), to.Format(time.DateOnly)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="supermetry-site-%d-%s-%s.zip"`, site.ID, from.Format(time.DateOnly), to.Format(time.DateOnly)))
 	if err := h.deps.Exporter.Write(r.Context(), w, site.ID, from, to); err != nil {
 		// A streaming response may already have started; the server log will retain
 		// the error while the incomplete ZIP makes the failure visible to clients.

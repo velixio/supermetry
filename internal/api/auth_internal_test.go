@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"panel/internal/sites"
+	"supermetry/internal/sites"
 )
 
 type fakeRegistry map[int32]sites.Site
@@ -74,7 +74,7 @@ func TestCSRFRequiresMatchingCookieAndHeader(t *testing.T) {
 	for _, c := range cases {
 		r := httptest.NewRequest(http.MethodPost, "/api/private/query", nil)
 		if c.cookie != "" {
-			r.AddCookie(&http.Cookie{Name: "panel_csrf", Value: c.cookie})
+			r.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: c.cookie})
 		}
 		if c.header != "" {
 			r.Header.Set("X-CSRF-Token", c.header)

@@ -12,14 +12,14 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/ingest"
-	"panel/internal/realtime"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/ingest"
+	"supermetry/internal/realtime"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 type queryFunc struct {

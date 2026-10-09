@@ -1,5 +1,5 @@
 {
-  "name": "@panel/tracker",
+  "name": "@supermetry/tracker",
   "version": "0.0.0",
   "private": true,
   "type": "module",

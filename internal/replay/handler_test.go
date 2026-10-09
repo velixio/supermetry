@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/config"
-	"panel/internal/health"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/config"
+	"supermetry/internal/health"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 type replayTestClock struct{ now time.Time }

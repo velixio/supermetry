@@ -88,7 +88,7 @@ Sites: `site{N}.test`. Sites 1–5 are America/New_York, Europe/Berlin, Asia/Kol
 The file is one JSON object, with one row per line:
 
 ```json
-{"generator":"panel/bench/gen","tier":"S","seed":42,"start":"2026-07-03","days":90,"events_per_day":1000000,"sites":100,
+{"generator":"supermetry/bench/gen","tier":"S","seed":42,"start":"2026-07-03","days":90,"events_per_day":1000000,"sites":100,
  "dims":[…],"top_n":50,"funnel_f_steps":["/","/pricing","signup"],"rows":[
 {"site":1,"date":"2026-07-03","visitors":…,"visits":…,"pageviews":…,"bounces":…,"duration_sum_s":200633.678,
  "top":{"path":[{"value":"/","visitors":453,"pageviews":552},…],"country":[…],"source":[…],"browser":[…],"os":[…],"device":[…],"entry":[…],"exit":[…]},

@@ -10,13 +10,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/api"
-	"panel/internal/closer"
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/query"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/closer"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/query"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestChannelGroupingAndFiltersMatchAcrossTiers(t *testing.T) {

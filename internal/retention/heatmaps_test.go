@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/retention"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/retention"
+	"supermetry/internal/testpg"
 )
 
 func TestRunDropsOnlyHeatmapPartitionsWhollyOlderThanNinetyDays(t *testing.T) {

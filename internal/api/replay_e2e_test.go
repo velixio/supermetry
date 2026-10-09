@@ -14,18 +14,18 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/sitesvc"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/replay"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/replay"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/testpg"
 )
 
 type replayE2EClock struct{ now time.Time }
@@ -48,8 +48,8 @@ func (auth replayE2EAuth) Authenticate(*http.Request) (authz.Principal, bool) {
 }
 
 func TestReplayEndToEnd(t *testing.T) {
-	if os.Getenv("PANEL_TEST_DSN") == "" {
-		t.Skip("PANEL_TEST_DSN is not set")
+	if os.Getenv("SUPERMETRY_TEST_DSN") == "" {
+		t.Skip("SUPERMETRY_TEST_DSN is not set")
 	}
 	ctx := context.Background()
 	pool, _ := testpg.New(t)
@@ -175,7 +175,7 @@ func doReplayRequest(t *testing.T, handler http.Handler, method, target string, 
 	request.Header.Set("Origin", "https://example.test")
 	if method != http.MethodGet {
 		request.Header.Set("X-CSRF-Token", "replay-e2e")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "replay-e2e"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "replay-e2e"})
 	}
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)

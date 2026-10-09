@@ -10,9 +10,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/config"
-	"panel/internal/db"
-	"panel/internal/testpg"
+	"supermetry/internal/config"
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 func TestRetentionDeletesDaysOlderThanSiteSetting(t *testing.T) {

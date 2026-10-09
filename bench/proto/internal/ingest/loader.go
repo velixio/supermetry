@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"sync"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 // ReadEvents parses NDJSON from r with parallel workers and calls sink for

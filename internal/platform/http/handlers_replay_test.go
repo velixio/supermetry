@@ -13,14 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/config"
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	platformhttp "panel/internal/platform/http"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/replay"
-	"panel/internal/testpg"
+	"supermetry/internal/config"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/replay"
+	"supermetry/internal/testpg"
 )
 
 type replayFixture struct {
@@ -101,7 +101,7 @@ func (f replayFixture) request(t *testing.T, actor, method, path, body string) *
 	request.Header.Set("X-Test-Actor", actor)
 	if method != http.MethodGet && method != http.MethodHead {
 		request.Header.Set("X-CSRF-Token", "csrf")
-		request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "csrf"})
+		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "csrf"})
 	}
 	response := httptest.NewRecorder()
 	f.handler.ServeHTTP(response, request)
@@ -359,7 +359,7 @@ func TestInstanceStorageMigrationRecordsSealedEndpoints(t *testing.T) {
 	if _, err := f.pool.Pool.Exec(context.Background(), `update instance_settings set settings=jsonb_set(settings,'{replay_storage}',$1::jsonb)`, stored); err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodPut, "/api/private/instance/replay-storage", strings.NewReader(`{"backend":"disk","dir":"/var/lib/panel/replay-new","migrate":true}`))
+	request := httptest.NewRequest(http.MethodPut, "/api/private/instance/replay-storage", strings.NewReader(`{"backend":"disk","dir":"/var/lib/supermetry/replay-new","migrate":true}`))
 	request.Header.Set("Authorization", "Bearer instance-admin-key")
 	response := httptest.NewRecorder()
 	f.handler.ServeHTTP(response, request)

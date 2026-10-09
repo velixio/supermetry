@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "panel-web",
+      "name": "supermetry-web",
       "dependencies": {
         "@tanstack/react-query": "^5.104.1",
         "@tanstack/react-router": "^1.170.41",

@@ -15,10 +15,10 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"golang.org/x/sync/semaphore"
 
-	"panel/internal/api"
-	"panel/internal/dict"
-	"panel/internal/privacy"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/dict"
+	"supermetry/internal/privacy"
+	"supermetry/internal/sites"
 )
 
 // Route identifies the exact storage tier used for a query range.

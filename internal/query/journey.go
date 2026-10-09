@@ -10,12 +10,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/dict"
-	"panel/internal/privacy"
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/privacy"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 const (

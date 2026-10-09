@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure Panel's HTTP query set and compare the 30-day totals with truth."""
+"""Measure Supermetry's HTTP query set and compare the 30-day totals with truth."""
 
 import argparse
 import concurrent.futures

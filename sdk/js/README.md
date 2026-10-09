@@ -1,11 +1,11 @@
-# `@panel/tracker`
+# `@supermetry/tracker`
 
-Typed browser wrapper for Panel's full tracking script. It injects the script; it does not bundle the tracker itself.
+Typed browser wrapper for Supermetry's full tracking script. It injects the script; it does not bundle the tracker itself.
 
 ```ts
-import { init } from "@panel/tracker";
+import { init } from "@supermetry/tracker";
 
-const panel = init({
+const supermetry = init({
   site: "your-site-id",
   src: "https://analytics.example.com/js/script.full.js",
   api: "https://analytics.example.com/api/public/v1/events",
@@ -16,14 +16,14 @@ const panel = init({
   }),
 });
 
-panel.pageview();
-panel.track("Signup", { plan: "pro" });
+supermetry.pageview();
+supermetry.track("Signup", { plan: "pro" });
 ```
 
 `site` and `src` are required. The optional `manual`, `hash`, `consent`, `forms`, `outbound`, `downloads`, and `allowLocalhost` settings configure the corresponding tracker data attributes. When `consent` is enabled, resolve it after the visitor chooses:
 
 ```ts
-panel.consent(true);
+supermetry.consent(true);
 ```
 
 Calls made while the script is loading are queued in memory. Repeated `init` calls in the same page return the original tracker. During server rendering, `init` returns safe no-op methods and does not access the DOM.

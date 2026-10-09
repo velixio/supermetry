@@ -15,15 +15,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/internal/clientip"
-	"panel/internal/dict"
-	"panel/internal/enrich"
-	"panel/internal/health"
-	"panel/internal/privacy"
-	"panel/internal/salts"
-	"panel/internal/session"
-	"panel/internal/sites"
-	"panel/internal/writer"
+	"supermetry/internal/clientip"
+	"supermetry/internal/dict"
+	"supermetry/internal/enrich"
+	"supermetry/internal/health"
+	"supermetry/internal/privacy"
+	"supermetry/internal/salts"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
+	"supermetry/internal/writer"
 )
 
 const previousSaltWindow = 30 * time.Minute
@@ -55,7 +55,7 @@ type Handler struct {
 	Limiter           RateLimiter
 	TrustedProxies    []netip.Prefix
 	Clock             Clock
-	Diag              bool // log how each client address was resolved (PANEL_INGEST_DIAG=1)
+	Diag              bool // log how each client address was resolved (SUPERMETRY_INGEST_DIAG=1)
 	capsOnce          sync.Once
 	caps              *valueCap
 	ProfileTombstones interface {

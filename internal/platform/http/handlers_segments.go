@@ -11,10 +11,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"panel/internal/api"
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authz"
-	"panel/internal/query"
+	"supermetry/internal/api"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/query"
 )
 
 type segmentInput struct {

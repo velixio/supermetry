@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"panel/internal/platform/crypto"
-	"panel/internal/platform/store"
+	"supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
 )
 
 var ErrInvalid = errors.New("invalid user")

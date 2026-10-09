@@ -1,8 +1,8 @@
 package writer
 
 import (
-	"panel/internal/dict"
-	"panel/internal/privacy"
+	"supermetry/internal/dict"
+	"supermetry/internal/privacy"
 )
 
 // SetPathPolicy sets the immutable server policy and cache used to recheck

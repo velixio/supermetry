@@ -1,11 +1,11 @@
 import { expect, test } from './fixtures'
 
-// Run against a fresh synthetic instance with PANEL_TRACKING_MODE=anonymous
-// and PANEL_REPLAY_ENABLED=false. These are real HTTP calls, not route mocks.
+// Run against a fresh synthetic instance with SUPERMETRY_TRACKING_MODE=anonymous
+// and SUPERMETRY_REPLAY_ENABLED=false. These are real HTTP calls, not route mocks.
 // Required separate gate:
-// PANEL_TRACKING_MODE=anonymous PANEL_REPLAY_ENABLED=false bun run e2e e2e/privacy.spec.ts
+// SUPERMETRY_TRACKING_MODE=anonymous SUPERMETRY_REPLAY_ENABLED=false bun run e2e e2e/privacy.spec.ts
 // The normal suite uses identified mode for its existing feature/auth fixtures.
-test.skip(process.env.PANEL_TRACKING_MODE !== 'anonymous', 'Run the required separate anonymous privacy gate with PANEL_TRACKING_MODE=anonymous PANEL_REPLAY_ENABLED=false.')
+test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'anonymous', 'Run the required separate anonymous privacy gate with SUPERMETRY_TRACKING_MODE=anonymous SUPERMETRY_REPLAY_ENABLED=false.')
 test('anonymous settings cannot escalate profiles or recording', async ({ page, owner }) => {
   await owner.login(page, `/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
   await expect(page.getByText(/Effective tracking: anonymous/)).toBeVisible()

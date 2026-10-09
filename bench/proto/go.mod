@@ -1,4 +1,4 @@
-module panel/bench/proto
+module supermetry/bench/proto
 
 go 1.26.0
 

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"panel/internal/platform/authz"
+	"supermetry/internal/platform/authz"
 )
 
 func TestSensitiveKeyScopesAndRevocation(t *testing.T) {

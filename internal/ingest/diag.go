@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"panel/internal/enrich"
+	"supermetry/internal/enrich"
 )
 
 func parseRemoteAddr(remote string) (netip.Addr, bool) {
@@ -33,7 +33,7 @@ func (h *Handler) proxyTrusted(addr netip.Addr) bool {
 }
 
 // logDiag records how a client address was resolved without writing any
-// address value. Enabled with PANEL_INGEST_DIAG=1.
+// address value. Enabled with SUPERMETRY_INGEST_DIAG=1.
 func (h *Handler) logDiag(r *http.Request, ip netip.Addr, location enrich.CityInfo) {
 	peer, _ := parseRemoteAddr(r.RemoteAddr)
 	peer = peer.Unmap()

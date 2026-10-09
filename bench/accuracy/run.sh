@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-PANEL="$ROOT/bin/panel"
-BASE_DSN=${PANEL_TEST_DSN:-postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable}
+SUPERMETRY="$ROOT/bin/supermetry"
+BASE_DSN=${SUPERMETRY_TEST_DSN:-postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable}
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 SCHEMA="bench_accuracy_$(printf '%s' "$STAMP" | tr '[:upper:]' '[:lower:]' | tr -c '0-9a-z' '_')_$$"
 TMP_ROOT="$ROOT/bench/results/tmp"
@@ -19,7 +19,7 @@ MAIN_PID=$BASHPID
 for command in curl free go psql python3; do
   command -v "$command" >/dev/null || { echo "missing command: $command" >&2; exit 1; }
 done
-[[ -x $PANEL ]] || { echo "build bin/panel first with make build" >&2; exit 1; }
+[[ -x $SUPERMETRY ]] || { echo "build bin/supermetry first with make build" >&2; exit 1; }
 mkdir -p "$WORK"
 
 available_disk_gb() {
@@ -82,16 +82,16 @@ done < <(env -u PGOPTIONS psql "$BASE_DSN" -At -v ON_ERROR_STOP=1 \
 
 env -u PGOPTIONS psql "$BASE_DSN" -v ON_ERROR_STOP=1 -c "create schema \"$SCHEMA\"" >/dev/null
 export PGOPTIONS="-csearch_path=$SCHEMA"
-export PANEL_DATABASE_URL="$BASE_DSN"
-export PANEL_BASE_URL=http://127.0.0.1:18082
-export PANEL_LISTEN=127.0.0.1:18082
-export PANEL_SECRET_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-export PANEL_ADMIN_API_KEY=accuracy-check-key
-export PANEL_TRUSTED_PROXIES=127.0.0.1
-export PANEL_GEOIP_PATH="$ROOT/bench/proto/data/dbip-country-lite.mmdb"
-export PANEL_QUERY_TIMEOUT=30s
-export PANEL_FLUSH_EVERY=20ms
-export PANEL_SESSION_FLUSH=20ms
+export SUPERMETRY_DATABASE_URL="$BASE_DSN"
+export SUPERMETRY_BASE_URL=http://127.0.0.1:18082
+export SUPERMETRY_LISTEN=127.0.0.1:18082
+export SUPERMETRY_SECRET_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+export SUPERMETRY_ADMIN_API_KEY=accuracy-check-key
+export SUPERMETRY_TRUSTED_PROXIES=127.0.0.1
+export SUPERMETRY_GEOIP_PATH="$ROOT/bench/proto/data/dbip-country-lite.mmdb"
+export SUPERMETRY_QUERY_TIMEOUT=30s
+export SUPERMETRY_FLUSH_EVERY=20ms
+export SUPERMETRY_SESSION_FLUSH=20ms
 
 watch_disk() {
   while sleep 5; do
@@ -132,7 +132,7 @@ clear_active
 python3 "$ROOT/bench/accuracy/prepare.py" \
   --source-sites "$WORK/gen-sites.json" --source-events "$WORK/all.ndjson" \
   --sites "$WORK/sites.json" --events "$WORK/events.ndjson" --site-ids 1,3,5
-export PANEL_SITES_FILE="$WORK/sites.json"
+export SUPERMETRY_SITES_FILE="$WORK/sites.json"
 
 echo "accuracy: load product"
 LOAD_DISK_GB=$(available_disk_gb)
@@ -140,23 +140,23 @@ if (( LOAD_DISK_GB < MIN_START_GB )); then
   printf 'aborted: low disk (%s GB available; refusing load below %s GB)\n' "$LOAD_DISK_GB" "$MIN_START_GB" | tee "$RESULT" >&2
   exit 1
 fi
-"$PANEL" load <"$WORK/events.ndjson" >"$WORK/load.json" 2>"$WORK/load.log" &
+"$SUPERMETRY" load <"$WORK/events.ndjson" >"$WORK/load.json" 2>"$WORK/load.log" &
 set_active "$!"
 wait "$!"
 clear_active
 
 start_server() {
-  "$PANEL" serve >"$WORK/server-$1.log" 2>&1 &
+  "$SUPERMETRY" serve >"$WORK/server-$1.log" 2>&1 &
   SERVER_PID=$!
   set_active "$SERVER_PID"
   for _ in $(seq 1 120); do
-    if curl -fsS "$PANEL_BASE_URL/readyz" >/dev/null 2>&1; then
+    if curl -fsS "$SUPERMETRY_BASE_URL/readyz" >/dev/null 2>&1; then
       return
     fi
     kill -0 "$SERVER_PID" 2>/dev/null || { tail -80 "$WORK/server-$1.log" >&2; exit 1; }
     sleep 0.25
   done
-  echo "Panel did not become ready" >&2
+  echo "Supermetry did not become ready" >&2
   exit 1
 }
 
@@ -165,7 +165,7 @@ start_server hot
 set +e
 python3 "$ROOT/bench/accuracy/check.py" \
   --events "$WORK/events.ndjson" --sites "$WORK/sites.json" \
-  --base-url "$PANEL_BASE_URL" --key "$PANEL_ADMIN_API_KEY" --phase hot \
+  --base-url "$SUPERMETRY_BASE_URL" --key "$SUPERMETRY_ADMIN_API_KEY" --phase hot \
   --from 2026-09-24 --to 2026-10-07 --output "$WORK/hot.json" &
 set_active "$!"
 wait "$!"
@@ -176,7 +176,7 @@ stop_server
 
 echo "accuracy: close all selected site-days"
 for site in 1 3 5; do
-  "$PANEL" close-days --site "$site" --from 2026-09-24 --to 2026-10-07 >"$WORK/close-$site.log" 2>&1 &
+  "$SUPERMETRY" close-days --site "$site" --from 2026-09-24 --to 2026-10-07 >"$WORK/close-$site.log" 2>&1 &
   set_active "$!"
   wait "$!"
   clear_active
@@ -189,7 +189,7 @@ start_server closed
 set +e
 python3 "$ROOT/bench/accuracy/check.py" \
   --events "$WORK/events.ndjson" --sites "$WORK/sites.json" \
-  --base-url "$PANEL_BASE_URL" --key "$PANEL_ADMIN_API_KEY" --phase closed \
+  --base-url "$SUPERMETRY_BASE_URL" --key "$SUPERMETRY_ADMIN_API_KEY" --phase closed \
   --from 2026-09-24 --to 2026-10-07 --output "$WORK/closed.json" &
 set_active "$!"
 wait "$!"

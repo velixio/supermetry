@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/scheduler"
-	"panel/internal/session"
+	"supermetry/internal/scheduler"
+	"supermetry/internal/session"
 )
 
 const (

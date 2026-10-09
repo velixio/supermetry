@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/config"
-	"panel/internal/platform/authz"
-	"panel/internal/privacy"
-	coresites "panel/internal/sites"
+	"supermetry/internal/config"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/privacy"
+	coresites "supermetry/internal/sites"
 )
 
 func ptr[T any](v T) *T { return &v }
@@ -42,7 +42,7 @@ func TestAnonymousRejectsForgedProfileOptIn(t *testing.T) {
 	route := New(Deps{Authenticator: importTestAuth{owner}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
 	request := httptest.NewRequest(http.MethodPatch, "/api/private/sites/1", strings.NewReader(`{"profiles_enabled":true}`))
 	request.Header.Set("X-CSRF-Token", "csrf")
-	request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "csrf"})
+	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "csrf"})
 	response := httptest.NewRecorder()
 	route.ServeHTTP(response, request)
 	if response.Code != http.StatusConflict {
@@ -68,7 +68,7 @@ func TestAnonymousBlocksImportsAndExportsBeforeStorage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			request := httptest.NewRequest(tc.method, tc.path, nil)
 			request.Header.Set("X-CSRF-Token", "csrf")
-			request.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "csrf"})
+			request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "csrf"})
 			response := httptest.NewRecorder()
 			route.ServeHTTP(response, request)
 			if response.Code != http.StatusForbidden || response.Header().Get("Content-Disposition") != "" {

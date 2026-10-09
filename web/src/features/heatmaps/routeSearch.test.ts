@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { heatmapSearch } from '@/routes/$org.$site.heatmaps'
+import { heatmapSearch } from '@/routes/app.$org.$site.heatmaps'
 
 describe('heatmap route search', () => {
   it('keeps the period, path, and device in validated URL state', () => {

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"panel/internal/api"
-	"panel/internal/siteexport"
+	"supermetry/internal/api"
+	"supermetry/internal/siteexport"
 	"testing"
 	"time"
 )

@@ -21,25 +21,25 @@ func writeProblem(w http.ResponseWriter, problem Problem) {
 }
 
 func badRequest(detail string) Problem {
-	return newProblem(http.StatusBadRequest, "https://panel.dev/problems/bad-request", "Bad request", detail)
+	return newProblem(http.StatusBadRequest, "https://supermetry.com/problems/bad-request", "Bad request", detail)
 }
 
 func unauthorized() Problem {
-	return newProblem(http.StatusUnauthorized, "https://panel.dev/problems/unauthorized", "Unauthorized", "valid authentication is required")
+	return newProblem(http.StatusUnauthorized, "https://supermetry.com/problems/unauthorized", "Unauthorized", "valid authentication is required")
 }
 
 func forbidden(detail string) Problem {
-	return newProblem(http.StatusForbidden, "https://panel.dev/problems/forbidden", "Forbidden", detail)
+	return newProblem(http.StatusForbidden, "https://supermetry.com/problems/forbidden", "Forbidden", detail)
 }
 
 func rateLimited() Problem {
-	return newProblem(http.StatusTooManyRequests, "https://panel.dev/problems/rate-limited", "Rate limit exceeded", "retry after the indicated delay")
+	return newProblem(http.StatusTooManyRequests, "https://supermetry.com/problems/rate-limited", "Rate limit exceeded", "retry after the indicated delay")
 }
 
 func internalProblem() Problem {
-	return newProblem(http.StatusInternalServerError, "https://panel.dev/problems/internal", "Internal server error", "the request could not be completed")
+	return newProblem(http.StatusInternalServerError, "https://supermetry.com/problems/internal", "Internal server error", "the request could not be completed")
 }
 
 func notFound(detail string) Problem {
-	return newProblem(http.StatusNotFound, "https://panel.dev/problems/not-found", "Not found", detail)
+	return newProblem(http.StatusNotFound, "https://supermetry.com/problems/not-found", "Not found", detail)
 }

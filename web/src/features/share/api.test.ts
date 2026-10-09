@@ -7,7 +7,7 @@ describe('shared dashboard API', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
-          type: 'https://panel.dev/problems/unauthorized',
+          type: 'https://supermetry.com/problems/unauthorized',
           title: 'Unauthorized',
           status: 401,
           detail: 'valid authentication is required',

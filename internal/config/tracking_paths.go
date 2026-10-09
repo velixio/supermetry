@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"panel/internal/privacy"
+	"supermetry/internal/privacy"
 )
 
 // TrackingPublicPathsEnv declares exact operator-reviewed public path literals.
-const TrackingPublicPathsEnv = "PANEL_TRACKING_PUBLIC_PATHS"
+const TrackingPublicPathsEnv = "SUPERMETRY_TRACKING_PUBLIC_PATHS"
 
 // ParseTrackingPublicPaths reads an immutable startup policy. Absence and []
 // both deny all paths; explicit empty, null, or malformed values are errors.

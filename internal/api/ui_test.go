@@ -5,9 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"panel/internal/api"
-	"panel/internal/config"
-	"panel/internal/ingest"
+	"supermetry/internal/api"
+	"supermetry/internal/config"
+	"supermetry/internal/ingest"
 )
 
 func TestUIServesNonAPIPathsOnly(t *testing.T) {

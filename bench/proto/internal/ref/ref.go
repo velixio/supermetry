@@ -1,5 +1,5 @@
 // Package ref is a deliberately naive in-memory evaluator of the CONTRACT's
-// truth semantics plus Panel's filter semantics. It shares no session or SQL
+// truth semantics plus Supermetry's filter semantics. It shares no session or SQL
 // code with the prototype and serves only as a test oracle.
 package ref
 
@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 type event struct {

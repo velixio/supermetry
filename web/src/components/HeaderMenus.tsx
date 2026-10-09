@@ -7,7 +7,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { requestLogout } from '@/lib/session-lifecycle'
-import type { Me, Membership, Site } from '@/routes/$org'
+import type { Me, Membership, Site } from '@/routes/app.$org'
 import { siteSlug } from './Sidebar'
 
 export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Membership; site?: Site }) {
@@ -23,7 +23,7 @@ export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Mem
             <DropdownMenuGroup>
               {organizations.map((item) => (
                 <DropdownMenuItem asChild key={item.org.id}>
-                  <Link to="/$org/settings" params={{ org: item.org.slug }}>
+                  <Link to="/app/$org/settings" params={{ org: item.org.slug }}>
                     <Building2Icon aria-hidden="true" />
                     <span className="min-w-0"><span className="block">Organization settings</span><span className="block truncate text-xs text-muted-foreground">{item.org.name}</span></span>
                   </Link>
@@ -31,7 +31,7 @@ export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Mem
               ))}
               {membership && site && membership.role !== 'viewer' ? (
                 <DropdownMenuItem asChild>
-                  <Link to="/$org/$site/settings/general" params={{ org: membership.org.slug, site: siteSlug(site) }}>
+                  <Link to="/app/$org/$site/settings/general" params={{ org: membership.org.slug, site: siteSlug(site) }}>
                     <SettingsIcon aria-hidden="true" />
                     <span className="min-w-0"><span className="block">Site settings</span><span className="block truncate text-xs text-muted-foreground">{site.name}</span></span>
                   </Link>
@@ -52,7 +52,7 @@ export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Mem
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem asChild><Link to="/account/profile"><UserRoundIcon aria-hidden="true" />Account settings</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link to="/app/account/profile"><UserRoundIcon aria-hidden="true" />Account settings</Link></DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void requestLogout()}><LogOutIcon aria-hidden="true" />Log out</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>

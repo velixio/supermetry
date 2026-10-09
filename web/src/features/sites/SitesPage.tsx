@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { Role } from '@/components/Sidebar'
-import type { Site } from '@/routes/$org'
+import type { Site } from '@/routes/app.$org'
 
 export type SiteAction = 'edit' | 'installation' | 'delete'
 
@@ -50,7 +50,7 @@ export function SitesPage({
         <h1 className="text-2xl font-semibold tracking-tight">No sites yet</h1>
         <p className="text-sm text-muted-foreground">Add a site when you are ready to start collecting analytics.</p>
         {role === 'owner' || role === 'admin' ? (
-          <Button asChild><Link to="/$org/sites/new" params={{ org }}>Add your first site</Link></Button>
+          <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add your first site</Link></Button>
         ) : null}
       </section>
     )
@@ -64,7 +64,7 @@ export function SitesPage({
           <p className="text-sm text-muted-foreground">Manage the sites you can access in this organization.</p>
         </div>
         {role === 'owner' || role === 'admin' ? (
-          <Button asChild><Link to="/$org/sites/new" params={{ org }}>Add site</Link></Button>
+          <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add site</Link></Button>
         ) : null}
       </header>
       <ul className="flex flex-col overflow-hidden rounded-xl border bg-card">
@@ -80,8 +80,8 @@ export function SitesPage({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {actions.includes('edit') ? <Button size="sm" variant="outline" asChild><Link to="/$org/$site/settings/general" params={{ org, site: slug }}>Edit</Link></Button> : null}
-                {actions.includes('installation') ? <Button size="sm" variant="outline" asChild><Link to="/$org/$site/settings/installation" params={{ org, site: slug }}>Installation</Link></Button> : null}
+                {actions.includes('edit') ? <Button size="sm" variant="outline" asChild><Link to="/app/$org/$site/settings/general" params={{ org, site: slug }}>Edit</Link></Button> : null}
+                {actions.includes('installation') ? <Button size="sm" variant="outline" asChild><Link to="/app/$org/$site/settings/installation" params={{ org, site: slug }}>Installation</Link></Button> : null}
                 {actions.includes('delete') ? (
                   <Button size="sm" variant="outline" aria-label={`Delete ${site.name}`} onClick={() => setPendingDelete(site)}>
                     <Trash2Icon data-icon="inline-start" />Delete

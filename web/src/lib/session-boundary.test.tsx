@@ -30,10 +30,10 @@ it('watches cross-tab and bfcache events without reacting to theme preferences',
   const changed = vi.fn()
   const channel = new EventTarget() as BroadcastChannel
   const stop = watchSessionChanges(window, changed, channel)
-  window.dispatchEvent(new StorageEvent('storage', { key: 'panel-theme', newValue: 'dark' }))
+  window.dispatchEvent(new StorageEvent('storage', { key: 'supermetry-theme', newValue: 'dark' }))
   window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }))
   expect(changed).not.toHaveBeenCalled()
-  window.dispatchEvent(new StorageEvent('storage', { key: 'panel-session-change', newValue: 'unique-id' }))
+  window.dispatchEvent(new StorageEvent('storage', { key: 'supermetry-session-change', newValue: 'unique-id' }))
   channel.dispatchEvent(new MessageEvent('message', { data: 'changed' }))
   window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
   expect(changed).toHaveBeenCalledTimes(3)

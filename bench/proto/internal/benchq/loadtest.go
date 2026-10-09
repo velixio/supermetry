@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 var userAgents = []string{
@@ -161,7 +161,7 @@ loop:
 	for _, v := range rss {
 		maxRSS = max(maxRSS, v)
 	}
-	res := map[string]any{"kind": "panel-proto HTTP ingest load test", "measured_at": time.Now().UTC().Format(time.RFC3339),
+	res := map[string]any{"kind": "supermetry-proto HTTP ingest load test", "measured_at": time.Now().UTC().Format(time.RFC3339),
 		"target_rate": *rate, "duration_s": elapsed, "concurrency": *conc, "visitors": *nvis,
 		"sent": sent.Load(), "client_overflow": overflow.Load(), "codes": cm,
 		"accepted_per_s": float64(cm["202"]) / elapsed, "latency": DistOf(lats),

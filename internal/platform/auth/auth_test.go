@@ -14,13 +14,13 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
-	"panel/internal/db"
-	"panel/internal/platform/auth"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/auth"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
+	"supermetry/internal/testpg"
 )
 
 var ctx = context.Background()
@@ -63,7 +63,7 @@ func newAuthWithClock(t *testing.T, clock *fakeClock) authEnv {
 		t.Fatal(err)
 	}
 	return authEnv{
-		a:     auth.New(s, disabledMail{}, box, "https://panel.example", auth.WithClock(clock)),
+		a:     auth.New(s, disabledMail{}, box, "https://supermetry.example", auth.WithClock(clock)),
 		users: users.New(s),
 		clock: clock,
 		store: s,

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/testdb"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/testdb"
 )
 
 func TestPurgeSaltsBeforeUsesExplicitCutoff(t *testing.T) {

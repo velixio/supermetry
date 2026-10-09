@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	platformauth "panel/internal/platform/auth"
+	platformauth "supermetry/internal/platform/auth"
 )
 
 // Cookies are Secure only over HTTPS, so plain-http LAN and dev logins work.
@@ -29,7 +29,7 @@ func TestCookiesSecureOnlyOverHTTPS(t *testing.T) {
 			r := httptest.NewRequest(http.MethodPost, "/api/private/auth/login", nil)
 			c.setup(r)
 			w := httptest.NewRecorder()
-			h.setCookie(w, r, "panel_session", "v", time.Hour)
+			h.setCookie(w, r, "supermetry_session", "v", time.Hour)
 			cookies := w.Result().Cookies()
 			// An https base URL always forces Secure, even when the proxy omits X-Forwarded-Proto.
 			want := c.secure || httpsBase

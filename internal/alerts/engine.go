@@ -9,10 +9,10 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"panel/internal/api"
-	"panel/internal/platform/goals"
-	queryengine "panel/internal/query"
-	"panel/internal/sites"
+	"supermetry/internal/api"
+	"supermetry/internal/platform/goals"
+	queryengine "supermetry/internal/query"
+	"supermetry/internal/sites"
 )
 
 // Queryer is implemented by query.Engine.

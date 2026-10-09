@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/realtime"
-	"panel/internal/session"
+	"supermetry/internal/realtime"
+	"supermetry/internal/session"
 )
 
 type minuteSource struct {

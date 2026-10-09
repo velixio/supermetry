@@ -6,14 +6,14 @@ import (
 	"context"
 	"encoding/csv"
 	"io"
-	"panel/internal/privacy"
 	"slices"
+	"supermetry/internal/privacy"
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/siteexport"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/siteexport"
+	"supermetry/internal/testpg"
 )
 
 func TestExporterWritesCompleteZIP(t *testing.T) {

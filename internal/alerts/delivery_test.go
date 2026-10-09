@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/platform/mail"
+	"supermetry/internal/platform/mail"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -69,13 +69,13 @@ func TestTelegramSendMessageUsesFixedEndpointPlainTextAndBoundsRunes(t *testing.
 	})})
 	text := strings.Repeat("界", 5000)
 
-	if err := client.SendMessage(context.Background(), token, "@panel_alerts", text); err != nil {
+	if err := client.SendMessage(context.Background(), token, "@supermetry_alerts", text); err != nil {
 		t.Fatal(err)
 	}
 	if gotPath != "/bot"+token+"/sendMessage" {
 		t.Fatalf("path = %q", gotPath)
 	}
-	if gotBody["chat_id"] != "@panel_alerts" {
+	if gotBody["chat_id"] != "@supermetry_alerts" {
 		t.Fatalf("body = %+v", gotBody)
 	}
 	message, ok := gotBody["text"].(string)
@@ -186,7 +186,7 @@ func TestWebhookUsesExactBodyAndSignature(t *testing.T) {
 	var signature string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		body, _ = io.ReadAll(request.Body)
-		signature = request.Header.Get("X-Panel-Signature")
+		signature = request.Header.Get("X-Supermetry-Signature")
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()

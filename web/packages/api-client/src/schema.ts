@@ -206,11 +206,11 @@ export interface paths {
          * Submit an analytics event
          * @description Public event intake; no API key is required. Requests are counted against
          *     per-site and per-visitor-address rate limits. Deployments may configure a
-         *     different path with `PANEL_EVENT_PATH`.
+         *     different path with `SUPERMETRY_EVENT_PATH`.
          *
          *     When calling this endpoint through a reverse proxy, forward the visitor's
          *     address with `X-Forwarded-For` only when that proxy is listed in
-         *     `PANEL_TRUSTED_PROXIES`. Forward the visitor's `User-Agent` as well so
+         *     `SUPERMETRY_TRUSTED_PROXIES`. Forward the visitor's `User-Agent` as well so
          *     device dimensions and bot filtering remain accurate.
          */
         post: operations["submitEvent"];
@@ -887,7 +887,7 @@ export interface paths {
         };
         /**
          * Get Prometheus metrics
-         * @description When PANEL_METRICS_TOKEN is set, requires Authorization: Bearer <token> and returns 401 for missing or invalid credentials. When the token is unset, only loopback clients (resolved through PANEL_TRUSTED_PROXIES) can access metrics; other clients receive 404. Health and readiness endpoints remain public.
+         * @description When SUPERMETRY_METRICS_TOKEN is set, requires Authorization: Bearer <token> and returns 401 for missing or invalid credentials. When the token is unset, only loopback clients (resolved through SUPERMETRY_TRUSTED_PROXIES) can access metrics; other clients receive 404. Health and readiness endpoints remain public.
          */
         get: operations["metrics"];
         put?: never;
@@ -1836,7 +1836,7 @@ export interface components {
         };
         /**
          * @example {
-         *       "type": "https://panel.dev/problems/bad-request",
+         *       "type": "https://supermetry.com/problems/bad-request",
          *       "title": "Bad request",
          *       "status": 400,
          *       "detail": "period is required"

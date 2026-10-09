@@ -10,8 +10,8 @@ import {
   type Page,
 } from '@playwright/test'
 
-const email = 'owner@panel.test'
-const password = 'panel-e2e-password'
+const email = 'owner@supermetry.test'
+const password = 'supermetry-e2e-password'
 
 export type Owner = {
   schema: string
@@ -57,9 +57,9 @@ async function responseJSON<T>(response: APIResponse): Promise<T> {
 
 export default async function globalSetup(config: FullConfig) {
   const baseURL = String(config.projects[0]?.use.baseURL)
-  const resetURL = readFileSync(required('PANEL_E2E_RESET_FILE'), 'utf8').trim()
+  const resetURL = readFileSync(required('SUPERMETRY_E2E_RESET_FILE'), 'utf8').trim()
   const token = new URL(resetURL).searchParams.get('token')
-  if (!token) throw new Error('panel user create did not return a reset token')
+  if (!token) throw new Error('supermetry user create did not return a reset token')
 
   const api = await playwrightRequest.newContext({ baseURL })
   const reset = await api.post('/api/private/auth/password-reset/confirm', {
@@ -75,7 +75,7 @@ export default async function globalSetup(config: FullConfig) {
   expect(login.ok(), loginBody).toBe(true)
 
   const state = await api.storageState()
-  const csrf = state.cookies.find((cookie) => cookie.name === 'panel_csrf')?.value
+  const csrf = state.cookies.find((cookie) => cookie.name === 'supermetry_csrf')?.value
   if (!csrf) throw new Error('login did not set the CSRF cookie')
   const cookie = state.cookies.map((item) => `${item.name}=${item.value}`).join('; ')
   const authHeaders = { Cookie: cookie, 'X-CSRF-Token': csrf }
@@ -88,7 +88,7 @@ export default async function globalSetup(config: FullConfig) {
   if (!membership) throw new Error('owner has no organization')
   const orgId = value<number>(membership, 'org_id', 'OrgID')
   const orgSlug = value<string>(membership, 'org_slug', 'OrgSlug')
-  const apiHeaders = { ...authHeaders, 'X-Panel-Org': String(orgId) }
+  const apiHeaders = { ...authHeaders, 'X-Supermetry-Org': String(orgId) }
 
   const createdSite = await api.post('/api/private/sites', {
     headers: apiHeaders,
@@ -112,7 +112,7 @@ export default async function globalSetup(config: FullConfig) {
   const shareSlug = value<string>(share, 'slug', 'Slug')
 
   const owner: SerializedOwner = {
-    schema: required('PANEL_E2E_SCHEMA'),
+    schema: required('SUPERMETRY_E2E_SCHEMA'),
     email,
     password,
     orgId,
@@ -122,13 +122,13 @@ export default async function globalSetup(config: FullConfig) {
     shareSlug,
     apiHeaders,
   }
-  process.env.PANEL_E2E_OWNER = JSON.stringify(owner)
+  process.env.SUPERMETRY_E2E_OWNER = JSON.stringify(owner)
   mkdirSync('e2e/screenshots', { recursive: true })
   await api.dispose()
 
   return () => {
-    const testDSN = required('PANEL_TEST_DSN')
-    const schema = required('PANEL_E2E_SCHEMA')
+    const testDSN = required('SUPERMETRY_TEST_DSN')
+    const schema = required('SUPERMETRY_E2E_SCHEMA')
     execFileSync('psql', [
       testDSN,
       '-v',
@@ -136,18 +136,18 @@ export default async function globalSetup(config: FullConfig) {
       '-c',
       `drop schema if exists "${schema}" cascade`,
     ])
-    rmSync(required('PANEL_E2E_RESET_FILE'), { force: true })
-    rmSync(required('PANEL_E2E_SITES_FILE'), { force: true })
+    rmSync(required('SUPERMETRY_E2E_RESET_FILE'), { force: true })
+    rmSync(required('SUPERMETRY_E2E_SITES_FILE'), { force: true })
   }
 }
 
 export const test = base.extend<{ owner: Owner }>({
   owner: async ({}, use) => {
-    const serialized = JSON.parse(required('PANEL_E2E_OWNER')) as SerializedOwner
+    const serialized = JSON.parse(required('SUPERMETRY_E2E_OWNER')) as SerializedOwner
     await use({
       ...serialized,
       async login(page, next = '/') {
-        const destination = new URL(next, 'http://panel.test')
+        const destination = new URL(next, 'http://supermetry.test')
         await page.goto(`/login?next=${encodeURIComponent(next)}`)
         const emailInput = page.getByLabel('Email')
         await expect(emailInput).toBeVisible()

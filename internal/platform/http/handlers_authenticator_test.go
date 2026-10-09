@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	platformauth "panel/internal/platform/auth"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/store"
+	platformauth "supermetry/internal/platform/auth"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
 )
 
 func TestAccountSessionIndependentOfOrganization(t *testing.T) {
@@ -36,7 +36,7 @@ func TestAccountSessionIndependentOfOrganization(t *testing.T) {
 			for _, header := range []string{"", "999999", "invalid"} {
 				r := httptest.NewRequest(http.MethodGet, "/api/private/me", nil)
 				r.AddCookie(&http.Cookie{Name: platformauth.CookieName, Value: "viewer-session"})
-				r.Header.Set("X-Panel-Org", header)
+				r.Header.Set("X-Supermetry-Org", header)
 				p, ok := f.authenticator.Authenticate(r)
 				if !ok || p.UserID != f.users["viewer"] || p.OrgID != 0 || p.Role != "" || p.SiteIDs == nil || len(p.SiteIDs) != 0 || len(p.Capabilities) != 0 || p.BillingAdmin {
 					t.Fatalf("account principal: %+v, %t", p, ok)
@@ -69,11 +69,11 @@ func TestAccountSessionIndependentOfOrganization(t *testing.T) {
 			if _, ok := f.authenticator.Authenticate(r); ok != (count == 1) {
 				t.Fatalf("tenant without selection accepted=%t count=%d", ok, count)
 			}
-			r.Header.Set("X-Panel-Org", "999999")
+			r.Header.Set("X-Supermetry-Org", "999999")
 			if _, ok := f.authenticator.Authenticate(r); ok {
 				t.Fatal("foreign tenant authenticated")
 			}
-			r.Header.Set("X-Panel-Org", fmt.Sprint(f.orgID))
+			r.Header.Set("X-Supermetry-Org", fmt.Sprint(f.orgID))
 			if _, ok := f.authenticator.Authenticate(r); ok != (count > 0) {
 				t.Fatalf("selected tenant accepted=%t count=%d", ok, count)
 			}
@@ -174,7 +174,7 @@ func TestLogoutWithoutCookieAndWithMultipleOrganizations(t *testing.T) {
 	}
 	r := httptest.NewRequest(http.MethodPost, "/api/private/auth/logout", nil)
 	r.Header.Set("X-CSRF-Token", "token")
-	r.AddCookie(&http.Cookie{Name: "panel_csrf", Value: "token"})
+	r.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	w := httptest.NewRecorder()
 	f.handler.ServeHTTP(w, r)
 	if w.Code != http.StatusNoContent || len(w.Result().Cookies()) != 2 {

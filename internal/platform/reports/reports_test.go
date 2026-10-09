@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/api"
-	"panel/internal/db"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/privacy"
-	"panel/internal/sites"
-	"panel/internal/testpg"
+	"supermetry/internal/api"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/privacy"
+	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestDueUsesSiteLocalSchedule(t *testing.T) {

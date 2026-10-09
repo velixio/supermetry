@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"panel/internal/db"
-	"panel/internal/sites"
+	"supermetry/internal/db"
+	"supermetry/internal/sites"
 )
 
 func TestLoadFileAndAllows(t *testing.T) {

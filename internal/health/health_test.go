@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"panel/internal/health"
+	"supermetry/internal/health"
 )
 
 func TestGeoIPSourceIsBoundedAndOneHot(t *testing.T) {
@@ -59,13 +59,13 @@ func TestGeoIPMetricsPrometheusTextFormat(t *testing.T) {
 	health.WritePrometheus(&b)
 	wantFailures := strconv.FormatUint(beforeFailures+2, 10)
 	for _, want := range []string{
-		"# TYPE panel_geoip_update_last_success_unix gauge",
-		"panel_geoip_update_last_success_unix 1.77e+09",
-		"# TYPE panel_geoip_update_failures_total counter",
-		"panel_geoip_update_failures_total " + wantFailures,
-		"# TYPE panel_geoip_source gauge",
-		`panel_geoip_source{source="dbip"} 0`,
-		`panel_geoip_source{source="maxmind"} 1`,
+		"# TYPE supermetry_geoip_update_last_success_unix gauge",
+		"supermetry_geoip_update_last_success_unix 1.77e+09",
+		"# TYPE supermetry_geoip_update_failures_total counter",
+		"supermetry_geoip_update_failures_total " + wantFailures,
+		"# TYPE supermetry_geoip_source gauge",
+		`supermetry_geoip_source{source="dbip"} 0`,
+		`supermetry_geoip_source{source="maxmind"} 1`,
 	} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("missing %q in\n%s", want, b.String())
@@ -84,15 +84,15 @@ func TestPrometheusTextFormat(t *testing.T) {
 	var b bytes.Buffer
 	health.WritePrometheus(&b)
 	for _, want := range []string{
-		"# TYPE panel_ingest_accepted_total counter",
-		"panel_ingest_accepted_total 3",
-		"# TYPE panel_ingest_revenue_invalid_total counter",
-		"panel_ingest_revenue_invalid_total 2",
-		"# TYPE panel_heatmap_invalid_total counter",
-		"# TYPE panel_heatmap_dropped_total counter",
-		`panel_bots_filtered_total{reason="ua"} 2`,
-		`panel_ingest_excluded_total{reason="path"} 4`,
-		`panel_ingest_excluded_total{reason="country"} 5`,
+		"# TYPE supermetry_ingest_accepted_total counter",
+		"supermetry_ingest_accepted_total 3",
+		"# TYPE supermetry_ingest_revenue_invalid_total counter",
+		"supermetry_ingest_revenue_invalid_total 2",
+		"# TYPE supermetry_heatmap_invalid_total counter",
+		"# TYPE supermetry_heatmap_dropped_total counter",
+		`supermetry_bots_filtered_total{reason="ua"} 2`,
+		`supermetry_ingest_excluded_total{reason="path"} 4`,
+		`supermetry_ingest_excluded_total{reason="country"} 5`,
 	} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("missing %q in\n%s", want, b.String())
@@ -111,7 +111,7 @@ func TestDeliveryFailuresAreExported(t *testing.T) {
 
 	var b strings.Builder
 	health.WritePrometheus(&b)
-	if !strings.Contains(b.String(), "panel_alert_delivery_failures_total") {
+	if !strings.Contains(b.String(), "supermetry_alert_delivery_failures_total") {
 		t.Fatalf("Prometheus output missing alert delivery failures:\n%s", b.String())
 	}
 }
@@ -124,7 +124,7 @@ func TestProfilesSuppressedIsExported(t *testing.T) {
 
 	var b strings.Builder
 	health.WritePrometheus(&b)
-	if !strings.Contains(b.String(), "# TYPE panel_ingest_profiles_suppressed_total counter") {
+	if !strings.Contains(b.String(), "# TYPE supermetry_ingest_profiles_suppressed_total counter") {
 		t.Fatalf("Prometheus output missing suppressed profile counter:\n%s", b.String())
 	}
 }
@@ -139,7 +139,7 @@ func TestPrivacySignalDropsAreExportedSeparately(t *testing.T) {
 	}
 	var b strings.Builder
 	health.WritePrometheus(&b)
-	if !strings.Contains(b.String(), "panel_ingest_privacy_dropped_total ") {
+	if !strings.Contains(b.String(), "supermetry_ingest_privacy_dropped_total ") {
 		t.Fatalf("Prometheus output missing privacy signal drop counter:\n%s", b.String())
 	}
 }
@@ -152,7 +152,7 @@ func TestReplayDiskLowIsExported(t *testing.T) {
 	}
 	var b strings.Builder
 	health.WritePrometheus(&b)
-	if !strings.Contains(b.String(), "panel_replay_disk_low 1") {
+	if !strings.Contains(b.String(), "supermetry_replay_disk_low 1") {
 		t.Fatalf("Prometheus output missing replay disk guard:\n%s", b.String())
 	}
 }

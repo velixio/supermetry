@@ -7,11 +7,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/platform/audit"
-	"panel/internal/platform/authn"
-	"panel/internal/platform/authz"
-	"panel/internal/platform/invites"
-	"panel/internal/platform/reports"
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authn"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/invites"
+	"supermetry/internal/platform/reports"
 )
 
 func (h *handler) listInvitations(w http.ResponseWriter, r *http.Request) {

@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/db"
+	"supermetry/internal/db"
 )
 
 var eraseTables = []string{

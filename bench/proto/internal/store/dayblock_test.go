@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"panel/bench/proto/internal/core"
-	"panel/bench/proto/internal/query"
-	"panel/bench/proto/internal/store"
-	"panel/bench/proto/internal/testdb"
+	"supermetry/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/query"
+	"supermetry/bench/proto/internal/store"
+	"supermetry/bench/proto/internal/testdb"
 )
 
 func TestDayBlocksEqualDailyAndRefreshAncestors(t *testing.T) {

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"panel/internal/db"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
+	"supermetry/internal/testpg"
 )
 
 func TestCreateNormalizesEmailAndHashesPassword(t *testing.T) {

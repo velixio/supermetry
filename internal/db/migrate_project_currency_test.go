@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/testpg"
+	"supermetry/internal/testpg"
 )
 
 func TestProjectCurrencyMigrationClassifiesLegacySitesWithoutRewritingRevenue(t *testing.T) {

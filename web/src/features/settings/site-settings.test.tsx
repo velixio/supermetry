@@ -76,16 +76,16 @@ describe('site settings', () => {
     expect(screen.getByText('✓ Last event 20 seconds ago')).toBeVisible()
     expect(screen.getByText(/proxy the script through your own domain/i)).toBeVisible()
     expect(screen.getByText('Track custom clicks')).toBeVisible()
-    expect(screen.getByText(/data-panel-event="Signup"/)).toBeVisible()
+    expect(screen.getByText(/data-supermetry-event="Signup"/)).toBeVisible()
     const setup = screen.getByRole('region', { name: 'Feature setup' })
     expect(setup).toHaveTextContent(/Web Vitals/)
-    expect(setup).toHaveTextContent(/panel\.track\('Purchase'/)
+    expect(setup).toHaveTextContent(/supermetry\.track\('Purchase'/)
     expect(setup).toHaveTextContent(/currency: 'USD'/)
-    expect(setup).toHaveTextContent(/panel\.identify\('user-123'/)
-    expect(setup).toHaveTextContent(/name="panel:404"/)
+    expect(setup).toHaveTextContent(/supermetry\.identify\('user-123'/)
+    expect(setup).toHaveTextContent(/name="supermetry:404"/)
     expect(setup).toHaveTextContent(/Site settings → Tracking/)
     expect(setup).toHaveTextContent(/Site settings → General/)
-    expect(setup).toHaveTextContent(/panel\.optOut\(\)/)
+    expect(setup).toHaveTextContent(/supermetry\.optOut\(\)/)
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js / React' }), {
       button: 0,
       ctrlKey: false,

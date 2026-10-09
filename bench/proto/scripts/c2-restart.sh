@@ -3,11 +3,11 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
-schema="panel_c2_${$}"
-port=${PANEL_C2_PORT:-18092}
-db_dsn=${PANEL_TEST_DSN:-postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable}
+schema="supermetry_c2_${$}"
+port=${SUPERMETRY_C2_PORT:-18092}
+db_dsn=${SUPERMETRY_TEST_DSN:-postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable}
 pid=
-export PGPASSWORD=${PGPASSWORD:-panel}
+export PGPASSWORD=${PGPASSWORD:-supermetry}
 export PGOPTIONS="-c search_path=$schema"
 cleanup() {
   if [[ -n ${pid} ]] && kill -0 "$pid" 2>/dev/null; then kill -TERM "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
@@ -22,7 +22,7 @@ printf '[{"id":1,"host":"restart.test","timezone":"UTC","share":1}]\n' >"$tmp/si
 
 start_server() {
 	local session_flush=${1:-1h}
-  PANEL_DSN="$db_dsn" "$tmp/proto" serve --addr="127.0.0.1:$port" --sites="$tmp/sites.json" --geoip='' \
+  SUPERMETRY_DSN="$db_dsn" "$tmp/proto" serve --addr="127.0.0.1:$port" --sites="$tmp/sites.json" --geoip='' \
     --batch=1 --flush=10ms --session-flush="$session_flush" >>"$tmp/server.log" 2>&1 &
   pid=$!
   for _ in {1..100}; do

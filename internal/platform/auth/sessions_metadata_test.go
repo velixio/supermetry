@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/platform/auth"
-	platformcrypto "panel/internal/platform/crypto"
+	"supermetry/internal/platform/auth"
+	platformcrypto "supermetry/internal/platform/crypto"
 )
 
 func TestSessionMetadataAndPassiveActivity(t *testing.T) {

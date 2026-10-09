@@ -1,4 +1,4 @@
-// Command harness times the Panel prototype's query set (bench/proto/NOTES.md,
+// Command harness times the Supermetry prototype's query set (bench/proto/NOTES.md,
 // proto-queries-*.json) through each incumbent's own HTTP API, and checks
 // overview numbers against gen's truth.json (C1). Throwaway benchmark code.
 //
@@ -37,9 +37,9 @@ type Req struct {
 // Product builds requests for the prototype's panels.
 type Product interface {
 	Name() string
-	// Panel returns the request for a panel over local dates [from, to], or
+	// Supermetry returns the request for a panel over local dates [from, to], or
 	// ok=false if the product lacks it. note explains substitutions.
-	Panel(panel string, from, to string, f []Filter) (r Req, ok bool, note string)
+	Supermetry(panel string, from, to string, f []Filter) (r Req, ok bool, note string)
 	// Overview fetches the single-day overview for C1.
 	Overview(ctx context.Context, site int, date string) (Overview, error)
 	Info() map[string]any
@@ -133,7 +133,7 @@ func runCase(ctx context.Context, p Product, c *Case, panels []string, runs, war
 	c.Notes = map[string]string{}
 	c.Samples = map[string]string{}
 	for _, n := range panels {
-		r, ok, note := p.Panel(n, c.From, c.To, c.Filters)
+		r, ok, note := p.Supermetry(n, c.From, c.To, c.Filters)
 		if note != "" {
 			c.Notes[n] = note
 		}

@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/platform/auth"
-	platformcrypto "panel/internal/platform/crypto"
-	"panel/internal/platform/mail"
-	"panel/internal/platform/store"
-	"panel/internal/platform/users"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/auth"
+	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
+	"supermetry/internal/testpg"
 )
 
 type accountEnv struct {
@@ -39,7 +39,7 @@ func newAccountEnv(t *testing.T) accountEnv {
 	clock := newFakeClock()
 	sender := &mail.Fake{}
 	return accountEnv{
-		a:     auth.New(data, sender, box, "https://panel.example", auth.WithClock(clock)),
+		a:     auth.New(data, sender, box, "https://supermetry.example", auth.WithClock(clock)),
 		store: data, users: users.New(data), clock: clock, mailer: sender,
 	}
 }

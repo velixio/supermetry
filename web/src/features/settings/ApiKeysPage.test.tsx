@@ -212,7 +212,7 @@ describe('ApiKeysPage', () => {
   it('links to the API reference and authentication guide', () => {
     renderPage()
 
-    expect(screen.getByRole('link', { name: 'API reference' })).toHaveAttribute('href', '/acme/settings/api')
+    expect(screen.getByRole('link', { name: 'API reference' })).toHaveAttribute('href', '/app/acme/settings/api')
     expect(screen.getByRole('link', { name: 'API authentication guide' })).toHaveAttribute('href', '/docs/api-auth')
   })
 })

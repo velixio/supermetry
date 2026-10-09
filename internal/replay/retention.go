@@ -12,8 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"panel/internal/config"
-	"panel/internal/sites"
+	"supermetry/internal/config"
+	"supermetry/internal/sites"
 )
 
 const replayRetentionIdleTimeout = 30 * time.Minute

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 func TestRetentionCutoffKeepsRawDaysIncludingAsOf(t *testing.T) {

@@ -16,9 +16,9 @@ import (
 func New(t testing.TB) (*pgxpool.Pool, string) {
 	t.Helper()
 
-	dsn := os.Getenv("PANEL_TEST_DSN")
+	dsn := os.Getenv("SUPERMETRY_TEST_DSN")
 	if dsn == "" {
-		t.Skip("PANEL_TEST_DSN is not set")
+		t.Skip("SUPERMETRY_TEST_DSN is not set")
 	}
 
 	ctx := context.Background()

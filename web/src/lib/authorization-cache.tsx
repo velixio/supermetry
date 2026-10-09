@@ -4,7 +4,7 @@ import {
   type Query,
   type QueryClient,
 } from '@tanstack/react-query'
-import type { Membership } from '@/routes/$org'
+import type { Membership } from '@/routes/app.$org'
 
 export function authorizationScope(
   userId: number,

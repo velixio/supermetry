@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"panel/bench/proto/internal/core"
+	"supermetry/bench/proto/internal/core"
 )
 
 func decodeProp(props []byte, key string) (string, bool) {

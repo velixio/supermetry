@@ -23,7 +23,7 @@ func TestMCPDirectQueriesKeepTenantAndScopeChecks(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			service := &mcpQueryStub{}
 			h := &mcpHandler{deps: MCPDeps{Query: service}}
-			r := httptest.NewRequest("POST", "http://panel.test/api/public/v1/mcp", nil)
+			r := httptest.NewRequest("POST", "http://supermetry.test/api/public/v1/mcp", nil)
 			r.Header.Set("Accept", test.accept)
 			ctx := context.WithValue(r.Context(), principalContextKey{}, test.principal)
 			ctx = context.WithValue(ctx, registryContextKey{}, fakeRegistry{1: {ID: 1, OrgID: 7}})

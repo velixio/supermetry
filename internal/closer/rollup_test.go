@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"panel/internal/closer"
-	"panel/internal/testpg"
+	"supermetry/internal/closer"
+	"supermetry/internal/testpg"
 )
 
 func TestRecomputeRollupsBackfillsEngagedSessionsAndAggregates(t *testing.T) {

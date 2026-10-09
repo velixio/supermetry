@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"panel/internal/privacy"
 	"strings"
+	"supermetry/internal/privacy"
 	"testing"
 	"time"
 
-	"panel/internal/session"
-	"panel/internal/sites"
+	"supermetry/internal/session"
+	"supermetry/internal/sites"
 )
 
 type mcpQueryStub struct {
@@ -84,7 +84,7 @@ func TestMCPHandler_ProtocolMethods(t *testing.T) {
 			} `json:"result"`
 		}
 		decodeMCPResponse(t, response, &envelope)
-		if envelope.Result.ProtocolVersion != MCPProtocolVersion || envelope.Result.Capabilities.Tools == nil || envelope.Result.ServerInfo.Name != "panel" || envelope.Result.ServerInfo.Version == "" {
+		if envelope.Result.ProtocolVersion != MCPProtocolVersion || envelope.Result.Capabilities.Tools == nil || envelope.Result.ServerInfo.Name != "supermetry" || envelope.Result.ServerInfo.Version == "" {
 			t.Fatalf("unexpected initialize result: %+v", envelope.Result)
 		}
 	})
@@ -243,7 +243,7 @@ func TestMCPHandler_Authorization(t *testing.T) {
 	handler := NewMCPHandler(MCPDeps{TrackingMode: privacy.Identified, Sessions: mcpSessionStub{}})
 
 	t.Run("missing principal is unauthorized", func(t *testing.T) {
-		request := httptest.NewRequest(http.MethodPost, "http://panel.test/api/public/v1/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
+		request := httptest.NewRequest(http.MethodPost, "http://supermetry.test/api/public/v1/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
 		if response.Code != http.StatusUnauthorized {
@@ -302,7 +302,7 @@ func callAuthorizedMCP(t *testing.T, handler http.Handler, body string) *httptes
 }
 
 func authorizedMCPRequest(body string) *http.Request {
-	request := httptest.NewRequest(http.MethodPost, "http://panel.test/api/public/v1/mcp", strings.NewReader(body))
+	request := httptest.NewRequest(http.MethodPost, "http://supermetry.test/api/public/v1/mcp", strings.NewReader(body))
 	principal := Principal{OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{1}}
 	registry := mcpRegistry{1: {ID: 1, OrgID: 7, TZ: time.UTC}, 2: {ID: 2, OrgID: 8, TZ: time.UTC}, 3: {ID: 3, OrgID: 7, TZ: time.UTC}}
 	ctx := context.WithValue(request.Context(), principalContextKey{}, principal)

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"panel/internal/db"
-	"panel/internal/platform/store"
-	"panel/internal/testpg"
+	"supermetry/internal/db"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 func TestGoalsAndFunnelReadCachedDefinitions(t *testing.T) {

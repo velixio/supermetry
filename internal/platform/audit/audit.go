@@ -6,8 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"panel/internal/platform/authz"
-	"panel/internal/platform/store"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
 )
 
 func Write(ctx context.Context, tx pgx.Tx, principal authz.Principal, action, targetType string, targetID int64, metadata map[string]any) error {
