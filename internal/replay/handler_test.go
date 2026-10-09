@@ -607,7 +607,13 @@ func TestReplayPrivacySignalsAndConsent(t *testing.T) {
 			if response.Code != http.StatusOK || decodeStart(t, response).Mode != "off" {
 				t.Fatalf("start=%d %s", response.Code, response.Body.String())
 			}
-			chunk := httptest.NewRequest(http.MethodPost, "/api/replay/chunk?s=site-public&q=0&p=1", bytes.NewReader(gzipBody(t, []byte("{}\n"))))
+			// Keep every unrelated admission requirement valid so the asserted
+			// rejection isolates the signal or absent required consent.
+			target := "/api/replay/chunk?s=site-public&q=0&p=1&v=" + policyVersion(ResolveSite(h.deps.Replay, input))
+			if !tc.consent {
+				target += "&c=1"
+			}
+			chunk := httptest.NewRequest(http.MethodPost, target, bytes.NewReader(gzipBody(t, []byte("{}\n"))))
 			chunk.RemoteAddr = "192.0.2.1:1234"
 			chunk.Header.Set("User-Agent", "test-agent")
 			if tc.header != "" {
@@ -618,6 +624,28 @@ func TestReplayPrivacySignalsAndConsent(t *testing.T) {
 			if response.Code != http.StatusForbidden || len(blob.bodies) != 0 {
 				t.Fatalf("chunk status=%d writes=%d", response.Code, len(blob.bodies))
 			}
+			// The same current policy and session accept collection after only
+			// removing the privacy signal or supplying the missing assertion.
+			allowedStart := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://example.com/page","c":true}`))
+			allowedStart.RemoteAddr = "192.0.2.1:1234"
+			allowedStart.Header.Set("User-Agent", "test-agent")
+			response = httptest.NewRecorder()
+			h.Start(response, allowedStart)
+			if response.Code != http.StatusOK || decodeStart(t, response).Mode != "full" {
+				t.Fatalf("positive start=%d %s", response.Code, response.Body.String())
+			}
+			if tc.consent {
+				target += "&c=1"
+			}
+			allowedChunk := httptest.NewRequest(http.MethodPost, target, bytes.NewReader(gzipBody(t, []byte("{}\n"))))
+			allowedChunk.RemoteAddr = "192.0.2.1:1234"
+			allowedChunk.Header.Set("User-Agent", "test-agent")
+			response = httptest.NewRecorder()
+			h.Chunk(response, allowedChunk)
+			if response.Code != http.StatusAccepted || len(blob.bodies) != 1 {
+				t.Fatalf("positive chunk=%d writes=%d", response.Code, len(blob.bodies))
+			}
+
 		})
 	}
 }
