@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supermetry logo concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of three concept sheets; each sheet = big mark, lockups on both grounds, sizes strip, rationale. */
+:root {
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --ink: #17183a;
+  --muted: #5b5e7a;
+  --line: #dfe1ec;
+  --mark: #3446f0;
+  --live: #f2a516;
+  --dark-ground: #12132b;
+  --dark-mark: #8190ff;
+  --dark-live: #ffc14d;
+  --dark-ink: #eef0ff;
+  --pick: #e7eaff;
+  --display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e0f22; --surface: #17183a; --ink: #eef0ff; --muted: #a3a6c4; --line: #2a2c55;
+    --mark: #8190ff; --live: #ffc14d; --pick: #23266b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e0f22; --surface: #17183a; --ink: #eef0ff; --muted: #a3a6c4; --line: #2a2c55;
+  --mark: #8190ff; --live: #ffc14d; --pick: #23266b; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--body); }
+main { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 48px 72px; display: grid; gap: 40px; }
+header { display: grid; gap: 10px; max-width: 62ch; }
+h1 { font: 650 clamp(2rem, 5vw, 3rem)/1.05 var(--display); letter-spacing: -0.03em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); }
+.warn { border-left: 3px solid var(--live); padding: 10px 14px; background: var(--surface); border-radius: 0 8px 8px 0; color: var(--ink); font-size: .95rem; }
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px; display: grid; gap: 24px; }
+.sheet.pick { box-shadow: 0 0 0 3px var(--pick); }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 16px; }
+.sheet h2 { font: 650 1.6rem/1.1 var(--display); letter-spacing: -0.02em; margin: 0; }
+.badge { font-size: .8rem; font-weight: 600; color: var(--mark); background: var(--pick); padding: 3px 10px; border-radius: 99px; }
+.sheet-head p { flex-basis: 100%; margin: 0; color: var(--muted); max-width: 64ch; }
+.boards { display: grid; grid-template-columns: 200px 1fr 1fr; gap: 14px; }
+.board { border-radius: 12px; display: grid; place-items: center; padding: 26px 20px; min-height: 160px; min-width: 0; }
+.board.light { background: #ffffff; border: 1px solid var(--line); --m: #3446f0; --l: #f2a516; --w: #17183a; }
+.board.dark { background: var(--dark-ground); --m: var(--dark-mark); --l: var(--dark-live); --w: var(--dark-ink); }
+.board .big { width: 120px; height: 120px; }
+.lockup { display: flex; align-items: center; gap: 12px; }
+.lockup svg { width: 44px; height: 44px; flex: none; }
+.lockup span { font: 650 clamp(1.5rem, 3.4vw, 2.1rem)/1 var(--display); letter-spacing: -0.035em; color: var(--w); }
+.sizes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 22px; padding-top: 4px; border-top: 1px solid var(--line); padding-block: 18px 0; }
+.size { display: grid; justify-items: center; gap: 6px; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; --m: var(--mark); --l: var(--live); }
+.tab { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px 8px 0 0; padding: 7px 14px; font-size: .85rem; color: var(--ink); }
+.tab svg { width: 16px; height: 16px; }
+.m { fill: var(--m); } .l { fill: var(--l); }
+.ms { stroke: var(--m); fill: none; } .ls { stroke: var(--l); fill: none; }
+footer { color: var(--muted); font-size: .9rem; max-width: 64ch; }
+@media (max-width: 720px) {
+  .boards { grid-template-columns: 1fr; }
+  .sheet { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <h1>Supermetry logo concepts</h1>
+    <p>Three directions for the mark. Each is shown large, as a lockup with the name on light and dark grounds, and at favicon sizes, where most people will actually see it. The amber accent stands for a live visitor in all three.</p>
+    <p class="warn">Before you commit: Supermetrics (with an s) is an established marketing-analytics company. Run a trademark search on “Supermetry” before you spend money on the brand.</p>
+  </header>
+
+  <section class="sheet pick" data-mark="exponent">
+    <div class="sheet-head">
+      <h2>A. Exponent</h2><span class="badge">Recommended</span>
+      <p>A solid block with a dot raised to the top right, like the 2 in x². “Super” literally means above. The dot doubles as the live-visitor indicator the dashboard already uses. Simple enough to stay readable at 16 px.</p>
+    </div>
+    <div class="boards">
+      <div class="board light"><svg class="big" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg></div>
+      <div class="board light"><div class="lockup"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg><span>supermetry</span></div></div>
+      <div class="board dark"><div class="lockup"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg><span>supermetry</span></div></div>
+    </div>
+    <div class="sizes"><div class="size"><svg width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg>64 px</div><div class="size"><svg width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg>32 px</div><div class="size"><svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg>24 px</div><div class="size"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg>16 px</div><div class="size"><div class="tab"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="4" y="14" width="30" height="30" rx="8"/><circle class="l" cx="40" cy="8" r="6"/></svg>Supermetry · Dashboard</div>browser tab</div></div>
+  </section>
+
+  <section class="sheet" data-mark="tally">
+    <div class="sheet-head">
+      <h2>B. Tally</h2>
+      <p>Four rising strokes crossed by a fifth, like counting marks on a wall. It says “we count visits, not people”, which is the privacy promise. The cross stroke reads as a trend line. Busier at small sizes.</p>
+    </div>
+    <div class="boards">
+      <div class="board light"><svg class="big" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg></div>
+      <div class="board light"><div class="lockup"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg><span>supermetry</span></div></div>
+      <div class="board dark"><div class="lockup"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg><span>supermetry</span></div></div>
+    </div>
+    <div class="sizes"><div class="size"><svg width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg>64 px</div><div class="size"><svg width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg>32 px</div><div class="size"><svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg>24 px</div><div class="size"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg>16 px</div><div class="size"><div class="tab"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><rect class="m" x="7" y="26" width="5" height="17" rx="2.5"/><rect class="m" x="16" y="21" width="5" height="22" rx="2.5"/><rect class="m" x="25" y="15" width="5" height="28" rx="2.5"/><rect class="m" x="34" y="9" width="5" height="34" rx="2.5"/><path class="ls" d="M5 36 L43 12" stroke-width="4.5" stroke-linecap="round"/></svg>Supermetry · Dashboard</div>browser tab</div></div>
+  </section>
+
+  <section class="sheet" data-mark="path">
+    <div class="sheet-head">
+      <h2>C. Path</h2>
+      <p>A single-stroke s that traces a visitor’s path through a site, ending on a live dot. The friendliest of the three, but monogram s marks are common, so it is the least ownable.</p>
+    </div>
+    <div class="boards">
+      <div class="board light"><svg class="big" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg></div>
+      <div class="board light"><div class="lockup"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg><span>supermetry</span></div></div>
+      <div class="board dark"><div class="lockup"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg><span>supermetry</span></div></div>
+    </div>
+    <div class="sizes"><div class="size"><svg width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg>64 px</div><div class="size"><svg width="32" height="32" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg>32 px</div><div class="size"><svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg>24 px</div><div class="size"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg>16 px</div><div class="size"><div class="tab"><svg class="" viewBox="0 0 48 48" aria-hidden="true"><path class="ms" d="M35 12 C 28 5, 12 7, 13 17 C 14 26, 35 22, 35 32 C 35 42, 19 43, 13 37" stroke-width="6" stroke-linecap="round"/><circle class="l" cx="11" cy="37" r="5.5"/></svg>Supermetry · Dashboard</div>browser tab</div></div>
+  </section>
+
+  <footer>Marks are geometric SVG, so they can be exported directly. The wordmark is set in Bricolage Grotesque (OFL, free for commercial use) and will be converted to outlines for the final files.</footer>
+</main>
+
+</body>
+</html>
