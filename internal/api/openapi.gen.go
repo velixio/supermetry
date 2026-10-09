@@ -85,6 +85,27 @@ func (e FilterOperator) Valid() bool {
 	}
 }
 
+// Defines values for FunnelStepMatch.
+const (
+	FunnelStepMatchExact    FunnelStepMatch = "exact"
+	FunnelStepMatchPrefix   FunnelStepMatch = "prefix"
+	FunnelStepMatchWildcard FunnelStepMatch = "wildcard"
+)
+
+// Valid indicates whether the value is a known member of the FunnelStepMatch enum.
+func (e FunnelStepMatch) Valid() bool {
+	switch e {
+	case FunnelStepMatchExact:
+		return true
+	case FunnelStepMatchPrefix:
+		return true
+	case FunnelStepMatchWildcard:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FunnelStepType.
 const (
 	FunnelStepTypeEvent FunnelStepType = "event"
@@ -808,12 +829,20 @@ type FunnelResponse struct {
 
 // FunnelStep defines model for FunnelStep.
 type FunnelStep struct {
-	Match     string         `json:"match"`
-	PropKey   *string        `json:"prop_key,omitempty"`
+	// Match Anchored value matching. Exact and prefix treat every character literally. Wildcard treats only `*` as matching any characters; `%` and `_` remain literal. The wildcard grammar has no escape for matching a literal `*`.
+	Match FunnelStepMatch `json:"match"`
+
+	// PropKey Reserved for property-aware funnels; currently not applied by funnel queries.
+	PropKey *string `json:"prop_key,omitempty"`
+
+	// PropValue Reserved for property-aware funnels; currently not applied by funnel queries.
 	PropValue *string        `json:"prop_value,omitempty"`
 	Type      FunnelStepType `json:"type"`
 	Value     string         `json:"value"`
 }
+
+// FunnelStepMatch Anchored value matching. Exact and prefix treat every character literally. Wildcard treats only `*` as matching any characters; `%` and `_` remain literal. The wildcard grammar has no escape for matching a literal `*`.
+type FunnelStepMatch string
 
 // FunnelStepType defines model for FunnelStep.Type.
 type FunnelStepType string
@@ -822,7 +851,9 @@ type FunnelStepType string
 type FunnelStepResult struct {
 	Conversion float64 `json:"conversion"`
 	Step       int     `json:"step"`
-	Visitors   int64   `json:"visitors"`
+
+	// Visitors Number of site-local sessions that completed this ordered step.
+	Visitors int64 `json:"visitors"`
 }
 
 // Goal defines model for Goal.
