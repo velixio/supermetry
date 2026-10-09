@@ -2,21 +2,23 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { privateRequest, type ListResponse } from './privateApi'
 
-export type ChannelKind = 'email' | 'webhook' | 'slack' | 'discord'
+export type ChannelKind = 'email' | 'webhook' | 'slack' | 'discord' | 'telegram'
 
 export type NotificationChannel = {
   id: number
   org_id: number
   kind: ChannelKind
   name: string
-  config: { recipients?: string[]; configured?: boolean }
+  enabled: boolean
+  config: { recipients?: string[]; chat_id?: string; configured?: boolean }
   created_at: string
 }
 
 export type ChannelInput = {
   kind: ChannelKind
   name: string
-  config: { recipients?: string[]; url?: string; secret?: string }
+  enabled: boolean
+  config: { recipients?: string[]; url?: string; secret?: string; bot_token?: string; chat_id?: string }
 }
 
 export const notificationKeys = {
