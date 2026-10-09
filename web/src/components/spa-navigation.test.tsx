@@ -21,6 +21,7 @@ afterEach(cleanup)
 const membership: Membership = {
   org: { id: 1, name: 'Acme', slug: 'acme' },
   role: 'owner',
+  effective_capabilities: ['profiles.read', 'replay.read'],
   sites: [{ id: 1, name: 'Docs', public_id: 'docs-public', tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }],
 }
 
@@ -89,6 +90,14 @@ describe('SPA navigation', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/acme/docs-public'))
     expect(screen.getByRole('heading', { name: 'Dashboard page' })).toBeInTheDocument()
+  })
+
+  it('places Realtime immediately before permission-gated Replays', async () => {
+    renderSidebar()
+
+    const realtime = await screen.findByRole('link', { name: 'Realtime' })
+    const replays = screen.getByRole('link', { name: 'Replays' })
+    expect(realtime.closest('li')?.nextElementSibling).toBe(replays.closest('li'))
   })
 
   it('renders a stable skeleton fallback for delayed route chunks', () => {
