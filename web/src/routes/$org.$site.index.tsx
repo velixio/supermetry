@@ -1,3 +1,4 @@
+import { isAnonymousTracking, isAnonymousFilterAllowed, isAnonymousDimensionAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { BreakdownCard, type BreakdownTab } from '../components/BreakdownCard'
@@ -55,10 +56,26 @@ function DashboardStateRoute() {
 
   if (!site) return <p className="sr-only">{en.loadingDashboard}</p>
 
+  if (!trackingPolicyKnown(site)) {
+    return <section className="rounded-xl border bg-card p-5 space-y-3" role="status">
+      <h2 className="font-medium">Tracking policy is unavailable</h2>
+      <p className="text-sm text-muted-foreground">Reload the policy before opening analytics. No dashboard data has been requested.</p>
+      <Button variant="outline" onClick={() => void me.refetch()}>Reload tracking policy</Button>
+    </section>
+  }
+  const anonymous = isAnonymousTracking(site)
+  if (anonymous && filters.some((filter) => !isAnonymousFilterAllowed(filter))) {
+    return <section className="rounded-xl border bg-card p-5 space-y-3" role="status">
+      <h2 className="font-medium">These filters are unavailable in anonymous mode</h2>
+      <p className="text-sm text-muted-foreground">The saved URL includes filters that could reveal identifying data. Clear them to view safe aggregate analytics.</p>
+      <Button variant="outline" onClick={() => updateSearch(replaceFilters(search, filters.filter(isAnonymousFilterAllowed)))}>Clear unavailable filters</Button>
+    </section>
+  }
   const timezone = site.timezone || 'UTC'
 
   const query: StatsQuery = {
     siteId: site.id,
+    trackingMode: anonymous ? 'anonymous' : 'identified',
     dateRange: resolveRange(
       search.period,
       timezone,
@@ -74,13 +91,17 @@ function DashboardStateRoute() {
     includeImported: search.include_imported,
   }
   const onFilter = (filter: Filter) => {
-    void navigate({ search: addFilter(search, filter) })
+    if (!anonymous || isAnonymousFilterAllowed(filter)) void navigate({ search: addFilter(search, filter) })
   }
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <FilterBar
+        {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
+          <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
+          {filters.map((filter, index) => <Button key={index} variant="outline" size="sm" onClick={() => updateSearch(removeFilter(search, index))} aria-label={`Remove ${filter.dimension} filter`}>{filter.dimension} {filter.operator} {filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')} ×</Button>)}
+          {dropped.length > 0 ? <p role="status">{en.dashboard.invalidFilter}</p> : null}
+        </div> : <FilterBar
           siteId={site.id}
           orgId={membership?.org.id}
           canEdit={membership?.role !== 'viewer'}
@@ -99,9 +120,9 @@ function DashboardStateRoute() {
           }
           onAdd={onFilter}
           onRemove={(index) => updateSearch(removeFilter(search, index))}
-        />
+        />}
         <div className="flex flex-wrap items-center gap-2">
-          <DashboardExportMenu query={query} />
+          <DashboardExportMenu query={query} anonymous={anonymous} />
           <DatePicker
             search={search}
             labels={en.dashboard}
@@ -128,7 +149,7 @@ function DashboardStateRoute() {
         query={query}
         href={`/${org}/${siteSlug}/settings/installation`}
       />
-      <AnnotationManager
+      {anonymous ? <MainChart query={query} metric={search.metric} compare={search.compare} /> : <AnnotationManager
         siteId={site.id}
         dateRange={query.dateRange}
         canEdit={membership?.role !== 'viewer'}
@@ -144,18 +165,33 @@ function DashboardStateRoute() {
             onDeleteAnnotation={onDelete}
           />
         )}
-      </AnnotationManager>
+      </AnnotationManager>}
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-        {breakdownCards.map((card) => (
-          <BreakdownCard
+        {breakdownCards.map((card) => {
+          const page = anonymous && card.title === 'Pages'
+          const tabs = anonymous
+            ? page ? [{ key: 'verified', label: 'Verified', dimension: 'page', metric: 'visitors' as const, metrics: ['visitors', 'visits', 'pageviews'] as StatsQuery['metrics'] }]
+              : card.tabs.filter((tab) => isAnonymousDimensionAllowed(tab.dimension))
+            : visibleTabs(card.tabs, site.allowed_hosts)
+          if (tabs.length === 0 || (page && filters.length > 0)) {
+            return <section key={card.title} aria-label={page ? 'Verified pages' : card.title} className="rounded-xl border bg-card p-4" role="region">
+              <h2 className="text-sm font-medium">{page ? 'Verified pages' : card.title}</h2>
+              <p className="mt-3 text-sm text-muted-foreground">{page ? 'Verified page analytics require no filters. Remove active filters to view this partial dataset.' : 'Goals and event breakdowns are unavailable in anonymous mode because their labels may contain identifying data.'}</p>
+            </section>
+          }
+          return <BreakdownCard
             key={card.title}
             map={card.map}
-            title={card.title}
-            tabs={visibleTabs(card.tabs, site.allowed_hosts)}
-            query={query}
+            title={page ? 'Verified pages' : anonymous && card.title === 'Sources' ? 'Channels' : card.title}
+            tabs={tabs}
+            query={page ? { ...query, includeImported: false } : query}
             onFilter={onFilter}
+            allowSearch={!anonymous}
+            allowFilter={!page}
+            verifiedPaths={page}
+            description={anonymous ? page ? 'Partial coverage: only verified page data under the current path policy. Historical unverified data and imports are excluded. Page filters and detailed searches are unavailable.' : 'Only canonical categories are available. Free-text labels, versions, and searches are restricted in anonymous mode.' : undefined}
           />
-        ))}
+        })}
       </div>
     </div>
   )

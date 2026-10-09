@@ -1,3 +1,4 @@
+import { ErrorState } from './ErrorState'
 import { Button } from '@/components/ui/button'
 
 import { fmt } from '../lib/format'
@@ -122,6 +123,10 @@ export function StatsStrip({
   const current = useStats(currentQuery)
   const comparison = useStats(comparisonQuery)
   const importedIncluded = current.data?.meta.imported_included
+  if (current.isError || (compare !== 'off' && comparison.isError)) {
+    const failed = current.isError ? current : comparison
+    return <ErrorState detail={failed.error?.detail} onRetry={() => void failed.refetch()} />
+  }
 
   return (
     <div className="flex flex-col gap-2">

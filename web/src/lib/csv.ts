@@ -24,19 +24,21 @@ function queryBody(query: StatsQuery) {
 }
 
 export async function downloadStatsCSV(query: StatsQuery): Promise<void> {
-  const { data, error } = await api.POST('/api/private/query', {
+  const { data, error, response } = await api.POST('/api/private/query', {
     body: queryBody(query),
     headers: { Accept: 'text/csv' },
     params: { query: { format: 'csv', limit: 'all' } },
     parseAs: 'text',
-  } as never)
+  })
   if (error) throw error
   if (typeof data !== 'string' || typeof URL.createObjectURL !== 'function') return
 
   const url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a')
   link.href = url
-  link.download = `${query.dimensions?.[0] ?? 'analytics'}.csv`
+  const filename = response?.headers.get('Content-Disposition')?.match(/filename="([A-Za-z0-9._-]+)"/)?.[1]
+  const verified = response?.headers.get('X-Panel-Privacy-Scope') === 'verified-only'
+  link.download = filename ?? `${query.dimensions?.[0] ?? 'analytics'}${verified ? '-verified-only' : ''}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }

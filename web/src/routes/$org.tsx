@@ -1,6 +1,8 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
+import type { TrackingPolicy } from '@/features/sites/types'
+
 import { AppShell } from '@/components/AppShell'
 import {
   canCreateSites,
@@ -16,6 +18,7 @@ import { en } from '@/messages/en'
 export { canCreateSites, navigationHref, organizationHref, visibleNavigation }
 
 export type Site = {
+  tracking_policy?: TrackingPolicy
   id: number
   name: string
   slug?: string

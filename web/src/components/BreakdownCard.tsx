@@ -27,6 +27,10 @@ type BreakdownCardProps = {
   query: StatsQuery
   onFilter: (filter: Filter) => void
   map?: boolean
+  allowSearch?: boolean
+  allowFilter?: boolean
+  verifiedPaths?: boolean
+  description?: string
 }
 
 const WorldMap = lazy(() => import('./WorldMap').then((module) => ({ default: module.WorldMap })))
@@ -46,7 +50,7 @@ function breakdownLabel(dimension: string, value: string): string {
   return value
 }
 
-export function BreakdownCard({ title, tabs, query, onFilter, map = false }: BreakdownCardProps) {
+export function BreakdownCard({ title, tabs, query, onFilter, map = false, allowSearch = true, allowFilter = true, verifiedPaths = false, description }: BreakdownCardProps) {
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
   const [view, setView] = useState<'list' | 'map'>('list')
   const activeTab = tabs.find((tab) => tab.key === activeKey) ?? tabs[0]
@@ -65,7 +69,9 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
     limit: mapActive ? 250 : 10,
   }
   const result = useStats(cardQuery)
-  const rows = result.data?.rows ?? []
+  const privacy = result.data?.meta?.privacy
+  const verified = !verifiedPaths || (privacy?.view === 'verified_paths' && privacy.coverage === 'verified_only' && privacy.unverified_excluded && privacy.imports_excluded)
+  const rows = verified ? result.data?.rows ?? [] : []
   const displayedMetrics = (activeTab?.metrics ?? (activeTab ? [activeTab.metric] : []))
     .filter((metric) => metric !== 'pageviews')
   const maximum = rows.reduce((largest, row) => {
@@ -122,9 +128,10 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
               </Button>
             </div>
           ) : null}
-          {activeTab ? <DetailsDialog dimension={activeTab.dimension} query={cardQuery} title={title} /> : null}
+          {activeTab && !verifiedPaths ? <DetailsDialog dimension={activeTab.dimension} query={cardQuery} title={title} allowSearch={allowSearch} /> : null}
         </div>
       </header>
+      {description ? <p className="border-b px-4 py-3 text-sm text-muted-foreground">{description}</p> : null}
       {result.isError ? (
         <ErrorState detail={result.error?.detail} onRetry={() => void result.refetch()} />
       ) : result.isPending || result.isLoading ? (
@@ -133,8 +140,10 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
           <Skeleton className="h-7 w-4/5" />
           <Skeleton className="h-7 w-3/5" />
         </div>
+      ) : !verified ? (
+        <ErrorState detail="Verified page coverage could not be confirmed. Reload before viewing this breakdown." onRetry={() => void result.refetch()} />
       ) : rows.length === 0 || !activeTab ? (
-        <EmptyState />
+        verifiedPaths ? <p className="px-4 py-6 text-sm text-muted-foreground">No verified page data in this range. Older unverified records and imports are excluded.</p> : <EmptyState />
       ) : mapActive ? (
         <Suspense
           fallback={
@@ -169,7 +178,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
                 return (
                   <tr key={`${label}:${index}`} className="border-t">
                     <td className="min-w-0 px-2 py-1">
-                      {label === '' ? (
+                      {label === '' || !allowFilter ? (
                         <span className="block min-w-0 px-2 py-2 font-medium text-muted-foreground">{display}</span>
                       ) : (
                         <button
@@ -204,7 +213,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false }: Bre
             const width = maximum > 0 ? `${Math.max(2, (value / maximum) * 100)}%` : '0%'
             return (
               <li key={`${label}:${index}`} className="min-w-0">
-                {label === '' ? (
+                {label === '' || !allowFilter ? (
                   <div className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-muted-foreground">
                     <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
                     <span className="relative min-w-0 truncate text-sm" title={display}>{display}</span>

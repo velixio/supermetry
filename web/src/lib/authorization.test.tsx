@@ -153,7 +153,7 @@ describe('server capability UI boundaries', () => {
     expect(
       visibleNavigation('viewer', true, {
         effective_capabilities: ['profiles.read'],
-      }).some((item) => item.suffix === '/profiles'),
+      }, { id: 7, name: 'Docs', tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }).some((item) => item.suffix === '/profiles'),
     ).toBe(true)
   })
 

@@ -48,6 +48,13 @@ describe('StatsStrip', () => {
     vi.clearAllMocks()
   })
 
+  it('shows a query error instead of zero totals', () => {
+    useStats.mockReturnValue({ isError: true, isLoading: false, error: { detail: 'Policy denied this query' }, refetch: vi.fn() })
+    render(<StatsStrip query={query} compare="off" onSelectMetric={vi.fn()} />)
+    expect(screen.getByText('Policy denied this query')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^Visitors/ })).not.toBeInTheDocument()
+  })
+
   it('shows deltas with arrows and good/bad color', async () => {
     mockQuery(
       { visitors: 110, bounce_rate: 40 },

@@ -14,8 +14,15 @@ import (
 	"panel/internal/api"
 	"panel/internal/closer"
 	"panel/internal/dict"
+	"panel/internal/ingest"
+	"panel/internal/platform/sitesvc"
+	"panel/internal/platform/store"
 	"panel/internal/privacy"
 	"panel/internal/query"
+	"panel/internal/rehydrate"
+	"panel/internal/salts"
+	"panel/internal/session"
+	"panel/internal/writer"
 )
 
 func TestAnonymousRejectsForgedIdentityAndProperties(t *testing.T) {
@@ -251,4 +258,120 @@ func TestVerifiedPageRequestsSurviveFlushAndCloseWithoutLegacyLookalikes(t *test
 	}
 	engine.InvalidateSite(1)
 	check("closed")
+}
+
+func TestIdentifiedRestartPreservesNewPathsOnlyWithProjectOptIn(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		profiles    bool
+		wantPath    string
+		wantVersion int16
+	}{
+		{"project profiles off", false, "/[redacted]", 1},
+		{"project profiles on", true, "/new-private", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newHandlerFixture(t, 32, nil)
+			ctx := context.Background()
+			if rr := post(t, f.h, `{"site":"abc123","name":"pageview","url":"https://example.com/historic-private"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+				t.Fatalf("anonymous status=%d", rr.Code)
+			}
+			f.stop(t)
+			var historicalSession int64
+			if err := f.pool.QueryRow(ctx, `select session_id from events`).Scan(&historicalSession); err != nil {
+				t.Fatal(err)
+			}
+
+			// Simulate a process restart against the same database. The project setting
+			// is loaded through the real registry; changing instance mode alone is not
+			// project opt-in. Advance beyond idle timeout to establish a new session.
+			seedProfileSite(t, f.pool)
+			if _, err := f.pool.Exec(ctx, `update sites set settings=jsonb_build_object('profiles_enabled',$1::boolean) where id=1`, tc.profiles); err != nil {
+				t.Fatal(err)
+			}
+			registry := sitesvc.NewRegistry(&store.Store{Pool: f.pool}, time.Hour)
+			t.Cleanup(registry.Close)
+			site, ok := registry.Site(1)
+			if !ok || site.ProfilesEnabled != tc.profiles {
+				t.Fatalf("loaded project=%+v found=%t", site, ok)
+			}
+			clock := &fakeClock{now: f.clock.Now().Add(session.IdleTimeout + time.Minute)}
+			sessions := session.NewMemory(4, clock)
+			if _, err := rehydrate.Run(ctx, f.pool, sessions, clock.Now()); err != nil {
+				t.Fatal(err)
+			}
+			dictionary := dict.New(f.pool)
+			if err := dictionary.Load(ctx); err != nil {
+				t.Fatal(err)
+			}
+			saltStore := salts.New(f.pool, clock)
+			if err := saltStore.Refresh(ctx); err != nil {
+				t.Fatal(err)
+			}
+			w := writer.New(f.pool, sessions, 32, time.Hour, time.Hour, noneClosed{})
+			w.SetTrackingPolicy(privacy.Identified, registry)
+			w.SetPathPolicy(privacy.PathPolicy{}, dictionary)
+			handler := &ingest.Handler{TrackingMode: privacy.Identified, Sites: registry, Enricher: f.h.Enricher, Salts: saltStore, Dict: dictionary, Sessions: sessions, Writer: w, Clock: clock}
+			runCtx, cancel := context.WithCancel(ctx)
+			stopped := make(chan error, 1)
+			go func() { stopped <- w.Run(runCtx) }()
+			restarted := &handlerFixture{h: handler, pool: f.pool, writer: w, clock: clock, cancel: cancel, stopped: stopped}
+			t.Cleanup(func() { restarted.stop(t) })
+			if rr := post(t, handler, `{"site":"profiles0001","name":"pageview","url":"https://example.com/new-private"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+				t.Fatalf("identified status=%d", rr.Code)
+			}
+			restarted.stop(t)
+
+			rows, err := f.pool.Query(ctx, `select e.session_id,d.value,e.path_sanitizer_version,e.path_policy_id,a.value,b.value
+   from events e join dict d on d.kind=$1 and d.id=e.path_id
+   join sessions s on s.site_id=e.site_id and s.session_id=e.session_id
+   join dict a on a.kind=$1 and a.id=s.entry_path join dict b on b.kind=$1 and b.id=s.exit_path
+   order by e.ts`, dict.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rows.Close()
+			count := 0
+			for rows.Next() {
+				var sessionID int64
+				var path, policyID, entry, exit string
+				var version int16
+				if err := rows.Scan(&sessionID, &path, &version, &policyID, &entry, &exit); err != nil {
+					t.Fatal(err)
+				}
+				wantPath, wantVersion := "/[redacted]", int16(1)
+				if count == 0 {
+					if sessionID != historicalSession {
+						t.Fatal("historical session replaced")
+					}
+				} else {
+					wantPath, wantVersion = tc.wantPath, tc.wantVersion
+					if sessionID == historicalSession {
+						t.Fatal("restart did not create new session")
+					}
+				}
+				if path != wantPath || entry != wantPath || exit != wantPath || version != wantVersion {
+					t.Fatalf("row=%d path=%q entry=%q exit=%q version=%d; want path=%q version=%d", count, path, entry, exit, version, wantPath, wantVersion)
+				}
+				validPolicy := (version == 1 && policyID == (privacy.PathPolicy{}).Fingerprint()) || (version == 0 && policyID == "")
+				if !validPolicy {
+					t.Fatalf("row=%d policy=%q", count, policyID)
+				}
+				count++
+			}
+			if err := rows.Err(); err != nil {
+				t.Fatal(err)
+			}
+			if count != 2 {
+				t.Fatalf("events/session rows=%d, want2", count)
+			}
+			var recovered int
+			if err := f.pool.QueryRow(ctx, `select count(*) from dict where kind=$1 and value='/historic-private'`, dict.Path).Scan(&recovered); err != nil {
+				t.Fatal(err)
+			}
+			if recovered != 0 {
+				t.Fatal("historical original path was retained or reconstructed")
+			}
+		})
+	}
 }

@@ -94,11 +94,11 @@ const settingsTabs = [
   ['imports', 'Imports & export', '/$org/$site/settings/imports'],
 ] as const
 
-export function SiteSettingsTabs({ org, site, current, showReplay = false }: { org: string; site: string; current: string; showReplay?: boolean }) {
+export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean }) {
   return (
     <nav aria-label="Site settings" className="overflow-x-auto border-b">
       <div role="tablist" className="flex min-w-max gap-5">
-        {settingsTabs.filter(([value]) => value !== 'replay' || showReplay).map(([value, label, to]) => (
+        {settingsTabs.filter(([value]) => (value !== 'replay' || showReplay) && (!trackingRestricted || !['imports', 'goals', 'funnels'].includes(value))).map(([value, label, to]) => (
           <Link
             key={value}
             aria-current={current === value ? 'page' : undefined}

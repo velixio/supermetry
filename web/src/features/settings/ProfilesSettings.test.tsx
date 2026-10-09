@@ -10,6 +10,17 @@ const warning = 'Identifies individual users. Only enable this if your users hav
 afterEach(cleanup)
 
 describe('ProfilesSettings', () => {
+  it('explains how profiles affect collection without changing the setting on render', () => {
+    const onChange = vi.fn()
+    render(<ProfilesSettings enabled={false} onChange={onChange} role="owner" policy={{ instance_mode: 'identified', configured_profiles_enabled: false, effective_mode: 'anonymous', restrictions: ['project_profiles_disabled'] }} />)
+
+    expect(screen.getByText(/controls this project's effective collection mode/i)).toBeVisible()
+    expect(screen.getByText(/new paths outside the declared public path literals are stored as \/\[redacted\]/i)).toBeVisible()
+    expect(screen.getByText(/permits identifiable data and original paths from new events to be stored/i)).toBeVisible()
+    expect(screen.getByText(/previously redacted paths cannot be restored/i)).toBeVisible()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('shows configured opt-in but blocks profiles under anonymous instance policy', () => {
     const onChange = vi.fn()
     render(<ProfilesSettings enabled={true} onChange={onChange} role="owner" policy={{ instance_mode: 'anonymous', configured_profiles_enabled: true, effective_mode: 'anonymous', restrictions: ['instance_anonymous'] }} />)

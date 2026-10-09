@@ -21,7 +21,7 @@ const me = {
       org: { id: 1, name: 'Acme', slug: 'acme' },
       role: 'owner',
       effective_capabilities: ['profiles.read', 'replay.read', 'data.export', 'billing.manage'],
-      sites: [{ id: 7, name: 'Example', slug: 'example', allowed_hosts: ['example.com'] }],
+      sites: [{ id: 7, name: 'Example', slug: 'example', allowed_hosts: ['example.com'], tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }],
     },
   ],
 }
@@ -66,9 +66,9 @@ describe('dashboard breakdown route', () => {
         return Promise.resolve({
           data: {
             columns: [dimension, metric],
-            rows: [{ [dimension]: label, [metric]: 5 }],
+            rows: [{ [dimension]: label, ...totals }],
             totals,
-            meta: { sources_used: ['daily'], cached: false },
+            meta: { sources_used: ['daily'], cached: false, ...(dimension === 'page' ? { privacy: { view: 'verified_paths', coverage: 'verified_only', policy_id: 'fixture-policy', path_sanitizer_version: 1, imports_excluded: true, unverified_excluded: true } } : {}) },
           },
           response: new Response(null, { status: 200 }),
         })
@@ -95,6 +95,59 @@ describe('dashboard breakdown route', () => {
     )
     return router
   }
+
+  it('uses only safe anonymous breakdowns and labels the verified page subset', async () => {
+    get.mockResolvedValue({ data: { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: ['instance_anonymous'] } }] }] }, response: new Response(null, { status: 200 }) })
+    renderDashboard()
+    await screen.findByRole('region', { name: 'Verified pages' })
+    await waitFor(() => expect(post.mock.calls.some(([, options]) => options.body.dimensions?.[0] === 'country')).toBe(true))
+    const queries = post.mock.calls.filter(([path]) => path === '/api/private/query').map(([, options]) => options.body)
+    for (const query of queries) {
+      expect((query.dimensions ?? []).every((dimension: string) => ['time', 'hour', 'page', 'country', 'browser', 'os', 'device', 'channel'].includes(dimension))).toBe(true)
+      if (query.dimensions?.[0] === 'page') {
+        expect(query.metrics.every((metric: string) => ['visitors', 'visits', 'pageviews'].includes(metric))).toBe(true)
+        expect(query.filters).toEqual([])
+        expect(query.include_imported).toBe(false)
+      }
+    }
+    expect(screen.getByText(/Partial coverage/)).toBeVisible()
+    expect(screen.queryByRole('tab', { name: 'Entry' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Filter by page/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add annotation' })).not.toBeInTheDocument()
+    expect(get.mock.calls.some(([path]) => /annotations|segments|suggestions/.test(path))).toBe(false)
+  })
+
+  it('blocks saved unsupported anonymous filters before fetching dashboard data', async () => {
+    get.mockResolvedValue({ data: { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }] }] }, response: new Response(null, { status: 200 }) })
+    const history = createMemoryHistory({ initialEntries: ['/acme/example?f=source%3Ais%3Aprivate'] })
+    const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><RouterProvider router={router} /></QueryClientProvider>)
+    expect(await screen.findByText(/These filters are unavailable in anonymous mode/)).toBeVisible()
+    expect(post.mock.calls.filter(([path]) => path === '/api/private/query')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Clear unavailable filters' }))
+    await screen.findByRole('region', { name: 'Verified pages' })
+  })
+
+  it('does not request analytics while the instance policy is unavailable', async () => {
+    get.mockResolvedValue({ data: { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: undefined }] }] }, response: new Response(null, { status: 200 }) })
+    renderDashboard()
+    expect(await screen.findByText('Tracking policy is unavailable')).toBeVisible()
+    expect(post.mock.calls.filter(([path]) => path === '/api/private/query')).toHaveLength(0)
+  })
+
+  it('keeps canonical filters usable and pauses the separate verified page subset', async () => {
+    get.mockResolvedValue({ data: { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }] }] }, response: new Response(null, { status: 200 }) })
+    renderDashboard()
+    await screen.findByRole('region', { name: 'Verified pages' })
+    fireEvent.click(await screen.findByRole('button', { name: /filter by country India/i }))
+    expect(await screen.findByText(/Verified page analytics require no filters/)).toBeVisible()
+    await waitFor(() => expect(post.mock.calls.some(([, options]) => options.body.dimensions?.[0] === 'country' && options.body.filters.length > 0)).toBe(true))
+    expect(post.mock.calls.some(([, options]) => options.body.dimensions?.[0] === 'page' && options.body.filters.length > 0)).toBe(false)
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Export CSV' }), { button: 0, ctrlKey: false })
+    expect(await screen.findByRole('menuitem', { name: 'Verified pages (partial)' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByRole('menuitem', { name: 'Sources' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Events' })).not.toBeInTheDocument()
+  })
 
   it('shows country, region, and city tabs without a referrer tab', async () => {
     renderDashboard()

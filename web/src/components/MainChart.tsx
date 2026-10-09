@@ -1,3 +1,4 @@
+import { ErrorState } from './ErrorState'
 import type { ReactNode } from 'react'
 import {
   Area,
@@ -249,6 +250,10 @@ export function MainChart({
   const resolvedInterval =
     interval ?? autoInterval(query.dateRange.from, query.dateRange.to)
   const label = `${metricLabel(chartMetric)} over time`
+  if (current.isError || (compare !== 'off' && comparison.isError)) {
+    const failed = current.isError ? current : comparison
+    return <ErrorState detail={failed.error?.detail} onRetry={() => void failed.refetch()} />
+  }
 
   return (
     <section
