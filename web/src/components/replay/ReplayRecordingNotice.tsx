@@ -10,6 +10,8 @@ export function ReplayRecordingNotice({ settings, pending, error, onRetry, org, 
   org: string
   site: string
 }) {
+  if (!pending && !error && settings?.enabled) return null
+
   return <aside className="space-y-2 rounded-xl border bg-card p-4 text-sm" aria-label="Recording status">
     {pending ? <p role="status">Loading recording settings…</p> : error ? <div role="alert" className="space-y-2">
       <p className="font-medium">Recording settings could not be loaded.</p>
