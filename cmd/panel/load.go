@@ -18,6 +18,7 @@ import (
 	"panel/internal/db"
 	"panel/internal/dict"
 	"panel/internal/enrich"
+	"panel/internal/privacy"
 	"panel/internal/salts"
 	"panel/internal/session"
 	"panel/internal/sites"
@@ -58,7 +59,7 @@ type neverClosedDays struct{}
 func (neverClosedDays) IsClosed(int32, time.Time) bool { return false }
 
 func loadCommand(ctx context.Context, in io.Reader, out io.Writer) error {
-	cfg, err := config.Load(os.Getenv)
+	cfg, err := config.LoadLookup(os.LookupEnv)
 	if err != nil {
 		return err
 	}
@@ -77,7 +78,10 @@ func loadCommand(ctx context.Context, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	stats, err := loadEventsWithQueue(ctx, pool, registry, in, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush)
+	if err := validateTrackingStartup(ctx, pool, cfg.Tracking, registry.All()); err != nil {
+		return err
+	}
+	stats, err := loadEventsWithQueue(ctx, pool, registry, in, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, cfg.Tracking.Mode)
 	if err != nil {
 		return err
 	}
@@ -86,8 +90,8 @@ func loadCommand(ctx context.Context, in io.Reader, out io.Writer) error {
 	return encoder.Encode(stats)
 }
 
-func loadEvents(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, in io.Reader) (loadStats, error) {
-	return loadEventsWithQueue(ctx, pool, registry, in, 1<<16, 20*time.Millisecond, 20*time.Millisecond)
+func loadEvents(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, in io.Reader, modes ...privacy.Mode) (loadStats, error) {
+	return loadEventsWithQueue(ctx, pool, registry, in, 1<<16, 20*time.Millisecond, 20*time.Millisecond, modes...)
 }
 
 func loadEventsWithQueue(
@@ -98,6 +102,7 @@ func loadEventsWithQueue(
 	queueSize int,
 	flushEvery time.Duration,
 	sessionFlush time.Duration,
+	modes ...privacy.Mode,
 ) (loadStats, error) {
 	started := time.Now()
 	dictionary := dict.New(pool)
@@ -110,6 +115,11 @@ func loadEventsWithQueue(
 	}
 	sessions := session.NewMemory(16, nil)
 	w := writer.New(pool, sessions, queueSize, flushEvery, sessionFlush, neverClosedDays{})
+	mode := privacy.Anonymous
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	w.SetTrackingPolicy(mode, registry)
 	writerCtx, stopWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
 	go func() { writerDone <- w.Run(writerCtx) }()

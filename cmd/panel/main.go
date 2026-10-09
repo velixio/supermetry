@@ -37,7 +37,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "serve":
-		cfg, err := config.Load(os.Getenv)
+		cfg, err := config.LoadLookup(os.LookupEnv)
 		if err == nil {
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
@@ -84,7 +84,7 @@ func main() {
 }
 
 func migrate(ctx context.Context) error {
-	cfg, err := config.Load(os.Getenv)
+	cfg, err := config.LoadLookup(os.LookupEnv)
 	if err != nil {
 		return err
 	}
