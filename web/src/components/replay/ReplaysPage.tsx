@@ -1,6 +1,6 @@
 import { ReplayLink } from './ReplayLink'
+import { ListPager } from '@/components/ListPager'
 import { ReplayOverlay, type ReplayOverlayRow } from './ReplayOverlay'
-import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -20,6 +20,8 @@ type ReplayRow = ReplayListItem & Partial<{
   os: string
 }>
 
+type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
+
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.round(seconds)}s`
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
@@ -32,8 +34,11 @@ export function ReplaysPage({
   from,
   to,
   cursor,
+  page,
   replayId,
-  onCursorChange,
+  onFirst,
+  onPrevious,
+  onNext,
   onReplayChange,
 }: {
   siteId: number
@@ -42,11 +47,15 @@ export function ReplaysPage({
   from: string
   to: string
   cursor?: string
+  page: number
   replayId?: string
-  onCursorChange: (cursor?: string) => void
+  onFirst: () => void
+  onPrevious: () => void
+  onNext: (cursor: string) => void
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }) {
   const replays = useReplays(siteId, from, to, cursor)
+  const data = replays.data as Paged<NonNullable<typeof replays.data>> | undefined
   const replayRows: ReplayOverlayRow[] = (replays.data?.items as ReplayRow[] | undefined)?.map((replay) => ({
     sessionId: replay.session_id,
     startedAt: replay.started_at,
@@ -97,10 +106,20 @@ export function ReplaysPage({
           </Table>
         </div>
       )}
-      <div className="flex justify-end gap-2">
-        <Button disabled={!cursor || replays.isFetching} variant="outline" onClick={() => onCursorChange(undefined)}>First page</Button>
-        <Button disabled={!replays.data?.next_cursor || replays.isFetching} variant="outline" onClick={() => onCursorChange(replays.data?.next_cursor ?? undefined)}>Next page</Button>
-      </div>
+      {!replays.isPending && !replays.isError ? (
+        <ListPager
+          fetching={replays.isFetching}
+          hasNext={Boolean(data?.next_cursor)}
+          page={page}
+          pageSize={50}
+          rowCount={data?.items.length ?? 0}
+          total={data?.total}
+          totalCapped={data?.total_capped}
+          onFirst={onFirst}
+          onNext={() => data?.next_cursor && onNext(data.next_cursor)}
+          onPrevious={onPrevious}
+        />
+      ) : null}
       {onReplayChange ? (
         <ReplayOverlay
           open={Boolean(replayId)}

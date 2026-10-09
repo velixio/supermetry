@@ -1,6 +1,5 @@
-import { useState } from 'react'
-
 import { ErrorState } from '@/components/ErrorState'
+import { ListPager } from '@/components/ListPager'
 import { ReplayLink } from '@/components/replay/ReplayLink'
 import { ReplayOverlay, type ReplayOverlayRow } from '@/components/replay/ReplayOverlay'
 import {
@@ -23,6 +22,8 @@ import type { Role } from '@/components/Sidebar'
 
 import { useDeleteProfile, useProfile } from './api'
 
+type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
+
 function displayValue(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value)
 }
@@ -35,7 +36,12 @@ export function ProfileDetailPage({
   onDeleted,
   org,
   site,
+  cursor,
+  page,
   replayId,
+  onFirst,
+  onPrevious,
+  onNext,
   onReplayChange,
 }: {
   profileId: number
@@ -45,17 +51,21 @@ export function ProfileDetailPage({
   onDeleted: () => void
   org?: string
   site?: string
+  cursor?: string
+  page: number
   replayId?: string
+  onFirst: () => void
+  onPrevious: () => void
+  onNext: (cursor: string) => void
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }) {
-  const [cursors, setCursors] = useState<string[]>([])
-  const cursor = cursors.at(-1)
   const profile = useProfile(profileId, orgId, cursor)
   const remove = useDeleteProfile(siteId || profile.data?.site_id || 0, orgId, onDeleted)
   const canDelete = role === 'owner' || role === 'admin'
 
   if (profile.isError) return <ErrorState detail={profile.error?.message} onRetry={() => void profile.refetch?.()} />
   if (profile.isPending || !profile.data) return <Skeleton className="h-72 w-full" />
+  const data = profile.data as Paged<typeof profile.data>
 
   const replayRows: ReplayOverlayRow[] = []
   const replayIDs = new Set<string>()
@@ -134,10 +144,18 @@ export function ProfileDetailPage({
             </Table>
           </div>
         )}
-        <div className="flex justify-end gap-2">
-          <Button disabled={cursors.length === 0 || profile.isFetching} variant="outline" onClick={() => setCursors((value) => value.slice(0, -1))}>Previous page</Button>
-          <Button disabled={!profile.data.next_cursor || profile.isFetching} variant="outline" onClick={() => profile.data.next_cursor && setCursors((value) => [...value, profile.data.next_cursor!])}>Next page</Button>
-        </div>
+        <ListPager
+          fetching={profile.isFetching}
+          hasNext={Boolean(data.next_cursor)}
+          page={page}
+          pageSize={50}
+          rowCount={data.timeline.length}
+          total={data.total}
+          totalCapped={data.total_capped}
+          onFirst={onFirst}
+          onNext={() => data.next_cursor && onNext(data.next_cursor)}
+          onPrevious={onPrevious}
+        />
       </section>
       {org && site && onReplayChange ? (
         <ReplayOverlay

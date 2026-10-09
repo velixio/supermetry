@@ -1,3 +1,4 @@
+import { ListPager } from '@/components/ListPager'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import {
@@ -22,6 +23,8 @@ import { useSession, useSessions } from './api'
 import { TimelineItem } from './TimelineItem'
 import type { SessionSummary } from './types'
 
+type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
+
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
@@ -40,8 +43,11 @@ export function SessionsPage({
   dateRange,
   filters,
   cursor,
+  page,
   selectedSessionId,
-  onCursorChange,
+  onFirst,
+  onPrevious,
+  onNext,
   onSelect,
   hasReplayOnly = false,
   org,
@@ -53,8 +59,11 @@ export function SessionsPage({
   dateRange: { from: string; to: string }
   filters: Filter[]
   cursor?: string
+  page: number
   selectedSessionId?: string
-  onCursorChange: (cursor?: string) => void
+  onFirst: () => void
+  onPrevious: () => void
+  onNext: (cursor: string) => void
   onSelect: (sessionId?: string) => void
   hasReplayOnly?: boolean
   org?: string
@@ -64,6 +73,7 @@ export function SessionsPage({
 }) {
   const sessions = useSessions(siteId, dateRange, filters, cursor, hasReplayOnly)
   const detail = useSession(siteId, selectedSessionId)
+  const data = sessions.data as Paged<NonNullable<typeof sessions.data>> | undefined
   const replayRows: ReplayOverlayRow[] = sessions.data?.data
     .filter((session) => session.has_replay)
     .map((session) => ({
@@ -141,12 +151,23 @@ export function SessionsPage({
               </TableBody>
             </Table>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button disabled={!cursor || sessions.isFetching} variant="outline" onClick={() => onCursorChange(undefined)}>First page</Button>
-            <Button disabled={!sessions.data.next_cursor || sessions.isFetching} variant="outline" onClick={() => onCursorChange(sessions.data.next_cursor ?? undefined)}>Next page</Button>
-          </div>
         </section>
       )}
+
+      {!sessions.isPending && !sessions.isError ? (
+        <ListPager
+          fetching={sessions.isFetching}
+          hasNext={Boolean(data?.next_cursor)}
+          page={page}
+          pageSize={50}
+          rowCount={data?.data.length ?? 0}
+          total={data?.total}
+          totalCapped={data?.total_capped}
+          onFirst={onFirst}
+          onNext={() => data?.next_cursor && onNext(data.next_cursor)}
+          onPrevious={onPrevious}
+        />
+      ) : null}
 
       <Sheet open={Boolean(selectedSessionId)} onOpenChange={(open) => !open && onSelect(undefined)}>
         <SheetContent className="overflow-y-auto sm:max-w-lg">

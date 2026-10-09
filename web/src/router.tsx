@@ -21,7 +21,7 @@ export function parseSearch(search: string): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   for (const key of new Set(params.keys())) {
     const values = params.getAll(key).map(parseValue)
-    result[key] = key === 'f' || values.length > 1 ? values : values[0]
+    result[key] = key === 'f' || key === 'cursors' || values.length > 1 ? values : values[0]
   }
   return result
 }

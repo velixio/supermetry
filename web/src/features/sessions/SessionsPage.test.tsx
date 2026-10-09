@@ -41,7 +41,7 @@ describe('SessionsPage', () => {
     })
     useSession.mockReturnValue({ isPending: false, isError: false })
 
-    render(<SessionsPage cursor={undefined} dateRange={{ from: '2026-10-01', to: '2026-10-08' }} filters={[]} onCursorChange={() => undefined} onSelect={onSelect} selectedSessionId={undefined} siteId={7} />)
+    render(<SessionsPage cursor={undefined} dateRange={{ from: '2026-10-01', to: '2026-10-08' }} filters={[]} page={1} onFirst={() => undefined} onNext={() => undefined} onPrevious={() => undefined} onSelect={onSelect} selectedSessionId={undefined} siteId={7} />)
 
     expect(screen.getByRole('cell', { name: 'ada-42' })).toBeVisible()
     expect(screen.getByRole('cell', { name: '/ → /pricing' })).toBeVisible()
@@ -71,7 +71,7 @@ describe('SessionsPage', () => {
       isError: false,
     })
 
-    render(<SessionsPage cursor={undefined} dateRange={{ from: '2026-10-01', to: '2026-10-08' }} filters={[]} onCursorChange={() => undefined} onSelect={() => undefined} selectedSessionId="301" siteId={7} />)
+    render(<SessionsPage cursor={undefined} dateRange={{ from: '2026-10-01', to: '2026-10-08' }} filters={[]} page={1} onFirst={() => undefined} onNext={() => undefined} onPrevious={() => undefined} onSelect={() => undefined} selectedSessionId="301" siteId={7} />)
 
     expect(screen.getByRole('dialog', { name: 'Session timeline' })).toBeVisible()
     expect(screen.getByText('signup')).toBeVisible()

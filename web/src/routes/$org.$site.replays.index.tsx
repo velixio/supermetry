@@ -4,13 +4,13 @@ import { z } from 'zod'
 import { DatePicker } from '@/components/DatePicker'
 import { ReplaysPage } from '@/components/replay/ReplaysPage'
 import { useReplayAvailability } from '@/components/replay/api'
-import { dashboardSearch, resolveRange } from '@/lib/search'
+import { currentCursor, dashboardSearch, firstPage, nextPage, paginationSearch, previousPage, resolveRange } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { useMe } from './$org'
 
 const replaySearch = dashboardSearch.extend({
-  cursor: z.string().optional(),
+  ...paginationSearch,
   replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
 })
 
@@ -32,17 +32,20 @@ function ReplaysRoute() {
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex justify-end">
-        <DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: { ...search, ...next, cursor: undefined } })} />
+        <DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })} />
       </div>
       <ReplaysPage
-        cursor={search.cursor}
+        cursor={currentCursor(search)}
         from={range.from}
         org={org}
         replayId={search.replay}
         site={siteSlug}
         siteId={site.id}
         to={range.to}
-        onCursorChange={(cursor) => void navigate({ search: { ...search, cursor } })}
+        page={search.page ?? 1}
+        onFirst={() => void navigate({ search: firstPage(search) })}
+        onNext={(cursor) => void navigate({ search: nextPage(search, cursor) })}
+        onPrevious={() => void navigate({ search: previousPage(search) })}
         onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace })}
       />
     </div>

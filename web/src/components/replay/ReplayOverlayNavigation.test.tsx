@@ -79,7 +79,10 @@ function ReplaysHarness() {
       site="example"
       siteId={7}
       to="2026-10-08"
-      onCursorChange={() => undefined}
+      page={1}
+      onFirst={() => undefined}
+      onNext={() => undefined}
+      onPrevious={() => undefined}
       onReplayChange={(replay, options) => navigateReplay(navigate, replay, options?.replace)}
     />
   )
@@ -96,7 +99,10 @@ function SessionsHarness() {
       replayId={search.replay}
       site="example"
       siteId={7}
-      onCursorChange={() => undefined}
+      page={1}
+      onFirst={() => undefined}
+      onNext={() => undefined}
+      onPrevious={() => undefined}
       onReplayChange={(replay, options) => navigateReplay(navigate, replay, options?.replace)}
       onSelect={() => undefined}
     />
