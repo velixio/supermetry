@@ -91,7 +91,7 @@ type S3Env struct {
 	Prefix    string
 }
 
-// Load accepts legacy value-only lookups. Use LoadLookup for process settings
+// Load accepts value-only lookup functions. Use LoadLookup for process settings
 // so explicitly empty tracking values cannot be mistaken for absent values.
 func Load(getenv func(string) string) (Config, error) {
 	return LoadLookup(func(key string) (string, bool) { value := getenv(key); return value, value != "" })
