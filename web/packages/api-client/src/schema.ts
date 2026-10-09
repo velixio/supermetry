@@ -1393,9 +1393,15 @@ export interface components {
         FunnelStep: {
             /** @enum {string} */
             type: "page" | "event";
-            match: string;
+            /**
+             * @description Anchored value matching. Exact and prefix treat every character literally. Wildcard treats only `*` as matching any characters; `%` and `_` remain literal. The wildcard grammar has no escape for matching a literal `*`.
+             * @enum {string}
+             */
+            match: "exact" | "prefix" | "wildcard";
             value: string;
+            /** @description Reserved for property-aware funnels; currently not applied by funnel queries. */
             prop_key?: string;
+            /** @description Reserved for property-aware funnels; currently not applied by funnel queries. */
             prop_value?: string;
         };
         FunnelRequest: {
@@ -1406,7 +1412,10 @@ export interface components {
         };
         FunnelStepResult: {
             step: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Number of site-local sessions that completed this ordered step.
+             */
             visitors: number;
             /** Format: double */
             conversion: number;
