@@ -41,14 +41,21 @@ type profileFixture struct {
 
 type profileReplayFaultStore struct {
 	replay.BlobStore
-	mu         sync.Mutex
-	failDelete error
+	mu           sync.Mutex
+	deleteCalls  int
+	failDeleteAt int
+	failDelete   error
 }
 
 func (s *profileReplayFaultStore) Delete(ctx context.Context, key string) (int64, error) {
 	s.mu.Lock()
-	err := s.failDelete
-	s.failDelete = nil
+	s.deleteCalls++
+	var err error
+	if s.deleteCalls == s.failDeleteAt {
+		err = s.failDelete
+		s.failDeleteAt = 0
+		s.failDelete = nil
+	}
 	s.mu.Unlock()
 	if err != nil {
 		return 0, err
@@ -56,8 +63,10 @@ func (s *profileReplayFaultStore) Delete(ctx context.Context, key string) (int64
 	return s.BlobStore.Delete(ctx, key)
 }
 
-func (s *profileReplayFaultStore) failNextDelete(err error) {
+func (s *profileReplayFaultStore) failDeleteNumber(number int, err error) {
 	s.mu.Lock()
+	s.deleteCalls = 0
+	s.failDeleteAt = number
 	s.failDelete = err
 	s.mu.Unlock()
 }
@@ -374,17 +383,24 @@ func TestProfileDeleteReplayFailureRollsBackAndCanBeRetried(t *testing.T) {
 	f := newProfileFixture(t)
 	ctx := context.Background()
 	day := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
-	key := replay.SessionKey(f.siteID, day, 100)
-	if _, err := f.replays.Append(ctx, key, strings.NewReader("replay")); err != nil {
-		t.Fatal(err)
+	keys := []string{
+		replay.SessionKey(f.siteID, day, 100),
+		replay.SessionKey(f.siteID, day, 101),
 	}
-	if _, err := f.pool.Exec(ctx, `
-		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
-		values ($1,100,$2,$2,$3,6,1,$4)`, f.siteID, day.Add(time.Hour), day, key); err != nil {
-		t.Fatal(err)
+	for index, key := range keys {
+		if _, err := f.replays.Append(ctx, key, strings.NewReader("replay")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.pool.Exec(ctx, `
+			insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+			values ($1,$2,$3,$3,$4,6,1,$5)`, f.siteID, 100+index, day.Add(time.Duration(index+1)*time.Hour), day, key); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	f.replayFault.failNextDelete(errors.New("replay storage unavailable"))
+	// The first blob is already gone when the second delete fails. PostgreSQL
+	// rolls back both replay index deletions and the rest of profile erasure.
+	f.replayFault.failDeleteNumber(2, errors.New("replay storage unavailable"))
 	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
 	if response.Code != http.StatusInternalServerError {
 		t.Fatalf("first delete status=%d body=%s", response.Code, response.Body.String())
@@ -396,15 +412,19 @@ func TestProfileDeleteReplayFailureRollsBackAndCanBeRetried(t *testing.T) {
 	if err := f.pool.QueryRow(ctx, `select count(*) from events where profile_id=$1`, f.profileID).Scan(&events); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&replayRows); err != nil {
+	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=any($2::bigint[])`, f.siteID, []int64{100, 101}).Scan(&replayRows); err != nil {
 		t.Fatal(err)
 	}
-	if profiles != 1 || events == 0 || replayRows != 1 {
+	if profiles != 1 || events == 0 || replayRows != 2 {
 		t.Fatalf("failed erase committed partial state: profiles=%d events=%d replay_rows=%d", profiles, events, replayRows)
 	}
-	reader, err := f.replays.Open(ctx, key)
+	if reader, err := f.replays.Open(ctx, keys[0]); err == nil {
+		_ = reader.Close()
+		t.Fatal("partial erase restored the already deleted first replay blob")
+	}
+	reader, err := f.replays.Open(ctx, keys[1])
 	if err != nil {
-		t.Fatalf("failed erase removed replay blob: %v", err)
+		t.Fatalf("partial erase removed the replay whose delete failed: %v", err)
 	}
 	if _, err := io.ReadAll(reader); err != nil {
 		t.Fatal(err)
@@ -420,8 +440,69 @@ func TestProfileDeleteReplayFailureRollsBackAndCanBeRetried(t *testing.T) {
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("retry status=%d body=%s", response.Code, response.Body.String())
 	}
-	if _, err := f.replays.Open(ctx, key); err == nil {
-		t.Fatal("retry left replay blob")
+	for _, key := range keys {
+		if reader, err := f.replays.Open(ctx, key); err == nil {
+			_ = reader.Close()
+			t.Fatalf("retry left replay blob %q", key)
+		}
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=any($2::bigint[])`, f.siteID, []int64{100, 101}).Scan(&replayRows); err != nil {
+		t.Fatal(err)
+	}
+	if replayRows != 0 {
+		t.Fatalf("retry left %d replay rows", replayRows)
+	}
+}
+
+func TestProfileDeleteDatabaseFailureAfterBlobDeleteCanBeRetried(t *testing.T) {
+	f := newProfileFixture(t)
+	ctx := context.Background()
+	day := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
+	key := replay.SessionKey(f.siteID, day, 100)
+	if _, err := f.replays.Append(ctx, key, strings.NewReader("replay")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `
+		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+		values ($1,100,$2,$2,$3,6,1,$4)`, f.siteID, day.Add(time.Hour), day, key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `
+		create function reject_profile_erasure_audit() returns trigger language plpgsql as $$
+		begin raise exception 'audit unavailable'; end $$;
+		create trigger reject_profile_erasure_audit before insert on audit_log
+		for each row execute function reject_profile_erasure_audit()`); err != nil {
+		t.Fatal(err)
+	}
+
+	response := f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("first delete status=%d body=%s", response.Code, response.Body.String())
+	}
+	var profiles, replayRows int
+	if err := f.pool.QueryRow(ctx, `select count(*) from profiles where id=$1`, f.profileID).Scan(&profiles); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&replayRows); err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 1 || replayRows != 1 {
+		t.Fatalf("database failure committed partial state: profiles=%d replay_rows=%d", profiles, replayRows)
+	}
+	if reader, err := f.replays.Open(ctx, key); err == nil {
+		_ = reader.Close()
+		t.Fatal("database rollback restored an already deleted replay blob")
+	}
+	if f.tombstones.Contains(f.siteID, "user-123") {
+		t.Fatal("database failure left an in-memory tombstone")
+	}
+	if _, err := f.pool.Exec(ctx, `drop trigger reject_profile_erasure_audit on audit_log; drop function reject_profile_erasure_audit()`); err != nil {
+		t.Fatal(err)
+	}
+
+	response = f.request(t, "owner", http.MethodDelete, fmt.Sprintf("/api/private/profiles/%d", f.profileID))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("retry status=%d body=%s", response.Code, response.Body.String())
 	}
 	if err := f.pool.QueryRow(ctx, `select count(*) from replay_sessions where site_id=$1 and session_id=100`, f.siteID).Scan(&replayRows); err != nil {
 		t.Fatal(err)
