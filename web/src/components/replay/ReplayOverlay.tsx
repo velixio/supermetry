@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react'
+import { useCapability } from '@/lib/authorization'
 import { Link } from '@tanstack/react-router'
 import { useCallback, useMemo, useState } from 'react'
 
@@ -46,7 +48,7 @@ function formatDuration(milliseconds?: number): string {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
 }
 
-export function ReplayOverlay({
+function ReplayOverlayContent({
   open,
   org,
   rows,
@@ -170,4 +172,10 @@ export function ReplayOverlay({
       </DialogContent>
     </Dialog>
   )
+}
+
+export function ReplayOverlay(props: ComponentProps<typeof ReplayOverlayContent>) {
+  const allowed = useCapability('replay.read')
+  if (!allowed) return null
+  return <ReplayOverlayContent {...props} />
 }

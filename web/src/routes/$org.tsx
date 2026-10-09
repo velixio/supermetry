@@ -30,6 +30,9 @@ export type Membership = {
   org: { id: number; name: string; slug: string }
   role: Role
   site_ids?: number[] | null
+  capabilities?: string[]
+  billing_admin?: boolean
+  effective_capabilities?: string[]
   sites: Site[]
 }
 

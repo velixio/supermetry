@@ -73,6 +73,10 @@ describe('ApiKeysPage', () => {
     expect(within(dialog).getByRole('checkbox', { name: /read analytics/i })).toBeChecked()
     expect(within(dialog).getByRole('checkbox', { name: /manage sites/i })).not.toBeChecked()
     expect(within(dialog).getByRole('checkbox', { name: /manage goals/i })).not.toBeChecked()
+    for (const name of [/read profiles/i, /watch replays/i, /export data/i]) {
+      expect(within(dialog).getByRole('checkbox', { name })).not.toBeChecked()
+    }
+    expect(within(dialog).getByText(/does not grant profiles, replay recordings, or downloads/i)).toBeVisible()
   })
 
   it.each(['editor', 'viewer'] as const)('hides API key controls from %ss', (role) => {

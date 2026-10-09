@@ -68,7 +68,8 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 	}
 	return authz.Principal{
 		UserID: session.UserID, OrgID: membership.OrgID, Role: authz.Role(membership.Role),
-		SiteIDs: copySiteIDs(membership.SiteIDs),
+		SiteIDs:      copySiteIDs(membership.SiteIDs),
+		Capabilities: append([]string{}, membership.Capabilities...), BillingAdmin: membership.BillingAdmin,
 	}, true
 }
 

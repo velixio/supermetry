@@ -64,6 +64,9 @@ func (h *handlers) listSessions(w http.ResponseWriter, r *http.Request) {
 		params.Cursor = &value
 	}
 	if raw := r.URL.Query().Get("has_replay"); raw != "" {
+		if !authorizeRequest(w, r, siteID, "replay:read") {
+			return
+		}
 		value, parseErr := strconv.ParseBool(raw)
 		if parseErr != nil {
 			writeProblem(w, badRequest("has_replay must be true or false"))
@@ -80,6 +83,11 @@ func (h *handlers) listSessions(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeSessionError(w, err)
 		return
+	}
+	// Copy the slice so redaction cannot mutate a cached service response.
+	response.Data = append(response.Data[:0:0], response.Data...)
+	for i := range response.Data {
+		redactSessionMetadata(r, &response.Data[i])
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -107,6 +115,7 @@ func (h *handlers) getSession(w http.ResponseWriter, r *http.Request) {
 		writeSessionError(w, err)
 		return
 	}
+	redactSessionMetadata(r, &response.Session)
 	writeJSON(w, http.StatusOK, response)
 }
 

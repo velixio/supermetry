@@ -86,12 +86,17 @@ func newProfileFixture(t *testing.T) profileFixture {
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)
 	authenticator := actorAuthenticator{
-		"owner":        {UserID: userID, OrgID: orgID, Role: authz.RoleOwner},
-		"admin":        {UserID: userID, OrgID: orgID, Role: authz.RoleAdmin},
-		"editor":       {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
-		"viewer":       {UserID: userID, OrgID: orgID, Role: authz.RoleViewer},
-		"key":          {KeyID: 11, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"stats:read"}},
-		"key-no-scope": {KeyID: 12, OrgID: orgID, Role: authz.RoleKey},
+		"owner":         {UserID: userID, OrgID: orgID, Role: authz.RoleOwner},
+		"admin":         {UserID: userID, OrgID: orgID, Role: authz.RoleAdmin},
+		"editor":        {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
+		"viewer":        {UserID: userID, OrgID: orgID, Role: authz.RoleViewer, Capabilities: []string{"profiles.read", "replay.read"}},
+		"key":           {KeyID: 11, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"stats:read", "profiles:read", "replay:read"}},
+		"stats-only":    {UserID: userID, OrgID: orgID, Role: authz.RoleViewer},
+		"profiles-only": {UserID: userID, OrgID: orgID, Role: authz.RoleViewer, Capabilities: []string{"profiles.read"}},
+		"stats-key":     {KeyID: 13, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"stats:read"}},
+		"restricted":    {UserID: userID, OrgID: orgID, Role: authz.RoleViewer, SiteIDs: []int32{disabledID}, Capabilities: []string{"profiles.read"}},
+		"billing-only":  {UserID: userID, OrgID: orgID, Role: authz.RoleViewer, SiteIDs: []int32{}, BillingAdmin: true},
+		"key-no-scope":  {KeyID: 12, OrgID: orgID, Role: authz.RoleKey},
 	}
 	tombstones := profiletombstone.New(pool, nil)
 	replays, err := replay.NewDiskStore(t.TempDir())
@@ -252,8 +257,8 @@ func TestProfilesAuthorization(t *testing.T) {
 	}{
 		{name: "viewer reads list", actor: "viewer", method: http.MethodGet, path: privateList, want: http.StatusOK},
 		{name: "viewer reads detail", actor: "viewer", method: http.MethodGet, path: privateDetail, want: http.StatusOK},
-		{name: "stats key reads list", actor: "key", method: http.MethodGet, path: publicList, want: http.StatusOK},
-		{name: "stats key reads detail", actor: "key", method: http.MethodGet, path: publicDetail, want: http.StatusOK},
+		{name: "profile key reads list", actor: "key", method: http.MethodGet, path: publicList, want: http.StatusOK},
+		{name: "profile key reads detail", actor: "key", method: http.MethodGet, path: publicDetail, want: http.StatusOK},
 		{name: "public missing scope", actor: "key-no-scope", method: http.MethodGet, path: publicList, want: http.StatusForbidden},
 		{name: "editor cannot delete", actor: "editor", method: http.MethodDelete, path: privateDetail, want: http.StatusForbidden},
 		{name: "viewer cannot delete", actor: "viewer", method: http.MethodDelete, path: privateDetail, want: http.StatusForbidden},

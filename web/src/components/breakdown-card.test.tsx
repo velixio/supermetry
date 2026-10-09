@@ -1,6 +1,7 @@
+import { renderAuthorized as render } from '@/test/authorization'
 import { useState } from 'react'
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { addFilter, dashboardSearch, type Filter } from '@/lib/search'

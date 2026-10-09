@@ -10,12 +10,12 @@ export const Route = createFileRoute('/$org/settings')({ component: Organization
 function OrganizationSettingsLayout() {
   const { org } = Route.useParams()
   const membership = useMe().data?.memberships.find((item) => item.org.slug === org)
-  const replay = useReplayAvailability(membership?.sites[0]?.id)
+  const replay = useReplayAvailability(membership?.role === 'owner' ? membership.sites[0]?.id : undefined)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const current = pathname.split('/').filter(Boolean).at(-1) ?? 'members'
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <OrganizationSettingsTabs org={org} current={current} showReplay={membership?.role === 'owner' && replay.enabled} />
+      <OrganizationSettingsTabs canManage={membership?.role === 'owner' || membership?.role === 'admin'} org={org} current={current} showReplay={membership?.role === 'owner' && replay.enabled} />
       <Outlet />
     </div>
   )

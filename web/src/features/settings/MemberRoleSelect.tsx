@@ -11,17 +11,19 @@ export function MemberRoleSelect({
   actorRole,
   value,
   disabled = false,
+  allowOwner = true,
   onChange,
 }: {
   actorRole: MemberRole;
   value: MemberRole;
   disabled?: boolean;
+  allowOwner?: boolean;
   onChange: (role: MemberRole) => void;
 }) {
   const roles: MemberRole[] =
-    actorRole === "owner"
+    actorRole === "owner" && allowOwner
       ? ["owner", "admin", "editor", "viewer"]
-      : ["admin", "editor", "viewer"];
+      : value === "owner" && disabled ? ["owner", "admin", "editor", "viewer"] : ["admin", "editor", "viewer"];
 
   return (
     <select

@@ -12,7 +12,7 @@ vi.mock('@/lib/replay-api', async (importOriginal) => ({
 }))
 
 import { ReplayOverlay } from './ReplayOverlay'
-import { renderWithRouter } from '@/test/renderWithRouter'
+import { renderAuthorizedWithRouter as renderWithRouter } from '@/test/authorization'
 
 afterEach(() => {
   cleanup()

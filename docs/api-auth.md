@@ -30,14 +30,17 @@ A key can do only what its scopes allow.
 
 | Scope | Allows |
 |---|---|
-| `stats:read` | All read endpoints: stats, queries, realtime, funnels, journeys, retention, heatmaps, Web Vitals, sessions, events, properties, suggestions, and listing sites, goals, funnels, annotations, segments and profiles. Also the MCP server. |
-| `sites:write` | Create, update and delete sites |
+| `stats:read` | Aggregate analytics, stats, queries, realtime, funnels, journeys, retention, heatmaps, Web Vitals, sessions/events without profile identity or replay metadata, properties, suggestions, and ordinary resource listings. Also the MCP server, with the same resource restrictions. |
+| `profiles:read` | Read profiles and profile identity fields within allowed sites |
+| `replay:read` | Read replay lists, recordings and replay metadata within allowed sites |
+| `data:export` | Download analytics CSV/ZIP, in addition to the relevant read scope |
+| `sites:write` | Update/delete allowed sites; creating a site requires an unrestricted organization key |
 | `goals:write` | Create, update and delete goals and funnels |
 | `annotations:write` | Create, update and delete chart annotations |
 | `segments:write` | Create, update and delete saved segments |
-| `keys:manage` | List, create and revoke the organization's API keys (see below). Only an owner or admin can grant it. |
+| `keys:manage` | List, create and revoke keys within the caller's authority (see below). Only an owner or admin can grant it. |
 
-Give each integration the smallest set it needs. A reporting script needs only `stats:read`.
+Give each integration the smallest set it needs. A JSON analytics script needs only `stats:read`; CSV/ZIP export also needs `data:export`. Profile or recording access requires its own explicit scope.
 
 ## Site restriction and expiry
 
@@ -48,16 +51,25 @@ Give each integration the smallest set it needs. A reporting script needs only `
 
 A key with `keys:manage` can manage keys, so a deploy script can rotate its own credentials:
 
-- `GET /api/public/v1/api-keys` lists the organization's keys (name, scopes, sites, created, expires, last used, revoked). It never returns secrets.
+- `GET /api/public/v1/api-keys` lists keys within the caller's scope/site authority (name, scopes, sites, created, expires, last used, revoked). It never returns secrets.
 - `POST /api/public/v1/api-keys` creates a key and returns its secret once.
 - `DELETE /api/public/v1/api-keys/{key}` revokes a key. A key may revoke itself.
 
 A key can never create a key that can do more than itself:
 - the new key's scopes must be a subset of the caller's scopes;
 - its sites must be a subset of the caller's sites;
-- its expiry can't be later than the caller's.
+- its expiry can't be later than the caller's;
+- a key cannot delegate `keys:manage`, even if it has that scope.
+
+Restricted key managers cannot list or revoke broader keys. Human issuers are revalidated against their live membership; every supplied site must belong to the key's organization.
 
 Anything broader is rejected with **403**. Every create and revoke is recorded in the audit log.
+
+## Authorization foundation upgrade
+
+Existing role names and keys remain valid, but `stats:read` no longer implicitly permits profiles, recordings or exports. Existing keys are **not** backfilled with sensitive scopes. Historical persisted keys with unknown or wildcard scopes fail closed; the separately configured instance administrator key keeps its existing explicit authority. Create a replacement with only the explicit scopes the integration needs, then revoke the old key. Editor/Viewer memberships similarly need explicit profile/replay/export grants; Owner/Admin presets include them. Shared dashboards stay aggregate-only and cannot export.
+
+Site restrictions are precise: `site_ids: null` means all sites in the organization, and `site_ids: []` means no sites. Billing Admin is a separate member assignment and never grants integration or analytics access.
 
 ## Errors
 

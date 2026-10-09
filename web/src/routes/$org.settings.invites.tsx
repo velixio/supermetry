@@ -8,5 +8,5 @@ export const Route = createFileRoute("/$org/settings/invites")({
 function InvitesRoute() {
   const { org } = Route.useParams();
   const membership = useOrganization(org);
-  return membership ? <InvitationsPage orgId={membership.org.id} /> : null;
+  return membership ? <InvitationsPage orgId={membership.org.id} actorRole={membership.role} sites={membership.sites} /> : null;
 }

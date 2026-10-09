@@ -1,3 +1,4 @@
+import { hasCapability, type Authorization } from '@/lib/authorization'
 import { Fragment } from 'react'
 import {
   ActivityIcon,
@@ -65,19 +66,20 @@ const managementNavigation = [
   { label: en.navigation.sites, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
   { label: en.navigation.health, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
   { label: en.navigation.organizationSettings, suffix: '/settings/members', icon: Building2Icon, scope: 'org' },
+  { label: en.navigation.organizationSettings, suffix: '/settings', icon: Building2Icon, scope: 'org' },
 ] as const
 
 export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
 
-export function visibleNavigation(role: Role, hasSite = true): NavigationItem[] {
+export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization): NavigationItem[] {
   const items: NavigationItem[] = role === 'viewer'
-    ? [...coreNavigation, managementNavigation[1]]
+    ? [...coreNavigation, managementNavigation[1], managementNavigation[4]]
     : role === 'editor'
-      ? [...coreNavigation, managementNavigation[0], managementNavigation[1]]
-      : [...coreNavigation, ...managementNavigation]
-  return hasSite ? items : items.filter((item) => item.scope === 'org')
+      ? [...coreNavigation, managementNavigation[0], managementNavigation[1], managementNavigation[4]]
+      : [...coreNavigation, ...managementNavigation.slice(0, 4)]
+  return items.filter((item) => (hasSite || item.scope === 'org') && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
 }
 
 export function canCreateSites(role: Role): boolean {
@@ -92,7 +94,7 @@ export function organizationHref(membership: Membership): string {
   const site = membership.sites[0]
   return site
     ? `/${membership.org.slug}/${siteSlug(site)}`
-    : `/${membership.org.slug}`
+    : `/${membership.org.slug}/settings`
 }
 
 export function navigationHref(
@@ -115,8 +117,8 @@ export function navigationIsActive(
   if (item.suffix === '/settings/general') {
     return pathname.startsWith(`/${org}/${site}/settings/`)
   }
-  if (item.suffix === '/settings/members') {
-    return pathname.startsWith(`/${org}/settings/`)
+  if (item.suffix === '/settings/members' || item.suffix === '/settings') {
+    return pathname === `/${org}/settings` || pathname.startsWith(`/${org}/settings/`)
   }
   return pathname === href || pathname.startsWith(`${href}/`)
 }
@@ -190,6 +192,8 @@ function navigationLink(
       return <Link to="/$org/sites" params={{ org }} {...props}>{content}</Link>
     case '/health':
       return <Link to="/$org/health" params={{ org }} {...props}>{content}</Link>
+    case '/settings':
+      return <Link to="/$org/settings" params={{ org }} {...props}>{content}</Link>
     case '/settings/members':
       return <Link to="/$org/settings/members" params={{ org }} {...props}>{content}</Link>
   }
@@ -295,7 +299,7 @@ export function PanelSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleNavigation(membership.role, Boolean(site)).map((item) => (
+              {visibleNavigation(membership.role, Boolean(site), membership).map((item) => (
                 <Fragment key={item.label}>
                   <SidebarMenuItem>
                     <SidebarMenuButton
@@ -322,7 +326,7 @@ export function PanelSidebar({
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {item.suffix === '/sessions' && site && replayEnabled ? (
+                  {item.suffix === '/sessions' && site && replayEnabled && hasCapability(membership, 'replay.read') ? (
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild

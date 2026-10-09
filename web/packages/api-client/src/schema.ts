@@ -93,7 +93,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** List session replays */
+        /**
+         * List session replays
+         * @description Requires replay.read. Profile identifiers are null unless profiles.read is also granted.
+         */
         get: operations["listReplays"];
         put?: never;
         post?: never;
@@ -113,7 +116,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Download replay events */
+        /**
+         * Download replay events
+         * @description Requires replay.read for the requested site. Recording access never enables collection or changes instance privacy settings.
+         */
         get: operations["getReplayData"];
         put?: never;
         post?: never;
@@ -133,7 +139,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Download a replay stylesheet */
+        /**
+         * Download a replay stylesheet
+         * @description Requires replay.read for the requested site; stylesheet hashes are isolated per site.
+         */
         get: operations["getReplayCSS"];
         put?: never;
         post?: never;
@@ -367,7 +376,7 @@ export interface paths {
         put?: never;
         /**
          * Run a retention query
-         * @description Visitor identity is linkable only within one local day. Offset n counts daily identities with at least n+1 sessions on that local day; week and month intervals group daily cohorts and do not link people across days.
+         * @description Requires stats:read; identity=profile additionally requires profiles:read. Visitor identity is linkable only within one local day. Offset n counts daily identities with at least n+1 sessions on that local day; week and month intervals group daily cohorts and do not link people across days.
          */
         post: operations["retentionQuery"];
         delete?: never;
@@ -480,7 +489,7 @@ export interface paths {
         };
         /**
          * List identified profiles
-         * @description Requires stats:read. profiles_enabled reports the site setting; profiles stored while it was on stay listed after it is turned off so they can still be erased.
+         * @description Requires profiles:read. profiles_enabled reports the site setting; profiles stored while it was on stay listed after it is turned off so they can still be erased.
          */
         get: operations["listProfiles"];
         put?: never;
@@ -502,7 +511,9 @@ export interface paths {
         };
         /**
          * List sessions
-         * @description Requires stats:read. Returns anonymous sessions newest first from the hot
+         * @description Requires stats:read. External profile identifiers require profiles:read;
+         *     replay availability and has_replay filtering require replay:read.
+         *     Returns anonymous sessions newest first from the hot
          *     and closed storage tiers. Anonymous session IDs are scoped to one site and
          *     local day and cannot link a visitor across days.
          */
@@ -526,7 +537,7 @@ export interface paths {
         };
         /**
          * Get a session timeline
-         * @description Requires stats:read. The event timeline is available only while the session remains in the site's raw-data retention window.
+         * @description Requires stats:read. Profile identifiers require profiles:read and replay availability requires replay:read. The event timeline is available only while the session remains in the site's raw-data retention window.
          */
         get: operations["getSession"];
         put?: never;
@@ -548,7 +559,7 @@ export interface paths {
         };
         /**
          * Get an identified profile and its raw event timeline
-         * @description Requires stats:read. The timeline is limited to the site's raw-data retention window.
+         * @description Requires profiles:read. The timeline is limited to the site's raw-data retention window. Replay availability is redacted unless replay:read is also granted.
          */
         get: operations["getProfile"];
         put?: never;
@@ -1539,6 +1550,7 @@ export interface components {
             sessions: number;
             /** Format: int64 */
             events: number;
+            /** @description True only when a recording exists and the caller has replay read access; otherwise false. */
             has_replay: boolean;
         };
         SessionSummary: {
@@ -1559,6 +1571,7 @@ export interface components {
             device: string;
             browser: string;
             os: string;
+            /** @description True only when a recording exists and the caller has replay read access; otherwise false. */
             has_replay: boolean;
             external_id?: string;
         };
@@ -1597,6 +1610,7 @@ export interface components {
             name: string;
             path: string;
             session_id: string;
+            /** @description True only when a recording exists and the caller has replay read access; otherwise false. */
             has_replay: boolean;
             props?: {
                 [key: string]: unknown;
@@ -1625,6 +1639,7 @@ export interface components {
             os: string;
             source: string;
             session_id: string;
+            /** @description True only when a recording exists and the caller has replay read access; otherwise false. */
             has_replay: boolean;
         };
         EventExploreList: {
@@ -1907,7 +1922,7 @@ export interface components {
         Filters: string[];
         Compare: string;
         Format: string;
-        /** @description 1-1000, or all for a CSV export capped at 100,000 rows. */
+        /** @description 1-1000, or all for a CSV export capped at 100,000 rows. CSV requires stats:read and data:export. */
         StatsLimit: string;
         /** @description Set to all with CSV to stream up to 100,000 rows. */
         ExportLimit: string;
@@ -2578,7 +2593,7 @@ export interface operations {
                 format?: components["parameters"]["Format"];
                 /** @description Analytics dimension to group by, including browser_version, os_version, screen_size, language, and hostname. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. */
                 dimension: string;
-                /** @description 1-1000, or all for a CSV export capped at 100,000 rows. */
+                /** @description 1-1000, or all for a CSV export capped at 100,000 rows. CSV requires stats:read and data:export. */
                 limit?: components["parameters"]["StatsLimit"];
                 cursor?: components["parameters"]["Cursor"];
             };

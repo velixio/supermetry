@@ -37,7 +37,8 @@ func TestSetRoleAndRemoveAreAudited(t *testing.T) {
 	ctx := context.Background()
 	owner := principal(ids[RoleOwner], RoleOwner, ids["org"])
 
-	if err := service.SetRole(ctx, owner, ids[RoleViewer], RoleEditor, []int32{7, 9}); err != nil {
+	sites := []int32{accessTestSite(t, pool, ids["org"], "orgtestsite1"), accessTestSite(t, pool, ids["org"], "orgtestsite2")}
+	if err := service.SetRole(ctx, owner, ids[RoleViewer], RoleEditor, sites); err != nil {
 		t.Fatal("set role:", err)
 	}
 	if err := service.Remove(ctx, owner, ids[RoleAdmin]); err != nil {
@@ -48,7 +49,7 @@ func TestSetRoleAndRemoveAreAudited(t *testing.T) {
 	if err != nil {
 		t.Fatal("list memberships:", err)
 	}
-	if len(memberships) != 1 || memberships[0].Role != RoleEditor || !equalSites(memberships[0].SiteIDs, []int32{7, 9}) {
+	if len(memberships) != 1 || memberships[0].Role != RoleEditor || !equalSites(memberships[0].SiteIDs, sites) {
 		t.Fatalf("memberships = %+v", memberships)
 	}
 	var removed int

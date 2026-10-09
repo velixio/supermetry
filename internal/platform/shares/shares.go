@@ -63,6 +63,16 @@ func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID i
 
 	var link store.SharedLink
 	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
+		current, err := store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		if !authz.Can(current, authz.ActionSharesManage, siteID) {
+			return ErrForbidden
+		}
 		var createErr error
 		link, createErr = store.CreateSharedLink(ctx, tx, principal.OrgID, store.SharedLink{
 			SiteID: siteID, SlugHash: slugHash, PasswordHash: passwordHash,
@@ -121,6 +131,13 @@ func (s *Shares) Revoke(ctx context.Context, principal authz.Principal, id int64
 		return ErrForbidden
 	}
 	return s.store.Tx(ctx, func(tx pgx.Tx) error {
+		current, err := store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
 		link, err := store.SharedLinkByIDForUpdate(ctx, tx, principal.OrgID, id)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -128,7 +145,7 @@ func (s *Shares) Revoke(ctx context.Context, principal authz.Principal, id int64
 			}
 			return err
 		}
-		if !authz.Can(principal, authz.ActionSharesManage, link.SiteID) {
+		if !authz.Can(principal, authz.ActionSharesManage, link.SiteID) || !authz.Can(current, authz.ActionSharesManage, link.SiteID) {
 			return ErrForbidden
 		}
 		if err := store.RevokeSharedLink(ctx, tx, principal.OrgID, id); err != nil {

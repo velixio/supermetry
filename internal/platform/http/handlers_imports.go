@@ -231,8 +231,14 @@ func (h *handler) deleteImport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) exportSite(w http.ResponseWriter, r *http.Request) {
-	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin)
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionDataExport, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor, authz.RoleViewer)
 	if !ok {
+		return
+	}
+	// This archive contains aggregate analytics, not identified profiles or
+	// replay recordings. Any future sensitive entries must add their read gate.
+	if !authz.Can(principal, authz.ActionStatsRead, site.ID) {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot read site analytics")
 		return
 	}
 	if h.deps.Exporter == nil {

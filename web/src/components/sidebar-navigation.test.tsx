@@ -13,9 +13,10 @@ describe('sidebar navigation', () => {
     }
   })
 
-  it('hides organization settings from editors and viewers', () => {
+  it('keeps a safe organization overview reachable for editors and viewers', () => {
     for (const role of ['editor', 'viewer'] as const) {
-      expect(visibleNavigation(role).some((entry) => entry.label === 'Organization settings')).toBe(false)
+      const item = visibleNavigation(role).find((entry) => entry.label === 'Organization settings')
+      expect(item && navigationHref(item, 'acme', 'blog')).toBe('/acme/settings')
     }
   })
 

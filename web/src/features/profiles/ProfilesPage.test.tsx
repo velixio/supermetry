@@ -1,13 +1,14 @@
+import { renderAuthorized as render } from '@/test/authorization'
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const { useProfiles } = vi.hoisted(() => ({ useProfiles: vi.fn() }))
 vi.mock('./api', () => ({ useProfiles }))
 
 import { ProfilesPage } from './ProfilesPage'
-import { renderWithRouter } from '@/test/renderWithRouter'
+import { renderAuthorizedWithRouter as renderWithRouter } from '@/test/authorization'
 
 afterEach(cleanup)
 

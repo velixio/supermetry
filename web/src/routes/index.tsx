@@ -6,6 +6,7 @@ import { createSite as createManagedSite } from '@/features/sites/api'
 import { SiteForm } from '@/features/sites/SiteForm'
 import type { ManagedSite, SiteInput } from '@/features/sites/types'
 import { en } from '@/messages/en'
+import { canCreateSites } from '@/components/Sidebar'
 import { useMe, type Me } from './$org'
 
 export const Route = createFileRoute('/')({
@@ -70,15 +71,16 @@ export function Onboarding({
   const existingSite = membership?.sites[0]
 
   useEffect(() => {
-    if (!membership || !existingSite) return
-    navigate(`/${membership.org.slug}/${siteSlug(existingSite)}`, true)
+    if (!membership) return
+    if (existingSite) navigate(`/${membership.org.slug}/${siteSlug(existingSite)}`, true)
+    else if (!canCreateSites(membership.role)) navigate(`/${membership.org.slug}/settings`, true)
   }, [existingSite, membership, navigate])
 
   if (!membership) {
     return <OnboardingError detail="Your account does not belong to an organization." />
   }
 
-  if (existingSite) {
+  if (existingSite || !canCreateSites(membership.role)) {
     return (
       <main className="grid min-h-dvh place-items-center px-6">
         <p className="text-sm text-muted-foreground">{en.loadingDashboard}</p>

@@ -110,6 +110,9 @@ export const en = {
       actions: 'Actions',
     },
     scopeLabels: {
+      'profiles:read': 'Read profiles',
+      'replay:read': 'Watch replays',
+      'data:export': 'Export data',
       'stats:read': 'Read analytics',
       'sites:write': 'Manage sites',
       'goals:write': 'Manage goals',
@@ -118,7 +121,10 @@ export const en = {
       'keys:manage': 'Manage API keys',
     },
     scopeDescriptions: {
-      'stats:read': 'All read endpoints: stats, queries, realtime, funnels, journeys, retention, heatmaps, Web Vitals, sessions, events, properties, suggestions, resources, profiles and the MCP server.',
+      'stats:read': 'Read ordinary analytics, anonymous sessions and events, aggregate reports, and matching MCP tools. Does not grant profiles, replay recordings, or downloads.',
+      'profiles:read': 'Read identified visitors, profile traits and history, and profile-based retention. Add stats:read for analytics endpoints.',
+      'replay:read': 'Read session recordings and replay metadata. Add stats:read for session and event links.',
+      'data:export': 'Download CSV and site exports. Also requires the relevant analytics, profile, or replay read scope.',
       'sites:write': 'Create, update and delete sites',
       'goals:write': 'Create, update and delete goals and funnels',
       'annotations:write': 'Create, update and delete chart annotations',

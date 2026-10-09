@@ -630,10 +630,12 @@ type DateRange struct {
 
 // EventExploreItem defines model for EventExploreItem.
 type EventExploreItem struct {
-	Browser   string               `json:"browser"`
-	City      string               `json:"city"`
-	Country   string               `json:"country"`
-	Device    string               `json:"device"`
+	Browser string `json:"browser"`
+	City    string `json:"city"`
+	Country string `json:"country"`
+	Device  string `json:"device"`
+
+	// HasReplay True only when a recording exists and the caller has replay read access; otherwise false.
 	HasReplay bool                 `json:"has_replay"`
 	Kind      EventExploreItemKind `json:"kind"`
 	Name      string               `json:"name"`
@@ -873,22 +875,26 @@ type Problem struct {
 
 // Profile defines model for Profile.
 type Profile struct {
-	Events      int64             `json:"events"`
-	ExternalId  string            `json:"external_id"`
-	FirstSeenAt time.Time         `json:"first_seen_at"`
-	HasReplay   bool              `json:"has_replay"`
-	Id          int64             `json:"id"`
-	LastSeenAt  time.Time         `json:"last_seen_at"`
-	Sessions    int64             `json:"sessions"`
-	SiteId      int32             `json:"site_id"`
-	Traits      map[string]string `json:"traits"`
+	Events      int64     `json:"events"`
+	ExternalId  string    `json:"external_id"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+
+	// HasReplay True only when a recording exists and the caller has replay read access; otherwise false.
+	HasReplay  bool              `json:"has_replay"`
+	Id         int64             `json:"id"`
+	LastSeenAt time.Time         `json:"last_seen_at"`
+	Sessions   int64             `json:"sessions"`
+	SiteId     int32             `json:"site_id"`
+	Traits     map[string]string `json:"traits"`
 }
 
 // ProfileDetail defines model for ProfileDetail.
 type ProfileDetail struct {
-	Events      int64             `json:"events"`
-	ExternalId  string            `json:"external_id"`
-	FirstSeenAt time.Time         `json:"first_seen_at"`
+	Events      int64     `json:"events"`
+	ExternalId  string    `json:"external_id"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+
+	// HasReplay True only when a recording exists and the caller has replay read access; otherwise false.
 	HasReplay   bool              `json:"has_replay"`
 	Id          int64             `json:"id"`
 	LastSeenAt  time.Time         `json:"last_seen_at"`
@@ -903,6 +909,7 @@ type ProfileDetail struct {
 
 // ProfileEvent defines model for ProfileEvent.
 type ProfileEvent struct {
+	// HasReplay True only when a recording exists and the caller has replay read access; otherwise false.
 	HasReplay bool                    `json:"has_replay"`
 	Kind      int                     `json:"kind"`
 	Name      string                  `json:"name"`
@@ -1263,21 +1270,23 @@ type SessionList struct {
 
 // SessionSummary defines model for SessionSummary.
 type SessionSummary struct {
-	Browser    string    `json:"browser"`
-	City       string    `json:"city"`
-	Country    string    `json:"country"`
-	Device     string    `json:"device"`
-	DurationMs int64     `json:"duration_ms"`
-	EntryPage  string    `json:"entry_page"`
-	Events     int32     `json:"events"`
-	ExitPage   string    `json:"exit_page"`
-	ExternalId *string   `json:"external_id,omitempty"`
-	HasReplay  bool      `json:"has_replay"`
-	Id         string    `json:"id"`
-	Os         string    `json:"os"`
-	Pageviews  int32     `json:"pageviews"`
-	Source     string    `json:"source"`
-	StartedAt  time.Time `json:"started_at"`
+	Browser    string  `json:"browser"`
+	City       string  `json:"city"`
+	Country    string  `json:"country"`
+	Device     string  `json:"device"`
+	DurationMs int64   `json:"duration_ms"`
+	EntryPage  string  `json:"entry_page"`
+	Events     int32   `json:"events"`
+	ExitPage   string  `json:"exit_page"`
+	ExternalId *string `json:"external_id,omitempty"`
+
+	// HasReplay True only when a recording exists and the caller has replay read access; otherwise false.
+	HasReplay bool      `json:"has_replay"`
+	Id        string    `json:"id"`
+	Os        string    `json:"os"`
+	Pageviews int32     `json:"pageviews"`
+	Source    string    `json:"source"`
+	StartedAt time.Time `json:"started_at"`
 }
 
 // SessionTimelineItem defines model for SessionTimelineItem.
@@ -1629,7 +1638,7 @@ type StatsBreakdownParams struct {
 	// Dimension Analytics dimension to group by, including browser_version, os_version, screen_size, language, and hostname. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other.
 	Dimension string `form:"dimension" json:"dimension"`
 
-	// Limit 1-1000, or all for a CSV export capped at 100,000 rows.
+	// Limit 1-1000, or all for a CSV export capped at 100,000 rows. CSV requires stats:read and data:export.
 	Limit  *StatsLimit `form:"limit,omitempty" json:"limit,omitempty"`
 	Cursor *Cursor     `form:"cursor,omitempty" json:"cursor,omitempty"`
 }

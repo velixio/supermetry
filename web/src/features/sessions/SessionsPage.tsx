@@ -1,3 +1,4 @@
+import { useCapability } from '@/lib/authorization'
 import { ListPager } from '@/components/ListPager'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -71,7 +72,9 @@ export function SessionsPage({
   replayId?: string
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }) {
-  const sessions = useSessions(siteId, dateRange, filters, cursor, hasReplayOnly)
+  const canReplay = useCapability('replay.read')
+  const canReadProfiles = useCapability('profiles.read')
+  const sessions = useSessions(siteId, dateRange, filters, cursor, canReplay && hasReplayOnly)
   const detail = useSession(siteId, selectedSessionId)
   const data = sessions.data as Paged<NonNullable<typeof sessions.data>> | undefined
   const replayRows: ReplayOverlayRow[] = sessions.data?.data
@@ -116,7 +119,7 @@ export function SessionsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Started</TableHead>
-                  <TableHead>Replay</TableHead>
+                  {canReplay ? <TableHead>Replay</TableHead> : null}
                   <TableHead>Entry → exit</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Location</TableHead>
@@ -136,14 +139,14 @@ export function SessionsPage({
                         <time dateTime={session.started_at}>{formatDate(session.started_at)}</time>
                       </Button>
                     </TableCell>
-                    <TableCell>{org && site ? <ReplayLink hasReplay={(session as SessionSummary & { has_replay?: boolean }).has_replay} org={org} site={site} sessionId={session.id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell>
+                    {canReplay ? <TableCell>{org && site ? <ReplayLink hasReplay={(session as SessionSummary & { has_replay?: boolean }).has_replay} org={org} site={site} sessionId={session.id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell> : null}
                     <TableCell>{session.entry_page} → {session.exit_page}</TableCell>
                     <TableCell>{session.source || 'Direct'}</TableCell>
                     <TableCell><Location city={session.city} country={session.country} /></TableCell>
                     <TableCell><BrowserLabel value={session.browser} /></TableCell>
                     <TableCell><OsLabel value={session.os} /></TableCell>
                     <TableCell><DeviceLabel value={session.device} /></TableCell>
-                    <TableCell>{session.external_id ?? 'Anonymous'}</TableCell>
+                    <TableCell>{(canReadProfiles ? session.external_id : undefined) ?? 'Anonymous'}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatDuration(session.duration_ms)}</TableCell>
                     <TableCell className="text-right tabular-nums">{session.pageviews} / {session.events}</TableCell>
                   </TableRow>
@@ -189,7 +192,7 @@ export function SessionsPage({
           ) : null}
         </SheetContent>
       </Sheet>
-      {org && site && onReplayChange ? (
+      {canReplay && org && site && onReplayChange ? (
         <ReplayOverlay
           open={Boolean(replayId)}
           org={org}

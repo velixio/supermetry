@@ -1,3 +1,4 @@
+import { useCapability } from '@/lib/authorization'
 import { Link } from '@tanstack/react-router'
 import { PlayIcon } from 'lucide-react'
 
@@ -16,7 +17,8 @@ export function ReplayLink({
   sessionId?: string
   onOpen?: (sessionId: string) => void
 }) {
-  if (!hasReplay) return null
+  const allowed = useCapability('replay.read')
+  if (!allowed || !hasReplay) return null
   if (sessionId && onOpen) {
     return (
       <Button aria-label="Play replay" size="icon-sm" type="button" variant="ghost" onClick={() => onOpen(sessionId)}>

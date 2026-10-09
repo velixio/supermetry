@@ -1,3 +1,4 @@
+import { useCapability } from '@/lib/authorization'
 import { useMemo, useState } from 'react'
 import {
   flexRender,
@@ -36,6 +37,7 @@ type DetailsDialogProps = {
 }
 
 function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
+  const canExport = useCapability('data.export')
   const metric = query.metrics[0] ?? 'visitors'
   const [search, setSearch] = useState('')
   const [cursor, setCursor] = useState<string>()
@@ -161,10 +163,10 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
             setCursorHistory([])
           }}
         />
-        <Button type="button" variant="outline" disabled={exporting} onClick={exportRows}>
+        {canExport ? <Button type="button" variant="outline" disabled={exporting} onClick={exportRows}>
           <DownloadIcon data-icon="inline-start" />
           {exporting ? 'Exporting…' : 'CSV'}
-        </Button>
+        </Button> : null}
       </div>
       {exportError ? <p className="text-sm text-destructive" role="alert">{exportError}</p> : null}
       {result.isError ? (

@@ -71,3 +71,19 @@ func (p Principal) allowsSite(site sites.Site) bool {
 	}
 	return false
 }
+
+// requestHasScope checks an authenticated request capability. Callers must
+// separately authorize the site before using it for site-specific data.
+func requestHasScope(r *http.Request, scope string) bool {
+	principal, ok := r.Context().Value(principalContextKey{}).(Principal)
+	return ok && principal.hasScope(scope)
+}
+
+func redactSessionMetadata(r *http.Request, session *SessionSummary) {
+	if !requestHasScope(r, "profiles:read") {
+		session.ExternalId = nil
+	}
+	if !requestHasScope(r, "replay:read") {
+		session.HasReplay = false
+	}
+}

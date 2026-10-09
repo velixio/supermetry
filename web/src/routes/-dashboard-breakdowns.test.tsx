@@ -20,6 +20,7 @@ const me = {
     {
       org: { id: 1, name: 'Acme', slug: 'acme' },
       role: 'owner',
+      effective_capabilities: ['profiles.read', 'replay.read', 'data.export', 'billing.manage'],
       sites: [{ id: 7, name: 'Example', slug: 'example', allowed_hosts: ['example.com'] }],
     },
   ],

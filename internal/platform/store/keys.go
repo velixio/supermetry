@@ -42,7 +42,7 @@ func APIKeysByPrefix(ctx context.Context, data *Store, prefix string) ([]APIKey,
 		select id, org_id, name, prefix, hash, scopes, site_ids, created_by,
 		       created_at, last_used_at, expires_at, revoked_at
 		from api_keys
-		where prefix = $1`, prefix)
+		where prefix = $1 and exists (select 1 from orgs o where o.id=api_keys.org_id and o.deleted_at is null)`, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("query API key prefix: %w", err)
 	}

@@ -2,7 +2,13 @@ openapi: 3.1.0
 info:
   title: Panel Analytics API
   version: 1.0.0
-  description: The versioned API for querying Panel analytics and operational health.
+  description: >-
+    The versioned API for querying Panel analytics and operational health.
+    stats:read grants ordinary analytics only. Identified profiles require
+    profiles:read, recordings require replay:read, and any CSV export (Accept:
+    text/csv, format=csv, or limit=all) additionally requires data:export.
+    Sensitive exports also require their corresponding read scopes. Existing
+    stats-only keys and shared dashboards receive no sensitive or export grants.
 servers:
   - url: /
 security:
@@ -122,6 +128,7 @@ paths:
       operationId: listReplays
       security: [{ cookieAuth: [] }]
       summary: List session replays
+      description: Requires replay.read. Profile identifiers are null unless profiles.read is also granted.
       parameters:
         - { name: from, in: query, required: true, schema: { type: string, format: date } }
         - { name: to, in: query, required: true, schema: { type: string, format: date } }
@@ -144,6 +151,7 @@ paths:
       operationId: getReplayData
       security: [{ cookieAuth: [] }]
       summary: Download replay events
+      description: Requires replay.read for the requested site. Recording access never enables collection or changes instance privacy settings.
       responses:
         '200':
           description: A gzip-compressed NDJSON event stream
@@ -160,6 +168,7 @@ paths:
       operationId: getReplayCSS
       security: [{ cookieAuth: [] }]
       summary: Download a replay stylesheet
+      description: Requires replay.read for the requested site; stylesheet hashes are isolated per site.
       responses:
         '200':
           description: A gzip-compressed stylesheet
@@ -573,6 +582,7 @@ paths:
       operationId: retentionQuery
       summary: Run a retention query
       description: >-
+        Requires stats:read; identity=profile additionally requires profiles:read.
         Visitor identity is linkable only within one local day. Offset n counts
         daily identities with at least n+1 sessions on that local day; week and
         month intervals group daily cohorts and do not link people across days.
@@ -813,7 +823,7 @@ paths:
     get:
       operationId: listProfiles
       summary: List identified profiles
-      description: Requires stats:read. profiles_enabled reports the site setting; profiles stored while it was on stay listed after it is turned off so they can still be erased.
+      description: Requires profiles:read. profiles_enabled reports the site setting; profiles stored while it was on stay listed after it is turned off so they can still be erased.
       parameters:
         - name: search
           in: query
@@ -844,7 +854,9 @@ paths:
       operationId: listSessions
       summary: List sessions
       description: |
-        Requires stats:read. Returns anonymous sessions newest first from the hot
+        Requires stats:read. External profile identifiers require profiles:read;
+        replay availability and has_replay filtering require replay:read.
+        Returns anonymous sessions newest first from the hot
         and closed storage tiers. Anonymous session IDs are scoped to one site and
         local day and cannot link a visitor across days.
       parameters:
@@ -908,7 +920,7 @@ paths:
     get:
       operationId: getSession
       summary: Get a session timeline
-      description: Requires stats:read. The event timeline is available only while the session remains in the site's raw-data retention window.
+      description: Requires stats:read. Profile identifiers require profiles:read and replay availability requires replay:read. The event timeline is available only while the session remains in the site's raw-data retention window.
       parameters:
         - name: site_id
           in: query
@@ -938,7 +950,7 @@ paths:
     get:
       operationId: getProfile
       summary: Get an identified profile and its raw event timeline
-      description: Requires stats:read. The timeline is limited to the site's raw-data retention window.
+      description: Requires profiles:read. The timeline is limited to the site's raw-data retention window. Replay availability is redacted unless replay:read is also granted.
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
@@ -1525,6 +1537,11 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+      description: >-
+        API key scopes include stats:read, profiles:read, replay:read, and
+        data:export. Sensitive scopes are independent and must be explicitly
+        issued; stats:read never implies them. Keys remain organization- and
+        site-scoped. CSV exports require stats:read and data:export together.
     cookieAuth:
       type: apiKey
       in: cookie
@@ -1624,7 +1641,7 @@ components:
     StatsLimit:
       name: limit
       in: query
-      description: "1-1000, or all for a CSV export capped at 100,000 rows."
+      description: "1-1000, or all for a CSV export capped at 100,000 rows. CSV requires stats:read and data:export."
       schema:
         type: string
         pattern: '^(all|[1-9][0-9]{0,2}|1000)$'
@@ -2691,7 +2708,7 @@ components:
         last_seen_at: { type: string, format: date-time }
         sessions: { type: integer, format: int64, minimum: 0 }
         events: { type: integer, format: int64, minimum: 0 }
-        has_replay: { type: boolean }
+        has_replay: { type: boolean, description: "True only when a recording exists and the caller has replay read access; otherwise false." }
     SessionSummary:
       type: object
       additionalProperties: false
@@ -2710,7 +2727,7 @@ components:
         device: { type: string }
         browser: { type: string }
         os: { type: string }
-        has_replay: { type: boolean }
+        has_replay: { type: boolean, description: "True only when a recording exists and the caller has replay read access; otherwise false." }
         external_id: { type: string }
     SessionList:
       type: object
@@ -2770,7 +2787,7 @@ components:
         name: { type: string }
         path: { type: string }
         session_id: { type: string, pattern: '^[1-9][0-9]*$' }
-        has_replay: { type: boolean }
+        has_replay: { type: boolean, description: "True only when a recording exists and the caller has replay read access; otherwise false." }
         props:
           type: [object, 'null']
           additionalProperties: true
@@ -2809,7 +2826,7 @@ components:
         os: { type: string }
         source: { type: string }
         session_id: { type: string, pattern: '^[1-9][0-9]*$' }
-        has_replay: { type: boolean }
+        has_replay: { type: boolean, description: "True only when a recording exists and the caller has replay read access; otherwise false." }
     EventExploreList:
       type: object
       additionalProperties: false

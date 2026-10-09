@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react'
+import { useCapability, AccessDenied } from '@/lib/authorization'
 import { ErrorState } from '@/components/ErrorState'
 import { ListPager } from '@/components/ListPager'
 import { ReplayLink } from '@/components/replay/ReplayLink'
@@ -28,9 +30,9 @@ function displayValue(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value)
 }
 
-export function ProfileDetailPage({
+function ProfileDetailPageContent({
   profileId,
-  siteId = 0,
+  siteId,
   orgId,
   role,
   onDeleted,
@@ -45,7 +47,7 @@ export function ProfileDetailPage({
   onReplayChange,
 }: {
   profileId: number
-  siteId?: number
+  siteId: number
   orgId: number
   role: Role
   onDeleted: () => void
@@ -59,12 +61,14 @@ export function ProfileDetailPage({
   onNext: (cursor: string) => void
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }) {
-  const profile = useProfile(profileId, orgId, cursor)
-  const remove = useDeleteProfile(siteId || profile.data?.site_id || 0, orgId, onDeleted)
+  const canReplay = useCapability('replay.read')
+  const profile = useProfile(profileId, orgId, siteId, cursor)
+  const remove = useDeleteProfile(siteId, orgId, onDeleted)
   const canDelete = role === 'owner' || role === 'admin'
 
   if (profile.isError) return <ErrorState detail={profile.error?.message} onRetry={() => void profile.refetch?.()} />
   if (profile.isPending || !profile.data) return <Skeleton className="h-72 w-full" />
+  if (profile.data.site_id !== siteId) return <AccessDenied subject="read this profile from the selected site" />
   const data = profile.data as Paged<typeof profile.data>
 
   const replayRows: ReplayOverlayRow[] = []
@@ -130,14 +134,14 @@ export function ProfileDetailPage({
         ) : (
           <div className="rounded-xl border bg-card">
             <Table aria-label="Profile event timeline">
-              <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Event</TableHead><TableHead>Path</TableHead><TableHead>Replay</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Event</TableHead><TableHead>Path</TableHead>{canReplay ? <TableHead>Replay</TableHead> : null}</TableRow></TableHeader>
               <TableBody>
                 {profile.data.timeline.map((event, index) => (
                   <TableRow key={`${event.ts}-${event.name}-${index}`}>
                     <TableCell>{new Date(event.ts).toLocaleString()}</TableCell>
                     <TableCell className="font-medium">{event.name || event.kind}</TableCell>
                     <TableCell>{event.path || '—'}</TableCell>
-                    <TableCell>{org && site ? <ReplayLink hasReplay={event.has_replay} org={org} site={site} sessionId={event.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell>
+                    {canReplay ? <TableCell>{org && site ? <ReplayLink hasReplay={event.has_replay} org={org} site={site} sessionId={event.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell> : null}
                   </TableRow>
                 ))}
               </TableBody>
@@ -157,7 +161,7 @@ export function ProfileDetailPage({
           onPrevious={onPrevious}
         />
       </section>
-      {org && site && onReplayChange ? (
+      {canReplay && org && site && onReplayChange ? (
         <ReplayOverlay
           open={Boolean(replayId)}
           org={org}
@@ -171,4 +175,10 @@ export function ProfileDetailPage({
       ) : null}
     </main>
   )
+}
+
+export function ProfileDetailPage(props: ComponentProps<typeof ProfileDetailPageContent>) {
+  const allowed = useCapability('profiles.read')
+  if (!allowed) return <AccessDenied subject="read profiles" />
+  return <ProfileDetailPageContent {...props} />
 }

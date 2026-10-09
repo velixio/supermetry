@@ -70,6 +70,16 @@ func (r *Reports) Subscribe(ctx context.Context, principal authz.Principal, site
 		return ErrForbidden
 	}
 	return r.store.Tx(ctx, func(tx pgx.Tx) error {
+		current, err := store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		if !authz.Can(current, authz.ActionReportsManage, siteID) {
+			return ErrForbidden
+		}
 		id, created, err := store.SubscribeReport(ctx, tx, principal.OrgID, principal.UserID, siteID, cadence)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -133,8 +143,17 @@ func (r *Reports) Job() scheduler.Job {
 			if err != nil {
 				return fmt.Errorf("build previous report for subscription %d: %w", subscription.ID, err)
 			}
+			// Rendering/querying may take time. Recheck after that work so a
+			// queued report cannot deliver data after access has been removed.
+			recipient, allowed, err := store.ReportRecipient(ctx, r.store, subscription.ID)
+			if err != nil {
+				return err
+			}
+			if !allowed {
+				continue
+			}
 			message := Render(subscription.Site, current, previous)
-			message.To = subscription.Email
+			message.To = recipient
 			if err := r.mailer.Send(ctx, message); err != nil {
 				return fmt.Errorf("send report subscription %d: %w", subscription.ID, err)
 			}

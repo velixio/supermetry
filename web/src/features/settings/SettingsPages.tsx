@@ -56,7 +56,8 @@ import { fmt } from "@/lib/format";
 import { en } from "@/messages/en";
 
 import { ApiKeySecretDialog } from "./ApiKeySecretDialog";
-import { MemberRoleSelect, type MemberRole } from "./MemberRoleSelect";
+import { type MemberRole } from "./MemberRoleSelect";
+import { MemberAccessControls, siteAccessLabel, type MemberAccess } from "./MemberAccessControls";
 import { privateRequest, type ListResponse } from "./privateApi";
 import { TotpQr } from "./TotpQr";
 import { InstallGuide, SiteIconSettings, installationStatusInterval } from "./SiteSettings";
@@ -80,7 +81,9 @@ type Member = {
   email: string;
   name: string;
   role: MemberRole;
-  site_ids?: number[];
+  site_ids: number[] | null;
+  capabilities: string[];
+  billing_admin: boolean;
 };
 type Invitation = {
   id: number;
@@ -88,6 +91,9 @@ type Invitation = {
   role: MemberRole;
   expires_at: string;
   revoked_at?: string;
+  site_ids: number[] | null;
+  capabilities: string[];
+  billing_admin: boolean;
 };
 type ApiKey = {
   id?: number;
@@ -543,6 +549,7 @@ export function MembersPage({
   const key = ["members", orgId];
   const members = useQuery({
     queryKey: key,
+    enabled: actorRole === "owner" || actorRole === "admin",
     queryFn: () =>
       privateRequest<ListResponse<Member>>(
         "GET",
@@ -553,32 +560,40 @@ export function MembersPage({
   const update = useMutation({
     mutationFn: ({
       member,
-      role,
-      siteIds,
+      changes,
     }: {
       member: number;
-      role: MemberRole;
-      siteIds: number[];
+      changes: Partial<MemberAccess>;
     }) =>
       privateRequest<void>(
         "PATCH",
         `/api/private/orgs/${orgId}/members/${member}`,
-        { orgId, body: { role, site_ids: siteIds } },
+        { orgId, body: changes },
       ),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: key });
+      void queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
   });
+  if (actorRole !== "owner" && actorRole !== "admin")
+    return (
+      <p role="alert">
+        Only organization owners and admins can manage members.
+      </p>
+    );
   return (
     <Page
       title="Members"
-      description="Assign organization roles and restrict editors or viewers to specific sites."
+      description="Assign roles, project access, sensitive data permissions, and independent billing access."
     >
       <Surface>
-        <ul className="flex flex-col gap-4">
+        <Message error={members.error || update.error} />
+        <ul className="flex flex-col gap-6">
           {members.data?.data.map((member) => {
             const locked = member.role === "owner" && actorRole !== "owner";
             return (
               <li
-                className="grid gap-3 border-b pb-4 md:grid-cols-[minmax(0,1fr)_auto]"
+                className="flex flex-col gap-4 border-b pb-6"
                 key={member.user_id}
               >
                 <div>
@@ -586,52 +601,19 @@ export function MembersPage({
                   <p className="text-xs text-muted-foreground">
                     {member.email}
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-3">
-                    {sites.map((site) => (
-                      <label
-                        className="flex items-center gap-2 text-xs"
-                        key={site.id}
-                      >
-                        <input
-                          type="checkbox"
-                          disabled={
-                            locked ||
-                            member.role === "owner" ||
-                            member.role === "admin"
-                          }
-                          defaultChecked={
-                            !member.site_ids ||
-                            member.site_ids.includes(site.id)
-                          }
-                          onChange={(event) => {
-                            const current = new Set(
-                              member.site_ids ?? sites.map((item) => item.id),
-                            );
-                            event.target.checked
-                              ? current.add(site.id)
-                              : current.delete(site.id);
-                            update.mutate({
-                              member: member.user_id,
-                              role: member.role,
-                              siteIds: [...current],
-                            });
-                          }}
-                        />
-                        {site.name}
-                      </label>
-                    ))}
-                  </div>
                 </div>
-                <MemberRoleSelect
+                <MemberAccessControls
+                  value={{
+                    role: member.role,
+                    site_ids: member.site_ids ?? null,
+                    capabilities: member.capabilities ?? [],
+                    billing_admin: member.billing_admin ?? false,
+                  }}
                   actorRole={actorRole}
-                  value={member.role}
-                  disabled={locked}
-                  onChange={(role) =>
-                    update.mutate({
-                      member: member.user_id,
-                      role,
-                      siteIds: member.site_ids ?? [],
-                    })
+                  sites={sites}
+                  disabled={locked || update.isPending}
+                  onChange={(changes) =>
+                    update.mutate({ member: member.user_id, changes })
                   }
                 />
               </li>
@@ -643,9 +625,24 @@ export function MembersPage({
   );
 }
 
-export function InvitationsPage({ orgId }: { orgId: number }) {
+export function InvitationsPage({
+  orgId,
+  actorRole = "viewer",
+  sites = [],
+}: {
+  orgId: number;
+  actorRole?: MemberRole;
+  sites?: { id: number; name: string }[];
+}) {
   const queryClient = useQueryClient();
   const [link, setLink] = useState("");
+  const [access, setAccess] = useState<MemberAccess>({
+    role: "viewer",
+    site_ids: null,
+    capabilities: [],
+    billing_admin: false,
+  });
+  const canManage = actorRole === "owner" || actorRole === "admin";
   const key = ["invitations", orgId];
   const invitations = useQuery({
     queryKey: key,
@@ -655,13 +652,25 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
         `/api/private/orgs/${orgId}/invitations`,
         { orgId },
       ),
+    enabled: canManage,
   });
   const create = useMutation({
     mutationFn: (email: string) =>
       privateRequest<{ link: string }>(
         "POST",
         `/api/private/orgs/${orgId}/invitations`,
-        { orgId, body: { email, role: "viewer" } },
+        {
+          orgId,
+          body: {
+            email,
+            role: access.role,
+            site_ids: access.site_ids,
+            capabilities: access.capabilities,
+            ...(actorRole === "owner"
+              ? { billing_admin: access.billing_admin }
+              : {}),
+          },
+        },
       ),
     onSuccess: (data) => {
       setLink(data.link);
@@ -677,14 +686,20 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
       ),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
   });
+  if (!canManage)
+    return (
+      <p role="alert">
+        Only organization owners and admins can manage invitations.
+      </p>
+    );
   return (
     <Page
       title="Invitations"
-      description="Invite a teammate by email or share a copyable invitation link."
+      description="Invite a teammate with the project and billing access they need."
     >
       <Surface>
         <form
-          className="flex gap-2"
+          className="flex flex-col gap-5"
           onSubmit={(event) => {
             event.preventDefault();
             create.mutate(
@@ -692,14 +707,34 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
             );
           }}
         >
-          <Input
-            name="email"
-            type="email"
-            placeholder="teammate@example.com"
-            required
+          <label className="flex flex-col gap-1 text-sm">
+            Email
+            <Input
+              name="email"
+              type="email"
+              placeholder="teammate@example.com"
+              required
+            />
+          </label>
+          <MemberAccessControls
+            allowOwner={false}
+            value={access}
+            actorRole={actorRole}
+            sites={sites}
+            disabled={create.isPending}
+            onChange={(changes) =>
+              setAccess((current) => ({ ...current, ...changes }))
+            }
           />
-          <Button type="submit">Invite</Button>
+          <Button
+            className="self-start"
+            type="submit"
+            disabled={create.isPending}
+          >
+            Invite
+          </Button>
         </form>
+        <Message error={invitations.error || create.error || revoke.error} />
         {link ? (
           <Button
             className="self-start"
@@ -712,16 +747,25 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
         <ul className="flex flex-col gap-2">
           {invitations.data?.data.map((invitation) => (
             <li
-              className="flex items-center justify-between border-t pt-3"
+              className="flex items-center justify-between gap-3 border-t pt-3"
               key={invitation.id}
             >
-              <span className="text-sm">
-                {invitation.email} · {invitation.role}
-              </span>
+              <div className="text-sm">
+                <p>
+                  {invitation.email} · {invitation.role}
+                  {invitation.billing_admin ? " · Billing Admin" : ""}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {siteAccessLabel(invitation.site_ids)}
+                  {invitation.capabilities?.length
+                    ? ` · ${invitation.capabilities.join(", ")}`
+                    : ""}
+                </p>
+              </div>
               <Button
                 size="sm"
                 variant="outline"
-                disabled={Boolean(invitation.revoked_at)}
+                disabled={Boolean(invitation.revoked_at) || revoke.isPending}
                 onClick={() => revoke.mutate(invitation.id)}
               >
                 Revoke
@@ -736,6 +780,9 @@ export function InvitationsPage({ orgId }: { orgId: number }) {
 
 const apiKeyScopes = [
   "stats:read",
+  "profiles:read",
+  "replay:read",
+  "data:export",
   "sites:write",
   "goals:write",
   "segments:write",

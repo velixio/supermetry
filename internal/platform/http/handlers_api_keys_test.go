@@ -172,10 +172,16 @@ func newAPIKeysHTTPEnv(t *testing.T) apiKeysHTTPEnv {
 		if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Org',$1) returning id`, slug).Scan(&orgID); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values($1,$2,'owner')`, orgID, userID); err != nil {
+			t.Fatal(err)
+		}
 		return authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
 	}
 	owner := createActor("owner@example.test", "owner")
 	otherOwner := createActor("other@example.test", "other")
+	if _, err := pool.Exec(ctx, `insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values(10,$1,'keysite00010','Ten','UTC',30),(20,$1,'keysite00020','Twenty','UTC',30)`, owner.OrgID); err != nil {
+		t.Fatal(err)
+	}
 	data := &store.Store{Pool: pool}
 	keyService := keys.New(data)
 	t.Cleanup(keyService.Close)

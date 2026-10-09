@@ -29,6 +29,7 @@ const (
 var (
 	ErrForbidden = errors.New("forbidden")
 	ErrNotFound  = errors.New("API key not found")
+	ErrInvalid   = errors.New("invalid API key scope or site restriction")
 
 	base32NoPadding = base32.StdEncoding.WithPadding(base32.NoPadding)
 )
@@ -81,6 +82,9 @@ func (k *Keys) Create(ctx context.Context, principal authz.Principal, name strin
 	if !authz.Can(principal, authz.ActionKeysManage, 0) || principal.Role != authz.RoleKey && principal.UserID == 0 {
 		return "", KeyInfo{}, ErrForbidden
 	}
+	if !authz.ValidScopes(scopes) {
+		return "", KeyInfo{}, ErrInvalid
+	}
 	prefix, secret, err := newKeyParts()
 	if err != nil {
 		return "", KeyInfo{}, err
@@ -91,6 +95,27 @@ func (k *Keys) Create(ctx context.Context, principal authz.Principal, name strin
 	var stored store.APIKey
 	err = k.store.Tx(ctx, func(tx pgx.Tx) error {
 		createdBy := principal.UserID
+		if principal.Role != authz.RoleKey {
+			current, currentErr := store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+			if errors.Is(currentErr, pgx.ErrNoRows) {
+				return ErrForbidden
+			}
+			if currentErr != nil {
+				return currentErr
+			}
+			if !authz.Can(current, authz.ActionKeysManage, 0) || !canIssue(current, scopes, siteIDs) {
+				return ErrForbidden
+			}
+		}
+		if len(siteIDs) > 0 {
+			valid, validateErr := store.InvitationSitesBelongToOrg(ctx, tx, principal.OrgID, siteIDs)
+			if validateErr != nil {
+				return validateErr
+			}
+			if !valid {
+				return ErrInvalid
+			}
+		}
 		if principal.Role == authz.RoleKey {
 			caller, callerErr := store.APIKeyForDelegation(ctx, tx, principal.OrgID, principal.KeyID)
 			if callerErr != nil {
@@ -181,6 +206,11 @@ func (k *Keys) Verify(ctx context.Context, plain string) (authz.Principal, bool)
 		if subtle.ConstantTimeCompare(candidate.Hash, hash[:]) != 1 {
 			continue
 		}
+		// Do not let historical, unrecognized persisted scopes become wildcard
+		// authority through the analytics principal adapter.
+		if !authz.ValidScopes(candidate.Scopes) {
+			return authz.Principal{}, false
+		}
 		if candidate.RevokedAt != nil || candidate.ExpiresAt != nil && !candidate.ExpiresAt.After(now) {
 			return authz.Principal{}, false
 		}
@@ -201,6 +231,41 @@ func (k *Keys) Revoke(ctx context.Context, principal authz.Principal, id int64) 
 		return ErrForbidden
 	}
 	return k.store.Tx(ctx, func(tx pgx.Tx) error {
+		if principal.Role == authz.RoleKey {
+			caller, err := store.APIKeyForDelegation(ctx, tx, principal.OrgID, principal.KeyID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrForbidden
+			}
+			if err != nil {
+				return err
+			}
+			if !contains(caller.Scopes, "keys:manage") {
+				return ErrForbidden
+			}
+			if id != caller.ID {
+				target, err := store.APIKeyForDelegation(ctx, tx, principal.OrgID, id)
+				if errors.Is(err, pgx.ErrNoRows) {
+					return ErrNotFound
+				}
+				if err != nil {
+					return err
+				}
+				if !keyWithinAuthority(caller, target) {
+					return ErrNotFound
+				}
+			}
+		} else {
+			current, err := store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrForbidden
+			}
+			if err != nil {
+				return err
+			}
+			if !authz.Can(current, authz.ActionKeysManage, 0) {
+				return ErrForbidden
+			}
+		}
 		if err := store.RevokeAPIKey(ctx, tx, principal.OrgID, id); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNotFound
@@ -221,6 +286,9 @@ func (k *Keys) List(ctx context.Context, principal authz.Principal) ([]KeyInfo, 
 	}
 	infos := make([]KeyInfo, 0, len(stored))
 	for _, key := range stored {
+		if principal.Role == authz.RoleKey && key.ID != principal.KeyID && !keyWithinAuthority(store.APIKey{Scopes: principal.Scopes, SiteIDs: principal.SiteIDs}, key) {
+			continue
+		}
 		infos = append(infos, keyInfo(key))
 	}
 	return infos, nil
@@ -335,4 +403,43 @@ func cloneTime(value *time.Time) *time.Time {
 	}
 	cloned := *value
 	return &cloned
+}
+
+func canIssue(issuer authz.Principal, scopes []string, siteIDs []int32) bool {
+	allowed := authz.APIScopes(issuer)
+	for _, scope := range scopes {
+		if !contains(allowed, scope) {
+			return false
+		}
+	}
+	if issuer.SiteIDs != nil && issuer.Role != authz.RoleOwner && issuer.Role != authz.RoleAdmin {
+		if siteIDs == nil {
+			return false
+		}
+		for _, siteID := range siteIDs {
+			if !containsSite(issuer.SiteIDs, siteID) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func keyWithinAuthority(caller, target store.APIKey) bool {
+	for _, scope := range target.Scopes {
+		if !contains(caller.Scopes, scope) {
+			return false
+		}
+	}
+	if caller.SiteIDs != nil {
+		if target.SiteIDs == nil {
+			return false
+		}
+		for _, id := range target.SiteIDs {
+			if !containsSite(caller.SiteIDs, id) {
+				return false
+			}
+		}
+	}
+	return true
 }

@@ -1,3 +1,4 @@
+import { hasCapability } from '@/lib/authorization'
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 
@@ -33,6 +34,7 @@ function SessionsRoute() {
   const site = membership?.sites.find((item) =>
     item.slug === siteSlug || item.public_id === siteSlug || String(item.id) === siteSlug,
   )
+  const canReplay = hasCapability(membership, 'replay.read')
   if (!site) return null
 
   const { filters, dropped } = parseFilters(search.f)
@@ -57,15 +59,15 @@ function SessionsRoute() {
           onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
         />
       </div>
-      <Field orientation="horizontal">
+      {canReplay ? <Field orientation="horizontal">
         <Checkbox id="sessions-has-replay" checked={search.has_replay ?? false} onCheckedChange={(checked) => void navigate({ search: firstPage({ ...search, has_replay: checked === true }) })} />
         <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
-      </Field>
+      </Field> : null}
       <SessionsPage
         cursor={currentCursor(search)}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         filters={filters}
-        hasReplayOnly={search.has_replay}
+        hasReplayOnly={canReplay && search.has_replay}
         org={org}
         page={search.page ?? 1}
         replayId={search.replay}

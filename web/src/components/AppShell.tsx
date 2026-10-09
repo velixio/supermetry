@@ -1,3 +1,5 @@
+import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
+import { AuthorizationProvider, hasCapability } from '@/lib/authorization'
 import { useState } from 'react'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
@@ -81,7 +83,7 @@ export function AppShell({
   })
   const site = activeSite(membership, requestedSite)
   const scopedSite = membership.sites.find((item) => siteSlug(item) === requestedSite)
-  const replay = useReplayAvailability(site?.id)
+  const replay = useReplayAvailability(hasCapability(membership, 'replay.read') ? site?.id : undefined)
 
   useShortcuts({
     d: toggle,
@@ -89,6 +91,7 @@ export function AppShell({
   })
 
   return (
+    <AuthorizationProvider membership={membership}>
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} replayEnabled={replay.enabled} />
@@ -132,12 +135,14 @@ export function AppShell({
             </div>
           </header>
           <main className="min-w-0 flex-1 p-4 md:p-6">
-            <div
-              key={pathname}
-              className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-150"
-            >
-              <Outlet />
-            </div>
+            <AuthorizationCacheBoundary scope={authorizationScope(me.user.id, membership)}>
+              <div
+                key={pathname}
+                className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-150"
+              >
+                <Outlet />
+              </div>
+            </AuthorizationCacheBoundary>
           </main>
         </SidebarInset>
       </SidebarProvider>
@@ -155,5 +160,6 @@ export function AppShell({
       </Dialog>
       <Toaster />
     </TooltipProvider>
+    </AuthorizationProvider>
   )
 }

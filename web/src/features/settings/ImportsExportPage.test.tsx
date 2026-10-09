@@ -1,7 +1,8 @@
+import { renderAuthorized as render } from '@/test/authorization'
 import '@testing-library/jest-dom/vitest'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ImportsExportPage, importPollInterval } from './ImportsExportPage'

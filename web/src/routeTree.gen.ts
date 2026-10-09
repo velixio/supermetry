@@ -32,6 +32,7 @@ import { Route as OrgSiteRetentionRouteImport } from './routes/$org.$site.retent
 import { Route as OrgSiteSessionsRouteImport } from './routes/$org.$site.sessions'
 import { Route as OrgSiteSettingsRouteImport } from './routes/$org.$site.settings'
 import { Route as OrgSiteVitalsRouteImport } from './routes/$org.$site.vitals'
+import { Route as OrgSettingsIndexRouteImport } from './routes/$org.settings.index'
 import { Route as OrgSettingsApiRouteImport } from './routes/$org.settings.api'
 import { Route as OrgSettingsApiKeysRouteImport } from './routes/$org.settings.api-keys'
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
@@ -172,6 +173,11 @@ const OrgSiteVitalsRoute = OrgSiteVitalsRouteImport.update({
   id: '/$site/vitals',
   path: '/$site/vitals',
   getParentRoute: () => OrgRoute,
+} as any)
+const OrgSettingsIndexRoute = OrgSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrgSettingsRoute,
 } as any)
 const OrgSettingsApiRoute = OrgSettingsApiRouteImport.update({
   id: '/api',
@@ -334,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/settings/': typeof OrgSettingsIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
@@ -359,7 +366,6 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/$org/health': typeof OrgHealthRoute
-  '/$org/settings': typeof OrgSettingsRouteWithChildren
   '/account/profile': typeof AccountProfileRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/sessions': typeof AccountSessionsRoute
@@ -384,6 +390,7 @@ export interface FileRoutesByTo {
   '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site': typeof OrgSiteIndexRoute
+  '/$org/settings': typeof OrgSettingsIndexRoute
   '/$org/sites': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
@@ -435,6 +442,7 @@ export interface FileRoutesById {
   '/$org/settings/replay-storage': typeof OrgSettingsReplayStorageRoute
   '/$org/sites/new': typeof OrgSitesNewRoute
   '/$org/$site/': typeof OrgSiteIndexRoute
+  '/$org/settings/': typeof OrgSettingsIndexRoute
   '/$org/sites/': typeof OrgSitesIndexRoute
   '/$org/$site/funnels/$id': typeof OrgSiteFunnelsIdRoute
   '/$org/$site/profiles/$id': typeof OrgSiteProfilesIdRoute
@@ -487,6 +495,7 @@ export interface FileRouteTypes {
     | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site/'
+    | '/$org/settings/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
@@ -512,7 +521,6 @@ export interface FileRouteTypes {
     | '/setup'
     | '/signup'
     | '/$org/health'
-    | '/$org/settings'
     | '/account/profile'
     | '/account/security'
     | '/account/sessions'
@@ -537,6 +545,7 @@ export interface FileRouteTypes {
     | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site'
+    | '/$org/settings'
     | '/$org/sites'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
@@ -587,6 +596,7 @@ export interface FileRouteTypes {
     | '/$org/settings/replay-storage'
     | '/$org/sites/new'
     | '/$org/$site/'
+    | '/$org/settings/'
     | '/$org/sites/'
     | '/$org/$site/funnels/$id'
     | '/$org/$site/profiles/$id'
@@ -783,6 +793,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSiteVitalsRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/settings/': {
+      id: '/$org/settings/'
+      path: '/'
+      fullPath: '/$org/settings/'
+      preLoaderRoute: typeof OrgSettingsIndexRouteImport
+      parentRoute: typeof OrgSettingsRoute
+    }
     '/$org/settings/api': {
       id: '/$org/settings/api'
       path: '/api'
@@ -969,6 +986,7 @@ interface OrgSettingsRouteChildren {
   OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
   OrgSettingsNotificationsRoute: typeof OrgSettingsNotificationsRoute
   OrgSettingsReplayStorageRoute: typeof OrgSettingsReplayStorageRoute
+  OrgSettingsIndexRoute: typeof OrgSettingsIndexRoute
 }
 
 const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
@@ -979,6 +997,7 @@ const OrgSettingsRouteChildren: OrgSettingsRouteChildren = {
   OrgSettingsMembersRoute: OrgSettingsMembersRoute,
   OrgSettingsNotificationsRoute: OrgSettingsNotificationsRoute,
   OrgSettingsReplayStorageRoute: OrgSettingsReplayStorageRoute,
+  OrgSettingsIndexRoute: OrgSettingsIndexRoute,
 }
 
 const OrgSettingsRouteWithChildren = OrgSettingsRoute._addFileChildren(

@@ -76,10 +76,13 @@ func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv) replayFixture {
 	data := &store.Store{Pool: pool}
 	handler := platformhttp.New(platformhttp.Deps{
 		Authenticator: actorAuthenticator{
-			"owner":   {UserID: ownerID, OrgID: orgID, Role: authz.RoleOwner},
-			"foreign": {UserID: foreignID, OrgID: foreignOrgID, Role: authz.RoleOwner},
-			"viewer":  {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer},
-			"editor":  {UserID: ownerID, OrgID: orgID, Role: authz.RoleEditor},
+			"owner":        {UserID: ownerID, OrgID: orgID, Role: authz.RoleOwner},
+			"foreign":      {UserID: foreignID, OrgID: foreignOrgID, Role: authz.RoleOwner},
+			"viewer":       {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer},
+			"editor":       {UserID: ownerID, OrgID: orgID, Role: authz.RoleEditor},
+			"replay-only":  {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer, Capabilities: []string{"replay.read"}},
+			"combined":     {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer, Capabilities: []string{"replay.read", "profiles.read"}},
+			"billing-only": {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer, SiteIDs: []int32{}, BillingAdmin: true},
 		},
 		Sites: registry, Store: data, ReplayStore: blobs, ReplayEnv: replayEnv,
 		DataDir: t.TempDir(), SecretKey: bytes.Repeat([]byte{7}, 32), AdminAPIKey: "instance-admin-key",

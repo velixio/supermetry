@@ -71,6 +71,9 @@ func (h *handlers) retentionRequest(w http.ResponseWriter, r *http.Request) {
 	if !authorizeRequest(w, r, request.SiteId, "stats:read") {
 		return
 	}
+	if request.Identity != nil && *request.Identity == ProfileRetentionIdentity && !authorizeRequest(w, r, request.SiteId, "profiles:read") {
+		return
+	}
 	if problem := validateRetentionRequest(request); problem != nil {
 		writeProblem(w, *problem)
 		return

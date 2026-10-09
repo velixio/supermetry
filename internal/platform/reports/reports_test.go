@@ -88,11 +88,15 @@ type fakeSender struct {
 func (f *fakeSender) Enabled() bool { return f.enabled }
 
 type fakeEngine struct {
-	calls int
+	calls   int
+	onQuery func()
 }
 
 func (e *fakeEngine) Query(_ context.Context, request api.QueryRequest) (api.QueryResponse, error) {
 	e.calls++
+	if e.onQuery != nil {
+		e.onQuery()
+	}
 	response := api.QueryResponse{Totals: map[string]float64{"visitors": 100, "pageviews": 250}}
 	if request.Dimensions == nil || len(*request.Dimensions) == 0 {
 		return response, nil
@@ -156,4 +160,21 @@ func mustLocation(t *testing.T, name string) *time.Location {
 		t.Fatal(err)
 	}
 	return location
+}
+
+func TestJobRechecksAccessAfterRendering(t *testing.T) {
+	service, sender, engine, _, userID := newReportsTest(t, true)
+	service.now = func() time.Time { return time.Date(2026, 10, 5, 8, 15, 0, 0, time.UTC) }
+	engine.onQuery = func() {
+		engine.onQuery = nil
+		if _, err := service.store.Pool.Exec(context.Background(), `update memberships set role='viewer',site_ids='{}',billing_admin=true where user_id=$1`, userID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := service.Job().Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(sender.Sent) != 0 {
+		t.Fatal("delivered analytics after access was revoked during rendering")
+	}
 }

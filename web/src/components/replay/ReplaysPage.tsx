@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react'
+import { useCapability, AccessDenied } from '@/lib/authorization'
 import { ReplayLink } from './ReplayLink'
 import { ListPager } from '@/components/ListPager'
 import { ReplayOverlay, type ReplayOverlayRow } from './ReplayOverlay'
@@ -27,7 +29,7 @@ function formatDuration(seconds: number): string {
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
 }
 
-export function ReplaysPage({
+function ReplaysPageContent({
   siteId,
   org,
   site,
@@ -134,4 +136,10 @@ export function ReplaysPage({
       ) : null}
     </main>
   )
+}
+
+export function ReplaysPage(props: ComponentProps<typeof ReplaysPageContent>) {
+  const allowed = useCapability('replay.read')
+  if (!allowed) return <AccessDenied subject="watch replays" />
+  return <ReplaysPageContent {...props} />
 }

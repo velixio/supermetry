@@ -200,7 +200,8 @@ func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 		noScopeRouter := api.NewRouter(api.Deps{
 			Config:      config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"},
 			Query:       queryStub{},
-			PublicAuth:  principalAuth{principal: api.Principal{Scopes: []string{"sites:write"}}},
+			PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"sites:write"}}},
+			Sites:       registry,
 			RateLimiter: ingest.NewTokenBuckets(0, 30),
 		})
 		request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)

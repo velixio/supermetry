@@ -475,7 +475,8 @@ func serviceError(w http.ResponseWriter, err error) {
 		errors.Is(err, orgs.ErrForbidden), errors.Is(err, invites.ErrForbidden),
 		errors.Is(err, shares.ErrForbidden), errors.Is(err, reports.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
-	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, orgs.ErrInvalidRole),
+	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, keys.ErrInvalid), errors.Is(err, orgs.ErrInvalidRole),
+		errors.Is(err, orgs.ErrInvalidAccess),
 		errors.Is(err, orgs.ErrLastOwner), errors.Is(err, invites.ErrInvalid),
 		errors.Is(err, shares.ErrInvalid), errors.Is(err, shares.ErrPasswordRequired),
 		errors.Is(err, reports.ErrInvalidCadence), errors.Is(err, platformauth.ErrInvalid):

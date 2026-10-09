@@ -10,6 +10,7 @@ import (
 	"panel/internal/platform/audit"
 	"panel/internal/platform/authn"
 	"panel/internal/platform/authz"
+	"panel/internal/platform/invites"
 	"panel/internal/platform/reports"
 )
 
@@ -22,26 +23,28 @@ func (h *handler) listInvitations(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "invitation")
 		return
 	}
-	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,email,role,site_ids,invited_by,expires_at,accepted_at,revoked_at from invitations where org_id=$1 order by id`, principal.OrgID)
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,email,role,site_ids,capabilities,billing_admin,invited_by,expires_at,accepted_at,revoked_at from invitations where org_id=$1 order by id`, principal.OrgID)
 	if err != nil {
 		serviceError(w, err)
 		return
 	}
 	defer rows.Close()
 	type invitation struct {
-		ID         int64      `json:"id"`
-		Email      string     `json:"email"`
-		Role       authz.Role `json:"role"`
-		SiteIDs    []int32    `json:"site_ids,omitempty"`
-		InvitedBy  int64      `json:"invited_by"`
-		ExpiresAt  time.Time  `json:"expires_at"`
-		AcceptedAt *time.Time `json:"accepted_at,omitempty"`
-		RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+		ID           int64      `json:"id"`
+		Email        string     `json:"email"`
+		Role         authz.Role `json:"role"`
+		SiteIDs      []int32    `json:"site_ids"`
+		Capabilities []string   `json:"capabilities"`
+		BillingAdmin bool       `json:"billing_admin"`
+		InvitedBy    int64      `json:"invited_by"`
+		ExpiresAt    time.Time  `json:"expires_at"`
+		AcceptedAt   *time.Time `json:"accepted_at,omitempty"`
+		RevokedAt    *time.Time `json:"revoked_at,omitempty"`
 	}
 	items := make([]invitation, 0)
 	for rows.Next() {
 		var item invitation
-		if err := rows.Scan(&item.ID, &item.Email, &item.Role, &item.SiteIDs, &item.InvitedBy, &item.ExpiresAt, &item.AcceptedAt, &item.RevokedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Email, &item.Role, &item.SiteIDs, &item.Capabilities, &item.BillingAdmin, &item.InvitedBy, &item.ExpiresAt, &item.AcceptedAt, &item.RevokedAt); err != nil {
 			serviceError(w, err)
 			return
 		}
@@ -108,9 +111,11 @@ func (h *handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Email   string     `json:"email"`
-		Role    authz.Role `json:"role"`
-		SiteIDs []int32    `json:"site_ids,omitempty"`
+		Email        string     `json:"email"`
+		Role         authz.Role `json:"role"`
+		SiteIDs      []int32    `json:"site_ids"`
+		Capabilities []string   `json:"capabilities"`
+		BillingAdmin bool       `json:"billing_admin"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -119,7 +124,7 @@ func (h *handler) createInvitation(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "invitation")
 		return
 	}
-	link, err := h.deps.Invites.Create(r.Context(), principal, request.Email, request.Role, request.SiteIDs)
+	link, err := h.deps.Invites.Create(r.Context(), principal, request.Email, request.Role, request.SiteIDs, invites.Access{Capabilities: request.Capabilities, BillingAdmin: request.BillingAdmin})
 	if err != nil {
 		serviceError(w, err)
 		return

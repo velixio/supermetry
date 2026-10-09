@@ -24,8 +24,11 @@ type profileCursor struct {
 }
 
 func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
-	_, site, ok := h.sitePrincipal(w, r, authz.ActionStatsRead, h.resourceRoles(r)...)
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionProfilesRead, h.resourceRoles(r)...)
 	if !ok {
+		return
+	}
+	if !authorizeSensitiveExport(w, r, principal, site.ID, authz.ActionProfilesRead) {
 		return
 	}
 	// Profiles stored while the setting was on stay listed after it is turned
@@ -83,6 +86,9 @@ func (h *handler) listProfiles(w http.ResponseWriter, r *http.Request) {
 			serviceError(w, scanErr)
 			return
 		}
+		if !authz.Can(principal, authz.ActionReplayRead, site.ID) {
+			profile.HasReplay = false
+		}
 		items = append(items, profile)
 	}
 	if err := rows.Err(); err != nil {
@@ -130,8 +136,11 @@ func scanProfile(row profileScanner) (api.Profile, error) {
 }
 
 func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
-	_, site, profile, ok := h.profilePrincipal(w, r, authz.ActionStatsRead, h.resourceRoles(r)...)
+	principal, site, profile, ok := h.profilePrincipal(w, r, authz.ActionProfilesRead, h.resourceRoles(r)...)
 	if !ok {
+		return
+	}
+	if !authorizeSensitiveExport(w, r, principal, site.ID, authz.ActionProfilesRead) {
 		return
 	}
 	limit, valid := parseLimit(r)
@@ -184,6 +193,9 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 			}
 			event.Props = &decoded
 		}
+		if !authz.Can(principal, authz.ActionReplayRead, site.ID) {
+			event.HasReplay = false
+		}
 		timeline = append(timeline, event)
 	}
 	if err := rows.Err(); err != nil {
@@ -195,6 +207,9 @@ func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
 		value := base64.RawURLEncoding.EncodeToString([]byte(strconv.Itoa(offset + limit)))
 		next = &value
 		timeline = timeline[:limit]
+	}
+	if !authz.Can(principal, authz.ActionReplayRead, site.ID) {
+		profile.HasReplay = false
 	}
 	detail := api.ProfileDetail{
 		Id: profile.Id, SiteId: profile.SiteId, ExternalId: profile.ExternalId, Traits: profile.Traits,

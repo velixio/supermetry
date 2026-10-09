@@ -1,7 +1,8 @@
+import { renderAuthorized as render } from '@/test/authorization'
 import '@testing-library/jest-dom/vitest'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const { useDeleteProfile, useProfile } = vi.hoisted(() => ({
@@ -25,6 +26,7 @@ function renderPage(role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner') {
         orgId={1}
         page={1}
         profileId={12}
+        siteId={7}
         role={role}
       />
     </QueryClientProvider>,
@@ -32,9 +34,18 @@ function renderPage(role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner') {
 }
 
 describe('ProfileDetailPage', () => {
+  it('does not render a cached profile from a different site', () => {
+    useDeleteProfile.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    useProfile.mockReturnValue({ data: { id: 12, site_id: 99, external_id: 'FOREIGN_PROFILE', traits: { email: 'private@example.test' }, timeline: [] }, isPending: false, isError: false })
+    renderPage()
+    expect(screen.getByRole('alert')).toHaveTextContent('selected site')
+    expect(screen.queryByText('FOREIGN_PROFILE')).not.toBeInTheDocument()
+    expect(screen.queryByText('private@example.test')).not.toBeInTheDocument()
+  })
+
   it('shows traits and pages through the hot-tier event timeline', () => {
     useDeleteProfile.mockReturnValue({ mutate: vi.fn(), isPending: false })
-    useProfile.mockImplementation((_id: number, _orgId: number, cursor?: string) => ({
+    useProfile.mockImplementation((_id: number, _orgId: number, _siteId: number, cursor?: string) => ({
       data: {
         id: 12,
         site_id: 7,
