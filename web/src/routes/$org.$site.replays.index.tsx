@@ -1,3 +1,4 @@
+import { ReplayRecordingNotice } from '@/components/replay/ReplayRecordingNotice'
 import { hasCapability, AccessDenied } from '@/lib/authorization'
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
@@ -30,10 +31,10 @@ function ReplaysRoute() {
   const replay = useReplayAvailability(allowed ? site?.id : undefined)
   if (!site) return null
   if (!allowed) return <AccessDenied subject="watch replays" />
-  if (!replay.enabled) return null
   const range = resolveRange(search.period, site.timezone || 'UTC', new Date(), search.from, search.to)
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <ReplayRecordingNotice settings={replay.data} pending={replay.isPending} error={replay.isError ? replay.error : null} onRetry={() => void replay.refetch()} org={org} site={siteSlug} />
       <div className="flex justify-end">
         <DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })} />
       </div>

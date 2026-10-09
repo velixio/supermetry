@@ -1,3 +1,4 @@
+import { ReplayRecordingNotice } from '@/components/replay/ReplayRecordingNotice'
 import { hasCapability, AccessDenied } from '@/lib/authorization'
 import { createFileRoute } from '@tanstack/react-router'
 
@@ -14,6 +15,8 @@ function ReplayRoute() {
   const replay = useReplayAvailability(allowed ? site?.id : undefined)
   if (!site) return null
   if (!allowed) return <AccessDenied subject="watch replays" />
-  if (!replay.enabled) return null
-  return <ReplayPlayerPage sessionId={id} siteId={site.id} />
+  return <div className="flex min-w-0 flex-col gap-4">
+    <ReplayRecordingNotice settings={replay.data} pending={replay.isPending} error={replay.isError ? replay.error : null} onRetry={() => void replay.refetch()} org={org} site={siteSlug} />
+    <ReplayPlayerPage sessionId={id} siteId={site.id} />
+  </div>
 }
