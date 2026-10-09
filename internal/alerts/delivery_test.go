@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,9 +20,13 @@ import (
 	"panel/internal/platform/mail"
 )
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
 func TestDispatcherSendsEmail(t *testing.T) {
 	sender := &mail.Fake{}
-	dispatcher := NewDispatcher(sender, nil)
+	dispatcher := NewDispatcher(sender, nil, nil)
 	notification := testNotification()
 
 	if err := dispatcher.Deliver(context.Background(), DeliveryChannel{Kind: ChannelEmail, Recipients: []string{"a@example.test", "b@example.test"}}, notification); err != nil {
@@ -33,6 +38,147 @@ func TestDispatcherSendsEmail(t *testing.T) {
 	if sender.Sent[0].To != "a@example.test" || !strings.Contains(sender.Sent[0].Text, "120") {
 		t.Fatalf("message = %+v", sender.Sent[0])
 	}
+}
+
+func TestDispatcherSendsTelegramThroughProvider(t *testing.T) {
+	telegram := &fakeTelegramSender{}
+	dispatcher := NewDispatcher(&mail.Fake{}, nil, telegram)
+	channel := DeliveryChannel{Kind: ChannelTelegram, BotToken: "123456:fake-token-value-for-tests", ChatID: "-1001234567890"}
+
+	if err := dispatcher.Deliver(context.Background(), channel, testNotification()); err != nil {
+		t.Fatal(err)
+	}
+	if telegram.calls != 1 || telegram.token != channel.BotToken || telegram.chatID != channel.ChatID || !strings.Contains(telegram.text, "120") {
+		t.Fatalf("telegram delivery = %+v", telegram)
+	}
+}
+
+func TestTelegramSendMessageUsesFixedEndpointPlainTextAndBoundsRunes(t *testing.T) {
+	token := "123456:fake-token-value-for-tests"
+	var gotPath string
+	var gotBody map[string]any
+	client := NewTelegramClient(TelegramOptions{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		gotPath = request.URL.Path
+		if request.URL.Scheme != "https" || request.URL.Host != "api.telegram.org" {
+			t.Errorf("destination = %s://%s", request.URL.Scheme, request.URL.Host)
+		}
+		if err := json.NewDecoder(request.Body).Decode(&gotBody); err != nil {
+			t.Fatal(err)
+		}
+		return telegramResponse(http.StatusOK, `{"ok":true,"result":{}}`), nil
+	})})
+	text := strings.Repeat("界", 5000)
+
+	if err := client.SendMessage(context.Background(), token, "@panel_alerts", text); err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/bot"+token+"/sendMessage" {
+		t.Fatalf("path = %q", gotPath)
+	}
+	if gotBody["chat_id"] != "@panel_alerts" {
+		t.Fatalf("body = %+v", gotBody)
+	}
+	message, ok := gotBody["text"].(string)
+	if !ok || len([]rune(message)) != telegramMessageLimit || strings.Contains(message, "parse_mode") {
+		t.Fatalf("message rune count = %d body=%+v", len([]rune(message)), gotBody)
+	}
+}
+
+func TestTelegramRetriesOnlyExplicitBoundedRateLimit(t *testing.T) {
+	attempts := 0
+	var sleeps []time.Duration
+	client := NewTelegramClient(TelegramOptions{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			attempts++
+			if attempts == 1 {
+				return telegramResponse(http.StatusTooManyRequests, `{"ok":false,"error_code":429,"parameters":{"retry_after":2}}`), nil
+			}
+			return telegramResponse(http.StatusOK, `{"ok":true,"result":{}}`), nil
+		}),
+		Sleep: func(_ context.Context, duration time.Duration) error {
+			sleeps = append(sleeps, duration)
+			return nil
+		},
+	})
+	if err := client.SendMessage(context.Background(), "123456:fake-token-value-for-tests", "-1001", "test"); err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 2 || len(sleeps) != 1 || sleeps[0] != 2*time.Second {
+		t.Fatalf("attempts=%d sleeps=%v", attempts, sleeps)
+	}
+}
+
+func TestTelegramRateLimitRetriesAreBounded(t *testing.T) {
+	attempts := 0
+	var sleeps int
+	client := NewTelegramClient(TelegramOptions{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			attempts++
+			return telegramResponse(http.StatusTooManyRequests, `{"ok":false,"error_code":429,"parameters":{"retry_after":1}}`), nil
+		}),
+		Sleep: func(context.Context, time.Duration) error {
+			sleeps++
+			return nil
+		},
+	})
+	err := client.SendMessage(context.Background(), "123456:fake-token-value-for-tests", "-1001", "test")
+	if err == nil || attempts != telegramAttempts || sleeps != telegramAttempts-1 {
+		t.Fatalf("error=%v attempts=%d sleeps=%d", err, attempts, sleeps)
+	}
+}
+
+func TestTelegramDoesNotRetryAmbiguousFailureOrLeakToken(t *testing.T) {
+	token := "123456:fake-token-value-for-tests"
+	tests := []struct {
+		name      string
+		transport http.RoundTripper
+	}{
+		{name: "transport", transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			return nil, errors.New("dial failed for " + request.URL.String())
+		})},
+		{name: "server error", transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return telegramResponse(http.StatusBadGateway, `{"ok":false}`), nil
+		})},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attempts := 0
+			transport := roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				attempts++
+				return tt.transport.RoundTrip(request)
+			})
+			client := NewTelegramClient(TelegramOptions{Transport: transport, Sleep: func(context.Context, time.Duration) error {
+				t.Fatal("ambiguous failure must not be retried")
+				return nil
+			}})
+			err := client.SendMessage(context.Background(), token, "-1001", "test")
+			if err == nil || attempts != 1 || strings.Contains(err.Error(), token) || strings.Contains(err.Error(), "/bot") {
+				t.Fatalf("error=%v attempts=%d", err, attempts)
+			}
+		})
+	}
+}
+
+func telegramResponse(status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Status:     strconv.Itoa(status),
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}
+}
+
+type fakeTelegramSender struct {
+	calls  int
+	token  string
+	chatID string
+	text   string
+}
+
+func (f *fakeTelegramSender) SendMessage(_ context.Context, token, chatID, text string) error {
+	f.calls++
+	f.token, f.chatID, f.text = token, chatID, text
+	return nil
 }
 
 func TestWebhookUsesExactBodyAndSignature(t *testing.T) {
