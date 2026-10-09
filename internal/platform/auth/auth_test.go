@@ -2,6 +2,10 @@ package auth_test
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
@@ -24,6 +29,8 @@ import (
 )
 
 var ctx = context.Background()
+
+var testSecretKey = []byte("0123456789abcdef0123456789abcdef")
 
 type fakeClock struct{ now time.Time }
 
@@ -58,12 +65,12 @@ func newAuthWithClock(t *testing.T, clock *fakeClock) authEnv {
 		t.Fatal(err)
 	}
 	s := &store.Store{Pool: pool}
-	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox(testSecretKey, "panel/totp/v1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return authEnv{
-		a:     auth.New(s, disabledMail{}, box, "https://supermetry.example", auth.WithClock(clock)),
+		a:     auth.New(s, disabledMail{}, box, "https://supermetry.example", auth.WithClock(clock), auth.WithAuditSecret(testSecretKey)),
 		users: users.New(s),
 		clock: clock,
 		store: s,
@@ -93,6 +100,89 @@ func TestLoginRateLimitIsPerNormalizedEmail(t *testing.T) {
 	}
 }
 
+func TestLoginSuccessAndFailureAreAuditedWithoutRequestSecrets(t *testing.T) {
+	env := newAuth(t)
+	userID := createUser(t, env, "u@x.io", "pw-123456789")
+	orgID := addOwnerMembership(t, env, userID)
+	const client = "plaintext-client-identifier"
+	loginCtx := auth.WithClientKey(ctx, client)
+	if _, err := env.a.Login(loginCtx, "u@x.io", "wrong-password", "", "Browser"); !errors.Is(err, auth.ErrInvalid) {
+		t.Fatalf("failed Login() error = %v", err)
+	}
+	var actorUserID *int64
+	var metadataJSON []byte
+	waitFor(t, func() (bool, error) {
+		err := env.store.Pool.QueryRow(ctx, `select actor_user_id,metadata from audit_log where org_id=$1 and action='auth.login_failed'`, orgID).Scan(&actorUserID, &metadataJSON)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return err == nil, err
+	})
+	if actorUserID != nil {
+		t.Fatalf("failed-login actor_user_id = %d, want NULL", *actorUserID)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(metadataJSON, &metadata); err != nil {
+		t.Fatal(err)
+	}
+	mac := hmac.New(sha256.New, testSecretKey)
+	_, _ = mac.Write([]byte("supermetry/auth-login-client/v1\x00" + client))
+	if got := metadata["client_hash"]; got != hex.EncodeToString(mac.Sum(nil)) {
+		t.Fatalf("client_hash = %v, want keyed hash", got)
+	}
+	if strings.Contains(string(metadataJSON), client) {
+		t.Fatalf("audit metadata retained plaintext client: %s", metadataJSON)
+	}
+	if _, err := env.a.Login(loginCtx, "u@x.io", "pw-123456789", "", "Browser"); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := env.store.Pool.Query(ctx, `select action from audit_log where org_id=$1 and action like 'auth.login%' order by id`, orgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var action string
+		if err := rows.Scan(&action); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, action)
+	}
+	if strings.Join(got, ",") != "auth.login_failed,auth.login" {
+		t.Fatalf("audit actions = %v", got)
+	}
+}
+
+func TestLoginAuditFailureStillReturnsInvalidCredentials(t *testing.T) {
+	env := newAuth(t)
+	userID := createUser(t, env, "u@x.io", "pw-123456789")
+	addOwnerMembership(t, env, userID)
+	if _, err := env.store.Pool.Exec(ctx, `
+		create sequence login_audit_attempts;
+		create function reject_login_audit() returns trigger language plpgsql as $$
+		begin
+			if new.action = 'auth.login_failed' then
+				perform nextval('login_audit_attempts');
+				raise exception 'injected audit failure';
+			end if;
+			return new;
+		end $$;
+		create trigger reject_login_audit before insert on audit_log
+		for each row execute function reject_login_audit()`); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := env.a.Login(auth.WithClientKey(ctx, "client"), "u@x.io", "wrong", "", "Browser"); !errors.Is(err, auth.ErrInvalid) {
+		t.Fatalf("Login() error = %v, want ErrInvalid", err)
+	}
+	waitFor(t, func() (bool, error) {
+		var called bool
+		err := env.store.Pool.QueryRow(ctx, `select is_called from login_audit_attempts`).Scan(&called)
+		return called, err
+	})
+}
+
 func TestLoginRateLimitUsesClientKey(t *testing.T) {
 	env := newAuth(t)
 	createUser(t, env, "u@x.io", "pw-123456789")
@@ -113,6 +203,44 @@ func TestSignupRateLimitUsesClientKey(t *testing.T) {
 	}
 	if _, err := env.a.Signup(clientCtx, "new@example.test", "New", "pw-123456789", "New org", ""); !errors.Is(err, auth.ErrRateLimited) {
 		t.Fatalf("21st client attempt must be limited, got %v", err)
+	}
+}
+
+func TestSignupRejectsWeakPassword(t *testing.T) {
+	env := newAuth(t)
+	if _, err := env.a.Signup(auth.WithClientKey(ctx, "signup-client"), "new@example.test", "New", "password123", "New org", ""); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
+		t.Fatalf("Signup() error = %v, want ErrPasswordCommon", err)
+	}
+}
+
+func TestResetRequestsAreLimitedPerTargetAndClient(t *testing.T) {
+	env := newAuth(t)
+	createUser(t, env, "u@x.io", "old-password-1")
+	clientCtx := auth.WithClientKey(ctx, "reset-client")
+	for i := 0; i < 3; i++ {
+		if _, err := env.a.StartReset(clientCtx, "U@X.IO"); err != nil {
+			t.Fatalf("attempt %d: %v", i+1, err)
+		}
+	}
+	if _, err := env.a.StartReset(clientCtx, "u@x.io"); !errors.Is(err, auth.ErrRateLimited) {
+		t.Fatalf("paired client limit error = %v, want ErrRateLimited", err)
+	}
+	for _, client := range []string{"other-client", "third-client"} {
+		if _, err := env.a.StartReset(auth.WithClientKey(ctx, client), "u@x.io"); err != nil {
+			t.Fatalf("distinct client %q unexpectedly limited: %v", client, err)
+		}
+	}
+	if _, err := env.a.StartReset(auth.WithClientKey(ctx, "fourth-client"), "u@x.io"); !errors.Is(err, auth.ErrRateLimited) {
+		t.Fatalf("target limit error = %v, want ErrRateLimited", err)
+	}
+
+	env = newAuth(t)
+	clientCtx = auth.WithClientKey(ctx, "shared-client")
+	for i := 0; i < 20; i++ {
+		_, _ = env.a.StartReset(clientCtx, "missing"+string(rune('a'+i))+"@x.io")
+	}
+	if _, err := env.a.StartReset(clientCtx, "another@example.test"); !errors.Is(err, auth.ErrRateLimited) {
+		t.Fatalf("client limit error = %v, want ErrRateLimited", err)
 	}
 }
 
@@ -202,6 +330,53 @@ func TestSessionListRevokeAndLogout(t *testing.T) {
 	}
 }
 
+func TestSessionRevocationsAreAudited(t *testing.T) {
+	env := newAuth(t)
+	userID := createUser(t, env, "u@x.io", "pw-123456789")
+	orgID := addOwnerMembership(t, env, userID)
+	first, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := env.a.Sessions(ctx, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var secondID string
+	for _, session := range sessions {
+		if session.DeviceLabel == "second" {
+			secondID = session.ID
+		}
+	}
+	if err := env.a.Revoke(ctx, userID, secondID); err != nil {
+		t.Fatal(err)
+	}
+	if err := env.a.RevokeOthers(ctx, userID, first); err != nil {
+		t.Fatal(err)
+	}
+	var actions []string
+	rows, err := env.store.Pool.Query(ctx, `select action from audit_log where org_id=$1 and action like 'session%' order by id`, orgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var action string
+		if err := rows.Scan(&action); err != nil {
+			t.Fatal(err)
+		}
+		actions = append(actions, action)
+	}
+	if strings.Join(actions, ",") != "session.revoked,sessions.revoked_all" {
+		t.Fatalf("audit actions = %v", actions)
+	}
+	_ = second
+}
+
 func TestSessionsOmitsExpiredSessions(t *testing.T) {
 	env := newAuth(t)
 	uid := createUser(t, env, "u@x.io", "pw-123456789")
@@ -234,6 +409,18 @@ func TestResetTokenSingleUse(t *testing.T) {
 	}
 	if _, err := env.a.Login(ctx, "u@x.io", "new-password-1", "", "x"); err != nil {
 		t.Fatalf("new password rejected: %v", err)
+	}
+}
+
+func TestFinishResetRejectsWeakPassword(t *testing.T) {
+	env := newAuth(t)
+	createUser(t, env, "u@x.io", "old-password-1")
+	link, err := env.a.StartReset(auth.WithClientKey(ctx, "reset-client"), "u@x.io")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.a.FinishReset(ctx, tokenFrom(t, link), "short"); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
+		t.Fatalf("FinishReset() error = %v, want ErrPasswordTooShort", err)
 	}
 }
 
@@ -314,6 +501,17 @@ func TestSetupOnlyOnce(t *testing.T) {
 	}
 }
 
+func TestSetupRejectsWeakPassword(t *testing.T) {
+	env := newAuth(t)
+	setupURL, ok := env.a.SetupURL(ctx)
+	if !ok {
+		t.Fatal("setup URL missing")
+	}
+	if _, _, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "o@x.io", "Owner", "password123", "Acme"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
+		t.Fatalf("CompleteSetup() error = %v, want ErrPasswordCommon", err)
+	}
+}
+
 func TestCSRFRejectsMissingToken(t *testing.T) {
 	called := 0
 	handler := auth.CSRF(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -370,6 +568,36 @@ func tokenFrom(t *testing.T, rawURL string) string {
 		t.Fatalf("URL has no token: %q", rawURL)
 	}
 	return token
+}
+
+func addOwnerMembership(t *testing.T, env authEnv, userID int64) int64 {
+	t.Helper()
+	var orgID int64
+	if err := env.store.Pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Test','test') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.store.Pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	return orgID
+}
+
+func waitFor(t *testing.T, condition func() (bool, error)) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		ok, err := condition()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for asynchronous audit")
+		}
+		time.Sleep(time.Millisecond)
+	}
 }
 
 func codeFor(t *testing.T, rawURL string, now time.Time) string {

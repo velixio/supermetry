@@ -4,7 +4,12 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +33,8 @@ var (
 
 const CookieName = "supermetry_session"
 
+const loginClientHashPurpose = "supermetry/auth-login-client/v1"
+
 type Clock interface {
 	Now() time.Time
 }
@@ -42,6 +49,12 @@ func WithClock(clock Clock) Option {
 	return func(a *Auth) { a.clock = clock }
 }
 
+// WithAuditSecret configures the server secret used to pseudonymize client
+// identifiers in failed-login audit entries.
+func WithAuditSecret(secret []byte) Option {
+	return func(a *Auth) { a.auditSecret = append([]byte(nil), secret...) }
+}
+
 type Auth struct {
 	store   *store.Store
 	users   *users.Users
@@ -50,6 +63,12 @@ type Auth struct {
 	baseURL string
 	clock   Clock
 	limits  *loginLimiter
+
+	auditMu                sync.Mutex
+	auditWG                sync.WaitGroup
+	auditClosed            bool
+	auditSecret            []byte
+	writeLoginFailureAudit func(context.Context, int64, string) error
 }
 
 var (
@@ -77,6 +96,19 @@ func New(s *store.Store, sender mail.Sender, box *platformcrypto.SecretBox, base
 	for _, option := range options {
 		option(a)
 	}
+	if len(a.auditSecret) == 0 {
+		a.auditSecret = make([]byte, 32)
+		if _, err := rand.Read(a.auditSecret); err != nil {
+			panic("initialize login audit secret: " + err.Error())
+		}
+	}
+	a.writeLoginFailureAudit = func(ctx context.Context, userID int64, clientHash string) error {
+		return a.store.Tx(ctx, func(tx pgx.Tx) error {
+			return auditUserOrgsWithActor(ctx, tx, userID, nil, "auth.login_failed", map[string]any{
+				"client_hash": clientHash,
+			})
+		})
+	}
 	return a
 }
 
@@ -97,6 +129,7 @@ func (a *Auth) Login(ctx context.Context, email, password, totpCode, deviceLabel
 	}
 	valid, err := platformcrypto.VerifyPassword(user.PasswordHash, password)
 	if err != nil || !valid {
+		a.auditLoginFailure(user.ID, clientKey(ctx))
 		return "", ErrInvalid
 	}
 	if user.TOTPEnabled {
@@ -108,6 +141,7 @@ func (a *Auth) Login(ctx context.Context, email, password, totpCode, deviceLabel
 			return "", err
 		}
 		if !valid {
+			a.auditLoginFailure(user.ID, clientKey(ctx))
 			return "", ErrInvalid
 		}
 	}
@@ -116,12 +150,60 @@ func (a *Auth) Login(ctx context.Context, email, password, totpCode, deviceLabel
 	err = a.store.Tx(ctx, func(tx pgx.Tx) error {
 		var createErr error
 		plain, createErr = createSession(ctx, tx, user.ID, deviceLabel, now)
-		return createErr
+		if createErr != nil {
+			return createErr
+		}
+		return writeUserAudits(ctx, tx, user.ID, "auth.login")
 	})
 	if err != nil {
 		return "", err
 	}
 	return plain, nil
+}
+
+func (a *Auth) auditLoginFailure(userID int64, client string) {
+	clientHash := hashLoginClient(a.auditSecret, client)
+	a.auditMu.Lock()
+	if a.auditClosed {
+		a.auditMu.Unlock()
+		return
+	}
+	a.auditWG.Add(1)
+	a.auditMu.Unlock()
+	go func() {
+		defer a.auditWG.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := a.writeLoginFailureAudit(ctx, userID, clientHash)
+		if err != nil {
+			slog.ErrorContext(ctx, "write failed-login audit", "error", err)
+		}
+	}()
+}
+
+func hashLoginClient(secret []byte, client string) string {
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(loginClientHashPurpose + "\x00" + client))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// Shutdown stops accepting new asynchronous audit writes and waits until all
+// in-flight writes finish or ctx expires.
+func (a *Auth) Shutdown(ctx context.Context) error {
+	a.auditMu.Lock()
+	a.auditClosed = true
+	a.auditMu.Unlock()
+	done := make(chan struct{})
+	go func() {
+		a.auditWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func createSession(ctx context.Context, db store.DBTX, userID int64, deviceLabel string, now time.Time) (string, error) {

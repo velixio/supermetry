@@ -27,6 +27,9 @@ func (a *Auth) Signup(ctx context.Context, email, name, password, orgName, devic
 	if email == "" || name == "" || password == "" || orgName == "" {
 		return "", ErrInvalid
 	}
+	if err := platformcrypto.ValidateNewPassword(password); err != nil {
+		return "", err
+	}
 	passwordHash, err := platformcrypto.HashPassword(password)
 	if err != nil {
 		return "", err

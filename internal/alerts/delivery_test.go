@@ -184,9 +184,11 @@ func (f *fakeTelegramSender) SendMessage(_ context.Context, token, chatID, text 
 func TestWebhookUsesExactBodyAndSignature(t *testing.T) {
 	var body []byte
 	var signature string
+	var timestamp string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		body, _ = io.ReadAll(request.Body)
 		signature = request.Header.Get("X-Supermetry-Signature")
+		timestamp = request.Header.Get("X-Supermetry-Timestamp")
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
@@ -204,6 +206,7 @@ func TestWebhookUsesExactBodyAndSignature(t *testing.T) {
 		t.Fatalf("payload = %s", body)
 	}
 	mac := hmac.New(sha256.New, []byte("secret"))
+	_, _ = mac.Write([]byte(timestamp + "."))
 	_, _ = mac.Write(body)
 	want := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 	if signature != want {

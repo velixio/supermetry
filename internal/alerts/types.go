@@ -49,15 +49,16 @@ const (
 )
 
 type Alert struct {
-	ID          int64      `json:"id"`
-	SiteID      int32      `json:"site_id"`
-	Kind        AlertKind  `json:"kind"`
-	Threshold   float64    `json:"threshold"`
-	GoalID      *int64     `json:"goal_id,omitempty"`
-	ChannelIDs  []int64    `json:"channel_ids"`
-	Enabled     bool       `json:"enabled"`
-	LastFiredAt *time.Time `json:"last_fired_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID            int64          `json:"id"`
+	SiteID        int32          `json:"site_id"`
+	Kind          AlertKind      `json:"kind"`
+	Threshold     float64        `json:"threshold"`
+	GoalID        *int64         `json:"goal_id,omitempty"`
+	ChannelIDs    []int64        `json:"channel_ids"`
+	Enabled       bool           `json:"enabled"`
+	LastFiredAt   *time.Time     `json:"last_fired_at,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	DeliveryState *DeliveryState `json:"-"`
 }
 
 type AlertInput struct {
@@ -88,4 +89,16 @@ type Notification struct {
 	From      time.Time `json:"from"`
 	To        time.Time `json:"to"`
 	FiredAt   time.Time `json:"fired_at"`
+}
+
+// DeliveryState is the durable progress for one fired evaluation. ChannelIDs
+// captures the enabled targets at firing time so later configuration changes
+// cannot replay the notification to a newly enabled channel. DeliveredChannelIDs
+// contains every settled target, including disabled, deleted, or permanently
+// failed channels that must not be retried.
+type DeliveryState struct {
+	Notification        Notification  `json:"notification"`
+	ChannelIDs          []int64       `json:"channel_ids"`
+	DeliveredChannelIDs []int64       `json:"delivered_channel_ids"`
+	AttemptCounts       map[int64]int `json:"attempt_counts,omitempty"`
 }

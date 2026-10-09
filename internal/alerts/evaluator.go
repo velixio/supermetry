@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	jobInterval     = 5 * time.Minute
-	trafficCooldown = 6 * time.Hour
+	jobInterval         = 5 * time.Minute
+	trafficCooldown     = 6 * time.Hour
+	maxDeliveryAttempts = 3
 )
 
 type MetricSource interface {
@@ -23,6 +24,7 @@ type MetricSource interface {
 type Repository interface {
 	EnabledAlerts(context.Context) ([]Alert, error)
 	DeliveryChannels(context.Context, []int64) ([]DeliveryChannel, error)
+	SaveDeliveryState(context.Context, int64, DeliveryState) error
 	MarkFired(context.Context, int64, time.Time) error
 }
 
@@ -81,6 +83,9 @@ func (e *Evaluator) Run(ctx context.Context) error {
 }
 
 func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) error {
+	if alert.DeliveryState != nil {
+		return e.deliver(ctx, alert.ID, *alert.DeliveryState)
+	}
 	site, ok := e.sites.Site(alert.SiteID)
 	if !ok || site.TZ == nil {
 		return fmt.Errorf("site %d is unavailable", alert.SiteID)
@@ -141,20 +146,86 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 		return errors.New("one or more notification channels are unavailable")
 	}
 	notification := Notification{AlertID: alert.ID, SiteID: alert.SiteID, Kind: alert.Kind, Value: value, Threshold: alert.Threshold, From: from, To: to, FiredAt: now}
-	var deliveryErr error
+	enabledChannelIDs := make([]int64, 0, len(channels))
 	for _, channel := range channels {
-		if !channel.Enabled {
-			continue
-		}
-		if err := e.deliverer.Deliver(ctx, channel, notification); err != nil {
-			if e.onFailure != nil {
-				e.onFailure(alert.ID, channel.ID, channel.Kind, err)
-			}
-			deliveryErr = errors.Join(deliveryErr, fmt.Errorf("deliver channel %d: %w", channel.ID, err))
+		if channel.Enabled {
+			enabledChannelIDs = append(enabledChannelIDs, channel.ID)
 		}
 	}
-	markErr := e.repository.MarkFired(ctx, alert.ID, now)
-	return errors.Join(deliveryErr, markErr)
+	if len(enabledChannelIDs) == 0 {
+		return e.repository.MarkFired(ctx, alert.ID, now)
+	}
+	state := DeliveryState{Notification: notification, ChannelIDs: enabledChannelIDs}
+	if err := e.repository.SaveDeliveryState(ctx, alert.ID, state); err != nil {
+		return err
+	}
+	return e.deliver(ctx, alert.ID, state)
+}
+
+func (e *Evaluator) deliver(ctx context.Context, alertID int64, state DeliveryState) error {
+	channels, err := e.repository.DeliveryChannels(ctx, state.ChannelIDs)
+	if err != nil {
+		return err
+	}
+	channelsByID := make(map[int64]DeliveryChannel, len(channels))
+	for _, channel := range channels {
+		channelsByID[channel.ID] = channel
+	}
+	delivered := make(map[int64]bool, len(state.DeliveredChannelIDs))
+	for _, channelID := range state.DeliveredChannelIDs {
+		delivered[channelID] = true
+	}
+	if state.AttemptCounts == nil {
+		state.AttemptCounts = make(map[int64]int)
+	}
+	var deliveryErr error
+	for _, channelID := range state.ChannelIDs {
+		if delivered[channelID] {
+			continue
+		}
+		channel, exists := channelsByID[channelID]
+		if !exists {
+			if e.onFailure != nil {
+				e.onFailure(alertID, channelID, "", errors.New("delivery channel was deleted; dropping pending delivery"))
+			}
+			state.DeliveredChannelIDs = append(state.DeliveredChannelIDs, channelID)
+			delivered[channelID] = true
+			if err := e.repository.SaveDeliveryState(ctx, alertID, state); err != nil {
+				return errors.Join(deliveryErr, err)
+			}
+			continue
+		}
+		if channel.Enabled {
+			if err := e.deliverer.Deliver(ctx, channel, state.Notification); err != nil {
+				state.AttemptCounts[channel.ID]++
+				reportedErr := err
+				if state.AttemptCounts[channel.ID] >= maxDeliveryAttempts {
+					reportedErr = fmt.Errorf("permanently failed after %d attempts: %w", state.AttemptCounts[channel.ID], err)
+					state.DeliveredChannelIDs = append(state.DeliveredChannelIDs, channel.ID)
+					delivered[channel.ID] = true
+				}
+				if e.onFailure != nil {
+					e.onFailure(alertID, channel.ID, channel.Kind, reportedErr)
+				}
+				deliveryErr = errors.Join(deliveryErr, fmt.Errorf("deliver channel %d: %w", channel.ID, err))
+				if err := e.repository.SaveDeliveryState(ctx, alertID, state); err != nil {
+					return errors.Join(deliveryErr, err)
+				}
+				continue
+			}
+		}
+		state.DeliveredChannelIDs = append(state.DeliveredChannelIDs, channel.ID)
+		delivered[channel.ID] = true
+		if err := e.repository.SaveDeliveryState(ctx, alertID, state); err != nil {
+			return errors.Join(deliveryErr, err)
+		}
+	}
+	for _, channelID := range state.ChannelIDs {
+		if !delivered[channelID] {
+			return deliveryErr
+		}
+	}
+	return errors.Join(deliveryErr, e.repository.MarkFired(ctx, alertID, state.Notification.FiredAt))
 }
 
 func withinCooldown(last *time.Time, now time.Time, cooldown time.Duration) bool {

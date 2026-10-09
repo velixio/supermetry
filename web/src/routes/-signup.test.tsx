@@ -14,6 +14,7 @@ import type { ReactNode } from 'react'
 import { queryClient as appQueryClient } from '@/lib/queryClient'
 
 import { SignupPageContent } from './signup'
+import { en } from '@/messages/en'
 import { routeTree } from '../routeTree.gen'
 
 afterEach(() => {
@@ -74,6 +75,28 @@ describe('signup page', () => {
       password: 'pw-123456789',
       org_name: 'Acme',
     })
+  })
+
+  it('shows the password policy and its server rejection clearly', async () => {
+    renderWithRouter(
+      <SignupPageContent
+        signup="open"
+        submit={vi.fn().mockResolvedValue({ ok: false, type: 'password-policy' })}
+        onSuccess={vi.fn()}
+      />,
+    )
+
+    const password = await screen.findByLabelText('Password')
+    expect(password).toHaveAttribute('minlength', '10')
+    expect(screen.getByText(en.auth.passwordPolicy)).toBeVisible()
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@example.test' } })
+    fireEvent.change(password, { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Organization name'), { target: { value: 'Acme' } })
+    fireEvent.submit(password.closest('form')!)
+
+		await waitFor(() => expect(screen.getAllByText(en.auth.passwordPolicy)).toHaveLength(2))
   })
 
   it('clears the previous account cache before navigating after signup', async () => {

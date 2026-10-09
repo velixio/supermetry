@@ -2,6 +2,7 @@ package alerts
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,7 +78,7 @@ func TestEvaluatorUsesSiteLocalDayForGoalAndCooldown(t *testing.T) {
 	}
 }
 
-func TestEvaluatorMarksFiredAfterAllDeliveriesAreAttempted(t *testing.T) {
+func TestEvaluatorRetriesOnlyFailedChannelsBeforeMarkingFired(t *testing.T) {
 	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	repo := &fakeRepository{alerts: []Alert{{ID: 7, SiteID: 10, Kind: AlertTrafficSpike, Threshold: 1, ChannelIDs: []int64{1, 2}, Enabled: true}}}
 	source := &fakeMetricSource{visitorValues: []float64{2}}
@@ -87,11 +88,117 @@ func TestEvaluatorMarksFiredAfterAllDeliveriesAreAttempted(t *testing.T) {
 	if err := evaluator.Run(context.Background()); err == nil {
 		t.Fatal("Run() error = nil, want delivery failure")
 	}
+	if len(repo.marked) != 0 {
+		t.Fatalf("marked = %v, want evaluation pending while a channel failed", repo.marked)
+	}
+
+	// A later scheduler tick can run in a new process after an instance handoff.
+	evaluator = NewEvaluator(repo, source, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, &fakeActiveVisitors{visitors: 0}, deliverer, func() time.Time { return now.Add(5 * time.Minute) })
+	if err := evaluator.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	if len(repo.marked) != 1 || repo.marked[0] != 7 {
-		t.Fatalf("marked = %v, want alert 7 to enter cooldown", repo.marked)
+		t.Fatalf("marked = %v, want alert 7 after every channel succeeds", repo.marked)
+	}
+	wantChannels := []int64{1, 2, 1}
+	if len(deliverer.channelIDs) != len(wantChannels) {
+		t.Fatalf("delivery channels = %v, want %v", deliverer.channelIDs, wantChannels)
+	}
+	for i := range wantChannels {
+		if deliverer.channelIDs[i] != wantChannels[i] {
+			t.Fatalf("delivery channels = %v, want %v", deliverer.channelIDs, wantChannels)
+		}
+	}
+}
+
+func TestEvaluatorDoesNotMarkFiredWhenEveryDeliveryFails(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	repo := &fakeRepository{alerts: []Alert{{ID: 7, SiteID: 10, Kind: AlertTrafficSpike, Threshold: 1, ChannelIDs: []int64{1, 2}, Enabled: true}}}
+	deliverer := &fakeDeliverer{failAll: true}
+	evaluator := NewEvaluator(repo, &fakeMetricSource{}, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, &fakeActiveVisitors{visitors: 2}, deliverer, func() time.Time { return now })
+
+	if err := evaluator.Run(context.Background()); err == nil {
+		t.Fatal("Run() error = nil, want delivery failures")
+	}
+	if len(repo.marked) != 0 {
+		t.Fatalf("marked = %v, want no cooldown after failed deliveries", repo.marked)
 	}
 	if deliverer.calls != 2 {
 		t.Fatalf("delivery calls = %d, want every channel attempted", deliverer.calls)
+	}
+}
+
+func TestEvaluatorStopsRetryingChannelAfterBoundedFailures(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	repo := &fakeRepository{alerts: []Alert{{
+		ID:      7,
+		SiteID:  10,
+		Kind:    AlertTrafficSpike,
+		Enabled: true,
+		DeliveryState: &DeliveryState{
+			Notification: Notification{AlertID: 7, SiteID: 10, Kind: AlertTrafficSpike, FiredAt: now},
+			ChannelIDs:   []int64{1},
+		},
+	}}}
+	deliverer := &fakeDeliverer{failAll: true}
+	var failures []deliveryFailure
+
+	for tick := 1; tick <= 3; tick++ {
+		evaluator := NewEvaluator(repo, &fakeMetricSource{}, staticRegistry{}, &fakeActiveVisitors{}, deliverer, func() time.Time { return now.Add(time.Duration(tick) * jobInterval) }, func(alertID, channelID int64, kind ChannelKind, err error) {
+			failures = append(failures, deliveryFailure{alertID: alertID, channelID: channelID, kind: kind, err: err})
+		})
+		if err := evaluator.Run(context.Background()); err == nil {
+			t.Fatalf("tick %d: Run() error = nil, want delivery failure", tick)
+		}
+		if tick < 3 && len(repo.marked) != 0 {
+			t.Fatalf("tick %d: marked = %v, want delivery pending", tick, repo.marked)
+		}
+	}
+
+	if deliverer.calls != 3 {
+		t.Fatalf("delivery calls = %d, want 3", deliverer.calls)
+	}
+	if len(repo.marked) != 1 || repo.marked[0] != 7 {
+		t.Fatalf("marked = %v, want terminally failed alert 7 settled", repo.marked)
+	}
+	if len(failures) != 3 || !strings.Contains(failures[2].err.Error(), "permanently failed") {
+		t.Fatalf("failures = %+v, want third failure logged as permanent", failures)
+	}
+
+	evaluator := NewEvaluator(repo, &fakeMetricSource{}, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, &fakeActiveVisitors{}, deliverer, func() time.Time { return now.Add(4 * jobInterval) })
+	if err := evaluator.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if deliverer.calls != 3 {
+		t.Fatalf("delivery calls after settlement = %d, want no retry", deliverer.calls)
+	}
+}
+
+func TestEvaluatorDropsPendingDeliveryForDeletedChannel(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	repo := &fakeRepository{
+		alerts: []Alert{{
+			ID:      7,
+			SiteID:  10,
+			Enabled: true,
+			DeliveryState: &DeliveryState{
+				Notification: Notification{AlertID: 7, SiteID: 10, Kind: AlertTrafficSpike, FiredAt: now},
+				ChannelIDs:   []int64{99},
+			},
+		}},
+		channels: []DeliveryChannel{},
+	}
+	deliverer := &fakeDeliverer{}
+	evaluator := NewEvaluator(repo, &fakeMetricSource{}, staticRegistry{}, &fakeActiveVisitors{}, deliverer, func() time.Time { return now })
+
+	if err := evaluator.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if deliverer.calls != 0 {
+		t.Fatalf("delivery calls = %d, want deleted channel skipped", deliverer.calls)
+	}
+	if len(repo.marked) != 1 || repo.marked[0] != 7 {
+		t.Fatalf("marked = %v, want deleted pending channel settled", repo.marked)
 	}
 }
 
@@ -109,6 +216,30 @@ func TestEvaluatorSkipsDisabledChannelAndContinuesOtherDeliveries(t *testing.T) 
 	}
 	if deliverer.calls != 1 || len(repo.marked) != 1 {
 		t.Fatalf("deliveries=%d marked=%v", deliverer.calls, repo.marked)
+	}
+}
+
+func TestEvaluatorConsumesEvaluationWithNoEnabledChannels(t *testing.T) {
+	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	repo := &fakeRepository{
+		alerts:   []Alert{{ID: 7, SiteID: 10, Kind: AlertTrafficSpike, Threshold: 1, ChannelIDs: []int64{1}, Enabled: true}},
+		channels: []DeliveryChannel{{ID: 1, Kind: ChannelEmail, Enabled: false, Recipients: []string{"owner@example.test"}}},
+	}
+	deliverer := &fakeDeliverer{}
+	evaluator := NewEvaluator(repo, &fakeMetricSource{}, staticRegistry{site: sites.Site{ID: 10, TZ: time.UTC}}, &fakeActiveVisitors{visitors: 2}, deliverer, func() time.Time { return now })
+
+	if err := evaluator.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	repo.channels[0].Enabled = true
+	if err := evaluator.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if deliverer.calls != 0 {
+		t.Fatalf("delivery calls = %d, want stale evaluation skipped after enabling channel", deliverer.calls)
+	}
+	if len(repo.marked) != 1 || repo.marked[0] != 7 {
+		t.Fatalf("marked = %v, want evaluation consumed once", repo.marked)
 	}
 }
 
@@ -189,7 +320,17 @@ func (f *fakeRepository) EnabledAlerts(context.Context) ([]Alert, error) {
 }
 func (f *fakeRepository) DeliveryChannels(_ context.Context, ids []int64) ([]DeliveryChannel, error) {
 	if f.channels != nil {
-		return append([]DeliveryChannel(nil), f.channels...), nil
+		byID := make(map[int64]DeliveryChannel, len(f.channels))
+		for _, channel := range f.channels {
+			byID[channel.ID] = channel
+		}
+		channels := make([]DeliveryChannel, 0, len(ids))
+		for _, id := range ids {
+			if channel, ok := byID[id]; ok {
+				channels = append(channels, channel)
+			}
+		}
+		return channels, nil
 	}
 	channels := make([]DeliveryChannel, len(ids))
 	for i, id := range ids {
@@ -197,14 +338,39 @@ func (f *fakeRepository) DeliveryChannels(_ context.Context, ids []int64) ([]Del
 	}
 	return channels, nil
 }
-func (f *fakeRepository) MarkFired(_ context.Context, id int64, _ time.Time) error {
+func (f *fakeRepository) SaveDeliveryState(_ context.Context, id int64, state DeliveryState) error {
+	for i := range f.alerts {
+		if f.alerts[i].ID == id {
+			copied := state
+			copied.ChannelIDs = append([]int64(nil), state.ChannelIDs...)
+			copied.DeliveredChannelIDs = append([]int64(nil), state.DeliveredChannelIDs...)
+			copied.AttemptCounts = make(map[int64]int, len(state.AttemptCounts))
+			for channelID, attempts := range state.AttemptCounts {
+				copied.AttemptCounts[channelID] = attempts
+			}
+			f.alerts[i].DeliveryState = &copied
+			return nil
+		}
+	}
+	return nil
+}
+func (f *fakeRepository) MarkFired(_ context.Context, id int64, at time.Time) error {
 	f.marked = append(f.marked, id)
+	for i := range f.alerts {
+		if f.alerts[i].ID == id {
+			firedAt := at
+			f.alerts[i].LastFiredAt = &firedAt
+			f.alerts[i].DeliveryState = nil
+		}
+	}
 	return nil
 }
 
 type fakeDeliverer struct {
 	calls         int
 	failAt        int
+	failAll       bool
+	channelIDs    []int64
 	notifications []Notification
 }
 
@@ -215,9 +381,10 @@ type deliveryFailure struct {
 	err       error
 }
 
-func (f *fakeDeliverer) Deliver(_ context.Context, _ DeliveryChannel, notification Notification) error {
+func (f *fakeDeliverer) Deliver(_ context.Context, channel DeliveryChannel, notification Notification) error {
 	f.calls++
-	if f.failAt == f.calls {
+	f.channelIDs = append(f.channelIDs, channel.ID)
+	if f.failAll || f.failAt == f.calls {
 		return context.DeadlineExceeded
 	}
 	f.notifications = append(f.notifications, notification)

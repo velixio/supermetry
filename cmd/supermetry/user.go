@@ -142,6 +142,6 @@ func userServices(ctx context.Context) (config.Config, *store.Store, *platformau
 		return config.Config{}, nil, nil, func() {}, fmt.Errorf("initialize TOTP encryption: %w", err)
 	}
 	data := &store.Store{Pool: pool}
-	authService := platformauth.New(data, mail.NewSMTP(cfg.SMTP), box, cfg.BaseURL)
+	authService := platformauth.New(data, mail.NewSMTP(cfg.SMTP), box, cfg.BaseURL, platformauth.WithAuditSecret(cfg.SecretKey))
 	return cfg, data, authService, pool.Close, nil
 }

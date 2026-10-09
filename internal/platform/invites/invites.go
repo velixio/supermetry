@@ -199,6 +199,9 @@ func (i *Invites) Accept(ctx context.Context, token string, userID int64, name, 
 			}
 		}
 		if userID == 0 {
+			if err := platformcrypto.ValidateNewPassword(password); err != nil {
+				return err
+			}
 			userID, err = i.users.CreateWithDB(ctx, tx, invitation.Email, name, password, now)
 			if err != nil {
 				return err

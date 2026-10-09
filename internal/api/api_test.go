@@ -7,13 +7,16 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"supermetry/internal/sites"
 	"testing"
+	"time"
 
 	"supermetry/internal/api"
 	"supermetry/internal/config"
 	"supermetry/internal/ingest"
+	"supermetry/internal/privacy"
 )
 
 type queryStub struct{}
@@ -53,6 +56,32 @@ func (a principalAuth) Authenticate(*http.Request) (api.Principal, bool) {
 	return a.principal, true
 }
 
+type rejectingAuth struct{ calls int }
+
+func (a *rejectingAuth) Authenticate(*http.Request) (api.Principal, bool) {
+	a.calls++
+	return api.Principal{}, false
+}
+
+type bearerAuth map[string]api.Principal
+
+func (a bearerAuth) Authenticate(r *http.Request) (api.Principal, bool) {
+	principal, ok := a[r.Header.Get("Authorization")]
+	return principal, ok
+}
+
+type perKeyLimiter struct {
+	calls map[string]int
+}
+
+func (l *perKeyLimiter) Allow(key string) bool {
+	if l.calls == nil {
+		l.calls = make(map[string]int)
+	}
+	l.calls[key]++
+	return l.calls[key] == 1
+}
+
 func TestAPIConventions(t *testing.T) {
 	srv := httptest.NewServer(newTestRouter())
 	defer srv.Close()
@@ -66,7 +95,17 @@ func TestAPIConventions(t *testing.T) {
 	t.Run("MCP requires bearer authentication", func(t *testing.T) {
 		response := post(t, srv.URL+"/api/public/v1/mcp", "", `{"jsonrpc":"2.0","id":1,"method":"ping"}`)
 		defer response.Body.Close()
-		assertProblem(t, response, http.StatusUnauthorized)
+		var envelope struct {
+			Error struct {
+				Code int `json:"code"`
+			} `json:"error"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != http.StatusOK || envelope.Error.Code != -32001 || response.Header.Get("WWW-Authenticate") != "Bearer" {
+			t.Fatalf("status=%d error=%+v headers=%v", response.StatusCode, envelope.Error, response.Header)
+		}
 	})
 
 	t.Run("private API requires a session", func(t *testing.T) {
@@ -141,14 +180,8 @@ func TestAPIConventions(t *testing.T) {
 		if _, ok := document.Paths["/api/public/v1/profiles/{profile_id}"]["post"]; ok {
 			t.Fatal("profile detail path unexpectedly publishes POST")
 		}
-		privateAccountPaths := map[string]bool{
-			"/api/private/me":                        true,
-			"/api/private/me/email":                  true,
-			"/api/private/me/password":               true,
-			"/api/private/auth/email-change/confirm": true,
-		}
 		for path := range document.Paths {
-			if strings.HasPrefix(path, "/api/v1/") || (strings.HasPrefix(path, "/api/private/") && !privateAccountPaths[path]) {
+			if strings.HasPrefix(path, "/api/v1/") || strings.HasPrefix(path, "/api/private/") {
 				t.Fatalf("non-public path published: %s", path)
 			}
 		}
@@ -167,6 +200,162 @@ func TestAPIConventions(t *testing.T) {
 			t.Fatalf("status=%d headers=%v", response.StatusCode, response.Header)
 		}
 	})
+}
+
+func TestPublicRateLimitUsesConfiguredLimiterPerAuthenticatedKey(t *testing.T) {
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	limiter := &perKeyLimiter{}
+	router := identifiedRouter(api.Deps{
+		Config: config.Config{
+			Tracking:       config.TrackingMode{Mode: privacy.Identified},
+			TrustedProxies: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
+		},
+		Query: queryStub{},
+		PublicAuth: bearerAuth{
+			"Bearer key-a": {AllSites: true, Scopes: []string{"stats:read"}, CredentialID: "key:a"},
+			"Bearer key-b": {AllSites: true, Scopes: []string{"stats:read"}, CredentialID: "key:b"},
+		},
+		RateLimiter:  limiter,
+		Now:          func() time.Time { return now },
+		RateLimitNow: func() time.Time { return now },
+	})
+
+	request := func(authorization string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)
+		request.RemoteAddr = "10.0.0.1:4321"
+		request.Header.Set("X-Forwarded-For", "198.51.100.8")
+		request.Header.Set("Authorization", authorization)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		return response
+	}
+
+	for _, authorization := range []string{"Bearer key-a", "Bearer key-b"} {
+		if response := request(authorization); response.Code != http.StatusOK {
+			t.Fatalf("first %s status=%d body=%s", authorization, response.Code, response.Body.String())
+		}
+	}
+	if response := request("Bearer key-a"); response.Code != http.StatusTooManyRequests {
+		t.Fatalf("second key-a status=%d, want 429", response.Code)
+	}
+	if got := len(limiter.calls); got != 2 {
+		t.Fatalf("configured limiter keys=%d, want 2", got)
+	}
+}
+
+func TestPublicRateLimitCanonicalizesAuthenticatedCredential(t *testing.T) {
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	limiter := &perKeyLimiter{}
+	principal := api.Principal{AllSites: true, Scopes: []string{"stats:read"}, CredentialID: "key:42"}
+	router := identifiedRouter(api.Deps{
+		Config: config.Config{Tracking: config.TrackingMode{Mode: privacy.Identified}},
+		Query:  queryStub{},
+		PublicAuth: bearerAuth{
+			"Bearer same-key": principal,
+			"bearer same-key": principal,
+		},
+		RateLimiter:  limiter,
+		Now:          func() time.Time { return now },
+		RateLimitNow: func() time.Time { return now },
+	})
+
+	request := func(authorization string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)
+		req.Header.Set("Authorization", authorization)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		return response
+	}
+
+	if response := request("Bearer same-key"); response.Code != http.StatusOK {
+		t.Fatalf("first request status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response := request("bearer same-key"); response.Code != http.StatusTooManyRequests {
+		t.Fatalf("case-variant request status=%d, want 429", response.Code)
+	}
+	if got := len(limiter.calls); got != 1 {
+		t.Fatalf("configured limiter keys=%d, want one canonical credential bucket", got)
+	}
+}
+
+func TestPublicRateLimitChargesIPOnlyAfterAuthenticationFails(t *testing.T) {
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	limiter := &perKeyLimiter{}
+	router := identifiedRouter(api.Deps{
+		Config: config.Config{
+			Tracking:       config.TrackingMode{Mode: privacy.Identified},
+			TrustedProxies: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
+		},
+		Query: queryStub{},
+		PublicAuth: bearerAuth{
+			"Bearer valid": {AllSites: true, Scopes: []string{"stats:read"}},
+		},
+		RateLimiter:  limiter,
+		Now:          func() time.Time { return now },
+		RateLimitNow: func() time.Time { return now },
+	})
+
+	for requestNumber := 1; requestNumber <= 31; requestNumber++ {
+		request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)
+		request.RemoteAddr = "10.0.0.1:4321"
+		request.Header.Set("X-Forwarded-For", "198.51.100.8")
+		request.Header.Set("Authorization", "Bearer invalid")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		want := http.StatusUnauthorized
+		if requestNumber == 31 {
+			want = http.StatusTooManyRequests
+		}
+		if response.Code != want {
+			t.Fatalf("invalid request %d status=%d, want %d", requestNumber, response.Code, want)
+		}
+	}
+	if got := len(limiter.calls); got != 0 {
+		t.Fatalf("configured limiter charged %d failed-auth keys, want 0", got)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)
+	request.RemoteAddr = "10.0.0.1:4321"
+	request.Header.Set("X-Forwarded-For", "198.51.100.8")
+	request.Header.Set("Authorization", "Bearer valid")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("valid key after IP exhaustion status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestPublicRateLimitRejectsMissingAuthorizationBeforeAuthentication(t *testing.T) {
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	authenticator := &rejectingAuth{}
+	router := identifiedRouter(api.Deps{
+		Config:       config.Config{Tracking: config.TrackingMode{Mode: privacy.Identified}},
+		Query:        queryStub{},
+		PublicAuth:   authenticator,
+		RateLimitNow: func() time.Time { return now },
+	})
+
+	for requestNumber := 1; requestNumber <= 30; requestNumber++ {
+		request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)
+		request.RemoteAddr = "198.51.100.8:4321"
+		request.Header.Set("Authorization", "Bearer invalid")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("setup request %d status=%d, want 401", requestNumber, response.Code)
+		}
+	}
+	authenticator.calls = 0
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=30d", nil)
+	request.RemoteAddr = "198.51.100.8:4321"
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("exhausted anonymous request status=%d, want 429", response.Code)
+	}
+	if authenticator.calls != 0 {
+		t.Fatalf("Authenticate calls=%d, want 0 for exhausted request without Authorization", authenticator.calls)
+	}
 }
 
 type orgSites map[int32]sites.Site

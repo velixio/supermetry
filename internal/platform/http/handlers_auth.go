@@ -112,6 +112,8 @@ func (h *handler) signup(w http.ResponseWriter, r *http.Request) {
 	token, err := h.deps.Auth.Signup(h.clientContext(r), request.Email, request.Name, request.Password, request.OrgName, "")
 	if err != nil {
 		switch {
+		case writePasswordPolicyProblem(w, err):
+			return
 		case errors.Is(err, platformauth.ErrRateLimited):
 			w.Header().Set("Retry-After", "60")
 			writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
@@ -160,7 +162,7 @@ func (h *handler) sessionMetadata(r *http.Request) platformauth.SessionMetadata 
 }
 
 func (h *handler) clientAddress(r *http.Request) string {
-	if addr, ok := clientip.Resolve(r, h.deps.TrustedProxies); ok {
+	if addr, ok := clientip.ResolveAccessClient(r, h.deps.TrustedProxies); ok {
 		return addr.String()
 	}
 	return r.RemoteAddr
@@ -202,7 +204,12 @@ func (h *handler) startPasswordReset(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	if _, err := h.deps.Auth.StartReset(r.Context(), request.Email); err != nil {
+	if _, err := h.deps.Auth.StartReset(h.clientContext(r), request.Email); err != nil {
+		if errors.Is(err, platformauth.ErrRateLimited) {
+			w.Header().Set("Retry-After", "60")
+			writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
+			return
+		}
 		serviceError(w, err)
 		return
 	}
@@ -222,6 +229,9 @@ func (h *handler) finishPasswordReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.deps.Auth.FinishReset(r.Context(), request.Token, request.Password); err != nil {
+		if writePasswordPolicyProblem(w, err) {
+			return
+		}
 		writeProblem(w, http.StatusBadRequest, "Bad request", "the reset token is invalid or expired")
 		return
 	}
@@ -245,6 +255,9 @@ func (h *handler) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, orgID, err := h.deps.Auth.CompleteSetup(r.Context(), request.Token, request.Email, request.Name, request.Password, request.OrgName)
 	if err != nil {
+		if writePasswordPolicyProblem(w, err) {
+			return
+		}
 		writeProblem(w, http.StatusBadRequest, "Bad request", "setup is invalid or has already completed")
 		return
 	}

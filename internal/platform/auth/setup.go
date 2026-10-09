@@ -42,6 +42,9 @@ func (a *Auth) CompleteSetup(ctx context.Context, token, email, name, password, 
 	if orgName == "" || normalizedEmail == "" || name == "" || password == "" {
 		return 0, 0, ErrInvalid
 	}
+	if err := platformcrypto.ValidateNewPassword(password); err != nil {
+		return 0, 0, err
+	}
 	var preliminaryHash []byte
 	var preliminaryCompleted bool
 	err := a.store.Pool.QueryRow(ctx, `

@@ -450,7 +450,6 @@ export function SharesPage({
     >
       <Surface>
         <form
-          className="flex flex-wrap gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             create.mutate(
@@ -458,13 +457,15 @@ export function SharesPage({
             );
           }}
         >
-          <Input
-            className="max-w-sm"
-            aria-label="Optional share password"
-            name="password"
-            placeholder="Optional password"
-          />
-          <Button type="submit">Create link</Button>
+		  <FieldGroup>
+			<Field>
+			  <FieldLabel htmlFor="share-password">Optional share password</FieldLabel>
+			  <Input id="share-password" name="password" type="password" minLength={10} placeholder="Optional password" />
+			  <FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
+			</Field>
+			<Button type="submit">Create link</Button>
+			<Message error={create.error} />
+		  </FieldGroup>
         </form>
         {createdLink ? (
           <div className="flex flex-wrap items-center gap-2">

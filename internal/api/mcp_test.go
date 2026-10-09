@@ -246,7 +246,9 @@ func TestMCPHandler_Authorization(t *testing.T) {
 		request := httptest.NewRequest(http.MethodPost, "http://supermetry.test/api/public/v1/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
-		if response.Code != http.StatusUnauthorized {
+		var envelope mcpResponse
+		decodeMCPResponse(t, response, &envelope)
+		if response.Code != http.StatusOK || envelope.Error == nil || envelope.Error.Code != -32001 || response.Header().Get("WWW-Authenticate") != "Bearer" {
 			t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 		}
 	})
@@ -256,8 +258,22 @@ func TestMCPHandler_Authorization(t *testing.T) {
 		ctx := context.WithValue(request.Context(), principalContextKey{}, Principal{OrgID: 7, Scopes: []string{"sites:read"}, SiteIDs: []int32{1}})
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request.WithContext(ctx))
-		if response.Code != http.StatusForbidden {
+		var envelope mcpResponse
+		decodeMCPResponse(t, response, &envelope)
+		if response.Code != http.StatusOK || envelope.Error == nil || envelope.Error.Code != -32003 || !strings.Contains(response.Header().Get("WWW-Authenticate"), `error="insufficient_scope"`) {
 			t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+		}
+	})
+
+	t.Run("missing export scope identifies required scope", func(t *testing.T) {
+		request := authorizedMCPRequest(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_sites","arguments":{}}}`)
+		request.Header.Set("Accept", "text/csv")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		var envelope mcpResponse
+		decodeMCPResponse(t, response, &envelope)
+		if response.Code != http.StatusOK || envelope.Error == nil || envelope.Error.Code != -32003 || !strings.Contains(response.Header().Get("WWW-Authenticate"), `scope="data:export"`) {
+			t.Fatalf("status=%d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
 		}
 	})
 

@@ -27,10 +27,7 @@ func (a *Auth) allowAccountCheck(ctx context.Context, userID int64) bool {
 // auditUserOrgs records an account event in the audit log of every
 // organization the user belongs to.
 func auditUserOrgs(ctx context.Context, tx pgx.Tx, userID int64, action string) error {
-	_, err := tx.Exec(ctx, `
-		insert into audit_log (org_id, actor_user_id, action, target_type, target_id)
-		select org_id, $1, $2, 'user', $1 from memberships where user_id=$1`, userID, action)
-	return err
+	return auditUserOrgsWithActor(ctx, tx, userID, &userID, action, nil)
 }
 
 func (a *Auth) UpdateName(ctx context.Context, userID int64, name string) error {

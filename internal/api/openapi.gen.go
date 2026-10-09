@@ -354,11 +354,14 @@ func (e OrderByDirection) Valid() bool {
 
 // Defines values for Period.
 const (
+	All       Period = "all"
 	Custom    Period = "custom"
+	Day       Period = "day"
 	LastMonth Period = "last_month"
 	Month     Period = "month"
 	N12mo     Period = "12mo"
 	N30d      Period = "30d"
+	N6mo      Period = "6mo"
 	N7d       Period = "7d"
 	Today     Period = "today"
 	Year      Period = "year"
@@ -368,7 +371,11 @@ const (
 // Valid indicates whether the value is a known member of the Period enum.
 func (e Period) Valid() bool {
 	switch e {
+	case All:
+		return true
 	case Custom:
+		return true
+	case Day:
 		return true
 	case LastMonth:
 		return true
@@ -377,6 +384,8 @@ func (e Period) Valid() bool {
 	case N12mo:
 		return true
 	case N30d:
+		return true
+	case N6mo:
 		return true
 	case N7d:
 		return true
@@ -1084,7 +1093,7 @@ type OrderBy struct {
 // OrderByDirection defines model for OrderBy.Direction.
 type OrderByDirection string
 
-// Period defines model for Period.
+// Period all is capped to the latest 366 days.
 type Period string
 
 // Problem defines model for Problem.
@@ -1215,9 +1224,11 @@ type QueryRequest struct {
 	Limit           *int       `json:"limit,omitempty"`
 	Metrics         []Metric   `json:"metrics"`
 	OrderBy         *[]OrderBy `json:"order_by,omitempty"`
-	Period          *Period    `json:"period,omitempty"`
-	SiteId          int32      `json:"site_id"`
-	Timezone        *string    `json:"timezone,omitempty"`
+
+	// Period all is capped to the latest 366 days.
+	Period   *Period `json:"period,omitempty"`
+	SiteId   int32   `json:"site_id"`
+	Timezone *string `json:"timezone,omitempty"`
 }
 
 // QueryRequestCompare defines model for QueryRequest.Compare.
@@ -1909,7 +1920,7 @@ type ListSuggestionsParams struct {
 type StatsBreakdownParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
 
-	// Period custom requires both date_from and date_to.
+	// Period custom requires both date_from and date_to; all is capped to the latest 366 days.
 	Period   StatsPeriod `form:"period" json:"period"`
 	DateFrom *DateFrom   `form:"date_from,omitempty" json:"date_from,omitempty"`
 	DateTo   *DateTo     `form:"date_to,omitempty" json:"date_to,omitempty"`
@@ -1937,7 +1948,7 @@ type StatsBreakdownParams struct {
 type StatsSummaryParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
 
-	// Period custom requires both date_from and date_to.
+	// Period custom requires both date_from and date_to; all is capped to the latest 366 days.
 	Period   StatsPeriod `form:"period" json:"period"`
 	DateFrom *DateFrom   `form:"date_from,omitempty" json:"date_from,omitempty"`
 	DateTo   *DateTo     `form:"date_to,omitempty" json:"date_to,omitempty"`
@@ -1958,7 +1969,7 @@ type StatsSummaryParams struct {
 type StatsTimeseriesParams struct {
 	SiteId SiteID `form:"site_id" json:"site_id"`
 
-	// Period custom requires both date_from and date_to.
+	// Period custom requires both date_from and date_to; all is capped to the latest 366 days.
 	Period   StatsPeriod `form:"period" json:"period"`
 	DateFrom *DateFrom   `form:"date_from,omitempty" json:"date_from,omitempty"`
 	DateTo   *DateTo     `form:"date_to,omitempty" json:"date_to,omitempty"`

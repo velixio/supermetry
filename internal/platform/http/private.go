@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +24,7 @@ import (
 	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
 	"supermetry/internal/platform/invites"
 	"supermetry/internal/platform/keys"
 	"supermetry/internal/platform/orgs"
@@ -154,6 +156,9 @@ type handler struct {
 // complete authz.Principal is available; the analytics router may mount this
 // handler as a fallback under its public and private route trees.
 func New(deps Deps) http.Handler {
+	if deps.Shares != nil && len(deps.SecretKey) > 0 {
+		deps.Shares.SetCookieSecret(deps.SecretKey)
+	}
 	h := &handler{
 		deps:            deps,
 		iconDiscoveries: make(chan struct{}, 4),
@@ -163,7 +168,7 @@ func New(deps Deps) http.Handler {
 	h.registerPrivate(mux)
 	h.registerAuth(mux)
 	h.registerPublic(mux)
-	return csrf(mux, deps.AdminAPIKey)
+	return csrf(mux, deps.AdminAPIKey, deps.BaseURL)
 }
 
 func (h *handler) registerPrivate(mux *http.ServeMux) {
@@ -479,9 +484,17 @@ func allowsSite(siteIDs []int32, siteID int32) bool {
 	return false
 }
 
-func csrf(next http.Handler, adminAPIKey string) http.Handler {
+func csrf(next http.Handler, adminAPIKey, baseURL string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/private/") || r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions || csrfExempt(r.URL.Path) || validAdminBearer(r.Header.Get("Authorization"), adminAPIKey) {
+		if !strings.HasPrefix(r.URL.Path, "/api/private/") || r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if authOriginRequired(r.URL.Path) && baseURL != "" && !sameOriginRequest(r, baseURL) {
+			writeProblem(w, http.StatusForbidden, "Forbidden", "Origin or Referer must match the configured base URL")
+			return
+		}
+		if csrfExempt(r.URL.Path) || validAdminBearer(r.Header.Get("Authorization"), adminAPIKey) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -493,6 +506,41 @@ func csrf(next http.Handler, adminAPIKey string) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func authOriginRequired(path string) bool {
+	switch path {
+	case "/api/private/auth/login", "/api/private/auth/signup", "/api/private/setup":
+		return true
+	default:
+		return false
+	}
+}
+
+func sameOriginRequest(r *http.Request, baseURL string) bool {
+	want, err := url.Parse(baseURL)
+	if err != nil || want.Scheme == "" || want.Host == "" {
+		return false
+	}
+	source := r.Header.Get("Origin")
+	if source == "" {
+		source = r.Header.Get("Referer")
+	}
+	got, err := url.Parse(source)
+	return err == nil && strings.EqualFold(got.Scheme, want.Scheme) && strings.EqualFold(got.Host, want.Host)
+}
+
+func writePasswordPolicyProblem(w http.ResponseWriter, err error) bool {
+	switch {
+	case errors.Is(err, platformcrypto.ErrPasswordTooShort):
+		writeProblem(w, http.StatusBadRequest, "Password policy", "password must be at least 10 characters")
+		return true
+	case errors.Is(err, platformcrypto.ErrPasswordCommon):
+		writeProblem(w, http.StatusBadRequest, "Password policy", "choose a less common password")
+		return true
+	default:
+		return false
+	}
 }
 
 func csrfExempt(path string) bool {

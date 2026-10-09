@@ -1677,7 +1677,7 @@ components:
       name: period
       in: query
       required: true
-      description: "custom requires both date_from and date_to."
+      description: "custom requires both date_from and date_to; all is capped to the latest 366 days."
       schema:
         type: string
         pattern: '^(day|today|yesterday|7d|30d|month|last_month|6mo|12mo|year|all|custom)$'
@@ -1739,17 +1739,17 @@ components:
         example: eyJ2IjoxLCJrIjpbNDJdfQ
   headers:
     RateLimitLimit:
-      description: Maximum requests allowed in the current window.
+      description: Maximum tokens in this process-local API bucket; multi-process deployments enforce one bucket per process.
       schema:
         type: integer
         format: int64
     RateLimitRemaining:
-      description: Requests remaining in the current window.
+      description: Whole tokens remaining in this process-local API bucket.
       schema:
         type: integer
         format: int64
     RateLimitReset:
-      description: RFC 3339 time when the current window resets.
+      description: RFC 3339 time when this process-local API bucket is full again.
       schema:
         type: string
         format: date-time
@@ -2155,7 +2155,8 @@ components:
         updated_at: { type: string, format: date-time }
     Period:
       type: string
-      enum: [today, yesterday, 7d, 30d, month, last_month, 12mo, year, custom]
+      description: "all is capped to the latest 366 days."
+      enum: [day, today, yesterday, 7d, 30d, month, last_month, 6mo, 12mo, year, all, custom]
     DateRange:
       type: object
       additionalProperties: false

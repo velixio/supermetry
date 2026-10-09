@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -19,14 +21,38 @@ import (
 	"supermetry/internal/platform/store"
 )
 
-const shareSessionLifetime = 12 * time.Hour
+const (
+	shareSessionLifetime = 12 * time.Hour
+	attemptBucketCap     = 4096
+)
 
 var (
 	ErrForbidden        = errors.New("forbidden")
 	ErrNotFound         = errors.New("shared link not found")
 	ErrPasswordRequired = errors.New("share password required")
 	ErrInvalid          = errors.New("invalid shared link or password")
+	ErrRateLimited      = errors.New("too many share password attempts")
 )
+
+type clientKeyContextKey struct{}
+
+// WithClientKey attaches an ephemeral, caller-derived client key. It is used
+// only by the per-process in-memory password-attempt limiter.
+func WithClientKey(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, clientKeyContextKey{}, strings.TrimSpace(key))
+}
+
+type attemptBucket struct {
+	tokens float64
+	last   time.Time
+}
+
+type attemptLimiter struct {
+	mu      sync.Mutex
+	targets map[string]attemptBucket
+	clients map[string]attemptBucket
+	attempt uint64
+}
 
 type ShareInfo struct {
 	ID                int64
@@ -38,12 +64,32 @@ type ShareInfo struct {
 }
 
 type Shares struct {
-	store *store.Store
-	now   func() time.Time
+	store     *store.Store
+	now       func() time.Time
+	limiter   attemptLimiter
+	secretMu  sync.RWMutex
+	cookieKey []byte
 }
 
-func New(data *store.Store) *Shares {
-	return &Shares{store: data, now: time.Now}
+func New(data *store.Store, secrets ...[]byte) *Shares {
+	service := &Shares{store: data, now: time.Now, limiter: attemptLimiter{
+		targets: make(map[string]attemptBucket), clients: make(map[string]attemptBucket),
+	}}
+	if len(secrets) > 0 {
+		service.SetCookieSecret(secrets[0])
+	}
+	return service
+}
+
+// SetCookieSecret derives a purpose-specific signing key from
+// SUPERMETRY_SECRET_KEY. Changing that server secret invalidates existing
+// share-unlock cookies by design.
+func (s *Shares) SetCookieSecret(secret []byte) {
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte("supermetry/share-unlock-cookie/v1"))
+	s.secretMu.Lock()
+	s.cookieKey = mac.Sum(nil)
+	s.secretMu.Unlock()
 }
 
 func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID int32, password string) (slug string, info ShareInfo, err error) {
@@ -54,6 +100,9 @@ func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID i
 	slug, slugHash := platformcrypto.NewToken("shr_")
 	var passwordHash *string
 	if password != "" {
+		if err := platformcrypto.ValidateNewPassword(password); err != nil {
+			return "", ShareInfo{}, err
+		}
 		hash, hashErr := platformcrypto.HashPassword(password)
 		if hashErr != nil {
 			return "", ShareInfo{}, hashErr
@@ -95,6 +144,12 @@ func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID i
 }
 
 func (s *Shares) Open(ctx context.Context, slug, password string) (cookieValue string, err error) {
+	now := s.now()
+	client, _ := ctx.Value(clientKeyContextKey{}).(string)
+	target := base64.RawURLEncoding.EncodeToString(platformcrypto.HashToken(slug))
+	if !s.limiter.allow(target, client, now) {
+		return "", ErrRateLimited
+	}
 	link, err := s.lookup(ctx, slug)
 	if err != nil || link.RevokedAt != nil {
 		return "", ErrInvalid
@@ -109,7 +164,11 @@ func (s *Shares) Open(ctx context.Context, slug, password string) (cookieValue s
 	if err != nil || !valid {
 		return "", ErrInvalid
 	}
-	return signCookie(slug, s.now().Add(shareSessionLifetime), *link.PasswordHash), nil
+	key := s.cookieSecret()
+	if len(key) == 0 {
+		return "", errors.New("share cookie signing is unavailable")
+	}
+	return signCookie(slug, now.Add(shareSessionLifetime), key), nil
 }
 
 func (s *Shares) Principal(ctx context.Context, slug, cookieValue string) (authz.Principal, bool) {
@@ -117,7 +176,7 @@ func (s *Shares) Principal(ctx context.Context, slug, cookieValue string) (authz
 	if err != nil || link.RevokedAt != nil {
 		return authz.Principal{}, false
 	}
-	if link.PasswordHash != nil && !validCookie(slug, cookieValue, *link.PasswordHash, s.now()) {
+	if link.PasswordHash != nil && !validCookie(slug, cookieValue, s.cookieSecret(), s.now()) {
 		return authz.Principal{}, false
 	}
 	return authz.Principal{
@@ -169,13 +228,82 @@ func (s *Shares) lookup(ctx context.Context, slug string) (store.SharedLink, err
 	return link, nil
 }
 
-func signCookie(slug string, expires time.Time, passwordHash string) string {
+func (s *Shares) cookieSecret() []byte {
+	s.secretMu.RLock()
+	defer s.secretMu.RUnlock()
+	return append([]byte(nil), s.cookieKey...)
+}
+
+func (l *attemptLimiter) allow(target, client string, now time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.attempt++
+	if l.attempt%256 == 0 {
+		pruneAttempts(l.targets, now)
+		pruneAttempts(l.clients, now)
+	}
+	if client != "" && !takeAttempt(l.clients, client, 5, now) {
+		return false
+	}
+	return takeAttempt(l.targets, target, 20, now)
+}
+
+func pruneAttempts(buckets map[string]attemptBucket, now time.Time) {
+	for key, bucket := range buckets {
+		if now.Sub(bucket.last) >= time.Minute {
+			delete(buckets, key)
+		}
+	}
+	if len(buckets) <= attemptBucketCap {
+		return
+	}
+	type entry struct {
+		key  string
+		last time.Time
+	}
+	entries := make([]entry, 0, len(buckets))
+	for key, bucket := range buckets {
+		entries = append(entries, entry{key: key, last: bucket.last})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].last.Equal(entries[j].last) {
+			return entries[i].key < entries[j].key
+		}
+		return entries[i].last.Before(entries[j].last)
+	})
+	for _, entry := range entries[:len(entries)-attemptBucketCap] {
+		delete(buckets, entry.key)
+	}
+}
+
+func takeAttempt(buckets map[string]attemptBucket, key string, capacity float64, now time.Time) bool {
+	bucket := buckets[key]
+	if bucket.last.IsZero() {
+		bucket.tokens = capacity
+		bucket.last = now
+	} else if now.After(bucket.last) {
+		bucket.tokens = min(capacity, bucket.tokens+now.Sub(bucket.last).Minutes()*capacity)
+		bucket.last = now
+	}
+	if bucket.tokens < 1 {
+		buckets[key] = bucket
+		return false
+	}
+	bucket.tokens--
+	buckets[key] = bucket
+	return true
+}
+
+func signCookie(slug string, expires time.Time, key []byte) string {
 	expiry := strconv.FormatInt(expires.Unix(), 10)
-	mac := cookieMAC(slug, expiry, passwordHash)
+	mac := cookieMAC(slug, expiry, key)
 	return expiry + "." + base64.RawURLEncoding.EncodeToString(mac)
 }
 
-func validCookie(slug, value, passwordHash string, now time.Time) bool {
+func validCookie(slug, value string, key []byte, now time.Time) bool {
+	if len(key) == 0 {
+		return false
+	}
 	expiry, encodedMAC, ok := strings.Cut(value, ".")
 	if !ok || expiry == "" || encodedMAC == "" {
 		return false
@@ -188,11 +316,11 @@ func validCookie(slug, value, passwordHash string, now time.Time) bool {
 	if err != nil {
 		return false
 	}
-	return hmac.Equal(got, cookieMAC(slug, expiry, passwordHash))
+	return hmac.Equal(got, cookieMAC(slug, expiry, key))
 }
 
-func cookieMAC(slug, expiry, passwordHash string) []byte {
-	mac := hmac.New(sha256.New, []byte(passwordHash))
+func cookieMAC(slug, expiry string, key []byte) []byte {
+	mac := hmac.New(sha256.New, key)
 	_, _ = mac.Write([]byte(slug))
 	_, _ = mac.Write([]byte{0})
 	_, _ = mac.Write([]byte(expiry))

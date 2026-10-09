@@ -33,6 +33,7 @@ func (disabledMail) Enabled() bool                            { return false }
 type testEnv struct {
 	authenticator *authn.Authenticator
 	key           string
+	keyID         int64
 	session       string
 	viewerSession string
 	share         string
@@ -60,7 +61,7 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 			headers: map[string]string{
 				"Authorization": "Bearer " + env.key,
 			},
-			want:   api.Principal{OrgID: env.orgID, Scopes: []string{"stats:read"}, SiteIDs: []int32{env.siteID}},
+			want:   api.Principal{OrgID: env.orgID, Scopes: []string{"stats:read"}, SiteIDs: []int32{env.siteID}, CredentialID: "key:" + integer(env.keyID)},
 			wantOK: true,
 		},
 		{
@@ -69,7 +70,7 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 			headers: map[string]string{
 				"Authorization": "bearer " + env.key,
 			},
-			want:   api.Principal{OrgID: env.orgID, Scopes: []string{"stats:read"}, SiteIDs: []int32{env.siteID}},
+			want:   api.Principal{OrgID: env.orgID, Scopes: []string{"stats:read"}, SiteIDs: []int32{env.siteID}, CredentialID: "key:" + integer(env.keyID)},
 			wantOK: true,
 		},
 		{
@@ -240,7 +241,7 @@ func newTestEnv(t *testing.T) testEnv {
 	keyService := keys.New(data)
 	t.Cleanup(keyService.Close)
 	owner := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	key, _, err := keyService.Create(ctx, owner, "Test", []string{"stats:read"}, []int32{siteID}, nil)
+	key, keyInfo, err := keyService.Create(ctx, owner, "Test", []string{"stats:read"}, []int32{siteID}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +253,7 @@ func newTestEnv(t *testing.T) testEnv {
 
 	env := testEnv{
 		authenticator: authn.New(authService, keyService, shareService, orgs.New(data)),
-		key:           key, session: session, viewerSession: viewerSession, share: share,
+		key:           key, keyID: keyInfo.ID, session: session, viewerSession: viewerSession, share: share,
 		orgID: orgID, otherOrgID: otherOrgID, siteID: siteID, otherSiteID: otherSiteID,
 		pool: pool,
 	}

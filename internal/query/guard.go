@@ -102,8 +102,7 @@ func Normalize(req api.QueryRequest, site sites.Site, now time.Time) (Normalized
 	if from.After(to) {
 		return Normalized{}, badQuery("date_range.from must not be after date_range.to")
 	}
-	allPeriod := req.Period != nil && *req.Period == api.Period("all")
-	if !allPeriod && daysInclusive(from, to) > maxRangeDays {
+	if daysInclusive(from, to) > maxRangeDays {
 		return Normalized{}, badQuery("date range must not exceed 366 days")
 	}
 
@@ -329,7 +328,9 @@ func normalizeRange(req api.QueryRequest, location *time.Location, now time.Time
 	case api.Year:
 		return time.Date(today.Year(), time.January, 1, 0, 0, 0, 0, time.UTC), today, nil
 	case api.Period("all"):
-		return time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), today, nil
+		// "all" is intentionally bounded to the maximum query window. Sites
+		// with longer histories can retrieve older data with explicit ranges.
+		return today.AddDate(0, 0, -(maxRangeDays - 1)), today, nil
 	default:
 		return time.Time{}, time.Time{}, badQuery(fmt.Sprintf("unknown period %q", *req.Period))
 	}

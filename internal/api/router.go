@@ -8,14 +8,19 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"math"
 	"net/http"
+	"net/netip"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.yaml.in/yaml/v3"
 
+	"supermetry/internal/clientip"
 	"supermetry/internal/config"
 	"supermetry/internal/dict"
 	"supermetry/internal/ingest"
@@ -70,6 +75,7 @@ type Deps struct {
 	// principal required by authz.Can and transactional audit records.
 	Platform               http.Handler
 	Now                    func() time.Time
+	RateLimitNow           func() time.Time
 	Ready                  func() bool
 	RollupBackfillProgress RollupBackfillProgressFunc
 	FailedProfileErasures  FailedProfileErasuresFunc
@@ -84,6 +90,17 @@ func NewRouter(deps Deps) http.Handler {
 	if deps.RateLimiter == nil {
 		deps.RateLimiter = ingest.NewTokenBuckets(2, 30)
 	}
+	now := deps.Now
+	if now == nil {
+		now = time.Now
+	}
+	rateLimitNow := deps.RateLimitNow
+	if rateLimitNow == nil {
+		// Security throttling uses wall time rather than the injectable analytics
+		// clock, which may intentionally be fixed for historical queries.
+		rateLimitNow = time.Now
+	}
+	apiLimiter := newAPITokenBuckets(2, 30, rateLimitNow)
 
 	queries := deps.Query
 	if deps.Config.Tracking.Mode != privacy.Identified && queries != nil {
@@ -99,10 +116,11 @@ func NewRouter(deps Deps) http.Handler {
 		registerExplore(public, publicPrefix, explore)
 	}
 	registerSessionExplore(public, publicPrefix, h)
-	public.Handle("POST "+publicPrefix+"/mcp", NewMCPHandler(MCPDeps{
+	mcp := NewMCPHandler(MCPDeps{
 		Query: queries, TrackingMode: deps.Config.Tracking.Mode, TrackingPaths: deps.Config.TrackingPaths, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
 		Dictionary: deps.Dictionary, MinuteSource: deps.MinuteSource,
-	}))
+	})
+	mux.Handle("POST "+publicPrefix+"/mcp", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, true, mcp))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
 	public.HandleFunc("POST "+publicPrefix+"/heatmaps/query", h.heatmapRequest)
 	public.HandleFunc("POST "+publicPrefix+"/vitals/query", h.vitalsRequest)
@@ -112,7 +130,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	public.HandleFunc("GET "+publicPrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(publicPrefix+"/", authenticate(deps.PublicAuth, deps.Sites, rateLimit(deps.RateLimiter, trackingReads(deps.Config.Tracking.Mode, public))))
+	mux.Handle(publicPrefix+"/", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, false, trackingReads(deps.Config.Tracking.Mode, public)))
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
@@ -131,7 +149,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress, deps.FailedProfileErasures))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, private))))
-	registerPlatformRoutes(mux, deps.Platform, deps.RateLimiter)
+	registerPlatformRoutes(mux, deps.Platform, deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow)
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
 		mux.Handle("POST "+deps.Config.EventPath, deps.Ingest)
@@ -198,11 +216,11 @@ func NewRouter(deps Deps) http.Handler {
 	return requestID(recoverProblems(mux))
 }
 
-func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, limiter ingest.RateLimiter) {
+func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Authenticator, registry sites.Registry, keyedLimiter ingest.RateLimiter, anonymousLimiter *apiTokenBuckets, trustedProxies []netip.Prefix, now func() time.Time) {
 	if platform == nil {
 		return
 	}
-	public := rateLimit(limiter, platform)
+	public := authenticateRateLimited(auth, registry, keyedLimiter, anonymousLimiter, trustedProxies, now, false, platform)
 	for _, pattern := range []string{
 		"GET " + publicPrefix + "/api-keys",
 		"POST " + publicPrefix + "/api-keys",
@@ -381,21 +399,200 @@ func authenticate(auth Authenticator, registry sites.Registry, next http.Handler
 	})
 }
 
-func rateLimit(limiter ingest.RateLimiter, next http.Handler) http.Handler {
+type apiRateLimitResult struct {
+	allowed    bool
+	limit      int
+	remaining  int
+	reset      time.Time
+	retryAfter time.Duration
+}
+
+type apiTokenBucket struct {
+	tokens float64
+	last   time.Time
+}
+
+type apiTokenBuckets struct {
+	mu      sync.Mutex
+	rate    float64
+	burst   int
+	now     func() time.Time
+	buckets map[string]apiTokenBucket
+	attempt uint64
+}
+
+const (
+	maxAPITokenBuckets         = 10_000
+	apiTokenBucketPruneTarget  = 9_000
+	apiTokenBucketIdleDuration = time.Minute
+)
+
+// newAPITokenBuckets creates a process-local limiter. Multi-process installs
+// enforce an independent quota in each Supermetry process.
+func newAPITokenBuckets(rate float64, burst int, now func() time.Time) *apiTokenBuckets {
+	return &apiTokenBuckets{rate: rate, burst: burst, now: now, buckets: make(map[string]apiTokenBucket)}
+}
+
+func (l *apiTokenBuckets) take(keys ...string) apiRateLimitResult {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.attempt++
+	if l.attempt%256 == 0 {
+		l.prune(now)
+	}
+
+	result := apiRateLimitResult{allowed: true, limit: l.burst, remaining: l.burst, reset: now}
+	for _, key := range keys {
+		bucket, ok := l.buckets[key]
+		if !ok {
+			if len(l.buckets) >= maxAPITokenBuckets {
+				l.prune(now)
+			}
+			bucket = apiTokenBucket{tokens: float64(l.burst), last: now}
+		} else if l.rate > 0 {
+			bucket.tokens = min(float64(l.burst), bucket.tokens+now.Sub(bucket.last).Seconds()*l.rate)
+		}
+		bucket.last = now
+		if bucket.tokens >= 1 {
+			bucket.tokens--
+		} else {
+			result.allowed = false
+		}
+		l.buckets[key] = bucket
+
+		remaining := max(0, int(math.Floor(bucket.tokens)))
+		if remaining < result.remaining {
+			result.remaining = remaining
+		}
+		if l.rate > 0 {
+			untilFull := time.Duration((float64(l.burst) - bucket.tokens) / l.rate * float64(time.Second))
+			if candidate := now.Add(untilFull); candidate.After(result.reset) {
+				result.reset = candidate
+			}
+			if !result.allowed && bucket.tokens < 1 {
+				untilToken := time.Duration((1 - bucket.tokens) / l.rate * float64(time.Second))
+				if untilToken > result.retryAfter {
+					result.retryAfter = untilToken
+				}
+			}
+		}
+	}
+	return result
+}
+
+func (l *apiTokenBuckets) wouldAllow(key string) bool {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	bucket, ok := l.buckets[key]
+	if !ok {
+		return l.burst >= 1
+	}
+	tokens := bucket.tokens
+	if l.rate > 0 {
+		tokens = min(float64(l.burst), tokens+now.Sub(bucket.last).Seconds()*l.rate)
+	}
+	return tokens >= 1
+}
+
+func (l *apiTokenBuckets) prune(now time.Time) {
+	for key, bucket := range l.buckets {
+		if now.Sub(bucket.last) >= apiTokenBucketIdleDuration {
+			delete(l.buckets, key)
+		}
+	}
+	if len(l.buckets) < maxAPITokenBuckets {
+		return
+	}
+	type entry struct {
+		key  string
+		last time.Time
+	}
+	entries := make([]entry, 0, len(l.buckets))
+	for key, bucket := range l.buckets {
+		entries = append(entries, entry{key: key, last: bucket.last})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].last.Equal(entries[j].last) {
+			return entries[i].key < entries[j].key
+		}
+		return entries[i].last.Before(entries[j].last)
+	})
+	for i := 0; len(l.buckets) > apiTokenBucketPruneTarget; i++ {
+		delete(l.buckets, entries[i].key)
+	}
+}
+
+func authenticateRateLimited(auth Authenticator, registry sites.Registry, keyedLimiter ingest.RateLimiter, anonymousLimiter *apiTokenBuckets, trustedProxies []netip.Prefix, now func() time.Time, mcp bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reset := time.Now().Add(time.Minute).UTC().Format(time.RFC3339)
+		if r.Header.Get("Authorization") == "" && !anonymousLimiter.wouldAllow(anonymousAPIKey(r, trustedProxies)) {
+			if !allowAnonymousAPIRequest(w, r, anonymousLimiter, trustedProxies) {
+				return
+			}
+		}
+		principal, authenticated := Principal{}, false
+		if auth != nil {
+			principal, authenticated = auth.Authenticate(r)
+		}
+		if !authenticated {
+			if !allowAnonymousAPIRequest(w, r, anonymousLimiter, trustedProxies) {
+				return
+			}
+			if mcp {
+				writeMCPAuthorizationError(w, nil, "")
+			} else {
+				writeProblem(w, unauthorized())
+			}
+			return
+		}
+
+		key := principal.CredentialID
+		if key == "" {
+			key = canonicalPrincipalRateLimitKey(principal)
+		}
+		allowed := keyedLimiter == nil || keyedLimiter.Allow(key)
 		w.Header().Set("RateLimit-Limit", "120")
-		w.Header().Set("RateLimit-Reset", reset)
-		keyHash := sha256.Sum256([]byte(r.Header.Get("Authorization")))
-		if limiter != nil && !limiter.Allow(hex.EncodeToString(keyHash[:])) {
+		w.Header().Set("RateLimit-Reset", now().Add(time.Minute).UTC().Format(time.RFC3339Nano))
+		if !allowed {
 			w.Header().Set("RateLimit-Remaining", "0")
 			w.Header().Set("Retry-After", "1")
 			writeProblem(w, rateLimited())
 			return
 		}
 		w.Header().Set("RateLimit-Remaining", "1")
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), principalContextKey{}, principal)
+		ctx = context.WithValue(ctx, registryContextKey{}, registry)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func canonicalPrincipalRateLimitKey(principal Principal) string {
+	encoded, _ := json.Marshal(principal)
+	digest := sha256.Sum256(encoded)
+	return "principal:" + hex.EncodeToString(digest[:])
+}
+
+func allowAnonymousAPIRequest(w http.ResponseWriter, r *http.Request, limiter *apiTokenBuckets, trustedProxies []netip.Prefix) bool {
+	result := limiter.take(anonymousAPIKey(r, trustedProxies))
+	w.Header().Set("RateLimit-Limit", strconv.Itoa(result.limit))
+	w.Header().Set("RateLimit-Remaining", strconv.Itoa(result.remaining))
+	w.Header().Set("RateLimit-Reset", result.reset.UTC().Format(time.RFC3339Nano))
+	if result.allowed {
+		return true
+	}
+	retrySeconds := max(1, int(math.Ceil(result.retryAfter.Seconds())))
+	w.Header().Set("Retry-After", strconv.Itoa(retrySeconds))
+	writeProblem(w, rateLimited())
+	return false
+}
+
+func anonymousAPIKey(r *http.Request, trustedProxies []netip.Prefix) string {
+	client := "unknown"
+	if address, ok := clientip.ResolveAccessClient(r, trustedProxies); ok {
+		client = address.String()
+	}
+	return "ip:" + client
 }
 
 func requireCSRF(next http.Handler) http.Handler {
@@ -460,10 +657,7 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	if root, ok := document.(map[string]any); ok {
 		if paths, ok := root["paths"].(map[string]any); ok {
 			for route := range paths {
-				if strings.HasPrefix(route, "/api/private/sites/") ||
-					strings.HasPrefix(route, "/api/private/instance/") ||
-					strings.HasPrefix(route, "/api/private/profiles/") ||
-					strings.HasPrefix(route, "/api/private/erasures/") {
+				if strings.HasPrefix(route, privatePrefix+"/") {
 					delete(paths, route)
 				}
 			}

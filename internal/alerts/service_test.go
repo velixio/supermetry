@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -260,6 +261,83 @@ func TestServiceAlertMutationsAreScopedToPathSite(t *testing.T) {
 	}
 	if err := service.DeleteAlert(ctx, principal, siteID, created.ID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestServicePersistsDeliveryStateUntilAlertIsMarkedFired(t *testing.T) {
+	service, _, principal, siteID, _ := newServiceTest(t)
+	ctx := context.Background()
+	channel, err := service.CreateChannel(ctx, principal, ChannelInput{Kind: ChannelEmail, Name: "Owners", Recipients: []string{"owner@example.test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	alert, err := service.CreateAlert(ctx, principal, siteID, AlertInput{Kind: AlertTrafficSpike, Threshold: 5, ChannelIDs: []int64{channel.ID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	state := DeliveryState{
+		Notification:        Notification{AlertID: alert.ID, SiteID: siteID, Kind: AlertTrafficSpike, Value: 7, Threshold: 5, From: now.Add(-time.Hour), To: now, FiredAt: now},
+		ChannelIDs:          []int64{channel.ID},
+		DeliveredChannelIDs: []int64{channel.ID},
+	}
+	if err := service.SaveDeliveryState(ctx, alert.ID, state); err != nil {
+		t.Fatal(err)
+	}
+
+	alerts, err := service.EnabledAlerts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(alerts) != 1 || alerts[0].DeliveryState == nil {
+		t.Fatalf("enabled alerts = %+v, want persisted delivery state", alerts)
+	}
+	got := alerts[0].DeliveryState
+	if got.Notification != state.Notification || len(got.ChannelIDs) != 1 || got.ChannelIDs[0] != channel.ID || len(got.DeliveredChannelIDs) != 1 || got.DeliveredChannelIDs[0] != channel.ID {
+		t.Fatalf("delivery state = %+v, want %+v", got, state)
+	}
+
+	if err := service.MarkFired(ctx, alert.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	alerts, err = service.EnabledAlerts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(alerts) != 1 || alerts[0].LastFiredAt == nil || !alerts[0].LastFiredAt.Equal(now) || alerts[0].DeliveryState != nil {
+		t.Fatalf("alert after MarkFired = %+v", alerts)
+	}
+}
+
+func TestServiceUpdatingAlertClearsPendingDeliveryState(t *testing.T) {
+	service, _, principal, siteID, _ := newServiceTest(t)
+	ctx := context.Background()
+	channel, err := service.CreateChannel(ctx, principal, ChannelInput{Kind: ChannelEmail, Name: "Owners", Recipients: []string{"owner@example.test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	alert, err := service.CreateAlert(ctx, principal, siteID, AlertInput{Kind: AlertTrafficSpike, Threshold: 5, ChannelIDs: []int64{channel.ID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	state := DeliveryState{
+		Notification: Notification{AlertID: alert.ID, SiteID: siteID, Kind: AlertTrafficSpike, Value: 7, Threshold: 5, From: now.Add(-time.Hour), To: now, FiredAt: now},
+		ChannelIDs:   []int64{channel.ID},
+	}
+	if err := service.SaveDeliveryState(ctx, alert.ID, state); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.UpdateAlert(ctx, principal, siteID, alert.ID, AlertInput{Kind: AlertTrafficSpike, Threshold: 8, ChannelIDs: []int64{channel.ID}}); err != nil {
+		t.Fatal(err)
+	}
+
+	alerts, err := service.EnabledAlerts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(alerts) != 1 || alerts[0].DeliveryState != nil {
+		t.Fatalf("alert after update = %+v, want pending delivery state cleared", alerts)
 	}
 }
 

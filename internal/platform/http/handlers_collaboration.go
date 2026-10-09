@@ -1,6 +1,8 @@
 package platformhttp
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/invites"
 	"supermetry/internal/platform/reports"
+	"supermetry/internal/platform/shares"
 )
 
 func (h *handler) listInvitations(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +80,9 @@ func (h *handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := h.deps.Invites.Accept(r.Context(), r.PathValue("token"), userID, request.Name, request.Password)
 	if err != nil {
+		if writePasswordPolicyProblem(w, err) {
+			return
+		}
 		writeProblem(w, http.StatusBadRequest, "Bad request", "the invitation is invalid or expired")
 		return
 	}
@@ -94,8 +100,16 @@ func (h *handler) openShare(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	cookieValue, err := h.deps.Shares.Open(r.Context(), r.PathValue("slug"), request.Password)
+	client := h.clientAddress(r)
+	hash := sha256.Sum256([]byte(client))
+	ctx := shares.WithClientKey(r.Context(), hex.EncodeToString(hash[:]))
+	cookieValue, err := h.deps.Shares.Open(ctx, r.PathValue("slug"), request.Password)
 	if err != nil {
+		if errors.Is(err, shares.ErrRateLimited) {
+			w.Header().Set("Retry-After", "60")
+			writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
+			return
+		}
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "invalid shared dashboard or password")
 		return
 	}
@@ -208,6 +222,9 @@ func (h *handler) createShare(w http.ResponseWriter, r *http.Request) {
 	}
 	slug, info, err := h.deps.Shares.Create(r.Context(), principal, site.ID, request.Password)
 	if err != nil {
+		if writePasswordPolicyProblem(w, err) {
+			return
+		}
 		serviceError(w, err)
 		return
 	}

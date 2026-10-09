@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 
@@ -54,7 +54,8 @@ function SetupPage() {
           </Field>
           <Field>
             <FieldLabel htmlFor="password">{en.auth.password}</FieldLabel>
-            <Input id="password" name="password" type="password" required />
+			<Input id="password" name="password" type="password" minLength={10} required />
+			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
           {message ? <FieldError>{message}</FieldError> : null}
           <Button type="submit">{en.auth.completeSetup}</Button>

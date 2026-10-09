@@ -91,7 +91,8 @@ export async function authResultMessage(
 ): Promise<string> {
   try {
     const result = await operation()
-    return result.ok ? en.auth.success : en.auth.genericError
+    if (result.ok) return en.auth.success
+    return result.type === 'password-policy' ? en.auth.passwordPolicy : en.auth.genericError
   } catch {
     return en.auth.genericError
   }

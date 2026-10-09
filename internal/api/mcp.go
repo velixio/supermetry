@@ -91,6 +91,15 @@ type invalidMCPParams struct{ detail string }
 
 func (e invalidMCPParams) Error() string { return e.detail }
 
+type mcpAuthorizationError struct{ scope string }
+
+func (e mcpAuthorizationError) Error() string {
+	if e.scope == "stats:read" {
+		return "the credential does not grant the required scope"
+	}
+	return "the credential does not grant the required " + e.scope + " scope"
+}
+
 // errMCPSiteNotFound is returned as a tool error, not an HTTP status, so MCP
 // clients see a normal JSON-RPC response for unknown, foreign or unassigned
 // sites, mirroring the public API's 404 without revealing which case applied.
@@ -108,10 +117,10 @@ func requireSite(r *http.Request, siteID int32) error {
 
 func requireMCPScopes(r *http.Request) error {
 	if !requestHasScope(r, "stats:read") {
-		return errors.New("the credential does not grant the required scope")
+		return mcpAuthorizationError{scope: "stats:read"}
 	}
 	if (wantsCSV(r) || r.URL.Query().Get("limit") == "all") && !requestHasScope(r, "data:export") {
-		return errors.New("the credential does not grant the data:export scope")
+		return mcpAuthorizationError{scope: "data:export"}
 	}
 	return nil
 }
@@ -135,7 +144,7 @@ func (h *mcpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, ok := r.Context().Value(principalContextKey{}).(Principal); !ok {
-		writeProblem(w, unauthorized())
+		writeMCPAuthorizationError(w, nil, "")
 		return
 	}
 
@@ -146,8 +155,13 @@ func (h *mcpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// Site tools check ownership first, then scopes inside requireSite. Global
 	// protocol operations have no site to resolve.
-	if request.Method != "tools/call" && !authorizeRequest(w, r, 0, "stats:read") {
-		return
+	if request.Method != "tools/call" {
+		if err := requireMCPScopes(r); err != nil {
+			var authorization mcpAuthorizationError
+			errors.As(err, &authorization)
+			writeMCPAuthorizationError(w, request.ID, authorization.scope)
+			return
+		}
 	}
 	if !hasID || responseOnly {
 		w.WriteHeader(http.StatusAccepted)
@@ -199,6 +213,11 @@ func (h *mcpHandler) callTool(w http.ResponseWriter, r *http.Request, request mc
 		var invalid invalidMCPParams
 		if errors.As(err, &invalid) {
 			writeMCPError(w, request.ID, -32602, "Invalid params", invalid.detail)
+			return
+		}
+		var authorization mcpAuthorizationError
+		if errors.As(err, &authorization) {
+			writeMCPAuthorizationError(w, request.ID, authorization.scope)
 			return
 		}
 		payload, _ := json.Marshal(map[string]string{"error": err.Error()})
@@ -536,6 +555,16 @@ func writeMCPError(w http.ResponseWriter, id json.RawMessage, code int, message 
 		id = json.RawMessage("null")
 	}
 	writeMCPResponse(w, mcpResponse{JSONRPC: "2.0", ID: id, Error: &mcpError{Code: code, Message: message, Data: data}})
+}
+
+func writeMCPAuthorizationError(w http.ResponseWriter, id json.RawMessage, scope string) {
+	if scope != "" {
+		w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope", scope="`+scope+`"`)
+		writeMCPError(w, id, -32003, "Forbidden", mcpAuthorizationError{scope: scope}.Error())
+		return
+	}
+	w.Header().Set("WWW-Authenticate", "Bearer")
+	writeMCPError(w, id, -32001, "Unauthorized", "valid authentication is required")
 }
 
 func writeMCPResponse(w http.ResponseWriter, response mcpResponse) {

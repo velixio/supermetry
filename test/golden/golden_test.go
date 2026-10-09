@@ -283,16 +283,7 @@ func queryAPI(t *testing.T, env *testenv.Env, request api.QueryRequest) api.Quer
 	if err != nil {
 		t.Fatal(err)
 	}
-	req, err := http.NewRequest(http.MethodPost, env.URL()+"/api/public/v1/query", bytes.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer "+testAPIKey)
-	req.Header.Set("Content-Type", "application/json")
-	response, err := env.Client().Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	response := rateLimitedRequest(t, env, "/api/public/v1/query", body)
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		message, _ := io.ReadAll(response.Body)
@@ -311,16 +302,7 @@ func funnelAPI(t *testing.T, env *testenv.Env, request api.FunnelRequest) api.Fu
 	if err != nil {
 		t.Fatal(err)
 	}
-	req, err := http.NewRequest(http.MethodPost, env.URL()+"/api/public/v1/funnels/query", bytes.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer "+testAPIKey)
-	req.Header.Set("Content-Type", "application/json")
-	response, err := env.Client().Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	response := rateLimitedRequest(t, env, "/api/public/v1/funnels/query", body)
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		message, _ := io.ReadAll(response.Body)
@@ -331,6 +313,33 @@ func funnelAPI(t *testing.T, env *testenv.Env, request api.FunnelRequest) api.Fu
 		t.Fatal(err)
 	}
 	return result
+}
+
+func rateLimitedRequest(t *testing.T, env *testenv.Env, path string, body []byte) *http.Response {
+	t.Helper()
+	for attempt := 0; attempt < 5; attempt++ {
+		req, err := http.NewRequest(http.MethodPost, env.URL()+path, bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+testAPIKey)
+		req.Header.Set("Content-Type", "application/json")
+		response, err := env.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != http.StatusTooManyRequests {
+			return response
+		}
+		_ = response.Body.Close()
+		retryAfter, err := strconv.Atoi(response.Header.Get("Retry-After"))
+		if err != nil || retryAfter < 1 {
+			retryAfter = 1
+		}
+		time.Sleep(time.Duration(retryAfter) * time.Second)
+	}
+	t.Fatal("API remained rate limited after retries")
+	return nil
 }
 
 type topEntry struct {

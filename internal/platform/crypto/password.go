@@ -3,10 +3,12 @@ package crypto
 import (
 	"crypto/rand"
 	"crypto/subtle"
+	_ "embed"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -20,6 +22,34 @@ const (
 )
 
 var errInvalidPasswordHash = errors.New("invalid argon2id password hash")
+
+var (
+	ErrPasswordTooShort = errors.New("password must be at least 10 characters")
+	ErrPasswordCommon   = errors.New("password is too common")
+)
+
+//go:embed common_passwords.txt
+var commonPasswordsText string
+
+var commonPasswords = func() map[string]struct{} {
+	passwords := make(map[string]struct{})
+	for _, password := range strings.Fields(commonPasswordsText) {
+		passwords[strings.ToLower(password)] = struct{}{}
+	}
+	return passwords
+}()
+
+// ValidateNewPassword applies the policy for newly chosen account and share
+// passwords. Existing hashes remain valid so deployments can upgrade safely.
+func ValidateNewPassword(password string) error {
+	if utf8.RuneCountInString(password) < 10 {
+		return ErrPasswordTooShort
+	}
+	if _, found := commonPasswords[strings.ToLower(strings.TrimSpace(password))]; found {
+		return ErrPasswordCommon
+	}
+	return nil
+}
 
 // HashPassword hashes a password with the platform's fixed Argon2id policy.
 func HashPassword(password string) (string, error) {

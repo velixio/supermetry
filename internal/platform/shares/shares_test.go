@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -106,6 +109,110 @@ func TestShareLifecycle(t *testing.T) {
 	}
 }
 
+func TestCreateRejectsWeakSharePassword(t *testing.T) {
+	service, principal, siteID, _ := newShares(t)
+	if _, _, err := service.Create(context.Background(), principal, siteID, "password123"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
+		t.Fatalf("Create() error = %v, want ErrPasswordCommon", err)
+	}
+}
+
+func TestOpenLimitsPasswordAttemptsPerTargetAndClient(t *testing.T) {
+	service, principal, siteID, _ := newShares(t)
+	ctx := context.Background()
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return now }
+	slug, _, err := service.Create(ctx, principal, siteID, "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 20; i++ {
+		attemptCtx := WithClientKey(ctx, "client-"+string(rune('a'+i)))
+		if _, err := service.Open(attemptCtx, slug, "wrong password"); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("target attempt %d error = %v, want ErrInvalid", i+1, err)
+		}
+	}
+	if _, err := service.Open(WithClientKey(ctx, "fresh-client"), slug, "correct horse battery staple"); !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("target limit error = %v, want ErrRateLimited", err)
+	}
+
+	service, _, _, _ = newShares(t)
+	service.now = func() time.Time { return now }
+	clientCtx := WithClientKey(ctx, "one-client")
+	for i := 0; i < 5; i++ {
+		if _, err := service.Open(clientCtx, "missing-"+string(rune('a'+i)), "wrong password"); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("client attempt %d error = %v, want ErrInvalid", i+1, err)
+		}
+	}
+	if _, err := service.Open(clientCtx, "another-missing", "wrong password"); !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("client limit error = %v, want ErrRateLimited", err)
+	}
+}
+
+func TestAttemptLimiterRejectedClientDoesNotConsumeTargetBudget(t *testing.T) {
+	limiter := attemptLimiter{
+		targets: make(map[string]attemptBucket),
+		clients: make(map[string]attemptBucket),
+	}
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 5; i++ {
+		if !limiter.allow("other-"+strconv.Itoa(i), "flooder", now) {
+			t.Fatalf("flooder warm-up attempt %d rejected", i+1)
+		}
+	}
+	if limiter.allow("victim", "flooder", now) {
+		t.Fatal("client over its own limit was allowed")
+	}
+	for i := 0; i < 20; i++ {
+		if !limiter.allow("victim", "well-behaved-"+strconv.Itoa(i), now) {
+			t.Fatalf("well-behaved client %d lost shared target budget", i+1)
+		}
+	}
+}
+
+func TestPruneAttemptsEnforcesHardCap(t *testing.T) {
+	const hardCap = 4096
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	buckets := make(map[string]attemptBucket, hardCap+17)
+	for i := 0; i < hardCap+17; i++ {
+		buckets[fmt.Sprintf("key-%05d", i)] = attemptBucket{tokens: 1, last: now.Add(time.Duration(i) * time.Nanosecond)}
+	}
+
+	pruneAttempts(buckets, now.Add(30*time.Second))
+
+	if got := len(buckets); got != hardCap {
+		t.Fatalf("bucket count = %d, want %d", got, hardCap)
+	}
+	if _, ok := buckets["key-00000"]; ok {
+		t.Fatal("oldest bucket was not evicted")
+	}
+	if _, ok := buckets[fmt.Sprintf("key-%05d", hardCap+16)]; !ok {
+		t.Fatal("newest bucket was evicted")
+	}
+}
+
+func TestUnlockCookieUsesServerSecretNotPasswordHash(t *testing.T) {
+	service, principal, siteID, pool := newShares(t)
+	ctx := context.Background()
+	slug, info, err := service.Create(ctx, principal, siteID, "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie, err := service.Open(ctx, slug, "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rehashed, err := platformcrypto.HashPassword("correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update shared_links set password_hash=$2 where id=$1`, info.ID, rehashed); err != nil {
+		t.Fatal(err)
+	}
+	if shared, ok := service.Principal(ctx, slug, cookie); !ok || shared.ShareID != info.ID {
+		t.Fatal("password rehash invalidated server-signed unlock cookie")
+	}
+}
+
 func newShares(t *testing.T) (*Shares, authz.Principal, int32, *pgxpool.Pool) {
 	t.Helper()
 	pool, _ := testpg.New(t)
@@ -130,7 +237,7 @@ func newShares(t *testing.T) (*Shares, authz.Principal, int32, *pgxpool.Pool) {
 		returning id`, orgID).Scan(&siteID); err != nil {
 		t.Fatal(err)
 	}
-	return New(&store.Store{Pool: pool}), authz.Principal{
+	return New(&store.Store{Pool: pool}, []byte("0123456789abcdef0123456789abcdef")), authz.Principal{
 		UserID: userID, OrgID: orgID, Role: authz.RoleOwner,
 	}, siteID, pool
 }

@@ -120,10 +120,15 @@ func selectMembership(memberships []orgs.Membership, requested string) (orgs.Mem
 }
 
 func apiPrincipal(principal authz.Principal, scopes []string) api.Principal {
+	credentialID := ""
+	if principal.KeyID > 0 {
+		credentialID = "key:" + strconv.FormatInt(principal.KeyID, 10)
+	}
 	return api.Principal{
-		OrgID:   principal.OrgID,
-		Scopes:  cloneStrings(scopes),
-		SiteIDs: cloneSites(principal.SiteIDs),
+		OrgID:        principal.OrgID,
+		Scopes:       cloneStrings(scopes),
+		SiteIDs:      cloneSites(principal.SiteIDs),
+		CredentialID: credentialID,
 	}
 }
 

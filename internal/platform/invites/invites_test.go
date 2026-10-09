@@ -12,6 +12,7 @@ import (
 
 	"supermetry/internal/db"
 	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
 	"supermetry/internal/platform/invites"
 	"supermetry/internal/platform/mail"
 	"supermetry/internal/platform/store"
@@ -103,6 +104,18 @@ func TestAcceptCreatesRestrictedMembershipAndIsSingleUse(t *testing.T) {
 	}
 	if _, err := env.service.Accept(ctx, tokenFromLink(t, link), 0, "Again", "password-1234"); !errors.Is(err, invites.ErrInvalid) {
 		t.Fatalf("second Accept error = %v, want ErrInvalid", err)
+	}
+}
+
+func TestAcceptRejectsWeakPasswordForNewUser(t *testing.T) {
+	env := newInviteEnv(t, &mail.Fake{})
+	ctx := context.Background()
+	link, err := env.service.Create(ctx, env.owner, "new@example.test", authz.RoleViewer, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.service.Accept(ctx, tokenFromLink(t, link), 0, "New User", "password123"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
+		t.Fatalf("Accept() error = %v, want ErrPasswordCommon", err)
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"time"
 
 	"supermetry/internal/safehttp"
@@ -22,6 +23,12 @@ import (
 const (
 	webhookTimeout  = 5 * time.Second
 	webhookAttempts = 3
+
+	// WebhookSignatureTolerance is the maximum request age receivers should
+	// accept. Parse X-Supermetry-Timestamp as Unix seconds, reject timestamps
+	// outside this tolerance, and verify X-Supermetry-Signature as the HMAC-SHA256
+	// of "timestamp.body" using the exact request body bytes.
+	WebhookSignatureTolerance = 5 * time.Minute
 )
 
 type Resolver = safehttp.Resolver
@@ -81,6 +88,7 @@ func (c *WebhookClient) Send(ctx context.Context, kind ChannelKind, rawURL, secr
 	if err != nil {
 		return err
 	}
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	var lastErr error
 	for attempt := 0; attempt < webhookAttempts; attempt++ {
 		request, requestErr := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, bytes.NewReader(body))
@@ -89,7 +97,8 @@ func (c *WebhookClient) Send(ctx context.Context, kind ChannelKind, rawURL, secr
 		}
 		request.Header.Set("Content-Type", "application/json")
 		if kind == ChannelWebhook && secret != "" {
-			request.Header.Set("X-Supermetry-Signature", signWebhook(secret, body))
+			request.Header.Set("X-Supermetry-Timestamp", timestamp)
+			request.Header.Set("X-Supermetry-Signature", signWebhook(secret, timestamp, body))
 		}
 		response, requestErr := c.client.Do(request)
 		if requestErr == nil {
@@ -144,8 +153,10 @@ func webhookBody(kind ChannelKind, notification Notification) ([]byte, error) {
 	}
 }
 
-func signWebhook(secret string, body []byte) string {
+func signWebhook(secret, timestamp string, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(timestamp))
+	_, _ = mac.Write([]byte("."))
 	_, _ = mac.Write(body)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }

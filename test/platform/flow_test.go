@@ -481,6 +481,7 @@ func (e *testEnv) requestWithCookies(t *testing.T, method, path string, body any
 		t.Fatal(err)
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", e.baseURL)
 	for key, values := range headers {
 		request.Header[key] = append([]string(nil), values...)
 	}

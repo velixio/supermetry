@@ -1,11 +1,33 @@
 package crypto_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	platformcrypto "supermetry/internal/platform/crypto"
 )
+
+func TestValidateNewPassword(t *testing.T) {
+	tests := []struct {
+		name     string
+		password string
+		wantErr  error
+	}{
+		{name: "ten characters", password: "safe-pass!", wantErr: nil},
+		{name: "too short", password: "nine-char", wantErr: platformcrypto.ErrPasswordTooShort},
+		{name: "common password", password: "password123", wantErr: platformcrypto.ErrPasswordCommon},
+		{name: "common password ignores case and whitespace", password: "  PASSWORD123  ", wantErr: platformcrypto.ErrPasswordCommon},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := platformcrypto.ValidateNewPassword(tt.password)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("ValidateNewPassword() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
 
 func TestPasswordHashRoundTripAndPHC(t *testing.T) {
 	hash, err := platformcrypto.HashPassword("correct horse")

@@ -231,7 +231,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("initialize TOTP encryption: %w", err)
 	}
 	accounts := users.New(platformStore)
-	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL)
+	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL, platformauth.WithAuditSecret(cfg.SecretKey))
 	orgService := orgs.New(platformStore)
 	keyService := keys.New(platformStore)
 	defer keyService.Close()
@@ -449,6 +449,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if serverDone != nil {
 		cause = errors.Join(cause, <-serverDone)
 	}
+	authShutdownCtx, cancelAuth := context.WithTimeout(context.Background(), httpShutdownTimeout)
+	cause = errors.Join(cause, authService.Shutdown(authShutdownCtx))
+	cancelAuth()
 
 	cancelWriter()
 	if writerDone != nil {

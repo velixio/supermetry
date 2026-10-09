@@ -41,6 +41,12 @@ describe('login form', () => {
     ).resolves.toBe(en.auth.genericError)
   })
 
+  it('explains password policy failures', async () => {
+    await expect(
+      authResultMessage(() => Promise.resolve({ ok: false, type: 'password-policy' })),
+    ).resolves.toBe(en.auth.passwordPolicy)
+  })
+
   it('keeps authentication 401 problems in the login flow', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('{"type":"https://supermetry.com/problems/totp-required"}', {

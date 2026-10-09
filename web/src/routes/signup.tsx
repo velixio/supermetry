@@ -3,7 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { LoaderCircleIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 import { resetAfterLogin } from '@/lib/session-lifecycle'
@@ -104,7 +104,7 @@ export function SignupPageContent({
       if (result.ok) {
         onSuccess('/')
       } else {
-        setError(en.auth.signupError)
+		setError(result.type === 'password-policy' ? en.auth.passwordPolicy : en.auth.signupError)
       }
     } catch {
       setError(en.auth.signupError)
@@ -127,7 +127,8 @@ export function SignupPageContent({
           </Field>
           <Field>
             <FieldLabel htmlFor="password">{en.auth.password}</FieldLabel>
-            <Input id="password" name="password" type="password" autoComplete="new-password" required />
+			<Input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required />
+			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="org_name">{en.auth.organizationName}</FieldLabel>

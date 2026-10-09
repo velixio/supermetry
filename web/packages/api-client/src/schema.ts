@@ -1260,8 +1260,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        /** @enum {string} */
-        Period: "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "12mo" | "year" | "custom";
+        /**
+         * @description all is capped to the latest 366 days.
+         * @enum {string}
+         */
+        Period: "day" | "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "6mo" | "12mo" | "year" | "all" | "custom";
         DateRange: {
             /** Format: date */
             from: string;
@@ -2102,7 +2105,7 @@ export interface components {
         FunnelPathID: number;
         Period: components["schemas"]["Period"];
         Limit: number;
-        /** @description custom requires both date_from and date_to. */
+        /** @description custom requires both date_from and date_to; all is capped to the latest 366 days. */
         StatsPeriod: string;
         DateFrom: string;
         DateTo: string;
@@ -2122,11 +2125,11 @@ export interface components {
     };
     requestBodies: never;
     headers: {
-        /** @description Maximum requests allowed in the current window. */
+        /** @description Maximum tokens in this process-local API bucket; multi-process deployments enforce one bucket per process. */
         RateLimitLimit: number;
-        /** @description Requests remaining in the current window. */
+        /** @description Whole tokens remaining in this process-local API bucket. */
         RateLimitRemaining: number;
-        /** @description RFC 3339 time when the current window resets. */
+        /** @description RFC 3339 time when this process-local API bucket is full again. */
         RateLimitReset: string;
         /** @description Seconds until another request may be attempted. */
         RetryAfter: number;
@@ -2706,7 +2709,7 @@ export interface operations {
         parameters: {
             query: {
                 site_id: components["parameters"]["SiteID"];
-                /** @description custom requires both date_from and date_to. */
+                /** @description custom requires both date_from and date_to; all is capped to the latest 366 days. */
                 period: components["parameters"]["StatsPeriod"];
                 date_from?: components["parameters"]["DateFrom"];
                 date_to?: components["parameters"]["DateTo"];
@@ -2738,7 +2741,7 @@ export interface operations {
         parameters: {
             query: {
                 site_id: components["parameters"]["SiteID"];
-                /** @description custom requires both date_from and date_to. */
+                /** @description custom requires both date_from and date_to; all is capped to the latest 366 days. */
                 period: components["parameters"]["StatsPeriod"];
                 date_from?: components["parameters"]["DateFrom"];
                 date_to?: components["parameters"]["DateTo"];
@@ -2771,7 +2774,7 @@ export interface operations {
         parameters: {
             query: {
                 site_id: components["parameters"]["SiteID"];
-                /** @description custom requires both date_from and date_to. */
+                /** @description custom requires both date_from and date_to; all is capped to the latest 366 days. */
                 period: components["parameters"]["StatsPeriod"];
                 date_from?: components["parameters"]["DateFrom"];
                 date_to?: components["parameters"]["DateTo"];

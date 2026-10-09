@@ -129,9 +129,18 @@ func Start(t *testing.T) *Env {
 	handler := &truthIntake{sites: reg, salts: saltStore, dict: dictionary, sessions: sessions, writer: w}
 	engine := query.NewEngine(pool, dictionary, reg)
 	engine.SetTrackingMode(privacy.Identified)
+	var rateLimitMu sync.Mutex
+	rateLimitTime := mustTime(t, "2026-09-27T00:00:00Z")
+	rateLimitNow := func() time.Time {
+		rateLimitMu.Lock()
+		defer rateLimitMu.Unlock()
+		now := rateLimitTime
+		rateLimitTime = rateLimitTime.Add(time.Second)
+		return now
+	}
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{Tracking: config.TrackingMode{Mode: privacy.Identified}, EventPath: "/api/public/v1/events", AdminAPIKey: TestAPIKey},
-		Query:  engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, Now: clock.Now,
+		Query:  engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, Now: clock.Now, RateLimitNow: rateLimitNow,
 		RateLimiter: ingest.NewTokenBuckets(100_000, 100_000), Ready: func() bool { return true },
 	})
 	env := &Env{

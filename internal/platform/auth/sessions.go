@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	platformcrypto "supermetry/internal/platform/crypto"
 )
 
@@ -116,7 +118,13 @@ func (a *Auth) Revoke(ctx context.Context, userID int64, sessionID string) error
 	if err != nil || len(hash) != 32 {
 		return ErrInvalid
 	}
-	return a.store.RevokeSession(ctx, userID, hash)
+	return a.store.Tx(ctx, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `delete from user_sessions where user_id=$1 and id_hash=$2`, userID, hash)
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		return writeUserAudits(ctx, tx, userID, "session.revoked")
+	})
 }
 
 // RevokeOthers preserves the session named by the authenticated cookie and
@@ -125,7 +133,12 @@ func (a *Auth) RevokeOthers(ctx context.Context, userID int64, cookieValue strin
 	if cookieValue == "" {
 		return ErrInvalid
 	}
-	return a.store.RevokeOtherSessions(ctx, userID, platformcrypto.HashToken(cookieValue))
+	return a.store.Tx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `delete from user_sessions where user_id=$1 and id_hash<>$2`, userID, platformcrypto.HashToken(cookieValue)); err != nil {
+			return err
+		}
+		return writeUserAudits(ctx, tx, userID, "sessions.revoked_all")
+	})
 }
 
 // IsCurrentSession compares the public revocation identifier, never the token.

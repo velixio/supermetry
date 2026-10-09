@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 
@@ -40,9 +40,10 @@ function ResetPage() {
               name="password"
               type="password"
               autoComplete="new-password"
-
+			  minLength={10}
               required
             />
+			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
           {message ? <FieldError>{message}</FieldError> : null}
           <Button type="submit">{en.auth.resetPassword}</Button>

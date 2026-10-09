@@ -118,7 +118,7 @@ func TestNormalizeResolvesPeriodsAndDefaults(t *testing.T) {
 		{name: "year", period: api.Year, wantFrom: "2026-01-01", wantTo: "2026-10-08"},
 		{name: "six months", period: api.Period("6mo"), wantFrom: "2026-04-09", wantTo: "2026-10-08"},
 		{name: "twelve months", period: api.N12mo, wantFrom: "2025-10-09", wantTo: "2026-10-08"},
-		{name: "all", period: api.Period("all"), wantFrom: "1970-01-01", wantTo: "2026-10-08"},
+		{name: "all", period: api.Period("all"), wantFrom: "2025-10-08", wantTo: "2026-10-08"},
 	}
 
 	for _, tt := range tests {

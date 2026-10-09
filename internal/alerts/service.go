@@ -252,7 +252,7 @@ func (s *Service) UpdateAlert(ctx context.Context, principal authz.Principal, si
 			enabled = *input.Enabled
 		}
 		var err error
-		updated, err = scanAlert(tx.QueryRow(ctx, `update alerts set kind=$2,threshold=$3,goal_id=$4,channel_ids=$5,enabled=$6 where id=$1 returning id,site_id,kind,threshold,goal_id,channel_ids,enabled,last_fired_at,created_at`, id, input.Kind, input.Threshold, input.GoalID, input.ChannelIDs, enabled))
+		updated, err = scanAlert(tx.QueryRow(ctx, `update alerts set kind=$2,threshold=$3,goal_id=$4,channel_ids=$5,enabled=$6,delivery_state=null where id=$1 returning id,site_id,kind,threshold,goal_id,channel_ids,enabled,last_fired_at,created_at`, id, input.Kind, input.Threshold, input.GoalID, input.ChannelIDs, enabled))
 		if err != nil {
 			return fmt.Errorf("update alert: %w", err)
 		}
@@ -281,14 +281,14 @@ func (s *Service) DeleteAlert(ctx context.Context, principal authz.Principal, si
 }
 
 func (s *Service) EnabledAlerts(ctx context.Context) ([]Alert, error) {
-	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at from alerts a join sites s on s.id=a.site_id join orgs o on o.id=s.org_id where a.enabled and s.deleted_at is null and o.deleted_at is null order by a.id`)
+	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at,a.delivery_state from alerts a join sites s on s.id=a.site_id join orgs o on o.id=s.org_id where a.enabled and s.deleted_at is null and o.deleted_at is null order by a.id`)
 	if err != nil {
 		return nil, fmt.Errorf("load enabled alerts: %w", err)
 	}
 	defer rows.Close()
 	result := make([]Alert, 0)
 	for rows.Next() {
-		alert, err := scanAlert(rows)
+		alert, err := scanAlertWithDeliveryState(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -298,6 +298,21 @@ func (s *Service) EnabledAlerts(ctx context.Context) ([]Alert, error) {
 		return nil, fmt.Errorf("iterate enabled alerts: %w", err)
 	}
 	return result, nil
+}
+
+func (s *Service) SaveDeliveryState(ctx context.Context, id int64, state DeliveryState) error {
+	encoded, err := json.Marshal(state)
+	if err != nil {
+		return fmt.Errorf("encode alert delivery state: %w", err)
+	}
+	command, err := s.store.Pool.Exec(ctx, `update alerts set delivery_state=$2 where id=$1 and enabled`, id, encoded)
+	if err != nil {
+		return fmt.Errorf("save alert delivery state: %w", err)
+	}
+	if command.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Service) DeliveryChannels(ctx context.Context, ids []int64) ([]DeliveryChannel, error) {
@@ -327,7 +342,7 @@ func (s *Service) DeliveryChannels(ctx context.Context, ids []int64) ([]Delivery
 }
 
 func (s *Service) MarkFired(ctx context.Context, id int64, at time.Time) error {
-	command, err := s.store.Pool.Exec(ctx, `update alerts set last_fired_at=$2 where id=$1 and enabled`, id, at)
+	command, err := s.store.Pool.Exec(ctx, `update alerts set last_fired_at=$2,delivery_state=null where id=$1 and enabled`, id, at)
 	if err != nil {
 		return fmt.Errorf("mark alert fired: %w", err)
 	}
@@ -415,6 +430,22 @@ func scanAlert(row rowScanner) (Alert, error) {
 	var alert Alert
 	if err := row.Scan(&alert.ID, &alert.SiteID, &alert.Kind, &alert.Threshold, &alert.GoalID, &alert.ChannelIDs, &alert.Enabled, &alert.LastFiredAt, &alert.CreatedAt); err != nil {
 		return Alert{}, err
+	}
+	return alert, nil
+}
+
+func scanAlertWithDeliveryState(row rowScanner) (Alert, error) {
+	var alert Alert
+	var encoded []byte
+	if err := row.Scan(&alert.ID, &alert.SiteID, &alert.Kind, &alert.Threshold, &alert.GoalID, &alert.ChannelIDs, &alert.Enabled, &alert.LastFiredAt, &alert.CreatedAt, &encoded); err != nil {
+		return Alert{}, err
+	}
+	if len(encoded) > 0 {
+		var state DeliveryState
+		if err := json.Unmarshal(encoded, &state); err != nil {
+			return Alert{}, fmt.Errorf("decode alert delivery state: %w", err)
+		}
+		alert.DeliveryState = &state
 	}
 	return alert, nil
 }

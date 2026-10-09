@@ -17,7 +17,11 @@ import (
 const resetLifetime = time.Hour
 
 func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
-	user, err := a.store.UserByEmail(ctx, users.NormalizeEmail(email))
+	normalizedEmail := users.NormalizeEmail(email)
+	if !a.limits.allowReset(normalizedEmail, clientKey(ctx), a.clock.Now()) {
+		return "", ErrRateLimited
+	}
+	user, err := a.store.UserByEmail(ctx, normalizedEmail)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}
@@ -48,6 +52,9 @@ func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
 func (a *Auth) FinishReset(ctx context.Context, token, newPassword string) error {
 	if newPassword == "" {
 		return ErrInvalid
+	}
+	if err := platformcrypto.ValidateNewPassword(newPassword); err != nil {
+		return err
 	}
 	tokenHash := platformcrypto.HashToken(token)
 	now := a.clock.Now()

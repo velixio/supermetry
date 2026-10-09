@@ -3,8 +3,10 @@ package api
 import (
 	"crypto/sha256"
 	"crypto/subtle"
+	"fmt"
 	"net/http"
 	"strings"
+
 	"supermetry/internal/sites"
 )
 
@@ -13,10 +15,11 @@ import (
 // site of that organization, never sites of other organizations. Only the
 // static administrator key sets AllSites.
 type Principal struct {
-	OrgID    int64
-	AllSites bool
-	Scopes   []string
-	SiteIDs  []int32
+	OrgID        int64
+	AllSites     bool
+	Scopes       []string
+	SiteIDs      []int32
+	CredentialID string
 }
 
 // Authenticator resolves an HTTP request to its authenticated principal.
@@ -42,7 +45,7 @@ func (key staticKey) Authenticate(r *http.Request) (Principal, bool) {
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		return Principal{}, false
 	}
-	return Principal{AllSites: true, Scopes: []string{"*"}}, true
+	return Principal{AllSites: true, Scopes: []string{"*"}, CredentialID: "static:" + fmt.Sprintf("%x", want)}, true
 }
 
 func (p Principal) hasScope(scope string) bool {
