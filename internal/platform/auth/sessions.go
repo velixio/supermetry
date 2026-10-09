@@ -119,6 +119,15 @@ func (a *Auth) Revoke(ctx context.Context, userID int64, sessionID string) error
 	return a.store.RevokeSession(ctx, userID, hash)
 }
 
+// RevokeOthers preserves the session named by the authenticated cookie and
+// revokes every other session for the same user.
+func (a *Auth) RevokeOthers(ctx context.Context, userID int64, cookieValue string) error {
+	if cookieValue == "" {
+		return ErrInvalid
+	}
+	return a.store.RevokeOtherSessions(ctx, userID, platformcrypto.HashToken(cookieValue))
+}
+
 // IsCurrentSession compares the public revocation identifier, never the token.
 func IsCurrentSession(id, cookieValue string) bool {
 	return cookieValue != "" && id == sessionIDEncoding.EncodeToString(platformcrypto.HashToken(cookieValue))

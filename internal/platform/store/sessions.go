@@ -92,3 +92,11 @@ func (s *Store) RevokeSession(ctx context.Context, userID int64, hash []byte) er
 	_, err := s.Pool.Exec(ctx, `delete from user_sessions where user_id=$1 and id_hash=$2`, userID, hash)
 	return err
 }
+
+// RevokeOtherSessions removes every session belonging to userID except the
+// session identified by currentHash. The database owns the exclusion so a
+// caller cannot choose which session remains active.
+func (s *Store) RevokeOtherSessions(ctx context.Context, userID int64, currentHash []byte) error {
+	_, err := s.Pool.Exec(ctx, `delete from user_sessions where user_id=$1 and id_hash<>$2`, userID, currentHash)
+	return err
+}
