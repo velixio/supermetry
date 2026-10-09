@@ -67,6 +67,35 @@ func TestMigrateIsIdempotentAndOrdered(t *testing.T) {
 	}
 }
 
+func TestLatestMigrationVersionMatchesEmbeddedMigrations(t *testing.T) {
+	entries, err := os.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := 0
+	for _, entry := range entries {
+		prefix, _, ok := strings.Cut(entry.Name(), "_")
+		if entry.IsDir() || !ok || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		version, err := strconv.Atoi(prefix)
+		if err != nil {
+			t.Fatalf("parse migration name %q: %v", entry.Name(), err)
+		}
+		if version > want {
+			want = version
+		}
+	}
+
+	got, err := db.LatestMigrationVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("LatestMigrationVersion() = %d, want %d", got, want)
+	}
+}
+
 func TestRollupStateMigrationSchema(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
