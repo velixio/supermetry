@@ -173,6 +173,27 @@ func (h *handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *handler) revokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Auth == nil || principal.UserID == 0 {
+		unavailable(w, "authentication")
+		return
+	}
+	cookie, err := r.Cookie(platformauth.CookieName)
+	if err != nil || cookie.Value == "" {
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "authentication is required")
+		return
+	}
+	if err := h.deps.Auth.RevokeOthers(r.Context(), principal.UserID, cookie.Value); err != nil {
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) enrollTOTP(w http.ResponseWriter, r *http.Request) {
 	principal, ok := h.privatePrincipal(w, r)
 	if !ok {

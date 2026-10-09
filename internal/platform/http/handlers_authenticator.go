@@ -122,7 +122,7 @@ func copySiteIDs(values []int32) []int32 {
 func accountRequest(r *http.Request) bool {
 	switch r.Method + " " + r.URL.Path {
 	case "GET /api/private/me", "HEAD /api/private/me", "PATCH /api/private/me", "DELETE /api/private/me",
-		"GET /api/private/me/ip", "HEAD /api/private/me/ip", "GET /api/private/me/sessions", "HEAD /api/private/me/sessions",
+		"GET /api/private/me/ip", "HEAD /api/private/me/ip", "GET /api/private/me/sessions", "HEAD /api/private/me/sessions", "DELETE /api/private/me/sessions",
 		"POST /api/private/me/email", "POST /api/private/me/password", "POST /api/private/me/totp", "PATCH /api/private/me/totp",
 		"GET /api/private/orgs", "HEAD /api/private/orgs", "POST /api/private/auth/logout",
 		"GET /api/private/auth/email-change/confirm", "HEAD /api/private/auth/email-change/confirm", "POST /api/private/auth/email-change/confirm":

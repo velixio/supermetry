@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -80,5 +82,102 @@ func TestAccountSessionsMetadataIsOwnedCurrentAndRevocable(t *testing.T) {
 	}
 	if w := f.request(http.MethodGet, "/api/private/me/sessions", "viewer", ""); w.Code != 401 {
 		t.Fatalf("revoked cookie authenticated=%d", w.Code)
+	}
+}
+
+func TestRevokeOtherSessionsPreservesCurrentAndUserBoundaries(t *testing.T) {
+	f := newMembershipHTTPFixture(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	for _, token := range []string{"viewer-other-one", "viewer-other-two"} {
+		if err := store.CreateSession(ctx, f.data.Pool, store.UserSession{
+			IDHash: platformcrypto.HashToken(token), UserID: f.users["viewer"], CreatedAt: now, ExpiresAt: now.Add(time.Hour), DeviceLabel: "Other device",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := f.data.Pool.Exec(ctx, `insert into api_keys(org_id,name,prefix,hash,scopes,created_by) values ($1,'session boundary','sesskey1',$2,'{read}',$3)`, f.orgID, make([]byte, 32), f.users["viewer"]); err != nil {
+		t.Fatal(err)
+	}
+
+	// The route ignores forged client exclusions and derives the survivor from
+	// the authenticated cookie. It also leaves other users and API keys alone.
+	w := f.request(http.MethodDelete, "/api/private/me/sessions", "viewer", `{"current_session":"viewer-other-one","user_id":0}`)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("bulk revoke=%d %s", w.Code, w.Body)
+	}
+	if w := f.request(http.MethodGet, "/api/private/me/sessions", "viewer", ""); w.Code != http.StatusOK || strings.Count(w.Body.String(), `"ID"`) != 1 || !strings.Contains(w.Body.String(), `"Current":true`) {
+		t.Fatalf("current session changed: %d %s", w.Code, w.Body)
+	}
+	for _, token := range []string{"viewer-other-one", "viewer-other-two"} {
+		r := httptest.NewRequest(http.MethodGet, "/api/private/me/sessions", nil)
+		r.AddCookie(&http.Cookie{Name: platformauth.CookieName, Value: token})
+		other := httptest.NewRecorder()
+		f.handler.ServeHTTP(other, r)
+		if other.Code != http.StatusUnauthorized {
+			t.Fatalf("revoked session %q authenticated: %d %s", token, other.Code, other.Body)
+		}
+	}
+	if w := f.request(http.MethodGet, "/api/private/me/sessions", "owner", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"Current":true`) {
+		t.Fatalf("other user changed: %d %s", w.Code, w.Body)
+	}
+	var keys int
+	if err := f.data.Pool.QueryRow(ctx, `select count(*) from api_keys where created_by=$1 and revoked_at is null`, f.users["viewer"]).Scan(&keys); err != nil || keys != 1 {
+		t.Fatalf("api keys changed: count=%d err=%v", keys, err)
+	}
+
+	// No remaining sessions is a successful idempotent operation.
+	if w := f.request(http.MethodDelete, "/api/private/me/sessions", "viewer", ""); w.Code != http.StatusNoContent {
+		t.Fatalf("repeated bulk revoke=%d %s", w.Code, w.Body)
+	}
+
+	// Concurrent requests remain idempotent and retain exactly the active
+	// session because the exclusion and deletion are one SQL statement.
+	for i := range 8 {
+		if err := store.CreateSession(ctx, f.data.Pool, store.UserSession{
+			IDHash: platformcrypto.HashToken(fmt.Sprintf("concurrent-other-%d", i)), UserID: f.users["viewer"], CreatedAt: now, ExpiresAt: now.Add(time.Hour), DeviceLabel: "Concurrent device",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var wg sync.WaitGroup
+	errs := make(chan string, 8)
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if w := f.request(http.MethodDelete, "/api/private/me/sessions", "viewer", ""); w.Code != http.StatusNoContent {
+				errs <- fmt.Sprintf("%d %s", w.Code, w.Body)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent bulk revoke=%s", err)
+	}
+	var sessions int
+	if err := f.data.Pool.QueryRow(ctx, `select count(*) from user_sessions where user_id=$1`, f.users["viewer"]).Scan(&sessions); err != nil || sessions != 1 {
+		t.Fatalf("sessions=%d err=%v", sessions, err)
+	}
+}
+
+func TestRevokeOtherSessionsRequiresCSRF(t *testing.T) {
+	f := newMembershipHTTPFixture(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if err := store.CreateSession(ctx, f.data.Pool, store.UserSession{IDHash: platformcrypto.HashToken("csrf-other"), UserID: f.users["viewer"], CreatedAt: now, ExpiresAt: now.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest(http.MethodDelete, "/api/private/me/sessions", nil)
+	r.AddCookie(&http.Cookie{Name: platformauth.CookieName, Value: "viewer-session"})
+	w := httptest.NewRecorder()
+	f.handler.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF=%d %s", w.Code, w.Body)
+	}
+	var sessions int
+	if err := f.data.Pool.QueryRow(ctx, `select count(*) from user_sessions where user_id=$1`, f.users["viewer"]).Scan(&sessions); err != nil || sessions != 2 {
+		t.Fatalf("sessions=%d err=%v", sessions, err)
 	}
 }
