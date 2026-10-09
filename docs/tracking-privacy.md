@@ -195,8 +195,18 @@ links are removed when the existing profile-erasure linkage can identify them;
 aggregate counts retain the existing `aggregates_adjusted=false` contract.
 Erasure and closing share a database lock. If identity-bearing raw events have
 already expired, durable profile-to-session discovery remains unavailable.
-Buffered anonymous writes and cross-instance resurrection still need design. Restart-safe deletion jobs,
-retry/ordering guarantees and cross-instance tombstone propagation need design.
+Linked replay blobs and index rows are removed before the profile-erasure
+transaction commits. A replay-storage failure rolls back the database erasure,
+clears its process-local tombstone and leaves the same authorized request
+retryable. Blob storage and PostgreSQL cannot share one atomic transaction, so a
+successful blob deletion cannot be rolled back. A later blob or database failure
+can therefore leave an already deleted replay blob while PostgreSQL rolls back;
+the retained replay index makes the request retryable, and supported blob stores
+treat deleting that now-absent blob as success. This is privacy-safe partial
+deletion, not a successful erasure response. Buffered
+anonymous writes, concurrent replay uploads, cross-instance resurrection,
+restart-safe deletion jobs, full retry/ordering guarantees and cross-instance
+tombstone propagation still need design.
 
 ## Verification and rollout status
 

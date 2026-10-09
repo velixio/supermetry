@@ -54,6 +54,68 @@ func TestEventPreflightCapacityAndFinalEnqueue(t *testing.T) {
 	}
 }
 
+func TestEventReservationExcludesCompetitorsAndReleasesExactlyOnce(t *testing.T) {
+	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	before := Dropped.Load()
+
+	reservation, ok := w.ReserveEvent()
+	if !ok {
+		t.Fatal("empty writer rejected reservation")
+	}
+	if w.Enqueue(Event{}) {
+		t.Fatal("competing enqueue took reserved capacity")
+	}
+	if Dropped.Load() != before+1 {
+		t.Fatal("competing rejection was not counted")
+	}
+
+	reservation.Cancel()
+	reservation.Cancel()
+	if !w.Enqueue(Event{SessionID: 7}) {
+		t.Fatal("cancel did not restore capacity")
+	}
+	if event := <-w.ch; event.SessionID != 7 {
+		t.Fatalf("queued session=%d, want 7", event.SessionID)
+	}
+	<-w.slots
+
+	reservation, ok = w.ReserveEvent()
+	if !ok || !reservation.Commit(Event{SessionID: 9}) {
+		t.Fatal("reservation commit failed")
+	}
+	if reservation.Commit(Event{}) {
+		t.Fatal("reservation committed twice")
+	}
+	reservation.Cancel()
+	if event := <-w.ch; event.SessionID != 9 {
+		t.Fatalf("committed session=%d, want 9", event.SessionID)
+	}
+	<-w.slots
+}
+
+func TestEventReservationDelaysShutdownUntilCommit(t *testing.T) {
+	w := New(nil, nil, 1, time.Hour, time.Hour, nil)
+	reservation, ok := w.ReserveEvent()
+	if !ok {
+		t.Fatal("reserve")
+	}
+	if w.stateMu.TryLock() {
+		w.stateMu.Unlock()
+		t.Fatal("shutdown lock passed an unresolved reservation")
+	}
+	if !reservation.Commit(Event{SessionID: 11}) {
+		t.Fatal("commit")
+	}
+	if !w.stateMu.TryLock() {
+		t.Fatal("commit did not release shutdown lock")
+	}
+	w.stateMu.Unlock()
+	if event := <-w.ch; event.SessionID != 11 {
+		t.Fatalf("committed session=%d, want 11", event.SessionID)
+	}
+	<-w.slots
+}
+
 func TestEventPreflightTracksInFlightRetryAndRecovery(t *testing.T) {
 	w := New(nil, nil, 1, time.Millisecond, time.Hour, nil)
 	ctx, cancel := context.WithCancel(context.Background())

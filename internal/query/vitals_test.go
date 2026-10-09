@@ -82,6 +82,43 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 	assertVitalMetric(t, "shared-filter lcp", shared.Overall.Lcp, 1375, 2, 1, 0, 0)
 }
 
+func TestEngine_VitalsDecodesDiagnosticBreakdowns(t *testing.T) {
+	pool, engine := setupVitals(t, db.Ret30)
+	seedVitals(t, pool)
+	if err := engine.dict.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name      string
+		dimension api.VitalsDimension
+		want      []string
+	}{
+		{name: "country", dimension: api.VitalsDimensionCountry, want: []string{"US", "IN"}},
+		{name: "browser", dimension: api.VitalsDimensionBrowser, want: []string{"Chrome", "Firefox"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response, err := engine.Vitals(context.Background(), api.VitalsRequest{
+				SiteId:    1,
+				DateRange: api.DateRange{From: openapi_types.Date{Time: vitalsDay("2026-10-06")}, To: openapi_types.Date{Time: vitalsDay("2026-10-07")}},
+				Dimension: &tt.dimension,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(response.Breakdown) != len(tt.want) {
+				t.Fatalf("breakdown = %+v, want values %v", response.Breakdown, tt.want)
+			}
+			for i, want := range tt.want {
+				if response.Breakdown[i].Value != want {
+					t.Fatalf("breakdown[%d].value = %q, want %q", i, response.Breakdown[i].Value, want)
+				}
+			}
+		})
+	}
+}
+
 func TestEngine_VitalsRejectsRangesOutsideRawRetention(t *testing.T) {
 	_, engine := setupVitals(t, db.Ret7)
 	_, err := engine.Vitals(context.Background(), api.VitalsRequest{
@@ -379,7 +416,10 @@ func setupVitals(t *testing.T, retention db.RetentionClass) (*pgxpool.Pool, *Eng
 func seedVitals(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
-insert into dict(kind,id,value) values (0,1,'/'),(0,2,'/pricing'),(7,10,'Web Vitals'),(7,11,'signup');
+insert into dict(kind,id,value) values
+  (0,1,'/'),(0,2,'/pricing'),
+  (7,10,'Web Vitals'),(7,11,'signup'),
+  (9,20,'Chrome'),(9,21,'Firefox');
 insert into day_close(site_id,day,status) values (1,'2026-10-06','done'),(1,'2026-10-07','pending');
 insert into sessions
   (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,pageviews,events,engagement_ms,bounce)
@@ -394,16 +434,16 @@ values
 insert into events
   (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,country,browser_id,device,props)
 values
-  (1,30,'2026-10-06','2026-10-06 10:00Z',1,1,1,10,1,'US',0,0,'{"lcp":"1000","cls":"50","inp":"100"}'),
-  (1,30,'2026-10-06','2026-10-06 11:00Z',2,2,1,10,1,'US',0,1,'{"lcp":"2000","cls":"100","inp":"200"}'),
-  (1,30,'2026-10-07','2026-10-07 10:00Z',3,3,1,10,2,'IN',0,0,'{"lcp":"3000","cls":"200","inp":"400"}'),
-  (1,30,'2026-10-07','2026-10-07 11:00Z',4,4,1,10,2,'IN',0,1,'{"lcp":"5000","cls":"300","inp":"600"}'),
-	(1,30,'2026-10-07','2026-10-07 12:00Z',5,5,1,10,2,'IN',0,1,'{"lcp":"invalid"}'),
-	(1,30,'2026-10-07','2026-10-07 13:00Z',6,6,1,10,2,'IN',0,1,'{"lcp":"999999999999999999999999999999"}'),
+  (1,30,'2026-10-06','2026-10-06 10:00Z',1,1,1,10,1,'US',20,0,'{"lcp":"1000","cls":"50","inp":"100"}'),
+  (1,30,'2026-10-06','2026-10-06 11:00Z',2,2,1,10,1,'US',20,1,'{"lcp":"2000","cls":"100","inp":"200"}'),
+  (1,30,'2026-10-07','2026-10-07 10:00Z',3,3,1,10,2,'IN',21,0,'{"lcp":"3000","cls":"200","inp":"400"}'),
+  (1,30,'2026-10-07','2026-10-07 11:00Z',4,4,1,10,2,'IN',21,1,'{"lcp":"5000","cls":"300","inp":"600"}'),
+	(1,30,'2026-10-07','2026-10-07 12:00Z',5,5,1,10,2,'IN',21,1,'{"lcp":"invalid"}'),
+	(1,30,'2026-10-07','2026-10-07 13:00Z',6,6,1,10,2,'IN',21,1,'{"lcp":"999999999999999999999999999999"}'),
 	(1,30,'2026-10-06','2026-10-06 10:00:01Z',1,1,1,11,1,'US',0,0,'{"plan":"pro"}'),
 	(1,30,'2026-10-06','2026-10-06 11:00:01Z',2,2,1,11,2,'US',0,1,'{"plan":"starter"}'),
 	(1,30,'2026-10-06','2026-10-06 23:59:30Z',7,7,1,11,1,'US',0,0,'{"plan":"pro"}'),
-	(1,30,'2026-10-07','2026-10-07 00:01:00Z',7,7,1,10,1,'US',0,0,'{"lcp":"1500","cls":"75","inp":"150"}')`)
+	(1,30,'2026-10-07','2026-10-07 00:01:00Z',7,7,1,10,1,'US',20,0,'{"lcp":"1500","cls":"75","inp":"150"}')`)
 	if err != nil {
 		t.Fatal(err)
 	}

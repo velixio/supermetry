@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { GaugeIcon } from 'lucide-react'
 
+import { Flag } from '@/components/Flag'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { BrowserLabel } from '@/components/visitor/BrowserLabel'
+import { countryName } from '@/lib/country'
 import { cn } from '@/lib/utils'
 import type { Filter } from '@/lib/search'
 
@@ -21,6 +24,13 @@ const metrics: Array<{ key: VitalMetricName; name: string; short: string }> = [
   { key: 'lcp', name: 'Largest Contentful Paint', short: 'LCP' },
   { key: 'cls', name: 'Cumulative Layout Shift', short: 'CLS' },
   { key: 'inp', name: 'Interaction to Next Paint', short: 'INP' },
+]
+
+const breakdownDimensions: Array<{ value: VitalsDimension; label: string }> = [
+  { value: 'page', label: 'Page' },
+  { value: 'device', label: 'Device' },
+  { value: 'country', label: 'Country' },
+  { value: 'browser', label: 'Browser' },
 ]
 
 function rating(metric: VitalMetricName, value?: number): 'Good' | 'Needs improvement' | 'Poor' | 'No data' {
@@ -77,10 +87,19 @@ function LoadingCards() {
   return <div className="grid gap-4 md:grid-cols-3" aria-label="Loading Web Vitals">{metrics.map(({ key }) => <Skeleton className="h-40 rounded-xl" key={key} />)}</div>
 }
 
+function BreakdownValue({ dimension, value }: { dimension: VitalsDimension; value: string }) {
+  if (dimension === 'country') {
+    return <span className="flex items-center gap-2"><Flag code={value} /><span>{countryName(value)}</span></span>
+  }
+  if (dimension === 'browser') return <BrowserLabel value={value} />
+  return value
+}
+
 export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
   const [dimension, setDimension] = useState<VitalsDimension>('page')
   const result = useVitals({ siteId, dateRange, filters, dimension })
   const totalSamples = result.data ? metrics.reduce((sum, metric) => sum + result.data.overall[metric.key].samples, 0) : 0
+  const dimensionLabel = breakdownDimensions.find((item) => item.value === dimension)?.label ?? dimension
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -104,19 +123,20 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
             {metrics.map((metric) => <MetricCard key={metric.key} metric={metric.key} name={metric.name} short={metric.short} value={result.data.overall[metric.key]} />)}
           </div>
           <Card aria-label={`Web Vitals by ${dimension}`} role="region">
-            <CardHeader className="flex items-center justify-between gap-3">
+            <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <div><CardTitle>Breakdown</CardTitle><CardDescription>p75 and samples by {dimension}</CardDescription></div>
-              <Tabs value={dimension} onValueChange={(value) => setDimension(value as VitalsDimension)}>
-                <TabsList aria-label="Vitals breakdown">
-                  <TabsTrigger value="page">Page</TabsTrigger>
-                  <TabsTrigger value="device">Device</TabsTrigger>
+              <Tabs className="w-full sm:w-auto" value={dimension} onValueChange={(value) => setDimension(value as VitalsDimension)}>
+                <TabsList aria-label="Vitals breakdown" className="grid h-auto w-full grid-cols-2 sm:inline-flex sm:w-auto">
+                  {breakdownDimensions.map((item) => (
+                    <TabsTrigger key={item.value} value={item.value}>{item.label}</TabsTrigger>
+                  ))}
                 </TabsList>
               </Tabs>
             </CardHeader>
             <CardContent>
               <Table aria-label={`Web Vitals by ${dimension}`}>
-                <TableHeader><TableRow><TableHead>{dimension === 'page' ? 'Page' : 'Device'}</TableHead>{metrics.map((metric) => <TableHead key={metric.key}>{metric.short} p75 <span className="sr-only">and samples</span></TableHead>)}</TableRow></TableHeader>
-                <TableBody>{result.data.breakdown.map((row) => <TableRow key={row.value}><TableCell className="max-w-72 truncate font-medium" title={row.value}>{row.value}</TableCell>{metrics.map((metric) => <TableCell key={metric.key}><span className="tabular-nums">{formatP75(metric.key, row[metric.key].p75)}</span><span className="ml-2 text-xs text-muted-foreground">{row[metric.key].samples} samples</span></TableCell>)}</TableRow>)}</TableBody>
+                <TableHeader><TableRow><TableHead>{dimensionLabel}</TableHead>{metrics.map((metric) => <TableHead key={metric.key}>{metric.short} p75 <span className="sr-only">and samples</span></TableHead>)}</TableRow></TableHeader>
+                <TableBody>{result.data.breakdown.map((row) => <TableRow key={row.value}><TableCell className="max-w-72 truncate font-medium" title={row.value}><BreakdownValue dimension={dimension} value={row.value} /></TableCell>{metrics.map((metric) => <TableCell key={metric.key}><span className="tabular-nums">{formatP75(metric.key, row[metric.key].p75)}</span><span className="ml-2 text-xs text-muted-foreground">{row[metric.key].samples} samples</span></TableCell>)}</TableRow>)}</TableBody>
               </Table>
             </CardContent>
           </Card>
