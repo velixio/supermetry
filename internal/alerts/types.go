@@ -6,14 +6,16 @@ import "time"
 type ChannelKind string
 
 const (
-	ChannelEmail   ChannelKind = "email"
-	ChannelWebhook ChannelKind = "webhook"
-	ChannelSlack   ChannelKind = "slack"
-	ChannelDiscord ChannelKind = "discord"
+	ChannelEmail    ChannelKind = "email"
+	ChannelWebhook  ChannelKind = "webhook"
+	ChannelSlack    ChannelKind = "slack"
+	ChannelDiscord  ChannelKind = "discord"
+	ChannelTelegram ChannelKind = "telegram"
 )
 
 type ChannelConfig struct {
 	Recipients []string `json:"recipients,omitempty"`
+	ChatID     string   `json:"chat_id,omitempty"`
 	Configured bool     `json:"configured"`
 }
 
@@ -22,6 +24,7 @@ type Channel struct {
 	OrgID     int64         `json:"org_id"`
 	Kind      ChannelKind   `json:"kind"`
 	Name      string        `json:"name"`
+	Enabled   bool          `json:"enabled"`
 	Config    ChannelConfig `json:"config"`
 	CreatedAt time.Time     `json:"created_at"`
 }
@@ -32,6 +35,9 @@ type ChannelInput struct {
 	Recipients []string    `json:"recipients,omitempty"`
 	URL        string      `json:"url,omitempty"`
 	Secret     string      `json:"secret,omitempty"`
+	BotToken   string      `json:"bot_token,omitempty"`
+	ChatID     string      `json:"chat_id,omitempty"`
+	Enabled    *bool       `json:"enabled,omitempty"`
 }
 
 type AlertKind string
@@ -65,9 +71,12 @@ type AlertInput struct {
 type DeliveryChannel struct {
 	ID         int64
 	Kind       ChannelKind
+	Enabled    bool
 	Recipients []string
 	URL        string
 	Secret     string
+	BotToken   string
+	ChatID     string
 }
 
 type Notification struct {

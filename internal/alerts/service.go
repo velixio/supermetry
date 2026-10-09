@@ -22,6 +22,8 @@ import (
 var (
 	ErrForbidden = errors.New("forbidden")
 	ErrInvalid   = errors.New("invalid alert configuration")
+	// ErrTestDelivery is safe to return to channel managers after a provider rejects a test.
+	ErrTestDelivery = errors.New("test notification could not be delivered; verify the channel credentials and destination")
 	// ErrChannelInUse means alerts still reference the channel.
 	ErrChannelInUse = errors.New("notification channel is used by one or more alerts")
 )
@@ -41,13 +43,15 @@ type storedChannelConfig struct {
 	Recipients []string `json:"recipients,omitempty"`
 	URL        string   `json:"url,omitempty"`
 	Secret     string   `json:"secret,omitempty"`
+	BotToken   string   `json:"bot_token,omitempty"`
+	ChatID     string   `json:"chat_id,omitempty"`
 }
 
 func (s *Service) ListChannels(ctx context.Context, principal authz.Principal) ([]Channel, error) {
 	if !authz.Can(principal, authz.ActionChannelsRead, 0) {
 		return nil, ErrForbidden
 	}
-	rows, err := s.store.Pool.Query(ctx, `select id,org_id,kind,name,config,created_at from notification_channels where org_id=$1 order by id`, principal.OrgID)
+	rows, err := s.store.Pool.Query(ctx, `select id,org_id,kind,name,enabled,config,created_at from notification_channels where org_id=$1 order by id`, principal.OrgID)
 	if err != nil {
 		return nil, fmt.Errorf("list notification channels: %w", err)
 	}
@@ -70,13 +74,17 @@ func (s *Service) CreateChannel(ctx context.Context, principal authz.Principal, 
 	if !authz.Can(principal, authz.ActionChannelsManage, 0) {
 		return Channel{}, ErrForbidden
 	}
-	encoded, err := s.encodeChannel(input)
+	encoded, err := s.encodeChannel(input, nil)
 	if err != nil {
 		return Channel{}, err
 	}
 	var created Channel
+	enabled := true
+	if input.Enabled != nil {
+		enabled = *input.Enabled
+	}
 	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, `insert into notification_channels(org_id,kind,name,config) values ($1,$2,$3,$4) returning id,org_id,kind,name,config,created_at`, principal.OrgID, input.Kind, strings.TrimSpace(input.Name), encoded)
+		row := tx.QueryRow(ctx, `insert into notification_channels(org_id,kind,name,enabled,config) values ($1,$2,$3,$4,$5) returning id,org_id,kind,name,enabled,config,created_at`, principal.OrgID, input.Kind, strings.TrimSpace(input.Name), enabled, encoded)
 		created, err = scanChannel(row)
 		if err != nil {
 			return fmt.Errorf("create notification channel: %w", err)
@@ -90,13 +98,31 @@ func (s *Service) UpdateChannel(ctx context.Context, principal authz.Principal, 
 	if !authz.Can(principal, authz.ActionChannelsManage, 0) {
 		return Channel{}, ErrForbidden
 	}
-	encoded, err := s.encodeChannel(input)
-	if err != nil {
-		return Channel{}, err
-	}
 	var updated Channel
-	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, `update notification_channels set kind=$3,name=$4,config=$5 where id=$1 and org_id=$2 returning id,org_id,kind,name,config,created_at`, id, principal.OrgID, input.Kind, strings.TrimSpace(input.Name), encoded)
+	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
+		var currentKind ChannelKind
+		var currentEnabled bool
+		var raw []byte
+		if err := tx.QueryRow(ctx, `select kind,enabled,config from notification_channels where id=$1 and org_id=$2 for update`, id, principal.OrgID).Scan(&currentKind, &currentEnabled, &raw); err != nil {
+			return err
+		}
+		var current storedChannelConfig
+		if err := json.Unmarshal(raw, &current); err != nil {
+			return errors.New("decode channel config")
+		}
+		var existing *storedChannelConfig
+		if currentKind == input.Kind {
+			existing = &current
+		}
+		encoded, err := s.encodeChannel(input, existing)
+		if err != nil {
+			return err
+		}
+		enabled := currentEnabled
+		if input.Enabled != nil {
+			enabled = *input.Enabled
+		}
+		row := tx.QueryRow(ctx, `update notification_channels set kind=$3,name=$4,enabled=$5,config=$6 where id=$1 and org_id=$2 returning id,org_id,kind,name,enabled,config,created_at`, id, principal.OrgID, input.Kind, strings.TrimSpace(input.Name), enabled, encoded)
 		updated, err = scanChannel(row)
 		if err != nil {
 			return fmt.Errorf("update notification channel: %w", err)
@@ -142,7 +168,7 @@ func (s *Service) TestChannel(ctx context.Context, principal authz.Principal, id
 	}
 	now := s.now()
 	if err := s.deliverer.Deliver(ctx, channel, Notification{Kind: AlertTrafficSpike, FiredAt: now}); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrTestDelivery, err)
 	}
 	return s.store.Tx(ctx, func(tx pgx.Tx) error {
 		return audit.Write(ctx, tx, principal, "notification_channel.tested", "notification_channel", id, nil)
@@ -275,7 +301,7 @@ func (s *Service) EnabledAlerts(ctx context.Context) ([]Alert, error) {
 }
 
 func (s *Service) DeliveryChannels(ctx context.Context, ids []int64) ([]DeliveryChannel, error) {
-	rows, err := s.store.Pool.Query(ctx, `select id,kind,config from notification_channels where id=any($1)`, ids)
+	rows, err := s.store.Pool.Query(ctx, `select id,kind,enabled,config from notification_channels where id=any($1)`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("load delivery channels: %w", err)
 	}
@@ -311,7 +337,7 @@ func (s *Service) MarkFired(ctx context.Context, id int64, at time.Time) error {
 	return nil
 }
 
-func (s *Service) encodeChannel(input ChannelInput) ([]byte, error) {
+func (s *Service) encodeChannel(input ChannelInput, existing *storedChannelConfig) ([]byte, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	if input.Name == "" || s.box == nil {
 		return nil, ErrInvalid
@@ -340,6 +366,22 @@ func (s *Service) encodeChannel(input ChannelInput) ([]byte, error) {
 		} else if input.Secret != "" {
 			return nil, ErrInvalid
 		}
+	case ChannelTelegram:
+		input.ChatID = strings.TrimSpace(input.ChatID)
+		if len(input.Recipients) != 0 || input.URL != "" || input.Secret != "" || !ValidTelegramChatID(input.ChatID) {
+			return nil, ErrInvalid
+		}
+		config.ChatID = input.ChatID
+		if input.BotToken != "" {
+			if !ValidTelegramToken(input.BotToken) {
+				return nil, ErrInvalid
+			}
+			config.BotToken = base64.StdEncoding.EncodeToString(s.box.Seal([]byte(input.BotToken)))
+		} else if existing != nil && existing.BotToken != "" {
+			config.BotToken = existing.BotToken
+		} else {
+			return nil, ErrInvalid
+		}
 	default:
 		return nil, ErrInvalid
 	}
@@ -355,14 +397,17 @@ type rowScanner interface{ Scan(...any) error }
 func scanChannel(row rowScanner) (Channel, error) {
 	var channel Channel
 	var encoded []byte
-	if err := row.Scan(&channel.ID, &channel.OrgID, &channel.Kind, &channel.Name, &encoded, &channel.CreatedAt); err != nil {
+	if err := row.Scan(&channel.ID, &channel.OrgID, &channel.Kind, &channel.Name, &channel.Enabled, &encoded, &channel.CreatedAt); err != nil {
 		return Channel{}, err
 	}
 	var config storedChannelConfig
 	if err := json.Unmarshal(encoded, &config); err != nil {
 		return Channel{}, fmt.Errorf("decode channel config: %w", err)
 	}
-	channel.Config = ChannelConfig{Recipients: append([]string(nil), config.Recipients...), Configured: len(config.Recipients) > 0 || config.URL != ""}
+	channel.Config = ChannelConfig{
+		Recipients: append([]string(nil), config.Recipients...), ChatID: config.ChatID,
+		Configured: len(config.Recipients) > 0 || config.URL != "" || (config.BotToken != "" && config.ChatID != ""),
+	}
 	return channel, nil
 }
 
@@ -375,13 +420,13 @@ func scanAlert(row rowScanner) (Alert, error) {
 }
 
 func (s *Service) deliveryChannel(ctx context.Context, id, orgID int64) (DeliveryChannel, error) {
-	return s.scanDeliveryChannel(s.store.Pool.QueryRow(ctx, `select id,kind,config from notification_channels where id=$1 and org_id=$2`, id, orgID))
+	return s.scanDeliveryChannel(s.store.Pool.QueryRow(ctx, `select id,kind,enabled,config from notification_channels where id=$1 and org_id=$2`, id, orgID))
 }
 
 func (s *Service) scanDeliveryChannel(row rowScanner) (DeliveryChannel, error) {
 	var channel DeliveryChannel
 	var encoded []byte
-	if err := row.Scan(&channel.ID, &channel.Kind, &encoded); err != nil {
+	if err := row.Scan(&channel.ID, &channel.Kind, &channel.Enabled, &encoded); err != nil {
 		return DeliveryChannel{}, err
 	}
 	var config storedChannelConfig
@@ -398,6 +443,13 @@ func (s *Service) scanDeliveryChannel(row rowScanner) (DeliveryChannel, error) {
 	}
 	if config.Secret != "" {
 		channel.Secret, err = s.openConfig(config.Secret)
+		if err != nil {
+			return DeliveryChannel{}, err
+		}
+	}
+	channel.ChatID = config.ChatID
+	if config.BotToken != "" {
+		channel.BotToken, err = s.openConfig(config.BotToken)
 		if err != nil {
 			return DeliveryChannel{}, err
 		}
