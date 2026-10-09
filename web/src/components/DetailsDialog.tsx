@@ -34,9 +34,10 @@ type DetailsDialogProps = {
   dimension: string
   query: StatsQuery
   title?: string
+  allowSearch?: boolean
 }
 
-function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
+function DetailsContent({ dimension, query, title, allowSearch = true }: DetailsDialogProps) {
   const canExport = useCapability('data.export')
   const metric = query.metrics[0] ?? 'visitors'
   const [search, setSearch] = useState('')
@@ -47,7 +48,7 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
   ])
   const [exportError, setExportError] = useState<string>()
   const [exporting, setExporting] = useState(false)
-  const searchValue = search.trim()
+  const searchValue = allowSearch ? search.trim() : ''
   const sort = sorting[0]
   const pageMetricSort = sort?.id === 'time_on_page' || sort?.id === 'exit_rate'
   const sortDirection = pageMetricSort || sort?.desc !== false ? 'desc' : 'asc'
@@ -149,13 +150,14 @@ function DetailsContent({ dimension, query, title }: DetailsDialogProps) {
     <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
       <DialogHeader>
         <DialogTitle>{title ?? dimension}</DialogTitle>
-        <DialogDescription>Search, sort, and export the complete breakdown.</DialogDescription>
+        <DialogDescription>{allowSearch ? 'Search, sort, and export the complete breakdown.' : 'Sort and export canonical categories. Free-text searches are unavailable in anonymous mode.'}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Input
           aria-label={`Search ${dimension}`}
           className="sm:max-w-xs"
           type="search"
+          disabled={!allowSearch}
           value={search}
           onChange={(event) => {
             setSearch(event.target.value)

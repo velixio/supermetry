@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type QueryKey, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query'
 
 import { api } from './api'
 import type { components } from './api.gen'
@@ -15,6 +15,7 @@ type Compare = 'off' | 'previous_period' | 'previous_year'
 
 export type StatsQuery = {
   siteId: number
+  trackingMode?: 'anonymous' | 'identified'
   dateRange: DateRange
   metrics: Metric[]
   dimensions?: Dimension[]
@@ -90,13 +91,32 @@ function missingResponse(status: number): Problem {
   }
 }
 
+function terminalAuthorizationError(error: Problem | null): boolean {
+  return error?.status === 401 || error?.status === 403
+}
+
+function useStatsRetry(queryKey: QueryKey) {
+  const client = useQueryClient()
+  const retry = (client.getQueryDefaults(queryKey).retry
+    ?? client.getDefaultOptions().queries?.retry
+    ?? 3) as NonNullable<UseQueryOptions<unknown, Problem>['retry']>
+  return (failureCount: number, error: Problem) => {
+    if (terminalAuthorizationError(error)) return false
+    if (typeof retry === 'function') return retry(failureCount, error)
+    return retry === true || (typeof retry === 'number' && failureCount < retry)
+  }
+}
+
 export function useStats(
   query: StatsQuery,
 ): UseQueryResult<QueryResponse, Problem> {
   const body = normalizedBody(query)
   const current = includesToday(query)
+  const queryKey = ['stats', query.siteId, body, ...(query.trackingMode ? [query.trackingMode] : [])]
+  const retry = useStatsRetry(queryKey)
   return useQuery<QueryResponse, Problem>({
-    queryKey: ['stats', query.siteId, body],
+    queryKey,
+    retry,
     queryFn: async () => {
       const { data, error, response } = await api.POST('/api/private/query', {
         body,
@@ -108,15 +128,21 @@ export function useStats(
       return data
     },
     staleTime: current ? 30_000 : 300_000,
-    refetchInterval: query.live === true && current ? 30_000 : false,
+    refetchInterval: query.live === true && current
+      ? (state) => terminalAuthorizationError(state.state.error) ? false : 30_000
+      : false,
   })
 }
 
 export function useRealtime(
   siteId: number,
+  trackingMode?: StatsQuery['trackingMode'],
 ): UseQueryResult<Realtime, Problem> {
+  const queryKey = ['realtime', siteId, ...(trackingMode ? [trackingMode] : [])]
+  const retry = useStatsRetry(queryKey)
   return useQuery<Realtime, Problem>({
-    queryKey: ['realtime', siteId],
+    queryKey,
+    retry,
     queryFn: async () => {
       const { data, error } = await api.GET(
         '/api/private/realtime',
@@ -126,6 +152,6 @@ export function useRealtime(
       return data
     },
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: (state) => terminalAuthorizationError(state.state.error) ? false : 30_000,
   })
 }

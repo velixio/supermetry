@@ -96,6 +96,22 @@ describe('BreakdownCard', () => {
     vi.restoreAllMocks()
   })
 
+  it('does not render unverified page labels or false zeros as verified analytics', () => {
+    useStats.mockReturnValue(result({ data: data('page', '/private', 99) }))
+    render(<BreakdownCard title="Verified pages" tabs={tabs('page')} query={baseQuery} onFilter={vi.fn()} verifiedPaths allowFilter={false} />)
+    expect(screen.getByText(/Verified page coverage could not be confirmed/)).toBeVisible()
+    expect(screen.queryByText('/private')).not.toBeInTheDocument()
+    expect(screen.queryByText('99')).not.toBeInTheDocument()
+  })
+
+  it('keeps canonical detail search disabled in anonymous mode', async () => {
+    useStats.mockReturnValue(result({ data: data('country', 'US', 2) }))
+    render(<BreakdownCard title="Countries" tabs={tabs('country')} query={baseQuery} onFilter={vi.fn()} allowSearch={false} />)
+    fireEvent.click(screen.getByRole('button', { name: /Details/i }))
+    expect(await screen.findByRole('searchbox', { name: 'Search country' })).toBeDisabled()
+    expect(screen.getByText(/Free-text searches are unavailable/)).toBeVisible()
+  })
+
   it('one failing card does not blank the dashboard', () => {
     useStats.mockImplementation((query: StatsQuery) => {
       const dimension = query.dimensions?.[0]

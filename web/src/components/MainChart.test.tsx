@@ -52,6 +52,13 @@ describe('MainChart', () => {
     vi.clearAllMocks()
   })
 
+  it('shows failed analytics as an error rather than an empty chart', () => {
+    useStats.mockReturnValue({ isError: true, isLoading: false, error: { detail: 'Policy denied this chart' }, refetch: vi.fn() })
+    render(<MainChart query={query} metric="visitors" compare="off" />)
+    expect(screen.getByText('Policy denied this chart')).toBeVisible()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
   it('renders a table fallback with the same numbers', async () => {
     mockSeries([
       ['2026-10-01', 5],

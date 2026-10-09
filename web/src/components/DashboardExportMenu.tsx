@@ -1,3 +1,4 @@
+import { isAnonymousDimensionAllowed } from '@/lib/tracking-policy'
 import { useCapability } from '@/lib/authorization'
 import { useState } from 'react'
 import { ChevronDownIcon, DownloadIcon } from 'lucide-react'
@@ -36,18 +37,21 @@ const exportOptions: ExportOption[] = [
   { label: 'Events', dimension: 'event', metric: 'events' },
 ]
 
-export function DashboardExportMenu({ query }: { query: StatsQuery }) {
+export function DashboardExportMenu({ query, anonymous = false }: { query: StatsQuery; anonymous?: boolean }) {
   const canExport = useCapability('data.export')
   const [exporting, setExporting] = useState(false)
 
   const exportCSV = async (option: ExportOption) => {
     if (!canExport) return
+    if (anonymous && option.dimension !== 'page' && !isAnonymousDimensionAllowed(option.dimension)) return
+    if (anonymous && option.dimension === 'page' && query.filters.length > 0) return
     setExporting(true)
     try {
       await downloadStatsCSV({
         ...query,
         dimensions: [option.dimension],
         metrics: [option.metric],
+        ...(anonymous && option.dimension === 'page' ? { includeImported: false } : {}),
       })
     } catch (problem) {
       toast.error(
@@ -71,14 +75,15 @@ export function DashboardExportMenu({ query }: { query: StatsQuery }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {anonymous ? <p className="max-w-64 px-2 py-1.5 text-xs text-muted-foreground">Exports include safe aggregate categories. Verified pages exclude imports and unverified history and require no active filters.</p> : null}
         <DropdownMenuGroup>
-          {exportOptions.map((option) => (
+          {exportOptions.filter((option) => !anonymous || isAnonymousDimensionAllowed(option.dimension) || option.dimension === 'page').map((option) => (
             <DropdownMenuItem
               key={option.dimension}
-              disabled={exporting}
+              disabled={exporting || (anonymous && option.dimension === 'page' && query.filters.length > 0)}
               onSelect={() => void exportCSV(option)}
             >
-              {option.label}
+              {anonymous && option.dimension === 'page' ? 'Verified pages (partial)' : option.label}
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
