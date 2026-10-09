@@ -2255,6 +2255,7 @@ components:
       required: [sources_used, cached, imported_included]
       properties:
         privacy: { $ref: '#/components/schemas/QueryPrivacy' }
+        event_attribution: { $ref: '#/components/schemas/QueryEventAttribution' }
         sources_used:
           type: array
           items:
@@ -2263,6 +2264,14 @@ components:
           type: boolean
         imported_included:
           type: boolean
+    QueryEventAttribution:
+      type: object
+      additionalProperties: false
+      required: [basis, coverage, legacy_excluded]
+      properties:
+        basis: { type: string, enum: [event] }
+        coverage: { type: string, enum: [exact, available_only] }
+        legacy_excluded: { type: boolean }
     QueryResponse:
       type: object
       additionalProperties: false
@@ -2299,6 +2308,7 @@ components:
       additionalProperties: false
       required: [date_range, rows, totals]
       properties:
+        event_attribution: { $ref: '#/components/schemas/QueryEventAttribution' }
         date_range:
           $ref: '#/components/schemas/DateRange'
         rows:

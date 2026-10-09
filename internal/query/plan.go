@@ -364,6 +364,7 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 		Meta:       api.QueryMeta{SourcesUsed: sources, Cached: false, ImportedIncluded: importedIncluded},
 		NextCursor: nextCursor,
 	}
+	response.Meta.EventAttribution = eventAttributionMeta(normalized, parts)
 	for _, row := range rows {
 		item := make(map[string]interface{}, len(normalized.Dimensions)+len(normalized.Metrics))
 		for i, dimension := range normalized.Dimensions {
@@ -395,12 +396,33 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 			return api.QueryResponse{}, comparisonErr
 		}
 		response.Comparison = &api.ComparisonResult{
-			DateRange: *comparisonRequest.DateRange,
-			Rows:      comparisonResponse.Rows,
-			Totals:    comparisonResponse.Totals,
+			EventAttribution: comparisonResponse.Meta.EventAttribution,
+			DateRange:        *comparisonRequest.DateRange,
+			Rows:             comparisonResponse.Rows,
+			Totals:           comparisonResponse.Totals,
 		}
 	}
 	return response, nil
+}
+
+func eventAttributionMeta(req Normalized, parts []Part) *api.QueryEventAttribution {
+	if !req.EventAttribution {
+		return nil
+	}
+	coverage := api.QueryEventAttributionCoverageExact
+	legacyExcluded := false
+	for _, part := range parts {
+		if part.Route != RouteHot {
+			coverage = api.QueryEventAttributionCoverageAvailableOnly
+			legacyExcluded = true
+			break
+		}
+	}
+	return &api.QueryEventAttribution{
+		Basis:          api.QueryEventAttributionBasisEvent,
+		Coverage:       coverage,
+		LegacyExcluded: legacyExcluded,
+	}
 }
 
 func cacheEligible(req Normalized, site sites.Site, now time.Time, metadata closeMetadata) bool {

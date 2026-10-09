@@ -116,7 +116,7 @@ func (e *Engine) queryClosedChunks(ctx context.Context, req Normalized, part Par
 }
 
 func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
-	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) {
+	if hasCustomDimension(req.Dimensions) || hasRevenueMetric(req.Metrics) || req.EventAttribution {
 		return buildCustomClosedSQL(req, part)
 	}
 	builder := &sqlBuilder{}
@@ -287,7 +287,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 
 func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 	builder := &sqlBuilder{}
-	resolver := customResolver("c")
+	resolver := closedCustomResolver("c")
 	dimensions, err := dimensionExpressions(req.Dimensions, resolver)
 	if err != nil {
 		return "", nil, err
@@ -301,6 +301,9 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 		return "", nil, err
 	}
 	conditions = append(conditions, presentConditions...)
+	if req.EventAttribution {
+		conditions = append(conditions, eventAttributionAvailable("c"))
+	}
 	where := "c.site_id=" + builder.arg(req.SiteID) + " and c.day between " + builder.arg(dateParam(part.From)) + "::date and " + builder.arg(dateParam(part.To)) + "::date" + andSQL(conditions)
 	visitors := "count(distinct (c.day,c.visitor_id))::int8"
 	sums := []string{
@@ -310,6 +313,36 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 		"count(*) filter (where c.revenue_micros>0)::int8",
 	}
 	return aggregateSQL(dimensions, sums, "custom_closed c", where), builder.args, nil
+}
+
+func closedCustomResolver(alias string) dimensionResolver {
+	base := customResolver(alias)
+	prefix := alias + "."
+	return func(dimension string) (string, *dict.Kind, error) {
+		switch dimension {
+		case "source":
+			return prefix + "event_source_id", dictionaryKind(dict.Source), nil
+		case "channel":
+			return channelSQL(prefix+"event_source_id", prefix+"event_utm_medium_id"), nil, nil
+		case "utm_source":
+			return prefix + "event_utm_source_id", dictionaryKind(dict.Source), nil
+		case "utm_medium":
+			return prefix + "event_utm_medium_id", dictionaryKind(dict.Medium), nil
+		case "utm_campaign":
+			return prefix + "event_utm_campaign_id", dictionaryKind(dict.Campaign), nil
+		default:
+			return base(dimension)
+		}
+	}
+}
+
+func eventAttributionAvailable(alias string) string {
+	prefix := alias + "."
+	columns := []string{"event_source_id", "event_utm_source_id", "event_utm_medium_id", "event_utm_campaign_id", "event_utm_content_id", "event_utm_term_id"}
+	for index := range columns {
+		columns[index] = prefix + columns[index]
+	}
+	return "num_nulls(" + strings.Join(columns, ",") + ")=0"
 }
 
 func customResolver(alias string) dimensionResolver {

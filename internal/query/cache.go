@@ -246,11 +246,13 @@ func cloneResponse(response api.QueryResponse) api.QueryResponse {
 	}
 	cloned.Meta.SourcesUsed = append([]string(nil), response.Meta.SourcesUsed...)
 	cloned.Meta.Privacy = clonePointer(response.Meta.Privacy)
+	cloned.Meta.EventAttribution = clonePointer(response.Meta.EventAttribution)
 	cloned.NextCursor = clonePointer(response.NextCursor)
 	if response.Comparison != nil {
 		comparison := *response.Comparison
 		comparison.Rows = cloneRows(response.Comparison.Rows)
 		comparison.Totals = cloneTotals(response.Comparison.Totals)
+		comparison.EventAttribution = clonePointer(response.Comparison.EventAttribution)
 		cloned.Comparison = &comparison
 	}
 	return cloned
