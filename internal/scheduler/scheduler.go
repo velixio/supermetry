@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -58,12 +59,34 @@ func New(pool *pgxpool.Pool, clk Clock, jobs ...Job) *Scheduler {
 }
 
 // Run starts one goroutine per job and blocks until ctx is cancelled.
+// Advisory locks use a private coordination pool: retaining application-pool
+// connections while callbacks acquire from that same pool can exhaust it.
+// At most min(number of jobs, application MaxConns) extra connections are used.
+// PostgreSQL must have capacity for both pools. Callbacks must honor cancellation.
 func (s *Scheduler) Run(ctx context.Context) error {
+	if len(s.jobs) == 0 || ctx.Err() != nil {
+		<-ctx.Done()
+		return nil
+	}
+	config := s.pool.Config()
+	config.MaxConns = min(config.MaxConns, int32(len(s.jobs)))
+	config.MinConns, config.MinIdleConns = 0, 0
+	if config.ConnConfig.RuntimeParams == nil {
+		config.ConnConfig.RuntimeParams = make(map[string]string)
+	}
+	config.ConnConfig.RuntimeParams["application_name"] += "/scheduler"
+	locks, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		return fmt.Errorf("open scheduler coordination pool: %w", err)
+	}
+	// Workers release their lock sessions before this pool is closed. Closing
+	// first could let another instance enter a still-running callback.
+	defer locks.Close()
 	var workers sync.WaitGroup
 	for _, job := range s.jobs {
 		job := job
 		workers.Go(func() {
-			s.runJob(ctx, job)
+			s.runJob(ctx, locks, job)
 		})
 	}
 
@@ -72,7 +95,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) runJob(ctx context.Context, job Job) {
+func (s *Scheduler) runJob(ctx context.Context, locks *pgxpool.Pool, job Job) {
 	ticker := s.clock.NewTicker(job.Every)
 	defer ticker.Stop()
 
@@ -83,8 +106,11 @@ func (s *Scheduler) runJob(ctx context.Context, job Job) {
 			return
 		default:
 		}
-		ran, err := s.tryRun(ctx, job)
+		ran, err := s.tryRun(ctx, locks, job)
 		if err != nil {
+			if ctx.Err() == nil {
+				slog.ErrorContext(ctx, "scheduled job failed", "job", job.Name, "error", err)
+			}
 			ticker.Reset(backoff)
 			backoff = min(backoff*2, maximumBackoff)
 		} else if ran {
@@ -96,8 +122,11 @@ func (s *Scheduler) runJob(ctx context.Context, job Job) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C():
-			ran, err := s.tryRun(ctx, job)
+			ran, err := s.tryRun(ctx, locks, job)
 			if err != nil {
+				if ctx.Err() == nil {
+					slog.ErrorContext(ctx, "scheduled job failed", "job", job.Name, "error", err)
+				}
 				ticker.Reset(backoff)
 				backoff = min(backoff*2, maximumBackoff)
 				continue
@@ -110,8 +139,8 @@ func (s *Scheduler) runJob(ctx context.Context, job Job) {
 	}
 }
 
-func (s *Scheduler) tryRun(ctx context.Context, job Job) (ran bool, resultErr error) {
-	conn, err := s.pool.Acquire(ctx)
+func (s *Scheduler) tryRun(ctx context.Context, locks *pgxpool.Pool, job Job) (ran bool, resultErr error) {
+	conn, err := locks.Acquire(ctx)
 	if err != nil {
 		return false, fmt.Errorf("acquire connection for job %q: %w", job.Name, err)
 	}
@@ -119,7 +148,12 @@ func (s *Scheduler) tryRun(ctx context.Context, job Job) (ran bool, resultErr er
 
 	var acquired bool
 	if err := conn.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('panel:job:' || $1))`, job.Name).Scan(&acquired); err != nil {
-		return false, fmt.Errorf("lock job %q: %w", job.Name, err)
+		// The server may have acquired the session lock before a cancellation
+		// or transport error hid the result. Never return an uncertain session.
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), unlockTimeout)
+		defer cancel()
+		closeErr := conn.Conn().Close(cleanupCtx)
+		return false, errors.Join(fmt.Errorf("lock job %q: %w", job.Name, err), closeErr)
 	}
 	if !acquired {
 		return false, nil
