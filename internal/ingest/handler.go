@@ -147,6 +147,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	if site.StrictOrigin && !site.Allows(requestOriginHost(r)) {
+		health.IngestOriginRejected.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 	receivedAt := time.Now()
 	if h.Clock != nil {
 		receivedAt = h.Clock.Now()
@@ -234,7 +239,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if payload.Name == "heatmap" {
-		if reason := h.Enricher.Bot(r.UserAgent(), ip, payload.Referrer); reason != enrich.BotNone {
+		if reason := h.Enricher.BotWithBlockedReferrers(r.UserAgent(), ip, payload.Referrer, site.BlockedReferrers); reason != enrich.BotNone {
 			Bots[reason].Add(1)
 			health.BotsFiltered[reason].Add(1)
 			w.WriteHeader(http.StatusAccepted)
@@ -262,7 +267,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ua := r.UserAgent()
-	if reason := h.Enricher.Bot(ua, ip, payload.Referrer); reason != enrich.BotNone {
+	if reason := h.Enricher.BotWithBlockedReferrers(ua, ip, payload.Referrer, site.BlockedReferrers); reason != enrich.BotNone {
 		Bots[reason].Add(1)
 		health.BotsFiltered[reason].Add(1)
 		if h.Diag {
@@ -344,6 +349,24 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	health.IngestAccepted.Add(1)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func requestOriginHost(r *http.Request) string {
+	source := strings.TrimSpace(r.Header.Get("Origin"))
+	if source == "" {
+		source = strings.TrimSpace(r.Header.Get("Referer"))
+	}
+	if source == "" {
+		return ""
+	}
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil {
+		return ""
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ""
+	}
+	return strings.ToLower(parsed.Hostname())
 }
 
 func (h *Handler) acceptHeatmap(w http.ResponseWriter, ctx context.Context, payload Payload, pageURL *url.URL, site sites.Site, eventTime time.Time) bool {

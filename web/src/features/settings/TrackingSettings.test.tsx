@@ -25,6 +25,8 @@ const site = {
     hash: false,
     clicks: false,
   },
+  strict_origin: false,
+  blocked_referrers: [],
   exclude_countries: [],
 }
 
@@ -67,11 +69,35 @@ describe('TrackingSettings', () => {
   it('shows all tracker controls, their guidance, and the per-site script URL', async () => {
     renderSettings()
 
-    expect(await screen.findAllByRole('switch')).toHaveLength(7)
+    expect(await screen.findAllByRole('switch')).toHaveLength(8)
+    expect(screen.getByRole('switch', { name: 'Require browser origin' })).not.toBeChecked()
+    expect(screen.getByRole('textbox', { name: 'Blocked referrers' })).toBeVisible()
+    expect(screen.getByText(/server-side senders and non-browser clients/i)).toBeVisible()
     expect(screen.getByText('Clicks follow Heatmaps unless changed')).toBeVisible()
     expect(screen.getByText('Turning every extension off serves the 1 KB core script, without custom-event tags')).toBeVisible()
     expect(screen.getByText(site.tracker_url)).toBeVisible()
     expect(screen.getByRole('button', { name: 'Copy script URL' })).toBeEnabled()
+  })
+
+  it('patches strict origin and custom blocked referrers', async () => {
+    patch.mockResolvedValue({
+      data: { ...site, strict_origin: true, blocked_referrers: ['evil.example', 'spam.example'] },
+      response: { ok: true, status: 200 },
+    })
+    renderSettings()
+
+    toggle(await screen.findByRole('switch', { name: 'Require browser origin' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Blocked referrers' }), {
+      target: { value: 'evil.example\nspam.example' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save tracking settings' }))
+
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(
+      '/api/private/sites/7',
+      expect.objectContaining({
+        body: { strict_origin: true, blocked_referrers: ['evil.example', 'spam.example'] },
+      }),
+    ))
   })
 
   it('patches only changed tracker fields', async () => {
@@ -97,7 +123,7 @@ describe('TrackingSettings', () => {
     toggle(await screen.findByRole('switch', { name: 'Track hash routes' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save tracking settings' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('tracker settings could not be saved')
+    expect(await screen.findByText('tracker settings could not be saved')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Save tracking settings' })).toBeEnabled()
     expect(screen.getByRole('switch', { name: 'Track hash routes' })).toBeChecked()
   })

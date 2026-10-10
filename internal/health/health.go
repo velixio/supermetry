@@ -63,6 +63,7 @@ var (
 	IngestRateLimitedSite    Counter
 	IngestRateLimitedGlobal  Counter
 	PrivacySignalsDropped    Counter
+	IngestOriginRejected     Counter
 	HeatmapInvalid           Counter
 	HeatmapDropped           Counter
 	ReplayDropped            Counter
@@ -206,6 +207,7 @@ func Snapshot() map[string]float64 {
 		"replay_bytes_total":                         float64(ReplayBytes.Load()),
 		"replay_disk_low":                            ReplayDiskLow.Load(),
 		"ingest_privacy_dropped_total":               float64(PrivacySignalsDropped.Load()),
+		"ingest_origin_rejected_total":               float64(IngestOriginRejected.Load()),
 		"writer_queue_depth":                         WriterQueueDepth.Load(),
 		"copy_seconds":                               CopySeconds.Load(),
 		"close_lag_seconds":                          CloseLagSeconds.Load(),
@@ -254,6 +256,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_clock_skew_total", "counter")
 	writeFamily(w, snapshot, "ingest_rate_limited_total", "counter")
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
+	writeFamily(w, snapshot, "ingest_origin_rejected_total", "counter")
 	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
 	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")
 	writeFamily(w, snapshot, "replay_dropped_total", "counter")

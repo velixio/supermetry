@@ -2,12 +2,90 @@ package enrich_test
 
 import (
 	"net/netip"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/maxmind/mmdbwriter/mmdbtype"
 
 	"supermetry/internal/enrich"
 )
+
+func TestBotCustomSpamReferrerMatchesLabelBoundaries(t *testing.T) {
+	e, err := enrich.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = e.Close() })
+	ip := netip.MustParseAddr("192.0.2.42")
+	tests := []struct {
+		name    string
+		ref     string
+		blocked []string
+		want    enrich.BotReason
+	}{
+		{name: "exact", ref: "https://evil.com/path", want: enrich.BotSpamReferrer},
+		{name: "subdomain", ref: "https://a.evil.com/path", want: enrich.BotSpamReferrer},
+		{name: "not a label suffix", ref: "https://notevil.com/path", want: enrich.BotNone},
+		{name: "www is a real label", ref: "https://www.evil.com/path", blocked: []string{"www.evil.com"}, want: enrich.BotSpamReferrer},
+		{name: "invalid URL", ref: "://evil.com", want: enrich.BotNone},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			blocked := tt.blocked
+			if blocked == nil {
+				blocked = []string{"evil.com"}
+			}
+			if got := e.BotWithBlockedReferrers(desktopUserAgent(), ip, tt.ref, blocked); got != tt.want {
+				t.Fatalf("BotWithBlockedReferrers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMergeReferrerSpamFile(t *testing.T) {
+	e, err := enrich.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = e.Close() })
+	path := filepath.Join(t.TempDir(), "spam.txt")
+	if err := os.WriteFile(path, []byte("# local additions\noperator-spam.example\n\nSECOND.example # inline comments are invalid\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.MergeReferrerSpamFile(path); err == nil {
+		t.Fatal("invalid operator line accepted")
+	}
+	if got := e.Bot(desktopUserAgent(), netip.MustParseAddr("192.0.2.42"), "https://operator-spam.example/"); got != enrich.BotNone {
+		t.Fatalf("partial invalid file was merged: %v", got)
+	}
+	if err := os.WriteFile(path, []byte("# local additions\noperator-spam.example\nSECOND.example\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.MergeReferrerSpamFile(path); err != nil {
+		t.Fatal(err)
+	}
+	for _, ref := range []string{"https://operator-spam.example/", "https://a.second.example/path"} {
+		if got := e.Bot(desktopUserAgent(), netip.MustParseAddr("192.0.2.42"), ref); got != enrich.BotSpamReferrer {
+			t.Fatalf("Bot(%q) = %v, want spam", ref, got)
+		}
+	}
+}
+
+func TestMergeReferrerSpamFileRejectsOversizeFile(t *testing.T) {
+	e, err := enrich.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = e.Close() })
+	path := filepath.Join(t.TempDir(), "spam.txt")
+	if err := os.WriteFile(path, make([]byte, enrich.MaxReferrerSpamFileBytes+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.MergeReferrerSpamFile(path); err == nil {
+		t.Fatal("oversize operator file accepted")
+	}
+}
 
 func TestBotHostingOrganizationIsNotABot(t *testing.T) {
 	tests := []struct {

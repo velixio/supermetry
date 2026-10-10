@@ -103,3 +103,68 @@ func TestLoadFileLoadsAndClonesReplaySettings(t *testing.T) {
 		t.Fatalf("file replay aliased caller mutation: %+v", again.Replay)
 	}
 }
+
+func TestLoadFileLoadsAndClonesProtectionSettings(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "sites.json")
+	if err := os.WriteFile(p, []byte(`[{
+		"id":1,"public_id":"protected","timezone":"UTC","retention_days":30,
+		"strict_origin":true,"blocked_referrers":["evil.com","spam.example"]
+	}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := sites.LoadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.ByPublicID("protected")
+	if !ok || !loaded.StrictOrigin {
+		t.Fatalf("site = (%+v, %t)", loaded, ok)
+	}
+	if got := loaded.BlockedReferrers; len(got) != 2 || got[0] != "evil.com" || got[1] != "spam.example" {
+		t.Fatalf("blocked referrers = %v", got)
+	}
+	loaded.BlockedReferrers[0] = "mutated.example"
+	again, _ := registry.ByPublicID("protected")
+	if again.BlockedReferrers[0] != "evil.com" {
+		t.Fatalf("file protection settings aliased caller mutation: %v", again.BlockedReferrers)
+	}
+}
+
+func TestLoadFileProtectionDefaultsAndValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings string
+		wantErr  bool
+	}{
+		{name: "defaults off", settings: ""},
+		{name: "normalizes", settings: `,"blocked_referrers":[" EVIL.COM ","evil.com"]`},
+		{name: "rejects scheme", settings: `,"blocked_referrers":["https://evil.com"]`, wantErr: true},
+		{name: "rejects wildcard", settings: `,"blocked_referrers":["*.evil.com"]`, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := filepath.Join(t.TempDir(), "sites.json")
+			body := `[{"id":1,"public_id":"site","timezone":"UTC","retention_days":30` + tt.settings + `}]`
+			if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			registry, err := sites.LoadFile(p)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("invalid blocked referrer accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			loaded, _ := registry.ByPublicID("site")
+			if loaded.StrictOrigin {
+				t.Fatal("strict origin defaulted on")
+			}
+			if tt.name == "normalizes" && (len(loaded.BlockedReferrers) != 1 || loaded.BlockedReferrers[0] != "evil.com") {
+				t.Fatalf("blocked referrers = %v", loaded.BlockedReferrers)
+			}
+		})
+	}
+}

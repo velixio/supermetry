@@ -1157,6 +1157,13 @@ export interface components {
              * @default true
              */
             respect_privacy_signals: boolean;
+            /**
+             * @description Require an allowed Origin or Referer host during browser event ingestion.
+             * @default false
+             */
+            strict_origin: boolean;
+            /** @description Site-specific referrer domains to classify as spam; subdomains also match. */
+            blocked_referrers: string[];
             revenue_currency?: string;
             /** @enum {string} */
             revenue_currency_state: "unconfigured" | "configured" | "conflict";
@@ -1187,6 +1194,10 @@ export interface components {
             heatmaps_enabled?: boolean;
             /** @description Respect Sec-GPC 1 and DNT 1 request headers during event ingestion. */
             respect_privacy_signals?: boolean;
+            /** @description Require an allowed Origin or Referer host during browser event ingestion. */
+            strict_origin?: boolean;
+            /** @description Lowercase hostnames without schemes or paths; subdomains also match. */
+            blocked_referrers?: string[];
         };
         GoalInput: {
             /** @enum {string} */

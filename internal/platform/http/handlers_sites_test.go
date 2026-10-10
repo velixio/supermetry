@@ -66,7 +66,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 	}
 
 	patch := authenticatedRequest(http.MethodPatch, fmt.Sprintf("/api/private/sites/%d", site.ID),
-		`{"exclude_ips":["203.0.113.7","2001:db8::/32"],"exclude_paths":["/admin/*","/preview/**"],"exclude_countries":["ru"," RU "],"tracker":{"hash":true}}`)
+		`{"exclude_ips":["203.0.113.7","2001:db8::/32"],"exclude_paths":["/admin/*","/preview/**"],"exclude_countries":["ru"," RU "],"tracker":{"hash":true},"strict_origin":true,"blocked_referrers":["evil.example","spam.example"]}`)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, patch)
 	if response.Code != http.StatusOK {
@@ -78,6 +78,8 @@ func TestSiteExclusionAPI(t *testing.T) {
 		ExcludeCountries []string                  `json:"exclude_countries"`
 		Tracker          coresites.TrackerSettings `json:"tracker"`
 		TrackerURL       string                    `json:"tracker_url"`
+		StrictOrigin     bool                      `json:"strict_origin"`
+		BlockedReferrers []string                  `json:"blocked_referrers"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&patched); err != nil {
 		t.Fatal(err)
@@ -85,7 +87,8 @@ func TestSiteExclusionAPI(t *testing.T) {
 	if strings.Join(patched.ExcludeIPs, ",") != "203.0.113.7/32,2001:db8::/32" ||
 		strings.Join(patched.ExcludePaths, ",") != "/admin/*,/preview/**" ||
 		strings.Join(patched.ExcludeCountries, ",") != "RU" || !patched.Tracker.Hash ||
-		patched.TrackerURL != "https://supermetry.example/js/"+site.PublicID+".js" {
+		patched.TrackerURL != "https://supermetry.example/js/"+site.PublicID+".js" || !patched.StrictOrigin ||
+		strings.Join(patched.BlockedReferrers, ",") != "evil.example,spam.example" {
 		t.Fatalf("PATCH exclusions = %+v", patched)
 	}
 
@@ -100,13 +103,16 @@ func TestSiteExclusionAPI(t *testing.T) {
 		ExcludePaths     []string                  `json:"exclude_paths"`
 		ExcludeCountries []string                  `json:"exclude_countries"`
 		Tracker          coresites.TrackerSettings `json:"tracker"`
+		StrictOrigin     bool                      `json:"strict_origin"`
+		BlockedReferrers []string                  `json:"blocked_referrers"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&loaded); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Join(loaded.ExcludeIPs, ",") != strings.Join(patched.ExcludeIPs, ",") ||
 		strings.Join(loaded.ExcludePaths, ",") != strings.Join(patched.ExcludePaths, ",") ||
-		strings.Join(loaded.ExcludeCountries, ",") != "RU" || !loaded.Tracker.Hash {
+		strings.Join(loaded.ExcludeCountries, ",") != "RU" || !loaded.Tracker.Hash || !loaded.StrictOrigin ||
+		strings.Join(loaded.BlockedReferrers, ",") != "evil.example,spam.example" {
 		t.Fatalf("GET exclusions = %+v, want %+v", loaded, patched)
 	}
 
@@ -120,6 +126,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 		{name: "bad country", body: `{"exclude_countries":["USA"]}`, entry: "USA"},
 		{name: "unknown tracker field", body: `{"tracker":{"unknown":true}}`, entry: "tracker"},
 		{name: "non-boolean tracker field", body: `{"tracker":{"hash":"yes"}}`, entry: "tracker"},
+		{name: "bad blocked referrer", body: `{"blocked_referrers":["https://evil.example"]}`, entry: "blocked"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

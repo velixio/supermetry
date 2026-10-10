@@ -459,6 +459,94 @@ func TestPrivacySignalsHonorSiteSetting(t *testing.T) {
 	}
 }
 
+func TestStrictOriginProtection(t *testing.T) {
+	tests := []struct {
+		name       string
+		strict     bool
+		origin     string
+		referer    string
+		hosts      []string
+		body       string
+		wantStored int
+		wantReject uint64
+	}{
+		{name: "off by default", wantStored: 1},
+		{name: "missing origin", strict: true, wantReject: 1},
+		{name: "mismatched origin", strict: true, origin: "https://attacker.example", wantReject: 1},
+		{name: "matching origin", strict: true, origin: "https://example.com", wantStored: 1},
+		{name: "matching origin ignores port", strict: true, origin: "https://example.com:8443", wantStored: 1},
+		{name: "referer fallback", strict: true, referer: "https://example.com/from", wantStored: 1},
+		{name: "origin takes precedence", strict: true, origin: "https://attacker.example", referer: "https://example.com/from", wantReject: 1},
+		{name: "wildcard subdomain", strict: true, origin: "https://www.example.com", hosts: []string{"*.example.com"}, body: `{"site":"abc123","name":"pageview","url":"https://www.example.com/"}`, wantStored: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newHandlerFixture(t, 32, nil)
+			setProtectionSettings(t, f, tt.strict, nil, tt.hosts)
+			before := health.IngestOriginRejected.Load()
+			body := tt.body
+			if body == "" {
+				body = okBody
+			}
+			req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(body))
+			req.Header.Set("User-Agent", testUA)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			if tt.referer != "" {
+				req.Header.Set("Referer", tt.referer)
+			}
+			req.RemoteAddr = "198.51.100.7:5555"
+			response := httptest.NewRecorder()
+			f.h.ServeHTTP(response, req)
+			if response.Code != http.StatusAccepted {
+				t.Fatalf("status = %d, want 202", response.Code)
+			}
+			f.stop(t)
+			var stored int
+			if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&stored); err != nil {
+				t.Fatal(err)
+			}
+			if stored != tt.wantStored {
+				t.Fatalf("stored events = %d, want %d", stored, tt.wantStored)
+			}
+			if got := health.IngestOriginRejected.Load() - before; got != tt.wantReject {
+				t.Fatalf("origin rejected delta = %d, want %d", got, tt.wantReject)
+			}
+		})
+	}
+}
+
+func TestCustomBlockedReferrerDropsOnLabelBoundary(t *testing.T) {
+	tests := []struct {
+		name       string
+		referrer   string
+		wantStored int
+	}{
+		{name: "exact", referrer: "https://evil.example/path"},
+		{name: "subdomain", referrer: "https://a.evil.example/path"},
+		{name: "not suffix boundary", referrer: "https://notevil.example/path", wantStored: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newHandlerFixture(t, 32, nil)
+			setProtectionSettings(t, f, false, []string{"evil.example"}, nil)
+			body := `{"site":"abc123","name":"pageview","url":"https://example.com/","referrer":"` + tt.referrer + `"}`
+			if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+				t.Fatalf("status = %d, want 202", response.Code)
+			}
+			f.stop(t)
+			var stored int
+			if err := f.pool.QueryRow(context.Background(), `select count(*) from events`).Scan(&stored); err != nil {
+				t.Fatal(err)
+			}
+			if stored != tt.wantStored {
+				t.Fatalf("stored events = %d, want %d", stored, tt.wantStored)
+			}
+		})
+	}
+}
+
 func TestHeatmapFromBotIsNotAggregated(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setHeatmapsEnabled(t, f, true)
@@ -1164,6 +1252,20 @@ func setCountryExclusions(t *testing.T, fixture *handlerFixture, countries []str
 		t.Fatal(err)
 	}
 	site.Exclusions = exclusions
+	fixture.h.Sites = siteRegistry{site: site}
+}
+
+func setProtectionSettings(t *testing.T, fixture *handlerFixture, strict bool, blocked, hosts []string) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	site.StrictOrigin = strict
+	site.BlockedReferrers = append([]string(nil), blocked...)
+	if hosts != nil {
+		site.AllowedHosts = append([]string(nil), hosts...)
+	}
 	fixture.h.Sites = siteRegistry{site: site}
 }
 

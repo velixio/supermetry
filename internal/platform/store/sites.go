@@ -87,6 +87,8 @@ type Site struct {
 	ProfilesEnabled       bool
 	HeatmapsEnabled       bool
 	RespectPrivacySignals bool
+	StrictOrigin          bool
+	BlockedReferrers      []string
 	IconURL               string
 	IconCheckedAt         string
 	RevenueCurrency       string
@@ -122,6 +124,8 @@ func SiteForUpdate(ctx context.Context, tx pgx.Tx, orgID int64, id int32) (Site,
 		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->'respect_privacy_signals' = 'true'::jsonb, true),
+		       coalesce(settings->'strict_origin' = 'true'::jsonb, false),
+		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at
 		from sites
@@ -143,7 +147,11 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		                '{exclude_countries}', coalesce(to_jsonb($9::text[]), '[]'::jsonb)),
 		            '{tracker}', coalesce($10::jsonb, '{}'::jsonb)),
 		        '{profiles_enabled}', to_jsonb($11::boolean)) ||
-		        jsonb_build_object('heatmaps_enabled', $12::boolean, 'respect_privacy_signals', $13::boolean)
+		        jsonb_build_object(
+		            'heatmaps_enabled', $12::boolean,
+		            'respect_privacy_signals', $13::boolean,
+		            'strict_origin', $14::boolean,
+		            'blocked_referrers', coalesce(to_jsonb($15::text[]), '[]'::jsonb))
 		where id = $1 and org_id = $2 and deleted_at is null
 		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),
@@ -153,15 +161,17 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		          coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->'respect_privacy_signals' = 'true'::jsonb, true),
+		          coalesce(settings->'strict_origin' = 'true'::jsonb, false),
+		          coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at`,
 		site.ID, site.OrgID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass,
 		site.ExcludeIPs, site.ExcludePaths, site.ExcludeCountries, string(site.Tracker), site.ProfilesEnabled, site.HeatmapsEnabled,
-		site.RespectPrivacySignals,
+		site.RespectPrivacySignals, site.StrictOrigin, site.BlockedReferrers,
 	).Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
-		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.IconURL, &site.IconCheckedAt,
+		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
 		&site.CreatedAt, &site.DeletedAt,
 	)
@@ -198,6 +208,8 @@ func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 		       coalesce(s.settings->'profiles_enabled' = 'true'::jsonb, false),
 		       coalesce(s.settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		       coalesce(s.settings->'respect_privacy_signals' = 'true'::jsonb, true),
+		       coalesce(s.settings->'strict_origin' = 'true'::jsonb, false),
+		       coalesce(s.settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(s.settings->>'icon_url', ''), coalesce(s.settings->>'icon_checked_at', ''),
 		       coalesce(s.revenue_currency::text, ''), s.revenue_currency_state, s.created_at, s.deleted_at
 		from sites s
@@ -221,6 +233,8 @@ func ListSites(ctx context.Context, data *Store, orgID int64, siteIDs []int32, a
 		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		       coalesce(settings->'respect_privacy_signals' = 'true'::jsonb, true),
+		       coalesce(settings->'strict_origin' = 'true'::jsonb, false),
+		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at
 		from sites
@@ -244,7 +258,7 @@ func scanSite(row siteScanner) (Site, error) {
 	if err := row.Scan(
 		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
-		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.IconURL, &site.IconCheckedAt,
+		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
 		&site.CreatedAt, &site.DeletedAt,
 	); err != nil {
@@ -268,6 +282,8 @@ func SetSiteIcon(ctx context.Context, data *Store, orgID int64, id int32, iconUR
 		          coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
 		          coalesce(settings->'respect_privacy_signals' = 'true'::jsonb, true),
+		          coalesce(settings->'strict_origin' = 'true'::jsonb, false),
+		          coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at`,
 		id, orgID, iconURL, checkedAt.UTC().Format(time.RFC3339),

@@ -27,6 +27,8 @@ type fileSite struct {
 	ProfilesEnabled       bool                 `json:"profiles_enabled"`
 	HeatmapsEnabled       bool                 `json:"heatmaps_enabled"`
 	RespectPrivacySignals *bool                `json:"respect_privacy_signals"`
+	StrictOrigin          bool                 `json:"strict_origin"`
+	BlockedReferrers      []string             `json:"blocked_referrers"`
 	Replay                json.RawMessage      `json:"replay"`
 	RevenueCurrency       string               `json:"revenue_currency"`
 	RevenueCurrencyState  RevenueCurrencyState `json:"revenue_currency_state"`
@@ -69,6 +71,10 @@ func LoadFile(path string) (*FileRegistry, error) {
 		if err != nil {
 			return nil, fmt.Errorf("site %d replay settings: %w", i, err)
 		}
+		blockedReferrers, err := NormalizeBlockedReferrers(record.BlockedReferrers, MaxBlockedReferrers)
+		if err != nil {
+			return nil, fmt.Errorf("site %d blocked referrers: %w", i, err)
+		}
 		site := Site{
 			OrgID:                 record.OrgID,
 			ID:                    record.ID,
@@ -79,6 +85,8 @@ func LoadFile(path string) (*FileRegistry, error) {
 			ProfilesEnabled:       record.ProfilesEnabled,
 			HeatmapsEnabled:       record.HeatmapsEnabled,
 			RespectPrivacySignals: respectPrivacySignals,
+			StrictOrigin:          record.StrictOrigin,
+			BlockedReferrers:      blockedReferrers,
 			Replay:                replaySettings,
 			RevenueCurrency:       record.RevenueCurrency,
 			RevenueCurrencyState:  record.RevenueCurrencyState,
@@ -136,6 +144,7 @@ func (r *FileRegistry) All() []Site {
 
 func cloneFileSite(site Site) Site {
 	site.AllowedHosts = append([]string(nil), site.AllowedHosts...)
+	site.BlockedReferrers = append([]string(nil), site.BlockedReferrers...)
 	site.Exclusions = site.Exclusions.Clone()
 	site.Replay = cloneReplaySiteInput(site.Replay)
 	return site

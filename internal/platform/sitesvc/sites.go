@@ -50,6 +50,8 @@ type SitePatch struct {
 	ProfilesEnabled       *bool
 	HeatmapsEnabled       *bool
 	RespectPrivacySignals *bool
+	StrictOrigin          *bool
+	BlockedReferrers      *[]string
 	RevenueCurrency       *string
 }
 
@@ -130,7 +132,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	if !authz.Can(principal, authz.ActionSiteEdit, id) {
 		return coresites.Site{}, ErrForbidden
 	}
-	if (patch.ProfilesEnabled != nil || patch.HeatmapsEnabled != nil || patch.Tracker != nil || patch.ExcludeCountries != nil || patch.RevenueCurrency != nil) &&
+	if (patch.ProfilesEnabled != nil || patch.HeatmapsEnabled != nil || patch.Tracker != nil || patch.ExcludeCountries != nil || patch.StrictOrigin != nil || patch.BlockedReferrers != nil || patch.RevenueCurrency != nil) &&
 		principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
 		return coresites.Site{}, ErrForbidden
 	}
@@ -183,6 +185,16 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.RespectPrivacySignals != nil {
 			current.RespectPrivacySignals = *patch.RespectPrivacySignals
 		}
+		if patch.StrictOrigin != nil {
+			current.StrictOrigin = *patch.StrictOrigin
+		}
+		if patch.BlockedReferrers != nil {
+			blocked, err := coresites.NormalizeBlockedReferrers(*patch.BlockedReferrers, coresites.MaxBlockedReferrers)
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrInvalid, err)
+			}
+			current.BlockedReferrers = blocked
+		}
 		if patch.RevenueCurrency != nil {
 			currency := strings.TrimSpace(*patch.RevenueCurrency)
 			if !coresites.ValidCurrency(currency) {
@@ -225,6 +237,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 			"name": name, "timezone": location.String(), "retention_days": int(retention),
 			"heatmaps_enabled":        current.HeatmapsEnabled,
 			"respect_privacy_signals": current.RespectPrivacySignals,
+			"strict_origin":           current.StrictOrigin,
 		}
 		if patch.ProfilesEnabled != nil {
 			metadata["profiles_enabled"] = current.ProfilesEnabled
@@ -234,6 +247,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		}
 		if patch.ExcludeCountries != nil {
 			metadata["exclude_countries"] = current.ExcludeCountries
+		}
+		if patch.BlockedReferrers != nil {
+			metadata["blocked_referrers"] = current.BlockedReferrers
 		}
 		if patch.RevenueCurrency != nil {
 			metadata["revenue_currency"] = current.RevenueCurrency
@@ -463,6 +479,8 @@ func coreSite(row store.Site) (coresites.Site, error) {
 		ProfilesEnabled:       row.ProfilesEnabled,
 		HeatmapsEnabled:       row.HeatmapsEnabled,
 		RespectPrivacySignals: row.RespectPrivacySignals,
+		StrictOrigin:          row.StrictOrigin,
+		BlockedReferrers:      append([]string(nil), row.BlockedReferrers...),
 		IconURL:               row.IconURL,
 		RevenueCurrency:       row.RevenueCurrency,
 		RevenueCurrencyState:  coresites.RevenueCurrencyState(row.RevenueCurrencyState),

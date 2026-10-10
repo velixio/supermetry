@@ -141,6 +141,7 @@ func (r *Registry) loadReplaySettings(ctx context.Context) (map[int32]coresites.
 
 func cloneSite(site coresites.Site) coresites.Site {
 	site.AllowedHosts = append([]string(nil), site.AllowedHosts...)
+	site.BlockedReferrers = append([]string(nil), site.BlockedReferrers...)
 	site.Exclusions = site.Exclusions.Clone()
 	site.Tracker = cloneTrackerSettings(site.Tracker)
 	site.Replay = cloneReplaySettings(site.Replay)

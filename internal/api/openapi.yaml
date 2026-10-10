@@ -1982,7 +1982,7 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, revenue_currency_state]
+      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -2005,6 +2005,15 @@ components:
           type: boolean
           default: true
           description: When true, event ingestion drops requests carrying Sec-GPC 1 or DNT 1.
+        strict_origin:
+          type: boolean
+          default: false
+          description: Require an allowed Origin or Referer host during browser event ingestion.
+        blocked_referrers:
+          type: array
+          maxItems: 200
+          description: Site-specific referrer domains to classify as spam; subdomains also match.
+          items: { type: string }
         revenue_currency:
           type: string
           pattern: '^[A-Z]{3}$'
@@ -2063,6 +2072,14 @@ components:
         respect_privacy_signals:
           type: boolean
           description: Respect Sec-GPC 1 and DNT 1 request headers during event ingestion.
+        strict_origin:
+          type: boolean
+          description: Require an allowed Origin or Referer host during browser event ingestion.
+        blocked_referrers:
+          type: array
+          maxItems: 200
+          description: Lowercase hostnames without schemes or paths; subdomains also match.
+          items: { type: string }
     GoalInput:
       type: object
       additionalProperties: false

@@ -6,11 +6,17 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/netip"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
+
+	"supermetry/internal/sites"
 )
+
+const MaxReferrerSpamFileBytes = 1 << 20
 
 // BotReason records why traffic was filtered.
 type BotReason int8
@@ -45,26 +51,31 @@ func (m crawlerMatcher) match(ua string) bool {
 
 // Bot returns the first matching filter reason in precedence order.
 func (e *Enricher) Bot(ua string, ip netip.Addr, referrer string) BotReason {
+	return e.BotWithBlockedReferrers(ua, ip, referrer, nil)
+}
+
+// BotWithBlockedReferrers applies the global and per-site spam-referrer lists.
+func (e *Enricher) BotWithBlockedReferrers(ua string, ip netip.Addr, referrer string, blocked []string) BotReason {
 	switch {
 	case headlessPattern.MatchString(ua):
 		return BotHeadless
 	case e.crawler.match(ua):
 		return BotUserAgent
-	case e.isSpamReferrer(referrer):
+	case e.isSpamReferrer(referrer, blocked):
 		return BotSpamReferrer
 	default:
 		return BotNone
 	}
 }
 
-func (e *Enricher) isSpamReferrer(referrer string) bool {
+func (e *Enricher) isSpamReferrer(referrer string, blocked []string) bool {
 	u, err := url.Parse(referrer)
 	if err != nil || u.Hostname() == "" {
 		return false
 	}
-	host := normalizeHost(u.Hostname())
+	host := normalizeSpamHost(u.Hostname())
 	for {
-		if _, ok := e.spam[host]; ok {
+		if _, ok := e.spam[host]; ok || containsDomain(blocked, host) {
 			return true
 		}
 		dot := strings.IndexByte(host, '.')
@@ -73,6 +84,56 @@ func (e *Enricher) isSpamReferrer(referrer string) bool {
 		}
 		host = host[dot+1:]
 	}
+}
+
+func normalizeSpamHost(host string) string {
+	return strings.TrimSuffix(strings.ToLower(host), ".")
+}
+
+func containsDomain(domains []string, host string) bool {
+	for _, domain := range domains {
+		if host == domain {
+			return true
+		}
+	}
+	return false
+}
+
+// MergeReferrerSpamFile validates and merges an operator-maintained domain list.
+// It is intended for startup use before the Enricher is shared by handlers.
+func (e *Enricher) MergeReferrerSpamFile(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open referrer spam file: %w", err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("stat referrer spam file: %w", err)
+	}
+	if info.Size() > MaxReferrerSpamFileBytes {
+		return fmt.Errorf("referrer spam file exceeds %d bytes", MaxReferrerSpamFileBytes)
+	}
+	lines := make([]string, 0)
+	scanner := bufio.NewScanner(io.LimitReader(file, MaxReferrerSpamFileBytes+1))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		lines = append(lines, line)
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read referrer spam file: %w", err)
+	}
+	normalized, err := sites.NormalizeBlockedReferrers(lines, 0)
+	if err != nil {
+		return fmt.Errorf("validate referrer spam file: %w", err)
+	}
+	for _, domain := range normalized {
+		e.spam[domain] = struct{}{}
+	}
+	return nil
 }
 
 // crawlerPatternOverrides narrows upstream patterns that also match real
@@ -106,7 +167,7 @@ func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 	spam := make(map[string]struct{})
 	scanner := bufio.NewScanner(bytes.NewReader(referrerSpam))
 	for scanner.Scan() {
-		domain := normalizeHost(strings.TrimSpace(scanner.Text()))
+		domain := normalizeSpamHost(strings.TrimSpace(scanner.Text()))
 		if domain != "" && !strings.HasPrefix(domain, "#") {
 			spam[domain] = struct{}{}
 		}

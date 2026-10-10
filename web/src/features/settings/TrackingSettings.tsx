@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 
 import type { Role } from '@/components/Sidebar'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -16,8 +17,9 @@ import {
   FieldTitle,
 } from '@/components/ui/field'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { getSite, updateSite } from '@/features/sites/api'
-import type { TrackerSettings as TrackerSettingsValue } from '@/features/sites/types'
+import type { SiteUpdate, TrackerSettings as TrackerSettingsValue } from '@/features/sites/types'
 import { copyText } from '@/lib/clipboard'
 
 type TrackerKey = keyof TrackerSettingsValue
@@ -43,6 +45,13 @@ function changedFields(
   return changed
 }
 
+function blockedReferrerLines(value: string) {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
 export function TrackingSettings({
   orgId,
   role,
@@ -61,6 +70,10 @@ function TrackingSettingsForm({ orgId, siteId }: { orgId: number; siteId: number
   const queryClient = useQueryClient()
   const [settings, setSettings] = useState<TrackerSettingsValue | null>(null)
   const [savedSettings, setSavedSettings] = useState<TrackerSettingsValue | null>(null)
+  const [strictOrigin, setStrictOrigin] = useState(false)
+  const [savedStrictOrigin, setSavedStrictOrigin] = useState(false)
+  const [blockedReferrers, setBlockedReferrers] = useState('')
+  const [savedBlockedReferrers, setSavedBlockedReferrers] = useState('')
   const [copied, setCopied] = useState<'yes' | 'manual' | null>(null)
   const site = useQuery({
     queryKey: ['site', siteId],
@@ -71,21 +84,39 @@ function TrackingSettingsForm({ orgId, siteId }: { orgId: number; siteId: number
     if (!site.data?.tracker) return
     setSettings(site.data.tracker)
     setSavedSettings(site.data.tracker)
+    setStrictOrigin(site.data.strict_origin ?? false)
+    setSavedStrictOrigin(site.data.strict_origin ?? false)
+    const blocked = (site.data.blocked_referrers ?? []).join('\n')
+    setBlockedReferrers(blocked)
+    setSavedBlockedReferrers(blocked)
   }, [site.data])
 
   const changes = useMemo(() => {
-    return settings && savedSettings ? changedFields(savedSettings, settings) : {}
-  }, [savedSettings, settings])
+    const result: SiteUpdate = {}
+    if (settings && savedSettings) {
+      const tracker = changedFields(savedSettings, settings)
+      if (Object.keys(tracker).length > 0) result.tracker = tracker
+    }
+    if (strictOrigin !== savedStrictOrigin) result.strict_origin = strictOrigin
+    if (blockedReferrers !== savedBlockedReferrers) {
+      result.blocked_referrers = blockedReferrerLines(blockedReferrers)
+    }
+    return result
+  }, [blockedReferrers, savedBlockedReferrers, savedSettings, savedStrictOrigin, settings, strictOrigin])
   const dirty = Object.keys(changes).length > 0
   const save = useMutation({
-    mutationFn: (tracker: Partial<TrackerSettingsValue>) =>
-      updateSite(siteId, orgId, { tracker }),
+    mutationFn: (body: SiteUpdate) => updateSite(siteId, orgId, body),
     onSuccess: (value) => {
       queryClient.setQueryData(['site', siteId], value)
       if (value.tracker) {
         setSettings(value.tracker)
         setSavedSettings(value.tracker)
       }
+      setStrictOrigin(value.strict_origin ?? false)
+      setSavedStrictOrigin(value.strict_origin ?? false)
+      const blocked = (value.blocked_referrers ?? []).join('\n')
+      setBlockedReferrers(blocked)
+      setSavedBlockedReferrers(blocked)
     },
   })
 
@@ -137,6 +168,42 @@ function TrackingSettingsForm({ orgId, siteId }: { orgId: number; siteId: number
               ))}
             </FieldGroup>
           </FieldSet>
+          <FieldSet>
+            <FieldLegend variant="label">Traffic protection</FieldLegend>
+            <FieldGroup className="gap-4">
+              <Field orientation="horizontal">
+                <FieldContent>
+                  <FieldLabel htmlFor="strict-origin">Require browser origin</FieldLabel>
+                  <FieldDescription>
+                    Accept events only when Origin, or Referer as a fallback, matches an allowed host.
+                  </FieldDescription>
+                </FieldContent>
+                <Switch
+                  id="strict-origin"
+                  checked={strictOrigin}
+                  disabled={save.isPending}
+                  onCheckedChange={setStrictOrigin}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="blocked-referrers">Blocked referrers</FieldLabel>
+                <Textarea
+                  id="blocked-referrers"
+                  value={blockedReferrers}
+                  disabled={save.isPending}
+                  placeholder="spam.example"
+                  onChange={(event) => setBlockedReferrers(event.target.value)}
+                />
+                <FieldDescription>One domain per line, up to 200; subdomains are blocked too.</FieldDescription>
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+          <Alert>
+            <AlertTitle>Strict origin is not authentication</AlertTitle>
+            <AlertDescription>
+              Non-browser clients can spoof these headers; server-side senders and non-browser clients must leave strict origin off unless they use another allow-list.
+            </AlertDescription>
+          </Alert>
           <Field>
             <FieldTitle>Script URL</FieldTitle>
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">

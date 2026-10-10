@@ -185,6 +185,21 @@ func TestPrivacySignalDropsAreExportedSeparately(t *testing.T) {
 	}
 }
 
+func TestOriginRejectedIsExportedSeparately(t *testing.T) {
+	before := health.IngestOriginRejected.Load()
+	health.IngestOriginRejected.Add(1)
+
+	snapshot := health.Snapshot()
+	if got := snapshot["ingest_origin_rejected_total"]; got != float64(before+1) {
+		t.Fatalf("origin rejection metric = %v, want %d", got, before+1)
+	}
+	var b strings.Builder
+	health.WritePrometheus(&b)
+	if !strings.Contains(b.String(), "supermetry_ingest_origin_rejected_total ") {
+		t.Fatalf("Prometheus output missing origin rejection counter:\n%s", b.String())
+	}
+}
+
 func TestIngestRateLimitReasonsAreExported(t *testing.T) {
 	counters := []struct {
 		reason  string

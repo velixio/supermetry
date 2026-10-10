@@ -1659,22 +1659,28 @@ type SessionTimelineItemKind string
 
 // Site defines model for Site.
 type Site struct {
-	AllowedHosts    []string `json:"allowed_hosts"`
-	ExcludeIps      []string `json:"exclude_ips"`
-	ExcludePaths    []string `json:"exclude_paths"`
-	HeatmapsEnabled bool     `json:"heatmaps_enabled"`
-	Id              int32    `json:"id"`
-	Name            string   `json:"name"`
-	OrgId           int64    `json:"org_id"`
-	ProfilesEnabled bool     `json:"profiles_enabled"`
-	PublicId        string   `json:"public_id"`
+	AllowedHosts []string `json:"allowed_hosts"`
+
+	// BlockedReferrers Site-specific referrer domains to classify as spam; subdomains also match.
+	BlockedReferrers []string `json:"blocked_referrers"`
+	ExcludeIps       []string `json:"exclude_ips"`
+	ExcludePaths     []string `json:"exclude_paths"`
+	HeatmapsEnabled  bool     `json:"heatmaps_enabled"`
+	Id               int32    `json:"id"`
+	Name             string   `json:"name"`
+	OrgId            int64    `json:"org_id"`
+	ProfilesEnabled  bool     `json:"profiles_enabled"`
+	PublicId         string   `json:"public_id"`
 
 	// RespectPrivacySignals When true, event ingestion drops requests carrying Sec-GPC 1 or DNT 1.
 	RespectPrivacySignals bool                     `json:"respect_privacy_signals"`
 	RetentionDays         int                      `json:"retention_days"`
 	RevenueCurrency       *string                  `json:"revenue_currency,omitempty"`
 	RevenueCurrencyState  SiteRevenueCurrencyState `json:"revenue_currency_state"`
-	Timezone              string                   `json:"timezone"`
+
+	// StrictOrigin Require an allowed Origin or Referer host during browser event ingestion.
+	StrictOrigin bool   `json:"strict_origin"`
+	Timezone     string `json:"timezone"`
 }
 
 // SiteRevenueCurrencyState defines model for Site.RevenueCurrencyState.
@@ -1706,12 +1712,14 @@ type TopSource struct {
 
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
-	ExcludeIps      *[]string `json:"exclude_ips,omitempty"`
-	ExcludePaths    *[]string `json:"exclude_paths,omitempty"`
-	HeatmapsEnabled *bool     `json:"heatmaps_enabled,omitempty"`
-	Hosts           *[]string `json:"hosts,omitempty"`
-	Name            *string   `json:"name,omitempty"`
-	ProfilesEnabled *bool     `json:"profiles_enabled,omitempty"`
+	// BlockedReferrers Lowercase hostnames without schemes or paths; subdomains also match.
+	BlockedReferrers *[]string `json:"blocked_referrers,omitempty"`
+	ExcludeIps       *[]string `json:"exclude_ips,omitempty"`
+	ExcludePaths     *[]string `json:"exclude_paths,omitempty"`
+	HeatmapsEnabled  *bool     `json:"heatmaps_enabled,omitempty"`
+	Hosts            *[]string `json:"hosts,omitempty"`
+	Name             *string   `json:"name,omitempty"`
+	ProfilesEnabled  *bool     `json:"profiles_enabled,omitempty"`
 
 	// RespectPrivacySignals Respect Sec-GPC 1 and DNT 1 request headers during event ingestion.
 	RespectPrivacySignals *bool                           `json:"respect_privacy_signals,omitempty"`
@@ -1719,7 +1727,10 @@ type UpdateSiteRequest struct {
 
 	// RevenueCurrency Permanent once selected; only unconfigured projects may set it.
 	RevenueCurrency *string `json:"revenue_currency,omitempty"`
-	Timezone        *string `json:"timezone,omitempty"`
+
+	// StrictOrigin Require an allowed Origin or Referer host during browser event ingestion.
+	StrictOrigin *bool   `json:"strict_origin,omitempty"`
+	Timezone     *string `json:"timezone,omitempty"`
 }
 
 // UpdateSiteRequestRetentionDays defines model for UpdateSiteRequest.RetentionDays.

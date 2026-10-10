@@ -22,6 +22,8 @@ type Site struct {
 	ProfilesEnabled       bool
 	HeatmapsEnabled       bool
 	RespectPrivacySignals bool
+	StrictOrigin          bool
+	BlockedReferrers      []string
 	IconURL               string
 	RevenueCurrency       string
 	RevenueCurrencyState  RevenueCurrencyState

@@ -199,6 +199,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("ensure startup partitions: %w", err)
 	}
 	enricher := geo.enricher
+	if spamFile := strings.TrimSpace(os.Getenv("SUPERMETRY_REFERRER_SPAM_FILE")); spamFile != "" {
+		if err := enricher.MergeReferrerSpamFile(spamFile); err != nil {
+			return fmt.Errorf("load operator referrer spam file: %w", err)
+		}
+	}
 
 	closed, err := loadClosedDays(ctx, pool)
 	if err != nil {

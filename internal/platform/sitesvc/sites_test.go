@@ -659,6 +659,41 @@ func TestUpdatePrivacySignalsPersistsAndRefreshesRegistry(t *testing.T) {
 	}
 }
 
+func TestUpdateProtectionSettingsPersistsAndRefreshesRegistry(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, "Protected", []string{"protected.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if site.StrictOrigin || len(site.BlockedReferrers) != 0 {
+		t.Fatalf("protection settings did not default off: %+v", site)
+	}
+	strict := true
+	blocked := []string{" EVIL.COM ", "evil.com", "spam.example"}
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{StrictOrigin: &strict, BlockedReferrers: &blocked})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := registry.Site(site.ID)
+	if !ok || !updated.StrictOrigin || !loaded.StrictOrigin || strings.Join(loaded.BlockedReferrers, ",") != "evil.com,spam.example" {
+		t.Fatalf("protection settings not refreshed: updated=%+v loaded=%+v found=%t", updated, loaded, ok)
+	}
+	var storedStrict bool
+	var storedBlocked []string
+	if err := pool.QueryRow(ctx, `select coalesce((settings->>'strict_origin')::boolean, false), coalesce(settings->'blocked_referrers', '[]'::jsonb) from sites where id=$1`, site.ID).Scan(&storedStrict, &storedBlocked); err != nil {
+		t.Fatal(err)
+	}
+	if !storedStrict || strings.Join(storedBlocked, ",") != "evil.com,spam.example" {
+		t.Fatalf("stored protection settings = %t/%v", storedStrict, storedBlocked)
+	}
+
+	invalid := []string{"https://evil.com"}
+	if _, err := service.Update(ctx, principal, site.ID, SitePatch{BlockedReferrers: &invalid}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("invalid blocked referrer error = %v, want ErrInvalid", err)
+	}
+}
+
 func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	site, err := service.Create(context.Background(), principal, "Blog", []string{"blog.example.com"}, "UTC", 30, "USD")

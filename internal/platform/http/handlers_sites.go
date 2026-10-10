@@ -36,6 +36,8 @@ type siteResponse struct {
 	ProfilesEnabled       bool                           `json:"profiles_enabled"`
 	HeatmapsEnabled       bool                           `json:"heatmaps_enabled"`
 	RespectPrivacySignals bool                           `json:"respect_privacy_signals"`
+	StrictOrigin          bool                           `json:"strict_origin"`
+	BlockedReferrers      []string                       `json:"blocked_referrers"`
 	IconURL               string                         `json:"icon_url"`
 	RevenueCurrency       string                         `json:"revenue_currency,omitempty"`
 	RevenueCurrencyState  coresites.RevenueCurrencyState `json:"revenue_currency_state"`
@@ -112,6 +114,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 		coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
+		coalesce(settings->'strict_origin'='true'::jsonb,false),coalesce(settings->'blocked_referrers','[]'::jsonb),
 		coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,created_at
 		from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 		order by created_at,id limit $3`
@@ -123,6 +126,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 			coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 			coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
+			coalesce(settings->'strict_origin'='true'::jsonb,false),coalesce(settings->'blocked_referrers','[]'::jsonb),
 			coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,created_at
 			from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 			and (created_at,id)>($3,$4) order by created_at,id limit $5`
@@ -148,6 +152,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			&item.response.ExcludePaths, &item.response.ExcludeCountries, &trackerRaw,
 			&item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
 			&item.response.RespectPrivacySignals,
+			&item.response.StrictOrigin, &item.response.BlockedReferrers,
 			&item.response.IconURL, &item.response.RevenueCurrency, &item.response.RevenueCurrencyState, &item.createdAt); err != nil {
 			return nil, "", err
 		}
@@ -286,6 +291,8 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		ProfilesEnabled       *bool           `json:"profiles_enabled"`
 		HeatmapsEnabled       *bool           `json:"heatmaps_enabled"`
 		RespectPrivacySignals *bool           `json:"respect_privacy_signals"`
+		StrictOrigin          *bool           `json:"strict_origin"`
+		BlockedReferrers      *[]string       `json:"blocked_referrers"`
 		RevenueCurrency       *string         `json:"revenue_currency"`
 	}
 	if !decodeJSON(w, r, &request) {
@@ -303,7 +310,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusConflict, "Conflict", "profiles require SUPERMETRY_TRACKING_MODE=identified")
 		return
 	}
-	if (request.Tracker != nil || request.ExcludeCountries != nil) && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+	if (request.Tracker != nil || request.ExcludeCountries != nil || request.StrictOrigin != nil || request.BlockedReferrers != nil) && principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "only owners and admins can change tracker settings and country exclusions")
 		return
 	}
@@ -330,6 +337,8 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		ExcludeCountries: request.ExcludeCountries, Tracker: tracker,
 		ProfilesEnabled: request.ProfilesEnabled, HeatmapsEnabled: request.HeatmapsEnabled,
 		RespectPrivacySignals: request.RespectPrivacySignals,
+		StrictOrigin:          request.StrictOrigin,
+		BlockedReferrers:      request.BlockedReferrers,
 		RevenueCurrency:       request.RevenueCurrency,
 	})
 	if err != nil {
@@ -378,6 +387,8 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		ProfilesEnabled:       site.ProfilesEnabled,
 		HeatmapsEnabled:       site.HeatmapsEnabled,
 		RespectPrivacySignals: site.RespectPrivacySignals,
+		StrictOrigin:          site.StrictOrigin,
+		BlockedReferrers:      append([]string{}, site.BlockedReferrers...),
 		IconURL:               site.IconURL,
 		RevenueCurrency:       site.RevenueCurrency,
 		RevenueCurrencyState:  site.RevenueCurrencyState,

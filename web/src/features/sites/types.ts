@@ -31,6 +31,8 @@ export type SiteUpdate = {
   exclude_paths?: string[]
   exclude_countries?: string[]
   heatmaps_enabled?: boolean
+  strict_origin?: boolean
+  blocked_referrers?: string[]
   revenue_currency?: string
   revenue_currency_state?: 'unconfigured' | 'configured' | 'conflict'
 }
@@ -52,4 +54,6 @@ export type ManagedSite = {
   exclude_paths?: string[]
   exclude_countries?: string[]
   heatmaps_enabled?: boolean
+  strict_origin?: boolean
+  blocked_referrers?: string[]
 }
