@@ -131,6 +131,15 @@ describe('AppShell live visitor badge', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs-public/realtime'))
   })
 
+  it('credits DB-IP throughout the authenticated app', async () => {
+    renderShell('/app/acme/docs-public/settings/general')
+
+    expect(await screen.findByRole('link', { name: 'IP geolocation by DB-IP.com' })).toHaveAttribute(
+      'href',
+      'https://db-ip.com',
+    )
+  })
+
   it.each(['docs', 'docs-public', '7'])('keeps current site context for the %s alias', async (alias) => {
     renderShell(`/app/acme/${alias}/settings/general`)
     expect(await screen.findByRole('link', { name: '12 active now, 48 in the last 30 minutes' })).toHaveAttribute('href', `/app/acme/${alias}/realtime`)

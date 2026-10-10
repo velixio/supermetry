@@ -155,6 +155,11 @@ export function AppShell({
               </div>
             </AuthorizationCacheBoundary>
           </main>
+          <footer className="px-4 pb-4 text-center text-xs text-muted-foreground md:px-6">
+            <a className="underline-offset-4 hover:text-foreground hover:underline" href="https://db-ip.com">
+              IP geolocation by DB-IP.com
+            </a>
+          </footer>
         </SidebarInset>
       </SidebarProvider>
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
