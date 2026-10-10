@@ -51,6 +51,7 @@ var (
 	IngestAccepted           Counter
 	IngestInvalid            Counter
 	IngestRevenueInvalid     Counter
+	IngestPropsTruncated     Counter
 	IngestProfilesSuppressed Counter
 	IngestDropped            Counter
 	IngestStalePings         Counter
@@ -183,6 +184,7 @@ func Snapshot() map[string]float64 {
 		"ingest_accepted_total":            float64(IngestAccepted.Load()),
 		"ingest_invalid_total":             float64(IngestInvalid.Load()),
 		"ingest_revenue_invalid_total":     float64(IngestRevenueInvalid.Load()),
+		"ingest_props_truncated_total":     float64(IngestPropsTruncated.Load()),
 		"ingest_profiles_suppressed_total": float64(IngestProfilesSuppressed.Load()),
 		"ingest_dropped_total":             float64(IngestDropped.Load()),
 		"ingest_stale_pings_total":         float64(IngestStalePings.Load()),
@@ -237,6 +239,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_accepted_total", "counter")
 	writeFamily(w, snapshot, "ingest_invalid_total", "counter")
 	writeFamily(w, snapshot, "ingest_revenue_invalid_total", "counter")
+	writeFamily(w, snapshot, "ingest_props_truncated_total", "counter")
 	writeFamily(w, snapshot, "ingest_profiles_suppressed_total", "counter")
 	writeFamily(w, snapshot, "ingest_dropped_total", "counter")
 	writeFamily(w, snapshot, "ingest_duplicates_total", "counter")

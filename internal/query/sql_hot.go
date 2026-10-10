@@ -332,6 +332,18 @@ func hotSpecialSemiJoinConditions(builder *sqlBuilder, filters []api.Filter, def
 			if err == nil {
 				predicate = "fe.kind=1 and fe.props ? " + keyArg + " and " + predicate
 			}
+		case filter.Dimension == "utm_content" || filter.Dimension == "utm_term":
+			column, kind := "fe.utm_content_id", dict.UTMContent
+			if filter.Dimension == "utm_term" {
+				column, kind = "fe.utm_term_id", dict.UTMTerm
+			}
+			matches, matchErr := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
+				return column, dictionaryKind(kind), nil
+			})
+			err = matchErr
+			if err == nil {
+				predicate = matches[0]
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -398,6 +410,18 @@ func hotSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefinit
 				return nil, err
 			}
 			conditions = append(conditions, "exists (select 1 from events ce where ce.site_id=s.site_id and ce.session_id=s.session_id and ce.kind=1 and ce.props ? "+keyArg+" and "+match+")")
+		case filter.Dimension == "utm_content" || filter.Dimension == "utm_term":
+			column, kind := "ce.utm_content_id", dict.UTMContent
+			if filter.Dimension == "utm_term" {
+				column, kind = "ce.utm_term_id", dict.UTMTerm
+			}
+			matches, err := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
+				return column, dictionaryKind(kind), nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			conditions = append(conditions, "exists (select 1 from events ce where ce.site_id=s.site_id and ce.session_id=s.session_id and "+matches[0]+")")
 		}
 	}
 	return conditions, nil

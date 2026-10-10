@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -51,6 +52,7 @@ type Payload struct {
 	RevenueMicros   int64             `json:"-"`
 	RevenueCurrency string            `json:"-"`
 	RevenueInvalid  bool              `json:"-"`
+	propsTruncated  bool
 	profileID       json.RawMessage
 	traits          json.RawMessage
 	Clicks          [][2]int `json:"clicks"`
@@ -66,6 +68,7 @@ func ParsePayload(body []byte) (Payload, error) {
 		ID        json.RawMessage `json:"id"`
 		Timestamp json.RawMessage `json:"ts"`
 		Version   json.RawMessage `json:"v"`
+		Props     json.RawMessage `json:"props"`
 		ProfileID json.RawMessage `json:"profile_id"`
 		Traits    json.RawMessage `json:"traits"`
 	}
@@ -97,13 +100,15 @@ func ParsePayload(body []byte) (Payload, error) {
 	}
 	payload.profileID = decoded.ProfileID
 	payload.traits = decoded.Traits
+	props, propsTruncated, err := normalizeProps(decoded.Props)
+	if err != nil {
+		return Payload{}, errors.New("invalid payload")
+	}
+	payload.Props, payload.propsTruncated = props, propsTruncated
 	if !validText(payload.Site, maxSiteBytes) ||
 		!validText(payload.Name, maxEventNameBytes) ||
 		!validText(payload.URL, maxURLBytes) ||
 		!validText(payload.Referrer, maxValueBytes) {
-		return Payload{}, errors.New("invalid payload")
-	}
-	if len(payload.Props) > maxProps {
 		return Payload{}, errors.New("invalid payload")
 	}
 	payload.normalizeWebVitals()
@@ -122,6 +127,53 @@ func ParsePayload(body []byte) (Payload, error) {
 	}
 	payload.normalizeRevenue()
 	return payload, nil
+}
+
+func normalizeProps(raw json.RawMessage) (map[string]string, bool, error) {
+	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil, false, nil
+	}
+	var values map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &values); err != nil || values == nil {
+		return nil, false, errors.New("invalid props")
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	truncated := len(keys) > maxProps
+	if truncated {
+		keys = keys[:maxProps]
+	}
+	props := make(map[string]string, len(keys))
+	for _, key := range keys {
+		value, err := normalizePropValue(values[key])
+		if err != nil {
+			return nil, false, err
+		}
+		props[key] = value
+	}
+	return props, truncated, nil
+}
+
+func normalizePropValue(raw json.RawMessage) (string, error) {
+	var value any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		return "", err
+	}
+	switch value := value.(type) {
+	case string:
+		return value, nil
+	case json.Number:
+		return value.String(), nil
+	case bool:
+		return strconv.FormatBool(value), nil
+	default:
+		return "", errors.New("prop value must be a string, number, or boolean")
+	}
 }
 
 func validEventID(value string) bool {

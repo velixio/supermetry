@@ -41,6 +41,7 @@ func (w *Writer) suppressRestrictedIdentity(events []Event) {
 		}
 		e.ProfileExternalID, e.ProfileID, e.ProfileTraits, e.Props = "", 0, nil, nil
 		e.ReferrerID, e.Source, e.UTMSource, e.Medium, e.Campaign = 0, 0, 0, 0, 0
+		e.UTMContent, e.UTMTerm = 0, 0
 	}
 }
 

@@ -118,8 +118,6 @@ describe('AddFilterPicker', () => {
       ['screen_size', 'Screen size'],
       ['language', 'Language'],
       ['hostname', 'Hostname'],
-    ]))
-    expect(options).not.toEqual(expect.arrayContaining([
       ['utm_content', 'UTM content'],
       ['utm_term', 'UTM term'],
     ]))

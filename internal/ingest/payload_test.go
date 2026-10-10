@@ -116,6 +116,56 @@ func TestParsePayloadNormalizesWebVitalsProps(t *testing.T) {
 	}
 }
 
+func TestParsePayloadNormalizesScalarProps(t *testing.T) {
+	payload, err := ingest.ParsePayload([]byte(
+		`{"site":"abc123","name":"signup","url":"https://example.com/","props":{"plan":"pro","seats":3,"ratio":1.25,"ok":true,"disabled":false}}`,
+	))
+	if err != nil {
+		t.Fatalf("scalar props rejected whole event: %v", err)
+	}
+	want := map[string]string{
+		"plan": "pro", "seats": "3", "ratio": "1.25", "ok": "true", "disabled": "false",
+	}
+	if !reflect.DeepEqual(payload.Props, want) {
+		t.Fatalf("props = %#v, want %#v", payload.Props, want)
+	}
+}
+
+func TestParsePayloadKeepsFirstThirtyPropsSortedByKey(t *testing.T) {
+	parts := make([]string, 0, 32)
+	for i := 31; i >= 0; i-- {
+		parts = append(parts, fmt.Sprintf(`"key-%02d":%d`, i, i))
+	}
+	payload, err := ingest.ParsePayload([]byte(
+		`{"site":"abc123","name":"signup","url":"https://example.com/","props":{` + strings.Join(parts, ",") + `}}`,
+	))
+	if err != nil {
+		t.Fatalf("over-cap props rejected whole event: %v", err)
+	}
+	if len(payload.Props) != 30 {
+		t.Fatalf("props count = %d, want 30", len(payload.Props))
+	}
+	for i := 0; i < 30; i++ {
+		key := fmt.Sprintf("key-%02d", i)
+		if payload.Props[key] != fmt.Sprint(i) {
+			t.Fatalf("props[%q] = %q, want %d", key, payload.Props[key], i)
+		}
+	}
+	if _, ok := payload.Props["key-30"]; ok {
+		t.Fatal("key-30 survived sorted truncation")
+	}
+}
+
+func TestParsePayloadRejectsNonScalarProps(t *testing.T) {
+	for _, props := range []string{`{"nested":{}}`, `{"items":[]}`, `{"missing":null}`} {
+		if _, err := ingest.ParsePayload([]byte(
+			`{"site":"abc123","name":"signup","url":"https://example.com/","props":` + props + `}`,
+		)); err == nil {
+			t.Fatalf("non-scalar props %s accepted", props)
+		}
+	}
+}
+
 func TestParsePayloadRejectsOverlongUnrelatedWebVitalsProp(t *testing.T) {
 	_, err := ingest.ParsePayload([]byte(fmt.Sprintf(
 		`{"site":"abc123","name":"Web Vitals","url":"https://example.com/","props":{"page":%q}}`,

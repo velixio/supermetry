@@ -25,7 +25,7 @@ func TestLiveIngestUTMBreakdownsExcludeUntaggedTrafficAcrossStorageTiers(t *test
 		remote string
 	}{
 		{
-			body:   `{"site":"abc123","name":"pageview","url":"https://example.com/?utm_source=newsletter&utm_medium=email&utm_campaign=autumn"}`,
+			body:   `{"site":"abc123","name":"pageview","url":"https://example.com/?utm_source=newsletter&utm_medium=email&utm_campaign=autumn&utm_content=hero&utm_term=analytics"}`,
 			remote: "198.51.100.7:5555",
 		},
 		{
@@ -49,6 +49,7 @@ func TestLiveIngestUTMBreakdownsExcludeUntaggedTrafficAcrossStorageTiers(t *test
 	engine.SetTrackingMode(privacy.Identified)
 	fixtureDay := fakeNow().UTC().Truncate(24 * time.Hour)
 	assertLiveUTMBreakdowns(t, engine.WithForcedRoute(query.RouteHot), fixtureDay)
+	assertLiveUTMFilters(t, engine.WithForcedRoute(query.RouteHot), fixtureDay)
 
 	if _, err := closer.CloseDay(context.Background(), fixture.pool, []int32{1}, fixtureDay); err != nil {
 		t.Fatal(err)
@@ -58,6 +59,9 @@ func TestLiveIngestUTMBreakdownsExcludeUntaggedTrafficAcrossStorageTiers(t *test
 	for _, route := range []query.Route{query.RouteClosed, query.RouteRollup} {
 		t.Run(fmt.Sprint(route), func(t *testing.T) {
 			assertLiveUTMBreakdowns(t, engine.WithForcedRoute(route), fixtureDay)
+			if route == query.RouteClosed {
+				assertLiveUTMFilters(t, engine.WithForcedRoute(route), fixtureDay)
+			}
 		})
 	}
 }
@@ -82,6 +86,27 @@ func assertLiveUTMBreakdowns(t *testing.T, engine *query.Engine, day time.Time) 
 		}
 		if len(response.Rows) != 1 || response.Rows[0][dimension] != want || response.Rows[0]["visitors"] != float64(1) {
 			t.Fatalf("%s rows = %+v, want only %q with one visitor", dimension, response.Rows, want)
+		}
+	}
+}
+
+func assertLiveUTMFilters(t *testing.T, engine *query.Engine, day time.Time) {
+	t.Helper()
+	for dimension, value := range map[string]string{"utm_content": "hero", "utm_term": "analytics"} {
+		filters := []api.Filter{{Dimension: dimension, Operator: api.Is, Values: []string{value}}}
+		request := api.QueryRequest{
+			SiteId: 1,
+			DateRange: &api.DateRange{
+				From: openapi_types.Date{Time: day}, To: openapi_types.Date{Time: day},
+			},
+			Metrics: []api.Metric{api.Visitors}, Filters: &filters,
+		}
+		response, err := engine.Query(context.Background(), request)
+		if err != nil {
+			t.Fatalf("%s filter: %v", dimension, err)
+		}
+		if response.Totals["visitors"] != float64(1) {
+			t.Fatalf("%s totals = %+v, want one visitor", dimension, response.Totals)
 		}
 	}
 }

@@ -189,8 +189,8 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 				return fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
 			}
 			switch coresites.RevenueCurrencyState(current.RevenueCurrencyState) {
-			case coresites.RevenueCurrencyUnconfigured:
-				if _, err := tx.Exec(ctx, `update sites set revenue_currency=$3,revenue_currency_state='configured' where id=$1 and org_id=$2 and revenue_currency_state='unconfigured'`, id, principal.OrgID, currency); err != nil {
+			case coresites.RevenueCurrencyUnconfigured, coresites.RevenueCurrencyConflict:
+				if _, err := tx.Exec(ctx, `update sites set revenue_currency=$3,revenue_currency_state='configured' where id=$1 and org_id=$2 and revenue_currency_state in ('unconfigured','conflict')`, id, principal.OrgID, currency); err != nil {
 					return fmt.Errorf("set immutable revenue currency: %w", err)
 				}
 				current.RevenueCurrency, current.RevenueCurrencyState = currency, string(coresites.RevenueCurrencyConfigured)
@@ -198,8 +198,6 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 				if current.RevenueCurrency != currency {
 					return fmt.Errorf("%w: revenue currency is permanent once selected", ErrInvalid)
 				}
-			case coresites.RevenueCurrencyConflict:
-				return fmt.Errorf("%w: mixed historical revenue currencies require explicit resolution", ErrInvalid)
 			default:
 				return fmt.Errorf("%w: invalid revenue currency state", ErrInvalid)
 			}

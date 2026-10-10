@@ -57,6 +57,8 @@ type Event struct {
 	Props                map[string]string
 	Screen               int16
 	ReferrerID           int32
+	UTMContent           int32
+	UTMTerm              int32
 	RevenueMicros        int64
 	RevenueCurrency      string
 }
@@ -704,7 +706,7 @@ func (s *eventSource) Values() ([]any, error) {
 	s.row = [35]any{
 		event.SiteID, event.Retention, event.LocalDay, event.TS, event.VisitorID, event.SessionID, event.Kind,
 		event.NameID, event.PathID, event.ReferrerID, event.Source, event.UTMSource, event.Medium, event.Campaign,
-		int32(0), int32(0), event.Country, event.Region, event.City, event.Browser, event.OS,
+		event.UTMContent, event.UTMTerm, event.Country, event.Region, event.City, event.Browser, event.OS,
 		event.BrowserVer, event.OSVer, event.Language, event.Hostname, event.Device, event.Screen,
 		event.EngagementMS, event.ScrollPct, props,
 		event.RevenueMicros, nullableString(event.RevenueCurrency),

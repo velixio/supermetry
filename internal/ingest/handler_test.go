@@ -95,7 +95,7 @@ func TestHostilePayloads(t *testing.T) {
 		want int
 	}{
 		{name: "too big", body: `{"site":"abc123","name":"pageview","url":"https://example.com/` + big + `"}`, want: http.StatusBadRequest},
-		{name: "31 props", body: string(propsJSON), want: http.StatusBadRequest},
+		{name: "31 props truncated", body: string(propsJSON), want: http.StatusAccepted},
 		{name: "bad utf8", body: "{\"site\":\"abc123\",\"name\":\"\xff\",\"url\":\"https://example.com/\"}", want: http.StatusBadRequest},
 		{name: "long url", body: `{"site":"abc123","name":"pageview","url":"https://example.com/` + strings.Repeat("p", 8000) + `"}`, want: http.StatusBadRequest},
 		{name: "host not allowed", body: `{"site":"abc123","name":"pageview","url":"https://evil.test/"}`, want: http.StatusBadRequest},
@@ -124,7 +124,7 @@ func TestHostilePayloads(t *testing.T) {
 	if err := f.pool.QueryRow(context.Background(), `select count(*), min(visitor_id), min(session_id) from events`).Scan(&events, &visitorID, &sessionID); err != nil {
 		t.Fatal(err)
 	}
-	if events != 1 || visitorID == 123 || sessionID == 456 {
+	if events != 2 || visitorID == 123 || sessionID == 456 {
 		t.Fatalf("events=%d visitor_id=%d session_id=%d", events, visitorID, sessionID)
 	}
 }
@@ -784,21 +784,77 @@ select revenue_micros, revenue_currency from events order by revenue_micros`)
 	}
 }
 
-func TestCustomEventRevenueInheritsProjectCurrencyAndRejectsMismatch(t *testing.T) {
+func TestCustomEventRevenueInheritsProjectCurrencyAndStripsMismatch(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
+	before := health.IngestRevenueInvalid.Load()
 	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99"}}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("inherited currency status=%d body=%s", rr.Code, rr.Body.String())
 	}
-	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99","currency":"EUR"}}`, testUA, "198.51.100.8:5555"); rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "permanent currency") {
-		t.Fatalf("mismatch status=%d body=%s", rr.Code, rr.Body.String())
+	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99","currency":"EUR"}}`, testUA, "198.51.100.8:5555"); rr.Code != http.StatusAccepted {
+		t.Fatalf("mismatch status=%d body=%s, want 202", rr.Code, rr.Body.String())
 	}
 	f.stop(t)
-	var currency string
-	if err := f.pool.QueryRow(context.Background(), `select revenue_currency from events`).Scan(&currency); err != nil {
+	var stored, stripped int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) filter (where revenue_micros=4990000 and revenue_currency='USD'),count(*) filter (where revenue_micros=0 and revenue_currency is null) from events`).Scan(&stored, &stripped); err != nil {
 		t.Fatal(err)
 	}
-	if currency != "USD" {
-		t.Fatalf("stored currency=%q, want USD", currency)
+	if stored != 1 || stripped != 1 {
+		t.Fatalf("stored/stripped=%d/%d, want 1/1", stored, stripped)
+	}
+	if got := health.IngestRevenueInvalid.Load() - before; got != 1 {
+		t.Fatalf("revenue health delta=%d, want 1", got)
+	}
+}
+
+func TestCustomEventRevenueIsStrippedWhenProjectCurrencyUnavailable(t *testing.T) {
+	for _, state := range []sites.RevenueCurrencyState{sites.RevenueCurrencyUnconfigured, sites.RevenueCurrencyConflict} {
+		t.Run(string(state), func(t *testing.T) {
+			f := newHandlerFixture(t, 32, nil)
+			setRevenueCurrency(t, f, "", state)
+			before := health.IngestRevenueInvalid.Load()
+			response := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99","currency":"USD"}}`, testUA, "198.51.100.7:5555")
+			if response.Code != http.StatusAccepted {
+				t.Fatalf("status=%d body=%s, want 202", response.Code, response.Body.String())
+			}
+			f.stop(t)
+			var micros int64
+			var currency *string
+			if err := f.pool.QueryRow(context.Background(), `select revenue_micros,revenue_currency from events`).Scan(&micros, &currency); err != nil {
+				t.Fatal(err)
+			}
+			if micros != 0 || currency != nil {
+				t.Fatalf("revenue=%d/%v, want stripped", micros, currency)
+			}
+			if got := health.IngestRevenueInvalid.Load() - before; got != 1 {
+				t.Fatalf("revenue health delta=%d, want 1", got)
+			}
+		})
+	}
+}
+
+func TestIdentifiedPageviewPropsPersistAndPropTruncationIsCounted(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	f.h.TrackingMode = privacy.Identified
+	setProfilesEnabled(t, f, true)
+	parts := make([]string, 0, 31)
+	for i := 30; i >= 0; i-- {
+		parts = append(parts, fmt.Sprintf(`"key-%02d":%d`, i, i))
+	}
+	before := health.Snapshot()["ingest_props_truncated_total"]
+	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","props":{` + strings.Join(parts, ",") + `}}`
+	if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	f.stop(t)
+	var props map[string]string
+	if err := f.pool.QueryRow(context.Background(), `select props from events`).Scan(&props); err != nil {
+		t.Fatal(err)
+	}
+	if len(props) != 30 || props["key-00"] != "0" || props["key-29"] != "29" {
+		t.Fatalf("stored props=%#v, want sorted first 30", props)
+	}
+	if got := health.Snapshot()["ingest_props_truncated_total"] - before; got != 1 {
+		t.Fatalf("props truncated health delta=%v, want 1", got)
 	}
 }
 
@@ -1115,6 +1171,18 @@ func setProfilesEnabled(t *testing.T, fixture *handlerFixture, enabled bool) {
 		t.Fatal("fixture site missing")
 	}
 	site.ProfilesEnabled = enabled
+	fixture.h.Sites = siteRegistry{site: site}
+	fixture.writer.SetTrackingPolicy(fixture.h.TrackingMode, fixture.h.Sites)
+}
+
+func setRevenueCurrency(t *testing.T, fixture *handlerFixture, currency string, state sites.RevenueCurrencyState) {
+	t.Helper()
+	site, ok := fixture.h.Sites.ByPublicID("abc123")
+	if !ok {
+		t.Fatal("fixture site missing")
+	}
+	site.RevenueCurrency = currency
+	site.RevenueCurrencyState = state
 	fixture.h.Sites = siteRegistry{site: site}
 	fixture.writer.SetTrackingPolicy(fixture.h.TrackingMode, fixture.h.Sites)
 }

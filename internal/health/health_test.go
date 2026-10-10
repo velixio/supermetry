@@ -76,6 +76,7 @@ func TestGeoIPMetricsPrometheusTextFormat(t *testing.T) {
 func TestPrometheusTextFormat(t *testing.T) {
 	health.IngestAccepted.Add(3)
 	health.IngestRevenueInvalid.Add(2)
+	health.IngestPropsTruncated.Add(1)
 	health.HeatmapInvalid.Add(1)
 	health.HeatmapDropped.Add(2)
 	health.BotsFiltered[1].Add(2)
@@ -88,6 +89,8 @@ func TestPrometheusTextFormat(t *testing.T) {
 		"supermetry_ingest_accepted_total 3",
 		"# TYPE supermetry_ingest_revenue_invalid_total counter",
 		"supermetry_ingest_revenue_invalid_total 2",
+		"# TYPE supermetry_ingest_props_truncated_total counter",
+		"supermetry_ingest_props_truncated_total 1",
 		"# TYPE supermetry_heatmap_invalid_total counter",
 		"# TYPE supermetry_heatmap_dropped_total counter",
 		`supermetry_bots_filtered_total{reason="ua"} 2`,

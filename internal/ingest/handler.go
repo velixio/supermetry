@@ -114,15 +114,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if payload.RevenueCurrency == "" {
 				payload.RevenueCurrency = site.RevenueCurrency
 			} else if payload.RevenueCurrency != site.RevenueCurrency {
-				h.revenueProblem(w, http.StatusBadRequest, "revenue currency does not match the project's permanent currency")
-				return
+				payload.RevenueMicros, payload.RevenueCurrency, payload.RevenueInvalid = 0, "", true
 			}
-		case sites.RevenueCurrencyConflict:
-			h.revenueProblem(w, http.StatusConflict, "revenue tracking is paused because this project has mixed historical currencies")
-			return
 		default:
-			h.revenueProblem(w, http.StatusConflict, "set the project's permanent revenue currency before tracking revenue")
-			return
+			payload.RevenueMicros, payload.RevenueCurrency, payload.RevenueInvalid = 0, "", true
 		}
 	}
 	if r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1" {
@@ -337,6 +332,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if payload.RevenueInvalid {
 		health.IngestRevenueInvalid.Add(1)
 	}
+	if payload.propsTruncated {
+		health.IngestPropsTruncated.Add(1)
+	}
 	health.IngestAccepted.Add(1)
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -428,6 +426,14 @@ func (h *Handler) buildEvent(
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
+	utmContentID, err := h.dimensionID(ctx, site.ID, localDay, dict.UTMContent, utm.Content)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
+	utmTermID, err := h.dimensionID(ctx, site.ID, localDay, dict.UTMTerm, utm.Term)
+	if err != nil {
+		return writer.Event{}, session.Hit{}, err
+	}
 	regionID, err := h.dimensionID(ctx, site.ID, localDay, dict.Region, location.Region)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
@@ -485,11 +491,12 @@ func (h *Handler) buildEvent(
 		Device: client.Device, EngagementMS: int32(payload.EngagementMS), ScrollPct: int16(payload.ScrollPct),
 	}
 	props := payload.Props
-	if kind != 1 {
+	if kind == 2 {
 		props = nil
 	}
 	return writer.Event{
 		Props: props, Screen: int16(screenWidth), ReferrerID: referrerID,
+		UTMContent: utmContentID, UTMTerm: utmTermID,
 		RevenueMicros: payload.RevenueMicros, RevenueCurrency: payload.RevenueCurrency,
 	}, hit, nil
 }
@@ -569,12 +576,6 @@ func (h *Handler) invalid(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusBadRequest)
 	_, _ = io.WriteString(w, "{\"type\":\"about:blank\",\"title\":\"Bad Request\",\"status\":400,\"detail\":\"invalid event payload\"}\n")
-}
-
-func (h *Handler) revenueProblem(w http.ResponseWriter, status int, detail string) {
-	Invalid.Add(1)
-	health.IngestInvalid.Add(1)
-	http.Error(w, detail, status)
 }
 
 func (h *Handler) unavailable(w http.ResponseWriter) {

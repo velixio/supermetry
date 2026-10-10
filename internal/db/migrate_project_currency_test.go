@@ -103,3 +103,23 @@ func TestProjectCurrencyMigrationMakesSelectionImmutable(t *testing.T) {
 		t.Fatal("configured currency was mutable")
 	}
 }
+
+func TestProjectCurrencyMigrationAllowsExplicitConflictResolution(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into orgs(name,slug) values('Org','org'); insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class,revenue_currency_state) values(1,'currenc00002','Site',array['example.test'],'UTC',30,'conflict')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update sites set revenue_currency_state='unconfigured' where id=1`); err == nil {
+		t.Fatal("conflict was cleared without selecting a currency")
+	}
+	if _, err := pool.Exec(ctx, `update sites set revenue_currency='USD',revenue_currency_state='configured' where id=1`); err != nil {
+		t.Fatalf("resolve conflict: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update sites set revenue_currency='EUR' where id=1`); err == nil {
+		t.Fatal("resolved currency was mutable")
+	}
+}

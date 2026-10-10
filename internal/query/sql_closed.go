@@ -336,6 +336,10 @@ func closedCustomResolver(alias string) dimensionResolver {
 			return prefix + "event_utm_medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":
 			return prefix + "event_utm_campaign_id", dictionaryKind(dict.Campaign), nil
+		case "utm_content":
+			return prefix + "event_utm_content_id", dictionaryKind(dict.UTMContent), nil
+		case "utm_term":
+			return prefix + "event_utm_term_id", dictionaryKind(dict.UTMTerm), nil
 		default:
 			return base(dimension)
 		}
@@ -377,6 +381,10 @@ func customResolver(alias string) dimensionResolver {
 			return prefix + "medium_id", dictionaryKind(dict.Medium), nil
 		case dimension == "utm_campaign":
 			return prefix + "campaign_id", dictionaryKind(dict.Campaign), nil
+		case dimension == "utm_content":
+			return prefix + "utm_content_id", dictionaryKind(dict.UTMContent), nil
+		case dimension == "utm_term":
+			return prefix + "utm_term_id", dictionaryKind(dict.UTMTerm), nil
 		case dimension == "browser":
 			return prefix + "browser_id", dictionaryKind(dict.Browser), nil
 		case dimension == "browser_version":
@@ -546,7 +554,7 @@ func splitPageFilters(filters []api.Filter) (page, other []api.Filter) {
 
 func splitSpecialFilters(filters []api.Filter) (special, other []api.Filter) {
 	for _, filter := range filters {
-		if filter.Dimension == "event" || filter.Dimension == "goal" || filter.Dimension == "goal_id" || strings.HasPrefix(filter.Dimension, "prop:") {
+		if filter.Dimension == "event" || filter.Dimension == "goal" || filter.Dimension == "goal_id" || filter.Dimension == "utm_content" || filter.Dimension == "utm_term" || strings.HasPrefix(filter.Dimension, "prop:") {
 			special = append(special, filter)
 		} else {
 			other = append(other, filter)
@@ -578,6 +586,18 @@ func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter, part Par
 				return nil, err
 			}
 			conditions = append(conditions, "exists (select 1 from unnest(s.seq) u(code) where u.code < 0 and "+matches[0]+")")
+		case filter.Dimension == "utm_content" || filter.Dimension == "utm_term":
+			column, kind := "s.utm_content_id", dict.UTMContent
+			if filter.Dimension == "utm_term" {
+				column, kind = "s.utm_term_id", dict.UTMTerm
+			}
+			matches, err := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
+				return column, dictionaryKind(kind), nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			conditions = append(conditions, matches[0])
 		case strings.HasPrefix(filter.Dimension, "prop:"):
 			key := strings.TrimPrefix(filter.Dimension, "prop:")
 			if key == "" {

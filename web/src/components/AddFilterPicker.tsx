@@ -36,7 +36,8 @@ const dimensions = [
   { value: 'utm_source', label: 'UTM source' },
   { value: 'utm_medium', label: 'UTM medium' },
   { value: 'utm_campaign', label: 'UTM campaign' },
-  // UTM content and term arrive here once event ingest stores those dimensions.
+  { value: 'utm_content', label: 'UTM content' },
+  { value: 'utm_term', label: 'UTM term' },
   { value: 'event', label: 'Event' },
   { value: 'property', label: 'Property' },
 ] as const

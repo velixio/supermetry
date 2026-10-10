@@ -131,6 +131,26 @@ func TestUpdateRevenueCurrencyRequiresOwnerOrAdmin(t *testing.T) {
 	}
 }
 
+func TestUpdateRevenueCurrencyResolvesLegacyConflict(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class,revenue_currency_state) values($1,'legacycur004','Legacy conflict',array['example.test'],'UTC',30,'conflict') returning id`, principal.OrgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	currency := "USD"
+	updated, err := service.Update(ctx, principal, siteID, SitePatch{RevenueCurrency: &currency})
+	if err != nil {
+		t.Fatalf("resolve conflict: %v", err)
+	}
+	if updated.RevenueCurrency != "USD" || updated.RevenueCurrencyState != sites.RevenueCurrencyConfigured {
+		t.Fatalf("updated currency=%q/%q, want USD/configured", updated.RevenueCurrency, updated.RevenueCurrencyState)
+	}
+}
+
 func TestStaleRegistryCannotSelectContradictoryCurrency(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()

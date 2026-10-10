@@ -27,7 +27,7 @@ func TestBufferedIdentityRecheckedOnRetry(t *testing.T) {
 			registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}
 			w := New(nil, nil, 1, time.Hour, time.Hour)
 			w.SetTrackingPolicy(privacy.Identified, registry)
-			if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1}, ReferrerID: 11, ProfileExternalID: "customer", ProfileID: 42, ProfileTraits: map[string]string{"name": "person"}, Props: map[string]string{"email": "person"}}) {
+			if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1}, ReferrerID: 11, UTMContent: 12, UTMTerm: 13, ProfileExternalID: "customer", ProfileID: 42, ProfileTraits: map[string]string{"name": "person"}, Props: map[string]string{"email": "person"}}) {
 				t.Fatal("enqueue")
 			}
 			batch := []Event{<-w.ch}
@@ -49,7 +49,7 @@ func TestBufferedIdentityRecheckedOnRetry(t *testing.T) {
 					}
 					return errors.New("retry after policy change")
 				}
-				if e.ProfileExternalID != "" || e.ProfileID != 0 || e.ProfileTraits != nil || e.Props != nil || e.ReferrerID != 0 || e.Source != 0 || e.UTMSource != 0 || e.Medium != 0 || e.Campaign != 0 {
+				if e.ProfileExternalID != "" || e.ProfileID != 0 || e.ProfileTraits != nil || e.Props != nil || e.ReferrerID != 0 || e.Source != 0 || e.UTMSource != 0 || e.Medium != 0 || e.Campaign != 0 || e.UTMContent != 0 || e.UTMTerm != 0 {
 					t.Fatalf("buffered identity leaked: %+v", e)
 				}
 				return nil
@@ -129,7 +129,7 @@ func TestBufferedDowngradePersistsNoIdentity(t *testing.T) {
 	registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}
 	w := New(pool, nil, 1, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Identified, registry)
-	if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, PathID: 1, Source: 9, UTMSource: 10, Medium: 11, Campaign: 12}, SessionID: 1, ProfileExternalID: "queued-person", ProfileID: 123, ProfileTraits: map[string]string{"name": "secret"}, Props: map[string]string{"email": "secret"}, ReferrerID: 13}) {
+	if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, PathID: 1, Source: 9, UTMSource: 10, Medium: 11, Campaign: 12}, SessionID: 1, ProfileExternalID: "queued-person", ProfileID: 123, ProfileTraits: map[string]string{"name": "secret"}, Props: map[string]string{"email": "secret"}, ReferrerID: 13, UTMContent: 14, UTMTerm: 15}) {
 		t.Fatal("enqueue")
 	}
 	registry.site.ProfilesEnabled = false
@@ -138,7 +138,7 @@ func TestBufferedDowngradePersistsNoIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	var profiles, links, props, dimensions int
-	if err := pool.QueryRow(ctx, `select (select count(*) from profiles),count(profile_id),count(props),sum(referrer_id+source_id+utm_source_id+medium_id+campaign_id) from events`).Scan(&profiles, &links, &props, &dimensions); err != nil {
+	if err := pool.QueryRow(ctx, `select (select count(*) from profiles),count(profile_id),count(props),sum(referrer_id+source_id+utm_source_id+medium_id+campaign_id+utm_content_id+utm_term_id) from events`).Scan(&profiles, &links, &props, &dimensions); err != nil {
 		t.Fatal(err)
 	}
 	if profiles != 0 || links != 0 || props != 0 || dimensions != 0 {
