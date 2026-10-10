@@ -64,8 +64,8 @@ type Event struct {
 }
 
 // EventReservation owns one bounded writer slot. Call Commit or Cancel exactly
-// once. Holding the writer read lock until then keeps graceful shutdown from
-// finishing its drain before an accepted reservation reaches the queue.
+// once. The writer tracks unresolved reservations separately from its state
+// lock so enrichment and database calls do not block unrelated state changes.
 type EventReservation struct {
 	w    *Writer
 	once sync.Once
@@ -97,6 +97,7 @@ type Writer struct {
 
 	stateMu   sync.RWMutex
 	accepting bool
+	inflight  sync.WaitGroup
 	started   atomic.Bool
 }
 
@@ -147,16 +148,16 @@ func (w *Writer) RejectEventIfUnavailable() bool {
 // Commit consumes the reservation and makes the deferred Cancel a no-op.
 func (w *Writer) ReserveEvent() (*EventReservation, bool) {
 	w.stateMu.RLock()
+	defer w.stateMu.RUnlock()
 	if !w.accepting {
-		w.stateMu.RUnlock()
 		Dropped.Add(1)
 		return nil, false
 	}
 	select {
 	case w.slots <- struct{}{}:
+		w.inflight.Add(1)
 		return &EventReservation{w: w}, true
 	default:
-		w.stateMu.RUnlock()
 		Dropped.Add(1)
 		return nil, false
 	}
@@ -181,7 +182,7 @@ func (r *EventReservation) Commit(e Event) bool {
 	committed := false
 	r.once.Do(func() {
 		w := r.w
-		defer w.stateMu.RUnlock()
+		defer w.inflight.Done()
 		copyEventMaps(&e)
 		// ReserveEvent guarantees queue capacity. A blocking send avoids a
 		// lossy fallback if that invariant is accidentally weakened later.
@@ -199,7 +200,7 @@ func (r *EventReservation) Cancel() {
 	}
 	r.once.Do(func() {
 		<-r.w.slots
-		r.w.stateMu.RUnlock()
+		r.w.inflight.Done()
 	})
 }
 
@@ -341,6 +342,7 @@ func (w *Writer) stopAccepting() {
 	w.stateMu.Lock()
 	w.accepting = false
 	w.stateMu.Unlock()
+	w.inflight.Wait()
 }
 
 func (w *Writer) retryEvents(waitCtx, attemptCtx context.Context, batch []Event, write func(context.Context, []Event) error) error {
@@ -387,6 +389,7 @@ func (w *Writer) runSessions(ctx context.Context) error {
 }
 
 func (w *Writer) shutdownSessions(pending []session.Snapshot) error {
+	w.stopAccepting()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if _, err := w.flushSessions(shutdownCtx, pending); err != nil {

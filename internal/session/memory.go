@@ -434,9 +434,9 @@ func (m *Memory) apply(sh *memoryShard, s *memorySession, h Hit) {
 	if timestamp > s.lastNS {
 		s.lastNS = timestamp
 	}
-	if timestamp < s.startNS {
-		s.startNS = timestamp
-	}
+	// startNS is the session's stable creation identity and is part of the
+	// partitioned sessions primary key. Earlier arrivals keep their own event
+	// timestamp but must not move the session row to a different key.
 	switch h.Kind {
 	case 0:
 		pageviews, _ := m.counts(sh, s)

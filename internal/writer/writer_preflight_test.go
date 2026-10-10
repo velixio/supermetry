@@ -8,6 +8,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"supermetry/internal/db"
+	"supermetry/internal/session"
+	"supermetry/internal/testpg"
 )
 
 func TestEventPreflightCapacityAndFinalEnqueue(t *testing.T) {
@@ -93,27 +97,158 @@ func TestEventReservationExcludesCompetitorsAndReleasesExactlyOnce(t *testing.T)
 	<-w.slots
 }
 
-func TestEventReservationDelaysShutdownUntilCommit(t *testing.T) {
+func TestEventReservationDoesNotHoldStateLock(t *testing.T) {
 	w := New(nil, nil, 1, time.Hour, time.Hour)
 	reservation, ok := w.ReserveEvent()
 	if !ok {
 		t.Fatal("reserve")
 	}
-	if w.stateMu.TryLock() {
-		w.stateMu.Unlock()
-		t.Fatal("shutdown lock passed an unresolved reservation")
-	}
-	if !reservation.Commit(Event{SessionID: 11}) {
-		t.Fatal("commit")
-	}
+	defer reservation.Cancel()
 	if !w.stateMu.TryLock() {
-		t.Fatal("commit did not release shutdown lock")
+		t.Fatal("reservation held state lock during enrichment")
 	}
 	w.stateMu.Unlock()
-	if event := <-w.ch; event.SessionID != 11 {
-		t.Fatalf("committed session=%d, want 11", event.SessionID)
+}
+
+func TestShutdownWaitsForSlowReservationAndFlushesCommit(t *testing.T) {
+	pool, _ := testpg.New(t)
+	dbCtx := context.Background()
+	if err := db.Migrate(dbCtx, pool); err != nil {
+		t.Fatal(err)
 	}
-	<-w.slots
+	day := time.Date(2026, 10, 6, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(dbCtx, pool, day, day.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	store := &observedSessionStore{
+		Memory: session.NewMemory(1, wallClock{}),
+		dirty:  make(chan struct{}),
+	}
+	w := New(pool, store, 2, time.Hour, time.Hour)
+	ctx, cancel := context.WithCancel(context.Background())
+	stopped := make(chan error, 1)
+	go func() { stopped <- w.Run(ctx) }()
+
+	slow, ok := w.ReserveEvent()
+	if !ok {
+		t.Fatal("reserve slow enrichment")
+	}
+	secondReady := make(chan *EventReservation, 1)
+	go func() {
+		reservation, _ := w.ReserveEvent()
+		secondReady <- reservation
+	}()
+	var second *EventReservation
+	select {
+	case second = <-secondReady:
+		if second == nil {
+			t.Fatal("concurrent reservation rejected despite available capacity")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("concurrent reservation serialized behind slow enrichment")
+	}
+	second.Cancel()
+
+	cancel()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		w.stateMu.RLock()
+		accepting := w.accepting
+		w.stateMu.RUnlock()
+		if !accepting {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("shutdown did not stop admission while reservation was unresolved")
+		}
+		runtime.Gosched()
+	}
+	select {
+	case err := <-stopped:
+		t.Fatalf("shutdown passed unresolved reservation: %v", err)
+	default:
+	}
+	select {
+	case <-store.dirty:
+		t.Fatal("session shutdown flushed before slow reservation resolved")
+	default:
+	}
+	hit := session.Hit{
+		SiteID: 1, Retention: db.Ret30, TS: day.Add(12 * time.Hour), LocalDay: day,
+		VisitorID: 7, Kind: 0, PathID: 1,
+	}
+	result := store.Touch(hit)
+	if !slow.Commit(Event{Hit: hit, SessionID: result.SessionID}) {
+		t.Fatal("commit slow reservation")
+	}
+	select {
+	case err := <-stopped:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("writer did not stop")
+	}
+	var events, sessions int
+	if err := pool.QueryRow(dbCtx, `select (select count(*) from events), (select count(*) from sessions)`).Scan(&events, &sessions); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 || sessions != 1 {
+		t.Fatalf("shutdown flushed events/sessions = %d/%d, want 1/1", events, sessions)
+	}
+}
+
+type observedSessionStore struct {
+	*session.Memory
+	dirtyOnce sync.Once
+	dirty     chan struct{}
+}
+
+func (s *observedSessionStore) Dirty(max int) []session.Snapshot {
+	s.dirtyOnce.Do(func() { close(s.dirty) })
+	return s.Memory.Dirty(max)
+}
+
+func TestOutOfOrderHitAcrossFlushKeepsOneSessionRow(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 6, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, day, day.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+
+	sessions := session.NewMemory(1, wallClock{})
+	w := New(pool, sessions, 1, time.Hour, time.Hour)
+	createdAt := day.Add(12*time.Hour + 50*time.Millisecond)
+	first := sessions.Touch(session.Hit{
+		SiteID: 1, Retention: db.Ret30, TS: createdAt, LocalDay: day,
+		VisitorID: 7, Kind: 0, PathID: 1,
+	})
+	if err := w.upsertSessions(ctx, sessions.Dirty(1)); err != nil {
+		t.Fatal(err)
+	}
+	sessions.Touch(session.Hit{
+		SiteID: 1, Retention: db.Ret30, TS: day.Add(12 * time.Hour), LocalDay: day,
+		VisitorID: 7, Kind: 0, PathID: 2,
+	})
+	if err := w.upsertSessions(ctx, sessions.Dirty(1)); err != nil {
+		t.Fatal(err)
+	}
+
+	var rows, visits, pageviews int
+	var start time.Time
+	if err := pool.QueryRow(ctx, `
+		select count(*), count(distinct session_id), sum(pageviews), min(start)
+		from sessions where site_id=$1 and session_id=$2`, 1, first.SessionID).
+		Scan(&rows, &visits, &pageviews, &start); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 1 || visits != 1 || pageviews != 2 || !start.Equal(createdAt) {
+		t.Fatalf("rows=%d visits=%d pageviews=%d start=%s, want 1/1/2/%s", rows, visits, pageviews, start, createdAt)
+	}
 }
 
 func TestEventPreflightTracksInFlightRetryAndRecovery(t *testing.T) {

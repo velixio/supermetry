@@ -141,7 +141,7 @@ func TestPageviewWithinIdleTimeoutBeforeSessionStartJoinsWithoutReorderingPages(
 	}
 
 	snapshot := findSnap(t, m.Dirty(10), first.SessionID)
-	if snapshot.Pageviews != 2 || snapshot.Entry != 1 || snapshot.Exit != 1 || snapshot.Last != t0 || snapshot.Bounce {
+	if snapshot.Start != t0 || snapshot.Pageviews != 2 || snapshot.Entry != 1 || snapshot.Exit != 1 || snapshot.Last != t0 || snapshot.Bounce {
 		t.Fatalf("slightly early pageview reordered session: %+v", snapshot)
 	}
 }
