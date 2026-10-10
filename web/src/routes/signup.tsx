@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { LoaderCircleIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 import { resetAfterLogin } from '@/lib/session-lifecycle'
+import { signedInRedirect } from '@/lib/signed-in'
 import { applyPreferredTheme } from '@/lib/theme'
 
 import {
@@ -25,6 +26,10 @@ export type SignupInput = {
 }
 
 export const Route = createFileRoute('/signup')({
+  beforeLoad: async () => {
+    const target = await signedInRedirect('/app')
+    if (target) throw redirect({ href: target, replace: true })
+  },
   component: SignupPage,
 })
 

@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect, useRouter } from '@tanstack/react-router'
 import { LoaderCircleIcon } from 'lucide-react'
 import { z } from 'zod'
 
@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { createApi } from '@/lib/api'
 import { resetAfterLogin } from '@/lib/session-lifecycle'
+import { signedInRedirect } from '@/lib/signed-in'
 import { applyPreferredTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 
@@ -109,6 +110,10 @@ function safeNext(next: string): string {
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search) => loginSearch.parse(search),
+  beforeLoad: async ({ search }) => {
+    const target = await signedInRedirect(safeNext(search.next ?? '/app'))
+    if (target) throw redirect({ href: target, replace: true })
+  },
   component: LoginPage,
 })
 
