@@ -185,6 +185,32 @@ func TestPrivacySignalDropsAreExportedSeparately(t *testing.T) {
 	}
 }
 
+func TestIngestRateLimitReasonsAreExported(t *testing.T) {
+	counters := []struct {
+		reason  string
+		counter *health.Counter
+	}{
+		{reason: "ip", counter: &health.IngestRateLimitedIP},
+		{reason: "site", counter: &health.IngestRateLimitedSite},
+		{reason: "global", counter: &health.IngestRateLimitedGlobal},
+	}
+	for _, item := range counters {
+		before := item.counter.Load()
+		item.counter.Add(1)
+		key := `ingest_rate_limited_total{reason="` + item.reason + `"}`
+		if got := health.Snapshot()[key]; got != float64(before+1) {
+			t.Fatalf("%s = %v, want %d", key, got, before+1)
+		}
+	}
+	var output strings.Builder
+	health.WritePrometheus(&output)
+	for _, reason := range []string{"ip", "site", "global"} {
+		if !strings.Contains(output.String(), `supermetry_ingest_rate_limited_total{reason="`+reason+`"}`) {
+			t.Fatalf("Prometheus output missing %s rate-limit counter:\n%s", reason, output.String())
+		}
+	}
+}
+
 func TestReplayDiskLowIsExported(t *testing.T) {
 	health.ReplayDiskLow.Store(1)
 	t.Cleanup(func() { health.ReplayDiskLow.Store(0) })

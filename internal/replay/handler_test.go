@@ -160,6 +160,37 @@ func TestChunkRejectsOversize(t *testing.T) {
 	}
 }
 
+func TestSiteByteBudgetIsolatedAndRefillsWithInjectedClock(t *testing.T) {
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	budget := newSiteByteBudget(10, time.Minute)
+	if !budget.Allow(7, 6, now) || budget.Allow(7, 5, now) {
+		t.Fatal("site 7 budget did not trip at ten bytes")
+	}
+	if !budget.Allow(8, 10, now) {
+		t.Fatal("site 7 usage reduced site 8 allowance")
+	}
+	now = now.Add(30 * time.Second)
+	if !budget.Allow(7, 5, now) {
+		t.Fatal("rolling budget did not refill with elapsed time")
+	}
+}
+
+func TestChunkSiteByteBudgetDropIsCounted(t *testing.T) {
+	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(100), WithSiteByteBudget(1, time.Minute))
+	touchReplaySession(t, sessions, visitorID)
+	before := health.ReplayDropped.Load()
+	response := requestChunk(h, 0, true, "", gzipBody(t, []byte("chunk")), "192.0.2.1:1234", "test-agent")
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", response.Code)
+	}
+	if got := health.ReplayDropped.Load() - before; got != 1 {
+		t.Fatalf("ReplayDropped delta = %d, want 1", got)
+	}
+	if len(blob.keys) != 0 {
+		t.Fatalf("budgeted chunk wrote %d blobs", len(blob.keys))
+	}
+}
+
 func TestChunkRejectsOriginOutsideSite(t *testing.T) {
 	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(100))
 	touchReplaySession(t, sessions, visitorID)

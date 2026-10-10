@@ -55,7 +55,7 @@ func TestPrivacySignalsCannotBeBypassedByHeatmap(t *testing.T) {
 		t.Run(header, func(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
 			setHeatmapsEnabled(t, f, true)
-			setRespectPrivacySignals(t, f, false)
+			setRespectPrivacySignals(t, f, true)
 			req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(`{"site":"abc123","name":"heatmap","url":"https://example.com/","doc_h":2000,"vw":1000,"clicks":[[100,100]]}`))
 			req.Header.Set("User-Agent", testUA)
 			req.Header.Set(header, "1")

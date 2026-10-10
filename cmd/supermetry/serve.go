@@ -315,7 +315,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		}
 		platformHandler = transitionFromCompatibility(platformHandler, compatibility)
 	}
-	intakeLimiter := ingest.NewTokenBuckets(10_000, 10_000)
+	intakeLimiter := ingest.NewIngestRateLimiter(10_000, 10_000)
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
 		PathPolicy:   cfg.TrackingPaths,
@@ -338,7 +338,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		replayHandler = replay.NewHandler(replay.HandlerDeps{
 			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: replayStore, Index: replayIndex,
 			Replay: cfg.Replay, Limiter: replayLimiter, TrustedProxies: cfg.TrustedProxies,
-		}, replay.WithClock(settings.clock), replay.WithDiskGuard(replayDiskLow.Load))
+		}, replay.WithClock(settings.clock), replay.WithDiskGuard(replayDiskLow.Load),
+			replay.WithSiteByteBudget(replay.DefaultSiteByteBudget, replay.DefaultSiteByteWindow))
 		replayCSSHandler = replay.NewCSSHandler(replayStore, func(publicID string) (int32, bool) {
 			site, ok := registry.ByPublicID(publicID)
 			return site.ID, ok

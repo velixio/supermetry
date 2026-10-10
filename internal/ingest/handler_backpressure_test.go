@@ -71,7 +71,7 @@ func TestFullEventQueuePreservesIntakeOrdering(t *testing.T) {
 		}},
 		{name: "heatmap privacy signal", body: heatmap, header: "Sec-GPC", want: 202, setup: func(t *testing.T, f *handlerFixture) {
 			setHeatmapsEnabled(t, f, true)
-			setRespectPrivacySignals(t, f, false)
+			setRespectPrivacySignals(t, f, true)
 		}},
 		{name: "heatmap rate limit", body: heatmap, want: 429, setup: func(t *testing.T, f *handlerFixture) { setHeatmapsEnabled(t, f, true); f.h.Limiter = denyLimiter{} }},
 	} {

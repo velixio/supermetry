@@ -36,34 +36,20 @@ func TestLoginLimiterRejectedClientDoesNotConsumeAccountBudget(t *testing.T) {
 }
 
 func TestLoginLimiterPairCannotExhaustSharedAccountBudget(t *testing.T) {
-	tests := []struct {
-		name  string
-		allow func(*loginLimiter, string, string, time.Time) bool
-	}{
-		{name: "login", allow: (*loginLimiter).allow},
-		{name: "password reset", allow: (*loginLimiter).allowReset},
+	limiter := newLoginLimiter()
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < accountClientCapacity; i++ {
+		if !limiter.allow("victim", "attacker", now) {
+			t.Fatalf("paired attempt %d rejected", i+1)
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			limiter := newLoginLimiter()
-			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
-			for i := 0; i < 3; i++ {
-				if !tt.allow(limiter, "victim", "attacker", now) {
-					t.Fatalf("paired attempt %d rejected", i+1)
-				}
-			}
-			if tt.allow(limiter, "victim", "attacker", now) {
-				t.Fatal("one client exhausted the victim's shared account budget")
-			}
-			for _, client := range []string{"distinct-1", "distinct-2"} {
-				if !tt.allow(limiter, "victim", client, now) {
-					t.Fatalf("%s could not use remaining shared budget", client)
-				}
-			}
-			if tt.allow(limiter, "victim", "distinct-3", now) {
-				t.Fatal("many clients exceeded the shared account limit")
-			}
-		})
+	if limiter.allow("victim", "attacker", now) {
+		t.Fatal("attacker exceeded its account-client budget")
+	}
+	for _, client := range []string{"real-device", "another-device", "new-device"} {
+		if !limiter.allow("victim", client, now) {
+			t.Fatalf("%s was locked out by a different client", client)
+		}
 	}
 }
 
@@ -85,5 +71,32 @@ func TestPruneBucketsEnforcesHardCap(t *testing.T) {
 	}
 	if _, ok := buckets[fmt.Sprintf("key-%05d", hardCap+16)]; !ok {
 		t.Fatal("newest bucket was evicted")
+	}
+}
+
+func TestLoginLimiterAccountCeilingSlowsDistributedGuessing(t *testing.T) {
+	limiter := newLoginLimiter()
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < accountCeilingPerMinute; i++ {
+		if !limiter.allow("victim", fmt.Sprintf("client-%d", i), now) {
+			t.Fatalf("attempt %d from a distinct client rejected before the ceiling", i+1)
+		}
+	}
+	if limiter.allow("victim", "client-extra", now) {
+		t.Fatal("account ceiling did not slow a distributed attack")
+	}
+	if !limiter.allow("victim", "client-extra", now.Add(2*time.Minute)) {
+		t.Fatal("ceiling did not recover after the window")
+	}
+}
+
+func TestLoginLimiterSingleClientCannotReachAccountCeiling(t *testing.T) {
+	limiter := newLoginLimiter()
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 100; i++ {
+		limiter.allow("victim", "attacker", now)
+	}
+	if !limiter.allow("victim", "real-user", now) {
+		t.Fatal("one client locked the real user out of the account")
 	}
 }

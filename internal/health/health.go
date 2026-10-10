@@ -59,6 +59,9 @@ var (
 	IngestDedupEvicted       Counter
 	IngestLateDropped        Counter
 	IngestClockSkew          Counter
+	IngestRateLimitedIP      Counter
+	IngestRateLimitedSite    Counter
+	IngestRateLimitedGlobal  Counter
 	PrivacySignalsDropped    Counter
 	HeatmapInvalid           Counter
 	HeatmapDropped           Counter
@@ -181,33 +184,36 @@ func (h *RouteHistogram) snapshot() map[string]float64 {
 // updates.
 func Snapshot() map[string]float64 {
 	snapshot := map[string]float64{
-		"ingest_accepted_total":            float64(IngestAccepted.Load()),
-		"ingest_invalid_total":             float64(IngestInvalid.Load()),
-		"ingest_revenue_invalid_total":     float64(IngestRevenueInvalid.Load()),
-		"ingest_props_truncated_total":     float64(IngestPropsTruncated.Load()),
-		"ingest_profiles_suppressed_total": float64(IngestProfilesSuppressed.Load()),
-		"ingest_dropped_total":             float64(IngestDropped.Load()),
-		"ingest_stale_pings_total":         float64(IngestStalePings.Load()),
-		"ingest_duplicates_total":          float64(IngestDuplicates.Load()),
-		"ingest_dedup_evicted_total":       float64(IngestDedupEvicted.Load()),
-		"ingest_late_dropped_total":        float64(IngestLateDropped.Load()),
-		"ingest_clock_skew_total":          float64(IngestClockSkew.Load()),
-		"heatmap_invalid_total":            float64(HeatmapInvalid.Load()),
-		"heatmap_dropped_total":            float64(HeatmapDropped.Load()),
-		"replay_dropped_total":             float64(ReplayDropped.Load()),
-		"replay_rejected_total":            float64(ReplayRejected.Load()),
-		"replay_no_session_total":          float64(ReplayNoSession.Load()),
-		"replay_bytes_total":               float64(ReplayBytes.Load()),
-		"replay_disk_low":                  ReplayDiskLow.Load(),
-		"ingest_privacy_dropped_total":     float64(PrivacySignalsDropped.Load()),
-		"writer_queue_depth":               WriterQueueDepth.Load(),
-		"copy_seconds":                     CopySeconds.Load(),
-		"close_lag_seconds":                CloseLagSeconds.Load(),
-		"close_duration_seconds":           CloseDurationSeconds.Load(),
-		"geoip_update_last_success_unix":   GeoIPUpdateLastSuccessUnix.Load(),
-		"geoip_update_failures_total":      float64(GeoIPUpdateFailures.Load()),
-		"alert_delivery_failures_total":    float64(AlertDeliveryFailures.Load()),
-		"query_cache_hit_ratio":            cacheHitRatio(),
+		"ingest_accepted_total":                      float64(IngestAccepted.Load()),
+		"ingest_invalid_total":                       float64(IngestInvalid.Load()),
+		"ingest_revenue_invalid_total":               float64(IngestRevenueInvalid.Load()),
+		"ingest_props_truncated_total":               float64(IngestPropsTruncated.Load()),
+		"ingest_profiles_suppressed_total":           float64(IngestProfilesSuppressed.Load()),
+		"ingest_dropped_total":                       float64(IngestDropped.Load()),
+		"ingest_stale_pings_total":                   float64(IngestStalePings.Load()),
+		"ingest_duplicates_total":                    float64(IngestDuplicates.Load()),
+		"ingest_dedup_evicted_total":                 float64(IngestDedupEvicted.Load()),
+		"ingest_late_dropped_total":                  float64(IngestLateDropped.Load()),
+		"ingest_clock_skew_total":                    float64(IngestClockSkew.Load()),
+		`ingest_rate_limited_total{reason="ip"}`:     float64(IngestRateLimitedIP.Load()),
+		`ingest_rate_limited_total{reason="site"}`:   float64(IngestRateLimitedSite.Load()),
+		`ingest_rate_limited_total{reason="global"}`: float64(IngestRateLimitedGlobal.Load()),
+		"heatmap_invalid_total":                      float64(HeatmapInvalid.Load()),
+		"heatmap_dropped_total":                      float64(HeatmapDropped.Load()),
+		"replay_dropped_total":                       float64(ReplayDropped.Load()),
+		"replay_rejected_total":                      float64(ReplayRejected.Load()),
+		"replay_no_session_total":                    float64(ReplayNoSession.Load()),
+		"replay_bytes_total":                         float64(ReplayBytes.Load()),
+		"replay_disk_low":                            ReplayDiskLow.Load(),
+		"ingest_privacy_dropped_total":               float64(PrivacySignalsDropped.Load()),
+		"writer_queue_depth":                         WriterQueueDepth.Load(),
+		"copy_seconds":                               CopySeconds.Load(),
+		"close_lag_seconds":                          CloseLagSeconds.Load(),
+		"close_duration_seconds":                     CloseDurationSeconds.Load(),
+		"geoip_update_last_success_unix":             GeoIPUpdateLastSuccessUnix.Load(),
+		"geoip_update_failures_total":                float64(GeoIPUpdateFailures.Load()),
+		"alert_delivery_failures_total":              float64(AlertDeliveryFailures.Load()),
+		"query_cache_hit_ratio":                      cacheHitRatio(),
 	}
 	snapshot[`geoip_source{source="dbip"}`] = 0
 	snapshot[`geoip_source{source="maxmind"}`] = 0
@@ -246,6 +252,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_dedup_evicted_total", "counter")
 	writeFamily(w, snapshot, "ingest_late_dropped_total", "counter")
 	writeFamily(w, snapshot, "ingest_clock_skew_total", "counter")
+	writeFamily(w, snapshot, "ingest_rate_limited_total", "counter")
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
 	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
 	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")

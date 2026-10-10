@@ -12,6 +12,9 @@ const limiterBucketCap = 4096
 
 const accountClientCapacity = 3
 
+// accountCeilingPerMinute bounds login attempts for one account across all clients.
+const accountCeilingPerMinute = 30
+
 type clientKeyContextKey struct{}
 
 // WithClientKey attaches an ephemeral, caller-derived client key to a login
@@ -94,7 +97,15 @@ func (l *loginLimiter) allow(account, client string, now time.Time) bool {
 	if client != "" && !takeAccountClient(l.accountClient, accountClientKey{account: account, client: client}, accountClientCapacity, now) {
 		return false
 	}
-	return take(l.account, account, 5, now)
+	// One client can spend only accountClientCapacity per minute, so a single
+	// attacker cannot drain the shared account bucket and lock the user out.
+	// The account ceiling stays as a backstop against distributed guessing; it
+	// is high enough that it takes many distinct clients to reach it. Callers
+	// without a derived client key keep the strict cap.
+	if client == "" {
+		return take(l.account, account, 5, now)
+	}
+	return take(l.account, account, accountCeilingPerMinute, now)
 }
 
 func pruneAccountClientBuckets(buckets map[accountClientKey]bucket, now time.Time) {

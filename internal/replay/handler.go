@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
@@ -30,6 +29,10 @@ const (
 	maxStartBodyBytes  = 4 << 10
 	previousSaltWindow = 30 * time.Minute
 	defaultUploads     = 64
+	// DefaultSiteByteBudget bounds one site's replay writes independently of
+	// the global disk guard while allowing normal uploads to refill over time.
+	DefaultSiteByteBudget int64 = 64 << 20
+	DefaultSiteByteWindow       = time.Minute
 )
 
 type saltSource interface {
@@ -60,13 +63,14 @@ type HandlerDeps struct {
 }
 
 type Handler struct {
-	deps      HandlerDeps
-	clock     handlerClock
-	diskGuard func() bool
-	uploads   chan struct{}
-	statesMu  sync.Mutex
-	states    map[uploadKey]*uploadState
-	stateUses uint64
+	deps       HandlerDeps
+	clock      handlerClock
+	diskGuard  func() bool
+	uploads    chan struct{}
+	statesMu   sync.Mutex
+	states     map[uploadKey]*uploadState
+	stateUses  uint64
+	byteBudget *siteByteBudget
 }
 
 type uploadKey struct {
@@ -107,11 +111,21 @@ func WithUploadConcurrency(limit int) HandlerOption {
 	}
 }
 
+// WithSiteByteBudget configures the rolling per-site replay upload budget.
+func WithSiteByteBudget(bytes int64, window time.Duration) HandlerOption {
+	return func(handler *Handler) {
+		if bytes > 0 && window > 0 {
+			handler.byteBudget = newSiteByteBudget(bytes, window)
+		}
+	}
+}
+
 func NewHandler(deps HandlerDeps, options ...HandlerOption) *Handler {
 	handler := &Handler{
 		deps: deps, clock: wallClock{}, diskGuard: func() bool { return false },
-		uploads: make(chan struct{}, defaultUploads),
-		states:  make(map[uploadKey]*uploadState),
+		uploads:    make(chan struct{}, defaultUploads),
+		states:     make(map[uploadKey]*uploadState),
+		byteBudget: newSiteByteBudget(DefaultSiteByteBudget, DefaultSiteByteWindow),
 	}
 	for _, option := range options {
 		option(handler)
@@ -264,6 +278,16 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := h.clock.Now()
+	if !h.byteBudget.Allow(site.ID, int64(len(body)), now) {
+		h.drop(w)
+		return
+	}
+	budgetReserved := true
+	defer func() {
+		if budgetReserved {
+			h.byteBudget.Refund(site.ID, int64(len(body)))
+		}
+	}()
 	day := salts.LocalDay(now, site.TZ)
 	result := h.deps.Sessions.Join(session.Hit{
 		SiteID: site.ID, Retention: site.Retention, TS: now, LocalDay: day,
@@ -310,11 +334,12 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 		h.reject(w, http.StatusForbidden)
 		return
 	}
-	written, err := h.deps.Blobs.Append(r.Context(), SessionKey(site.ID, day, result.SessionID), body)
+	written, err := h.deps.Blobs.Append(r.Context(), SessionKey(site.ID, day, result.SessionID), bytes.NewReader(body))
 	if err != nil {
 		h.drop(w)
 		return
 	}
+	budgetReserved = false
 	state.hasPage = true
 	state.nextSequence = sequence + 1
 	health.ReplayBytes.Add(uint64(written))
@@ -364,34 +389,69 @@ func replayRateLimitKey(siteID int32, ip netip.Addr) string {
 	return "replay:" + strconv.FormatInt(int64(siteID), 10) + ":" + hex.EncodeToString(sum[:16])
 }
 
-func prepareChunk(w http.ResponseWriter, r *http.Request) (io.Reader, int) {
+func prepareChunk(w http.ResponseWriter, r *http.Request) ([]byte, int) {
 	if r.ContentLength > maxChunkBytes {
 		return nil, http.StatusRequestEntityTooLarge
 	}
-	if r.ContentLength >= 0 {
-		body := bufio.NewReaderSize(http.MaxBytesReader(w, r.Body, maxChunkBytes), 2)
-		magic, err := body.Peek(2)
-		if err != nil {
-			return nil, http.StatusBadRequest
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxChunkBytes))
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return nil, http.StatusRequestEntityTooLarge
 		}
-		if magic[0] != 0x1f || magic[1] != 0x8b {
-			return nil, http.StatusBadRequest
-		}
-		return body, 0
-	}
-	var buffer bytes.Buffer
-	buffer.Grow(maxChunkBytes + 1)
-	if _, err := io.CopyN(&buffer, r.Body, maxChunkBytes+1); err != nil && !errors.Is(err, io.EOF) {
 		return nil, http.StatusBadRequest
 	}
-	if buffer.Len() > maxChunkBytes {
-		return nil, http.StatusRequestEntityTooLarge
-	}
-	body := buffer.Bytes()
 	if len(body) < 2 || body[0] != 0x1f || body[1] != 0x8b {
 		return nil, http.StatusBadRequest
 	}
-	return bytes.NewReader(body), 0
+	return body, 0
+}
+
+type siteByteBucket struct {
+	tokens float64
+	last   time.Time
+}
+
+type siteByteBudget struct {
+	mu      sync.Mutex
+	limit   float64
+	window  time.Duration
+	buckets map[int32]siteByteBucket
+}
+
+func newSiteByteBudget(limit int64, window time.Duration) *siteByteBudget {
+	return &siteByteBudget{limit: float64(limit), window: window, buckets: make(map[int32]siteByteBucket)}
+}
+
+func (b *siteByteBudget) Allow(siteID int32, bytes int64, now time.Time) bool {
+	if bytes < 0 || float64(bytes) > b.limit {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	bucket, ok := b.buckets[siteID]
+	if !ok {
+		bucket = siteByteBucket{tokens: b.limit, last: now}
+	} else if now.After(bucket.last) {
+		bucket.tokens = min(b.limit, bucket.tokens+now.Sub(bucket.last).Seconds()*b.limit/b.window.Seconds())
+		bucket.last = now
+	}
+	if bucket.tokens < float64(bytes) {
+		b.buckets[siteID] = bucket
+		return false
+	}
+	bucket.tokens -= float64(bytes)
+	b.buckets[siteID] = bucket
+	return true
+}
+
+func (b *siteByteBudget) Refund(siteID int32, bytes int64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if bucket, ok := b.buckets[siteID]; ok {
+		bucket.tokens = min(b.limit, bucket.tokens+float64(bytes))
+		b.buckets[siteID] = bucket
+	}
 }
 
 func siteAllowsURL(site sites.Site, raw string) bool {

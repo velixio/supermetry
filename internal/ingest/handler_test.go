@@ -411,7 +411,7 @@ func TestHeatmapEnabledAggregatesWithoutRawEvent(t *testing.T) {
 	}
 }
 
-func TestPrivacySignalsAreDroppedRegardlessOfSiteSetting(t *testing.T) {
+func TestPrivacySignalsHonorSiteSetting(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		header  string
@@ -420,8 +420,8 @@ func TestPrivacySignalsAreDroppedRegardlessOfSiteSetting(t *testing.T) {
 	}{
 		{name: "GPC enabled", header: "Sec-GPC", enabled: true, want: 0},
 		{name: "DNT enabled", header: "DNT", enabled: true, want: 0},
-		{name: "GPC disabled", header: "Sec-GPC", enabled: false, want: 0},
-		{name: "DNT disabled", header: "DNT", enabled: false, want: 0},
+		{name: "GPC disabled", header: "Sec-GPC", enabled: false, want: 1},
+		{name: "DNT disabled", header: "DNT", enabled: false, want: 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
@@ -445,7 +445,10 @@ func TestPrivacySignalsAreDroppedRegardlessOfSiteSetting(t *testing.T) {
 			if events != test.want {
 				t.Fatalf("events=%d, want %d", events, test.want)
 			}
-			wantDelta := uint64(1)
+			wantDelta := uint64(0)
+			if test.enabled {
+				wantDelta = 1
+			}
 			if got := health.PrivacySignalsDropped.Load() - before; got != wantDelta {
 				t.Fatalf("privacy signal drop delta=%d, want %d", got, wantDelta)
 			}
@@ -622,7 +625,7 @@ func TestRateLimitKeysDoNotContainRawIP(t *testing.T) {
 	if rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
 	}
-	if len(limiter.keys) != 2 || limiter.keys[0] != "site:1" || !strings.HasPrefix(limiter.keys[1], "ip:") {
+	if len(limiter.keys) != 3 || !strings.HasPrefix(limiter.keys[0], "ip:") || limiter.keys[1] != "site:1" || limiter.keys[2] != "global" {
 		t.Fatalf("rate-limit keys=%v", limiter.keys)
 	}
 	if strings.Contains(strings.Join(limiter.keys, " "), "198.51.100.7") {

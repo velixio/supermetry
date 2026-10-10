@@ -1,19 +1,37 @@
 package ingest
 
 import (
-	"sort"
+	"strings"
 	"sync"
 	"time"
 )
 
 const (
-	maxTokenBuckets        = 10_000
-	tokenBucketPruneTarget = 9_000
+	maxTokenBuckets   = 10_000
+	overflowBucketKey = "\x00overflow"
 )
 
 // RateLimiter decides whether one request for a key may proceed.
 type RateLimiter interface {
 	Allow(key string) bool
+}
+
+// RateLimitReason identifies the ceiling that rejected an ingest request.
+type RateLimitReason uint8
+
+const (
+	RateLimitNone RateLimitReason = iota
+	RateLimitIP
+	RateLimitSite
+	RateLimitGlobal
+)
+
+type ingestRequestLimiter interface {
+	AllowIngest(ipKey, siteKey string) RateLimitReason
+}
+
+type refundableRateLimiter interface {
+	Refund(key string)
 }
 
 type tokenBucket struct {
@@ -27,12 +45,17 @@ type tokenBuckets struct {
 	burst   float64
 	buckets map[string]tokenBucket
 	calls   uint64
+	now     func() time.Time
 }
 
 // NewTokenBuckets returns a concurrency-safe, process-local token-bucket
 // limiter. Rate is tokens per second; a zero rate permits only the initial
 // burst and is useful for deterministic tests.
 func NewTokenBuckets(rate float64, burst int) RateLimiter {
+	return newTokenBucketsWithClock(rate, burst, time.Now)
+}
+
+func newTokenBucketsWithClock(rate float64, burst int, now func() time.Time) *tokenBuckets {
 	if rate < 0 {
 		rate = 0
 	}
@@ -43,19 +66,18 @@ func NewTokenBuckets(rate float64, burst int) RateLimiter {
 		rate:    rate,
 		burst:   float64(burst),
 		buckets: make(map[string]tokenBucket),
+		now:     now,
 	}
 }
 
 func (l *tokenBuckets) Allow(key string) bool {
-	now := time.Now()
+	now := l.now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	key = l.boundedKey(key)
 	bucket, ok := l.buckets[key]
 	if !ok {
-		if len(l.buckets) >= maxTokenBuckets {
-			l.removeOldest()
-		}
 		bucket = tokenBucket{tokens: l.burst, last: now}
 	} else if l.rate > 0 {
 		bucket.tokens = min(l.burst, bucket.tokens+now.Sub(bucket.last).Seconds()*l.rate)
@@ -74,24 +96,22 @@ func (l *tokenBuckets) Allow(key string) bool {
 	return allowed
 }
 
-func (l *tokenBuckets) removeOldest() {
-	type entry struct {
-		key  string
-		last time.Time
+// Refund restores one previously spent token without exceeding the burst.
+func (l *tokenBuckets) Refund(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	key = l.boundedKey(key)
+	if bucket, ok := l.buckets[key]; ok {
+		bucket.tokens = min(l.burst, bucket.tokens+1)
+		l.buckets[key] = bucket
 	}
-	entries := make([]entry, 0, len(l.buckets))
-	for key, bucket := range l.buckets {
-		entries = append(entries, entry{key: key, last: bucket.last})
+}
+
+func (l *tokenBuckets) boundedKey(key string) string {
+	if _, ok := l.buckets[key]; ok || len(l.buckets) < maxTokenBuckets-1 {
+		return key
 	}
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].last.Equal(entries[j].last) {
-			return entries[i].key < entries[j].key
-		}
-		return entries[i].last.Before(entries[j].last)
-	})
-	for i := 0; len(l.buckets) > tokenBucketPruneTarget; i++ {
-		delete(l.buckets, entries[i].key)
-	}
+	return overflowBucketKey
 }
 
 func (l *tokenBuckets) removeIdle(now time.Time) {
@@ -103,5 +123,71 @@ func (l *tokenBuckets) removeIdle(now time.Time) {
 		if now.Sub(bucket.last) >= idleFor {
 			delete(l.buckets, key)
 		}
+	}
+}
+
+type ingestRateLimiter struct {
+	mu     sync.Mutex
+	ip     *tokenBuckets
+	site   *tokenBuckets
+	global *tokenBuckets
+}
+
+// NewIngestRateLimiter creates independent IP, site and process ceilings.
+// Churned IPs share a bounded overflow bucket instead of evicting established
+// clients and resetting their allowance.
+func NewIngestRateLimiter(globalRate float64, globalBurst int) RateLimiter {
+	ipRate := min(globalRate, 100)
+	ipBurst := min(globalBurst, 200)
+	siteRate := min(globalRate, 5_000)
+	siteBurst := min(globalBurst, 10_000)
+	return newIngestRateLimiter(time.Now, ipRate, ipBurst, siteRate, siteBurst, globalRate, globalBurst)
+}
+
+func newIngestRateLimiter(now func() time.Time, ipRate float64, ipBurst int, siteRate float64, siteBurst int, globalRate float64, globalBurst int) *ingestRateLimiter {
+	return &ingestRateLimiter{
+		ip:     newTokenBucketsWithClock(ipRate, ipBurst, now),
+		site:   newTokenBucketsWithClock(siteRate, siteBurst, now),
+		global: newTokenBucketsWithClock(globalRate, globalBurst, now),
+	}
+}
+
+func (l *ingestRateLimiter) AllowIngest(ipKey, siteKey string) RateLimitReason {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if !l.ip.Allow(ipKey) {
+		return RateLimitIP
+	}
+	if !l.site.Allow(siteKey) {
+		l.ip.Refund(ipKey)
+		return RateLimitSite
+	}
+	if !l.global.Allow("global") {
+		l.ip.Refund(ipKey)
+		l.site.Refund(siteKey)
+		return RateLimitGlobal
+	}
+	return RateLimitNone
+}
+
+func (l *ingestRateLimiter) Allow(key string) bool {
+	switch {
+	case strings.HasPrefix(key, "ip:"):
+		return l.ip.Allow(key)
+	case strings.HasPrefix(key, "site:"):
+		return l.site.Allow(key)
+	default:
+		return l.global.Allow(key)
+	}
+}
+
+func (l *ingestRateLimiter) Refund(key string) {
+	switch {
+	case strings.HasPrefix(key, "ip:"):
+		l.ip.Refund(key)
+	case strings.HasPrefix(key, "site:"):
+		l.site.Refund(key)
+	default:
+		l.global.Refund(key)
 	}
 }

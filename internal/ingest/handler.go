@@ -120,7 +120,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			payload.RevenueMicros, payload.RevenueCurrency, payload.RevenueInvalid = 0, "", true
 		}
 	}
-	if r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1" {
+	if site.RespectPrivacySignals && (r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1") {
 		health.PrivacySignalsDropped.Add(1)
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -227,7 +227,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if h.Limiter != nil && (!h.Limiter.Allow("site:"+strconv.FormatInt(int64(site.ID), 10)) || !h.Limiter.Allow(ipRateKey(ip))) {
+	if reason := ingestRateLimit(h.Limiter, ipRateKey(ip), "site:"+strconv.FormatInt(int64(site.ID), 10)); reason != RateLimitNone {
+		recordIngestRateLimit(reason)
 		w.Header().Set("Retry-After", "1")
 		w.WriteHeader(http.StatusTooManyRequests)
 		return
@@ -572,8 +573,49 @@ func (h *Handler) clientIP(r *http.Request) (netip.Addr, bool) {
 }
 
 func ipRateKey(ip netip.Addr) string {
-	sum := sha256.Sum256([]byte(ip.String()))
+	identity := ip.String()
+	if ip.Is6() {
+		identity = netip.PrefixFrom(ip, 64).Masked().String()
+	}
+	sum := sha256.Sum256([]byte(identity))
 	return "ip:" + hex.EncodeToString(sum[:16])
+}
+
+func ingestRateLimit(limiter RateLimiter, ipKey, siteKey string) RateLimitReason {
+	if limiter == nil {
+		return RateLimitNone
+	}
+	if scoped, ok := limiter.(ingestRequestLimiter); ok {
+		return scoped.AllowIngest(ipKey, siteKey)
+	}
+	if !limiter.Allow(ipKey) {
+		return RateLimitIP
+	}
+	if !limiter.Allow(siteKey) {
+		if refundable, ok := limiter.(refundableRateLimiter); ok {
+			refundable.Refund(ipKey)
+		}
+		return RateLimitSite
+	}
+	if !limiter.Allow("global") {
+		if refundable, ok := limiter.(refundableRateLimiter); ok {
+			refundable.Refund(ipKey)
+			refundable.Refund(siteKey)
+		}
+		return RateLimitGlobal
+	}
+	return RateLimitNone
+}
+
+func recordIngestRateLimit(reason RateLimitReason) {
+	switch reason {
+	case RateLimitIP:
+		health.IngestRateLimitedIP.Add(1)
+	case RateLimitSite:
+		health.IngestRateLimitedSite.Add(1)
+	case RateLimitGlobal:
+		health.IngestRateLimitedGlobal.Add(1)
+	}
 }
 
 func (h *Handler) invalid(w http.ResponseWriter) {
