@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill
+.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -45,6 +45,21 @@ migrate: build-go
 # Stop the supermetry server started by make run/dev from this checkout (anchored, so it never matches itself or worktree servers).
 kill:
 	-pkill -f '^$(CURDIR)/bin/supermetry serve' && echo "stopped supermetry" || echo "no supermetry running"
+
+# Development PostgreSQL in Docker on port 5433 (deploy/docker-compose.dev-db.yml).
+DEV_DB := docker compose -f deploy/docker-compose.dev-db.yml
+
+dev-db-up:
+	$(DEV_DB) up -d --wait
+	@echo "app:   SUPERMETRY_DATABASE_URL=postgres://supermetry:supermetry@127.0.0.1:5433/supermetry?sslmode=disable"
+	@echo "tests: SUPERMETRY_TEST_DSN=postgres://supermetry:supermetry@127.0.0.1:5433/supermetry_test?sslmode=disable"
+
+# Stop it; the data stays in the supermetry-dev-pg volume.
+dev-db-down:
+	$(DEV_DB) down
+
+dev-db-psql:
+	$(DEV_DB) exec postgres psql -U supermetry -d supermetry
 
 # Remove build and test artifacts (keeps node_modules and .env).
 clean:

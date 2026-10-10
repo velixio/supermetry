@@ -1,0 +1,47 @@
+# Development PostgreSQL on port 5433, so it never collides with a PostgreSQL
+# already running on this machine at 5432.
+#
+#   make dev-db-up     # or: docker compose -f deploy/docker-compose.dev-db.yml up -d
+#   make dev-db-down   # stop it; data is kept in the supermetry-dev-pg volume
+#
+# Two databases, both owned by user supermetry (password supermetry):
+#   supermetry       for the app:   SUPERMETRY_DATABASE_URL=postgres://supermetry:supermetry@127.0.0.1:5433/supermetry?sslmode=disable
+#   supermetry_test  for go test:   SUPERMETRY_TEST_DSN=postgres://supermetry:supermetry@127.0.0.1:5433/supermetry_test?sslmode=disable
+#
+# Local development only: the password is fixed and the port is bound to
+# 127.0.0.1. Never use this file for a server.
+
+name: supermetry-dev
+
+services:
+  postgres:
+    container_name: supermetry-dev-postgres
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: supermetry
+      POSTGRES_PASSWORD: supermetry
+      POSTGRES_DB: supermetry
+    command:
+      - postgres
+      # Parallel test packages each create schemas full of partitioned tables;
+      # the default lock table (64 per transaction) runs out with SQLSTATE 53200.
+      - -c
+      - max_locks_per_transaction=256
+      - -c
+      - max_connections=300
+      - -c
+      - shared_buffers=256MB
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - supermetry-dev-pg:/var/lib/postgresql
+      - ./dev-db-init.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supermetry -d supermetry"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  supermetry-dev-pg:
