@@ -5,15 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 
 	"supermetry/internal/clientip"
 	"supermetry/internal/db"
+	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/orgs"
+	"supermetry/internal/platform/store"
 )
 
 func (h *handler) currentIP(w http.ResponseWriter, r *http.Request) {
@@ -315,6 +319,53 @@ func (h *handler) listOrgs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": memberships})
+}
+
+const maxOrgNameRunes = 80
+
+// createOrg lets a signed-in user start another organization; they become its
+// owner. The new organization has no sites until the owner adds one.
+func (h *handler) createOrg(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		Name string `json:"name"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" || utf8.RuneCountInString(name) > maxOrgNameRunes {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "name must be 1 to 80 characters")
+		return
+	}
+	if h.deps.Store == nil {
+		unavailable(w, "organization")
+		return
+	}
+	var created struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+	}
+	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		id, err := store.CreateOrg(r.Context(), tx, name, principal.UserID)
+		if err != nil {
+			return err
+		}
+		if err := tx.QueryRow(r.Context(), `select id,name,slug from orgs where id=$1`, id).Scan(&created.ID, &created.Name, &created.Slug); err != nil {
+			return err
+		}
+		principal.OrgID = id
+		return audit.Write(r.Context(), tx, principal, "org.created", "org", id, map[string]any{"name": name})
+	})
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, created)
 }
 
 func (h *handler) getOrg(w http.ResponseWriter, r *http.Request) {

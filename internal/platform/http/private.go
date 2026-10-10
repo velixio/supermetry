@@ -228,6 +228,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/me/totp", h.disableTOTP)
 	mux.HandleFunc("POST /api/private/me/totp/recovery-codes", h.regenerateTOTPRecoveryCodes)
 	mux.HandleFunc("GET /api/private/orgs", h.listOrgs)
+	mux.HandleFunc("POST /api/private/orgs", h.createOrg)
 	mux.HandleFunc("GET /api/private/orgs/{org}", h.getOrg)
 	mux.HandleFunc("GET /api/private/orgs/{org}/members", h.listMembers)
 	mux.HandleFunc("PATCH /api/private/orgs/{org}/members/{user}", h.updateMember)

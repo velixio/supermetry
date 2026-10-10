@@ -159,3 +159,23 @@ func TestEmailChangeConfirmRequiresSession(t *testing.T) {
 		t.Fatalf("user=%+v err=%v", user, err)
 	}
 }
+
+func TestCreateOrgHTTP(t *testing.T) {
+	fixture := newAccountHTTPFixture(t, &mail.Fake{})
+	if got := fixture.request(t, http.MethodPost, "/api/private/orgs", `{"name":"Second"}`, false); got.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF status=%d body=%s", got.Code, got.Body.String())
+	}
+	for _, body := range []string{`{"name":"   "}`, `{"name":"` + strings.Repeat("x", 81) + `"}`, `{}`} {
+		if got := fixture.request(t, http.MethodPost, "/api/private/orgs", body, true); got.Code != http.StatusBadRequest {
+			t.Fatalf("body %q status=%d", body, got.Code)
+		}
+	}
+	got := fixture.request(t, http.MethodPost, "/api/private/orgs", `{"name":" Second Org "}`, true)
+	if got.Code != http.StatusCreated || !strings.Contains(got.Body.String(), `"name":"Second Org"`) || !strings.Contains(got.Body.String(), `"slug":"second-org"`) {
+		t.Fatalf("create status=%d body=%s", got.Code, got.Body.String())
+	}
+	var role string
+	if err := fixture.store.Pool.QueryRow(context.Background(), `select m.role from memberships m join orgs o on o.id=m.org_id where o.slug='second-org' and m.user_id=$1`, fixture.userID).Scan(&role); err != nil || role != "owner" {
+		t.Fatalf("membership role=%q err=%v", role, err)
+	}
+}
