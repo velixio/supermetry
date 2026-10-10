@@ -193,7 +193,7 @@ func TestRestoreValidatesDumpBeforePrepare(t *testing.T) {
 				if len(args) >= 1 && args[0] == "--list" {
 					return exec.CommandContext(ctx, "sh", "-c", tt.listScript)
 				}
-				if len(args) == 1 {
+				if len(args) == 3 && args[0] == "--file" && args[1] == "-" {
 					return exec.CommandContext(ctx, "sh", "-c", tt.dryScript)
 				}
 				return exec.CommandContext(ctx, "sh", "-c", "exit 0")
@@ -319,7 +319,8 @@ printf 'dump argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABASE"
 `)
 	writeFakeClient(t, dir, "pg_restore", `
 if [ "$1" = "--list" ]; then printf '1; 1259 1 TABLE public schema_migrations owner\n'; exit 0; fi
-if [ "$#" -eq 1 ]; then exit 0; fi
+if [ "$#" -eq 1 ]; then echo 'pg_restore: error: one of -d/--dbname and -f/--file must be specified' >&2; exit 1; fi
+if [ "$1" = "--file" ] && [ "$2" = "-" ]; then exit 0; fi
 printf 'restore argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABASE" >> "$SUPERMETRY_CLIENT_LOG"
 `)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -366,7 +367,7 @@ func TestBackupRestoreIntegration(t *testing.T) {
 	// database other tests run against (it is large and in use).
 	dsn := os.Getenv("SUPERMETRY_TEST_BACKUP_DSN")
 	if dsn == "" {
-		t.Skip("SUPERMETRY_TEST_BACKUP_DSN is not set (point it at an empty, disposable database)")
+		t.Skip("SUPERMETRY_TEST_BACKUP_DSN is not set (point it at a disposable database; it is migrated, dumped and restored over)")
 	}
 	if dsn == os.Getenv("SUPERMETRY_TEST_DSN") {
 		t.Fatal("SUPERMETRY_TEST_BACKUP_DSN must not be the shared SUPERMETRY_TEST_DSN database")
@@ -383,6 +384,9 @@ func TestBackupRestoreIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer pool.Close()
+	if err := db.Migrate(context.Background(), pool); err != nil {
+		t.Fatal(err)
+	}
 	schema := "supermetry_backup_test_" + strings.ReplaceAll(time.Now().UTC().Format("20060102150405.000000000"), ".", "")
 	identifier := pgx.Identifier{schema}.Sanitize()
 	if _, err := pool.Exec(context.Background(), "create schema "+identifier+"; create table "+identifier+".marker (value text); insert into "+identifier+".marker values ('restored')"); err != nil {

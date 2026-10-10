@@ -358,8 +358,10 @@ func validateRestoreDump(ctx context.Context, rt backupRuntime, pgRestore, dumpN
 	return nil
 }
 
+// dryRunRestoreDump reads the whole dump to stdout; pg_restore 18 refuses to run
+// without --file or --dbname.
 func dryRunRestoreDump(ctx context.Context, rt backupRuntime, pgRestore, dumpName string, pgEnv map[string]string) error {
-	cmd := postgresCommandWithRuntime(ctx, rt, pgRestore, []string{dumpName}, pgEnv)
+	cmd := postgresCommandWithRuntime(ctx, rt, pgRestore, []string{"--file", "-", dumpName}, pgEnv)
 	cmd.Stdout = io.Discard
 	var stderr limitedBuffer
 	cmd.Stderr = &stderr
