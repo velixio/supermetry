@@ -19,19 +19,22 @@ docker compose up -d --build
 
 The service uses `SUPERMETRY_DATABASE_URL` from that file as it is. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
 
-**No PostgreSQL yet?** Let Compose run one. Choose a password, put it in `../.env` twice, and add the `bundled-db` profile:
+**No PostgreSQL yet?** Let Compose run one. In `../.env`, point `SUPERMETRY_DATABASE_URL` at the host `postgres` and choose the user, password and database name in it:
 
 ```sh
 # ../.env
-POSTGRES_PASSWORD=choose-a-password
 SUPERMETRY_DATABASE_URL=postgres://supermetry:choose-a-password@postgres:5432/supermetry?sslmode=disable
 ```
+
+Then start it with the `bundled-db` profile. `--profile` is a global flag, so it goes before `up`:
 
 ```sh
 docker compose --profile bundled-db up -d --build
 ```
 
-The `postgres` container reads the same `../.env`, so it also receives the other `SUPERMETRY_*` values. They are harmless to it, but keep the file private. URL-encode special characters in the password inside the URL. The database is kept in the `postgres-data` volume.
+The `postgres` container creates that user, password and database from the URL the first time it starts, so there is nothing else to set. (If `POSTGRES_PASSWORD` is set in `../.env`, it is used instead, with the user and database `supermetry`.) The password may be percent-encoded, as in any URL. The credentials are only read when the data volume is empty: changing the URL later does not change an existing database. The database is kept in the `postgres-data` volume.
+
+The `postgres` container reads the same `../.env`, so it also receives the other `SUPERMETRY_*` values. They are harmless to it, but keep the file private.
 
 Compose uses the fixed project name `supermetry`, so the containers are `supermetry` and `supermetry-postgres`, the image is `supermetry`, and the volumes are `supermetry_supermetry-data` and `supermetry_postgres-data`. If you started an older version of this file from `deploy/`, its resources are called `deploy-*` and `deploy_*`; remove the old container with `docker rm -f deploy-supermetry-1`, and copy or discard the old volumes (`docker volume ls`) before starting the new one.
 

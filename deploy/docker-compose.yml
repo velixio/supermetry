@@ -5,11 +5,12 @@
 # `localhost` is the container itself: use host.docker.internal to reach a
 # PostgreSQL running on this machine.
 #
-# To run PostgreSQL in a container too, set in ../.env:
-#   POSTGRES_PASSWORD=<password>
+# To run PostgreSQL in a container too, set the host to `postgres` in ../.env:
 #   SUPERMETRY_DATABASE_URL=postgres://supermetry:<password>@postgres:5432/supermetry?sslmode=disable
-# and start with the bundled-db profile:
+# and start with the bundled-db profile (a global flag, so it goes before `up`):
 #   docker compose --profile bundled-db up -d --build
+# The container takes its user, password and database from that URL. A
+# POSTGRES_PASSWORD in ../.env, if set, is used instead.
 
 # Fixed project name, so containers, networks and volumes are called supermetry-*
 # whatever this directory is named.
@@ -44,18 +45,21 @@ services:
     container_name: supermetry-postgres
     profiles: ["bundled-db"]
     image: postgres:18-alpine
+    entrypoint: ["sh", "/postgres-entrypoint.sh"]
     environment:
+      # Defaults when POSTGRES_PASSWORD is set; otherwise the entrypoint script
+      # reads user, password and database from SUPERMETRY_DATABASE_URL.
       POSTGRES_DB: supermetry
       POSTGRES_USER: supermetry
     env_file:
-      # POSTGRES_PASSWORD comes from ../.env. PostgreSQL refuses to start without it.
       - ../.env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U supermetry -d supermetry"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 10
     volumes:
+      - ./postgres-entrypoint.sh:/postgres-entrypoint.sh:ro
       - postgres-data:/var/lib/postgresql
     restart: unless-stopped
 
