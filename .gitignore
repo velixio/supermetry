@@ -4,6 +4,7 @@ goal
 nohup.out
 bin
 /data/
+docs/brand
 # Secrets and credentials (never commit)
 .env
 .env.*
