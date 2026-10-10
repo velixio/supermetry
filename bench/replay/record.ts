@@ -56,7 +56,7 @@ async function activity(page: Page, durationMs: number) {
 }
 
 async function runOne(name: string, url: string, cfgName: string) {
-  const browser = await chromium.launch({ executablePath: process.env.CHROME ?? "/path/to/local/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell" });
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, bypassCSP: true });
   const page = await ctx.newPage();
   await page.goto(url, { waitUntil: "load", timeout: 60000 });

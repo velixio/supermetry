@@ -52,3 +52,7 @@ web/node_modules
 sdk/js/node_modules/
 
 bench/results/tmp/
+
+# Local benchmark output and rig overrides (regenerable, machine-specific)
+bench/results/
+bench/rig/rig.local.conf

@@ -9,9 +9,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4177",
     browserName: "chromium",
     headless: true,
-    launchOptions: {
-      executablePath: process.env.CHROME ?? "/path/to/local/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
-    },
+    launchOptions: process.env.CHROME ? { executablePath: process.env.CHROME } : {},
   },
   webServer: {
     command: "bun run e2e/server.ts",
