@@ -105,6 +105,21 @@ describe('SPA navigation', () => {
     expect(realtime.closest('li')?.nextElementSibling).toBe(replays.closest('li'))
   })
 
+  it('shows the brand name and one dropdown listing projects, then organizations', async () => {
+    renderSidebar()
+
+    expect(await screen.findByText('Supermetry')).toBeInTheDocument()
+    const trigger = screen.getByRole('button', { name: /Docs\s*Acme/ })
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+
+    const menu = await screen.findByRole('menu')
+    const text = menu.textContent ?? ''
+    expect(text.indexOf('Projects')).toBeGreaterThanOrEqual(0)
+    expect(text.indexOf('Projects')).toBeLessThan(text.indexOf('Docs'))
+    expect(text.indexOf('Docs')).toBeLessThan(text.indexOf('Organizations'))
+    expect(text.indexOf('Organizations')).toBeLessThan(text.lastIndexOf('Acme'))
+  })
+
   it('renders a stable skeleton fallback for delayed route chunks', () => {
     render(<RoutePending />)
 

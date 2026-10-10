@@ -30,6 +30,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -211,52 +212,22 @@ export function SupermetrySidebar({
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link aria-label="Supermetry home" className="mb-1 flex h-8 items-center px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={closeMobile}>
+        <Link aria-label="Supermetry home" className="mb-1 flex h-8 items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={closeMobile}>
           <BrandLogo className="h-7 w-7" mark />
+          <span className="truncate text-base font-semibold group-data-[collapsible=icon]:hidden">{en.navigation.brand}</span>
         </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton tooltip={en.navigation.organization}>
-              <span className="truncate font-semibold">{membership.org.name}</span>
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>{en.navigation.organization}</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              {me.memberships.map((item) => (
-                <DropdownMenuItem key={item.org.id} asChild>
-                  {item.sites[0] ? (
-                    <Link
-                      to="/app/$org/$site"
-                      params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
-                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
-                      onClick={closeMobile}
-                    >
-                      {item.org.name}
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/app/$org/settings"
-                      params={{ org: item.org.slug }}
-                      onClick={closeMobile}
-                    >
-                      {item.org.name}
-                    </Link>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton tooltip={en.navigation.site}>
+            <SidebarMenuButton className="h-auto py-1.5" tooltip={`${membership.org.name} / ${site?.name ?? en.navigation.site}`}>
               {site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} /> : null}
-              <span className="truncate">{site?.name ?? en.navigation.site}</span>
+              <span className="flex min-w-0 flex-col text-left leading-tight">
+                <span className="truncate">{site?.name ?? en.navigation.site}</span>
+                <span className="truncate text-xs text-muted-foreground">{membership.org.name}</span>
+              </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>{en.navigation.site}</DropdownMenuLabel>
+          <DropdownMenuContent align="start" className="min-w-56">
+            <DropdownMenuLabel>{en.navigation.projects}</DropdownMenuLabel>
             <DropdownMenuGroup>
               {membership.sites.map((item) => (
                 <DropdownMenuItem key={item.id} asChild>
@@ -283,6 +254,32 @@ export function SupermetrySidebar({
                   </Link>
                 </DropdownMenuItem>
               ) : null}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{en.navigation.organizations}</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              {me.memberships.map((item) => (
+                <DropdownMenuItem key={item.org.id} asChild>
+                  {item.sites[0] ? (
+                    <Link
+                      to="/app/$org/$site"
+                      params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
+                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
+                      onClick={closeMobile}
+                    >
+                      {item.org.name}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/app/$org/settings"
+                      params={{ org: item.org.slug }}
+                      onClick={closeMobile}
+                    >
+                      {item.org.name}
+                    </Link>
+                  )}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
