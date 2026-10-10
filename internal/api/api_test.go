@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strings"
-	"supermetry/internal/sites"
 	"testing"
 	"time"
 
@@ -17,6 +16,8 @@ import (
 	"supermetry/internal/config"
 	"supermetry/internal/ingest"
 	"supermetry/internal/privacy"
+	"supermetry/internal/query"
+	"supermetry/internal/sites"
 )
 
 type queryStub struct{}
@@ -45,6 +46,27 @@ func (queryStub) Journey(context.Context, api.JourneyRequest) (api.JourneyRespon
 }
 
 func (queryStub) Retention(context.Context, api.RetentionRequest) (api.RetentionResponse, error) {
+	return api.RetentionResponse{}, nil
+}
+
+type normalizingQueryStub struct{ site sites.Site }
+
+func (s normalizingQueryStub) Query(_ context.Context, req api.QueryRequest) (api.QueryResponse, error) {
+	if _, problem := query.Normalize(req, s.site, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)); problem != nil {
+		return api.QueryResponse{}, errors.New(*problem.Detail)
+	}
+	return api.QueryResponse{}, nil
+}
+
+func (normalizingQueryStub) Funnel(context.Context, api.FunnelRequest) (api.FunnelResponse, error) {
+	return api.FunnelResponse{}, nil
+}
+
+func (normalizingQueryStub) Journey(context.Context, api.JourneyRequest) (api.JourneyResponse, error) {
+	return api.JourneyResponse{}, nil
+}
+
+func (normalizingQueryStub) Retention(context.Context, api.RetentionRequest) (api.RetentionResponse, error) {
 	return api.RetentionResponse{}, nil
 }
 
@@ -200,6 +222,56 @@ func TestAPIConventions(t *testing.T) {
 			t.Fatalf("status=%d headers=%v", response.StatusCode, response.Header)
 		}
 	})
+}
+
+func TestQueryFilterComplexityReturnsBadRequest(t *testing.T) {
+	site := sites.Site{ID: 1, OrgID: 7, TZ: time.UTC}
+	router := identifiedRouter(api.Deps{
+		Config:      config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"},
+		Query:       normalizingQueryStub{site: site},
+		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
+		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7}},
+		Sites:       orgSites{1: site},
+		RateLimiter: ingest.NewTokenBuckets(0, 30),
+	})
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	values := make([]string, 51)
+	for i := range values {
+		values[i] = "value"
+	}
+	filters := make([]api.Filter, 11)
+	for i := range filters {
+		filters[i] = api.Filter{Dimension: "country", Operator: api.Is, Values: []string{"US"}}
+	}
+	tests := []struct {
+		name       string
+		filters    []api.Filter
+		wantStatus int
+	}{
+		{name: "50 values accepted", filters: []api.Filter{{Dimension: "page", Operator: api.Contains, Values: values[:50]}}, wantStatus: http.StatusOK},
+		{name: "51 values rejected", filters: []api.Filter{{Dimension: "page", Operator: api.Contains, Values: values}}, wantStatus: http.StatusBadRequest},
+		{name: "too many filters rejected", filters: filters, wantStatus: http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			period := api.N7d
+			requestBody, err := json.Marshal(api.QueryRequest{SiteId: 1, Period: &period, Metrics: []api.Metric{api.Visitors}, Filters: &tt.filters})
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := post(t, server.URL+"/api/public/v1/query", "Bearer test-key", string(requestBody))
+			defer response.Body.Close()
+			if response.StatusCode != tt.wantStatus {
+				body, _ := io.ReadAll(response.Body)
+				t.Fatalf("status=%d body=%s, want %d", response.StatusCode, body, tt.wantStatus)
+			}
+			if tt.wantStatus == http.StatusBadRequest {
+				assertProblem(t, response, http.StatusBadRequest)
+			}
+		})
+	}
 }
 
 func TestPublicRateLimitUsesConfiguredLimiterPerAuthenticatedKey(t *testing.T) {

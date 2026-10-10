@@ -18,11 +18,13 @@ import (
 )
 
 const (
-	defaultLimit  = 100
-	maxLimit      = 1000
-	maxRangeDays  = 366
-	maxDimensions = 3
-	maxFilters    = 10
+	defaultLimit    = 100
+	maxLimit        = 1000
+	maxRangeDays    = 366
+	maxDimensions   = 3
+	maxFilters      = 10
+	maxFilterValues = 50
+	maxLikeClauses  = 100
 )
 
 var validDimensions = map[string]struct{}{
@@ -264,6 +266,7 @@ func ValidateFilters(filters []api.Filter) error {
 	if len(filters) > maxFilters {
 		return errors.New("at most 10 filters are allowed")
 	}
+	likeClauses := 0
 	for _, filter := range filters {
 		if !knownFilterDimension(filter.Dimension) {
 			return fmt.Errorf("unknown filter dimension %q", filter.Dimension)
@@ -273,6 +276,15 @@ func ValidateFilters(filters []api.Filter) error {
 		}
 		if len(filter.Values) == 0 {
 			return fmt.Errorf("filter %q must contain at least one value", filter.Dimension)
+		}
+		if len(filter.Values) > maxFilterValues {
+			return fmt.Errorf("filter %q must not contain more than %d values", filter.Dimension, maxFilterValues)
+		}
+		if filter.Operator == api.Contains || filter.Operator == api.StartsWith {
+			likeClauses += len(filter.Values)
+			if likeClauses > maxLikeClauses {
+				return fmt.Errorf("filters must not produce more than %d LIKE clauses", maxLikeClauses)
+			}
 		}
 		// Region and city accept the legacy place-only value as well as the
 		// country-scoped [place, country_code] representation.

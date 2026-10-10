@@ -436,7 +436,7 @@ analyze events;`)
 func buildLegacyVitalsSQL(req normalizedVitals) (string, []any, error) {
 	builder := &sqlBuilder{}
 	direct, session, special := splitVitalsFilters(req.filters)
-	conditions, err := filterConditions(builder, direct, vitalsDimensionResolver("e"))
+	conditions, err := filterConditions(builder, direct, vitalsDimensionResolver("e", builder))
 	if err != nil {
 		return "", nil, err
 	}
@@ -451,7 +451,7 @@ func buildLegacyVitalsSQL(req normalizedVitals) (string, []any, error) {
 		switch {
 		case filter.Dimension == "event" || filter.Dimension == "goal":
 			filter.Dimension = "event"
-			matches, matchErr := filterConditions(builder, []api.Filter{filter}, customResolver("ce"))
+			matches, matchErr := filterConditions(builder, []api.Filter{filter}, customResolver("ce", builder))
 			if matchErr != nil {
 				return "", nil, matchErr
 			}

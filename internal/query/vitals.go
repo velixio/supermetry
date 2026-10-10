@@ -158,7 +158,7 @@ func normalizeVitals(req api.VitalsRequest, site sites.Site, now time.Time) (nor
 		if filter.Dimension == "revenue_currency" {
 			return normalizedVitals{}, fmt.Errorf("filter dimension %q is not meaningful for Web Vitals", filter.Dimension)
 		}
-		if _, _, err := vitalsDimensionResolver("e")(filter.Dimension); err != nil {
+		if _, _, err := vitalsDimensionResolver("e", nil)(filter.Dimension); err != nil {
 			return normalizedVitals{}, err
 		}
 	}
@@ -197,7 +197,7 @@ func normalizeVitals(req api.VitalsRequest, site sites.Site, now time.Time) (nor
 
 func buildVitalsCTE(req normalizedVitals, dimension *api.VitalsDimension, daily bool) (string, []any, error) {
 	builder := &sqlBuilder{}
-	resolver := vitalsDimensionResolver("e")
+	resolver := vitalsDimensionResolver("e", builder)
 	directFilters, sessionFilters, specialFilters := splitVitalsFilters(req.filters)
 	siteArg := builder.arg(req.siteID)
 	retentionArg := builder.arg(req.retentionClass)
@@ -321,8 +321,8 @@ group by day
 order by day`, args, nil
 }
 
-func vitalsDimensionResolver(alias string) dimensionResolver {
-	base := customResolver(alias)
+func vitalsDimensionResolver(alias string, builder *sqlBuilder) dimensionResolver {
+	base := customResolver(alias, builder)
 	return func(dimension string) (string, *dict.Kind, error) {
 		prefix := alias + "."
 		switch dimension {
@@ -405,7 +405,7 @@ func vitalsFilterRelations(builder *sqlBuilder, req normalizedVitals, sessionFil
 		switch {
 		case filter.Dimension == "event" || filter.Dimension == "goal":
 			filter.Dimension = "event"
-			matches, err := filterConditions(builder, []api.Filter{filter}, customResolver(alias))
+			matches, err := filterConditions(builder, []api.Filter{filter}, customResolver(alias, builder))
 			if err != nil {
 				return nil, nil, err
 			}

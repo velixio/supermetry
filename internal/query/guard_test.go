@@ -96,6 +96,49 @@ func TestValidateFiltersUsesDashboardQueryRules(t *testing.T) {
 	}
 }
 
+func TestNormalizeEnforcesFilterComplexityLimits(t *testing.T) {
+	t.Parallel()
+
+	values := func(count int) []string {
+		result := make([]string, count)
+		for i := range result {
+			result[i] = "value"
+		}
+		return result
+	}
+	filterWithValues := func(operator api.FilterOperator, count int) api.Filter {
+		return api.Filter{Dimension: "page", Operator: operator, Values: values(count)}
+	}
+	tests := []struct {
+		name       string
+		filters    []api.Filter
+		wantDetail string
+	}{
+		{name: "50 values accepted", filters: []api.Filter{filterWithValues(api.Contains, 50)}},
+		{name: "51 values rejected", filters: []api.Filter{filterWithValues(api.Contains, 51)}, wantDetail: `filter "page" must not contain more than 50 values`},
+		{name: "too many LIKE clauses rejected", filters: []api.Filter{
+			filterWithValues(api.Contains, 50),
+			filterWithValues(api.StartsWith, 50),
+			filterWithValues(api.Contains, 1),
+		}, wantDetail: "filters must not produce more than 100 LIKE clauses"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, problem := query.Normalize(withFilters(requestPeriod(api.N7d), tt.filters...), sites.Site{ID: 1, TZ: time.UTC}, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC))
+			if tt.wantDetail == "" {
+				if problem != nil {
+					t.Fatalf("Normalize() problem = %+v, want success", problem)
+				}
+				return
+			}
+			if problem == nil || problem.Status != 400 || problem.Detail == nil || *problem.Detail != tt.wantDetail {
+				t.Fatalf("Normalize() problem = %+v, want status 400 detail %q", problem, tt.wantDetail)
+			}
+		})
+	}
+}
+
 func TestNormalizeResolvesPeriodsAndDefaults(t *testing.T) {
 	t.Parallel()
 

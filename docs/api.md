@@ -13,7 +13,7 @@ Read your analytics, manage sites and send server-side events over HTTP.
 - **Sites** are addressed by numeric `site_id`. List them with `GET /sites`.
 - **Dates** are `YYYY-MM-DD` in the site's time zone. Ranges are inclusive and can span up to 366 days (except `period=all`).
 - **Periods:** `today`, `yesterday`, `7d`, `30d`, `month`, `last_month`, `6mo`, `12mo`, `year`, `all`, or `custom` with `date_from` and `date_to`.
-- **Filters:** `filter=dimension:operator:value1,value2`. Repeat the parameter for several filters (up to 10). Operators are `is`, `is_not`, `contains` and `starts_with`. Use `GET /sites/{site_id}/suggestions` to find valid values.
+- **Filters:** `filter=dimension:operator:value1,value2`. Repeat the parameter for several filters (up to 10). A filter takes at most 50 values, and all `contains` and `starts_with` values in one request together are capped at 100. Requests over these limits get a 400 problem response. Operators are `is`, `is_not`, `contains` and `starts_with`. Use `GET /sites/{site_id}/suggestions` to find valid values.
 - **Dimensions:** `page`, `entry`, `exit`, `source`, `utm_source`, `utm_medium`, `utm_campaign`, `country`, `region`, `city`, `browser`, `os`, `device`, `event`, `goal`, `prop:<key>`, plus `time` and `hour` for time series.
 - **Metrics:** `visitors`, `visits`, `pageviews`, `views_per_visit`, `bounce_rate`, `visit_duration`, `engagement_time`, `scroll_depth`, `events`, `conversions`, `conversion_rate`, `total_revenue`, `average_revenue`.
 - **Pagination:** list endpoints return a `cursor`. Pass it back to get the next page. Page sizes are capped (`limit` ≤ 1000 for queries).

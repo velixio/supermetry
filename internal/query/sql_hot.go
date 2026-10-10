@@ -241,7 +241,7 @@ func hotEventRangeArgs(builder *sqlBuilder, part Part) (string, string) {
 
 func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 	builder := &sqlBuilder{}
-	baseResolver := customResolver("e")
+	baseResolver := customResolver("e", builder)
 	resolver := func(dimension string) (string, *dict.Kind, error) {
 		switch dimension {
 		case "browser_version":

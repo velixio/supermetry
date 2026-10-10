@@ -119,6 +119,27 @@ func TestNewDimensionsMatchForCustomEvents(t *testing.T) {
 	}
 }
 
+func TestPropertyDimensionWithSpecialKeyMatchesAcrossTiers(t *testing.T) {
+	pool, engine := setupTiny(t)
+	key := "quote'\\unicode-雪--"
+	value := "matched-✓"
+	for _, table := range []string{"events", "custom_closed"} {
+		if _, err := pool.Exec(context.Background(), "update "+table+" set props=jsonb_set(coalesce(props, '{}'::jsonb), array[$1], to_jsonb($2::text), true) where site_id=1", key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	dimension := "prop:" + key
+	req := queryRequest([]string{dimension}, nil)
+	req.Metrics = []api.Metric{api.Events}
+	for _, route := range []query.Route{query.RouteClosed, query.RouteHot} {
+		response := mustQuery(t, engine.WithForcedRoute(route), req)
+		if len(response.Rows) != 1 || response.Rows[0][dimension] != value || response.Rows[0]["events"] != float64(2) {
+			t.Fatalf("route %s rows = %+v, want one bound-key row with two events", route.String(), response.Rows)
+		}
+	}
+}
+
 func TestPageMetricsMatchHotClosedAndRollupTiers(t *testing.T) {
 	_, engine := setupPageMetricFixture(t)
 	req := pageMetricRequest(nil)

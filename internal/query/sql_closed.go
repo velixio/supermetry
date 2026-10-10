@@ -293,7 +293,7 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 
 func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 	builder := &sqlBuilder{}
-	resolver := closedCustomResolver("c")
+	resolver := closedCustomResolver(builder, "c")
 	dimensions, err := dimensionExpressions(req.Dimensions, resolver)
 	if err != nil {
 		return "", nil, err
@@ -321,8 +321,8 @@ func buildCustomClosedSQL(req Normalized, part Part) (string, []any, error) {
 	return aggregateSQL(dimensions, sums, "custom_closed c", where), builder.args, nil
 }
 
-func closedCustomResolver(alias string) dimensionResolver {
-	base := customResolver(alias)
+func closedCustomResolver(builder *sqlBuilder, alias string) dimensionResolver {
+	base := customResolver(alias, builder)
 	prefix := alias + "."
 	return func(dimension string) (string, *dict.Kind, error) {
 		switch dimension {
@@ -355,7 +355,7 @@ func eventAttributionAvailable(alias string) string {
 	return "num_nulls(" + strings.Join(columns, ",") + ")=0"
 }
 
-func customResolver(alias string) dimensionResolver {
+func customResolver(alias string, builder *sqlBuilder) dimensionResolver {
 	return func(dimension string) (string, *dict.Kind, error) {
 		prefix := alias + "."
 		switch {
@@ -368,7 +368,11 @@ func customResolver(alias string) dimensionResolver {
 			if key == "" {
 				return "", nil, errors.New("property dimension requires a key")
 			}
-			return prefix + "props ->> '" + strings.ReplaceAll(key, "'", "''") + "'", nil, nil
+			if builder == nil {
+				// Validation callers only need to know that the dimension exists.
+				return prefix + "props", nil, nil
+			}
+			return prefix + "props ->> " + builder.arg(key), nil, nil
 		case dimension == "page" || dimension == "path":
 			return prefix + "path_id", dictionaryKind(dict.Path), nil
 		case dimension == "source":
