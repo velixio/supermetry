@@ -26,13 +26,20 @@ import (
 	"supermetry/internal/writer"
 )
 
-const previousSaltWindow = 30 * time.Minute
+const (
+	previousSaltWindow             = 30 * time.Minute
+	defaultDimensionCardinalityCap = 10_000
+	defaultCompactCardinalityCap   = 200
+)
 
 // Bots counts filtered requests by enrich.BotReason. Index zero is unused.
 // Invalid counts rejected payloads without retaining request details.
 var (
 	Bots    [5]atomic.Int64
 	Invalid atomic.Int64
+	// DimensionOverflow counts dimension values folded into Other because a
+	// site's local-day cardinality bound was reached.
+	DimensionOverflow health.Counter
 )
 
 // Clock supplies the server timestamp used for accepted events.
@@ -44,22 +51,27 @@ type Clock interface {
 // or in-memory stores on the normal path; the bounded Writer applies the final
 // nonblocking backpressure decision.
 type Handler struct {
-	TrackingMode      privacy.Mode
-	PathPolicy        privacy.PathPolicy
-	Sites             sites.Registry
-	Enricher          *enrich.Enricher
-	Salts             *salts.Store
-	Dict              *dict.Dict
-	Sessions          session.Store
-	Writer            *writer.Writer
-	Limiter           RateLimiter
-	TrustedProxies    []netip.Prefix
-	Clock             Clock
-	Dedup             *Deduplicator
-	Diag              bool // log how each client address was resolved (SUPERMETRY_INGEST_DIAG=1)
-	capsOnce          sync.Once
-	caps              *valueCap
-	ProfileTombstones interface {
+	TrackingMode   privacy.Mode
+	PathPolicy     privacy.PathPolicy
+	Sites          sites.Registry
+	Enricher       *enrich.Enricher
+	Salts          *salts.Store
+	Dict           *dict.Dict
+	Sessions       session.Store
+	Writer         *writer.Writer
+	Limiter        RateLimiter
+	TrustedProxies []netip.Prefix
+	Clock          Clock
+	Dedup          *Deduplicator
+	Diag           bool // log how each client address was resolved (SUPERMETRY_INGEST_DIAG=1)
+	// DimensionCardinalityLimit configures the per-site, per-local-day limit
+	// shared by every dictionary kind. Zero uses 10,000 for previously
+	// unbounded kinds and retains 200 for version, language and hostname.
+	DimensionCardinalityLimit int
+	capsOnce                  sync.Once
+	caps                      *valueCap
+	compactCaps               *valueCap
+	ProfileTombstones         interface {
 		Contains(siteID int32, externalID string) bool
 	}
 }
@@ -334,13 +346,14 @@ func (h *Handler) acceptHeatmap(w http.ResponseWriter, ctx context.Context, payl
 	if path == "" {
 		path = "/"
 	}
-	pathID, err := h.dimensionID(ctx, dict.Path, path)
+	localDay := salts.LocalDay(eventTime, site.TZ)
+	pathID, err := h.dimensionID(ctx, site.ID, localDay, dict.Path, path)
 	if err != nil {
 		h.unavailable(w)
 		return false
 	}
 	if !h.Writer.EnqueueHeatmap(writer.HeatmapEvent{
-		SiteID: site.ID, LocalDay: salts.LocalDay(eventTime, site.TZ), PathID: pathID,
+		SiteID: site.ID, LocalDay: localDay, PathID: pathID,
 		ViewportWidth: payload.ViewportWidth, Clicks: payload.Clicks,
 	}) {
 		health.HeatmapDropped.Add(1)
@@ -391,64 +404,59 @@ func (h *Handler) buildEvent(
 	if multiHost(site) {
 		hostname = enrich.HostLabel(pageURL.Host)
 	}
-	client.BrowserVersion = h.capValue(site.ID, localDay, dict.BrowserVersion, client.BrowserVersion)
-	client.OSVersion = h.capValue(site.ID, localDay, dict.OSVersion, client.OSVersion)
-	language = h.capValue(site.ID, localDay, dict.Language, language)
-	hostname = h.capValue(site.ID, localDay, dict.Hostname, hostname)
-
-	pathID, err := h.dimensionID(ctx, dict.Path, path)
+	pathID, err := h.dimensionID(ctx, site.ID, localDay, dict.Path, path)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	referrerID, err := h.dimensionID(ctx, dict.Referrer, payload.Referrer)
+	referrerID, err := h.dimensionID(ctx, site.ID, localDay, dict.Referrer, payload.Referrer)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	sourceID, err := h.dimensionID(ctx, dict.Source, source)
+	sourceID, err := h.dimensionID(ctx, site.ID, localDay, dict.Source, source)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	utmSourceID, err := h.dimensionID(ctx, dict.Source, utm.Source)
+	utmSourceID, err := h.dimensionID(ctx, site.ID, localDay, dict.Source, utm.Source)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	mediumID, err := h.dimensionID(ctx, dict.Medium, medium)
+	mediumID, err := h.dimensionID(ctx, site.ID, localDay, dict.Medium, medium)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	campaignID, err := h.dimensionID(ctx, dict.Campaign, utm.Campaign)
+	campaignID, err := h.dimensionID(ctx, site.ID, localDay, dict.Campaign, utm.Campaign)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	regionID, err := h.dimensionID(ctx, dict.Region, location.Region)
+	regionID, err := h.dimensionID(ctx, site.ID, localDay, dict.Region, location.Region)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	cityID, err := h.dimensionID(ctx, dict.City, location.City)
+	cityID, err := h.dimensionID(ctx, site.ID, localDay, dict.City, location.City)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	browserID, err := h.dimensionID(ctx, dict.Browser, client.Browser)
+	browserID, err := h.dimensionID(ctx, site.ID, localDay, dict.Browser, client.Browser)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	osID, err := h.dimensionID(ctx, dict.OS, client.OS)
+	osID, err := h.dimensionID(ctx, site.ID, localDay, dict.OS, client.OS)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	browserVersionID, err := h.dimensionID(ctx, dict.BrowserVersion, client.BrowserVersion)
+	browserVersionID, err := h.dimensionID(ctx, site.ID, localDay, dict.BrowserVersion, client.BrowserVersion)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	osVersionID, err := h.dimensionID(ctx, dict.OSVersion, client.OSVersion)
+	osVersionID, err := h.dimensionID(ctx, site.ID, localDay, dict.OSVersion, client.OSVersion)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	languageID, err := h.dimensionID(ctx, dict.Language, language)
+	languageID, err := h.dimensionID(ctx, site.ID, localDay, dict.Language, language)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
-	hostnameID, err := h.dimensionID(ctx, dict.Hostname, hostname)
+	hostnameID, err := h.dimensionID(ctx, site.ID, localDay, dict.Hostname, hostname)
 	if err != nil {
 		return writer.Event{}, session.Hit{}, err
 	}
@@ -461,7 +469,7 @@ func (h *Handler) buildEvent(
 	case "engagement":
 		kind = 2
 	default:
-		nameID, err = h.dimensionID(ctx, dict.EventName, payload.Name)
+		nameID, err = h.dimensionID(ctx, site.ID, localDay, dict.EventName, payload.Name)
 		if err != nil {
 			return writer.Event{}, session.Hit{}, err
 		}
@@ -487,8 +495,23 @@ func (h *Handler) buildEvent(
 }
 
 func (h *Handler) capValue(siteID int32, localDay time.Time, kind dict.Kind, value string) string {
-	h.capsOnce.Do(func() { h.caps = newValueCap(200) })
-	return h.caps.Admit(siteID, localDay, kind, value)
+	h.capsOnce.Do(func() {
+		limit := h.DimensionCardinalityLimit
+		compactLimit := defaultCompactCardinalityCap
+		if limit <= 0 {
+			limit = defaultDimensionCardinalityCap
+		} else {
+			compactLimit = limit
+		}
+		h.caps = newValueCap(limit)
+		h.compactCaps = newValueCap(compactLimit)
+	})
+	caps := h.caps
+	switch kind {
+	case dict.BrowserVersion, dict.OSVersion, dict.Language, dict.Hostname:
+		caps = h.compactCaps
+	}
+	return caps.Admit(siteID, localDay, kind, value)
 }
 
 func multiHost(site sites.Site) bool {
@@ -503,13 +526,20 @@ func multiHost(site sites.Site) bool {
 	return false
 }
 
-func (h *Handler) dimensionID(ctx context.Context, kind dict.Kind, value string) (int32, error) {
+func (h *Handler) dimensionID(ctx context.Context, siteID int32, localDay time.Time, kind dict.Kind, value string) (int32, error) {
 	if value == "" {
 		return 0, nil
 	}
+	original := value
+	value = h.capValue(siteID, localDay, kind, value)
 	ids, err := h.Dict.IDs(ctx, kind, []string{value})
 	if err != nil {
 		return 0, err
+	}
+	if original != OtherValue {
+		if resolved, ok := h.Dict.Value(kind, ids[0]); ok && resolved == OtherValue {
+			DimensionOverflow.Add(1)
+		}
 	}
 	return ids[0], nil
 }

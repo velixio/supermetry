@@ -1,12 +1,16 @@
 package ingest
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"supermetry/internal/db"
 	"supermetry/internal/dict"
 	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 func TestValueCapFoldsAfterLimitPerSiteAndDay(t *testing.T) {
@@ -80,5 +84,78 @@ func TestMultiHostIncludesWildcardSites(t *testing.T) {
 				t.Errorf("multiHost() = %t, want %t", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDimensionIDCapsEveryAttackerControlledKind(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	const dailyLimit = 3
+	h := &Handler{
+		Dict:                      dict.New(pool),
+		DimensionCardinalityLimit: dailyLimit,
+	}
+	day := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	kinds := []dict.Kind{
+		dict.Path, dict.Referrer, dict.Source, dict.Medium, dict.Campaign,
+		dict.UTMContent, dict.UTMTerm, dict.EventName, dict.PropKey,
+		dict.Region, dict.City, dict.BrowserVersion, dict.OSVersion,
+		dict.Language, dict.Hostname,
+	}
+	before := DimensionOverflow.Load()
+	for _, kind := range kinds {
+		var overflowID int32
+		for i := 0; i <= dailyLimit; i++ {
+			value := fmt.Sprintf("%d-%d-%s", kind, i, strings.Repeat("x", 300))
+			id, err := h.dimensionID(ctx, 42, day, kind, value)
+			if err != nil {
+				t.Fatalf("kind %d value %d: %v", kind, i, err)
+			}
+			if i < dailyLimit {
+				if id == 0 || id == overflowID {
+					t.Fatalf("kind %d legitimate value %d folded early to %d", kind, i, id)
+				}
+				continue
+			}
+			overflowID = id
+			if got, ok := h.Dict.Value(kind, id); !ok || got != OtherValue {
+				t.Fatalf("kind %d overflow = %q, %v, want %q", kind, got, ok, OtherValue)
+			}
+		}
+	}
+	if delta := DimensionOverflow.Load() - before; delta != uint64(len(kinds)) {
+		t.Fatalf("overflow counter delta = %d, want %d", delta, len(kinds))
+	}
+}
+
+func TestDimensionIDCountsDictionaryOverflow(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	h := &Handler{
+		Dict:                      dict.New(pool, dict.WithMaxEntriesPerKind(2)),
+		DimensionCardinalityLimit: 10,
+	}
+	day := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	before := DimensionOverflow.Load()
+	if _, err := h.dimensionID(ctx, 42, day, dict.Path, "/first"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := h.dimensionID(ctx, 42, day, dict.Path, "/dictionary-overflow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := h.Dict.Value(dict.Path, id); !ok || got != OtherValue {
+		t.Fatalf("dictionary overflow = %q, %v, want %q", got, ok, OtherValue)
+	}
+	if delta := DimensionOverflow.Load() - before; delta != 1 {
+		t.Fatalf("overflow counter delta = %d, want 1", delta)
 	}
 }
