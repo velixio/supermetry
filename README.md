@@ -22,10 +22,10 @@ Privacy-friendly, self-hosted web analytics. One Go binary and PostgreSQL. No Cl
 ## Quick start (Docker Compose)
 
 ```sh
-cd deploy
-cp ../.env.example .env
+cp .env.example .env
 # Edit .env: set SUPERMETRY_SECRET_KEY, SUPERMETRY_BASE_URL and SUPERMETRY_DATABASE_URL
 # (use host.docker.internal, not localhost, to reach PostgreSQL on this machine)
+cd deploy
 docker compose up -d --build
 # No PostgreSQL yet? See deploy/README.md for the bundled-db profile.
 ```

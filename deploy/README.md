@@ -9,25 +9,20 @@ does not affect same-instance authentication, API, tracker, cookies, or email li
 
 ## Docker Compose
 
-From this directory:
+Compose reads its settings from the `.env` file in the repository root (`../.env`), the same file the binary uses:
 
 ```sh
-cp ../.env.example .env
-# Edit .env: set SUPERMETRY_SECRET_KEY and SUPERMETRY_BASE_URL.
-```
-
-Set `SUPERMETRY_DATABASE_URL` in `.env` to your PostgreSQL, then start it:
-
-```sh
+cp ../.env.example ../.env
+# Edit ../.env: set SUPERMETRY_SECRET_KEY, SUPERMETRY_BASE_URL and SUPERMETRY_DATABASE_URL.
 docker compose up -d --build
 ```
 
-The service uses `SUPERMETRY_DATABASE_URL` from `.env` as it is. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
+The service uses `SUPERMETRY_DATABASE_URL` from that file as it is. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
 
-**No PostgreSQL yet?** Let Compose run one. Choose a password, put it in `.env` twice, and add the `bundled-db` profile:
+**No PostgreSQL yet?** Let Compose run one. Choose a password, put it in `../.env` twice, and add the `bundled-db` profile:
 
 ```sh
-# .env
+# ../.env
 POSTGRES_PASSWORD=choose-a-password
 SUPERMETRY_DATABASE_URL=postgres://supermetry:choose-a-password@postgres:5432/supermetry?sslmode=disable
 ```
@@ -36,7 +31,7 @@ SUPERMETRY_DATABASE_URL=postgres://supermetry:choose-a-password@postgres:5432/su
 docker compose --profile bundled-db up -d --build
 ```
 
-You can put `COMPOSE_PROFILES=bundled-db` in `.env` and use a plain `docker compose up -d --build` instead. URL-encode special characters in the password inside the URL. The database is kept in the `postgres-data` volume.
+The `postgres` container reads the same `../.env`, so it also receives the other `SUPERMETRY_*` values. They are harmless to it, but keep the file private. URL-encode special characters in the password inside the URL. The database is kept in the `postgres-data` volume.
 
 Compose overrides `SUPERMETRY_LISTEN` for its service network. Application data is kept
 in the `supermetry-data` named volume. The application port

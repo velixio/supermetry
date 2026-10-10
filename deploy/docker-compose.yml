@@ -1,14 +1,15 @@
 # docker compose up -d --build
 #
-# The app reads SUPERMETRY_DATABASE_URL from deploy/.env. Inside the container,
+# The app reads its settings, including SUPERMETRY_DATABASE_URL, from the .env file in
+# the repository root (../.env). Inside the container,
 # `localhost` is the container itself: use host.docker.internal to reach a
 # PostgreSQL running on this machine.
 #
-# To run PostgreSQL in a container too, add the bundled-db profile and set, in .env:
+# To run PostgreSQL in a container too, set in ../.env:
 #   POSTGRES_PASSWORD=<password>
 #   SUPERMETRY_DATABASE_URL=postgres://supermetry:<password>@postgres:5432/supermetry?sslmode=disable
+# and start with the bundled-db profile:
 #   docker compose --profile bundled-db up -d --build
-# (or COMPOSE_PROFILES=bundled-db in .env, then a plain `docker compose up`).
 
 services:
   supermetry:
@@ -16,8 +17,8 @@ services:
       context: ..
       dockerfile: Dockerfile
     env_file:
-      # Start with: cp ../.env.example .env
-      - .env
+      # Start with: cp .env.example .env   (in the repository root)
+      - ../.env
     environment:
       SUPERMETRY_DATA_DIR: /data
       SUPERMETRY_LISTEN: 0.0.0.0:8787
@@ -39,8 +40,9 @@ services:
     environment:
       POSTGRES_DB: supermetry
       POSTGRES_USER: supermetry
-      # Required when this profile is on: PostgreSQL refuses to start without it.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    env_file:
+      # POSTGRES_PASSWORD comes from ../.env. PostgreSQL refuses to start without it.
+      - ../.env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U supermetry -d supermetry"]
       interval: 5s
