@@ -26,9 +26,9 @@ type Stats struct {
 	Duration time.Duration
 }
 
-// Due returns each configured site's most recently ended local day once the
-// local clock has passed midnight plus the session-idle grace period.
-func Due(now time.Time, reg sites.Registry, closed func(site int32, day time.Time) bool) map[time.Time][]int32 {
+// Due returns every missing retained day through each site's most recently
+// ended local day once the session-idle grace period has passed.
+func Due(now time.Time, reg sites.Registry, closed func(site int32, day time.Time) bool, starts ...func(int32) time.Time) map[time.Time][]int32 {
 	due := make(map[time.Time][]int32)
 	for _, site := range reg.All() {
 		location := site.TZ
@@ -41,11 +41,25 @@ func Due(now time.Time, reg sites.Registry, closed func(site int32, day time.Tim
 			continue
 		}
 		previous := midnight.AddDate(0, 0, -1)
-		day := time.Date(previous.Year(), previous.Month(), previous.Day(), 0, 0, 0, 0, time.UTC)
-		if closed != nil && closed(site.ID, day) {
-			continue
+		latest := time.Date(previous.Year(), previous.Month(), previous.Day(), 0, 0, 0, 0, time.UTC)
+		first := latest
+		if len(starts) > 0 && starts[0] != nil {
+			if started := starts[0](site.ID); !started.IsZero() {
+				first = date(started)
+			}
 		}
-		due[day] = append(due[day], site.ID)
+		if site.Retention > 0 {
+			retained := latest.AddDate(0, 0, -int(site.Retention)+1)
+			if first.Before(retained) {
+				first = retained
+			}
+		}
+		for day := first; !day.After(latest); day = day.AddDate(0, 0, 1) {
+			if closed != nil && closed(site.ID, day) {
+				continue
+			}
+			due[day] = append(due[day], site.ID)
+		}
 	}
 	for day := range due {
 		sort.Slice(due[day], func(i, j int) bool { return due[day][i] < due[day][j] })

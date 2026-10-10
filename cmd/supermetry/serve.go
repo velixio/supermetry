@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"supermetry/web"
@@ -791,7 +792,28 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore repl
 }
 
 func closeDueDays(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, closed *closedDays, now time.Time, invalidators ...func(int32)) error {
-	due := closer.Due(now, registry, closed.IsClosed)
+	starts := make(map[int32]time.Time)
+	startRows, err := pool.Query(ctx, `
+		select id, (created_at at time zone timezone)::date
+		from sites where deleted_at is null`)
+	if err != nil {
+		return fmt.Errorf("load site start days: %w", err)
+	}
+	for startRows.Next() {
+		var siteID int32
+		var day time.Time
+		if err := startRows.Scan(&siteID, &day); err != nil {
+			startRows.Close()
+			return fmt.Errorf("scan site start day: %w", err)
+		}
+		starts[siteID] = civilDay(day)
+	}
+	if err := startRows.Err(); err != nil {
+		startRows.Close()
+		return fmt.Errorf("iterate site start days: %w", err)
+	}
+	startRows.Close()
+	due := closer.Due(now, registry, closed.IsClosed, func(siteID int32) time.Time { return starts[siteID] })
 	rows, err := pool.Query(ctx, `select site_id, day from dirty_day order by day, site_id`)
 	if err != nil {
 		return fmt.Errorf("load dirty days: %w", err)
@@ -810,18 +832,34 @@ func closeDueDays(ctx context.Context, pool *pgxpool.Pool, registry sites.Regist
 		return fmt.Errorf("iterate dirty days: %w", err)
 	}
 	rows.Close()
-	for day, siteIDs := range due {
-		if _, err := closer.CloseDay(ctx, pool, siteIDs, day); err != nil {
-			return err
-		}
-		closed.Mark(siteIDs, day)
-		if len(invalidators) > 0 && invalidators[0] != nil {
-			for _, siteID := range siteIDs {
+	days := make([]time.Time, 0, len(due))
+	for day := range due {
+		days = append(days, day)
+	}
+	sort.Slice(days, func(i, j int) bool { return days[i].Before(days[j]) })
+	var failures []error
+	for _, day := range days {
+		siteIDs := due[day]
+		sort.Slice(siteIDs, func(i, j int) bool { return siteIDs[i] < siteIDs[j] })
+		seen := make(map[int32]bool, len(siteIDs))
+		for _, siteID := range siteIDs {
+			if seen[siteID] {
+				continue
+			}
+			seen[siteID] = true
+			if _, err := closer.CloseDay(ctx, pool, []int32{siteID}, day); err != nil {
+				wrapped := fmt.Errorf("close site %d day %s: %w", siteID, day.Format(time.DateOnly), err)
+				slog.Error("close day failed", "site_id", siteID, "day", day.Format(time.DateOnly), "error", err)
+				failures = append(failures, wrapped)
+				continue
+			}
+			closed.Mark([]int32{siteID}, day)
+			if len(invalidators) > 0 && invalidators[0] != nil {
 				invalidators[0](siteID)
 			}
 		}
 	}
-	return nil
+	return errors.Join(failures...)
 }
 
 func closeDays(ctx context.Context, args []string) error {

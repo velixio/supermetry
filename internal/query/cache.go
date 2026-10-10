@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -46,8 +47,10 @@ type closeMetadataEntry struct {
 }
 
 type closeMetadata struct {
-	closed map[time.Time]int64
-	blocks map[dayBlock]bool
+	closed      map[time.Time]int64
+	blocks      map[dayBlock]bool
+	firstClosed time.Time
+	siteStart   time.Time
 	// maxCloseVersion is a site-wide generation: per-day versions only
 	// increase, so their sum changes whenever any closed day is rewritten.
 	maxCloseVersion int64
@@ -180,6 +183,14 @@ func (e *Engine) loadCloseMetadata(ctx context.Context, siteID int32) (closeMeta
 		blocks: make(map[dayBlock]bool),
 	}
 	err := WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `
+			select (created_at at time zone timezone)::date
+			from sites where id=$1`, siteID).Scan(&metadata.siteStart); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if !metadata.siteStart.IsZero() {
+			metadata.siteStart = civilDate(metadata.siteStart)
+		}
 		rows, err := tx.Query(ctx, `select day, version from day_close where site_id=$1 and status='done'`, siteID)
 		if err != nil {
 			return err
@@ -191,7 +202,11 @@ func (e *Engine) loadCloseMetadata(ctx context.Context, siteID int32) (closeMeta
 				rows.Close()
 				return err
 			}
-			metadata.closed[civilDate(day)] = version
+			day = civilDate(day)
+			metadata.closed[day] = version
+			if metadata.firstClosed.IsZero() || day.Before(metadata.firstClosed) {
+				metadata.firstClosed = day
+			}
 			metadata.maxCloseVersion += version
 		}
 		if err := rows.Err(); err != nil {
@@ -222,12 +237,34 @@ func (e *Engine) loadCloseMetadata(ctx context.Context, siteID int32) (closeMeta
 }
 
 func (m closeMetadata) closedThrough(from, to time.Time) time.Time {
-	for day := civilDate(from); !day.After(to); day = day.AddDate(0, 0, 1) {
+	from = m.dataStart(from)
+	if from.After(to) {
+		return from.AddDate(0, 0, -1)
+	}
+	for day := from; !day.After(to); day = day.AddDate(0, 0, 1) {
 		if _, ok := m.closed[day]; !ok {
 			return day.AddDate(0, 0, -1)
 		}
 	}
 	return civilDate(to)
+}
+
+func (m closeMetadata) dataStart(from time.Time) time.Time {
+	from = civilDate(from)
+	// Compatibility registries may not have a corresponding platform site row.
+	// Without an authoritative creation date, preserve raw coverage before the
+	// first close instead of guessing that the site did not exist.
+	if m.siteStart.IsZero() {
+		return from
+	}
+	start := m.siteStart
+	if !m.firstClosed.IsZero() && m.firstClosed.Before(start) {
+		start = m.firstClosed
+	}
+	if !from.Before(start) {
+		return from
+	}
+	return start
 }
 
 func cloneResponse(response api.QueryResponse) api.QueryResponse {

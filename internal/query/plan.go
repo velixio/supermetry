@@ -54,23 +54,42 @@ var (
 // Plan splits an inclusive range at closedThrough and chooses the cheapest
 // exact source capable of answering the closed part.
 func Plan(req Normalized, closedThrough time.Time) []Part {
+	return planParts(req, req.From, func(day time.Time) bool {
+		return !day.After(civilDate(closedThrough))
+	})
+}
+
+func (m closeMetadata) plan(req Normalized) []Part {
+	return planParts(req, m.dataStart(req.From), func(day time.Time) bool {
+		_, ok := m.closed[day]
+		return ok
+	})
+}
+
+func planParts(req Normalized, from time.Time, isClosed func(time.Time) bool) []Part {
 	if req.From.After(req.To) {
+		return nil
+	}
+	from = maxTime(req.From, civilDate(from))
+	if from.After(req.To) {
 		return nil
 	}
 	// Hour buckets are intentionally limited by the API to seven days and are
 	// read from retained raw sessions because the closed tier stores civil days.
 	if containsDimension(req.Dimensions, "hour") {
-		return []Part{{Route: RouteHot, From: req.From, To: req.To}}
+		return []Part{{Route: RouteHot, From: from, To: req.To}}
 	}
-	closedThrough = civilDate(closedThrough)
-	var parts []Part
-	closedTo := minTime(req.To, closedThrough)
-	if !closedTo.Before(req.From) {
-		parts = append(parts, Part{Route: closedRoute(req), From: req.From, To: closedTo})
-	}
-	hotFrom := maxTime(req.From, closedThrough.AddDate(0, 0, 1))
-	if !hotFrom.After(req.To) {
-		parts = append(parts, Part{Route: RouteHot, From: hotFrom, To: req.To})
+	parts := make([]Part, 0, 3)
+	for day := from; !day.After(req.To); day = day.AddDate(0, 0, 1) {
+		route := RouteHot
+		if isClosed(day) {
+			route = closedRoute(req)
+		}
+		if len(parts) > 0 && parts[len(parts)-1].Route == route && parts[len(parts)-1].To.AddDate(0, 0, 1).Equal(day) {
+			parts[len(parts)-1].To = day
+			continue
+		}
+		parts = append(parts, Part{Route: route, From: day, To: day})
 	}
 	return parts
 }
@@ -227,7 +246,7 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 
 func (e *Engine) queryNormalized(ctx context.Context, req api.QueryRequest, site sites.Site, normalized Normalized, now time.Time, metadata closeMetadata) (api.QueryResponse, error) {
 	closedThrough := metadata.closedThrough(normalized.From, normalized.To)
-	parts := Plan(normalized, closedThrough)
+	parts := metadata.plan(normalized)
 	if e.forcedRoute != nil {
 		parts = []Part{{Route: *e.forcedRoute, From: normalized.From, To: normalized.To}}
 	}
@@ -464,14 +483,16 @@ func cacheEligible(req Normalized, site sites.Site, now time.Time, metadata clos
 		location = time.UTC
 	}
 	today := civilDate(now.In(location))
-	if !req.To.Before(today) || metadata.closedThrough(req.From, req.To).Before(req.To) {
+	if !req.To.Before(today) || !partsExcludeHot(metadata.plan(req)) {
 		return false
 	}
 	if req.Compare == nil {
 		return true
 	}
 	from, to := comparisonRange(req.From, req.To, *req.Compare)
-	return to.Before(today) && !metadata.closedThrough(from, to).Before(to)
+	comparison := req
+	comparison.From, comparison.To = from, to
+	return to.Before(today) && partsExcludeHot(metadata.plan(comparison))
 }
 
 func partsExcludeHot(parts []Part) bool {

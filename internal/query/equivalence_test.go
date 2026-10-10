@@ -391,6 +391,53 @@ func TestQueryDoesNotSkipGapBeforeLatestClosedDay(t *testing.T) {
 	}
 }
 
+func TestQueryClampsBeforeFirstClosedDayAndReadsAcrossGap(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, day("2026-01-01"), day("2026-04-01")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into orgs(id,name,slug) overriding system value values (1,'Range clamp','range-clamp');
+insert into sites(id,org_id,public_id,name,timezone,retention_class,created_at) overriding system value
+values (1,1,'rangeclamp01','Range clamp','UTC',365,'2026-01-10 12:00Z');
+insert into day_close(site_id,day,status,version)
+select 1, day::date, 'done', 1
+from generate_series('2026-01-15'::date,'2026-03-31'::date,interval '1 day') day
+where day::date <> '2026-02-10'::date;
+insert into rollup_day
+  (site_id,day,visitors,visits,pageviews,bounces,duration_ms,engagement_ms,scroll_sum,scroll_n)
+select 1, day::date, 1, 2, 3, 0, 0, 0, 0, 0
+from generate_series('2026-01-15'::date,'2026-03-31'::date,interval '1 day') day
+where day::date <> '2026-02-10'::date;
+insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,
+   pageviews,events,engagement_ms,bounce)
+select 1,365,id,id,'2026-02-10 12:00Z','2026-02-10 12:01Z','2026-02-10',
+       case when id=7 then 5 else 1 end,0,0,true
+from generate_series(1,7) id;
+insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,
+   pageviews,events,engagement_ms,bounce)
+values (1,365,8,8,'2026-01-12 12:00Z','2026-01-12 12:01Z','2026-01-12',1,0,0,true)`); err != nil {
+		t.Fatal(err)
+	}
+
+	engine := identifiedEngine(pool, dict.New(pool), registry{site: sites.Site{
+		ID: 1, PublicID: "rangeclamp01", TZ: time.UTC, Retention: db.Ret365,
+	}})
+	got := mustQuery(t, engine, queryRequestRange("2025-04-01", "2026-03-31", nil, nil))
+	if got.Totals["visitors"] != 83 || got.Totals["visits"] != 158 || got.Totals["pageviews"] != 237 {
+		t.Fatalf("totals across pre-site range and close gap = %v, want visitors=83 visits=158 pageviews=237 (one raw session before the first close day)", got.Totals)
+	}
+	if !reflect.DeepEqual(got.Meta.SourcesUsed, []string{"hot", "rollup"}) {
+		t.Fatalf("sources = %v, want hot and rollup", got.Meta.SourcesUsed)
+	}
+}
+
 func TestRollupUsesCompletedDayBlocks(t *testing.T) {
 	pool, engine := setupTiny(t)
 	req := queryRequest([]string{"country"}, nil)

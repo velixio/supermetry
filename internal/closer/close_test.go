@@ -80,6 +80,24 @@ func TestDueRespectsLocalMidnightPlus45m(t *testing.T) {
 	}
 }
 
+func TestDueReturnsEveryMissingRetainedDayAfterOutage(t *testing.T) {
+	reg := registry{sites: []sites.Site{{ID: 1, TZ: time.UTC, Retention: db.Ret30}}}
+	created := func(int32) time.Time { return utc(2026, 10, 1, 0, 0) }
+	closed := func(_ int32, day time.Time) bool {
+		return day.Before(utc(2026, 10, 7, 0, 0))
+	}
+
+	due := closer.Due(utc(2026, 10, 10, 0, 46), reg, closed, created)
+	for _, value := range []string{"2026-10-07", "2026-10-08", "2026-10-09"} {
+		if !has(due, 1, value) {
+			t.Errorf("missing catch-up day %s in due=%v", value, due)
+		}
+	}
+	if len(due) != 3 {
+		t.Fatalf("due has %d days, want exactly 3: %v", len(due), due)
+	}
+}
+
 func TestCloseDayMatchesTruthAndIsIdempotent(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
