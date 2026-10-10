@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: supermetry {serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|version}")
+		fmt.Fprintln(os.Stderr, "usage: supermetry {serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|migrate-labels|version}")
 		os.Exit(2)
 	}
 
@@ -49,6 +49,11 @@ func main() {
 		}
 	case "load":
 		if err := loadCommand(context.Background(), os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "migrate-labels":
+		if err := migrateLabelsCommand(context.Background(), os.Args[2:], os.Stdout, os.Getenv); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

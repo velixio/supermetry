@@ -392,7 +392,7 @@ func newServiceTestWithDeliverer(t *testing.T, deliverer Deliverer) (*Service, *
 	if err := pool.QueryRow(ctx, `insert into goals(site_id,kind,match,value,name) values ($1,'event','exact','signup','Signup') returning id`, siteID).Scan(&goalID); err != nil {
 		t.Fatal(err)
 	}
-	box, err := platformcrypto.NewSecretBox([]byte("01234567890123456789012345678901"), "panel/alerts/v1")
+	box, err := platformcrypto.NewSecretBox([]byte("01234567890123456789012345678901"), "supermetry/alerts/v1")
 	if err != nil {
 		t.Fatal(err)
 	}

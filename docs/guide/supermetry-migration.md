@@ -26,13 +26,24 @@ Before upgrading an existing installation:
    defaults to `https://supermetry.com`.
 
 The database migration history and stored analytics rows are not renamed or
-reset. The historical `panel/.../v1` cryptographic derivation labels and path
-policy fingerprint seed are intentionally retained as persisted data-format
-identifiers; changing them would make encrypted values unreadable or invalidate
-stored provenance. They are not configuration aliases or public namespaces.
+reset. Encryption-key labels and the path-policy fingerprint seed now use the
+`supermetry/...` names, so run the one-shot command once after the upgrade
+and before starting the new release, with the same `SUPERMETRY_SECRET_KEY` and
+`SUPERMETRY_TRACKING_PUBLIC_PATHS` as before:
+
+```sh
+supermetry migrate-labels
+```
+
+It re-encrypts TOTP secrets, alert channel secrets and the replay S3 secret
+key, and rewrites stored path-policy IDs, all in one transaction. It is
+idempotent and fails without changing anything if the secret key is wrong.
+Path-policy rows written under a policy that is no longer configured cannot
+be mapped and keep their old ID. Until the command has run, TOTP codes, alert
+secrets and the stored S3 key will not decrypt.
+
 Historical design specifications and benchmark result artifacts also retain the
 names, commands, paths and output keys that were true when those records were
 created. Current guides, examples and runtime configuration use Supermetry.
-Back up the database and data directory before the cutover. Existing
-`velixio/panel` repository links remain valid until a separate repository rename
-is authorized and completed.
+Back up the database and data directory before the cutover. The
+repository is now `velixio/supermetry`.

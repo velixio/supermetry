@@ -65,7 +65,7 @@ func newMembershipHTTPFixture(t *testing.T) membershipHTTPFixture {
 			t.Fatal(err)
 		}
 	}
-	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/totp/v1")
 	if err != nil {
 		t.Fatal(err)
 	}

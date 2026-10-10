@@ -34,7 +34,7 @@ func newAccountHTTPFixture(t *testing.T, sender mail.Sender) accountHTTPFixture 
 		t.Fatal(err)
 	}
 	data := &store.Store{Pool: pool}
-	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/totp/v1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestEmailChangeWithoutSMTPIsConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := &store.Store{Pool: pool}
-	box, _ := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	box, _ := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/totp/v1")
 	authService := platformauth.New(data, disabledSender{}, box, "https://supermetry.example")
 	userID, _ := users.New(data).Create(context.Background(), "owner@example.test", "Owner", "pw-123456789")
 	handler := platformhttp.New(platformhttp.Deps{Auth: authService, Store: data, Authenticator: actorAuthenticator{"owner": {UserID: userID, OrgID: 1, Role: authz.RoleOwner}}})

@@ -166,7 +166,7 @@ func TestAnonymousAuthRouteMatrix(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := &store.Store{Pool: pool}
-	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/totp/v1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := &store.Store{Pool: pool}
-	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/totp/v1")
 	if err != nil {
 		t.Fatal(err)
 	}

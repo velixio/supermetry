@@ -65,7 +65,7 @@ func newAuthWithClock(t *testing.T, clock *fakeClock) authEnv {
 		t.Fatal(err)
 	}
 	s := &store.Store{Pool: pool}
-	box, err := platformcrypto.NewSecretBox(testSecretKey, "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox(testSecretKey, "supermetry/totp/v1")
 	if err != nil {
 		t.Fatal(err)
 	}

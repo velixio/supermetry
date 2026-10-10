@@ -226,7 +226,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill, engine.InvalidateSite)
 	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
-	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/totp/v1")
+	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/totp/v1")
 	if err != nil {
 		return fmt.Errorf("initialize TOTP encryption: %w", err)
 	}
@@ -243,7 +243,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	engine.SetGoalLookup(definitionService)
 	reportService := reports.New(platformStore, engine, registry, sender)
 	reportService.SetTrackingMode(cfg.Tracking.Mode)
-	alertBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/alerts/v1")
+	alertBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/alerts/v1")
 	if err != nil {
 		return fmt.Errorf("initialize alert encryption: %w", err)
 	}

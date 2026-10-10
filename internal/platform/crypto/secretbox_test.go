@@ -8,7 +8,7 @@ import (
 )
 
 func TestSecretBox(t *testing.T) {
-	box, err := platformcrypto.NewSecretBox(bytes.Repeat([]byte{7}, 32), "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox(bytes.Repeat([]byte{7}, 32), "supermetry/totp/v1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestSecretBox(t *testing.T) {
 }
 
 func TestNewSecretBoxRejectsShortMasterKey(t *testing.T) {
-	if _, err := platformcrypto.NewSecretBox(make([]byte, 31), "panel/totp/v1"); err == nil {
+	if _, err := platformcrypto.NewSecretBox(make([]byte, 31), "supermetry/totp/v1"); err == nil {
 		t.Fatal("short master key accepted")
 	}
 }

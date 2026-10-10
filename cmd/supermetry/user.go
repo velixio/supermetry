@@ -136,7 +136,7 @@ func userServices(ctx context.Context) (config.Config, *store.Store, *platformau
 		pool.Close()
 		return config.Config{}, nil, nil, func() {}, err
 	}
-	box, err := platformcrypto.NewSecretBox(cfg.SecretKey, "panel/totp/v1")
+	box, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/totp/v1")
 	if err != nil {
 		pool.Close()
 		return config.Config{}, nil, nil, func() {}, fmt.Errorf("initialize TOTP encryption: %w", err)

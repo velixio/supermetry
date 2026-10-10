@@ -18,7 +18,7 @@ const (
 	defaultSampleRate    = 15
 	defaultRetentionDays = 30
 	defaultQuotaBytes    = int64(5 * 1024 * 1024 * 1024)
-	replayS3SecretInfo   = "panel/replay-s3/v1"
+	replayS3SecretInfo   = "supermetry/replay-s3/v1"
 )
 
 type Value[T any] struct {

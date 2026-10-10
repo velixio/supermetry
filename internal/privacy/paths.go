@@ -75,8 +75,24 @@ func (p PathPolicy) Fingerprint() string {
 var emptyPathFingerprint = pathFingerprint(nil)
 
 func pathFingerprint(paths []string) string {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("panel/path-sanitizer/v%d\n", PathSanitizerVersion) + strings.Join(paths, "\n")))
+	return fingerprintForLabel(fmt.Sprintf("supermetry/path-sanitizer/v%d", PathSanitizerVersion), paths)
+}
+
+func fingerprintForLabel(label string, paths []string) string {
+	digest := sha256.Sum256([]byte(label + "\n" + strings.Join(paths, "\n")))
 	return hex.EncodeToString(digest[:])
+}
+
+// FingerprintForLabel returns the fingerprint this policy had under an earlier
+// seed label. It exists only so a one-shot migration can map stored policy IDs
+// to the current ones.
+func (p PathPolicy) FingerprintForLabel(label string) string {
+	ordered := make([]string, 0, len(p.public))
+	for literal := range p.public {
+		ordered = append(ordered, literal)
+	}
+	sort.Strings(ordered)
+	return fingerprintForLabel(label, ordered)
 }
 
 // SanitizePath emits only an exact public literal or the fixed fallback. URL

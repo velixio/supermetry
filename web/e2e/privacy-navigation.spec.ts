@@ -56,7 +56,7 @@ function syntheticSQL(owner: Owner, sql: string) {
 
 const legacyMarker = 'legacy-private-person-927'
 function seedLegacyAndVerifiedRows(owner: Owner) {
-  const policy = createHash('sha256').update('panel/path-sanitizer/v1\n').digest('hex')
+  const policy = createHash('sha256').update('supermetry/path-sanitizer/v1\n').digest('hex')
   syntheticSQL(owner, `
     insert into dict(kind,value) values (0,'/${legacyMarker}'),(0,'/[redacted]'),(9,'Chrome') on conflict do nothing;
     insert into profiles(site_id,external_id,traits,first_seen_at,last_seen_at)
