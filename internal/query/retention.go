@@ -48,7 +48,7 @@ func (e *Engine) Retention(ctx context.Context, req api.RetentionRequest) (api.R
 	if err := validateRawReportRange(req.SiteId, req.DateRange, filtersFrom(req.Filters), site, e.reportNow()); err != nil {
 		return api.RetentionResponse{}, err
 	}
-	querySQL, args, err := buildRetentionSQL(req, site.Retention, site.TZ)
+	querySQL, args, err := buildRetentionSQL(req, site.Retention, postgresLocation(ctx, e.pool, site.TZ))
 	if err != nil {
 		return api.RetentionResponse{}, err
 	}

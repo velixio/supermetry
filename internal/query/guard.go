@@ -57,10 +57,12 @@ var validDimensions = map[string]struct{}{
 // concrete defaults. From and To encode date labels at UTC midnight; callers
 // must use Location when deriving real timestamp boundaries for those dates.
 type Normalized struct {
-	SiteID          int32
-	From            time.Time
-	To              time.Time
-	Location        *time.Location
+	SiteID   int32
+	From     time.Time
+	To       time.Time
+	Location *time.Location
+	// PGZone is the PostgreSQL-safe name for Location, set by the engine.
+	PGZone          string
 	Metrics         []api.Metric
 	Dimensions      []string
 	Filters         []api.Filter
@@ -484,4 +486,15 @@ func isQueryTimeout(err error) bool {
 	}
 	var pgError *pgconn.PgError
 	return errors.As(err, &pgError) && pgError.Code == "57014"
+}
+
+// SQLZone returns the time zone name to hand to PostgreSQL.
+func (n Normalized) SQLZone() string {
+	if n.PGZone != "" {
+		return n.PGZone
+	}
+	if n.Location == nil {
+		return "UTC"
+	}
+	return n.Location.String()
 }

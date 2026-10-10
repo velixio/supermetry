@@ -229,6 +229,7 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	if problem != nil {
 		return api.QueryResponse{}, errors.New(problemDetail(problem))
 	}
+	normalized.PGZone = postgresZone(ctx, e.pool, normalized.Location)
 	if err := e.resolveGoalFilters(&normalized); err != nil {
 		return api.QueryResponse{}, err
 	}
