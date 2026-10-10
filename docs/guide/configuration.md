@@ -109,7 +109,10 @@ Defaults suit most installs. Durations use Go syntax (`500ms`, `2s`, `1m`) and m
 | `SUPERMETRY_QUEUE_SIZE` | Capacity of the in-memory event queue; positive integer. Behavior when full: see source (`internal/ingest`, `internal/writer`). | `65536` | `131072` |
 | `SUPERMETRY_FLUSH_EVERY` | How often queued events are flushed to PostgreSQL. | `1s` | `2s` |
 | `SUPERMETRY_SESSION_FLUSH` | How often session state is flushed. | `10s` | `30s` |
-| `SUPERMETRY_QUERY_TIMEOUT` | Query timeout setting. It is parsed and validated, but no use was found outside the config package; see source (`internal/config/config.go`, `internal/query/guard.go`). | `10s` | `15s` |
+| `SUPERMETRY_QUERY_TIMEOUT` | Maximum time one analytics query may run before PostgreSQL cancels it. Between `1s` and `5m`. | `10s` | `15s` |
+| `SUPERMETRY_INGEST_RATE_IP` | Events per second one client address may send. Burst is twice the rate. | `1000` | `500` |
+| `SUPERMETRY_INGEST_RATE_SITE` | Events per second accepted for one site. Burst is twice the rate. | `5000` | `2000` |
+| `SUPERMETRY_INGEST_RATE_GLOBAL` | Events per second accepted by this process. Burst is twice the rate. If the three values are not ordered ip <= site <= global, the larger ones are clamped and a warning is logged. | `10000` | `20000` |
 
 ## Email / SMTP
 

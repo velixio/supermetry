@@ -39,7 +39,7 @@ The full analysis, with code references, is in [docs/security/threat-model.md](d
 - **Rate limits are in memory, per process.** Running several instances multiplies them. Use your reverse proxy for a shared limit.
 - **The secret key cannot be rotated today.** If it leaks, treat every sealed secret as exposed.
 - **Backups (`supermetry backup`) are not encrypted.** They contain password hashes, sealed secrets and recent salts. Store them encrypted.
-- **Share links do not expire.** They work until revoked.
+- **Share links can expire**, but existing links and links created through the API without an expiry never do. Dashboard-created links default to 90 days. Revoke links you no longer need.
 
 ## Abuse runbook
 
@@ -48,7 +48,7 @@ This section is for operators of a Supermetry instance. Every variable, command 
 ### 1. Recognise spam and floods
 
 1. **Open the Data health page**: `/app/<org>/health` in the dashboard. It reads `GET /api/private/health`. The top counters are instance-wide (admins only). The **Dropped and throttled traffic** section shows, per site and per day, how many events were dropped by reason (bot rule, rate limit, privacy signal, dictionary overflow) with a **Spike** badge when today is far above the 7-day average. Only counts are stored.
-2. **Scrape `/metrics`.** Set `SUPERMETRY_METRICS_TOKEN` and send `Authorization: Bearer <token>`. Without a token, only loopback clients can read it. The useful counters, all prefixed `supermetry_`:
+2. **Scrape `/metrics`.** Set `SUPERMETRY_METRICS_TOKEN` and send `Authorization: Bearer <token>`. Without a token, `/metrics` accepts only a direct loopback connection that carries no forwarding headers (`X-Forwarded-For`, `Forwarded`, `X-Real-IP`, `CF-Connecting-IP`, `True-Client-IP`); everything else gets 401. The useful counters, all prefixed `supermetry_`:
 
    | Counter | A rise means |
    |---|---|
@@ -72,12 +72,12 @@ Work through these in order.
    - Every visitor appears to come from the proxy's IP. The per-IP limit (1,000 events/s) then applies to all visitors together, and one flooder can push real visitors into 429s.
    - Visitors with the same browser merge into one visitor.
    - IP exclusions and geo lookup see the proxy, not the client.
-   - If the proxy runs on the same host, `/metrics` looks like a loopback request and becomes public, unless `SUPERMETRY_METRICS_TOKEN` is set.
+   - A proxy on the same host no longer makes `/metrics` public: requests that pass through it carry forwarding headers and are refused without `SUPERMETRY_METRICS_TOKEN`. The server logs a startup warning when `SUPERMETRY_TRUSTED_PROXIES` is empty and it listens on loopback.
 
    Check it with `SUPERMETRY_INGEST_DIAG=1`: requests that arrive through the proxy should log `peer_trusted=true`. List only proxies you control. A trusted range lets anyone inside it choose their own client IP through `X-Forwarded-For`.
 2. **Tighten the site's allowed hosts** (site settings in the dashboard, or `PATCH /api/private/sites/{site}` with `allowed_hosts`). Remove wildcard entries you do not need. This stops events whose page URL names another host. It does not stop a script that copies one of your real hostnames.
 3. **Add exclusions** (`/app/<org>/<site>/settings/tracking`, or the `exclude_ips`, `exclude_paths` and `exclude_countries` fields of `PATCH /api/private/sites/{site}`). Excluded events are dropped before storage and counted in `ingest_excluded_total`. Exclusions apply only to new events, not to data already stored.
-4. **Block at the proxy.** The built-in rate limits are fixed in code (per IP 1,000/s, per site 5,000/s, per process 10,000/s) and cannot be changed by configuration. For a lower limit, or to block an IP range or a referrer, do it in your reverse proxy or WAF on the event path (`SUPERMETRY_EVENT_PATH`, default `/api/public/v1/events`).
+4. **Block at the proxy.** The ingest rate limits default to per IP 1,000/s, per site 5,000/s and per process 10,000/s; change them with `SUPERMETRY_INGEST_RATE_IP`, `SUPERMETRY_INGEST_RATE_SITE` and `SUPERMETRY_INGEST_RATE_GLOBAL` (bursts are twice the rate; a setting that breaks the order ip <= site <= global is clamped with a startup warning). For a lower limit, or to block an IP range or a referrer, do it in your reverse proxy or WAF on the event path (`SUPERMETRY_EVENT_PATH`, default `/api/public/v1/events`).
 5. **Referrer spam.** Add the domain to the site's **blocked referrers** (Site settings, Tracking), or to an instance-wide file named by `SUPERMETRY_REFERRER_SPAM_FILE` (read at startup). The built-in list (`internal/enrich/lists/referrer-spam.txt`) changes only with a release. Report new spam domains to the maintainers (see section 8).
    Also consider turning on the site's **strict origin** setting: events must then carry an `Origin` or `Referer` from an allowed host. It does not stop a script that fakes the header, and it breaks server-side senders, so test it first. Rejected requests are counted in `ingest_origin_rejected_total`.
 6. **Clean up data already stored.** The tools available today:
@@ -89,7 +89,7 @@ Work through these in order.
 
 ### 3. Credential stuffing and account lockout
 
-- **Built-in limits:** 20 login attempts per minute per client IP, 3 per minute per account per IP, and 30 per minute per account across all IPs. They are in memory and reset on restart.
+- **Built-in limits:** 20 login attempts per minute per client IP, 3 per minute per account per IP, and 30 per minute per account across all IPs. After the password is accepted, two-factor codes (and recovery codes) have their own limit: 5 wrong codes lock the second factor of that account for 15 minutes, and a correct code is refused during the lockout. The lockout is audited as `auth.totp_locked`. All limits are in memory and reset on restart.
 - **Signs of an attack:** many 429 responses on `/api/private/auth/login`, and `auth.login_failed` entries in the organization audit log (`GET /api/private/orgs/{org}/audit`). Failed logins against unknown emails are not audited. There is no metric for login rate-limit hits.
 - **What to do:**
   1. Check that `SUPERMETRY_TRUSTED_PROXIES` is correct. Otherwise every login shares the proxy's per-IP bucket, and an attacker can block all logins.
@@ -110,7 +110,7 @@ Work through these in order.
 
 ### 5. Leaked share link
 
-Revoke the share at `/app/<org>/<site>/settings/shares` (`DELETE /api/private/sites/{site}/shares/{share}`). It stops working on the next request, and existing unlock cookies stop working too. Shares never expire on their own, so revoke links you no longer need. A share shows only that site's summary numbers: visitors, visits, pageviews, bounce rate, durations, scroll depth.
+Revoke the share at `/app/<org>/<site>/settings/shares` (`DELETE /api/private/sites/{site}/shares/{share}`). It stops working on the next request, and existing unlock cookies stop working too. Links created with an expiry stop working on their own at that time (an expired link answers like a revoked one); links without an expiry work until revoked, so revoke links you no longer need. A share shows only that site's summary numbers: visitors, visits, pageviews, bounce rate, durations, scroll depth.
 
 ### 6. Suspected `SUPERMETRY_SECRET_KEY` leak
 
