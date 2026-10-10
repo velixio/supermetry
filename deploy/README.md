@@ -96,8 +96,9 @@ changing it.
 - **Storage:** gzipped files in `$SUPERMETRY_DATA_DIR/replay` (systemd: `/var/lib/supermetry/replay`;
   Compose: the `supermetry-data` volume). A custom `SUPERMETRY_REPLAY_DIR` under systemd must stay
   under `/var/lib/supermetry`, or be added to `ReadWritePaths`.
-- **S3:** set `SUPERMETRY_REPLAY_S3_ENDPOINT`, `_BUCKET`, `_REGION`, `_ACCESS_KEY` and
-  `_SECRET_KEY` together (`_PREFIX` optional). Uploads collect in
+- **S3:** set `SUPERMETRY_REPLAY_S3_URL=https://ACCESS_KEY:SECRET_KEY@host/bucket[/prefix]?region=REGION`
+  (percent-encode special characters in the keys). The older separate `SUPERMETRY_REPLAY_S3_ENDPOINT`,
+  `_BUCKET`, `_REGION`, `_ACCESS_KEY`, `_SECRET_KEY` and `_PREFIX` variables still work. Uploads collect in
   `$SUPERMETRY_DATA_DIR/replay-spill` until each session ends.
 - **Limits:** 15% of sessions sampled, 30-day retention and a 5 GB quota per site by
   default (oldest deleted first). Any `SUPERMETRY_REPLAY_*` value set in the environment wins

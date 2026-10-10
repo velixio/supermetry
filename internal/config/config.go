@@ -207,6 +207,14 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		SecretKey: getenv("SUPERMETRY_REPLAY_S3_SECRET_KEY"),
 		Prefix:    getenv("SUPERMETRY_REPLAY_S3_PREFIX"),
 	}
+	if raw := getenv("SUPERMETRY_REPLAY_S3_URL"); raw != "" {
+		parsed, err := parseS3URL(raw)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("SUPERMETRY_REPLAY_S3_URL: %w", err))
+		} else {
+			s3 = parsed
+		}
+	}
 	// The prefix is optional. A partial S3 setup is an error rather than a
 	// silent fall back to disk.
 	required := []string{s3.Endpoint, s3.Bucket, s3.Region, s3.AccessKey, s3.SecretKey}
@@ -426,4 +434,38 @@ func ParseSize(raw string) (int64, error) {
 		return 0, fmt.Errorf("invalid size %q", raw)
 	}
 	return number * multiplier, nil
+}
+
+// parseS3URL reads https://ACCESS:SECRET@host/bucket/optional/prefix?region=r.
+// Credentials are percent-decoded. The error never echoes the raw value.
+func parseS3URL(raw string) (S3Env, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return S3Env{}, errors.New("not a valid URL")
+	}
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return S3Env{}, errors.New("must look like https://ACCESS_KEY:SECRET_KEY@host/bucket[/prefix]?region=REGION")
+	}
+	secret, hasSecret := u.User.Password()
+	bucket, prefix, _ := strings.Cut(strings.Trim(u.EscapedPath(), "/"), "/")
+	bucket, err = url.PathUnescape(bucket)
+	if err != nil {
+		return S3Env{}, errors.New("bucket is not valid percent-encoding")
+	}
+	prefix, err = url.PathUnescape(strings.Trim(prefix, "/"))
+	if err != nil {
+		return S3Env{}, errors.New("prefix is not valid percent-encoding")
+	}
+	out := S3Env{
+		Endpoint:  u.Scheme + "://" + u.Host,
+		Bucket:    bucket,
+		Region:    u.Query().Get("region"),
+		AccessKey: u.User.Username(),
+		SecretKey: secret,
+		Prefix:    prefix,
+	}
+	if !hasSecret || out.AccessKey == "" || out.Bucket == "" || out.Region == "" {
+		return S3Env{}, errors.New("needs access key, secret key, bucket and a region query parameter")
+	}
+	return out, nil
 }

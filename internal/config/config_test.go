@@ -360,6 +360,31 @@ func TestS3EnvRequiresAllFields(t *testing.T) {
 	}
 }
 
+func TestS3URL(t *testing.T) {
+	values := baseEnv()
+	values["SUPERMETRY_REPLAY_S3_URL"] = "https://AKIA:s%2Fec%2Bret@s3.example.test:9000/replays/team/a?region=test-1"
+	got, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := S3Env{Endpoint: "https://s3.example.test:9000", Bucket: "replays", Region: "test-1", AccessKey: "AKIA", SecretKey: "s/ec+ret", Prefix: "team/a"}
+	if got.Replay.S3 == nil || *got.Replay.S3 != want {
+		t.Fatalf("Replay.S3 = %+v, want %+v", got.Replay.S3, want)
+	}
+
+	for _, bad := range []string{
+		"s3.example.test/replays",
+		"https://AKIA:secret@s3.example.test/?region=r",
+		"https://AKIA:secret@s3.example.test/replays",
+		"https://AKIA@s3.example.test/replays?region=r",
+	} {
+		values["SUPERMETRY_REPLAY_S3_URL"] = bad
+		if _, err := Load(env(values)); err == nil {
+			t.Errorf("Load accepted %q", bad)
+		}
+	}
+}
+
 func TestLoadReplayEnvironment(t *testing.T) {
 	values := baseEnv()
 	values["SUPERMETRY_REPLAY_ENABLED"] = "true"
