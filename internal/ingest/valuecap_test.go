@@ -159,3 +159,36 @@ func TestDimensionIDCountsDictionaryOverflow(t *testing.T) {
 		t.Fatalf("overflow counter delta = %d, want 1", delta)
 	}
 }
+
+func TestDimensionIDCountsPerSiteShareOverflow(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	const limit = 4002
+	h := &Handler{
+		Dict:                      dict.New(pool, dict.WithMaxEntriesPerKind(limit)),
+		DimensionCardinalityLimit: limit,
+	}
+	values := make([]string, limit/2+1)
+	for i := range values {
+		values[i] = fmt.Sprintf("/share/%d", i)
+	}
+	if _, err := h.Dict.IDsForSite(ctx, 42, dict.Path, values); err != nil {
+		t.Fatal(err)
+	}
+
+	before := DimensionOverflow.Load()
+	id, err := h.dimensionID(ctx, 42, time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC), dict.Path, "/over-share")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := h.Dict.Value(dict.Path, id); !ok || got != OtherValue {
+		t.Fatalf("share overflow = %q, %v, want %q", got, ok, OtherValue)
+	}
+	if delta := DimensionOverflow.Load() - before; delta != 1 {
+		t.Fatalf("overflow counter delta = %d, want 1", delta)
+	}
+}

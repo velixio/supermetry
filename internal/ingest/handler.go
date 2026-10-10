@@ -569,7 +569,7 @@ func (h *Handler) dimensionID(ctx context.Context, siteID int32, localDay time.T
 	}
 	original := value
 	value = h.capValue(siteID, localDay, kind, value)
-	ids, err := h.Dict.IDs(ctx, kind, []string{value})
+	ids, err := h.Dict.IDsForSite(ctx, siteID, kind, []string{value})
 	if err != nil {
 		return 0, err
 	}

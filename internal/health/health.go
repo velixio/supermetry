@@ -229,6 +229,7 @@ func Snapshot() map[string]float64 {
 	for route, p95 := range QuerySeconds.snapshot() {
 		snapshot[fmt.Sprintf(`query_seconds{route=%q}`, escapeLabel(route))] = p95
 	}
+	addDimensionDictionaryFill(snapshot)
 	return snapshot
 }
 
@@ -257,6 +258,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_rate_limited_total", "counter")
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
 	writeFamily(w, snapshot, "ingest_origin_rejected_total", "counter")
+	writeFamily(w, snapshot, "dimension_dictionary_fill_ratio", "gauge")
 	writeFamily(w, snapshot, "heatmap_invalid_total", "counter")
 	writeFamily(w, snapshot, "heatmap_dropped_total", "counter")
 	writeFamily(w, snapshot, "replay_dropped_total", "counter")

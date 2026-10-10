@@ -674,6 +674,7 @@ func scheduledJobs(
 			_, err := retention.Run(ctx, pool, clk.Now())
 			return err
 		}},
+		{Name: "dict-gc", Every: 24 * time.Hour, Run: func(ctx context.Context) error { _, err := dictionary.GarbageCollect(ctx, 0); return err }},
 		{Name: "expire-sessions", Every: time.Minute, Run: func(context.Context) error {
 			sessions.Expire(clk.Now())
 			return nil

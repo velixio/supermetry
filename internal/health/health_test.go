@@ -73,6 +73,35 @@ func TestGeoIPMetricsPrometheusTextFormat(t *testing.T) {
 	}
 }
 
+func TestDimensionDictionaryFillMetrics(t *testing.T) {
+	health.SetDimensionDictionaryFill(0, 0.81)
+	health.SetDimensionDictionaryFill(7, 0.96)
+	t.Cleanup(func() {
+		health.SetDimensionDictionaryFill(0, 0)
+		health.SetDimensionDictionaryFill(7, 0)
+	})
+
+	snapshot := health.Snapshot()
+	if got := snapshot[`dimension_dictionary_fill_ratio{kind="path"}`]; got != 0.81 {
+		t.Fatalf("path fill ratio = %v, want 0.81", got)
+	}
+	if got := snapshot[`dimension_dictionary_fill_ratio{kind="event_name"}`]; got != 0.96 {
+		t.Fatalf("event-name fill ratio = %v, want 0.96", got)
+	}
+
+	var output strings.Builder
+	health.WritePrometheus(&output)
+	for _, want := range []string{
+		"# TYPE supermetry_dimension_dictionary_fill_ratio gauge",
+		`supermetry_dimension_dictionary_fill_ratio{kind="path"} 0.81`,
+		`supermetry_dimension_dictionary_fill_ratio{kind="event_name"} 0.96`,
+	} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("Prometheus output missing %q:\n%s", want, output.String())
+		}
+	}
+}
+
 func TestPrometheusTextFormat(t *testing.T) {
 	health.IngestAccepted.Add(3)
 	health.IngestRevenueInvalid.Add(2)
