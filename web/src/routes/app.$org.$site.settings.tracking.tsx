@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { DataPurgeCard } from '@/features/sites/DataPurgeCard'
 import { ExclusionsPage } from '@/features/settings/ExclusionsPage'
 import { TrackingSettings } from '@/features/settings/TrackingSettings'
 import { useSite } from '@/features/settings/routeContext'
@@ -22,6 +23,9 @@ function ExclusionsRoute() {
         siteId={site.id}
         canManageHeatmaps={membership.role === 'owner' || membership.role === 'admin'}
       />
+      {membership.role === 'owner' || membership.role === 'admin' ? (
+        <DataPurgeCard orgId={membership.org.id} siteId={site.id} />
+      ) : null}
     </div>
   ) : null
 }
