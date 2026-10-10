@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"net/url"
 	"strconv"
@@ -124,7 +125,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	c := Config{
 		Tracking:             tracking,
 		TrackingPaths:        trackingPaths,
-		DatabaseURL:          getenv("SUPERMETRY_DATABASE_URL"),
+		DatabaseURL:          databaseURL(getenv),
 		Listen:               valueOrDefault(getenv("SUPERMETRY_LISTEN"), defaultListen),
 		BaseURL:              getenv("SUPERMETRY_BASE_URL"),
 		HomepageURL:          valueOrDefault(getenv("SUPERMETRY_HOMEPAGE_URL"), defaultHomepageURL),
@@ -172,7 +173,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		errs = append(errs, geoErr)
 	}
 	if c.DatabaseURL == "" {
-		errs = append(errs, errors.New("SUPERMETRY_DATABASE_URL is required"))
+		errs = append(errs, errors.New("SUPERMETRY_DATABASE_URL is required (or SUPERMETRY_DATABASE_HOST, with the user and password as separate settings)"))
 	} else if err := validateURL(c.DatabaseURL, "SUPERMETRY_DATABASE_URL", nil); err != nil {
 		errs = append(errs, err)
 	}
@@ -528,4 +529,36 @@ func parseS3URL(raw string) (S3Env, error) {
 		return S3Env{}, errors.New("needs access key, secret key, bucket and a region query parameter")
 	}
 	return out, nil
+}
+
+// databaseURL returns SUPERMETRY_DATABASE_URL when it is set, and that always
+// wins. Otherwise, when SUPERMETRY_DATABASE_HOST is set, it builds the URL from
+// separate settings: the bundled-database setup keeps the user and password
+// apart from any URL. User, password and database each fall back to the
+// POSTGRES_* variables the bundled PostgreSQL container reads, then to
+// "supermetry".
+func databaseURL(getenv func(string) string) string {
+	if raw := getenv("SUPERMETRY_DATABASE_URL"); raw != "" {
+		return raw
+	}
+	host := getenv("SUPERMETRY_DATABASE_HOST")
+	if host == "" {
+		return ""
+	}
+	first := func(values ...string) string {
+		for _, value := range values {
+			if value != "" {
+				return value
+			}
+		}
+		return ""
+	}
+	database := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(first(getenv("SUPERMETRY_DATABASE_USER"), getenv("POSTGRES_USER"), "supermetry"), first(getenv("SUPERMETRY_DATABASE_PASSWORD"), getenv("POSTGRES_PASSWORD"), "supermetry")),
+		Host:     net.JoinHostPort(host, first(getenv("SUPERMETRY_DATABASE_PORT"), "5432")),
+		Path:     "/" + first(getenv("SUPERMETRY_DATABASE_NAME"), getenv("POSTGRES_DB"), "supermetry"),
+		RawQuery: "sslmode=" + first(getenv("SUPERMETRY_DATABASE_SSLMODE"), "disable"),
+	}
+	return database.String()
 }

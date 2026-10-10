@@ -488,3 +488,46 @@ func TestCreationLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestDatabaseURLFromSeparateSettings(t *testing.T) {
+	without := func(values map[string]string, key string) map[string]string {
+		delete(values, key)
+		return values
+	}
+	base := without(baseEnv(), "SUPERMETRY_DATABASE_URL")
+
+	// Host only: everything else defaults to "supermetry".
+	values := base
+	values["SUPERMETRY_DATABASE_HOST"] = "postgres"
+	got, err := Load(env(values))
+	if err != nil || got.DatabaseURL != "postgres://supermetry:supermetry@postgres:5432/supermetry?sslmode=disable" {
+		t.Fatalf("defaults = %q, %v", got.DatabaseURL, err)
+	}
+
+	// The POSTGRES_* variables the bundled container reads, with a special
+	// character in the password that must be escaped.
+	values["POSTGRES_USER"], values["POSTGRES_PASSWORD"], values["POSTGRES_DB"] = "app", "p@ss/w", "mydb"
+	got, err = Load(env(values))
+	if err != nil || got.DatabaseURL != "postgres://app:p%40ss%2Fw@postgres:5432/mydb?sslmode=disable" {
+		t.Fatalf("POSTGRES_* = %q, %v", got.DatabaseURL, err)
+	}
+
+	// SUPERMETRY_DATABASE_* settings win over POSTGRES_*, and port and sslmode are settable.
+	values["SUPERMETRY_DATABASE_USER"], values["SUPERMETRY_DATABASE_PORT"], values["SUPERMETRY_DATABASE_SSLMODE"] = "other", "6543", "require"
+	got, err = Load(env(values))
+	if err != nil || got.DatabaseURL != "postgres://other:p%40ss%2Fw@postgres:6543/mydb?sslmode=require" {
+		t.Fatalf("overrides = %q, %v", got.DatabaseURL, err)
+	}
+
+	// A URL, when provided, is used as it is and the separate settings are ignored.
+	values["SUPERMETRY_DATABASE_URL"] = "postgres://u:pw@db.example:5432/x?sslmode=disable"
+	got, err = Load(env(values))
+	if err != nil || got.DatabaseURL != "postgres://u:pw@db.example:5432/x?sslmode=disable" {
+		t.Fatalf("URL = %q, %v", got.DatabaseURL, err)
+	}
+
+	// Neither a URL nor a host is still an error.
+	if _, err := Load(env(without(without(values, "SUPERMETRY_DATABASE_URL"), "SUPERMETRY_DATABASE_HOST"))); err == nil {
+		t.Fatal("Load accepted a configuration with no database")
+	}
+}
