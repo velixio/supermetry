@@ -1,6 +1,6 @@
 # bench/proto: Supermetry prototype notes
 
-The throwaway prototype for gate steps 4–5 ([../CONTRACT.md](../CONTRACT.md), [../../scorecard.md](../../scorecard.md)). It is Go 1.26 module `panel/bench/proto`, using pgx/v5 against the local PG 18 database `panel` (role `panel`/`panel`, created with `sudo -u postgres`). PG was neither restarted nor reconfigured globally; the only settings are per role (`ALTER ROLE panel SET work_mem = '64MB', jit = off`, see "Query model").
+The throwaway prototype for gate steps 4–5 ([../CONTRACT.md](../CONTRACT.md), [../../scorecard.md](../../scorecard.md)). It is Go 1.26 module `supermetry/bench/proto`, using pgx/v5 against the local PG 18 database `panel` (role `panel`/`panel`, created with `sudo -u postgres`). PG was neither restarted nor reconfigured globally; the only settings are per role (`ALTER ROLE panel SET work_mem = '64MB', jit = off`, see "Query model").
 
 It faithfully implements the planned hot path (goal.md "Architecture") and query model (D4–D8), plus the closed-day tier added by the optimisation pass of 2026-10-07. It is not product code.
 

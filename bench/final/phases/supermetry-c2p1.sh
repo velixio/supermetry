@@ -25,7 +25,7 @@ start(){ SUPERMETRY_DSN="$dsn" "$PROTO" serve --addr="127.0.0.1:$port" --sites="
 wait_count(){ local want=$1; for _ in {1..600}; do [[ $(psql "$dsn" -Atc 'select count(*) from events') == "$want" ]] && [[ $(psql "$dsn" -Atc 'select coalesce(sum(pageviews+custom_events),0) from sessions') == "$want" ]] && return; sleep .1; done; return 1; }
 start
 "$FINAL_DIR/http-replay.py" --url "http://127.0.0.1:$port" --input "$ART/events.ndjson" --to-line "$half" --secrets "$ART/secrets.txt" --out "$ART/first.json"
-probe_ip=198.51.100.77; probe_ua='Mozilla/5.0 PanelRestartTest/1.0'
+probe_ip=198.51.100.77; probe_ua='Mozilla/5.0 SupermetryRestartTest/1.0'
 curl -fsS -o /dev/null -A "$probe_ua" -H "X-Forwarded-For: $probe_ip" -H 'Content-Type: text/plain' --data '{"n":"pageview","u":"https://restart.test/final-restart-probe-a","d":"restart.test"}' "http://127.0.0.1:$port/api/event"
 curl -fsS -o /dev/null -A "$probe_ua" -H "X-Forwarded-For: $probe_ip" -H 'Content-Type: text/plain' --data '{"n":"pageview","u":"https://restart.test/final-restart-probe-b","d":"restart.test"}' "http://127.0.0.1:$port/api/event"
 wait_count "$((half+2))"

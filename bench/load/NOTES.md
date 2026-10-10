@@ -1,7 +1,7 @@
 # bench/load: notes (load agent, gate step 4)
 
 Loaders, query harness and HTTP load tester for the incumbents, so the scorecard's REL lines can be filled in against the Supermetry prototype on **the same data** (gen Tier S, seed 42, 30 days, 2026-09-01..30, 30,296,439 events) and **the same query set** (bench/proto: S2, S3 with 1 and 2 filters, S4, F4; biggest site = site 1, America/New_York).
-Results report `incumbents-queries-20261007.md` removed 2026-10-10 (in git at `7e7294d`); headline numbers are in progress.md. Throwaway code; Go 1.26 module `panel/bench/load` (pgx/v5 only).
+Results report `incumbents-queries-20261007.md` removed 2026-10-10 (in git at `7e7294d`); headline numbers are in progress.md. Throwaway code; Go 1.26 module `supermetry/bench/load` (pgx/v5 only).
 
 ## Layout
 

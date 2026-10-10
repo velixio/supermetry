@@ -16,18 +16,18 @@ jobs:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_USER: panel
-          POSTGRES_PASSWORD: panel
-          POSTGRES_DB: panel
+          POSTGRES_USER: supermetry
+          POSTGRES_PASSWORD: supermetry
+          POSTGRES_DB: supermetry
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U panel -d panel"
+          --health-cmd "pg_isready -U supermetry -d supermetry"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      SUPERMETRY_TEST_DSN: postgres://panel:panel@127.0.0.1:5432/panel?sslmode=disable
+      SUPERMETRY_TEST_DSN: postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable
     steps:
       - uses: actions/checkout@v4
 

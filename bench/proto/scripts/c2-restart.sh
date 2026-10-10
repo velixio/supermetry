@@ -33,7 +33,7 @@ start_server() {
 }
 post_page() {
   local path=$1
-  curl -fsS -o /dev/null -A 'Mozilla/5.0 PanelRestartTest/1.0' -H 'X-Forwarded-For: 198.51.100.77' \
+  curl -fsS -o /dev/null -A 'Mozilla/5.0 SupermetryRestartTest/1.0' -H 'X-Forwarded-For: 198.51.100.77' \
     -H 'Content-Type: text/plain' --data "{\"n\":\"pageview\",\"u\":\"https://restart.test$path\",\"d\":\"restart.test\"}" \
     "http://127.0.0.1:$port/api/event"
 }

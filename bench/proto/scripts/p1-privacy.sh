@@ -21,9 +21,9 @@ PGOPTIONS= psql "$db_dsn" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA $schema" >/dev/nu
 printf '[{"id":1,"host":"privacy.test","timezone":"UTC","share":1}]\n' >"$tmp/sites.json"
 
 http_ip='198.51.100.201'
-http_ua='PanelPrivacyHTTP/1.0 unique-full-UA-4a9d'
+http_ua='SupermetryPrivacyHTTP/1.0 unique-full-UA-4a9d'
 load_ip='203.0.113.202'
-load_ua='PanelPrivacyLoad/1.0 unique-full-UA-7f31'
+load_ua='SupermetryPrivacyLoad/1.0 unique-full-UA-7f31'
 
 SUPERMETRY_DSN="$db_dsn" "$tmp/proto" serve --addr="127.0.0.1:$port" --sites="$tmp/sites.json" --geoip='' \
   --batch=1 --flush=10ms --session-flush=20ms >"$tmp/server.log" 2>&1 &
