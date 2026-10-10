@@ -80,16 +80,16 @@ Set the release asset base URL. It normally ends with the version used in the
 archive name:
 
 ```sh
-curl -fsSLO https://example.invalid/path/install.sh
-sudo SUPERMETRY_RELEASE_URL=https://example.invalid/releases/download/v1.2.3 \
+curl -fsSLO https://supermetry.com/install.sh
+sudo SUPERMETRY_RELEASE_URL=https://github.com/velixio/supermetry/releases/download/v0.1.0 \
   sh install.sh --yes
 ```
 
 For a piped install, `--yes` is mandatory:
 
 ```sh
-curl -fsSL https://example.invalid/path/install.sh | \
-  sudo SUPERMETRY_RELEASE_URL=https://example.invalid/releases/download/v1.2.3 \
+curl -fsSL https://supermetry.com/install.sh | \
+  sudo SUPERMETRY_RELEASE_URL=https://github.com/velixio/supermetry/releases/download/v0.1.0 \
   sh -s -- --yes
 ```
 
