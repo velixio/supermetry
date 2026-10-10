@@ -49,8 +49,15 @@ TEST_ENV := $(ENV) if [ -z "$$SUPERMETRY_TEST_DSN" ]; then $(DEV_DB_START) expor
 run: build
 	$(DB_ENV) $(CURDIR)/bin/supermetry serve
 
-# Run without rebuilding the UI (shows the "UI not built" page if web/dist is absent).
-dev: build-go
+# Build the dashboard once, the first time it is needed; later runs reuse web/dist
+# (run `make web` after changing the dashboard).
+web/dist/index.html:
+	$(MAKE) web
+
+# Run with the dashboard, without rebuilding it on every start.
+dev: web/dist/index.html
+	mkdir -p bin
+	go build -tags embedui -o bin/supermetry ./cmd/supermetry
 	$(DB_ENV) $(CURDIR)/bin/supermetry serve
 
 migrate: build-go
