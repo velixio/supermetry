@@ -34,6 +34,10 @@ if [ -z "${POSTGRES_PASSWORD:-}" ]; then
         ;;
     esac
   fi
+  if [ -z "$password" ]; then
+    echo "WARNING: no password given, so the bundled PostgreSQL uses the default password 'supermetry'." >&2
+    echo "WARNING: that is only acceptable while this container publishes no port. Put your own password in SUPERMETRY_DATABASE_URL." >&2
+  fi
   POSTGRES_USER="$(decode "${user:-supermetry}")"
   POSTGRES_PASSWORD="$(decode "${password:-supermetry}")"
   POSTGRES_DB="$(decode "${database:-supermetry}")"
