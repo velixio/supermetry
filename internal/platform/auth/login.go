@@ -56,19 +56,22 @@ func WithAuditSecret(secret []byte) Option {
 }
 
 type Auth struct {
-	store   *store.Store
-	users   *users.Users
-	mail    mail.Sender
-	box     *platformcrypto.SecretBox
-	baseURL string
-	clock   Clock
-	limits  *loginLimiter
+	store            *store.Store
+	users            *users.Users
+	mail             mail.Sender
+	box              *platformcrypto.SecretBox
+	baseURL          string
+	clock            Clock
+	limits           *loginLimiter
+	totpLimits       *secondFactorLimiter
+	enrollmentLimits *secondFactorLimiter
 
 	auditMu                sync.Mutex
 	auditWG                sync.WaitGroup
 	auditClosed            bool
 	auditSecret            []byte
 	writeLoginFailureAudit func(context.Context, int64, string) error
+	writeTOTPLockoutAudit  func(context.Context, int64) error
 }
 
 var (
@@ -85,13 +88,15 @@ func New(s *store.Store, sender mail.Sender, box *platformcrypto.SecretBox, base
 		}
 	})
 	a := &Auth{
-		store:   s,
-		users:   users.New(s),
-		mail:    sender,
-		box:     box,
-		baseURL: strings.TrimRight(baseURL, "/"),
-		clock:   realClock{},
-		limits:  newLoginLimiter(),
+		store:            s,
+		users:            users.New(s),
+		mail:             sender,
+		box:              box,
+		baseURL:          strings.TrimRight(baseURL, "/"),
+		clock:            realClock{},
+		limits:           newLoginLimiter(),
+		totpLimits:       newSecondFactorLimiter(secondFactorMaxFailures, secondFactorWindow, secondFactorLockout),
+		enrollmentLimits: newSecondFactorLimiter(secondFactorMaxFailures, secondFactorWindow, enrollmentLockout),
 	}
 	for _, option := range options {
 		option(a)
@@ -107,6 +112,11 @@ func New(s *store.Store, sender mail.Sender, box *platformcrypto.SecretBox, base
 			return auditUserOrgsWithActor(ctx, tx, userID, nil, "auth.login_failed", map[string]any{
 				"client_hash": clientHash,
 			})
+		})
+	}
+	a.writeTOTPLockoutAudit = func(ctx context.Context, userID int64) error {
+		return a.store.Tx(ctx, func(tx pgx.Tx) error {
+			return auditUserOrgsWithActor(ctx, tx, userID, nil, "auth.totp_locked", nil)
 		})
 	}
 	return a
@@ -163,6 +173,18 @@ func (a *Auth) Login(ctx context.Context, email, password, totpCode, deviceLabel
 
 func (a *Auth) auditLoginFailure(userID int64, client string) {
 	clientHash := hashLoginClient(a.auditSecret, client)
+	a.auditAsync("write failed-login audit", func(ctx context.Context) error {
+		return a.writeLoginFailureAudit(ctx, userID, clientHash)
+	})
+}
+
+func (a *Auth) auditTOTPLockout(userID int64) {
+	a.auditAsync("write TOTP-lockout audit", func(ctx context.Context) error {
+		return a.writeTOTPLockoutAudit(ctx, userID)
+	})
+}
+
+func (a *Auth) auditAsync(logMessage string, write func(context.Context) error) {
 	a.auditMu.Lock()
 	if a.auditClosed {
 		a.auditMu.Unlock()
@@ -174,9 +196,9 @@ func (a *Auth) auditLoginFailure(userID int64, client string) {
 		defer a.auditWG.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		err := a.writeLoginFailureAudit(ctx, userID, clientHash)
+		err := write(ctx)
 		if err != nil {
-			slog.ErrorContext(ctx, "write failed-login audit", "error", err)
+			slog.ErrorContext(ctx, logMessage, "error", err)
 		}
 	}()
 }

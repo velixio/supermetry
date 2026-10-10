@@ -132,6 +132,58 @@ func TestChangePasswordRevokesOtherSessions(t *testing.T) {
 	}
 }
 
+func TestChangePasswordRejectsWeakPassword(t *testing.T) {
+	env := newAccountEnv(t)
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "old-password-1")
+	current, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "current")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.a.ChangePassword(ctx, userID, "old-password-1", "short", current); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
+		t.Fatalf("weak password error = %v, want ErrPasswordTooShort", err)
+	}
+}
+
+func TestChangePasswordRejectsCurrentPassword(t *testing.T) {
+	env := newAccountEnv(t)
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "old-password-1")
+	current, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "current")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.a.ChangePassword(ctx, userID, "old-password-1", "old-password-1", current); !errors.Is(err, auth.ErrInvalid) {
+		t.Fatalf("unchanged password error = %v, want ErrInvalid", err)
+	}
+}
+
+func TestChangePasswordWeakPasswordDoesNotChangeHashOrRevokeSessions(t *testing.T) {
+	env := newAccountEnv(t)
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "old-password-1")
+	current, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "current")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := env.store.UserByID(ctx, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = env.a.ChangePassword(ctx, userID, "old-password-1", "short", current)
+	after, err := env.store.UserByID(ctx, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.PasswordHash != before.PasswordHash {
+		t.Fatal("weak password changed the stored hash")
+	}
+	if _, ok := env.a.Session(ctx, other); !ok {
+		t.Fatal("weak password revoked another session")
+	}
+}
+
 func TestDeleteAccountRequiresSecondFactorAndRefusesLastOwner(t *testing.T) {
 	env := newAccountEnv(t)
 	token, err := env.a.Signup(auth.WithClientKey(ctx, "delete-client"), "owner@example.test", "Owner", "pw-123456789", "Acme", "current")

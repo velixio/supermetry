@@ -49,12 +49,19 @@ func (a *Auth) EnrollTOTP(ctx context.Context, userID int64, password, code stri
 }
 
 func (a *Auth) ConfirmTOTP(ctx context.Context, userID int64, code string) error {
+	now := a.clock.Now()
+	attempt, allowed := a.enrollmentLimits.begin(userID, now)
+	if !allowed {
+		return ErrRateLimited
+	}
 	user, err := a.store.UserByID(ctx, userID)
 	if err != nil {
+		a.enrollmentLimits.abandon(attempt)
 		return ErrInvalid
 	}
-	step, valid, err := a.validTOTPStep(user.TOTPPendingSecretEnc, code, a.clock.Now())
+	step, valid, err := a.validTOTPStep(user.TOTPPendingSecretEnc, code, now)
 	if err != nil || !valid {
+		a.enrollmentLimits.failed(attempt, now)
 		return ErrInvalid
 	}
 	var enabled bool
@@ -67,25 +74,52 @@ func (a *Auth) ConfirmTOTP(ctx context.Context, userID int64, code string) error
 		return auditUserOrgs(ctx, tx, userID, "2fa.enabled")
 	})
 	if err != nil {
+		a.enrollmentLimits.abandon(attempt)
 		return err
 	}
 	if !enabled {
+		a.enrollmentLimits.failed(attempt, now)
 		return ErrInvalid
 	}
+	a.enrollmentLimits.succeeded(attempt)
 	return nil
 }
 
 func (a *Auth) validSecondFactor(ctx context.Context, user store.User, code string, now time.Time) (bool, error) {
+	attempt, allowed := a.totpLimits.begin(user.ID, now)
+	if !allowed {
+		return false, ErrRateLimited
+	}
 	step, valid, err := a.validTOTPStep(user.TOTPSecretEnc, code, now)
 	if err == nil && valid {
-		return store.AcceptTOTPStep(ctx, a.store.Pool, user.ID, step)
+		accepted, acceptErr := store.AcceptTOTPStep(ctx, a.store.Pool, user.ID, step)
+		if acceptErr != nil {
+			a.totpLimits.abandon(attempt)
+			return false, acceptErr
+		}
+		if accepted {
+			a.totpLimits.succeeded(attempt)
+			return true, nil
+		}
 	}
 
 	hash := platformcrypto.HashToken(code)
 	for _, candidate := range user.TOTPRecovery {
 		if subtle.ConstantTimeCompare(hash, candidate) == 1 {
-			return a.store.ConsumeRecoveryCode(ctx, user.ID, hash)
+			accepted, consumeErr := a.store.ConsumeRecoveryCode(ctx, user.ID, hash)
+			if consumeErr != nil {
+				a.totpLimits.abandon(attempt)
+				return false, consumeErr
+			}
+			if accepted {
+				a.totpLimits.succeeded(attempt)
+				return true, nil
+			}
+			break
 		}
+	}
+	if a.totpLimits.failed(attempt, now) {
+		a.auditTOTPLockout(user.ID)
 	}
 	return false, nil
 }

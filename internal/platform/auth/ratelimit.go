@@ -15,6 +15,13 @@ const accountClientCapacity = 3
 // accountCeilingPerMinute bounds login attempts for one account across all clients.
 const accountCeilingPerMinute = 30
 
+const (
+	secondFactorMaxFailures = 5
+	secondFactorWindow      = 5 * time.Minute
+	secondFactorLockout     = 15 * time.Minute
+	enrollmentLockout       = 5 * time.Minute
+)
+
 type clientKeyContextKey struct{}
 
 // WithClientKey attaches an ephemeral, caller-derived client key to a login
@@ -47,6 +54,160 @@ type loginLimiter struct {
 type accountClientKey struct {
 	account string
 	client  string
+}
+
+type secondFactorAccount struct {
+	failures    []time.Time
+	lockedUntil time.Time
+	last        time.Time
+	pending     int
+	generation  uint64
+}
+
+type secondFactorAttempt struct {
+	accountID  int64
+	account    *secondFactorAccount
+	generation uint64
+}
+
+// secondFactorLimiter tracks failures by account only. It is intentionally
+// separate from the password limiter: possession of the first factor must not
+// grant a fresh second-factor guessing budget for every client address.
+type secondFactorLimiter struct {
+	mu          sync.Mutex
+	accounts    map[int64]*secondFactorAccount
+	maxFailures int
+	window      time.Duration
+	lockout     time.Duration
+}
+
+func newSecondFactorLimiter(maxFailures int, window, lockout time.Duration) *secondFactorLimiter {
+	return &secondFactorLimiter{
+		accounts:    make(map[int64]*secondFactorAccount),
+		maxFailures: maxFailures,
+		window:      window,
+		lockout:     lockout,
+	}
+}
+
+func (l *secondFactorLimiter) begin(accountID int64, now time.Time) (*secondFactorAttempt, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.prune(now)
+	account := l.accounts[accountID]
+	if account == nil {
+		if len(l.accounts) >= limiterBucketCap && !l.evictOldestSettled() {
+			return nil, false
+		}
+		account = &secondFactorAccount{}
+		l.accounts[accountID] = account
+	}
+	if now.Before(account.lockedUntil) {
+		return nil, false
+	}
+	if !account.lockedUntil.IsZero() {
+		account.failures = nil
+		account.lockedUntil = time.Time{}
+		account.pending = 0
+		account.generation++
+	}
+	cutoff := now.Add(-l.window)
+	kept := account.failures[:0]
+	for _, failedAt := range account.failures {
+		if failedAt.After(cutoff) {
+			kept = append(kept, failedAt)
+		}
+	}
+	account.failures = kept
+	if len(account.failures)+account.pending >= l.maxFailures {
+		return nil, false
+	}
+	account.pending++
+	account.last = now
+	return &secondFactorAttempt{accountID: accountID, account: account, generation: account.generation}, true
+}
+
+// failed records a rejected code and reports whether this failure newly
+// triggered a lockout.
+func (l *secondFactorLimiter) failed(attempt *secondFactorAttempt, now time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	account := l.accounts[attempt.accountID]
+	if account != attempt.account || account.generation != attempt.generation {
+		return false
+	}
+	if account.pending > 0 {
+		account.pending--
+	}
+	account.failures = append(account.failures, now)
+	account.last = now
+	locked := len(account.failures) >= l.maxFailures
+	if locked {
+		account.failures = nil
+		account.lockedUntil = now.Add(l.lockout)
+		account.generation++
+	}
+	l.prune(now)
+	return locked
+}
+
+func (l *secondFactorLimiter) succeeded(attempt *secondFactorAttempt) {
+	l.mu.Lock()
+	if account := l.accounts[attempt.accountID]; account == attempt.account && account.generation == attempt.generation {
+		account.generation++
+		delete(l.accounts, attempt.accountID)
+	}
+	l.mu.Unlock()
+}
+
+func (l *secondFactorLimiter) abandon(attempt *secondFactorAttempt) {
+	l.mu.Lock()
+	if account := l.accounts[attempt.accountID]; account == attempt.account && account.generation == attempt.generation {
+		if account.pending > 0 {
+			account.pending--
+		}
+		if account.pending == 0 && len(account.failures) == 0 {
+			delete(l.accounts, attempt.accountID)
+		}
+	}
+	l.mu.Unlock()
+}
+
+func (l *secondFactorLimiter) prune(now time.Time) {
+	for accountID, account := range l.accounts {
+		if account.pending > 0 {
+			continue
+		}
+		if !account.lockedUntil.IsZero() && !now.Before(account.lockedUntil) ||
+			account.lockedUntil.IsZero() && now.Sub(account.last) >= l.window {
+			delete(l.accounts, accountID)
+		}
+	}
+	for len(l.accounts) > limiterBucketCap {
+		if !l.evictOldestSettled() {
+			return
+		}
+	}
+}
+
+func (l *secondFactorLimiter) evictOldestSettled() bool {
+	var oldestID int64
+	var oldest time.Time
+	found := false
+	for accountID, account := range l.accounts {
+		if account.pending > 0 {
+			continue
+		}
+		if !found || account.last.Before(oldest) || account.last.Equal(oldest) && accountID < oldestID {
+			oldestID = accountID
+			oldest = account.last
+			found = true
+		}
+	}
+	if found {
+		delete(l.accounts, oldestID)
+	}
+	return found
 }
 
 func newLoginLimiter() *loginLimiter {

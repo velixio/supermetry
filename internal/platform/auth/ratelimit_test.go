@@ -100,3 +100,45 @@ func TestLoginLimiterSingleClientCannotReachAccountCeiling(t *testing.T) {
 		t.Fatal("one client locked the real user out of the account")
 	}
 }
+
+func TestSecondFactorLimiterMapIsBounded(t *testing.T) {
+	limiter := newSecondFactorLimiter(5, 5*time.Minute, 15*time.Minute)
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	for accountID := int64(1); accountID <= limiterBucketCap+17; accountID++ {
+		attemptedAt := now.Add(time.Duration(accountID) * time.Nanosecond)
+		attempt, allowed := limiter.begin(accountID, attemptedAt)
+		if !allowed {
+			t.Fatalf("account %d unexpectedly limited", accountID)
+		}
+		limiter.failed(attempt, attemptedAt)
+	}
+	if got := len(limiter.accounts); got != limiterBucketCap {
+		t.Fatalf("second-factor account count = %d, want %d", got, limiterBucketCap)
+	}
+	if _, ok := limiter.accounts[1]; ok {
+		t.Fatal("oldest second-factor account was not evicted")
+	}
+	if _, ok := limiter.accounts[limiterBucketCap+17]; !ok {
+		t.Fatal("newest second-factor account was evicted")
+	}
+}
+
+func TestSecondFactorLimiterReservesConcurrentAttemptBudget(t *testing.T) {
+	limiter := newSecondFactorLimiter(5, 5*time.Minute, 15*time.Minute)
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	attempts := make([]*secondFactorAttempt, 5)
+	for i := range attempts {
+		var allowed bool
+		attempts[i], allowed = limiter.begin(42, now)
+		if !allowed {
+			t.Fatalf("attempt %d rejected before budget was reserved", i+1)
+		}
+	}
+	if _, allowed := limiter.begin(42, now); allowed {
+		t.Fatal("sixth concurrent attempt exceeded the account budget")
+	}
+	limiter.succeeded(attempts[0])
+	if _, allowed := limiter.begin(42, now); !allowed {
+		t.Fatal("successful concurrent attempt did not reset the account budget")
+	}
+}

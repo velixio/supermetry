@@ -148,6 +148,9 @@ func (a *Auth) ChangePassword(ctx context.Context, userID int64, currentPassword
 	if newPassword == "" || currentSession == "" {
 		return ErrInvalid
 	}
+	if err := platformcrypto.ValidateNewPassword(newPassword); err != nil {
+		return err
+	}
 	if !a.allowAccountCheck(ctx, userID) {
 		return ErrRateLimited
 	}
@@ -157,6 +160,9 @@ func (a *Auth) ChangePassword(ctx context.Context, userID int64, currentPassword
 	}
 	valid, err := platformcrypto.VerifyPassword(user.PasswordHash, currentPassword)
 	if err != nil || !valid {
+		return ErrInvalid
+	}
+	if currentPassword == newPassword {
 		return ErrInvalid
 	}
 	passwordHash, err := platformcrypto.HashPassword(newPassword)
