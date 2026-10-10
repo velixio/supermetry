@@ -1,0 +1,17 @@
+{
+  "name": "replay",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "playwright": "^1.64.0",
+    "rrweb": "^2.1.7"
+  }
+}
