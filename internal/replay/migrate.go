@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-const migrationBatchSize = 256
 
 type migrationCheckpoint struct {
 	LastKey       string          `json:"last_key,omitempty"`
@@ -58,64 +57,44 @@ func RunMigration(ctx context.Context, pool *pgxpool.Pool, from, to BlobStore) (
 	if checkpoint.Complete {
 		return nil
 	}
-
-	for {
-		rows, err := conn.Query(ctx, `
-select distinct blob_key
-from replay_sessions
-where blob_key > $1
-order by blob_key
-limit $2`, checkpoint.LastKey, migrationBatchSize)
+	blobs, err := from.List(ctx, "replay")
+	if err != nil {
+		return fmt.Errorf("list replay blobs for migration: %w", err)
+	}
+	sort.Slice(blobs, func(i, j int) bool { return blobs[i].Key < blobs[j].Key })
+	for _, blob := range blobs {
+		key := blob.Key
+		if key <= checkpoint.LastKey {
+			continue
+		}
+		reader, err := from.Open(ctx, key)
 		if err != nil {
-			return fmt.Errorf("list replay blobs for migration: %w", err)
+			return fmt.Errorf("open replay source %q: %w", key, err)
 		}
-		keys := make([]string, 0, migrationBatchSize)
-		for rows.Next() {
-			var key string
-			if err := rows.Scan(&key); err != nil {
-				rows.Close()
-				return fmt.Errorf("scan replay migration key: %w", err)
-			}
-			keys = append(keys, key)
+		_, putErr := to.PutIfAbsent(ctx, key, reader)
+		closeErr := reader.Close()
+		if putErr != nil {
+			return fmt.Errorf("copy replay blob %q: %w", key, putErr)
 		}
-		rowsErr := rows.Err()
-		rows.Close()
-		if rowsErr != nil {
-			return fmt.Errorf("iterate replay migration keys: %w", rowsErr)
-		}
-		if len(keys) == 0 {
-			checkpoint.Complete = true
-			return saveMigrationCheckpoint(ctx, conn, checkpoint)
+		if closeErr != nil {
+			return fmt.Errorf("close replay source %q: %w", key, closeErr)
 		}
 
-		for _, key := range keys {
-			reader, err := from.Open(ctx, key)
-			if err != nil {
-				return fmt.Errorf("open replay source %q: %w", key, err)
-			}
-			_, putErr := to.PutIfAbsent(ctx, key, reader)
-			closeErr := reader.Close()
-			if putErr != nil {
-				return fmt.Errorf("copy replay blob %q: %w", key, putErr)
-			}
-			if closeErr != nil {
-				return fmt.Errorf("close replay source %q: %w", key, closeErr)
-			}
-
-			checkpoint.LastKey = key
-			checkpoint.PendingDelete = key
-			if err := saveMigrationCheckpoint(ctx, conn, checkpoint); err != nil {
-				return err
-			}
-			if _, err := from.Delete(ctx, key); err != nil {
-				return fmt.Errorf("delete replay source %q: %w", key, err)
-			}
-			checkpoint.PendingDelete = ""
-			if err := saveMigrationCheckpoint(ctx, conn, checkpoint); err != nil {
-				return err
-			}
+		checkpoint.LastKey = key
+		checkpoint.PendingDelete = key
+		if err := saveMigrationCheckpoint(ctx, conn, checkpoint); err != nil {
+			return err
+		}
+		if _, err := from.Delete(ctx, key); err != nil {
+			return fmt.Errorf("delete replay source %q: %w", key, err)
+		}
+		checkpoint.PendingDelete = ""
+		if err := saveMigrationCheckpoint(ctx, conn, checkpoint); err != nil {
+			return err
 		}
 	}
+	checkpoint.Complete = true
+	return saveMigrationCheckpoint(ctx, conn, checkpoint)
 }
 
 func loadMigrationCheckpoint(ctx context.Context, conn *pgxpool.Conn) (migrationCheckpoint, error) {

@@ -147,6 +147,37 @@ func (s *S3Store) Delete(ctx context.Context, key string) (int64, error) {
 	return freed + info.Size, nil
 }
 
+func (s *S3Store) List(ctx context.Context, prefix string) ([]BlobInfo, error) {
+	clean, err := validateBlobPath(prefix)
+	if err != nil {
+		return nil, err
+	}
+	prefix = strings.TrimSuffix(filepath.ToSlash(clean), "/") + "/"
+	blobs, err := s.spills.list(prefix)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{}, len(blobs))
+	for _, blob := range blobs {
+		seen[blob.Key] = struct{}{}
+	}
+	objectPrefix := s.objectKey(prefix)
+	for object := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: objectPrefix, Recursive: true}) {
+		if object.Err != nil {
+			return nil, fmt.Errorf("list replay S3 objects: %w", object.Err)
+		}
+		key := object.Key
+		if s.prefix != "" {
+			key = strings.TrimPrefix(key, s.prefix+"/")
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		blobs = append(blobs, BlobInfo{Key: key, Size: object.Size, Modified: object.LastModified})
+	}
+	return blobs, nil
+}
+
 func (s *S3Store) CloseSession(ctx context.Context, key string) error {
 	if _, err := validateBlobPath(key); err != nil {
 		return err

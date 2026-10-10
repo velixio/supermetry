@@ -356,9 +356,12 @@ func (h *Handler) rateLimited(siteID int32, ip netip.Addr) bool {
 	if h.deps.Limiter == nil {
 		return false
 	}
+	return !h.deps.Limiter.Allow(replayRateLimitKey(siteID, ip))
+}
+
+func replayRateLimitKey(siteID int32, ip netip.Addr) string {
 	sum := sha256.Sum256([]byte(ip.String()))
-	key := "replay:" + strconv.FormatInt(int64(siteID), 10) + ":" + hex.EncodeToString(sum[:16])
-	return !h.deps.Limiter.Allow(key)
+	return "replay:" + strconv.FormatInt(int64(siteID), 10) + ":" + hex.EncodeToString(sum[:16])
 }
 
 func prepareChunk(w http.ResponseWriter, r *http.Request) (io.Reader, int) {

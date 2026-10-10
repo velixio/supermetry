@@ -332,15 +332,17 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var replayCSSHandler http.Handler
 	var replayIndex *replay.IndexWriter
 	if cfg.Replay.Enabled && replayStore != nil {
+		replayLimiter := ingest.NewTokenBuckets(250, 500)
 		replayIndex = replay.NewIndexWriter(pool, 5*time.Second, func() { health.ReplayDropped.Add(1) })
 		replayHandler = replay.NewHandler(replay.HandlerDeps{
 			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: replayStore, Index: replayIndex,
-			Replay: cfg.Replay, Limiter: ingest.NewTokenBuckets(250, 500), TrustedProxies: cfg.TrustedProxies,
+			Replay: cfg.Replay, Limiter: replayLimiter, TrustedProxies: cfg.TrustedProxies,
 		}, replay.WithClock(settings.clock), replay.WithDiskGuard(replayDiskLow.Load))
 		replayCSSHandler = replay.NewCSSHandler(replayStore, func(publicID string) (int32, bool) {
 			site, ok := registry.ByPublicID(publicID)
 			return site.ID, ok
-		}, make(chan struct{}, 16), func() { health.ReplayDropped.Add(1) })
+		}, make(chan struct{}, 16), func() { health.ReplayDropped.Add(1) },
+			replay.WithCSSLimiter(replayLimiter, cfg.TrustedProxies), replay.WithCSSDiskGuard(replayDiskLow.Load))
 		replayCSSHandler = replay.CollectionGuard(registry, cfg.Replay, replayCSSHandler)
 	}
 

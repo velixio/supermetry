@@ -20,14 +20,20 @@ func TestMigrateCopiesThenDeletes(t *testing.T) {
 	to := newMigrationDiskStore(t)
 	putMigrationBlob(t, ctx, pool, from, "replay/1/2026-10-08/1.gz", "one")
 	putMigrationBlob(t, ctx, pool, from, "replay/1/2026-10-08/2.gz", "two")
+	cssKey := CSSKey(1, "abcdef")
+	if _, err := from.PutIfAbsent(ctx, cssKey, bytes.NewBufferString("css")); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := RunMigration(ctx, pool, from, to); err != nil {
 		t.Fatal(err)
 	}
 	assertBlob(t, ctx, to, "replay/1/2026-10-08/1.gz", "one")
 	assertBlob(t, ctx, to, "replay/1/2026-10-08/2.gz", "two")
+	assertBlob(t, ctx, to, cssKey, "css")
 	assertBlobMissing(t, ctx, from, "replay/1/2026-10-08/1.gz")
 	assertBlobMissing(t, ctx, from, "replay/1/2026-10-08/2.gz")
+	assertBlobMissing(t, ctx, from, cssKey)
 
 	var complete bool
 	if err := pool.QueryRow(ctx, `select coalesce((settings->'replay_migration'->>'complete')::boolean, false) from instance_settings where id`).Scan(&complete); err != nil {

@@ -85,6 +85,22 @@ func testBlobStoreContract(t *testing.T, store BlobStore) {
 	if err != nil || stored {
 		t.Fatalf("second PutIfAbsent() = (%v, %v), want (false, nil)", stored, err)
 	}
+	blobs, err := store.List(ctx, "replay/42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantSizes := map[string]int64{key: int64(len("onetwothree")), cssKey: int64(len("css"))}
+	for _, blob := range blobs {
+		if want, exists := wantSizes[blob.Key]; exists {
+			if blob.Size != want {
+				t.Fatalf("List() size for %q = %d, want %d", blob.Key, blob.Size, want)
+			}
+			delete(wantSizes, blob.Key)
+		}
+	}
+	if len(wantSizes) != 0 {
+		t.Fatalf("List() omitted blobs: %v", wantSizes)
+	}
 	deleteKey := "replay/42/delete.gz"
 	if _, err := store.Append(ctx, deleteKey, bytes.NewBufferString("delete")); err != nil {
 		t.Fatal(err)

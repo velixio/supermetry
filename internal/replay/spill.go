@@ -24,6 +24,30 @@ type spillSet struct {
 	closed bool
 }
 
+func (s *spillSet) list(prefix string) ([]BlobInfo, error) {
+	var blobs []BlobInfo
+	for _, key := range s.keys() {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		file, ok := s.get(key)
+		if !ok {
+			continue
+		}
+		file.mu.Lock()
+		info, err := os.Stat(file.path)
+		file.mu.Unlock()
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("stat replay spill: %w", err)
+		}
+		blobs = append(blobs, BlobInfo{Key: key, Size: info.Size(), Modified: info.ModTime()})
+	}
+	return blobs, nil
+}
+
 type spillFile struct {
 	key    string
 	path   string

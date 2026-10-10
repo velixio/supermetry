@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -92,6 +94,24 @@ func TestRetentionRetriesProfileDelete(t *testing.T) {
 	}
 	assertRetainedBlobMissing(t, store, key)
 	assertReplaySessions(t, pool, siteID, nil)
+}
+
+func TestRetentionGarbageCollectsOnlyUnreferencedCSS(t *testing.T) {
+	pool, blobStore, siteID, now := newRetentionFixture(t, 30, 1<<20)
+	store := blobStore.(*DiskStore)
+	referencedCSS := []byte("body{color:green}")
+	unreferencedCSS := []byte("body{color:red}")
+	putCSSBlob(t, store, siteID, referencedCSS, now.AddDate(0, 0, -31))
+	putCSSBlob(t, store, siteID, unreferencedCSS, now.AddDate(0, 0, -31))
+	addReplaySessionBody(t, pool, store, siteID, 1, now.AddDate(0, 0, -1),
+		`{"type":2,"data":{"node":{"attributes":{"_cssRef":"`+cssHash(referencedCSS)+`"}}}}`)
+
+	if err := RunRetention(context.Background(), pool, store, now); err != nil {
+		t.Fatal(err)
+	}
+
+	assertBlobPresent(t, store, CSSKey(siteID, cssHash(referencedCSS)))
+	assertRetainedBlobMissing(t, store, CSSKey(siteID, cssHash(unreferencedCSS)))
 }
 
 func TestEraseSiteRemovesFilesAndRows(t *testing.T) {
@@ -190,6 +210,34 @@ func addReplaySession(t *testing.T, pool *pgxpool.Pool, store BlobStore, siteID 
 		t.Fatal(err)
 	}
 	return key
+}
+
+func addReplaySessionBody(t *testing.T, pool *pgxpool.Pool, store BlobStore, siteID int32, sessionID int64, startedAt time.Time, body string) string {
+	t.Helper()
+	compressed := gzipCSS(t, []byte(body))
+	day := time.Date(startedAt.Year(), startedAt.Month(), startedAt.Day(), 0, 0, 0, 0, time.UTC)
+	key := SessionKey(siteID, day, sessionID)
+	if _, err := store.Append(context.Background(), key, strings.NewReader(string(compressed))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(context.Background(), `
+		insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key)
+		values ($1,$2,$3,$3,$4,$5,1,$6)`, siteID, sessionID, startedAt, day, len(compressed), key); err != nil {
+		t.Fatal(err)
+	}
+	return key
+}
+
+func putCSSBlob(t *testing.T, store *DiskStore, siteID int32, css []byte, modified time.Time) {
+	t.Helper()
+	key := CSSKey(siteID, cssHash(css))
+	if _, err := store.PutIfAbsent(context.Background(), key, strings.NewReader(string(gzipCSS(t, css)))); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(store.dir, filepath.FromSlash(key))
+	if err := os.Chtimes(name, modified, modified); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func assertReplaySessions(t *testing.T, pool *pgxpool.Pool, siteID int32, want []int64) {

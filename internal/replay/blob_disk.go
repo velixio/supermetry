@@ -190,6 +190,43 @@ func (s *DiskStore) Delete(ctx context.Context, key string) (int64, error) {
 	return info.Size(), nil
 }
 
+func (s *DiskStore) List(ctx context.Context, prefix string) ([]BlobInfo, error) {
+	name, err := validateBlobPath(prefix)
+	if err != nil {
+		return nil, err
+	}
+	root, err := s.openRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	var blobs []BlobInfo
+	err = fs.WalkDir(root.FS(), filepath.ToSlash(name), func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		blobs = append(blobs, BlobInfo{Key: filepath.ToSlash(path), Size: info.Size(), Modified: info.ModTime()})
+		return nil
+	})
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list replay blobs: %w", err)
+	}
+	return blobs, nil
+}
+
 func (s *DiskStore) openRoot() (*os.Root, error) {
 	root, err := os.OpenRoot(s.dir)
 	if err != nil {

@@ -70,6 +70,7 @@ func (*replayTestBlob) PutIfAbsent(context.Context, string, io.Reader) (bool, er
 }
 func (*replayTestBlob) DeletePrefix(context.Context, string) (int64, error) { return 0, nil }
 func (*replayTestBlob) Delete(context.Context, string) (int64, error)       { return 0, nil }
+func (*replayTestBlob) List(context.Context, string) ([]BlobInfo, error)    { return nil, nil }
 
 type replayTestIndex struct {
 	mu      sync.Mutex
@@ -397,6 +398,7 @@ func (benchmarkBlob) Open(context.Context, string) (io.ReadCloser, error) { retu
 func (benchmarkBlob) PutIfAbsent(context.Context, string, io.Reader) (bool, error) {
 	return false, nil
 }
+func (benchmarkBlob) List(context.Context, string) ([]BlobInfo, error)    { return nil, nil }
 func (benchmarkBlob) DeletePrefix(context.Context, string) (int64, error) { return 0, nil }
 func (benchmarkBlob) Delete(context.Context, string) (int64, error)       { return 0, nil }
 

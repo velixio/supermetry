@@ -13,6 +13,13 @@ type BlobStore interface {
 	PutIfAbsent(ctx context.Context, key string, r io.Reader) (stored bool, err error)
 	DeletePrefix(ctx context.Context, prefix string) (int64, error)
 	Delete(ctx context.Context, key string) (int64, error)
+	List(ctx context.Context, prefix string) ([]BlobInfo, error)
+}
+
+type BlobInfo struct {
+	Key      string
+	Size     int64
+	Modified time.Time
 }
 
 func SessionKey(siteID int32, day time.Time, sessionID int64) string {

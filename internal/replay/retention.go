@@ -1,11 +1,15 @@
 package replay
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -151,7 +155,79 @@ func retainSite(ctx context.Context, pool *pgxpool.Pool, store BlobStore, site r
 		rows = kept
 		break
 	}
+	return garbageCollectCSS(ctx, store, site.id, rows, cutoff)
+}
+
+func garbageCollectCSS(ctx context.Context, store BlobStore, siteID int32, rows []retainedReplay, cutoff time.Time) error {
+	prefix := "replay/" + strconv.FormatInt(int64(siteID), 10) + "/css/"
+	blobs, err := store.List(ctx, prefix)
+	if err != nil {
+		return fmt.Errorf("list replay CSS for site %d: %w", siteID, err)
+	}
+	if len(blobs) == 0 {
+		return nil
+	}
+	referenced := make(map[string]struct{})
+	for _, row := range rows {
+		if err := collectReplayCSSReferences(ctx, store, row.blobKey, referenced); err != nil {
+			return fmt.Errorf("collect CSS references from replay session %d for site %d: %w", row.sessionID, siteID, err)
+		}
+	}
+	for _, blob := range blobs {
+		hash := strings.TrimSuffix(strings.TrimPrefix(blob.Key, prefix), ".gz")
+		if !validCSSHash(hash) || !blob.Modified.Before(cutoff) {
+			continue
+		}
+		if _, ok := referenced[hash]; ok {
+			continue
+		}
+		if _, err := store.Delete(ctx, blob.Key); err != nil {
+			return fmt.Errorf("delete unreferenced replay CSS %q: %w", blob.Key, err)
+		}
+	}
 	return nil
+}
+
+func collectReplayCSSReferences(ctx context.Context, store BlobStore, key string, references map[string]struct{}) error {
+	reader, err := store.Open(ctx, key)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	compressed, err := gzip.NewReader(reader)
+	if err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(compressed)
+	for {
+		var value any
+		if err := decoder.Decode(&value); errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			_ = compressed.Close()
+			return err
+		}
+		collectCSSReferences(value, references)
+	}
+	return compressed.Close()
+}
+
+func collectCSSReferences(value any, references map[string]struct{}) {
+	switch value := value.(type) {
+	case map[string]any:
+		for key, child := range value {
+			if key == "_cssRef" {
+				if hash, ok := child.(string); ok && validCSSHash(hash) {
+					references[hash] = struct{}{}
+				}
+			}
+			collectCSSReferences(child, references)
+		}
+	case []any:
+		for _, child := range value {
+			collectCSSReferences(child, references)
+		}
+	}
 }
 
 func loadRetainedReplays(ctx context.Context, pool *pgxpool.Pool, siteID int32) ([]retainedReplay, error) {
