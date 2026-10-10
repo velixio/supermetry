@@ -27,6 +27,8 @@ import type { Me, Membership } from '@/routes/app.$org'
 
 import { activeSite, matchesSite, SupermetrySidebar } from './Sidebar'
 import { HeaderMenus } from './HeaderMenus'
+import { DemoBanner } from '@/features/demo/DemoBanner'
+import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 
 function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number; org: string; site: string; detailsAvailable: boolean }) {
   const summary = useLiveSummary(siteId)
@@ -144,6 +146,11 @@ export function AppShell({
             </div>
           </header>
           <main className="min-w-0 flex-1 p-4 md:p-6">
+            {scopedSite?.is_demo ? (
+              <DemoBanner org={membership.org} site={scopedSite} />
+            ) : (
+              <RemoveDemoBanner currentSite={scopedSite} membership={membership} />
+            )}
             <AuthorizationCacheBoundary scope={authorizationScope(me.user.id, membership)}>
               <div
                 key={pathname}

@@ -303,7 +303,8 @@ func decodeAlertInput(w http.ResponseWriter, r *http.Request) (alerts.AlertInput
 }
 
 func validAlertInput(input alerts.AlertInput) bool {
-	if input.Threshold <= 0 || len(input.ChannelIDs) == 0 {
+	enabled := input.Enabled == nil || *input.Enabled
+	if input.Threshold <= 0 || enabled && len(input.ChannelIDs) == 0 {
 		return false
 	}
 	seen := make(map[int64]bool, len(input.ChannelIDs))

@@ -20,7 +20,12 @@ paths:
       security: [{ cookieAuth: [] }]
       summary: Get the signed-in user and memberships
       responses:
-        '200': { description: Current account details. }
+        '200':
+          description: Current account details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
         '401': { $ref: '#/components/responses/Unauthorized' }
     patch:
       operationId: updateCurrentUser
@@ -56,6 +61,67 @@ paths:
         '204': { description: Account anonymised and authentication cookies cleared. }
         '409': { description: Transfer ownership or delete the organization first. }
         '429': { description: Too many password checks. }
+  /api/private/me/demo-prompt/dismiss:
+    post:
+      operationId: dismissDemoPrompt
+      security: [{ cookieAuth: [] }]
+      summary: Permanently dismiss the demo-project onboarding prompt
+      responses:
+        '204': { description: The prompt is dismissed. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/orgs/{org}/demo:
+    post:
+      operationId: createDemoProject
+      security: [{ cookieAuth: [] }]
+      summary: Create and start seeding the organization's demo project
+      parameters:
+        - name: org
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDemoRequest'
+      responses:
+        '202':
+          description: The demo project was created and its background seed was started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Site'
+        '400':
+          description: The timezone is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoError'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: The organization already has a demo project.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoError'
+  /api/private/sites/{site}/demo/heartbeat:
+    post:
+      operationId: heartbeatDemoProject
+      security: [{ cookieAuth: [] }]
+      summary: Keep watched demo traffic active
+      parameters:
+        - name: site
+          in: path
+          required: true
+          schema: { type: integer, format: int32 }
+      responses:
+        '204': { description: The demo heartbeat was recorded. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/me/email:
     post:
       operationId: startCurrentUserEmailChange
@@ -1903,6 +1969,66 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    CreateDemoRequest:
+      type: object
+      additionalProperties: false
+      required: [timezone]
+      properties:
+        timezone: { type: string, example: Europe/Berlin }
+    DemoError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum: [invalid_timezone, demo_exists]
+        site_id:
+          type: string
+          description: Existing public site identifier, present for demo_exists.
+    CurrentUserResponse:
+      type: object
+      required: [user, memberships, demo_prompt_dismissed]
+      properties:
+        user:
+          type: object
+          required: [id, email, name, totp_enabled, created_at]
+          properties:
+            id: { type: integer, format: int64 }
+            email: { type: string, format: email }
+            name: { type: string }
+            totp_enabled: { type: boolean }
+            created_at: { type: string, format: date-time }
+            last_login_at: { type: string, format: date-time }
+        memberships:
+          type: array
+          items:
+            type: object
+            required: [org, role, site_ids, capabilities, billing_admin, effective_capabilities, sites]
+            properties:
+              org:
+                type: object
+                required: [id, name, slug]
+                properties:
+                  id: { type: integer, format: int64 }
+                  name: { type: string }
+                  slug: { type: string }
+              role: { type: string, enum: [owner, admin, editor, viewer] }
+              site_ids:
+                type: [array, 'null']
+                items: { type: integer, format: int32 }
+              capabilities:
+                type: array
+                items: { type: string }
+              billing_admin: { type: boolean }
+              effective_capabilities:
+                type: array
+                items: { type: string }
+              sites:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Site'
+        demo_prompt_dismissed: { type: boolean }
     ShareExpiryDays:
       type: integer
       enum: [7, 30, 90, 365]
@@ -2102,7 +2228,7 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state]
+      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state, is_demo, demo_ready]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -2141,6 +2267,12 @@ components:
           type: string
           enum: [unconfigured, configured, conflict]
           x-enum-varnames: [SiteRevenueCurrencyUnconfigured, SiteRevenueCurrencyConfigured, SiteRevenueCurrencyConflict]
+        is_demo: { type: boolean }
+        demo_ready: { type: boolean }
+        demo_expires_at:
+          type: string
+          format: date-time
+          description: Expiry time for a demo project; returned only by private endpoints.
     SiteList:
       type: object
       additionalProperties: false

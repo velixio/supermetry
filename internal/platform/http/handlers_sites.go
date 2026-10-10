@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"supermetry/internal/db"
+	"supermetry/internal/demo"
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/sitesvc"
 	"supermetry/internal/privacy"
@@ -41,6 +42,10 @@ type siteResponse struct {
 	IconURL               string                         `json:"icon_url"`
 	RevenueCurrency       string                         `json:"revenue_currency,omitempty"`
 	RevenueCurrencyState  coresites.RevenueCurrencyState `json:"revenue_currency_state"`
+	IsDemo                *bool                          `json:"is_demo,omitempty"`
+	DemoReady             *bool                          `json:"demo_ready,omitempty"`
+	DemoFailed            *bool                          `json:"demo_failed,omitempty"`
+	DemoExpiresAt         *time.Time                     `json:"demo_expires_at,omitempty"`
 }
 
 func (h *handler) listSites(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +120,8 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 		coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
 		coalesce(settings->'strict_origin'='true'::jsonb,false),coalesce(settings->'blocked_referrers','[]'::jsonb),
-		coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,created_at
+		coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,
+		is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at),created_at
 		from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 		order by created_at,id limit $3`
 	args := []any{principal.OrgID, principal.SiteIDs, limit + 1}
@@ -127,7 +133,8 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			coalesce(settings->'heatmaps_enabled'='true'::jsonb,false),
 			coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
 			coalesce(settings->'strict_origin'='true'::jsonb,false),coalesce(settings->'blocked_referrers','[]'::jsonb),
-			coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,created_at
+			coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,
+			is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at),created_at
 			from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 			and (created_at,id)>($3,$4) order by created_at,id limit $5`
 		args = []any{principal.OrgID, principal.SiteIDs, cursor.CreatedAt, cursor.ID, limit + 1}
@@ -147,13 +154,16 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		var timezone string
 		var retention int16
 		var trackerRaw []byte
+		var isDemo, demoReady, demoFailed bool
+		var demoStartedAt *time.Time
 		if err := rows.Scan(&item.response.ID, &item.response.OrgID, &item.response.PublicID, &item.response.Name,
 			&item.response.AllowedHosts, &timezone, &retention, &item.response.ExcludeIPs,
 			&item.response.ExcludePaths, &item.response.ExcludeCountries, &trackerRaw,
 			&item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
 			&item.response.RespectPrivacySignals,
 			&item.response.StrictOrigin, &item.response.BlockedReferrers,
-			&item.response.IconURL, &item.response.RevenueCurrency, &item.response.RevenueCurrencyState, &item.createdAt); err != nil {
+			&item.response.IconURL, &item.response.RevenueCurrency, &item.response.RevenueCurrencyState,
+			&isDemo, &demoReady, &demoFailed, &demoStartedAt, &item.createdAt); err != nil {
 			return nil, "", err
 		}
 		item.response.Timezone = timezone
@@ -161,6 +171,15 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		tracker := sitesvc.ParseStoredTracker(item.response.ID, trackerRaw)
 		item.response.Tracker = tracker.Resolve(item.response.HeatmapsEnabled)
 		item.response.TrackerURL = h.trackerURL(item.response.PublicID)
+		if !strings.HasPrefix(r.URL.Path, "/api/public/v1/") {
+			item.response.IsDemo = boolPointer(isDemo)
+			item.response.DemoReady = boolPointer(demoReady)
+			item.response.DemoFailed = boolPointer(demoFailed)
+			if isDemo && demoStartedAt != nil {
+				expiresAt := demoStartedAt.Add(demo.DemoLifetime)
+				item.response.DemoExpiresAt = &expiresAt
+			}
+		}
 		if !authz.Can(principal, authz.ActionStatsRead, item.response.ID) && !authz.Can(principal, authz.ActionSiteEdit, item.response.ID) {
 			continue
 		}
@@ -294,6 +313,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		StrictOrigin          *bool           `json:"strict_origin"`
 		BlockedReferrers      *[]string       `json:"blocked_referrers"`
 		RevenueCurrency       *string         `json:"revenue_currency"`
+		IsDemo                *bool           `json:"is_demo"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -393,11 +413,32 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		RevenueCurrency:       site.RevenueCurrency,
 		RevenueCurrencyState:  site.RevenueCurrencyState,
 	}
+	if !strings.HasPrefix(r.URL.Path, "/api/public/v1/") {
+		response.IsDemo = boolPointer(site.Demo)
+		response.DemoReady = boolPointer(false)
+		response.DemoFailed = boolPointer(false)
+	}
 	if h.deps.Store != nil {
-		_ = h.deps.Store.Pool.QueryRow(r.Context(), `select name,coalesce(settings->>'icon_url','') from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).Scan(&response.Name, &response.IconURL)
+		var isDemo, demoReady, demoFailed bool
+		var demoStartedAt *time.Time
+		_ = h.deps.Store.Pool.QueryRow(r.Context(), `
+			select name,coalesce(settings->>'icon_url',''),is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at)
+			from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).
+			Scan(&response.Name, &response.IconURL, &isDemo, &demoReady, &demoFailed, &demoStartedAt)
+		if !strings.HasPrefix(r.URL.Path, "/api/public/v1/") {
+			response.IsDemo = boolPointer(isDemo)
+			response.DemoReady = boolPointer(demoReady)
+			response.DemoFailed = boolPointer(demoFailed)
+			if isDemo && demoStartedAt != nil {
+				expiresAt := demoStartedAt.Add(demo.DemoLifetime)
+				response.DemoExpiresAt = &expiresAt
+			}
+		}
 	}
 	return response
 }
+
+func boolPointer(value bool) *bool { return &value }
 
 func (h *handler) trackerURL(publicID string) string {
 	dir := path.Dir("/" + strings.TrimLeft(h.deps.TrackerPath, "/"))

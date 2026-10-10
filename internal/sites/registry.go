@@ -27,6 +27,7 @@ type Site struct {
 	IconURL               string
 	RevenueCurrency       string
 	RevenueCurrencyState  RevenueCurrencyState
+	Demo                  bool
 }
 
 // Registry provides in-memory site lookups for the analytics core.

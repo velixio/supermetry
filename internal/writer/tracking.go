@@ -20,11 +20,17 @@ func (w *Writer) identityAllowed(siteID int32) bool {
 	w.trackingMu.RLock()
 	mode, registry := w.trackingMode, w.trackingSites
 	w.trackingMu.RUnlock()
-	if mode != privacy.Identified || registry == nil {
+	if registry == nil {
 		return false
 	}
 	site, ok := registry.Site(siteID)
-	return ok && site.ProfilesEnabled
+	if !ok {
+		return false
+	}
+	if site.Demo {
+		return true
+	}
+	return mode == privacy.Identified && site.ProfilesEnabled
 }
 
 // pathsAllowed reports whether real paths may be stored for a site: the
@@ -34,11 +40,17 @@ func (w *Writer) pathsAllowed(siteID int32) bool {
 	w.trackingMu.RLock()
 	mode, registry := w.trackingMode, w.trackingSites
 	w.trackingMu.RUnlock()
-	if mode != privacy.Identified || registry == nil {
+	if registry == nil {
 		return false
 	}
-	_, ok := registry.Site(siteID)
-	return ok
+	site, ok := registry.Site(siteID)
+	if !ok {
+		return false
+	}
+	if site.Demo {
+		return true
+	}
+	return mode == privacy.Identified
 }
 
 // Recheck on every flush attempt: accepting a hit is not permission to persist

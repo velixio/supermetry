@@ -14,6 +14,7 @@ import (
 	"supermetry/internal/api"
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
 	"supermetry/internal/query"
 )
 
@@ -79,7 +80,13 @@ func (h *handler) createSegment(w http.ResponseWriter, r *http.Request) {
 	var created segmentResponse
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		created.SiteID, created.Name, created.Filters = site.ID, input.Name, input.Filters
-		if err := tx.QueryRow(r.Context(), `insert into segments(site_id,name,filters,created_by) values($1,$2,$3,$4) returning id,created_by,created_at,updated_at`, site.ID, input.Name, filtersJSON, createdByUser(principal)).Scan(&created.ID, &created.CreatedBy, &created.CreatedAt, &created.UpdatedAt); err != nil {
+		var err error
+		created.ID, err = store.InsertSegment(r.Context(), tx, site.ID, input.Name, filtersJSON, principal.UserID)
+		if err != nil {
+			return err
+		}
+		if err := tx.QueryRow(r.Context(), `select created_by,created_at,updated_at from segments where id=$1`, created.ID).
+			Scan(&created.CreatedBy, &created.CreatedAt, &created.UpdatedAt); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, principal, "segment.created", "segment", created.ID, map[string]any{"site_id": site.ID})

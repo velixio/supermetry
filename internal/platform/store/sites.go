@@ -2,12 +2,23 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base32"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+const demoPublicIDAttempts = 8
+
+var (
+	ErrDemoExists        = errors.New("demo site already exists")
+	demoPublicIDEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 )
 
 func SiteReplaySettings(ctx context.Context, data *Store, orgID int64, id int32) ([]byte, error) {
@@ -95,6 +106,15 @@ type Site struct {
 	RevenueCurrencyState  string
 	CreatedAt             time.Time
 	DeletedAt             *time.Time
+	IsDemo                bool
+	DemoSeededAt          *time.Time
+	DemoStartedAt         *time.Time
+}
+
+type DemoState struct {
+	SiteID      int32
+	SeededAt    *time.Time
+	LiveThrough *time.Time
 }
 
 func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
@@ -127,7 +147,8 @@ func SiteForUpdate(ctx context.Context, tx pgx.Tx, orgID int64, id int32) (Site,
 		       coalesce(settings->'strict_origin' = 'true'::jsonb, false),
 		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
-		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at
+		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
+		       is_demo, demo_seeded_at, demo_started_at
 		from sites
 		where id = $1 and org_id = $2 and deleted_at is null
 		for update`, id, orgID)
@@ -164,7 +185,8 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		          coalesce(settings->'strict_origin' = 'true'::jsonb, false),
 		          coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
-		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at`,
+		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
+		          is_demo, demo_seeded_at, demo_started_at`,
 		site.ID, site.OrgID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass,
 		site.ExcludeIPs, site.ExcludePaths, site.ExcludeCountries, string(site.Tracker), site.ProfilesEnabled, site.HeatmapsEnabled,
 		site.RespectPrivacySignals, site.StrictOrigin, site.BlockedReferrers,
@@ -173,7 +195,7 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
-		&site.CreatedAt, &site.DeletedAt,
+		&site.CreatedAt, &site.DeletedAt, &site.IsDemo, &site.DemoSeededAt, &site.DemoStartedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -211,7 +233,8 @@ func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 		       coalesce(s.settings->'strict_origin' = 'true'::jsonb, false),
 		       coalesce(s.settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(s.settings->>'icon_url', ''), coalesce(s.settings->>'icon_checked_at', ''),
-		       coalesce(s.revenue_currency::text, ''), s.revenue_currency_state, s.created_at, s.deleted_at
+		       coalesce(s.revenue_currency::text, ''), s.revenue_currency_state, s.created_at, s.deleted_at,
+		       s.is_demo, s.demo_seeded_at, s.demo_started_at
 		from sites s
 		join orgs o on o.id = s.org_id
 		where s.deleted_at is null and o.deleted_at is null
@@ -236,7 +259,8 @@ func ListSites(ctx context.Context, data *Store, orgID int64, siteIDs []int32, a
 		       coalesce(settings->'strict_origin' = 'true'::jsonb, false),
 		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
-		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at
+		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
+		       is_demo, demo_seeded_at, demo_started_at
 		from sites
 		where org_id = $1 and deleted_at is null and id > $2
 		  and ($3::integer[] is null or id = any($3))
@@ -260,7 +284,7 @@ func scanSite(row siteScanner) (Site, error) {
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
-		&site.CreatedAt, &site.DeletedAt,
+		&site.CreatedAt, &site.DeletedAt, &site.IsDemo, &site.DemoSeededAt, &site.DemoStartedAt,
 	); err != nil {
 		return Site{}, err
 	}
@@ -285,7 +309,8 @@ func SetSiteIcon(ctx context.Context, data *Store, orgID int64, id int32, iconUR
 		          coalesce(settings->'strict_origin' = 'true'::jsonb, false),
 		          coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
-		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at`,
+		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
+		          is_demo, demo_seeded_at, demo_started_at`,
 		id, orgID, iconURL, checkedAt.UTC().Format(time.RFC3339),
 	)
 	site, err := scanSite(row)
@@ -311,4 +336,224 @@ func scanSites(rows pgx.Rows) ([]Site, error) {
 		return nil, fmt.Errorf("iterate sites: %w", err)
 	}
 	return sites, nil
+}
+
+// CreateDemoSite inserts the organization's single active demo project.
+func CreateDemoSite(ctx context.Context, tx pgx.Tx, site Site, createdAt time.Time) (Site, error) {
+	if site.AllowedHosts == nil {
+		site.AllowedHosts = []string{}
+	}
+	for attempt := 0; attempt < demoPublicIDAttempts; attempt++ {
+		publicID := site.PublicID
+		if publicID == "" || attempt > 0 {
+			var err error
+			publicID, err = newDemoPublicID()
+			if err != nil {
+				return Site{}, err
+			}
+		}
+		err := tx.QueryRow(ctx, `
+			insert into sites (
+				org_id, public_id, name, allowed_hosts, timezone, retention_class,
+				settings, revenue_currency, revenue_currency_state, created_at, is_demo, demo_started_at
+			)
+			values (
+				$1, $2, $3, $4, $5, $6,
+				jsonb_build_object(
+					'profiles_enabled', true,
+					'heatmaps_enabled', true,
+					'replay', jsonb_build_object('enabled', true, 'sample_rate', 100)
+				),
+				'USD', 'configured', $7, true, now()
+			)
+			on conflict (public_id) do nothing
+			returning id, public_id, created_at, demo_started_at`,
+			site.OrgID, publicID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass, createdAt,
+		).Scan(&site.ID, &site.PublicID, &site.CreatedAt, &site.DemoStartedAt)
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.ConstraintName == "sites_one_demo_per_org" {
+				return Site{}, ErrDemoExists
+			}
+			return Site{}, fmt.Errorf("insert demo site: %w", err)
+		}
+		site.IsDemo = true
+		site.ProfilesEnabled = true
+		site.HeatmapsEnabled = true
+		site.RevenueCurrency = "USD"
+		site.RevenueCurrencyState = "configured"
+		return site, nil
+	}
+	return Site{}, errors.New("generate unique demo site public ID")
+}
+
+func DemoSiteForOrg(ctx context.Context, q DBTX, orgID int64) (Site, bool, error) {
+	row := q.QueryRow(ctx, `
+		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
+		       coalesce(settings->'exclude_ips', '[]'::jsonb),
+		       coalesce(settings->'exclude_paths', '[]'::jsonb),
+		       coalesce(settings->'exclude_countries', '[]'::jsonb),
+		       coalesce(settings->'tracker', '{}'::jsonb),
+		       coalesce(settings->'profiles_enabled' = 'true'::jsonb, false),
+		       coalesce(settings->'heatmaps_enabled' = 'true'::jsonb, false),
+		       coalesce(settings->'respect_privacy_signals' = 'true'::jsonb, true),
+		       coalesce(settings->'strict_origin' = 'true'::jsonb, false),
+		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
+		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
+		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
+		       is_demo, demo_seeded_at, demo_started_at
+		from sites
+		where org_id=$1 and is_demo and deleted_at is null`, orgID)
+	site, err := scanSite(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Site{}, false, nil
+	}
+	if err != nil {
+		return Site{}, false, fmt.Errorf("load organization demo site: %w", err)
+	}
+	return site, true, nil
+}
+
+func SetDemoSeeded(ctx context.Context, q DBTX, siteID int32, at time.Time) error {
+	return updateDemoTimestamp(ctx, q, siteID, "demo_seeded_at", at)
+}
+
+func SetDemoLiveThrough(ctx context.Context, q DBTX, siteID int32, at time.Time) error {
+	return updateDemoTimestamp(ctx, q, siteID, "demo_live_through", at)
+}
+
+func TouchDemoViewed(ctx context.Context, q DBTX, siteID int32, at time.Time) error {
+	return updateDemoTimestamp(ctx, q, siteID, "demo_viewed_at", at)
+}
+
+func updateDemoTimestamp(ctx context.Context, q DBTX, siteID int32, column string, at time.Time) error {
+	query := "update sites set " + column + "=$2 where id=$1 and is_demo and deleted_at is null"
+	tag, err := q.Exec(ctx, query, siteID, at)
+	if err != nil {
+		return fmt.Errorf("update demo site state: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+type demoQuerier interface {
+	DBTX
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}
+
+type ExpiredDemo struct {
+	SiteID int32
+	OrgID  int64
+}
+
+func ExpiredDemoSites(ctx context.Context, q demoQuerier, startedBefore time.Time) ([]ExpiredDemo, error) {
+	rows, err := q.Query(ctx, `
+		select s.id, s.org_id
+		from sites s
+		join orgs o on o.id=s.org_id
+		where s.is_demo and coalesce(s.demo_started_at, s.created_at) < $1 and s.deleted_at is null and o.deleted_at is null
+		order by s.id`, startedBefore)
+	if err != nil {
+		return nil, fmt.Errorf("query expired demo sites: %w", err)
+	}
+	defer rows.Close()
+	result := make([]ExpiredDemo, 0)
+	for rows.Next() {
+		var expired ExpiredDemo
+		if err := rows.Scan(&expired.SiteID, &expired.OrgID); err != nil {
+			return nil, fmt.Errorf("scan expired demo site: %w", err)
+		}
+		result = append(result, expired)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate expired demo sites: %w", err)
+	}
+	return result, nil
+}
+
+func UnseededDemoSites(ctx context.Context, q demoQuerier) ([]int32, error) {
+	rows, err := q.Query(ctx, `
+		select s.id
+		from sites s
+		join orgs o on o.id=s.org_id
+		where s.is_demo and s.demo_seeded_at is null and s.deleted_at is null and o.deleted_at is null
+		order by s.id`)
+	if err != nil {
+		return nil, fmt.Errorf("query unseeded demo sites: %w", err)
+	}
+	defer rows.Close()
+	result := make([]int32, 0)
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan unseeded demo site: %w", err)
+		}
+		result = append(result, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate unseeded demo sites: %w", err)
+	}
+	return result, nil
+}
+
+func ActiveDemoSites(ctx context.Context, q demoQuerier, viewedSince time.Time) ([]DemoState, error) {
+	rows, err := q.Query(ctx, `
+		select s.id, s.demo_seeded_at, s.demo_live_through
+		from sites s
+		join orgs o on o.id=s.org_id
+		where s.is_demo and s.deleted_at is null and o.deleted_at is null
+		  and s.demo_viewed_at >= $1
+		order by s.id`, viewedSince)
+	if err != nil {
+		return nil, fmt.Errorf("query active demo sites: %w", err)
+	}
+	defer rows.Close()
+	result := make([]DemoState, 0)
+	for rows.Next() {
+		var state DemoState
+		if err := rows.Scan(&state.SiteID, &state.SeededAt, &state.LiveThrough); err != nil {
+			return nil, fmt.Errorf("scan active demo site: %w", err)
+		}
+		result = append(result, state)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate active demo sites: %w", err)
+	}
+	return result, nil
+}
+
+func DismissDemoPrompt(ctx context.Context, q DBTX, userID int64, at time.Time) error {
+	tag, err := q.Exec(ctx, `
+		update users set demo_prompt_dismissed_at=$2
+		where id=$1 and deleted_at is null`, userID, at)
+	if err != nil {
+		return fmt.Errorf("dismiss demo prompt: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func DemoPromptDismissed(ctx context.Context, q DBTX, userID int64) (bool, error) {
+	var dismissed bool
+	if err := q.QueryRow(ctx, `
+		select demo_prompt_dismissed_at is not null
+		from users where id=$1 and deleted_at is null`, userID).Scan(&dismissed); err != nil {
+		return false, fmt.Errorf("load demo prompt state: %w", err)
+	}
+	return dismissed, nil
+}
+
+func newDemoPublicID() (string, error) {
+	var random [8]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate demo site public ID: %w", err)
+	}
+	return strings.ToLower(demoPublicIDEncoding.EncodeToString(random[:])[:12]), nil
 }

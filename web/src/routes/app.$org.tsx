@@ -29,6 +29,8 @@ export type Site = {
   allowed_hosts?: string[]
   revenue_currency?: string
   revenue_currency_state?: 'unconfigured' | 'configured' | 'conflict'
+  is_demo?: boolean
+  demo_ready?: boolean
 }
 
 export type Membership = {
@@ -44,6 +46,7 @@ export type Membership = {
 export type Me = {
   user: { id: number; name: string; email: string; totp_enabled?: boolean }
   memberships: Membership[]
+  demo_prompt_dismissed?: boolean
 }
 
 class AuthenticationRequired extends Error {}

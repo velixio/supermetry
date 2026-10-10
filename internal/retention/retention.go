@@ -20,6 +20,8 @@ var eraseTables = []string{
 	"heatmap_cells",
 	"events",
 	"sessions",
+	"profiles",
+	"profile_tombstones",
 	"sessions_closed",
 	"verified_page_sessions",
 	"verified_page_day",

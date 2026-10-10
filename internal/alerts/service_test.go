@@ -183,6 +183,40 @@ func TestServiceAlertCRUDValidatesRelationsAndAudits(t *testing.T) {
 	}
 }
 
+func TestServiceAlertChannelsRequiredOnlyWhenEnabled(t *testing.T) {
+	service, pool, principal, siteID, _ := newServiceTest(t)
+	ctx := context.Background()
+	disabled := false
+	enabled := true
+
+	created, err := service.CreateAlert(ctx, principal, siteID, AlertInput{
+		Kind: AlertTrafficSpike, Threshold: 3, Enabled: &disabled,
+	})
+	if err != nil {
+		t.Fatalf("CreateAlert() disabled without channels: %v", err)
+	}
+	if created.Enabled || len(created.ChannelIDs) != 0 {
+		t.Fatalf("CreateAlert() = %+v, want disabled without channels", created)
+	}
+	var storedNil bool
+	if err := pool.QueryRow(ctx, `select channel_ids is null from alerts where id=$1`, created.ID).Scan(&storedNil); err != nil {
+		t.Fatal(err)
+	}
+	if storedNil {
+		t.Fatal("disabled alert channel_ids stored as SQL NULL")
+	}
+	if _, err := service.UpdateAlert(ctx, principal, siteID, created.ID, AlertInput{
+		Kind: AlertTrafficSpike, Threshold: 3, ChannelIDs: []int64{}, Enabled: &enabled,
+	}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("UpdateAlert() enabling without channels error = %v, want ErrInvalid", err)
+	}
+	if _, err := service.CreateAlert(ctx, principal, siteID, AlertInput{
+		Kind: AlertTrafficSpike, Threshold: 3, ChannelIDs: []int64{},
+	}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("CreateAlert() enabled without channels error = %v, want ErrInvalid", err)
+	}
+}
+
 func TestServiceEnabledAlertsExcludesDeletedOrganizations(t *testing.T) {
 	service, pool, principal, siteID, _ := newServiceTest(t)
 	ctx := context.Background()

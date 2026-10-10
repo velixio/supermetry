@@ -304,6 +304,34 @@ func TestAlertMutationsValidateInputBeforeService(t *testing.T) {
 	}
 }
 
+func TestDisabledAlertHTTPValidation(t *testing.T) {
+	service := &fakeAlertsService{}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"editor": {UserID: 3, OrgID: 1, Role: authz.RoleEditor, SiteIDs: []int32{10}}},
+		Sites:         siteRegistry{10: {ID: 10, OrgID: 1, PublicID: "siteaaaaaaaa", TZ: time.UTC}},
+		Alerts:        service,
+	})
+
+	created := requestAs(t, handler, "editor", http.MethodPost, "/api/private/sites/10/alerts", `{"kind":"traffic_spike","threshold":2,"enabled":false}`)
+	if created.Code < 200 || created.Code >= 300 {
+		t.Fatalf("disabled create status=%d body=%s", created.Code, created.Body.String())
+	}
+	if service.alertIn.Enabled == nil || *service.alertIn.Enabled || len(service.alertIn.ChannelIDs) != 0 {
+		t.Fatalf("disabled create input=%+v, want disabled without channels", service.alertIn)
+	}
+
+	before := service.alertCall
+	enabled := requestAs(t, handler, "editor", http.MethodPatch, "/api/private/sites/10/alerts/9", `{"kind":"traffic_spike","threshold":2,"enabled":true}`)
+	if enabled.Code != http.StatusBadRequest || service.alertCall != before {
+		t.Fatalf("enable without channels status=%d calls=%d->%d body=%s", enabled.Code, before, service.alertCall, enabled.Body.String())
+	}
+
+	updated := requestAs(t, handler, "editor", http.MethodPatch, "/api/private/sites/10/alerts/9", `{"kind":"traffic_spike","threshold":3,"enabled":false}`)
+	if updated.Code < 200 || updated.Code >= 300 || service.alertIn.Threshold != 3 {
+		t.Fatalf("disabled threshold update status=%d input=%+v body=%s", updated.Code, service.alertIn, updated.Body.String())
+	}
+}
+
 func TestAlertCRUDDelegatesValidatedRequests(t *testing.T) {
 	service := &fakeAlertsService{}
 	handler := platformhttp.New(platformhttp.Deps{

@@ -26,6 +26,57 @@ export interface paths {
         patch: operations["updateCurrentUser"];
         trace?: never;
     };
+    "/api/private/me/demo-prompt/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Permanently dismiss the demo-project onboarding prompt */
+        post: operations["dismissDemoPrompt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create and start seeding the organization's demo project */
+        post: operations["createDemoProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/demo/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Keep watched demo traffic active */
+        post: operations["heartbeatDemoProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/me/email": {
         parameters: {
             query?: never;
@@ -1096,6 +1147,46 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CreateDemoRequest: {
+            /** @example Europe/Berlin */
+            timezone: string;
+        };
+        DemoError: {
+            /** @enum {string} */
+            error: "invalid_timezone" | "demo_exists";
+            /** @description Existing public site identifier, present for demo_exists. */
+            site_id?: string;
+        };
+        CurrentUserResponse: {
+            user: {
+                /** Format: int64 */
+                id: number;
+                /** Format: email */
+                email: string;
+                name: string;
+                totp_enabled: boolean;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: date-time */
+                last_login_at?: string;
+            };
+            memberships: {
+                org: {
+                    /** Format: int64 */
+                    id: number;
+                    name: string;
+                    slug: string;
+                };
+                /** @enum {string} */
+                role: "owner" | "admin" | "editor" | "viewer";
+                site_ids: number[] | null;
+                capabilities: string[];
+                billing_admin: boolean;
+                effective_capabilities: string[];
+                sites: components["schemas"]["Site"][];
+            }[];
+            demo_prompt_dismissed: boolean;
+        };
         /**
          * @description Days from the current time, or null for no expiry.
          * @enum {integer}
@@ -1272,6 +1363,13 @@ export interface components {
             revenue_currency?: string;
             /** @enum {string} */
             revenue_currency_state: "unconfigured" | "configured" | "conflict";
+            is_demo: boolean;
+            demo_ready: boolean;
+            /**
+             * Format: date-time
+             * @description Expiry time for a demo project; returned only by private endpoints.
+             */
+            demo_expires_at?: string;
         };
         SiteList: {
             data: components["schemas"]["Site"][];
@@ -2318,7 +2416,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
             };
             401: components["responses"]["Unauthorized"];
         };
@@ -2392,6 +2492,95 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    dismissDemoPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The prompt is dismissed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createDemoProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDemoRequest"];
+            };
+        };
+        responses: {
+            /** @description The demo project was created and its background seed was started. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Site"];
+                };
+            };
+            /** @description The timezone is invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The organization already has a demo project. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoError"];
+                };
+            };
+        };
+    };
+    heartbeatDemoProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The demo heartbeat was recorded. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     startCurrentUserEmailChange: {

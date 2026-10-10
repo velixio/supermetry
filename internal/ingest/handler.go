@@ -106,7 +106,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	site, ok := h.Sites.ByPublicID(payload.Site)
-	if !ok || site.TZ == nil {
+	if !ok || site.TZ == nil || site.Demo {
 		h.invalid(w)
 		return
 	}

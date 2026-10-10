@@ -369,7 +369,7 @@ func (h *Handler) site(publicID string) (sites.Site, bool) {
 		return sites.Site{}, false
 	}
 	site, ok := h.deps.Sites.ByPublicID(publicID)
-	return site, ok && site.TZ != nil
+	return site, ok && site.TZ != nil && !site.Demo
 }
 
 func (h *Handler) visitorIDs(site sites.Site, ip netip.Addr, userAgent string, now time.Time) (int64, int64, bool) {
@@ -595,7 +595,7 @@ func CollectionGuard(registry sites.Registry, env config.ReplayEnv, next http.Ha
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
-		if !ok || !settings.Enabled || settings.SampleRate.V <= 0 || !originAllowed(site, r.Header.Get("Origin")) || !collectionAllowed(r, settings, r.URL.Query().Get("c") == "1") || r.URL.Query().Get("v") != policyVersion(settings) {
+		if !ok || site.Demo || !settings.Enabled || settings.SampleRate.V <= 0 || !originAllowed(site, r.Header.Get("Origin")) || !collectionAllowed(r, settings, r.URL.Query().Get("c") == "1") || r.URL.Query().Get("v") != policyVersion(settings) {
 			setCSSCORS(w, r)
 			w.WriteHeader(http.StatusForbidden)
 			return

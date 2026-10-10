@@ -32,6 +32,7 @@ type fileSite struct {
 	Replay                json.RawMessage      `json:"replay"`
 	RevenueCurrency       string               `json:"revenue_currency"`
 	RevenueCurrencyState  RevenueCurrencyState `json:"revenue_currency_state"`
+	Demo                  bool                 `json:"demo"`
 }
 
 // LoadFile loads site metadata from a JSON array at path.
@@ -90,6 +91,7 @@ func LoadFile(path string) (*FileRegistry, error) {
 			Replay:                replaySettings,
 			RevenueCurrency:       record.RevenueCurrency,
 			RevenueCurrencyState:  record.RevenueCurrencyState,
+			Demo:                  record.Demo,
 		}
 		if _, exists := r.byPublicID[site.PublicID]; exists {
 			return nil, fmt.Errorf("site %d: duplicate public_id %q", i, site.PublicID)

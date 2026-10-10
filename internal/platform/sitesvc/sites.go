@@ -484,6 +484,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 		IconURL:               row.IconURL,
 		RevenueCurrency:       row.RevenueCurrency,
 		RevenueCurrencyState:  coresites.RevenueCurrencyState(row.RevenueCurrencyState),
+		Demo:                  row.IsDemo,
 	}, nil
 }
 

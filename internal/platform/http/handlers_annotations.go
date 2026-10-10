@@ -11,6 +11,7 @@ import (
 
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
 )
 
 const annotationDateLayout = "2006-01-02"
@@ -93,11 +94,17 @@ func (h *handler) createAnnotation(w http.ResponseWriter, r *http.Request) {
 	}
 	created := annotationResponse{SiteID: site.ID, Day: day, Text: text}
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
-		if err := tx.QueryRow(r.Context(), `
-			insert into annotations(site_id,day,text,created_by)
-			values($1,$2,$3,$4)
-			returning id,created_by,created_at`, site.ID, day, text, createdByUser(principal)).
-			Scan(&created.ID, &created.CreatedBy, &created.CreatedAt); err != nil {
+		var err error
+		parsedDay, err := time.Parse(annotationDateLayout, day)
+		if err != nil {
+			return err
+		}
+		created.ID, err = store.InsertAnnotation(r.Context(), tx, site.ID, parsedDay, text, principal.UserID)
+		if err != nil {
+			return err
+		}
+		if err := tx.QueryRow(r.Context(), `select created_by,created_at from annotations where id=$1`, created.ID).
+			Scan(&created.CreatedBy, &created.CreatedAt); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, principal, "annotation.created", "annotation", created.ID, map[string]any{"site_id": site.ID})

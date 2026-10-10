@@ -56,4 +56,6 @@ export type ManagedSite = {
   heatmaps_enabled?: boolean
   strict_origin?: boolean
   blocked_referrers?: string[]
+  is_demo?: boolean
+  demo_ready?: boolean
 }

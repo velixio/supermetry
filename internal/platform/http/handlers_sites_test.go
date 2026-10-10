@@ -153,6 +153,32 @@ func TestSiteExclusionAPI(t *testing.T) {
 	}
 }
 
+func TestPublicSiteResponseOmitsDemoState(t *testing.T) {
+	principal := authz.Principal{KeyID: 1, OrgID: 1, Role: authz.RoleKey, Scopes: []string{"stats:read"}}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"key": principal},
+		Sites: siteRegistry{7: {
+			ID: 7, OrgID: 1, PublicID: "demo-public", Demo: true, TZ: time.UTC,
+		}},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/sites/7", nil)
+	request.Header.Set("X-Test-Actor", "key")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"is_demo", "demo_ready", "demo_failed"} {
+		if _, ok := body[key]; ok {
+			t.Errorf("public site response contains %q: %s", key, response.Body.String())
+		}
+	}
+}
+
 func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()

@@ -13,6 +13,7 @@ function InstallationRoute() {
       orgId={membership.org.id}
       siteId={site.id}
       publicId={site.public_id ?? String(site.id)}
+      isDemo={site.is_demo}
     />
   ) : null
 }

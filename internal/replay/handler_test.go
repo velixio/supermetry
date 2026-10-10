@@ -868,19 +868,21 @@ func TestCollectionGuardChecksAuxiliaryUploadPolicy(t *testing.T) {
 	for _, tc := range []struct {
 		name                           string
 		enabled, consent, version, gpc bool
+		demo                           bool
 		want                           int
 	}{
 		{name: "project disabled", consent: true, version: true, want: 403},
 		{name: "missing consent", enabled: true, version: true, want: 403},
 		{name: "stale recorder", enabled: true, consent: true, want: 403},
 		{name: "privacy signal", enabled: true, consent: true, version: true, gpc: true, want: 403},
+		{name: "demo site is unknown", enabled: true, consent: true, version: true, demo: true, want: 403},
 		{name: "permitted", enabled: true, consent: true, version: true, want: 204},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			input := replayInput(100)
 			input.Enabled = tc.enabled
 			input.Consent = ptr("always")
-			site := sites.Site{PublicID: "site-public", Replay: input, AllowedHosts: []string{"example.com"}}
+			site := sites.Site{PublicID: "site-public", Replay: input, AllowedHosts: []string{"example.com"}, Demo: tc.demo}
 			env := config.ReplayEnv{Enabled: true}
 			target := "/api/replay/css/unused?s=site-public"
 			if tc.consent {
@@ -893,11 +895,18 @@ func TestCollectionGuardChecksAuxiliaryUploadPolicy(t *testing.T) {
 			if tc.gpc {
 				request.Header.Set("Sec-GPC", "1")
 			}
-			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+			called := false
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusNoContent)
+			})
 			response := httptest.NewRecorder()
 			CollectionGuard(replayTestRegistry{site: site}, env, next).ServeHTTP(response, request)
 			if response.Code != tc.want {
 				t.Fatalf("status=%d want=%d", response.Code, tc.want)
+			}
+			if tc.demo && called {
+				t.Fatal("demo CSS upload reached blob handler")
 			}
 		})
 	}

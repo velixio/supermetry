@@ -202,12 +202,15 @@ func (s *Service) CreateAlert(ctx context.Context, principal authz.Principal, si
 	if !authz.Can(principal, authz.ActionAlertsManage, siteID) {
 		return Alert{}, ErrForbidden
 	}
-	if err := validateAlertInput(input); err != nil {
-		return Alert{}, err
-	}
 	enabled := true
 	if input.Enabled != nil {
 		enabled = *input.Enabled
+	}
+	if input.ChannelIDs == nil {
+		input.ChannelIDs = []int64{}
+	}
+	if err := validateAlertInput(input, enabled); err != nil {
+		return Alert{}, err
 	}
 	var created Alert
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
@@ -225,8 +228,8 @@ func (s *Service) CreateAlert(ctx context.Context, principal authz.Principal, si
 }
 
 func (s *Service) UpdateAlert(ctx context.Context, principal authz.Principal, siteID int32, id int64, input AlertInput) (Alert, error) {
-	if err := validateAlertInput(input); err != nil {
-		return Alert{}, err
+	if input.ChannelIDs == nil {
+		input.ChannelIDs = []int64{}
 	}
 	var updated Alert
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
@@ -250,6 +253,9 @@ func (s *Service) UpdateAlert(ctx context.Context, principal authz.Principal, si
 			}
 		} else {
 			enabled = *input.Enabled
+		}
+		if err := validateAlertInput(input, enabled); err != nil {
+			return err
 		}
 		var err error
 		updated, err = scanAlert(tx.QueryRow(ctx, `update alerts set kind=$2,threshold=$3,goal_id=$4,channel_ids=$5,enabled=$6,delivery_state=null where id=$1 returning id,site_id,kind,threshold,goal_id,channel_ids,enabled,last_fired_at,created_at`, id, input.Kind, input.Threshold, input.GoalID, input.ChannelIDs, enabled))
@@ -500,8 +506,8 @@ func (s *Service) openConfig(value string) (string, error) {
 	return string(plain), nil
 }
 
-func validateAlertInput(input AlertInput) error {
-	if input.Threshold <= 0 || len(input.ChannelIDs) == 0 {
+func validateAlertInput(input AlertInput, enabled bool) error {
+	if input.Threshold <= 0 || enabled && len(input.ChannelIDs) == 0 {
 		return ErrInvalid
 	}
 	seen := make(map[int64]bool, len(input.ChannelIDs))

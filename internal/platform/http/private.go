@@ -61,6 +61,12 @@ type siteIconMutationService interface {
 	RefreshSiteIcon(context.Context, authz.Principal, int32) (coresites.Site, error)
 }
 
+type DemoService interface {
+	Create(context.Context, authz.Principal, int64, string) (store.Site, error)
+	Viewed(int32)
+	Heartbeat(int32)
+}
+
 type Deps struct {
 	TrackingMode privacy.Mode
 	BaseURL      string
@@ -115,6 +121,7 @@ type Deps struct {
 	SecretKey     []byte
 	AdminAPIKey   string
 	ReplayRefresh func() error
+	Demo          DemoService
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -215,6 +222,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/instance/replay-storage", h.getReplayStorage)
 	mux.HandleFunc("PUT /api/private/instance/replay-storage", h.putReplayStorage)
 	mux.HandleFunc("GET /api/private/me", h.me)
+	mux.HandleFunc("POST /api/private/me/demo-prompt/dismiss", h.dismissDemoPrompt)
 	mux.HandleFunc("PATCH /api/private/me", h.updateMe)
 	mux.HandleFunc("DELETE /api/private/me", h.deleteAccount)
 	mux.HandleFunc("POST /api/private/me/email", h.startEmailChange)
@@ -228,6 +236,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/me/totp", h.disableTOTP)
 	mux.HandleFunc("POST /api/private/me/totp/recovery-codes", h.regenerateTOTPRecoveryCodes)
 	mux.HandleFunc("GET /api/private/orgs", h.listOrgs)
+	mux.HandleFunc("POST /api/private/orgs/{org}/demo", h.createDemo)
+	mux.HandleFunc("POST /api/private/sites/{site}/demo/heartbeat", h.demoHeartbeat)
 	mux.HandleFunc("POST /api/private/orgs", h.createOrg)
 	mux.HandleFunc("GET /api/private/orgs/{org}", h.getOrg)
 	mux.HandleFunc("GET /api/private/orgs/{org}/members", h.listMembers)
@@ -430,6 +440,9 @@ func (h *handler) visibleSite(w http.ResponseWriter, principal authz.Principal, 
 	if !found || site.OrgID != principal.OrgID || !allowsSite(principal.SiteIDs, siteID) {
 		writeProblem(w, http.StatusNotFound, "Not found", "site not found")
 		return authz.Principal{}, coresites.Site{}, false
+	}
+	if site.Demo && h.deps.Demo != nil {
+		h.deps.Demo.Viewed(siteID)
 	}
 	return principal, site, true
 }

@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/alerts"
@@ -28,6 +29,7 @@ import (
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
 	"supermetry/internal/db"
+	"supermetry/internal/demo"
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
 	"supermetry/internal/geoupdate"
@@ -36,8 +38,10 @@ import (
 	"supermetry/internal/imports"
 	"supermetry/internal/ingest"
 	"supermetry/internal/minutes"
+	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authn"
+	"supermetry/internal/platform/authz"
 	platformcrypto "supermetry/internal/platform/crypto"
 	"supermetry/internal/platform/goals"
 	platformhttp "supermetry/internal/platform/http"
@@ -150,6 +154,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err != nil {
 		return fmt.Errorf("initialize replay %s storage: %w", replayStorage.Backend.V, err)
 	}
+	replayIndex := replay.NewIndexWriter(pool, 5*time.Second, func() { health.ReplayDropped.Add(1) })
 	var replayDiskLow atomic.Bool
 	var refreshReplayDiskGuard func()
 	if replayStorage.Backend.V == "disk" {
@@ -266,6 +271,20 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			health.AlertDeliveryFailures.Add(1)
 			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
 		})
+	demoService := demo.New(demo.Deps{
+		Pool: pool, Registry: databaseRegistry, Dict: dictionary,
+		Authz: func(_ context.Context, principal authz.Principal, orgID int64) error {
+			if principal.OrgID != orgID || !authz.Can(principal, authz.ActionSiteCreate, 0) {
+				return sitesvc.ErrForbidden
+			}
+			return nil
+		},
+		Audit: func(ctx context.Context, tx pgx.Tx, principal authz.Principal, _ int64, siteID int32) error {
+			return audit.Write(ctx, tx, principal, "site.created", "site", int64(siteID), map[string]any{"demo": true})
+		},
+		Blobs: replayStore, Index: replayIndex, Alerts: alertService, Definitions: definitionService,
+		Now: settings.clock.Now, Sessions: sessions, Activity: sessions, Writer: w,
+	})
 	importStore := imports.NewStore(pool, engine.InvalidateSite)
 	if err := importStore.FailRunningAtStartup(ctx); err != nil {
 		return fmt.Errorf("recover interrupted imports: %w", err)
@@ -315,6 +334,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		SecretKey:         cfg.SecretKey,
 		AdminAPIKey:       cfg.AdminAPIKey,
 		ReplayRefresh:     refreshRegistry,
+		Demo:              demoService,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {
@@ -342,10 +362,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// queue so replay pressure cannot consume the analytics ingest queue.
 	var replayHandler http.Handler
 	var replayCSSHandler http.Handler
-	var replayIndex *replay.IndexWriter
 	if cfg.Replay.Enabled && replayStore != nil {
 		replayLimiter := ingest.NewTokenBuckets(250, 500)
-		replayIndex = replay.NewIndexWriter(pool, 5*time.Second, func() { health.ReplayDropped.Add(1) })
 		replayHandler = replay.NewHandler(replay.HandlerDeps{
 			Sites: registry, Salts: saltStore, Sessions: sessions, Blobs: replayStore, Index: replayIndex,
 			Replay: cfg.Replay, Limiter: replayLimiter, TrustedProxies: cfg.TrustedProxies,
@@ -392,18 +410,21 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	dropStatsCtx, cancelDropStats := context.WithCancel(context.Background())
 	dropStatsDone := make(chan error, 1)
 	go func() { dropStatsDone <- dropRecorder.Run(dropStatsCtx) }()
-	var cancelReplayIndex context.CancelFunc
-	var replayIndexDone chan error
-	if replayIndex != nil {
-		var replayIndexCtx context.Context
-		replayIndexCtx, cancelReplayIndex = context.WithCancel(context.Background())
-		replayIndexDone = make(chan error, 1)
-		go func() { replayIndexDone <- replayIndex.Run(replayIndexCtx) }()
-	}
+	replayIndexCtx, cancelReplayIndex := context.WithCancel(context.Background())
+	replayIndexDone := make(chan error, 1)
+	go func() { replayIndexDone <- replayIndex.Run(replayIndexCtx) }()
+	demoResumeCtx, cancelDemoResume := context.WithCancel(context.Background())
+	demoResumeDone := make(chan struct{})
+	go func() {
+		defer close(demoResumeDone)
+		if err := demoService.ResumeUnseeded(demoResumeCtx); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Error("resume demo seeding failed", "error", err)
+		}
+	}()
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock, engine.InvalidateSite)
-	jobs = append(jobs, profileErasureWorker.Job(), rollupBackfill.Job())
+	jobs = append(jobs, profileErasureWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
@@ -476,20 +497,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cause = errors.Join(cause, authService.Shutdown(authShutdownCtx))
 	cancelAuth()
 
-	cancelWriter()
-	if writerDone != nil {
-		cause = errors.Join(cause, <-writerDone)
-	}
-	cancelDropStats()
-	if dropStatsDone != nil {
-		cause = errors.Join(cause, <-dropStatsDone)
-	}
-	if cancelReplayIndex != nil {
-		cancelReplayIndex()
-	}
-	if replayIndexDone != nil {
-		cause = errors.Join(cause, <-replayIndexDone)
-	}
 	cancelScheduler()
 	if schedulerDone != nil {
 		cause = errors.Join(cause, <-schedulerDone)
@@ -499,6 +506,21 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	if geoRefreshDone != nil {
 		<-geoRefreshDone
+	}
+	cancelDemoResume()
+	demoService.Close()
+	<-demoResumeDone
+	cancelWriter()
+	if writerDone != nil {
+		cause = errors.Join(cause, <-writerDone)
+	}
+	cancelDropStats()
+	if dropStatsDone != nil {
+		cause = errors.Join(cause, <-dropStatsDone)
+	}
+	cancelReplayIndex()
+	if replayIndexDone != nil {
+		cause = errors.Join(cause, <-replayIndexDone)
 	}
 	cancelImports()
 	if importDone != nil {

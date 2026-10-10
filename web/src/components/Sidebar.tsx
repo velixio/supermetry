@@ -23,6 +23,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 
 import { SiteIcon } from '@/components/SiteIcon'
 import { BrandLogo } from '@/components/BrandLogo'
+import { Badge } from '@/components/ui/badge'
 import { ReplayNavLink } from '@/components/replay/ReplayNavLink'
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ import {
 } from '@/components/ui/sidebar'
 import type { Me, Membership, Site } from '@/routes/app.$org'
 import { en } from '@/messages/en'
+import { useCreateDemo } from '@/features/demo/useDemo'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
@@ -208,6 +210,8 @@ export function SupermetrySidebar({
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const { setOpenMobile } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
+  const hasDemo = membership.sites.some((item) => item.is_demo)
+  const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
 
   return (
     <Sidebar collapsible="icon">
@@ -238,7 +242,8 @@ export function SupermetrySidebar({
                     onClick={closeMobile}
                   >
                     <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} />
-                    {item.name}
+                    <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                    {item.is_demo ? <Badge variant="secondary">Demo</Badge> : null}
                   </Link>
                 </DropdownMenuItem>
               ))}
@@ -253,6 +258,9 @@ export function SupermetrySidebar({
                     {en.navigation.addSite}
                   </Link>
                 </DropdownMenuItem>
+              ) : null}
+              {canCreateSites(membership.role) && demoStateKnown && !hasDemo ? (
+                <AddDemoProjectItem membership={membership} />
               ) : null}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -339,5 +347,18 @@ export function SupermetrySidebar({
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
+  )
+}
+
+function AddDemoProjectItem({ membership }: { membership: Membership }) {
+  const createDemo = useCreateDemo({ id: membership.org.id, slug: membership.org.slug })
+  return (
+    <DropdownMenuItem
+      disabled={createDemo.isPending}
+      onSelect={() => createDemo.mutate()}
+    >
+      <PlusIcon />
+      {createDemo.isPending ? 'Adding demo project…' : 'Add demo project'}
+    </DropdownMenuItem>
   )
 }

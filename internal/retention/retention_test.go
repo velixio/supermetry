@@ -197,6 +197,15 @@ func loadFixture(t *testing.T, pool *pgxpool.Pool) {
 	if err := db.Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := pool.Exec(ctx, `insert into orgs(id,name,slug) overriding system value values (1,'One','one'),(2,'Two','two');
+insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values
+(1,1,'erase-site01','One','UTC',30),(2,2,'erase-site02','Two','UTC',30);
+insert into profiles(site_id,external_id,first_seen_at,last_seen_at) values
+(1,'person-one','2026-10-07','2026-10-07'),(2,'person-two','2026-10-07','2026-10-07');
+insert into profile_tombstones(site_id,external_hash,erased_at) values
+(1,decode(repeat('01',32),'hex'),'2026-10-07'),(2,decode(repeat('02',32),'hex'),'2026-10-07')`); err != nil {
+		t.Fatal(err)
+	}
 	day := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 	if err := db.EnsurePartitions(ctx, pool, day, day.AddDate(0, 0, 1)); err != nil {
 		t.Fatal(err)
@@ -258,6 +267,8 @@ on conflict do nothing`); err != nil {
 
 func siteTables() []string {
 	return []string{
+		"profiles",
+		"profile_tombstones",
 		"heatmap_cells",
 		"events",
 		"sessions",

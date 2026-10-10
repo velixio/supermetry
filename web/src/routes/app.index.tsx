@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
+import { DemoChoice } from '@/features/demo/DemoChoice'
 import { createSite as createManagedSite } from '@/features/sites/api'
 import { SiteForm } from '@/features/sites/SiteForm'
 import type { ManagedSite, SiteInput } from '@/features/sites/types'
@@ -96,6 +97,12 @@ export function Onboarding({
   return (
     <main className="grid min-h-dvh place-items-center px-6 py-10">
       <section className="flex w-full max-w-md flex-col gap-5 border-l-2 border-accent pl-5">
+        {me.demo_prompt_dismissed === false ? (
+          <DemoChoice
+            org={{ id: membership.org.id, slug: membership.org.slug }}
+            onDismissed={() => navigate(`/app/${membership.org.slug}/sites`)}
+          />
+        ) : null}
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">Create your first site</h1>
           <p className="text-sm text-muted-foreground">Add the website where Supermetry should collect analytics.</p>
@@ -106,11 +113,11 @@ export function Onboarding({
             const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
             navigate(`/app/${membership.org.slug}/${site.public_id}/settings/installation`)
           }}
-          secondaryAction={
+          secondaryAction={me.demo_prompt_dismissed !== false ? (
             <Button type="button" variant="ghost" onClick={() => navigate(`/app/${membership.org.slug}/sites`)}>
               Skip for now
             </Button>
-          }
+          ) : undefined}
         />
       </section>
     </main>

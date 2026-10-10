@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -343,10 +344,12 @@ export function InstallationPage({
   siteId,
   publicId,
   orgId,
+  isDemo = false,
 }: {
   siteId: number;
   publicId: string;
   orgId: number;
+  isDemo?: boolean;
 }) {
   const status = useQuery({
     queryKey: ["tracking-status", siteId],
@@ -354,11 +357,13 @@ export function InstallationPage({
       privateRequest<Site>("GET", `/api/private/sites/${siteId}`, { orgId }),
     refetchInterval: (query) =>
       installationStatusInterval(query.state.data?.last_event_received_at),
+    enabled: !isDemo,
   });
   const snippet = useQuery({
     queryKey: ["site-snippet", orgId, siteId],
     queryFn: () =>
       privateRequest<{ snippet: string; full_snippet: string }>("GET", `/api/private/sites/${siteId}/snippet`, { orgId }),
+    enabled: !isDemo,
   });
   return (
     <Page
@@ -366,13 +371,18 @@ export function InstallationPage({
       description="Install the tracker once, then verify the first event arrives."
     >
       <Surface>
-        <InstallGuide
+        {isDemo ? (
+          <Alert>
+            <AlertTitle>Demo project</AlertTitle>
+            <AlertDescription>Demo projects don't accept real traffic.</AlertDescription>
+          </Alert>
+        ) : <InstallGuide
           publicId={publicId}
           snippet={snippet.data?.snippet}
           fullSnippet={snippet.data?.full_snippet}
           lastEventReceivedAt={status.data?.last_event_received_at}
           revenueCurrency={status.data?.revenue_currency}
-        />
+        />}
       </Surface>
     </Page>
   );

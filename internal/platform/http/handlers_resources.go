@@ -10,6 +10,7 @@ import (
 
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
 	coresites "supermetry/internal/sites"
 )
 
@@ -110,7 +111,13 @@ func (h *handler) createGoal(w http.ResponseWriter, r *http.Request) {
 	var created goalResponse
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		created.SiteID, created.goalInput = site.ID, input
-		if err := tx.QueryRow(r.Context(), `insert into goals(site_id,kind,match,value,prop_key,prop_value,name,currency,scroll_threshold) values($1,$2,$3,$4,nullif($5,''),nullif($6,''),$7,nullif($8,''),$9) returning id`, site.ID, input.Kind, input.Match, input.Value, input.PropKey, input.PropValue, input.Name, input.Currency, input.ScrollThreshold).Scan(&created.ID); err != nil {
+		var err error
+		created.ID, err = store.InsertGoal(r.Context(), tx, site.ID, store.GoalRow{
+			Kind: input.Kind, Match: input.Match, Value: input.Value,
+			PropKey: input.PropKey, PropValue: input.PropValue, Name: input.Name,
+			Currency: input.Currency, ScrollThreshold: input.ScrollThreshold,
+		})
+		if err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, principal, "goal.created", "goal", created.ID, map[string]any{"site_id": site.ID})
@@ -321,7 +328,9 @@ func (h *handler) createFunnel(w http.ResponseWriter, r *http.Request) {
 	var created funnelResponse
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		created.SiteID, created.funnelInput = site.ID, input
-		if err := tx.QueryRow(r.Context(), `insert into funnels(site_id,name,steps) values($1,$2,$3) returning id`, site.ID, input.Name, steps).Scan(&created.ID); err != nil {
+		var err error
+		created.ID, err = store.InsertFunnel(r.Context(), tx, site.ID, input.Name, steps)
+		if err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, principal, "funnel.created", "funnel", created.ID, map[string]any{"site_id": site.ID})
