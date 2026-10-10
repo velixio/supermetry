@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -38,6 +39,7 @@ type backupRuntime struct {
 	command        func(context.Context, string, ...string) *exec.Cmd
 	schemaVersion  func(context.Context, string) (int, error)
 	reachable      func(context.Context, string) error
+	targetSchema   func(context.Context, string) (string, error)
 	prepareRestore func(context.Context, string) error
 	now            func() time.Time
 }
@@ -66,6 +68,18 @@ func defaultBackupRuntime() backupRuntime {
 			pool.Close()
 			return nil
 		},
+		targetSchema: func(ctx context.Context, dsn string) (string, error) {
+			pool, err := db.Open(ctx, dsn)
+			if err != nil {
+				return "", errors.New("target database is not reachable")
+			}
+			defer pool.Close()
+			var schema string
+			if err := pool.QueryRow(ctx, `select current_schema()`).Scan(&schema); err != nil || schema == "" {
+				return "", errors.New("could not determine target schema")
+			}
+			return schema, nil
+		},
 		prepareRestore: dropInheritedRelations,
 		now:            time.Now,
 	}
@@ -73,16 +87,20 @@ func defaultBackupRuntime() backupRuntime {
 
 // dropInheritedRelations works around a PostgreSQL restore ordering problem:
 // pg_restore --clean cannot drop constraints inherited by partition children.
-// Removing only the current database's inherited tables first leaves pg_restore
-// responsible for cleaning and replacing every remaining object in the dump.
+// current_schema() is the safest supported boundary for an app in a shared database.
 func dropInheritedRelations(ctx context.Context, dsn string) error {
 	pool, err := db.Open(ctx, dsn)
 	if err != nil {
 		return errors.New("target database is not reachable")
 	}
 	defer pool.Close()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin inherited table cleanup: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
 
-	rows, err := pool.Query(ctx, `
+	rows, err := tx.Query(ctx, `
 WITH RECURSIVE inherited(oid, depth) AS (
     SELECT inhrelid, 1 FROM pg_inherits
     UNION ALL
@@ -94,8 +112,8 @@ SELECT namespace.nspname, class.relname, max(inherited.depth) AS depth
 FROM inherited
 JOIN pg_class class ON class.oid = inherited.oid
 JOIN pg_namespace namespace ON namespace.oid = class.relnamespace
-WHERE namespace.nspname <> 'information_schema'
-  AND namespace.nspname NOT LIKE 'pg\_%' ESCAPE '\'
+WHERE namespace.nspname = current_schema()
+  AND class.relkind IN ('r', 'p')
 GROUP BY namespace.nspname, class.relname
 ORDER BY depth DESC, namespace.nspname, class.relname`)
 	if err != nil {
@@ -118,9 +136,12 @@ ORDER BY depth DESC, namespace.nspname, class.relname`)
 	rows.Close()
 	for _, item := range relations {
 		identifier := pgx.Identifier{item.schema, item.name}.Sanitize()
-		if _, err := pool.Exec(ctx, "DROP TABLE IF EXISTS "+identifier+" CASCADE"); err != nil {
+		if _, err := tx.Exec(ctx, "DROP TABLE IF EXISTS "+identifier+" CASCADE"); err != nil {
 			return fmt.Errorf("drop inherited table %s before restore: %w", identifier, err)
 		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit inherited table cleanup: %w", err)
 	}
 	return nil
 }
@@ -265,16 +286,26 @@ func restoreCommandWithRuntime(ctx context.Context, args []string, output io.Wri
 	if err := rt.reachable(ctx, dsn); err != nil {
 		return errors.New("target database is not reachable")
 	}
+	targetSchema, err := rt.targetSchema(ctx, dsn)
+	if err != nil {
+		return fmt.Errorf("determine target database schema: %w", err)
+	}
 	pgRestore, err := rt.lookupPath("pg_restore")
 	if err != nil {
 		return errors.New("pg_restore not found; install postgresql-client")
+	}
+	if err := validateRestoreDump(ctx, rt, pgRestore, dumpName, targetSchema, pgEnv); err != nil {
+		return err
+	}
+	if err := dryRunRestoreDump(ctx, rt, pgRestore, dumpName, pgEnv); err != nil {
+		return err
 	}
 
 	fmt.Fprintln(output, "WARNING: restore replaces existing data in the target database.")
 	if err := rt.prepareRestore(ctx, dsn); err != nil {
 		return fmt.Errorf("prepare target database for restore: %w", err)
 	}
-	argv := []string{"--clean", "--if-exists", "--no-owner", "--dbname", pgEnv["PGDATABASE"], dumpName}
+	argv := []string{"--clean", "--if-exists", "--no-owner", "--single-transaction", "--exit-on-error", "--dbname", pgEnv["PGDATABASE"], dumpName}
 	cmd := postgresCommandWithRuntime(ctx, rt, pgRestore, argv, pgEnv)
 	cmd.Stdout = output
 	var commandErrors limitedBuffer
@@ -283,6 +314,58 @@ func restoreCommandWithRuntime(ctx context.Context, args []string, output io.Wri
 		return postgresClientError("pg_restore", err, commandErrors.String())
 	}
 	fmt.Fprintln(output, "Restore completed. Ensure SUPERMETRY_SECRET_KEY is restored separately for encrypted TOTP secrets.")
+	return nil
+}
+
+func validateRestoreDump(ctx context.Context, rt backupRuntime, pgRestore, dumpName, targetSchema string, pgEnv map[string]string) error {
+	cmd := postgresCommandWithRuntime(ctx, rt, pgRestore, []string{"--list", dumpName}, pgEnv)
+	var stderr limitedBuffer
+	cmd.Stderr = &stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("validate database dump: read pg_restore --list output: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("validate database dump: %w", postgresClientError("pg_restore --list", err, stderr.String()))
+	}
+	hasEntry := false
+	hasSchemaMigrations := false
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" && !strings.HasPrefix(line, ";") {
+			hasEntry = true
+			fields := strings.Fields(line)
+			if len(fields) >= 6 && fields[3] == "TABLE" && fields[4] == targetSchema && fields[5] == "schema_migrations" {
+				hasSchemaMigrations = true
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return fmt.Errorf("validate database dump: read pg_restore --list output: %w", err)
+	}
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("validate database dump: %w", postgresClientError("pg_restore --list", err, stderr.String()))
+	}
+	if !hasEntry {
+		return errors.New("validate database dump: pg_restore --list contains no entries")
+	}
+	if !hasSchemaMigrations {
+		return fmt.Errorf("validate database dump: archive is not a Supermetry database in schema %q", targetSchema)
+	}
+	return nil
+}
+
+func dryRunRestoreDump(ctx context.Context, rt backupRuntime, pgRestore, dumpName string, pgEnv map[string]string) error {
+	cmd := postgresCommandWithRuntime(ctx, rt, pgRestore, []string{dumpName}, pgEnv)
+	cmd.Stdout = io.Discard
+	var stderr limitedBuffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("validate complete database dump: %w", postgresClientError("pg_restore dry run", err, stderr.String()))
+	}
 	return nil
 }
 

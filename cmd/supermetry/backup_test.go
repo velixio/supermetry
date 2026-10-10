@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 func TestBackupHelpDocumentsReplayExclusion(t *testing.T) {
@@ -146,6 +148,147 @@ func TestRestoreRefusals(t *testing.T) {
 	}
 }
 
+func TestRestoreValidatesDumpBeforePrepare(t *testing.T) {
+	dir := t.TempDir()
+	archive := filepath.Join(dir, "backup.tar.gz")
+	writeTestArchive(t, archive, backupManifest{
+		CreatedAt:     time.Now().UTC().Format(time.RFC3339),
+		SchemaVersion: latestEmbeddedMigrationVersion(t),
+		PGDumpVersion: "pg_dump 17",
+	}, []byte("not a custom archive"))
+
+	tests := []struct {
+		name       string
+		listScript string
+		dryScript  string
+		want       string
+	}{
+		{
+			name:       "pg_restore rejects dump",
+			listScript: "printf 'pg_restore: invalid archive\\n' >&2; exit 1",
+			want:       "validate database dump",
+		},
+		{
+			name:       "archive has no entries",
+			listScript: "printf '; empty archive\\n'",
+			want:       "contains no entries",
+		},
+		{
+			name:       "complete archive read fails",
+			listScript: "printf '1; 1259 1 TABLE public schema_migrations owner\\n'",
+			dryScript:  "printf 'pg_restore: unexpected end of file\\n' >&2; exit 1",
+			want:       "validate complete database dump",
+		},
+		{
+			name:       "foreign database dump",
+			listScript: "printf '1; 1259 1 TABLE public unrelated owner\\n'",
+			want:       "not a Supermetry database",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prepared := false
+			rt := fakeRuntime(t, dir)
+			rt.command = func(ctx context.Context, _ string, args ...string) *exec.Cmd {
+				if len(args) >= 1 && args[0] == "--list" {
+					return exec.CommandContext(ctx, "sh", "-c", tt.listScript)
+				}
+				if len(args) == 1 {
+					return exec.CommandContext(ctx, "sh", "-c", tt.dryScript)
+				}
+				return exec.CommandContext(ctx, "sh", "-c", "exit 0")
+			}
+			rt.prepareRestore = func(context.Context, string) error {
+				prepared = true
+				return nil
+			}
+
+			err := restoreCommandWithRuntime(context.Background(), []string{archive, "--yes"}, io.Discard, testGetenv, rt)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want containing %q", err, tt.want)
+			}
+			if prepared {
+				t.Fatal("prepareRestore ran before dump validation succeeded")
+			}
+		})
+	}
+}
+
+func TestRestoreMalformedDumpPreservesPartitions(t *testing.T) {
+	if _, err := exec.LookPath("pg_restore"); err != nil {
+		t.Skip("pg_restore is not installed")
+	}
+	pool, schema := testpg.New(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `
+create table retained_parent (id bigint, occurred_at timestamptz) partition by range (occurred_at);
+create table retained_partition partition of retained_parent
+for values from ('2026-01-01') to ('2026-02-01')`); err != nil {
+		t.Fatal(err)
+	}
+	dsn := testSchemaDSN(t, schema)
+	dir := t.TempDir()
+	archive := filepath.Join(dir, "malformed.tar.gz")
+	writeTestArchive(t, archive, backupManifest{
+		CreatedAt:     time.Now().UTC().Format(time.RFC3339),
+		SchemaVersion: latestEmbeddedMigrationVersion(t),
+		PGDumpVersion: "pg_dump 17",
+	}, []byte("not a PostgreSQL custom archive"))
+	getenv := func(key string) string {
+		if key == "SUPERMETRY_DATABASE_URL" {
+			return dsn
+		}
+		return os.Getenv(key)
+	}
+
+	err := restoreCommand(context.Background(), []string{archive, "--yes"}, io.Discard, getenv)
+	if err == nil || !strings.Contains(err.Error(), "validate database dump") {
+		t.Fatalf("error = %v, want malformed dump validation error", err)
+	}
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('retained_partition') is not null`).Scan(&exists); err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("existing partition was dropped for a malformed dump")
+	}
+}
+
+func TestDropInheritedRelationsOnlyDropsTablesInCurrentSchema(t *testing.T) {
+	pool, schema := testpg.New(t)
+	otherPool, _ := testpg.New(t)
+	ctx := context.Background()
+	createPartitioned := func(t *testing.T, pool *pgxpool.Pool) {
+		t.Helper()
+		if _, err := pool.Exec(ctx, `
+create table z_parent (id bigint, occurred_at timestamptz) partition by range (occurred_at);
+create table z_child partition of z_parent for values from ('2026-01-01') to ('2026-02-01');
+create index a_parent_index on z_parent (id);
+alter index z_child_id_idx rename to a_index_partition`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	createPartitioned(t, pool)
+	createPartitioned(t, otherPool)
+
+	if err := dropInheritedRelations(ctx, testSchemaDSN(t, schema)); err != nil {
+		t.Fatal(err)
+	}
+	var ownChildExists, otherChildExists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('z_child') is not null`).Scan(&ownChildExists); err != nil {
+		t.Fatal(err)
+	}
+	if err := otherPool.QueryRow(ctx, `select to_regclass('z_child') is not null`).Scan(&otherChildExists); err != nil {
+		t.Fatal(err)
+	}
+	if ownChildExists {
+		t.Fatal("inherited table in current schema was not dropped")
+	}
+	if !otherChildExists {
+		t.Fatal("inherited table outside current schema was dropped")
+	}
+}
+
 func TestBackupRemovesPartialOutputOnFailure(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "partial.tar.gz")
@@ -175,6 +318,8 @@ printf 'dump from fake client\n'
 printf 'dump argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABASE" >> "$SUPERMETRY_CLIENT_LOG"
 `)
 	writeFakeClient(t, dir, "pg_restore", `
+if [ "$1" = "--list" ]; then printf '1; 1259 1 TABLE public schema_migrations owner\n'; exit 0; fi
+if [ "$#" -eq 1 ]; then exit 0; fi
 printf 'restore argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABASE" >> "$SUPERMETRY_CLIENT_LOG"
 `)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -189,6 +334,7 @@ printf 'restore argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABA
 	rt := defaultBackupRuntime()
 	rt.schemaVersion = func(context.Context, string) (int, error) { return latestMigrationVersion, nil }
 	rt.reachable = func(context.Context, string) error { return nil }
+	rt.targetSchema = func(context.Context, string) (string, error) { return "public", nil }
 	rt.prepareRestore = func(context.Context, string) error { return nil }
 	out := filepath.Join(dir, "full.tar.gz")
 	if err := backupCommandWithRuntime(context.Background(), []string{"--out", out}, io.Discard, getenv, rt); err != nil {
@@ -209,7 +355,7 @@ printf 'restore argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABA
 	if strings.Contains(logText, "s%40fe") || strings.Contains(logText, "postgres://") {
 		t.Fatalf("connection URL leaked: %q", logText)
 	}
-	if !strings.Contains(logText, "restore argv=--clean --if-exists --no-owner --dbname supermetry") {
+	if !strings.Contains(logText, "restore argv=--clean --if-exists --no-owner --single-transaction --exit-on-error --dbname supermetry") {
 		t.Fatalf("restore argv missing: %q", logText)
 	}
 }
@@ -273,6 +419,7 @@ if [ "$1" = "--version" ]; then echo 'pg_dump (PostgreSQL) 17.2'; else echo 'fak
 	rt.lookupPath = func(string) (string, error) { return client, nil }
 	rt.schemaVersion = func(context.Context, string) (int, error) { return latestMigrationVersion, nil }
 	rt.reachable = func(context.Context, string) error { return nil }
+	rt.targetSchema = func(context.Context, string) (string, error) { return "public", nil }
 	rt.prepareRestore = func(context.Context, string) error { return nil }
 	return rt
 }
@@ -291,6 +438,19 @@ func testGetenv(key string) string {
 		return "postgres://supermetry:secret@localhost/supermetry?sslmode=disable"
 	}
 	return os.Getenv(key)
+}
+
+func testSchemaDSN(t *testing.T, schema string) string {
+	t.Helper()
+	dsn := os.Getenv("SUPERMETRY_TEST_DSN")
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := u.Query()
+	query.Set("search_path", schema)
+	u.RawQuery = query.Encode()
+	return u.String()
 }
 
 func containsEnv(env []string, want string) bool {
