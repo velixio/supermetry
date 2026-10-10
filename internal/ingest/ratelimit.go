@@ -137,8 +137,11 @@ type ingestRateLimiter struct {
 // Churned IPs share a bounded overflow bucket instead of evicting established
 // clients and resetting their allowance.
 func NewIngestRateLimiter(globalRate float64, globalBurst int) RateLimiter {
-	ipRate := min(globalRate, 100)
-	ipBurst := min(globalBurst, 200)
+	// One address may use at most a tenth of the process ceiling: enough for a
+	// reverse proxy that is not in the trusted-proxy list (every visitor then
+	// shares one address), far below what a single flooder needs to starve a site.
+	ipRate := min(globalRate, 1_000)
+	ipBurst := min(globalBurst, 2_000)
 	siteRate := min(globalRate, 5_000)
 	siteBurst := min(globalBurst, 10_000)
 	return newIngestRateLimiter(time.Now, ipRate, ipBurst, siteRate, siteBurst, globalRate, globalBurst)
