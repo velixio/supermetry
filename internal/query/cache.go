@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"supermetry/internal/api"
+	"supermetry/internal/sites"
 )
 
 const defaultCacheCapacity = 1024
@@ -183,13 +184,14 @@ func (e *Engine) loadCloseMetadata(ctx context.Context, siteID int32) (closeMeta
 		blocks: make(map[dayBlock]bool),
 	}
 	err := WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `
-			select (created_at at time zone timezone)::date
-			from sites where id=$1`, siteID).Scan(&metadata.siteStart); err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return err
-		}
-		if !metadata.siteStart.IsZero() {
-			metadata.siteStart = civilDate(metadata.siteStart)
+		var createdAt time.Time
+		var timezone string
+		if err := tx.QueryRow(ctx, `select created_at, timezone from sites where id=$1`, siteID).Scan(&createdAt, &timezone); err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+		} else {
+			metadata.siteStart = sites.StartDay(createdAt, timezone)
 		}
 		rows, err := tx.Query(ctx, `select day, version from day_close where site_id=$1 and status='done'`, siteID)
 		if err != nil {

@@ -794,19 +794,20 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore repl
 func closeDueDays(ctx context.Context, pool *pgxpool.Pool, registry sites.Registry, closed *closedDays, now time.Time, invalidators ...func(int32)) error {
 	starts := make(map[int32]time.Time)
 	startRows, err := pool.Query(ctx, `
-		select id, (created_at at time zone timezone)::date
+		select id, created_at, timezone
 		from sites where deleted_at is null`)
 	if err != nil {
 		return fmt.Errorf("load site start days: %w", err)
 	}
 	for startRows.Next() {
 		var siteID int32
-		var day time.Time
-		if err := startRows.Scan(&siteID, &day); err != nil {
+		var createdAt time.Time
+		var timezone string
+		if err := startRows.Scan(&siteID, &createdAt, &timezone); err != nil {
 			startRows.Close()
 			return fmt.Errorf("scan site start day: %w", err)
 		}
-		starts[siteID] = civilDay(day)
+		starts[siteID] = sites.StartDay(createdAt, timezone)
 	}
 	if err := startRows.Err(); err != nil {
 		startRows.Close()
