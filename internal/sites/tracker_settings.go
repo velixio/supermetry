@@ -72,5 +72,5 @@ func (in TrackerSettingsInput) Resolve(heatmapsEnabled bool) TrackerSettings {
 
 // AnyExtension reports whether the full tracker (with its extensions) is needed.
 func (s TrackerSettings) AnyExtension() bool {
-	return s.Outbound || s.Downloads || s.Forms || s.Vitals || s.NotFound || s.Clicks
+	return s.Outbound || s.Downloads || s.Forms || s.Vitals || s.NotFound || s.Hash || s.Clicks
 }

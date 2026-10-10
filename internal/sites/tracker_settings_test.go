@@ -44,10 +44,28 @@ func TestParseTrackerSettingsStrict(t *testing.T) {
 }
 
 func TestAnyExtension(t *testing.T) {
-	if (TrackerSettings{Hash: true}).AnyExtension() {
-		t.Fatal("hash alone must not count as an extension")
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		settings TrackerSettings
+		want     bool
+	}{
+		{name: "none", settings: TrackerSettings{}, want: false},
+		{name: "outbound", settings: TrackerSettings{Outbound: true}, want: true},
+		{name: "downloads", settings: TrackerSettings{Downloads: true}, want: true},
+		{name: "forms", settings: TrackerSettings{Forms: true}, want: true},
+		{name: "vitals", settings: TrackerSettings{Vitals: true}, want: true},
+		{name: "not found", settings: TrackerSettings{NotFound: true}, want: true},
+		{name: "hash routing", settings: TrackerSettings{Hash: true}, want: true},
+		{name: "clicks", settings: TrackerSettings{Clicks: true}, want: true},
 	}
-	if !(TrackerSettings{Forms: true}).AnyExtension() {
-		t.Fatal("forms is an extension")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := test.settings.AnyExtension(); got != test.want {
+				t.Fatalf("AnyExtension() = %t, want %t", got, test.want)
+			}
+		})
 	}
 }

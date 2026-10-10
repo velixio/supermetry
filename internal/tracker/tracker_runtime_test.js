@@ -376,6 +376,7 @@ function testNamedBeforeSendIsResolvedAtSendTime() {
 
 function testConsentGrantFlushesInOrderThroughBeforeSend() {
   const tracker = loadTracker({full: true, dataset: {consent: "required"}});
+  assert.equal(typeof tracker.supermetry.consent, "function");
   tracker.supermetry.beforeSend = (event) => ({...event, props: {approved: event.name}});
   tracker.supermetry.track("A");
 

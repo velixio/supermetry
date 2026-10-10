@@ -107,6 +107,36 @@ func TestBuildScriptUsesCoreWhenEveryExtensionIsOff(t *testing.T) {
 	}
 }
 
+func TestBuildScriptSelectsFullTrackerForEachSetting(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		settings sites.TrackerSettings
+	}{
+		{name: "outbound", settings: sites.TrackerSettings{Outbound: true}},
+		{name: "downloads", settings: sites.TrackerSettings{Downloads: true}},
+		{name: "forms", settings: sites.TrackerSettings{Forms: true}},
+		{name: "vitals", settings: sites.TrackerSettings{Vitals: true}},
+		{name: "not found", settings: sites.TrackerSettings{NotFound: true}},
+		{name: "hash routing", settings: sites.TrackerSettings{Hash: true}},
+		{name: "clicks", settings: sites.TrackerSettings{Clicks: true}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			got := BuildScript("abc123def456", test.settings, noReplay())
+			_, source, ok := bytes.Cut(got.Body, []byte("\n"))
+			if !ok {
+				t.Fatal("script has no prelude separator")
+			}
+			if !bytes.Equal(source, fullScript) {
+				t.Fatal("enabled setting did not select the full tracker")
+			}
+		})
+	}
+}
+
 func TestBuildScriptIncludesSiteInBodyAndETag(t *testing.T) {
 	t.Parallel()
 
