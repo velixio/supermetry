@@ -352,7 +352,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		UI:     web.Handler(),
 		Config: cfg, Query: engine, SessionExplore: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
-		Now: settings.clock.Now, Ready: ready.Load,
+		Now: settings.clock.Now, Ready: func() bool { return ready.Load() && postgresReady(pool) },
 		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {
 			progress, err := rollupBackfill.Progress(ctx)
 			return progress.Running, progress.DaysDone, progress.TotalDays, err
@@ -487,6 +487,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		cancelReplayStore()
 	}
 	return errors.Join(cause, httpErr)
+}
+
+func postgresReady(pool *pgxpool.Pool) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	var one int
+	return pool.QueryRow(ctx, `select 1`).Scan(&one) == nil && one == 1
 }
 
 func newHTTPServer(handler http.Handler, cfg config.Config) *http.Server {

@@ -22,7 +22,7 @@ RUN go build -tags embedui -trimpath \
 
 FROM alpine:3.23
 
-RUN apk add --no-cache ca-certificates \
+RUN apk add --no-cache ca-certificates postgresql18-client \
     && addgroup -S -g 65532 supermetry \
     && adduser -S -D -H -u 65532 -G supermetry supermetry \
     && mkdir -p /data \
@@ -38,7 +38,7 @@ USER supermetry
 EXPOSE 8787
 VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8787/healthz"]
+    CMD wget -q -O /dev/null "http://127.0.0.1:${SUPERMETRY_LISTEN##*:}/healthz" || exit 1
 
 ENTRYPOINT ["/supermetry"]
 CMD ["serve"]

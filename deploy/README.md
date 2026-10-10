@@ -19,11 +19,22 @@ docker compose up -d --build
 
 Compose overrides `SUPERMETRY_DATABASE_URL` and `SUPERMETRY_LISTEN` for its service
 network. URL-encode special characters in `POSTGRES_PASSWORD`. Data is kept
-in the `supermetry-data` and `postgres-data` named volumes.
+in the `supermetry-data` and `postgres-data` named volumes. The application port
+binds to `127.0.0.1` by default; put a reverse proxy on the same host in front of
+it. To expose Supermetry directly, change the port mapping to `8787:8787` (or
+`0.0.0.0:8787:8787`) and apply an appropriate firewall policy.
+
+PostgreSQL 18 stores its cluster below `/var/lib/postgresql/18/docker`, so this
+Compose file mounts the volume at `/var/lib/postgresql`. If upgrading from an
+older Supermetry Compose file that mounted `postgres-data` at
+`/var/lib/postgresql/data`, back up the database while the old configuration is
+running, then restore that backup into a fresh PostgreSQL 18 volume. Do not
+remount the existing volume at the new path and assume PostgreSQL will find it.
 
 ## systemd
 
-Release archives contain `supermetry`, `LICENSE`, `NOTICE`, and `supermetry.service`. Install
+Release archives contain `supermetry`, `LICENSE`, `NOTICE`, and `supermetry.service`.
+Install PostgreSQL 18 and its client tools on the host first. Then install
 the binary at `/usr/local/bin/supermetry`, the unit at
 `/etc/systemd/system/supermetry.service`, and configuration at
 `/etc/supermetry/supermetry.env`. Then run:

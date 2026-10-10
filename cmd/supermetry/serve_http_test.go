@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"supermetry/internal/config"
+	"supermetry/internal/testpg"
 )
 
 func TestNewHTTPServerAppliesConfiguredTimeouts(t *testing.T) {
@@ -23,6 +24,17 @@ func TestNewHTTPServerAppliesConfiguredTimeouts(t *testing.T) {
 	}
 	if server.ReadHeaderTimeout != 5*time.Second || server.IdleTimeout != time.Minute {
 		t.Fatalf("existing timeouts changed: %+v", server)
+	}
+}
+
+func TestPostgresReady(t *testing.T) {
+	pool, _ := testpg.New(t)
+	if !postgresReady(pool) {
+		t.Fatal("open PostgreSQL pool is not ready")
+	}
+	pool.Close()
+	if postgresReady(pool) {
+		t.Fatal("closed PostgreSQL pool is ready")
 	}
 }
 

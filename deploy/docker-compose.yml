@@ -11,7 +11,7 @@ services:
       SUPERMETRY_DATA_DIR: /data
       SUPERMETRY_LISTEN: 0.0.0.0:8787
     ports:
-      - "8787:8787"
+      - "127.0.0.1:8787:8787"
     volumes:
       - supermetry-data:/data
     depends_on:
@@ -31,7 +31,7 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     restart: unless-stopped
 
 volumes:

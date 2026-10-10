@@ -1,7 +1,7 @@
 [Unit]
 Description=Supermetry web analytics
-Wants=network-online.target
-After=network-online.target
+Wants=network-online.target postgresql.service
+After=network-online.target postgresql.service
 
 [Service]
 Type=simple

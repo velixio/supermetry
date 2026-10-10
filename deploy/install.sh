@@ -8,7 +8,7 @@ Usage: install.sh [--yes] [--release-url URL] [--version VERSION]
 Download and install a Supermetry Linux release. SUPERMETRY_RELEASE_URL is required
 unless --release-url is supplied. The URL must be the release asset base and
 normally ends in VERSION. SUPERMETRY_VERSION or --version overrides that final
-path component.
+path component. PostgreSQL 18 and its client tools must be installed separately.
 EOF
 }
 
@@ -171,10 +171,11 @@ cat <<'EOF'
 Supermetry is installed.
 
 Next steps:
-  1. Set SUPERMETRY_DATABASE_URL, SUPERMETRY_SECRET_KEY, and SUPERMETRY_BASE_URL in
+  1. Install and start PostgreSQL 18, including the pg_dump and pg_restore client tools.
+  2. Set SUPERMETRY_DATABASE_URL, SUPERMETRY_SECRET_KEY, and SUPERMETRY_BASE_URL in
      /etc/supermetry/supermetry.env.
-  2. If using a reverse proxy, set SUPERMETRY_TRUSTED_PROXIES to its IP/CIDR.
-  3. Optional: set SUPERMETRY_REPLAY_ENABLED=true to record session replays.
-  4. Run: systemctl enable --now supermetry
-  5. Check: systemctl status supermetry
+  3. If using a reverse proxy, set SUPERMETRY_TRUSTED_PROXIES to its IP/CIDR.
+  4. Optional: set SUPERMETRY_REPLAY_ENABLED=true to record session replays.
+  5. Run: systemctl enable --now supermetry
+  6. Check: systemctl status supermetry
 EOF
