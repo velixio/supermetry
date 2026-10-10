@@ -58,6 +58,13 @@ those signals and visitor opt-out. Tracker consent denial/withdrawal gates the
 common upload path and heatmap buffers; the base transport must not bypass consent
 through a direct extension upload.
 
+### Strict origin and blocked referrers
+
+Two per-site, opt-in controls reduce forged events (Site settings, Tracking):
+
+- **Strict origin** (`strict_origin`, off by default). The normal check trusts the page URL inside the event, so anyone who knows a site ID can post events with an allowed hostname. With strict origin on, the request must also carry an `Origin` header (or, if absent, a `Referer`) whose host is one of the site's allowed hosts. Other requests are dropped with a normal `202` response and counted in `ingest_origin_rejected_total`; no error is returned, so a sender cannot learn what to change. Browsers always send `Origin` on cross-origin POSTs, so the tracker script is unaffected. **Server-side senders and other non-browser clients usually send neither header, so turn this off for sites that use them.** A script can still fake the header, so this raises the cost of spam but is not authentication.
+- **Blocked referrers** (`blocked_referrers`, up to 200 domains). Events whose referrer is on the list, or a subdomain of a listed domain, are dropped as spam-referrer traffic, exactly like the built-in list. See `SUPERMETRY_REFERRER_SPAM_FILE` in the configuration guide for an instance-wide list.
+
 ## Replay is independent
 
 Replay requires **instance `SUPERMETRY_REPLAY_ENABLED=true` AND project replay opt-in**.

@@ -65,6 +65,12 @@ To check the setup, set `SUPERMETRY_INGEST_DIAG=1` (below) and look at `peer_tru
 
 Ad blockers match on well-known names such as `script.js` or `/events`. Changing both paths to neutral values avoids those filters. The tracking snippet shown in the dashboard is built from `SUPERMETRY_BASE_URL` plus these paths, so reinstall the snippet on your sites after changing them. Whether the old paths keep working after a change: see source (`internal/api/router.go`). If a proxy routes only specific paths to Supermetry, update it to match.
 
+### Referrer spam list
+
+Supermetry ships a list of referrer-spam domains that changes only with a release. To add your own domains without waiting for one, set `SUPERMETRY_REFERRER_SPAM_FILE` to a text file with one hostname per line (blank lines and lines starting with `#` are ignored; no inline comments). The file is limited to 1 MiB. It is validated as a whole: one invalid line rejects the file and the server refuses to start. It is read at startup only, so restart Supermetry after changing it. A listed domain also blocks its subdomains (`evil.example` blocks `a.evil.example`, not `notevil.example`).
+
+For one site only, use the site's **blocked referrers** setting (Site settings, Tracking).
+
 ## GeoIP
 
 GeoIP is required to start. There are two modes (`cmd/supermetry/geoip.go`).

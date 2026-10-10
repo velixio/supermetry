@@ -78,7 +78,8 @@ Work through these in order.
 2. **Tighten the site's allowed hosts** (site settings in the dashboard, or `PATCH /api/private/sites/{site}` with `allowed_hosts`). Remove wildcard entries you do not need. This stops events whose page URL names another host. It does not stop a script that copies one of your real hostnames.
 3. **Add exclusions** (`/app/<org>/<site>/settings/tracking`, or the `exclude_ips`, `exclude_paths` and `exclude_countries` fields of `PATCH /api/private/sites/{site}`). Excluded events are dropped before storage and counted in `ingest_excluded_total`. Exclusions apply only to new events, not to data already stored.
 4. **Block at the proxy.** The built-in rate limits are fixed in code (per IP 1,000/s, per site 5,000/s, per process 10,000/s) and cannot be changed by configuration. For a lower limit, or to block an IP range or a referrer, do it in your reverse proxy or WAF on the event path (`SUPERMETRY_EVENT_PATH`, default `/api/public/v1/events`).
-5. **Referrer spam.** The built-in list is static (`internal/enrich/lists/referrer-spam.txt`) and changes only with a release. Until then, block the referrer at the proxy, and report new spam domains to the maintainers (see section 8).
+5. **Referrer spam.** Add the domain to the site's **blocked referrers** (Site settings, Tracking), or to an instance-wide file named by `SUPERMETRY_REFERRER_SPAM_FILE` (read at startup). The built-in list (`internal/enrich/lists/referrer-spam.txt`) changes only with a release. Report new spam domains to the maintainers (see section 8).
+   Also consider turning on the site's **strict origin** setting: events must then carry an `Origin` or `Referer` from an allowed host. It does not stop a script that fakes the header, and it breaks server-side senders, so test it first. Rejected requests are counted in `ingest_origin_rejected_total`.
 6. **Clean up data already stored.** The tools available today:
    - **Profile erasure** (identified tracking mode only): `DELETE /api/private/profiles/{profile}` removes one profile's events, sessions and replays and rebuilds the affected days.
    - **Retention** drops whole expired partitions. It cannot target spam.
@@ -159,8 +160,6 @@ Replay intake is off unless `SUPERMETRY_REPLAY_ENABLED=true`, and each site must
 
 These are being worked on and are **not** in the current release. Do not rely on them:
 
-- Per-site strict origin mode.
-- A per-site list of blocked referrers.
 - Per-site drop counters on the health page.
 - Per-site shares of the value dictionary.
 - Deleting events by time range, referrer or IP.
