@@ -10,15 +10,29 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
+	"supermetry/internal/api"
 	"supermetry/internal/db"
+	"supermetry/internal/dict"
+	"supermetry/internal/privacy"
+	"supermetry/internal/query"
 	"supermetry/internal/replay"
+	"supermetry/internal/sites"
 	"supermetry/internal/testpg"
 )
 
 type fakeWorkerClock struct{ now time.Time }
 
 func (c fakeWorkerClock) Now() time.Time { return c.now }
+
+type workerRegistry struct{ site sites.Site }
+
+func (r workerRegistry) ByPublicID(id string) (sites.Site, bool) {
+	return r.site, id == r.site.PublicID
+}
+func (r workerRegistry) Site(id int32) (sites.Site, bool) { return r.site, id == r.site.ID }
+func (r workerRegistry) All() []sites.Site                { return []sites.Site{r.site} }
 
 type failingBlobStore struct {
 	replay.BlobStore
@@ -91,6 +105,82 @@ func TestWorkerDeletesRowsSettlesLateWritesAndFinishes(t *testing.T) {
 	}
 	if err := worker.RunOnce(ctx); err != nil {
 		t.Fatalf("idempotent completed run: %v", err)
+	}
+}
+
+func TestWorkerRebuildsClosedDayAndInvalidatesCachedQuery(t *testing.T) {
+	fixture := newWorkerFixture(t)
+	ctx := context.Background()
+	day := fixture.now.UTC().Truncate(24 * time.Hour)
+	for _, statement := range []string{
+		`update sites set created_at=$2 where id=$1`,
+		`insert into day_close(site_id,day,status,version,rows) values ($1,$2,'done',1,1)`,
+		`insert into rollup_day(site_id,day,visitors,visits,pageviews,bounces,duration_ms,engagement_ms,scroll_sum,scroll_n)
+		 values ($1,$2,1,1,1,0,0,0,0,0)`,
+	} {
+		if _, err := fixture.pool.Exec(ctx, statement, fixture.siteID, day); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dictionary := dict.New(fixture.pool)
+	if err := dictionary.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := workerRegistry{site: sites.Site{ID: fixture.siteID, PublicID: "erasure-cache", TZ: time.UTC, Retention: db.Ret30, ProfilesEnabled: true}}
+	engine := query.NewEngine(fixture.pool, dictionary, reg)
+	engine.SetTrackingMode(privacy.Identified)
+	engine.SetCache(query.NewCache(16))
+	dateRange := api.DateRange{
+		From: openapi_types.Date{Time: day},
+		To:   openapi_types.Date{Time: day},
+	}
+	request := api.QueryRequest{SiteId: fixture.siteID, DateRange: &dateRange, Metrics: []api.Metric{api.Visitors, api.Visits, api.Pageviews}}
+	queryTotals := func() api.QueryResponse {
+		t.Helper()
+		response, err := engine.Query(ctx, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+	if first := queryTotals(); first.Meta.Cached || first.Totals["pageviews"] != 1 {
+		t.Fatalf("first query = %+v, want uncached pageview", first)
+	}
+	if cached := queryTotals(); !cached.Meta.Cached || cached.Totals["pageviews"] != 1 {
+		t.Fatalf("cached query = %+v, want cached pageview", cached)
+	}
+
+	worker := NewWorker(fixture.pool, fixture.store, fixture.blobs, fakeWorkerClock{now: fixture.now}, engine.InvalidateSite)
+	if err := worker.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(ctx, `update profile_erasure_requests set settle_after=now()-interval '1 second' where id=$1`, fixture.request.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	finished, err := fixture.store.Get(ctx, fixture.request.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished.Status != StatusDone {
+		t.Fatalf("finished request = %+v last_error=%v", finished, errorText(finished.LastError))
+	}
+
+	after := queryTotals()
+	if after.Meta.Cached || after.Totals["pageviews"] != 0 || after.Totals["visits"] != 0 || after.Totals["visitors"] != 0 {
+		t.Fatalf("query after erasure = %+v, want uncached zero totals", after)
+	}
+	var dirty int
+	if err := fixture.pool.QueryRow(ctx, `select count(*) from dirty_day where site_id=$1 and day=$2`, fixture.siteID, day).Scan(&dirty); err != nil {
+		t.Fatal(err)
+	}
+	if dirty != 0 {
+		t.Fatalf("dirty rows after rebuild = %d, want 0", dirty)
+	}
+	if err := worker.RunOnce(ctx); err != nil {
+		t.Fatalf("idempotent rerun: %v", err)
 	}
 }
 

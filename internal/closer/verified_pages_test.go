@@ -3,6 +3,7 @@ package closer_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,8 +85,8 @@ func TestVerifiedPagesClosePreservesPolicyCohortsAndRebuildsAfterRawExpiry(t *te
 	}
 	assertCounts("policy-a", 0, 2, 3, 6)
 	assertCounts("policy-b", 0, 1, 1, 1)
-	if _, err := closer.CloseDay(ctx, pool, []int32{1}, day); err == nil {
-		t.Fatal("expired raw reclose must fail before deleting closed data")
+	if _, err := closer.CloseDay(ctx, pool, []int32{1}, day); err != nil {
+		t.Fatalf("expired raw reclose: %v", err)
 	}
 	assertCounts("policy-a", 0, 2, 3, 6)
 	if err := retention.Erase(ctx, pool, 1, 2, 0); err != nil {
@@ -95,5 +96,48 @@ func TestVerifiedPagesClosePreservesPolicyCohortsAndRebuildsAfterRawExpiry(t *te
 		if err := pool.QueryRow(ctx, "select count(*) from "+table+" where site_id=1").Scan(&groups); err != nil || groups != 0 {
 			t.Fatalf("erasure %s rows=%d err=%v", table, groups, err)
 		}
+	}
+}
+
+func TestCloseDayBatchCommitsOtherSitesWhenOneSourceIsIncomplete(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	day := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, day.AddDate(0, 0, -1), day.AddDate(0, 0, 2)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into events
+ (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,path_id,path_sanitizer_version,path_policy_id)
+ values
+ (1,30,$1,$2,1,11,0,1,1,'policy'),
+ (1,30,$1,$2,1,11,0,1,1,'policy'),
+ (2,30,$1,$2,2,22,0,2,1,'policy')`, day, day.Add(12*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closer.CloseDay(ctx, pool, []int32{1}, day); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `delete from events where site_id=1 and ctid in
+ (select ctid from events where site_id=1 limit 1)`); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := closer.CloseDay(ctx, pool, []int32{1, 2}, day)
+	if !errors.Is(err, closer.ErrVerifiedPageSourceIncomplete) || !strings.Contains(err.Error(), "site 1") {
+		t.Fatalf("batch error = %v, want site 1 incomplete source", err)
+	}
+	var closed, pageviews int
+	if scanErr := pool.QueryRow(ctx, `select count(*) from day_close where site_id=2 and day=$1`, day).Scan(&closed); scanErr != nil {
+		t.Fatal(scanErr)
+	}
+	if scanErr := pool.QueryRow(ctx, `select pageviews from verified_page_day
+ where site_id=2 and day=$1 and path_policy_id='policy' and path_id=0`, day).Scan(&pageviews); scanErr != nil {
+		t.Fatal(scanErr)
+	}
+	if closed != 1 || pageviews != 1 {
+		t.Fatalf("successful site closed=%d pageviews=%d, want 1/1", closed, pageviews)
 	}
 }

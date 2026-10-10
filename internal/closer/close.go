@@ -4,6 +4,7 @@ package closer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -82,6 +83,23 @@ func CloseDay(ctx context.Context, pool *pgxpool.Pool, siteIDs []int32, day time
 	}
 
 	var stats Stats
+	var failures []error
+	for _, siteID := range siteIDs {
+		siteStats, err := closeSiteDay(ctx, pool, siteID, day, windowStart, windowEnd, started)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("close site %d day %s: %w", siteID, day.Format(time.DateOnly), err))
+			continue
+		}
+		stats.Sessions += siteStats.Sessions
+		stats.Custom += siteStats.Custom
+	}
+	stats.Duration = time.Since(started)
+	return stats, errors.Join(failures...)
+}
+
+func closeSiteDay(ctx context.Context, pool *pgxpool.Pool, siteID int32, day, windowStart, windowEnd, started time.Time) (Stats, error) {
+	siteIDs := []int32{siteID}
+	var stats Stats
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, rollupRefreshLockID); err != nil {
 			return fmt.Errorf("lock rollup refresh: %w", err)
@@ -94,6 +112,15 @@ func CloseDay(ctx context.Context, pool *pgxpool.Pool, siteIDs []int32, day time
 			if _, err := tx.Exec(ctx, setting); err != nil {
 				return err
 			}
+		}
+		var hasRaw bool
+		if err := tx.QueryRow(ctx, `select exists (
+			select 1 from events where local_day=$1 and ts >= $2 and ts < $3 and site_id=$4
+		)`, day, windowStart, windowEnd, siteID).Scan(&hasRaw); err != nil {
+			return fmt.Errorf("check raw day source: %w", err)
+		}
+		if !hasRaw {
+			return rebuildExpiredDay(ctx, tx, day, siteIDs, time.Since(started).Milliseconds())
 		}
 		if err := refreshVerifiedPages(ctx, tx, day, windowStart, windowEnd, siteIDs); err != nil {
 			return err
@@ -166,6 +193,40 @@ func CloseDay(ctx context.Context, pool *pgxpool.Pool, siteIDs []int32, day time
 		return Stats{}, err
 	}
 	return stats, nil
+}
+
+// rebuildExpiredDay preserves the durable closed tier when retention has
+// already removed its raw source, while replacing every derived aggregate.
+func rebuildExpiredDay(ctx context.Context, tx pgx.Tx, day time.Time, siteIDs []int32, elapsedMS int64) error {
+	for _, table := range []string{"cube_day", "visitor_day"} {
+		if _, err := tx.Exec(ctx, `delete from `+table+` where day=$1 and site_id=any($2)`, day, siteIDs); err != nil {
+			return fmt.Errorf("delete %s: %w", table, err)
+		}
+	}
+	for _, derived := range []struct {
+		name string
+		sql  string
+	}{
+		{name: "cube_day", sql: cubeDaySQL},
+		{name: "visitor_day", sql: visitorDaySQL},
+	} {
+		if _, err := tx.Exec(ctx, derived.sql, day, siteIDs); err != nil {
+			return fmt.Errorf("build %s: %w", derived.name, err)
+		}
+	}
+	if err := recomputeDayRollups(ctx, tx, day, siteIDs); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, markClosedSQL, day, siteIDs, elapsedMS); err != nil {
+		return fmt.Errorf("mark day closed: %w", err)
+	}
+	if err := refreshMonth(ctx, tx, siteIDs, day); err != nil {
+		return fmt.Errorf("refresh month: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `delete from dirty_day where day=$1 and site_id=any($2)`, day, siteIDs); err != nil {
+		return fmt.Errorf("clear dirty day: %w", err)
+	}
+	return nil
 }
 
 // foldDimensionSQL is called only with the fixed column names above.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -147,6 +148,7 @@ func applyMigration(ctx context.Context, conn *pgxpool.Conn, migration migration
 		_ = tx.Rollback(cleanupCtx)
 	}()
 
+	slog.InfoContext(ctx, "applying migration; large installs may take a while", "version", migration.version, "name", migration.name)
 	if _, err := tx.Exec(ctx, migration.sql); err != nil {
 		return fmt.Errorf("apply migration %04d (%s): %w", migration.version, migration.name, err)
 	}

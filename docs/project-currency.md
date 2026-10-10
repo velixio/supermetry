@@ -25,6 +25,11 @@ Legacy goals whose currency differs from the inferred project currency retain
 their stored currency and cannot produce project-currency totals. An operator
 must explicitly disable or resolve those goals later.
 
+Migration 0030 scans the event and closed custom-event tables without a
+supporting index. Installs with a large history should expect a slow first
+start after upgrading; startup logs "applying migration" before each pending
+migration, and the process serves traffic only after it finishes.
+
 ## Rollout boundary
 
 The application validates revenue against the in-memory project registry when

@@ -37,21 +37,26 @@ func (wallWorkerClock) Now() time.Time { return time.Now() }
 // Worker completes durable profile erasure requests. Every database phase is
 // idempotent so a different process can safely resume after a crash.
 type Worker struct {
-	pool      *pgxpool.Pool
-	store     *Store
-	blobs     replay.BlobStore
-	clock     workerClock
-	batchSize int
+	pool           *pgxpool.Pool
+	store          *Store
+	blobs          replay.BlobStore
+	clock          workerClock
+	batchSize      int
+	invalidateSite func(int32)
 }
 
-func NewWorker(pool *pgxpool.Pool, store *Store, blobs replay.BlobStore, clock workerClock) *Worker {
+func NewWorker(pool *pgxpool.Pool, store *Store, blobs replay.BlobStore, clock workerClock, invalidators ...func(int32)) *Worker {
 	if store == nil && pool != nil {
 		store = New(pool)
 	}
 	if clock == nil {
 		clock = wallWorkerClock{}
 	}
-	return &Worker{pool: pool, store: store, blobs: blobs, clock: clock, batchSize: defaultWorkerBatchSize}
+	var invalidateSite func(int32)
+	if len(invalidators) > 0 {
+		invalidateSite = invalidators[0]
+	}
+	return &Worker{pool: pool, store: store, blobs: blobs, clock: clock, batchSize: defaultWorkerBatchSize, invalidateSite: invalidateSite}
 }
 
 func (w *Worker) Job() scheduler.Job {
@@ -132,7 +137,53 @@ func (w *Worker) process(ctx context.Context, request Request) error {
 		}
 		return nil
 	}
-	return w.finish(ctx, request)
+	if err := w.rebuildAffectedDays(ctx, request); err != nil {
+		return err
+	}
+	if err := w.finish(ctx, request); err != nil {
+		return err
+	}
+	if w.invalidateSite != nil {
+		w.invalidateSite(request.SiteID)
+	}
+	return nil
+}
+
+func (w *Worker) rebuildAffectedDays(ctx context.Context, request Request) error {
+	rows, err := w.pool.Query(ctx, `
+		insert into dirty_day(site_id,day,reason)
+		select distinct $2::integer, closed.day, 'profile_erasure'
+		from day_close closed
+		where closed.site_id=$2 and closed.status='done' and exists (
+			select 1 from profile_erasure_sessions affected
+			where affected.request_id=$1
+			  and closed.day between affected.local_day-1 and affected.local_day+1
+		)
+		on conflict (site_id,day) do update set reason=excluded.reason
+		returning day`, request.ID, request.SiteID)
+	if err != nil {
+		return fmt.Errorf("mark profile erasure days dirty: %w", err)
+	}
+	var days []time.Time
+	for rows.Next() {
+		var day time.Time
+		if err := rows.Scan(&day); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan profile erasure dirty day: %w", err)
+		}
+		days = append(days, day)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate profile erasure dirty days: %w", err)
+	}
+	rows.Close()
+	for _, day := range days {
+		if _, err := closer.CloseDay(ctx, w.pool, []int32{request.SiteID}, day); err != nil {
+			return fmt.Errorf("rebuild profile erasure day %s: %w", day.Format(time.DateOnly), err)
+		}
+	}
+	return nil
 }
 
 func (w *Worker) eraseDatabaseRows(ctx context.Context, request Request) error {
