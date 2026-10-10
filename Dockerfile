@@ -6,7 +6,7 @@ RUN bun install --frozen-lockfile
 COPY web/ ./
 RUN bun run build
 
-FROM golang:1.27-alpine AS go-build
+FROM golang:1.27.2-alpine AS go-build
 
 WORKDIR /src
 COPY go.mod go.sum ./

@@ -50,8 +50,14 @@ jobs:
       - name: Vet Go packages
         run: go vet ./...
 
+      - name: Generate deterministic test fixtures
+        run: make fixtures
+
       - name: Test Go packages with race detector
         run: go test -race -p 2 -timeout 40m -skip TestBackupRestoreIntegration ./...
+
+      - name: Check Go vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
       - name: Test tracker size budgets
         run: go test -count=1 ./internal/tracker -run 'TestMinified(Tracker|FullTracker)GzipSize$'

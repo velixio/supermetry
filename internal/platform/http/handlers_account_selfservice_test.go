@@ -27,7 +27,7 @@ type accountHTTPFixture struct {
 	mailer  *mail.Fake
 }
 
-func newAccountHTTPFixture(t *testing.T, sender mail.Sender) accountHTTPFixture {
+func newAccountHTTPFixture(t *testing.T, sender mail.Sender, options ...platformauth.Option) accountHTTPFixture {
 	t.Helper()
 	pool, _ := testpg.New(t)
 	if err := db.Migrate(context.Background(), pool); err != nil {
@@ -38,7 +38,7 @@ func newAccountHTTPFixture(t *testing.T, sender mail.Sender) accountHTTPFixture 
 	if err != nil {
 		t.Fatal(err)
 	}
-	authService := platformauth.New(data, sender, box, "https://supermetry.example")
+	authService := platformauth.New(data, sender, box, "https://supermetry.example", options...)
 	userID, err := users.New(data).Create(context.Background(), "owner@example.test", "Owner", "pw-123456789")
 	if err != nil {
 		t.Fatal(err)

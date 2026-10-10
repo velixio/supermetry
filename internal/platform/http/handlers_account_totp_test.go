@@ -11,11 +11,25 @@ import (
 
 	"github.com/pquerna/otp/totp"
 
+	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/mail"
 )
 
+type accountHTTPClock struct {
+	now time.Time
+}
+
+func (c *accountHTTPClock) Now() time.Time {
+	return c.now
+}
+
+func (c *accountHTTPClock) Advance(d time.Duration) {
+	c.now = c.now.Add(d)
+}
+
 func TestTOTPHTTPRequiresReauthenticationAndSupportsRecoveryLifecycle(t *testing.T) {
-	fixture := newAccountHTTPFixture(t, &mail.Fake{})
+	clock := &accountHTTPClock{now: time.Now()}
+	fixture := newAccountHTTPFixture(t, &mail.Fake{}, platformauth.WithClock(clock))
 	for _, route := range []struct {
 		method string
 		path   string
@@ -46,7 +60,7 @@ func TestTOTPHTTPRequiresReauthenticationAndSupportsRecoveryLifecycle(t *testing
 	if err := json.Unmarshal(enrolled.Body.Bytes(), &enrollment); err != nil {
 		t.Fatal(err)
 	}
-	code := currentTOTPCode(t, enrollment.URL)
+	code := currentTOTPCode(t, enrollment.URL, clock.Now())
 	if got := fixture.request(t, http.MethodPatch, "/api/private/me/totp", `{"code":"`+code+`"}`, true); got.Code != http.StatusNoContent {
 		t.Fatalf("confirm status=%d body=%s", got.Code, got.Body.String())
 	}
@@ -55,6 +69,7 @@ func TestTOTPHTTPRequiresReauthenticationAndSupportsRecoveryLifecycle(t *testing
 	if missing.Code != http.StatusUnauthorized {
 		t.Fatalf("regenerate without factor status=%d body=%s", missing.Code, missing.Body.String())
 	}
+	clock.Advance(time.Minute)
 	regenerated := fixture.request(t, http.MethodPost, "/api/private/me/totp/recovery-codes", `{"current_password":"pw-123456789","code":"`+enrollment.RecoveryCodes[0]+`"}`, true)
 	if regenerated.Code != http.StatusOK {
 		t.Fatalf("regenerate status=%d body=%s", regenerated.Code, regenerated.Body.String())
@@ -81,13 +96,13 @@ func TestTOTPHTTPRequiresReauthenticationAndSupportsRecoveryLifecycle(t *testing
 	}
 }
 
-func currentTOTPCode(t *testing.T, otpauthURL string) string {
+func currentTOTPCode(t *testing.T, otpauthURL string, now time.Time) string {
 	t.Helper()
 	parsed, err := url.Parse(otpauthURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, err := totp.GenerateCode(parsed.Query().Get("secret"), time.Now())
+	code, err := totp.GenerateCode(parsed.Query().Get("secret"), now)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-.PHONY: build build-go test lint web web-test release run dev migrate clean distclean kill
+.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -10,7 +10,10 @@ build-go:
 	mkdir -p bin
 	go build -o bin/supermetry ./cmd/supermetry
 
-test:
+fixtures:
+	cd bench/gen && go run . --tier tiny --seed 42 --out testdata/tiny.ndjson --sites testdata/tiny.sites.json --truth testdata/tiny.truth.json
+
+test: fixtures
 	go test -race ./...
 
 lint:

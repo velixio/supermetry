@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -73,7 +74,7 @@ func TestGracefulShutdownLosesNothing(t *testing.T) {
 		"SUPERMETRY_FLUSH_EVERY=1h",
 		"SUPERMETRY_SESSION_FLUSH=1h",
 	)
-	var logs bytes.Buffer
+	var logs synchronizedBuffer
 	command.Stdout = &logs
 	command.Stderr = &logs
 	if err := command.Start(); err != nil {
@@ -477,7 +478,24 @@ func schemaDSN(t *testing.T, schema string) string {
 	return parsed.String()
 }
 
-func waitReady(t *testing.T, endpoint string, command *exec.Cmd, logs *bytes.Buffer) {
+type synchronizedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (b *synchronizedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *synchronizedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.String()
+}
+
+func waitReady(t *testing.T, endpoint string, command *exec.Cmd, logs *synchronizedBuffer) {
 	t.Helper()
 	// Full-suite runs start several PostgreSQL-backed packages concurrently;
 	// allow migrations and GeoIP setup to finish under that expected load.
