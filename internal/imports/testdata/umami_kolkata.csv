@@ -1,0 +1,3 @@
+created_at,session_id,event_type,event_name,url_path
+2026-01-01T20:00:00Z,late,1,,/pricing
+2026-01-01T20:01:30Z,late,2,Signup,/pricing

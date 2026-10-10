@@ -26,7 +26,8 @@ func TestStoreLifecyclePersistsAggregate(t *testing.T) {
 	day := date(t, "2026-01-03")
 	aggregate := newAggregate()
 	aggregate.Days[day] = Metrics{Visitors: 2, Visits: 3, Pageviews: 4, Bounces: 1, VisitDurationS: 9}
-	aggregate.Dimensions[DimensionKey{Day: day, Dim: DimPage, Value: "/"}] = Metrics{Visitors: 2, Visits: 3, Pageviews: 4, Events: 5}
+	aggregate.Dimensions[DimensionKey{Day: day, Dim: DimPage, Value: "/"}] = Metrics{Visitors: 2, Visits: 3, Pageviews: 4}
+	aggregate.Dimensions[DimensionKey{Day: day, Dim: DimEvent, Value: "Signup"}] = Metrics{Visitors: 2, Events: 5}
 	if err := store.Complete(ctx, created.ID, aggregate, ParseStats{Rows: 8, BadRows: 2}); err != nil {
 		t.Fatal(err)
 	}
@@ -45,11 +46,12 @@ func TestStoreLifecyclePersistsAggregate(t *testing.T) {
 	if err := store.pool.QueryRow(ctx, `select visitors from imported_day where import_id=$1`, created.ID).Scan(&visitors); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.pool.QueryRow(ctx, `select events from imported_day_dim where import_id=$1`, created.ID).Scan(&events); err != nil {
+	var eventValue string
+	if err := store.pool.QueryRow(ctx, `select value,events from imported_day_dim where import_id=$1 and value like $2`, created.ID, EventValuePrefix+"%").Scan(&eventValue, &events); err != nil {
 		t.Fatal(err)
 	}
-	if visitors != 2 || events != 5 {
-		t.Fatalf("persisted visitors=%d events=%d", visitors, events)
+	if visitors != 2 || eventValue != EventValuePrefix+"Signup" || events != 5 {
+		t.Fatalf("persisted visitors=%d event=%q events=%d", visitors, eventValue, events)
 	}
 }
 

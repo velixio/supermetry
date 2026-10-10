@@ -32,6 +32,10 @@ func TestParsePlausibleUsesHeadersAndCountsBadRows(t *testing.T) {
 }
 
 func TestParsePlausibleSupportsEveryDocumentedFileFamily(t *testing.T) {
+	customEvents, err := os.ReadFile(filepath.Join("testdata", "plausible_custom_events.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	path := plausibleZIP(t, map[string]string{
 		"imported_entry_pages_a.csv":       "date,entry_page,visitors,entrances,visit_duration,bounces,pageviews\n2026-01-01,/in,2,3,4,1,5\n",
 		"imported_exit_pages_a.csv":        "date,exit_page,visitors,exits,visit_duration,bounces,pageviews\n2026-01-01,/out,2,3,4,1,5\n",
@@ -39,7 +43,7 @@ func TestParsePlausibleSupportsEveryDocumentedFileFamily(t *testing.T) {
 		"imported_devices_a.csv":           "date,device,visitors,visits,visit_duration,bounces,pageviews\n2026-01-01,Desktop,2,3,4,1,5\n",
 		"imported_browsers_a.csv":          "date,browser,browser_version,visitors,visits,visit_duration,bounces,pageviews\n2026-01-01,Chrome,100,2,3,4,1,5\n",
 		"imported_operating_systems_a.csv": "date,operating_system,operating_system_version,visitors,visits,visit_duration,bounces,pageviews\n2026-01-01,Linux,6,2,3,4,1,5\n",
-		"imported_custom_events_a.csv":     "date,name,link_url,path,visitors,events\n2026-01-01,Signup,,/signup,2,7\n",
+		"imported_custom_events_a.csv":     string(customEvents),
 	})
 
 	got, stats, err := ParsePlausible(path)
@@ -62,7 +66,10 @@ func TestParsePlausibleSupportsEveryDocumentedFileFamily(t *testing.T) {
 			t.Errorf("missing dim=%d value=%q", tc.dim, tc.value)
 		}
 	}
-	assertDimension(t, got, DimensionKey{Day: day, Dim: DimPage, Value: "/signup"}, Metrics{Events: 7})
+	assertDimension(t, got, DimensionKey{Day: day, Dim: DimEvent, Value: "Signup"}, Metrics{Visitors: 2, Events: 7})
+	if _, ok := got.Dimensions[DimensionKey{Day: day, Dim: DimPage, Value: "/signup"}]; ok {
+		t.Fatal("custom event was added to the page dimension")
+	}
 }
 
 func TestParsePlausibleCountsInvalidAlternateVisitColumnsAsBad(t *testing.T) {
@@ -100,7 +107,36 @@ x,,bad,s3,/bad,,1,IN,Firefox,Android,mobile
 	}
 	assertDimension(t, got, DimensionKey{Day: day, Dim: DimEntry, Value: "/one"}, Metrics{Visitors: 2, Visits: 2, Pageviews: 3, Bounces: 1, VisitDurationS: 60})
 	assertDimension(t, got, DimensionKey{Day: day, Dim: DimExit, Value: "/two"}, Metrics{Visitors: 1, Visits: 1, Pageviews: 2, VisitDurationS: 60})
-	assertDimension(t, got, DimensionKey{Day: day, Dim: DimPage, Value: "/one"}, Metrics{Visitors: 2, Visits: 2, Pageviews: 2, Events: 1})
+	assertDimension(t, got, DimensionKey{Day: day, Dim: DimPage, Value: "/one"}, Metrics{Visitors: 2, Visits: 2, Pageviews: 2})
+	assertDimension(t, got, DimensionKey{Day: day, Dim: DimEvent, Value: "Signup"}, Metrics{Visitors: 1, Visits: 1, Events: 1})
+}
+
+func TestParseUmamiBucketsSessionsInSiteTimezone(t *testing.T) {
+	fixture, err := os.Open(filepath.Join("testdata", "umami_kolkata.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.Close()
+	location, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, stats, err := ParseUmamiInLocation(fixture, location)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Rows != 2 || stats.BadRows != 0 {
+		t.Fatalf("stats = %+v, want 2 good rows", stats)
+	}
+	localDay := date(t, "2026-01-02")
+	if got.Days[localDay] != (Metrics{Visitors: 1, Visits: 1, Pageviews: 1, Bounces: 1, VisitDurationS: 90}) {
+		t.Fatalf("local daily = %+v", got.Days[localDay])
+	}
+	if _, ok := got.Days[date(t, "2026-01-01")]; ok {
+		t.Fatal("late-evening UTC session was bucketed on the UTC day")
+	}
+	assertDimension(t, got, DimensionKey{Day: localDay, Dim: DimEvent, Value: "Signup"}, Metrics{Visitors: 1, Visits: 1, Events: 1})
 }
 
 func TestParseUmamiRejectsMissingRequiredHeader(t *testing.T) {
@@ -126,7 +162,7 @@ func TestParseUmamiCountsUnknownEventTypesAndDoesNotBounceCustomOnlySessions(t *
 	if metrics.Bounces != 0 || metrics.Visitors != 1 || metrics.Pageviews != 0 {
 		t.Fatalf("daily = %+v", metrics)
 	}
-	assertDimension(t, got, DimensionKey{Day: date(t, "2026-01-01"), Dim: DimPage, Value: "/signup"}, Metrics{Events: 1})
+	assertDimension(t, got, DimensionKey{Day: date(t, "2026-01-01"), Dim: DimEvent, Value: "Signup"}, Metrics{Visitors: 1, Visits: 1, Events: 1})
 }
 
 func plausibleZIP(t *testing.T, files map[string]string) string {

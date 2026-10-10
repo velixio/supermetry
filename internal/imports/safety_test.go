@@ -103,7 +103,7 @@ func TestProcessFileStopsWhenContextIsCanceled(t *testing.T) {
 func TestManagerRecoversPanicAndMarksImportFailed(t *testing.T) {
 	store := &failingStore{failed: make(chan int64, 1)}
 	manager := NewManager(store, 1)
-	manager.process = func(context.Context, Source, string) (Aggregate, ParseStats, error) {
+	manager.process = func(context.Context, Source, string, *time.Location) (Aggregate, ParseStats, error) {
 		panic("boom")
 	}
 	path := filepath.Join(t.TempDir(), "upload")
@@ -153,7 +153,7 @@ func TestManagerMarksInterruptedAndQueuedImportsFailedOnShutdown(t *testing.T) {
 	store := &failingStore{failed: make(chan int64, 2)}
 	manager := NewManager(store, 2)
 	started := make(chan struct{})
-	manager.process = func(ctx context.Context, _ Source, _ string) (Aggregate, ParseStats, error) {
+	manager.process = func(ctx context.Context, _ Source, _ string, _ *time.Location) (Aggregate, ParseStats, error) {
 		close(started)
 		<-ctx.Done()
 		return Aggregate{}, ParseStats{}, ctx.Err()
@@ -195,6 +195,10 @@ func TestManagerMarksInterruptedAndQueuedImportsFailedOnShutdown(t *testing.T) {
 type failingStore struct {
 	failed chan int64
 	ctxErr error
+}
+
+func (s *failingStore) ImportLocation(context.Context, int64) (*time.Location, error) {
+	return time.UTC, nil
 }
 
 func (s *failingStore) SetRunning(context.Context, int64) error { return nil }

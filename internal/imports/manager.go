@@ -27,6 +27,7 @@ type LifecycleStore interface {
 	SetRunning(context.Context, int64) error
 	SetFailed(context.Context, int64, error) error
 	Complete(context.Context, int64, Aggregate, ParseStats) error
+	ImportLocation(context.Context, int64) (*time.Location, error)
 }
 
 // Manager owns a bounded queue consumed synchronously by Run. Starting exactly
@@ -34,7 +35,7 @@ type LifecycleStore interface {
 type Manager struct {
 	store   LifecycleStore
 	jobs    chan Job
-	process func(context.Context, Source, string) (Aggregate, ParseStats, error)
+	process func(context.Context, Source, string, *time.Location) (Aggregate, ParseStats, error)
 
 	mu      sync.Mutex
 	running bool
@@ -45,7 +46,7 @@ func NewManager(store LifecycleStore, queueSize int) *Manager {
 	if queueSize < 1 {
 		queueSize = 1
 	}
-	return &Manager{store: store, jobs: make(chan Job, queueSize), process: ProcessFile}
+	return &Manager{store: store, jobs: make(chan Job, queueSize), process: ProcessFileInLocation}
 }
 
 // Queue schedules a job without blocking. The caller retains ownership of the
@@ -119,7 +120,12 @@ func (m *Manager) runJob(ctx context.Context, job Job) {
 		}
 		return
 	}
-	aggregate, stats, err := m.process(ctx, job.Source, job.Path)
+	location, err := m.store.ImportLocation(ctx, job.ImportID)
+	if err != nil {
+		m.markFailed(ctx, job.ImportID, err)
+		return
+	}
+	aggregate, stats, err := m.process(ctx, job.Source, job.Path, location)
 	if err == nil {
 		err = m.store.Complete(ctx, job.ImportID, aggregate, stats)
 	}
@@ -151,6 +157,12 @@ func (m *Manager) stopAndRemoveQueuedFiles() {
 
 // ProcessFile parses an uploaded file; reads fail once ctx is done.
 func ProcessFile(ctx context.Context, source Source, path string) (Aggregate, ParseStats, error) {
+	return ProcessFileInLocation(ctx, source, path, time.UTC)
+}
+
+// ProcessFileInLocation parses an upload using the site's timezone for source
+// formats whose rows contain timestamps rather than civil dates.
+func ProcessFileInLocation(ctx context.Context, source Source, path string, location *time.Location) (Aggregate, ParseStats, error) {
 	switch source {
 	case SourcePlausible:
 		return parsePlausible(ctx, path)
@@ -160,7 +172,7 @@ func ProcessFile(ctx context.Context, source Source, path string) (Aggregate, Pa
 			return newAggregate(), ParseStats{}, err
 		}
 		defer file.Close()
-		return ParseUmami(contextReader{ctx, file})
+		return ParseUmamiInLocation(contextReader{ctx, file}, location)
 	default:
 		return newAggregate(), ParseStats{}, fmt.Errorf("unsupported import source %q", source)
 	}

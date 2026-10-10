@@ -154,9 +154,7 @@ func parsePlausibleCSV(input io.Reader, family string, result Aggregate, stats *
 		case "imported_operating_systems":
 			result.addDimension(DimensionKey{day, DimOS, row.text("operating_system")}, metrics)
 		case "imported_custom_events":
-			// The imported schema has no event-name dimension code. Retain event
-			// counts by their path when one is present, without inventing a code.
-			result.addDimension(DimensionKey{day, DimPage, row.text("path")}, Metrics{Events: metrics.Events})
+			result.addDimension(DimensionKey{day, DimEvent, row.text("name")}, Metrics{Visitors: metrics.Visitors, Events: metrics.Events})
 		}
 		return result.checkLimit()
 	})

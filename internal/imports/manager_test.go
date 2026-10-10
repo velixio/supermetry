@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestProcessFileDispatchesBySource(t *testing.T) {
@@ -27,6 +28,38 @@ func TestProcessFileDispatchesBySource(t *testing.T) {
 	}
 }
 
+func TestManagerPassesSiteTimezoneToParser(t *testing.T) {
+	location, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &recordingStore{completed: make(chan int64, 1), location: location}
+	manager := NewManager(store, 1)
+	received := make(chan *time.Location, 1)
+	manager.process = func(_ context.Context, _ Source, _ string, got *time.Location) (Aggregate, ParseStats, error) {
+		received <- got
+		return newAggregate(), ParseStats{}, nil
+	}
+	path := filepath.Join(t.TempDir(), "events.csv")
+	if err := os.WriteFile(path, []byte("fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- manager.Run(ctx) }()
+	if err := manager.Queue(Job{ImportID: 1, Source: SourceUmami, Path: path}); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-received; got != location {
+		t.Fatalf("parser location = %v, want %v", got, location)
+	}
+	<-store.completed
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run error = %v", err)
+	}
+}
+
 func TestManagerProcessesOneJobAtATimeAndRemovesFiles(t *testing.T) {
 	store := &recordingStore{completed: make(chan int64, 2)}
 	manager := NewManager(store, 2)
@@ -34,7 +67,7 @@ func TestManagerProcessesOneJobAtATimeAndRemovesFiles(t *testing.T) {
 	release := make(chan struct{})
 	var mu sync.Mutex
 	active, maximum := 0, 0
-	manager.process = func(_ context.Context, _ Source, _ string) (Aggregate, ParseStats, error) {
+	manager.process = func(_ context.Context, _ Source, _ string, _ *time.Location) (Aggregate, ParseStats, error) {
 		mu.Lock()
 		active++
 		if active > maximum {
@@ -101,6 +134,14 @@ func TestManagerQueueIsBounded(t *testing.T) {
 
 type recordingStore struct {
 	completed chan int64
+	location  *time.Location
+}
+
+func (s *recordingStore) ImportLocation(context.Context, int64) (*time.Location, error) {
+	if s.location != nil {
+		return s.location, nil
+	}
+	return time.UTC, nil
 }
 
 func (s *recordingStore) SetRunning(context.Context, int64) error       { return nil }

@@ -200,6 +200,25 @@ func (s *Store) SetFailed(ctx context.Context, id int64, cause error) error {
 	return nil
 }
 
+// ImportLocation resolves the current site timezone when the worker starts so
+// timestamp-based exports are bucketed with the same civil-day rule as live data.
+func (s *Store) ImportLocation(ctx context.Context, id int64) (*time.Location, error) {
+	var timezone string
+	err := s.pool.QueryRow(ctx, `
+		select s.timezone from imports i join sites s on s.id=i.site_id where i.id=$1`, id).Scan(&timezone)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("load site timezone %q: %w", timezone, err)
+	}
+	return location, nil
+}
+
 // FailRunningAtStartup marks imports a previous process left pending or
 // running as failed: their jobs lived only in that process's in-memory queue.
 // It assumes a single application instance; a second instance starting while
@@ -276,7 +295,11 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 			pgx.CopyFromSlice(len(dimensions), func(index int) ([]any, error) {
 				key := dimensions[index]
 				metrics := aggregate.Dimensions[key]
-				return []any{siteID, id, key.Day, key.Dim, key.Value, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS, metrics.Events}, nil
+				dim, value := key.Dim, key.Value
+				if dim == DimEvent {
+					dim, value = DimPage, EventValuePrefix+value
+				}
+				return []any{siteID, id, key.Day, dim, value, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS, metrics.Events}, nil
 			}))
 		if err != nil {
 			return fmt.Errorf("copy imported dimensions: %w", err)

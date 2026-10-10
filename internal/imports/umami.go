@@ -24,16 +24,26 @@ type umamiSession struct {
 	os          string
 	device      string
 	paths       map[string]*umamiPath
+	events      map[string]int64
 }
 
 type umamiPath struct {
 	pageviews int64
-	events    int64
 }
 
-// ParseUmami streams rows from a website_event CSV. Distinct session_id values
-// per UTC day approximate visitors because Umami exports contain no visitor ID.
+// ParseUmami streams rows from a website_event CSV using UTC for callers that
+// do not have site metadata.
 func ParseUmami(input io.Reader) (Aggregate, ParseStats, error) {
+	return ParseUmamiInLocation(input, time.UTC)
+}
+
+// ParseUmamiInLocation buckets rows by the site's local civil day. Umami's
+// website_event export has session IDs but no stable visitor ID, so distinct
+// sessions per local day are also the closest reproducible visitor count.
+func ParseUmamiInLocation(input io.Reader, location *time.Location) (Aggregate, ParseStats, error) {
+	if location == nil {
+		location = time.UTC
+	}
 	result := newAggregate()
 	var stats ParseStats
 	table, err := newCSVTable(input, &stats, "session_id", "created_at", "event_type")
@@ -54,14 +64,18 @@ func ParseUmami(input io.Reader) (Aggregate, ParseStats, error) {
 		if err != nil {
 			return err
 		}
-		day := timestamp.UTC().Truncate(24 * time.Hour)
+		local := timestamp.In(location)
+		day := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
 		key := umamiSessionKey{day, sessionID}
 		session := sessions[key]
 		if session == nil {
 			if len(sessions) >= maxUmamiSessions {
 				return fatalError{fmt.Errorf("import has more than %d sessions", maxUmamiSessions)}
 			}
-			session = &umamiSession{start: timestamp, end: timestamp, paths: make(map[string]*umamiPath)}
+			session = &umamiSession{
+				start: timestamp, end: timestamp,
+				paths: make(map[string]*umamiPath), events: make(map[string]int64),
+			}
 			sessions[key] = session
 		}
 		if timestamp.Before(session.start) {
@@ -92,7 +106,7 @@ func ParseUmami(input io.Reader) (Aggregate, ParseStats, error) {
 				session.lastPageAt, session.exit = timestamp, path
 			}
 		} else {
-			pathStats.events++
+			session.events[row.text("event_name")]++
 		}
 		return nil
 	})
@@ -115,12 +129,15 @@ func ParseUmami(input io.Reader) (Aggregate, ParseStats, error) {
 		result.addDimension(DimensionKey{key.day, DimEntry, session.entry}, metrics)
 		result.addDimension(DimensionKey{key.day, DimExit, session.exit}, metrics)
 		for path, counts := range session.paths {
-			pathMetrics := Metrics{Pageviews: counts.pageviews, Events: counts.events}
+			pathMetrics := Metrics{Pageviews: counts.pageviews}
 			if counts.pageviews > 0 {
 				pathMetrics.Visitors = 1
 				pathMetrics.Visits = 1
 			}
 			result.addDimension(DimensionKey{key.day, DimPage, path}, pathMetrics)
+		}
+		for name, count := range session.events {
+			result.addDimension(DimensionKey{key.day, DimEvent, name}, Metrics{Visitors: 1, Visits: 1, Events: count})
 		}
 		if err := result.checkLimit(); err != nil {
 			return result, stats, err

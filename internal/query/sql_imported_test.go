@@ -2,12 +2,14 @@ package query_test
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/api"
+	panelimports "supermetry/internal/imports"
 )
 
 func TestQueryIncludesOnlyCompletedImportedDaysBeforeNativeData(t *testing.T) {
@@ -42,6 +44,27 @@ func TestQueryIncludesOnlyCompletedImportedDaysBeforeNativeData(t *testing.T) {
 	}
 }
 
+func TestQueryImportOverlapUsesNewestCompletedImportPerDay(t *testing.T) {
+	pool, engine := setupTiny(t)
+	older := insertImport(t, pool, "completed")
+	newer := insertImport(t, pool, "completed")
+	insertImportedDay(t, pool, older, "2026-10-05", 10, 11, 12, 2, 100)
+	insertImportedDay(t, pool, newer, "2026-10-05", 20, 21, 22, 3, 200)
+	if _, err := pool.Exec(context.Background(), `
+update imports set completed_at=case id when $1 then '2026-10-05 10:00Z'::timestamptz else '2026-10-05 11:00Z'::timestamptz end
+where id in ($1,$2)`, older, newer); err != nil {
+		t.Fatal(err)
+	}
+
+	got := mustQuery(t, engine, queryRequestRange("2026-10-05", "2026-10-05", nil, nil))
+	if got.Totals["visitors"] != 20 || got.Totals["visits"] != 21 || got.Totals["pageviews"] != 22 {
+		t.Fatalf("totals = %v, want only the newer Plausible export", got.Totals)
+	}
+	if !got.Meta.ImportedIncluded {
+		t.Fatal("meta.imported_included = false, want true")
+	}
+}
+
 func TestQueryCutsImportsOffAtEarlierNativeEvent(t *testing.T) {
 	pool, engine := setupTiny(t)
 	ensureSiteRowForImport(t, pool)
@@ -60,6 +83,44 @@ values
 	got := mustQuery(t, engine, queryRequestRange("2026-10-04", "2026-10-07", nil, nil))
 	if got.Totals["visitors"] != 14 {
 		t.Fatalf("visitors = %v, want ten imported before the event plus four native", got.Totals["visitors"])
+	}
+}
+
+func TestQueryImportSkipsOnlyDaysWithNativeTracking(t *testing.T) {
+	pool, engine := setupTiny(t)
+	ensureSiteRowForImport(t, pool)
+	if _, err := pool.Exec(context.Background(), `
+insert into events
+  (site_id, retention_class, local_day, ts, visitor_id, session_id, kind, path_id)
+values
+  (1, 30, '2026-10-05', '2026-10-05 12:00Z', 999, 999, 0, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	importID := insertImport(t, pool, "completed")
+	insertImportedDay(t, pool, importID, "2026-10-05", 1000, 1000, 1000, 0, 0)
+	insertImportedDay(t, pool, importID, "2026-10-09", 10, 10, 10, 0, 0)
+
+	got := mustQuery(t, engine, queryRequestRange("2026-10-05", "2026-10-09", []string{"time"}, nil))
+	rows := rowsByDimension(got, "time")
+	if row := rows["2026-10-05"]; row != nil {
+		t.Fatalf("native event-only day = %v, want no imported aggregate row", row)
+	}
+	if rows["2026-10-09"]["visitors"] != float64(10) {
+		t.Fatalf("later import-only day = %v, want visitors=10", rows["2026-10-09"])
+	}
+	if !got.Meta.ImportedIncluded {
+		t.Fatal("meta.imported_included = false, want true for the non-overlapping day")
+	}
+}
+
+func TestQueryImportFlagFalseWhenEveryImportedDayHasNativeTracking(t *testing.T) {
+	pool, engine := setupTiny(t)
+	importID := insertImport(t, pool, "completed")
+	insertImportedDay(t, pool, importID, "2026-10-06", 1000, 1000, 1000, 0, 0)
+
+	got := mustQuery(t, engine, queryRequestRange("2026-10-06", "2026-10-06", nil, nil))
+	if got.Meta.ImportedIncluded || containsString(got.Meta.SourcesUsed, "imported") {
+		t.Fatalf("meta = %+v, want imported data excluded because native rows cover the day", got.Meta)
 	}
 }
 
@@ -122,6 +183,52 @@ func TestQueryIncludesImportedDimensionAggregates(t *testing.T) {
 				t.Fatalf("imported engagement_time = %v, want native-only zero", row["engagement_time"])
 			}
 		})
+	}
+}
+
+func TestQueryImportCustomEventsUseEventNotPageDimension(t *testing.T) {
+	pool, engine := setupTiny(t)
+	importID := insertImport(t, pool, "completed")
+	insertImportedDimension(t, pool, importID, "2026-10-05", 1, panelimports.EventValuePrefix+"Signup", 2, 0, 0, 0, 0, 7)
+
+	eventRequest := queryRequestRange("2026-10-05", "2026-10-05", []string{"event"}, nil)
+	eventRequest.Metrics = []api.Metric{api.Visitors, api.Events}
+	events := mustQuery(t, engine, eventRequest)
+	event := rowsByDimension(events, "event")["Signup"]
+	if event == nil || event["visitors"] != float64(2) || event["events"] != float64(7) {
+		t.Fatalf("event row = %v, want Signup visitors=2 events=7", event)
+	}
+
+	pageRequest := queryRequestRange("2026-10-05", "2026-10-05", []string{"page"}, nil)
+	pageRequest.Metrics = []api.Metric{api.Events}
+	pages := mustQuery(t, engine, pageRequest)
+	if row := rowsByDimension(pages, "page")[panelimports.EventValuePrefix+"Signup"]; row != nil {
+		t.Fatalf("custom event leaked into page rows: %v", row)
+	}
+}
+
+func TestQueryImportCustomEventsApproximateGoalConversions(t *testing.T) {
+	pool, engine := setupTiny(t)
+	importID := insertImport(t, pool, "completed")
+	insertImportedDimension(t, pool, importID, "2026-10-05", 1, panelimports.EventValuePrefix+"Signup", 2, 0, 0, 0, 0, 7)
+	const goalID int64 = 42
+	engine.SetGoalLookup(goalLookup{1: {{ID: goalID, SiteID: 1, Kind: "event", Match: "exact", Value: "Signup", Name: "signup"}}})
+	dimensions := []string{"goal"}
+	request := api.QueryRequest{
+		SiteId: 1, DateRange: ptr(dateRange("2026-10-05", "2026-10-05")),
+		Dimensions: &dimensions, Metrics: []api.Metric{api.Conversions},
+	}
+
+	got := mustQuery(t, engine, request)
+	row := rowsByDimension(got, "goal")[fmt.Sprint(goalID)]
+	if row == nil || row["conversions"] != float64(7) {
+		t.Fatalf("goal row = %v, want seven imported event occurrences as approximate conversions", row)
+	}
+	if got.Totals["conversions"] != float64(7) {
+		t.Fatalf("goal totals = %v, want seven approximate conversions", got.Totals)
+	}
+	if !got.Meta.ImportedIncluded {
+		t.Fatal("meta.imported_included = false, want true")
 	}
 }
 

@@ -15,7 +15,15 @@ var (
 	maxUmamiSessions = 2_000_000
 )
 
+// EventValuePrefix distinguishes logical event-name rows from page rows in
+// the original imported_day_dim layout, which has no dedicated event code.
+const EventValuePrefix = "\x1e:supermetry:event:v1:"
+
 const (
+	// DimEvent is a logical import-only dimension. Store maps it to a tagged
+	// representation because the deployed imported_day_dim schema predates
+	// event-name breakdowns and only accepts dimension codes 1 through 10.
+	DimEvent   int16 = 0
 	DimPage    int16 = 1
 	DimSource  int16 = 2
 	DimCountry int16 = 3
