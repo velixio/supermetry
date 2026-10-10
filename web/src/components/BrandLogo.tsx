@@ -6,7 +6,12 @@ export function BrandLogo({
   mark?: boolean
 }) {
   if (mark) {
-    return <img alt="Supermetry" className={className} src="/brand/supermetry-mark.svg" />
+    return (
+      <>
+        <img alt="Supermetry" className={`${className} dark:hidden`} src="/brand/supermetry-mark.svg" />
+        <img alt="" aria-hidden="true" className={`${className} hidden dark:block`} src="/brand/supermetry-mark-on-dark.svg" />
+      </>
+    )
   }
   return (
     <>
