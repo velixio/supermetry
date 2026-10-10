@@ -1,30 +1,54 @@
+# Choose where PostgreSQL lives, with one profile:
+#
+#   docker compose --profile bundled-db up -d --build     a PostgreSQL container, set POSTGRES_PASSWORD in .env
+#   docker compose --profile external-db up -d --build    your own database, set SUPERMETRY_DATABASE_URL in .env
+#
+# Or put COMPOSE_PROFILES=bundled-db (or external-db) in deploy/.env and run `docker compose up -d --build`.
+# With the external database, `localhost` inside the container is the container itself: use
+# host.docker.internal to reach PostgreSQL on this machine.
+
+x-supermetry: &supermetry
+  build:
+    context: ..
+    dockerfile: Dockerfile
+  env_file:
+    # Start with: cp ../.env.example .env
+    - .env
+  ports:
+    - "127.0.0.1:8787:8787"
+  volumes:
+    - supermetry-data:/data
+  restart: unless-stopped
+
 services:
   supermetry:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    env_file:
-      # Start with: cp ../.env.example .env
-      - .env
+    <<: *supermetry
+    profiles: ["external-db"]
     environment:
-      SUPERMETRY_DATABASE_URL: postgres://supermetry:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}@postgres:5432/supermetry?sslmode=disable
       SUPERMETRY_DATA_DIR: /data
       SUPERMETRY_LISTEN: 0.0.0.0:8787
-    ports:
-      - "127.0.0.1:8787:8787"
-    volumes:
-      - supermetry-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  supermetry-bundled:
+    <<: *supermetry
+    profiles: ["bundled-db"]
+    environment:
+      SUPERMETRY_DATABASE_URL: postgres://supermetry:${POSTGRES_PASSWORD:-}@postgres:5432/supermetry?sslmode=disable
+      SUPERMETRY_DATA_DIR: /data
+      SUPERMETRY_LISTEN: 0.0.0.0:8787
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
 
   postgres:
+    profiles: ["bundled-db"]
     image: postgres:18-alpine
     environment:
       POSTGRES_DB: supermetry
       POSTGRES_USER: supermetry
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      # Required for the bundled-db profile: PostgreSQL refuses to start without it.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U supermetry -d supermetry"]
       interval: 5s

@@ -24,8 +24,11 @@ Privacy-friendly, self-hosted web analytics. One Go binary and PostgreSQL. No Cl
 ```sh
 cd deploy
 cp ../.env.example .env
-# Edit .env: set SUPERMETRY_SECRET_KEY, SUPERMETRY_BASE_URL and POSTGRES_PASSWORD
-docker compose up -d --build
+# Edit .env: set SUPERMETRY_SECRET_KEY and SUPERMETRY_BASE_URL, then pick a database:
+#   bundled PostgreSQL container: add POSTGRES_PASSWORD
+docker compose --profile bundled-db up -d --build
+#   or your own database: set SUPERMETRY_DATABASE_URL (use host.docker.internal, not localhost)
+# docker compose --profile external-db up -d --build
 ```
 
 Open `SUPERMETRY_BASE_URL/app` and finish the setup. See [deploy/README.md](deploy/README.md) for systemd, upgrades and reverse-proxy examples, and [docs/guide/configuration.md](docs/guide/configuration.md) for every setting.

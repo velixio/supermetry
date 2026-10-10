@@ -13,13 +13,26 @@ From this directory:
 
 ```sh
 cp ../.env.example .env
-# Edit .env: set SUPERMETRY_SECRET_KEY, SUPERMETRY_BASE_URL, and add POSTGRES_PASSWORD.
-docker compose up -d --build
+# Edit .env: set SUPERMETRY_SECRET_KEY and SUPERMETRY_BASE_URL.
 ```
 
-Compose overrides `SUPERMETRY_DATABASE_URL` and `SUPERMETRY_LISTEN` for its service
-network. URL-encode special characters in `POSTGRES_PASSWORD`. Data is kept
-in the `supermetry-data` and `postgres-data` named volumes. The application port
+Then choose where PostgreSQL lives, with a Compose profile:
+
+```sh
+# A PostgreSQL container managed by Compose. Add POSTGRES_PASSWORD to .env.
+docker compose --profile bundled-db up -d --build
+
+# Your own PostgreSQL. Set SUPERMETRY_DATABASE_URL in .env.
+docker compose --profile external-db up -d --build
+```
+
+You can also put `COMPOSE_PROFILES=bundled-db` (or `external-db`) in `.env` and run a plain `docker compose up -d --build`. Without a profile Compose says "no service selected".
+
+- **Bundled database:** Compose sets `SUPERMETRY_DATABASE_URL` for the service itself and ignores the value in `.env`. URL-encoding is not needed because the password is not part of a URL you write. Data is kept in the `postgres-data` volume.
+- **External database:** the service uses `SUPERMETRY_DATABASE_URL` from `.env` as it is. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
+
+Compose overrides `SUPERMETRY_LISTEN` for its service network. Application data is kept
+in the `supermetry-data` named volume. The application port
 binds to `127.0.0.1` by default; put a reverse proxy on the same host in front of
 it. To expose Supermetry directly, change the port mapping to `8787:8787` (or
 `0.0.0.0:8787:8787`) and apply an appropriate firewall policy.
