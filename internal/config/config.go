@@ -22,6 +22,9 @@ const (
 	defaultFlushEvery       = time.Second
 	defaultSessionFlush     = 10 * time.Second
 	defaultQueryTimeout     = 10 * time.Second
+	defaultIngestRateIP     = 1_000
+	defaultIngestRateSite   = 5_000
+	defaultIngestRateGlobal = 10_000
 	defaultHTTPReadTimeout  = 30 * time.Second
 	defaultHTTPWriteTimeout = 60 * time.Second
 	defaultSignup           = "invite"
@@ -66,6 +69,9 @@ type Config struct {
 	FlushEvery           time.Duration
 	SessionFlush         time.Duration
 	QueryTimeout         time.Duration
+	IngestRateIP         int
+	IngestRateSite       int
+	IngestRateGlobal     int
 	HTTPReadTimeout      time.Duration
 	HTTPWriteTimeout     time.Duration
 	AdminAPIKey          string
@@ -129,6 +135,9 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		FlushEvery:           defaultFlushEvery,
 		SessionFlush:         defaultSessionFlush,
 		QueryTimeout:         defaultQueryTimeout,
+		IngestRateIP:         defaultIngestRateIP,
+		IngestRateSite:       defaultIngestRateSite,
+		IngestRateGlobal:     defaultIngestRateGlobal,
 		HTTPReadTimeout:      defaultHTTPReadTimeout,
 		HTTPWriteTimeout:     defaultHTTPWriteTimeout,
 		AdminAPIKey:          getenv("SUPERMETRY_ADMIN_API_KEY"),
@@ -278,7 +287,10 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 
 	parsePositiveDuration(getenv("SUPERMETRY_FLUSH_EVERY"), "SUPERMETRY_FLUSH_EVERY", &c.FlushEvery, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_SESSION_FLUSH"), "SUPERMETRY_SESSION_FLUSH", &c.SessionFlush, &errs)
-	parsePositiveDuration(getenv("SUPERMETRY_QUERY_TIMEOUT"), "SUPERMETRY_QUERY_TIMEOUT", &c.QueryTimeout, &errs)
+	parseDurationRange(getenv("SUPERMETRY_QUERY_TIMEOUT"), "SUPERMETRY_QUERY_TIMEOUT", time.Second, 5*time.Minute, &c.QueryTimeout, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_IP"), "SUPERMETRY_INGEST_RATE_IP", &c.IngestRateIP, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_SITE"), "SUPERMETRY_INGEST_RATE_SITE", &c.IngestRateSite, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_GLOBAL"), "SUPERMETRY_INGEST_RATE_GLOBAL", &c.IngestRateGlobal, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_READ_TIMEOUT"), "SUPERMETRY_HTTP_READ_TIMEOUT", &c.HTTPReadTimeout, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_WRITE_TIMEOUT"), "SUPERMETRY_HTTP_WRITE_TIMEOUT", &c.HTTPWriteTimeout, &errs)
 	if raw := getenv("SUPERMETRY_TRUSTED_PROXIES"); raw != "" {
@@ -358,6 +370,30 @@ func parsePositiveDuration(raw, name string, target *time.Duration, errs *[]erro
 	value, err := time.ParseDuration(raw)
 	if err != nil || value <= 0 {
 		*errs = append(*errs, fmt.Errorf("%s must be a positive duration", name))
+		return
+	}
+	*target = value
+}
+
+func parseDurationRange(raw, name string, minimum, maximum time.Duration, target *time.Duration, errs *[]error) {
+	if raw == "" {
+		return
+	}
+	value, err := time.ParseDuration(raw)
+	if err != nil || value < minimum || value > maximum {
+		*errs = append(*errs, fmt.Errorf("%s must be a duration from %s to %s", name, minimum, maximum))
+		return
+	}
+	*target = value
+}
+
+func parsePositiveInt(raw, name string, target *int, errs *[]error) {
+	if raw == "" {
+		return
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 || value > int(^uint(0)>>1)/2 {
+		*errs = append(*errs, fmt.Errorf("%s must be a positive integer no greater than %d", name, int(^uint(0)>>1)/2))
 		return
 	}
 	*target = value

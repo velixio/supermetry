@@ -462,6 +462,14 @@ func EscapeLike(value string) string {
 	return strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(value)
 }
 
+// SetQueryTimeout configures the process query timeout before requests are served.
+// Supermetry constructs one analytics engine per process.
+func (e *Engine) SetQueryTimeout(timeout time.Duration) {
+	if e != nil && timeout > 0 {
+		queryTimeout = timeout
+	}
+}
+
 // WithStatementTimeout runs fn in a transaction with a transaction-local
 // PostgreSQL statement timeout. Any error rolls the transaction back.
 func WithStatementTimeout(ctx context.Context, pool *pgxpool.Pool, timeout time.Duration, fn func(pgx.Tx) error) error {

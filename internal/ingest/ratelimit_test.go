@@ -82,6 +82,34 @@ func TestIngestLimiterRefundsEarlierCeilings(t *testing.T) {
 	}
 }
 
+func TestNewIngestRateLimiterUsesConfiguredRatesAndDoubleBursts(t *testing.T) {
+	tests := []struct {
+		name               string
+		ipRate, siteRate   int
+		globalRate         int
+		requests           [][2]string
+		wantFinalRejection RateLimitReason
+	}{
+		{name: "IP", ipRate: 1, siteRate: 10, globalRate: 100, requests: [][2]string{{"ip:one", "site:one"}, {"ip:one", "site:one"}, {"ip:one", "site:one"}}, wantFinalRejection: RateLimitIP},
+		{name: "site", ipRate: 10, siteRate: 1, globalRate: 100, requests: [][2]string{{"ip:one", "site:one"}, {"ip:two", "site:one"}, {"ip:three", "site:one"}}, wantFinalRejection: RateLimitSite},
+		{name: "global", ipRate: 10, siteRate: 10, globalRate: 1, requests: [][2]string{{"ip:one", "site:one"}, {"ip:two", "site:two"}, {"ip:three", "site:three"}}, wantFinalRejection: RateLimitGlobal},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			limiter := NewIngestRateLimiter(tt.ipRate, tt.siteRate, tt.globalRate).(*ingestRateLimiter)
+			for i, keys := range tt.requests {
+				reason := limiter.AllowIngest(keys[0], keys[1])
+				if i < len(tt.requests)-1 && reason != RateLimitNone {
+					t.Fatalf("request %d rejected with %v before double burst exhausted", i+1, reason)
+				}
+				if i == len(tt.requests)-1 && reason != tt.wantFinalRejection {
+					t.Fatalf("final request reason = %v, want %v", reason, tt.wantFinalRejection)
+				}
+			}
+		})
+	}
+}
+
 func TestRecordIngestRateLimitCountsEachReason(t *testing.T) {
 	tests := []struct {
 		reason  RateLimitReason

@@ -239,7 +239,16 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 	}
 	site, ok := h.site(query.Get("s"))
 	settings := ResolveSite(h.deps.Replay, site.Replay)
-	if !ok || !settings.Enabled || !originAllowed(site, r.Header.Get("Origin")) {
+	if !ok || !settings.Enabled {
+		h.reject(w, http.StatusBadRequest)
+		return
+	}
+	if site.StrictOrigin && !site.Allows(requestOriginHost(r)) {
+		health.IngestOriginRejected.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	if !originAllowed(site, r.Header.Get("Origin")) {
 		h.reject(w, http.StatusBadRequest)
 		return
 	}
@@ -332,6 +341,11 @@ func (h *Handler) Chunk(w http.ResponseWriter, r *http.Request) {
 	currentSettings := ResolveSite(h.deps.Replay, currentSite.Replay)
 	if !currentOK || !currentSettings.Enabled || query.Get("v") != policyVersion(currentSettings) || !collectionAllowed(r, currentSettings, query.Get("c") == "1") {
 		h.reject(w, http.StatusForbidden)
+		return
+	}
+	if currentSite.StrictOrigin && !currentSite.Allows(requestOriginHost(r)) {
+		health.IngestOriginRejected.Add(1)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 	written, err := h.deps.Blobs.Append(r.Context(), SessionKey(site.ID, day, result.SessionID), bytes.NewReader(body))
@@ -468,6 +482,24 @@ func originAllowed(site sites.Site, origin string) bool {
 		parsed.RawQuery == "" && parsed.Fragment == "" && site.Allows(strings.ToLower(parsed.Hostname()))
 }
 
+func requestOriginHost(r *http.Request) string {
+	source := strings.TrimSpace(r.Header.Get("Origin"))
+	if source == "" {
+		source = strings.TrimSpace(r.Header.Get("Referer"))
+	}
+	if source == "" {
+		return ""
+	}
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil {
+		return ""
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ""
+	}
+	return strings.ToLower(parsed.Hostname())
+}
+
 func wireTriggers(triggers Triggers) responseTriggers {
 	patterns := []string{}
 	if triggers.URL {
@@ -557,6 +589,12 @@ func CollectionGuard(registry sites.Registry, env config.ReplayEnv, next http.Ha
 		}
 		site, ok := registry.ByPublicID(r.URL.Query().Get("s"))
 		settings := ResolveSite(env, site.Replay)
+		if ok && site.StrictOrigin && !site.Allows(requestOriginHost(r)) {
+			health.IngestOriginRejected.Add(1)
+			setCSSCORS(w, r)
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
 		if !ok || !settings.Enabled || settings.SampleRate.V <= 0 || !originAllowed(site, r.Header.Get("Origin")) || !collectionAllowed(r, settings, r.URL.Query().Get("c") == "1") || r.URL.Query().Get("v") != policyVersion(settings) {
 			setCSSCORS(w, r)
 			w.WriteHeader(http.StatusForbidden)

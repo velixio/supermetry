@@ -18,7 +18,7 @@ import (
 	platformgoals "supermetry/internal/platform/goals"
 )
 
-const queryTimeout = 10 * time.Second
+var queryTimeout = 10 * time.Second
 
 type sqlBuilder struct {
 	args []any

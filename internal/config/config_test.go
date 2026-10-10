@@ -76,7 +76,7 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.DedupEntries != 250000 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" {
+	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.DedupEntries != 250000 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" || c.IngestRateIP != 1000 || c.IngestRateSite != 5000 || c.IngestRateGlobal != 10000 {
 		t.Fatalf("bad defaults: %+v", c)
 	}
 	if c.HTTPReadTimeout != 30*time.Second || c.HTTPWriteTimeout != 60*time.Second {
@@ -90,6 +90,47 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	}
 	if want := []string{"GeoLite2-City", "GeoLite2-ASN"}; !reflect.DeepEqual(c.MaxMindEditions, want) {
 		t.Errorf("MaxMindEditions = %v, want %v", c.MaxMindEditions, want)
+	}
+}
+
+func TestLoadQueryTimeoutBounds(t *testing.T) {
+	for _, value := range []string{"1s", "5m"} {
+		values := baseEnv()
+		values["SUPERMETRY_QUERY_TIMEOUT"] = value
+		if _, err := Load(env(values)); err != nil {
+			t.Fatalf("SUPERMETRY_QUERY_TIMEOUT=%s rejected: %v", value, err)
+		}
+	}
+	for _, value := range []string{"999ms", "5m1ns"} {
+		values := baseEnv()
+		values["SUPERMETRY_QUERY_TIMEOUT"] = value
+		if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_QUERY_TIMEOUT") {
+			t.Fatalf("SUPERMETRY_QUERY_TIMEOUT=%s error = %v, want bounds validation", value, err)
+		}
+	}
+}
+
+func TestLoadIngestRates(t *testing.T) {
+	values := baseEnv()
+	values["SUPERMETRY_INGEST_RATE_IP"] = "1200"
+	values["SUPERMETRY_INGEST_RATE_SITE"] = "6400"
+	values["SUPERMETRY_INGEST_RATE_GLOBAL"] = "12800"
+	got, err := Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.IngestRateIP != 1200 || got.IngestRateSite != 6400 || got.IngestRateGlobal != 12800 {
+		t.Fatalf("ingest rates = (%d, %d, %d), want (1200, 6400, 12800)", got.IngestRateIP, got.IngestRateSite, got.IngestRateGlobal)
+	}
+
+	for _, name := range []string{"SUPERMETRY_INGEST_RATE_IP", "SUPERMETRY_INGEST_RATE_SITE", "SUPERMETRY_INGEST_RATE_GLOBAL"} {
+		for _, value := range []string{"0", "-1", "1.5"} {
+			invalid := baseEnv()
+			invalid[name] = value
+			if _, err := Load(env(invalid)); err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("%s=%s error = %v, want positive integer validation", name, value, err)
+			}
+		}
 	}
 }
 

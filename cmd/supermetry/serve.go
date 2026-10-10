@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -225,6 +226,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	w.SetTrackingPolicy(cfg.Tracking.Mode, registry)
 	w.SetPathPolicy(cfg.TrackingPaths, dictionary)
 	engine := query.NewEngine(pool, dictionary, registry)
+	engine.SetQueryTimeout(cfg.QueryTimeout)
 	engine.SetCache(query.NewCache(0))
 	engine.SetTrackingMode(cfg.Tracking.Mode)
 	engine.SetPathPolicy(cfg.TrackingPaths)
@@ -321,7 +323,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		}
 		platformHandler = transitionFromCompatibility(platformHandler, compatibility)
 	}
-	intakeLimiter := ingest.NewIngestRateLimiter(10_000, 10_000)
+	ipRate, siteRate, globalRate := clampIngestRates(slog.Default(), cfg.IngestRateIP, cfg.IngestRateSite, cfg.IngestRateGlobal)
+	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -377,6 +380,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Listen, err)
 	}
+	warnLoopbackProxyRisk(slog.Default(), listener.Addr(), cfg.TrustedProxies)
 	if setupURL, ok := authService.SetupURL(ctx); ok {
 		fmt.Fprintln(os.Stdout, setupURL)
 	}
@@ -514,6 +518,29 @@ func postgresReady(pool *pgxpool.Pool) bool {
 	defer cancel()
 	var one int
 	return pool.QueryRow(ctx, `select 1`).Scan(&one) == nil && one == 1
+}
+
+func clampIngestRates(logger *slog.Logger, ipRate, siteRate, globalRate int) (int, int, int) {
+	configuredIP, configuredSite := ipRate, siteRate
+	siteRate = min(siteRate, globalRate)
+	ipRate = min(ipRate, siteRate)
+	if ipRate != configuredIP || siteRate != configuredSite {
+		logger.Warn("ingest rate limits were clamped to preserve ip <= site <= global",
+			"configured_ip", configuredIP, "configured_site", configuredSite, "configured_global", globalRate,
+			"effective_ip", ipRate, "effective_site", siteRate, "effective_global", globalRate)
+	}
+	return ipRate, siteRate, globalRate
+}
+
+func warnLoopbackProxyRisk(logger *slog.Logger, addr net.Addr, trustedProxies []netip.Prefix) {
+	if len(trustedProxies) != 0 {
+		return
+	}
+	tcpAddr, ok := addr.(*net.TCPAddr)
+	if !ok || !tcpAddr.IP.IsLoopback() {
+		return
+	}
+	logger.Warn("server listens on loopback without SUPERMETRY_TRUSTED_PROXIES; visitors behind a same-host proxy may all share one IP; configure SUPERMETRY_TRUSTED_PROXIES with the proxy address")
 }
 
 func newHTTPServer(handler http.Handler, cfg config.Config) *http.Server {

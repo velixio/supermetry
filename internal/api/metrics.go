@@ -20,9 +20,10 @@ func metricsHandler(cfg config.Config) http.HandlerFunc {
 				return
 			}
 		} else {
-			client, ok := clientip.ResolveAccessClient(r, cfg.TrustedProxies)
-			if !ok || !client.IsLoopback() {
-				http.NotFound(w, r)
+			client, ok := clientip.ResolveAccessClient(r, nil)
+			if !ok || !client.IsLoopback() || hasForwardingHeader(r.Header) {
+				w.Header().Set("WWW-Authenticate", "Bearer")
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
 			}
 		}
@@ -30,6 +31,15 @@ func metricsHandler(cfg config.Config) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 		health.WritePrometheus(w)
 	}
+}
+
+func hasForwardingHeader(header http.Header) bool {
+	for _, name := range []string{"X-Forwarded-For", "Forwarded", "X-Real-IP", "CF-Connecting-IP", "True-Client-IP"} {
+		if _, ok := header[http.CanonicalHeaderKey(name)]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func validBearerToken(header, token string) bool {

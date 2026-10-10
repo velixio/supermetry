@@ -203,6 +203,91 @@ func TestChunkRejectsOriginOutsideSite(t *testing.T) {
 	}
 }
 
+func TestChunkStrictOriginDropsMissingOrigin(t *testing.T) {
+	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(100))
+	registry := h.deps.Sites.(replayTestRegistry)
+	registry.site.StrictOrigin = true
+	h.deps.Sites = registry
+	touchReplaySession(t, sessions, visitorID)
+	before := health.IngestOriginRejected.Load()
+
+	response := requestChunk(h, 0, true, "", gzipBody(t, []byte("chunk")), "192.0.2.1:1234", "test-agent")
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202", response.Code)
+	}
+	if len(blob.keys) != 0 {
+		t.Fatalf("strict-origin drop wrote %d blobs", len(blob.keys))
+	}
+	if got := health.IngestOriginRejected.Load() - before; got != 1 {
+		t.Fatalf("IngestOriginRejected delta = %d, want 1", got)
+	}
+}
+
+func TestChunkStrictOriginAcceptsAllowedReferer(t *testing.T) {
+	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(100))
+	registry := h.deps.Sites.(replayTestRegistry)
+	registry.site.StrictOrigin = true
+	h.deps.Sites = registry
+	touchReplaySession(t, sessions, visitorID)
+	request := newChunkRequest(t, h, gzipBody(t, []byte("chunk")))
+	request.Header.Set("Referer", "https://example.com/page")
+	response := httptest.NewRecorder()
+
+	h.Chunk(response, request)
+
+	if response.Code != http.StatusAccepted || len(blob.keys) != 1 {
+		t.Fatalf("status/writes = %d/%d, want 202/1", response.Code, len(blob.keys))
+	}
+}
+
+func TestChunkStrictOriginPrefersOriginOverReferer(t *testing.T) {
+	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(100))
+	registry := h.deps.Sites.(replayTestRegistry)
+	registry.site.StrictOrigin = true
+	h.deps.Sites = registry
+	touchReplaySession(t, sessions, visitorID)
+	request := newChunkRequest(t, h, gzipBody(t, []byte("chunk")))
+	request.Header.Set("Origin", "https://attacker.example")
+	request.Header.Set("Referer", "https://example.com/page")
+	response := httptest.NewRecorder()
+
+	h.Chunk(response, request)
+
+	if response.Code != http.StatusAccepted || len(blob.keys) != 0 {
+		t.Fatalf("status/writes = %d/%d, want 202/0", response.Code, len(blob.keys))
+	}
+}
+
+func TestCSSStrictOriginUsesOriginThenReferer(t *testing.T) {
+	input := replayInput(100)
+	site := sites.Site{ID: 7, PublicID: "site-public", AllowedHosts: []string{"example.com"}, StrictOrigin: true, Replay: input}
+	registry := replayTestRegistry{site: site}
+	var calls int
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { calls++; w.WriteHeader(http.StatusNoContent) })
+	env := config.ReplayEnv{Enabled: true}
+	handler := CollectionGuard(registry, env, next)
+	target := "/api/replay/css/hash?s=site-public&v=" + policyVersion(ResolveSite(env, input))
+	before := health.IngestOriginRejected.Load()
+
+	missing := httptest.NewRecorder()
+	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodPut, target, nil))
+	if missing.Code != http.StatusForbidden || calls != 0 {
+		t.Fatalf("missing origin status/calls = %d/%d, want 403/0", missing.Code, calls)
+	}
+	if got := health.IngestOriginRejected.Load() - before; got != 1 {
+		t.Fatalf("IngestOriginRejected delta = %d, want 1", got)
+	}
+
+	allowedRequest := httptest.NewRequest(http.MethodPut, target, nil)
+	allowedRequest.Header.Set("Referer", "https://example.com/page")
+	allowed := httptest.NewRecorder()
+	handler.ServeHTTP(allowed, allowedRequest)
+	if allowed.Code != http.StatusNoContent || calls != 1 {
+		t.Fatalf("allowed referer status/calls = %d/%d, want 204/1", allowed.Code, calls)
+	}
+}
+
 func TestChunkRejectsUnsampledWithoutTrigger(t *testing.T) {
 	h, sessions, blob, _, visitorID := newReplayTestHandler(t, replayInput(0))
 	touchReplaySession(t, sessions, visitorID)
@@ -562,6 +647,16 @@ func requestChunkWithOrigin(h *Handler, sequence int, page bool, trigger string,
 	response := httptest.NewRecorder()
 	h.Chunk(response, request)
 	return response
+}
+
+func newChunkRequest(t testing.TB, h *Handler, body []byte) *http.Request {
+	t.Helper()
+	site, _ := h.deps.Sites.ByPublicID("site-public")
+	target := "/api/replay/chunk?s=site-public&q=0&p=1&v=" + policyVersion(ResolveSite(h.deps.Replay, site.Replay))
+	request := httptest.NewRequest(http.MethodPost, target, bytes.NewReader(body))
+	request.RemoteAddr = "192.0.2.1:1234"
+	request.Header.Set("User-Agent", "test-agent")
+	return request
 }
 
 func gzipBody(t testing.TB, plain []byte) []byte {

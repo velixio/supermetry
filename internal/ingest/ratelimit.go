@@ -136,15 +136,12 @@ type ingestRateLimiter struct {
 // NewIngestRateLimiter creates independent IP, site and process ceilings.
 // Churned IPs share a bounded overflow bucket instead of evicting established
 // clients and resetting their allowance.
-func NewIngestRateLimiter(globalRate float64, globalBurst int) RateLimiter {
-	// One address may use at most a tenth of the process ceiling: enough for a
-	// reverse proxy that is not in the trusted-proxy list (every visitor then
-	// shares one address), far below what a single flooder needs to starve a site.
-	ipRate := min(globalRate, 1_000)
-	ipBurst := min(globalBurst, 2_000)
-	siteRate := min(globalRate, 5_000)
-	siteBurst := min(globalBurst, 10_000)
-	return newIngestRateLimiter(time.Now, ipRate, ipBurst, siteRate, siteBurst, globalRate, globalBurst)
+func NewIngestRateLimiter(ipRate, siteRate, globalRate int) RateLimiter {
+	return newIngestRateLimiter(time.Now,
+		float64(ipRate), 2*ipRate,
+		float64(siteRate), 2*siteRate,
+		float64(globalRate), 2*globalRate,
+	)
 }
 
 func newIngestRateLimiter(now func() time.Time, ipRate float64, ipBurst int, siteRate float64, siteBurst int, globalRate float64, globalBurst int) *ingestRateLimiter {

@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"strings"
 	"testing"
@@ -13,6 +17,49 @@ import (
 	"supermetry/internal/config"
 	"supermetry/internal/testpg"
 )
+
+func TestClampIngestRatesPreservesOrderingAndWarnsOnce(t *testing.T) {
+	var output bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&output, nil))
+	ip, site, global := clampIngestRates(logger, 9000, 8000, 7000)
+	if ip != 7000 || site != 7000 || global != 7000 {
+		t.Fatalf("effective rates = (%d, %d, %d), want (7000, 7000, 7000)", ip, site, global)
+	}
+	if got := strings.Count(output.String(), "level=WARN"); got != 1 {
+		t.Fatalf("warning count = %d, want 1; output=%q", got, output.String())
+	}
+	output.Reset()
+	ip, site, global = clampIngestRates(logger, 1000, 5000, 10000)
+	if ip != 1000 || site != 5000 || global != 10000 || output.Len() != 0 {
+		t.Fatalf("valid rates changed or warned: rates=(%d, %d, %d) output=%q", ip, site, global, output.String())
+	}
+}
+
+func TestWarnLoopbackProxyRisk(t *testing.T) {
+	tests := []struct {
+		name    string
+		addr    net.Addr
+		trusted []netip.Prefix
+		warn    bool
+	}{
+		{name: "IPv4 loopback", addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}, warn: true},
+		{name: "IPv6 loopback", addr: &net.TCPAddr{IP: net.ParseIP("::1"), Port: 8080}, warn: true},
+		{name: "all interfaces", addr: &net.TCPAddr{IP: net.IPv4zero, Port: 8080}},
+		{name: "trusted proxy configured", addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}, trusted: []netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output bytes.Buffer
+			warnLoopbackProxyRisk(slog.New(slog.NewTextHandler(&output, nil)), tt.addr, tt.trusted)
+			if got := strings.Contains(output.String(), "SUPERMETRY_TRUSTED_PROXIES"); got != tt.warn {
+				t.Fatalf("warning output = %q, want warning %t", output.String(), tt.warn)
+			}
+			if tt.warn && !strings.Contains(output.String(), "share one IP") {
+				t.Fatalf("warning does not explain impact: %q", output.String())
+			}
+		})
+	}
+}
 
 func TestNewHTTPServerAppliesConfiguredTimeouts(t *testing.T) {
 	server := newHTTPServer(http.NotFoundHandler(), config.Config{
