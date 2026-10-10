@@ -11,6 +11,15 @@ import (
 
 const immutableCache = "public, max-age=31536000, immutable"
 
+// Brand files keep fixed names, so a short cache lets a new logo reach browsers.
+const brandCache = "public, max-age=86400"
+
+var rootIcons = map[string]bool{
+	"/favicon.ico":          true,
+	"/favicon-32x32.png":    true,
+	"/apple-touch-icon.png": true,
+}
+
 // Handler serves the embedded dashboard and its static assets.
 func Handler() http.Handler {
 	return newHandler(builtUI.files())
@@ -40,13 +49,20 @@ func newHandler(files fs.FS) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/flags/") || strings.HasPrefix(path, "/icons/") {
+		cache := ""
+		switch {
+		case strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/flags/") || strings.HasPrefix(path, "/icons/"):
+			cache = immutableCache
+		case strings.HasPrefix(path, "/brand/") || rootIcons[path]:
+			cache = brandCache
+		}
+		if cache != "" {
 			name := strings.TrimPrefix(path, "/")
 			if info, err := fs.Stat(files, name); err != nil || info.IsDir() {
 				http.NotFound(w, r)
 				return
 			}
-			w.Header().Set("Cache-Control", immutableCache)
+			w.Header().Set("Cache-Control", cache)
 			server.ServeHTTP(w, r)
 			return
 		}

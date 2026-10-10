@@ -88,3 +88,35 @@ func TestIconsAreServedAsFiles(t *testing.T) {
 		t.Fatalf("missing icon: status %d, want 404", missing.Code)
 	}
 }
+
+// The product logo and favicons keep fixed names, so they must be served as
+// files (not index.html) with a short cache that picks up a new logo.
+func TestBrandFilesAndFavicons(t *testing.T) {
+	h := newHandler(fstest.MapFS{
+		"index.html":                {Data: []byte("<main>Supermetry</main>")},
+		"favicon.ico":               {Data: []byte("ICO")},
+		"favicon-32x32.png":         {Data: []byte("PNG32")},
+		"apple-touch-icon.png":      {Data: []byte("PNG180")},
+		"brand/supermetry-mark.svg": {Data: []byte("<svg/>")},
+	})
+	for path, want := range map[string]string{
+		"/favicon.ico":               "ICO",
+		"/favicon-32x32.png":         "PNG32",
+		"/apple-touch-icon.png":      "PNG180",
+		"/brand/supermetry-mark.svg": "<svg/>",
+	} {
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+		if rr.Code != 200 || rr.Body.String() != want {
+			t.Errorf("%s: status %d body %q, want %q", path, rr.Code, rr.Body.String(), want)
+		}
+		if got := rr.Header().Get("Cache-Control"); got != "public, max-age=86400" {
+			t.Errorf("%s cache: got %q", path, got)
+		}
+	}
+	missing := httptest.NewRecorder()
+	h.ServeHTTP(missing, httptest.NewRequest("GET", "/brand/nope.svg", nil))
+	if missing.Code != 404 {
+		t.Fatalf("missing brand file: status %d, want 404", missing.Code)
+	}
+}
