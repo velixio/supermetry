@@ -2,7 +2,7 @@
 
 The throwaway prototype for gate steps 4–5 ([../CONTRACT.md](../CONTRACT.md), [../../scorecard.md](../../scorecard.md)). It is Go 1.26 module `panel/bench/proto`, using pgx/v5 against the local PG 18 database `panel` (role `panel`/`panel`, created with `sudo -u postgres`). PG was neither restarted nor reconfigured globally; the only settings are per role (`ALTER ROLE panel SET work_mem = '64MB', jit = off`, see "Query model").
 
-It faithfully implements the planned hot path (goal.md "Architecture") and query model (D4–D8), plus the closed-day tier added by the optimisation pass of 2026-10-07 ([../results/proto-opt-20261007.md](../results/proto-opt-20261007.md)). It is not product code.
+It faithfully implements the planned hot path (goal.md "Architecture") and query model (D4–D8), plus the closed-day tier added by the optimisation pass of 2026-10-07. It is not product code.
 
 ## Usage
 
@@ -188,7 +188,7 @@ There are 20 events on 2 sites (`a.test` UTC, `b.test` Asia/Kathmandu +5:45). Th
 
 ## Measurements
 
-Initial numbers: [../results/proto-initial-20261007.md](../results/proto-initial-20261007.md). Optimisation pass: [../results/proto-opt-20261007.md](../results/proto-opt-20261007.md) (all "dev" numbers: shared box, another agent loading and querying incumbents, load average 5–14, heavy foreign disk reads).
+The reports `proto-initial-20261007.md` and `proto-opt-20261007.md` were removed 2026-10-10 (in git at `7e7294d`); headline numbers are in progress.md (all "dev" numbers: shared box, another agent loading and querying incumbents, load average 5–14, heavy foreign disk reads).
 
 Initial pass (Tier S 30 d): C1 0 mismatches; COPY 456K rows/s (1 writer) to 1.07M (4); `load` 516K ev/s; HTTP 10K ev/s at p99 10.9 ms; idle RSS 19 MB; S3 4.9–8.3 s; R2 184–190 MB.
 

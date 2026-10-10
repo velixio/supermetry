@@ -1,7 +1,7 @@
 # bench/rig notes (rig agent)
 
 Owner: rig agent. Scope: Docker, the three incumbents, up/down/status, PG tuning profile.
-Measured numbers are in [../results/incumbents-setup.md](../results/incumbents-setup.md).
+The measured-numbers report `incumbents-setup.md` was removed 2026-10-10 (in git at `7e7294d`); headline numbers are in progress.md.
 
 ## Layout
 
