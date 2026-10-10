@@ -17,22 +17,26 @@ cp ../.env.example ../.env
 docker compose up -d --build
 ```
 
-The service uses `SUPERMETRY_DATABASE_URL` from that file as it is. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
+**Which database is used.** If `SUPERMETRY_DATABASE_URL` is set in `../.env`, the app uses that database as it is, and you do not start the bundled Postgres. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
 
-**No PostgreSQL yet?** Let Compose run one. In `../.env`, point `SUPERMETRY_DATABASE_URL` at the host `postgres` and choose the user, password and database name in it:
+**No database yet?** Leave `SUPERMETRY_DATABASE_URL` out of `../.env` and let Compose run PostgreSQL. The user, password and database name are separate settings, and each defaults to `supermetry`:
 
 ```sh
-# ../.env
-SUPERMETRY_DATABASE_URL=postgres://supermetry:choose-a-password@postgres:5432/supermetry?sslmode=disable
+# ../.env  (all optional)
+POSTGRES_USER=supermetry
+POSTGRES_PASSWORD=choose-a-password
+POSTGRES_DB=supermetry
 ```
 
-Then start it with the `bundled-db` profile. `--profile` is a global flag, so it goes before `up`:
+Start it with the `bundled-db` profile. `--profile` is a global flag, so it goes before `up`:
 
 ```sh
 docker compose --profile bundled-db up -d --build
 ```
 
-The `postgres` container creates that user, password and database from the URL the first time it starts, so there is nothing else to set. Anything the URL leaves out defaults to `supermetry`, including the password, so `postgres://supermetry:supermetry@postgres:5432/supermetry` works with no other setup. The application connects with the URL as written, so keep the password in the URL itself. The default password is only reasonable because the container publishes no port: it is reachable from the Compose network only. Choose your own password for anything else. (If `POSTGRES_PASSWORD` is set in `../.env`, it is used instead, with the user and database `supermetry`.) The password may be percent-encoded, as in any URL. The credentials are only read when the data volume is empty: changing the URL later does not change an existing database. The database is kept in the `postgres-data` volume.
+The app builds its connection URL from those same three settings (and escapes the password for you), so there is no URL to keep in step. The default password is only reasonable because the container publishes no port: it is reachable from the Compose network only, and it logs a warning when it falls back to it. Choose your own for anything else. The credentials are only read when the data volume is empty: changing them later does not change an existing database. The database is kept in the `postgres-data` volume.
+
+If `SUPERMETRY_DATABASE_URL` is also set, the URL wins and the bundled Postgres is not used by the app.
 
 The `postgres` container reads the same `../.env`, so it also receives the other `SUPERMETRY_*` values. They are harmless to it, but keep the file private.
 

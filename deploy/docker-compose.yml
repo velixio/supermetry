@@ -1,17 +1,16 @@
 # docker compose up -d --build
 #
-# The app reads its settings, including SUPERMETRY_DATABASE_URL, from the .env file in
-# the repository root (../.env). Inside the container,
-# `localhost` is the container itself: use host.docker.internal to reach a
-# PostgreSQL running on this machine.
+# The app reads its settings from the .env file in the repository root (../.env).
 #
-# To run PostgreSQL in a container too, set the host to `postgres` in ../.env:
-#   SUPERMETRY_DATABASE_URL=postgres://supermetry:<password>@postgres:5432/supermetry?sslmode=disable
-# and start with the bundled-db profile (a global flag, so it goes before `up`):
-#   docker compose --profile bundled-db up -d --build
-# The container takes its user, password and database from that URL; whatever the
-# URL leaves out defaults to `supermetry`, including the password. A
-# POSTGRES_PASSWORD in ../.env, if set, is used instead.
+# - SUPERMETRY_DATABASE_URL set in ../.env: that database is used as it is.
+#   Inside the container, `localhost` is the container itself: use
+#   host.docker.internal to reach a PostgreSQL running on this machine.
+# - SUPERMETRY_DATABASE_URL not set: the bundled PostgreSQL container is the
+#   database. Start it with the bundled-db profile (a global flag, so it goes
+#   before `up`):
+#     docker compose --profile bundled-db up -d --build
+#   Its user, password and database are separate settings in ../.env:
+#     POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB   (each defaults to "supermetry")
 
 # Fixed project name, so containers, networks and volumes are called supermetry-*
 # whatever this directory is named.
@@ -28,6 +27,9 @@ services:
       # Start with: cp .env.example .env   (in the repository root)
       - ../.env
     environment:
+      # Used only when SUPERMETRY_DATABASE_URL is not set: the app then connects to the
+      # bundled container with POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB from ../.env.
+      SUPERMETRY_DATABASE_HOST: postgres
       SUPERMETRY_DATA_DIR: /data
       SUPERMETRY_LISTEN: 0.0.0.0:8787
     extra_hosts:
@@ -47,12 +49,9 @@ services:
     profiles: ["bundled-db"]
     image: postgres:18-alpine
     entrypoint: ["sh", "/postgres-entrypoint.sh"]
-    environment:
-      # Defaults when POSTGRES_PASSWORD is set; otherwise the entrypoint script
-      # reads user, password and database from SUPERMETRY_DATABASE_URL.
-      POSTGRES_DB: supermetry
-      POSTGRES_USER: supermetry
     env_file:
+      # POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB; each defaults to
+      # "supermetry" in the entrypoint script.
       - ../.env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1"]

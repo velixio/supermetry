@@ -32,6 +32,7 @@ Gotchas:
 | `SUPERMETRY_LISTEN` | Address the HTTP server listens on. | `:8080` | `127.0.0.1:8787` |
 | `SUPERMETRY_TRUSTED_PROXIES` | Comma-separated IPs or CIDR prefixes of reverse proxies whose `X-Forwarded-For` is trusted. A bare IP means a single-host prefix. | empty (no proxy trusted) | `127.0.0.1/32,10.0.0.5` |
 | `SUPERMETRY_SIGNUP` | Signup mode: `open` or `invite`. Any other value is rejected. | `open` | `invite` |
+| `SUPERMETRY_DATABASE_HOST` | Alternative to `SUPERMETRY_DATABASE_URL` when that is not set: the app builds the URL from separate settings. Also `SUPERMETRY_DATABASE_PORT` (`5432`), `SUPERMETRY_DATABASE_USER`, `SUPERMETRY_DATABASE_PASSWORD`, `SUPERMETRY_DATABASE_NAME` (each falls back to `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, then `supermetry`) and `SUPERMETRY_DATABASE_SSLMODE` (`disable`). The Docker Compose setup uses this for its bundled database. | empty | `postgres` |
 | `SUPERMETRY_MAX_ORGS_PER_USER` | Most organizations one user may own. Instance admins are exempt. Must be a positive integer. | `3` | `5` |
 | `SUPERMETRY_MAX_SITES_PER_ORG` | Most sites one organization may have. Instance admins are exempt, and the demo project does not count. Must be a positive integer. | `10` | `25` |
 | `SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS` | Boolean (Go `ParseBool`: `1`, `t`, `true`, `0`, `f`, `false`, ...). Passed to the alert webhook client as "allow private". Exact effect: see source, `internal/alerts` and `cmd/supermetry/serve.go`. | `false` | `false` |

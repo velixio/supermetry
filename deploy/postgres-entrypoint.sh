@@ -1,47 +1,18 @@
 #!/bin/sh
-# Starts the bundled PostgreSQL. When POSTGRES_PASSWORD is not set, take the role,
-# password and database name from SUPERMETRY_DATABASE_URL
-# (postgres://user:password@postgres:5432/dbname?...), so there is one place to
-# configure them. Anything the URL leaves out defaults to "supermetry", including
-# the password. The password may be percent-encoded, as in the URL.
+# Starts the bundled PostgreSQL. The role, password and database come from
+# POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB (read from ../.env), and each
+# defaults to "supermetry". SUPERMETRY_DATABASE_URL is not read here: set the
+# same user, password and database in it so the application can connect.
 set -eu
 
-decode() {
-  printf '%b' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
-}
-
 if [ -z "${POSTGRES_PASSWORD:-}" ]; then
-  user=""
-  password=""
-  database=""
-  if [ -n "${SUPERMETRY_DATABASE_URL:-}" ]; then
-    rest="${SUPERMETRY_DATABASE_URL#*://}"
-    case "$rest" in
-      *@*)
-        credentials="${rest%%@*}"
-        after="${rest#*@}"
-        user="${credentials%%:*}"
-        case "$credentials" in
-          *:*) password="${credentials#*:}" ;;
-        esac
-        ;;
-      *) after="$rest" ;;
-    esac
-    case "$after" in
-      */*)
-        database="${after#*/}"
-        database="${database%%\?*}"
-        ;;
-    esac
-  fi
-  if [ -z "$password" ]; then
-    echo "WARNING: no password given, so the bundled PostgreSQL uses the default password 'supermetry'." >&2
-    echo "WARNING: that is only acceptable while this container publishes no port. Put your own password in SUPERMETRY_DATABASE_URL." >&2
-  fi
-  POSTGRES_USER="$(decode "${user:-supermetry}")"
-  POSTGRES_PASSWORD="$(decode "${password:-supermetry}")"
-  POSTGRES_DB="$(decode "${database:-supermetry}")"
-  export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB
+  echo "WARNING: POSTGRES_PASSWORD is not set, so the bundled PostgreSQL uses the default password 'supermetry'." >&2
+  echo "WARNING: that is only acceptable while this container publishes no port. Set POSTGRES_PASSWORD, and the same password in SUPERMETRY_DATABASE_URL." >&2
 fi
+
+POSTGRES_USER="${POSTGRES_USER:-supermetry}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-supermetry}"
+POSTGRES_DB="${POSTGRES_DB:-supermetry}"
+export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB
 
 exec docker-entrypoint.sh postgres
