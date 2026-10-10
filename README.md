@@ -1,0 +1,70 @@
+# Supermetry
+
+Privacy-friendly, self-hosted web analytics. One Go binary and PostgreSQL. No ClickHouse, no Kafka, no Node in production.
+
+> Status: pre-release. Expect breaking changes until `v0.1.0`.
+
+## Features
+
+- Cookie-free pageview and custom-event tracking with a small script.
+- No raw IPs stored and no fingerprinting. Visitor IDs come from a random daily salt that is deleted after about 48 hours.
+- Goals, funnels, revenue, UTM and referrer attribution, retention, Web Vitals, heatmaps and session replay.
+- Dashboard, REST API and MCP endpoint, with API keys and shareable links.
+- Teams, roles, two-factor sign-in, alerts and webhooks.
+- Imports from Plausible and Umami, plus CSV export.
+- Retention by dropping time partitions, backup and restore commands.
+
+## Requirements
+
+- PostgreSQL (18 is what CI runs).
+- Redis is not needed. A single instance runs without it.
+
+## Quick start (Docker Compose)
+
+```sh
+cd deploy
+cp ../.env.example .env
+# Edit .env: set SUPERMETRY_SECRET_KEY, SUPERMETRY_BASE_URL and POSTGRES_PASSWORD
+docker compose up -d --build
+```
+
+Open `SUPERMETRY_BASE_URL/app` and finish the setup. See [deploy/README.md](deploy/README.md) for systemd, upgrades and reverse-proxy examples, and [docs/guide/configuration.md](docs/guide/configuration.md) for every setting.
+
+## Build from source
+
+You need Go and [Bun](https://bun.sh).
+
+```sh
+make build                       # builds the dashboard, then the binary in bin/
+export SUPERMETRY_DATABASE_URL=postgres://user:pass@127.0.0.1:5432/supermetry
+export SUPERMETRY_SECRET_KEY=$(openssl rand -hex 32)
+export SUPERMETRY_BASE_URL=http://localhost:8787
+bin/supermetry serve
+```
+
+Migrations run at startup. `bin/supermetry --help` lists the other commands (`backup`, `restore`, `migrate`, `close-days`, `geoip`).
+
+## Documentation
+
+- [Configuration](docs/guide/configuration.md)
+- [Tracking and privacy](docs/tracking-privacy.md)
+- [API](docs/api.md) and [API authentication](docs/api-auth.md)
+- [Authorization](docs/authorization.md)
+- [Notifications](docs/guide/notifications.md)
+
+## Development
+
+```sh
+make test    # Go tests; needs SUPERMETRY_TEST_DSN pointing at a disposable PostgreSQL database
+make lint    # go vet and gofmt
+```
+
+Dashboard code is in `web/` and uses Bun (`bun install --frozen-lockfile`, `bun run test`).
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+[Apache-2.0](LICENSE). Third-party notices are in [NOTICE](NOTICE) and [THIRD_PARTY.md](THIRD_PARTY.md).
