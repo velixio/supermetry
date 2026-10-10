@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. Please open an issue before starting large changes so we can agree on the approach.
+Thanks for helping. Please open an issue before starting large changes so we can agree on the approach. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Setup
 
