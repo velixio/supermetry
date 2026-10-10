@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	fixtureTruth = "../../bench/gen/testdata/tiny.truth.json"
+	fixtureTruth = "testdata/tiny.truth.json"
 	testAPIKey   = testenv.TestAPIKey
 )
 

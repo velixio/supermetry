@@ -56,3 +56,14 @@ bench/results/tmp/
 # Local benchmark output and rig overrides (regenerable, machine-specific)
 bench/results/
 bench/rig/rig.local.conf
+
+# Generator fixture and benchmark harness copies under tools/ (regenerable, machine-specific)
+test/golden/testdata/*.ndjson
+tools/bench/**/data/
+tools/bench/load/bin/
+tools/bench/rig/bin/
+tools/bench/rig/plausible/ce/
+tools/bench/rig/rig.local.conf
+tools/bench/results/
+tools/bench/**/*.log.gz
+tools/bench/replay/node_modules/

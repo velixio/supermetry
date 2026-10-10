@@ -40,9 +40,9 @@ const TestAPIKey = "golden-test-key"
 
 var (
 	repositoryRoot = findRepositoryRoot()
-	fixtureEvents  = filepath.Join(repositoryRoot, "bench", "gen", "testdata", "tiny.ndjson")
-	fixtureSites   = filepath.Join(repositoryRoot, "bench", "gen", "testdata", "tiny.sites.json")
-	fixtureTruth   = filepath.Join(repositoryRoot, "bench", "gen", "testdata", "tiny.truth.json")
+	fixtureEvents  = filepath.Join(repositoryRoot, "test", "golden", "testdata", "tiny.ndjson")
+	fixtureSites   = filepath.Join(repositoryRoot, "test", "golden", "testdata", "tiny.sites.json")
+	fixtureTruth   = filepath.Join(repositoryRoot, "test", "golden", "testdata", "tiny.truth.json")
 )
 
 type testClock struct {

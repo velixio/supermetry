@@ -11,7 +11,7 @@ build-go:
 	go build -o bin/supermetry ./cmd/supermetry
 
 fixtures:
-	cd bench/gen && go run . --tier tiny --seed 42 --out testdata/tiny.ndjson --sites testdata/tiny.sites.json --truth testdata/tiny.truth.json
+	go run ./tools/gen --tier tiny --seed 42 --out test/golden/testdata/tiny.ndjson --sites test/golden/testdata/tiny.sites.json --truth test/golden/testdata/tiny.truth.json
 
 test: fixtures
 	go test -race ./...
