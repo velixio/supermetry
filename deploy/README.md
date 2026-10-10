@@ -33,6 +33,8 @@ docker compose --profile bundled-db up -d --build
 
 The `postgres` container reads the same `../.env`, so it also receives the other `SUPERMETRY_*` values. They are harmless to it, but keep the file private. URL-encode special characters in the password inside the URL. The database is kept in the `postgres-data` volume.
 
+**`compose build requires buildx 0.17 or later`:** newer Compose versions hand builds to BuildKit's `bake`, which needs buildx 0.17 or later. Either upgrade the buildx plugin, or turn bake off for this run with `COMPOSE_BAKE=false docker compose up -d --build`. Running `docker compose` (the plugin) instead of the standalone `docker-compose` binary can also avoid it when the plugin is the older version.
+
 Compose overrides `SUPERMETRY_LISTEN` for its service network. Application data is kept
 in the `supermetry-data` named volume. The application port
 binds to `127.0.0.1` by default; put a reverse proxy on the same host in front of
