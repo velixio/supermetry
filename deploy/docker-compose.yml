@@ -1,45 +1,37 @@
-# Choose where PostgreSQL lives, with one profile:
+# docker compose up -d --build
 #
-#   docker compose --profile bundled-db up -d --build     a PostgreSQL container, set POSTGRES_PASSWORD in .env
-#   docker compose --profile external-db up -d --build    your own database, set SUPERMETRY_DATABASE_URL in .env
+# The app reads SUPERMETRY_DATABASE_URL from deploy/.env. Inside the container,
+# `localhost` is the container itself: use host.docker.internal to reach a
+# PostgreSQL running on this machine.
 #
-# Or put COMPOSE_PROFILES=bundled-db (or external-db) in deploy/.env and run `docker compose up -d --build`.
-# With the external database, `localhost` inside the container is the container itself: use
-# host.docker.internal to reach PostgreSQL on this machine.
-
-x-supermetry: &supermetry
-  build:
-    context: ..
-    dockerfile: Dockerfile
-  env_file:
-    # Start with: cp ../.env.example .env
-    - .env
-  ports:
-    - "127.0.0.1:8787:8787"
-  volumes:
-    - supermetry-data:/data
-  restart: unless-stopped
+# To run PostgreSQL in a container too, add the bundled-db profile and set, in .env:
+#   POSTGRES_PASSWORD=<password>
+#   SUPERMETRY_DATABASE_URL=postgres://supermetry:<password>@postgres:5432/supermetry?sslmode=disable
+#   docker compose --profile bundled-db up -d --build
+# (or COMPOSE_PROFILES=bundled-db in .env, then a plain `docker compose up`).
 
 services:
   supermetry:
-    <<: *supermetry
-    profiles: ["external-db"]
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      # Start with: cp ../.env.example .env
+      - .env
     environment:
       SUPERMETRY_DATA_DIR: /data
       SUPERMETRY_LISTEN: 0.0.0.0:8787
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
-  supermetry-bundled:
-    <<: *supermetry
-    profiles: ["bundled-db"]
-    environment:
-      SUPERMETRY_DATABASE_URL: postgres://supermetry:${POSTGRES_PASSWORD:-}@postgres:5432/supermetry?sslmode=disable
-      SUPERMETRY_DATA_DIR: /data
-      SUPERMETRY_LISTEN: 0.0.0.0:8787
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - supermetry-data:/data
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
+    restart: unless-stopped
 
   postgres:
     profiles: ["bundled-db"]
@@ -47,7 +39,7 @@ services:
     environment:
       POSTGRES_DB: supermetry
       POSTGRES_USER: supermetry
-      # Required for the bundled-db profile: PostgreSQL refuses to start without it.
+      # Required when this profile is on: PostgreSQL refuses to start without it.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U supermetry -d supermetry"]

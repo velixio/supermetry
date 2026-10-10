@@ -16,20 +16,27 @@ cp ../.env.example .env
 # Edit .env: set SUPERMETRY_SECRET_KEY and SUPERMETRY_BASE_URL.
 ```
 
-Then choose where PostgreSQL lives, with a Compose profile:
+Set `SUPERMETRY_DATABASE_URL` in `.env` to your PostgreSQL, then start it:
 
 ```sh
-# A PostgreSQL container managed by Compose. Add POSTGRES_PASSWORD to .env.
-docker compose --profile bundled-db up -d --build
-
-# Your own PostgreSQL. Set SUPERMETRY_DATABASE_URL in .env.
-docker compose --profile external-db up -d --build
+docker compose up -d --build
 ```
 
-You can also put `COMPOSE_PROFILES=bundled-db` (or `external-db`) in `.env` and run a plain `docker compose up -d --build`. Without a profile Compose says "no service selected".
+The service uses `SUPERMETRY_DATABASE_URL` from `.env` as it is. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
 
-- **Bundled database:** Compose sets `SUPERMETRY_DATABASE_URL` for the service itself and ignores the value in `.env`. URL-encoding is not needed because the password is not part of a URL you write. Data is kept in the `postgres-data` volume.
-- **External database:** the service uses `SUPERMETRY_DATABASE_URL` from `.env` as it is. Inside the container, `localhost` and `127.0.0.1` are the container itself, so to reach PostgreSQL on the Docker host write `host.docker.internal` (Compose maps it for you), for example `postgres://user:pass@host.docker.internal:5432/supermetry`. The database must accept connections from the Docker network.
+**No PostgreSQL yet?** Let Compose run one. Choose a password, put it in `.env` twice, and add the `bundled-db` profile:
+
+```sh
+# .env
+POSTGRES_PASSWORD=choose-a-password
+SUPERMETRY_DATABASE_URL=postgres://supermetry:choose-a-password@postgres:5432/supermetry?sslmode=disable
+```
+
+```sh
+docker compose --profile bundled-db up -d --build
+```
+
+You can put `COMPOSE_PROFILES=bundled-db` in `.env` and use a plain `docker compose up -d --build` instead. URL-encode special characters in the password inside the URL. The database is kept in the `postgres-data` volume.
 
 Compose overrides `SUPERMETRY_LISTEN` for its service network. Application data is kept
 in the `supermetry-data` named volume. The application port
