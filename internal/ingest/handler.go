@@ -205,12 +205,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
+	// An identified instance keeps real paths even for a site with profiles off:
+	// the operator chose identified mode, and the query string and fragment are
+	// still dropped. Only an anonymous instance substitutes paths.
+	sanitizePaths := !identityAllowed && h.TrackingMode != privacy.Identified
 	var pathValue privacy.PathValue
 	if !identityAllowed {
-		pathValue = h.PathPolicy.SanitizePath(originalURL)
-		// Only the server output reaches path interning, sessions and heatmaps.
-		// Keep the original host only for enrichment; it was validated above.
-		pageURL.Path, pageURL.RawPath = pathValue.Path, ""
+		if sanitizePaths {
+			pathValue = h.PathPolicy.SanitizePath(originalURL)
+			// Only the server output reaches path interning, sessions and heatmaps.
+			// Keep the original host only for enrichment; it was validated above.
+			pageURL.Path, pageURL.RawPath = pathValue.Path, ""
+		}
 		pageURL.RawQuery, pageURL.Fragment, pageURL.RawFragment = "", "", ""
 	}
 	if len(site.Exclusions.Countries) != 0 {
@@ -309,7 +315,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			profileTraits = nil
 		}
 	}
-	if !identityAllowed && hit.Kind == 0 {
+	if sanitizePaths && hit.Kind == 0 {
 		event.PathSanitizerVersion = pathValue.Version
 		event.PathPolicyID = pathValue.Policy
 	}

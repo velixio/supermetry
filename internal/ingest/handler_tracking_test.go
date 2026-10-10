@@ -260,14 +260,14 @@ func TestVerifiedPageRequestsSurviveFlushAndCloseWithoutLegacyLookalikes(t *test
 	check("closed")
 }
 
-func TestIdentifiedRestartPreservesNewPathsOnlyWithProjectOptIn(t *testing.T) {
+func TestIdentifiedRestartPreservesNewPaths(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		profiles    bool
 		wantPath    string
 		wantVersion int16
 	}{
-		{"project profiles off", false, "/[redacted]", 1},
+		{"project profiles off", false, "/new-private", 0},
 		{"project profiles on", true, "/new-private", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

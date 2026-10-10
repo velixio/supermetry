@@ -44,9 +44,10 @@ DB reads on ingestion. A transaction already underway can finish under its prior
 snapshot: use the maintenance boundary for strict downgrade completion.
 
 **Remaining payload limits:** hostnames and event names may themselves contain
-identity. New anonymous paths use the explicit substitution contract below;
-identified and imported/legacy paths are not
-rewritten. Arbitrary text cannot be proven anonymous by stripping a profile key.
+identity. New paths on an anonymous instance use the explicit substitution contract below.
+On an identified instance real paths are stored for every site, whatever its
+profiles setting (query string and fragment are still dropped), and imported or
+legacy paths are not rewritten. Arbitrary text cannot be proven anonymous by stripping a profile key.
 The controls therefore do not promise personal-data-free storage. Anonymous
 imports and raw exports are denied; trusted operators remain responsible for
 what application code places in URLs, event names and replay content.

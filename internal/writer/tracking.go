@@ -27,6 +27,20 @@ func (w *Writer) identityAllowed(siteID int32) bool {
 	return ok && site.ProfilesEnabled
 }
 
+// pathsAllowed reports whether real paths may be stored for a site: the
+// instance is in identified mode and the site is known. A site's profile
+// setting does not matter; unknown or deleted sites fail closed.
+func (w *Writer) pathsAllowed(siteID int32) bool {
+	w.trackingMu.RLock()
+	mode, registry := w.trackingMode, w.trackingSites
+	w.trackingMu.RUnlock()
+	if mode != privacy.Identified || registry == nil {
+		return false
+	}
+	_, ok := registry.Site(siteID)
+	return ok
+}
+
 // Recheck on every flush attempt: accepting a hit is not permission to persist
 // identity later. Unknown/deleted projects fail closed. Already interned URL
 // and campaign dimensions cannot be safely reconstructed here, so omit them.
@@ -35,7 +49,7 @@ func (w *Writer) suppressRestrictedIdentity(events []Event) {
 		e := &events[i]
 		w.enforceRevenueCurrency(e)
 		identityAllowed := w.identityAllowed(e.SiteID)
-		w.validatePathProvenance(e, identityAllowed)
+		w.validatePathProvenance(e, w.pathsAllowed(e.SiteID))
 		if identityAllowed {
 			continue
 		}
