@@ -58,7 +58,7 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 	}
 	defer func() { _ = tx.Rollback(context.Background()) }()
 
-	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions'))`); err != nil {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
 		return fmt.Errorf("lock partition creation: %w", err)
 	}
 	for _, table := range []string{"events", "sessions"} {
