@@ -121,6 +121,73 @@ paths:
         '204': { description: Password changed and other sessions revoked. }
         '429': { description: Too many password checks. }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/private/sites/{site_id}/shares:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listSharedLinks
+      security: [{ cookieAuth: [] }]
+      summary: List shared dashboard links
+      responses:
+        '200': { description: Shared dashboard links, content: { application/json: { schema: { $ref: '#/components/schemas/ShareList' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createSharedLink
+      security: [{ cookieAuth: [] }]
+      summary: Create a shared dashboard link
+      description: When expires_in_days is omitted or null, the link never expires.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateShareRequest' } } }
+      responses:
+        '201': { description: Shared dashboard link created, content: { application/json: { schema: { $ref: '#/components/schemas/CreatedShare' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site_id}/shares/{share_id}:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - { name: share_id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    patch:
+      operationId: changeSharedLinkExpiry
+      security: [{ cookieAuth: [] }]
+      summary: Change a shared dashboard link expiry
+      description: The new expiry is counted from now. Null removes the expiry.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChangeShareExpiryRequest' } } }
+      responses:
+        '204': { description: Expiry changed. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: revokeSharedLink
+      security: [{ cookieAuth: [] }]
+      summary: Revoke a shared dashboard link
+      responses:
+        '204': { description: Link revoked. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/share/{slug}/open:
+    parameters:
+      - { name: slug, in: path, required: true, schema: { type: string, minLength: 1 } }
+    post:
+      operationId: openSharedLink
+      security: []
+      summary: Unlock a password-protected shared dashboard
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OpenShareRequest' } } }
+      responses:
+        '204': { description: Link opened; protected links set an unlock cookie. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/sites/{site_id}/replays:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -1836,6 +1903,59 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    ShareExpiryDays:
+      type: integer
+      enum: [7, 30, 90, 365]
+      description: Days from the current time, or null for no expiry.
+    CreateShareRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        password: { type: string, format: password }
+        expires_in_days:
+          oneOf:
+            - { $ref: '#/components/schemas/ShareExpiryDays' }
+            - { type: 'null' }
+    ChangeShareExpiryRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expires_in_days:
+          oneOf:
+            - { $ref: '#/components/schemas/ShareExpiryDays' }
+            - { type: 'null' }
+    OpenShareRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        password: { type: string, format: password }
+    Share:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, created_by, created_at, expires_at, password_protected]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        created_by: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: [string, 'null'], format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+        password_protected: { type: boolean }
+    ShareList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Share' }
+    CreatedShare:
+      type: object
+      additionalProperties: false
+      required: [slug, share]
+      properties:
+        slug: { type: string }
+        share: { $ref: '#/components/schemas/Share' }
     APIKey:
       type: object
       additionalProperties: false

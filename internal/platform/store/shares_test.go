@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -38,11 +39,12 @@ func TestSharedLinkPersistenceScopesMutationsToOrganization(t *testing.T) {
 	}
 
 	slugHash := platformcrypto.HashToken("shr_example")
+	expiresAt := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
 	var created SharedLink
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		var createErr error
 		created, createErr = CreateSharedLink(ctx, tx, orgID, SharedLink{
-			SiteID: siteID, SlugHash: slugHash, CreatedBy: userID,
+			SiteID: siteID, SlugHash: slugHash, CreatedBy: userID, ExpiresAt: &expiresAt,
 		})
 		return createErr
 	})
@@ -54,7 +56,7 @@ func TestSharedLinkPersistenceScopesMutationsToOrganization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.ID != created.ID || loaded.SiteID != siteID || loaded.OrgID != orgID {
+	if loaded.ID != created.ID || loaded.SiteID != siteID || loaded.OrgID != orgID || loaded.ExpiresAt == nil || !loaded.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("loaded shared link = %+v", loaded)
 	}
 

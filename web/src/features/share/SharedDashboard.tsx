@@ -134,11 +134,9 @@ export function SharedDashboard({
     return (
       <main className="grid min-h-dvh place-items-center px-6">
         <div className="max-w-md border-l-2 border-destructive pl-5">
-          <h1 className="text-2xl font-semibold tracking-tight">Shared dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Link unavailable</h1>
           <p role="alert" className="mt-2 text-sm text-muted-foreground">
-            {summary.error instanceof Error
-              ? summary.error.message
-              : 'The shared dashboard could not be opened.'}
+            This shared dashboard is unavailable.
           </p>
         </div>
       </main>

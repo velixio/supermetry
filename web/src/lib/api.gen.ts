@@ -84,6 +84,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site_id}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** List shared dashboard links */
+        get: operations["listSharedLinks"];
+        put?: never;
+        /**
+         * Create a shared dashboard link
+         * @description When expires_in_days is omitted or null, the link never expires.
+         */
+        post: operations["createSharedLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site_id}/shares/{share_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                share_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a shared dashboard link */
+        delete: operations["revokeSharedLink"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a shared dashboard link expiry
+         * @description The new expiry is counted from now. Null removes the expiry.
+         */
+        patch: operations["changeSharedLinkExpiry"];
+        trace?: never;
+    };
+    "/api/private/share/{slug}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unlock a password-protected shared dashboard */
+        post: operations["openSharedLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site_id}/replays": {
         parameters: {
             query?: never;
@@ -1030,6 +1096,45 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Days from the current time, or null for no expiry.
+         * @enum {integer}
+         */
+        ShareExpiryDays: 7 | 30 | 90 | 365;
+        CreateShareRequest: {
+            /** Format: password */
+            password?: string;
+            expires_in_days?: components["schemas"]["ShareExpiryDays"] | null;
+        };
+        ChangeShareExpiryRequest: {
+            expires_in_days?: components["schemas"]["ShareExpiryDays"] | null;
+        };
+        OpenShareRequest: {
+            /** Format: password */
+            password?: string;
+        };
+        Share: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            /** Format: int64 */
+            created_by: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** Format: date-time */
+            revoked_at?: string | null;
+            password_protected: boolean;
+        };
+        ShareList: {
+            data: components["schemas"]["Share"][];
+        };
+        CreatedShare: {
+            slug: string;
+            share: components["schemas"]["Share"];
+        };
         APIKey: {
             /** Format: int64 */
             id: number;
@@ -2421,6 +2526,140 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    listSharedLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared dashboard links */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createSharedLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShareRequest"];
+            };
+        };
+        responses: {
+            /** @description Shared dashboard link created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedShare"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokeSharedLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                share_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    changeSharedLinkExpiry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                share_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeShareExpiryRequest"];
+            };
+        };
+        responses: {
+            /** @description Expiry changed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    openSharedLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenShareRequest"];
+            };
+        };
+        responses: {
+            /** @description Link opened; protected links set an unlock cookie. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["RateLimited"];
         };
     };
     listReplays: {

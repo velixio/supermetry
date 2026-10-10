@@ -240,6 +240,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/orgs/{org}/api-keys/{key}", h.revokeAPIKey)
 	mux.HandleFunc("POST /api/private/sites/{site}/shares", h.createShare)
 	mux.HandleFunc("GET /api/private/sites/{site}/shares", h.listShares)
+	mux.HandleFunc("PATCH /api/private/sites/{site}/shares/{share}", h.changeShareExpiry)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/shares/{share}", h.revokeShare)
 	mux.HandleFunc("POST /api/private/sites/{site}/reports", h.subscribeReport)
 	mux.HandleFunc("GET /api/private/sites/{site}/reports", h.listReports)

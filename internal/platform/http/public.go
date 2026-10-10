@@ -1,11 +1,14 @@
 package platformhttp
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"supermetry/internal/api"
+	"supermetry/internal/platform/authn"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/shares"
 )
 
 func (h *handler) registerPublic(mux *http.ServeMux) {
@@ -60,9 +63,32 @@ func (h *handler) publicStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) shareStats(w http.ResponseWriter, r *http.Request) {
-	principal, ok := h.principal(w, r)
-	if !ok {
-		return
+	var principal authz.Principal
+	if h.deps.Shares != nil {
+		cookieValue := ""
+		if cookie, err := r.Cookie(authn.ShareCookieName); err == nil {
+			cookieValue = cookie.Value
+		}
+		var err error
+		principal, err = h.deps.Shares.Resolve(r.Context(), r.PathValue("slug"), cookieValue)
+		if errors.Is(err, shares.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+			return
+		}
+		if errors.Is(err, shares.ErrPasswordRequired) {
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "share password required")
+			return
+		}
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+	} else {
+		var ok bool
+		principal, ok = h.principal(w, r)
+		if !ok {
+			return
+		}
 	}
 	if len(principal.SiteIDs) != 1 {
 		writeProblem(w, http.StatusNotFound, "Not found", "site not found")

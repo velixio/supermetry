@@ -121,7 +121,12 @@ type ApiKey = {
   revoked_at?: string | null;
   RevokedAt?: string;
 };
-type Share = { id: number; password_protected: boolean; revoked_at?: string };
+type Share = {
+  id: number;
+  password_protected: boolean;
+  expires_at?: string | null;
+  revoked_at?: string;
+};
 type Report = { id: number; cadence: string; last_sent_at?: string };
 type AuditEntry = {
   id: number;
@@ -412,6 +417,7 @@ export function SharesPage({
 }) {
   const queryClient = useQueryClient();
   const [createdLink, setCreatedLink] = useState("");
+  const [expiresInDays, setExpiresInDays] = useState<number | null>(90);
   const key = ["shares", siteId];
   const shares = useQuery({
     queryKey: key,
@@ -423,11 +429,11 @@ export function SharesPage({
       ),
   });
   const create = useMutation({
-    mutationFn: (password: string) =>
+    mutationFn: ({ password, expiresInDays }: { password: string; expiresInDays: number | null }) =>
       privateRequest<{ slug: string }>(
         "POST",
         `/api/private/sites/${siteId}/shares`,
-        { orgId, body: { password } },
+        { orgId, body: { password, expires_in_days: expiresInDays } },
       ),
     onSuccess: (data) => {
       setCreatedLink(`${window.location.origin}/share/${data.slug}`);
@@ -443,6 +449,15 @@ export function SharesPage({
       ),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
   });
+  const extend = useMutation({
+    mutationFn: (id: number) =>
+      privateRequest<void>(
+        "PATCH",
+        `/api/private/sites/${siteId}/shares/${id}`,
+        { orgId, body: { expires_in_days: 90 } },
+      ),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
+  });
   return (
     <Page
       title="Shared dashboards"
@@ -452,9 +467,10 @@ export function SharesPage({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            create.mutate(
-              String(new FormData(event.currentTarget).get("password") ?? ""),
-            );
+            create.mutate({
+              password: String(new FormData(event.currentTarget).get("password") ?? ""),
+              expiresInDays,
+            });
           }}
         >
 		  <FieldGroup>
@@ -463,7 +479,27 @@ export function SharesPage({
 			  <Input id="share-password" name="password" type="password" minLength={10} placeholder="Optional password" />
 			  <FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
 			</Field>
-			<Button type="submit">Create link</Button>
+			<Field>
+			  <FieldLabel htmlFor="share-expiry">Expiry</FieldLabel>
+			  <Select
+			    value={expiresInDays === null ? "never" : String(expiresInDays)}
+			    onValueChange={(value) => setExpiresInDays(value === "never" ? null : Number(value))}
+			  >
+			    <SelectTrigger id="share-expiry">
+			      <SelectValue />
+			    </SelectTrigger>
+			    <SelectContent>
+			      <SelectGroup>
+			        <SelectItem value="never">Never</SelectItem>
+			        <SelectItem value="7">7 days</SelectItem>
+			        <SelectItem value="30">30 days</SelectItem>
+			        <SelectItem value="90">90 days</SelectItem>
+			        <SelectItem value="365">365 days</SelectItem>
+			      </SelectGroup>
+			    </SelectContent>
+			  </Select>
+			</Field>
+			<Button type="submit" disabled={create.isPending}>Create link</Button>
 			<Message error={create.error} />
 		  </FieldGroup>
         </form>
@@ -484,18 +520,41 @@ export function SharesPage({
               className="flex items-center justify-between gap-3 border-t pt-3"
               key={share.id}
             >
-              <span className="text-sm">
-                Link {share.id}
-                {share.password_protected ? " · Password protected" : ""}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={Boolean(share.revoked_at)}
-                onClick={() => revoke.mutate(share.id)}
-              >
-                Revoke
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm">
+                  Link {share.id}
+                  {share.password_protected ? " · Password protected" : ""}
+                </span>
+                {share.expires_at ? (
+                  new Date(share.expires_at).getTime() <= Date.now() ? (
+                    <Badge variant="destructive">Expired</Badge>
+                  ) : (
+                    <Badge variant="secondary">Expires {fmt.date(share.expires_at, Intl.DateTimeFormat().resolvedOptions().timeZone)}</Badge>
+                  )
+                ) : (
+                  <Badge variant="outline">Never expires</Badge>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {share.expires_at && !share.revoked_at ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={extend.isPending}
+                    onClick={() => extend.mutate(share.id)}
+                  >
+                    Extend 90 days
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={Boolean(share.revoked_at) || revoke.isPending}
+                  onClick={() => revoke.mutate(share.id)}
+                >
+                  Revoke
+                </Button>
+              </div>
             </li>
           ))}
         </ul>

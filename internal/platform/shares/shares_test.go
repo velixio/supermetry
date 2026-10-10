@@ -109,6 +109,93 @@ func TestShareLifecycle(t *testing.T) {
 	}
 }
 
+func TestShareExpiryLifecycle(t *testing.T) {
+	service, principal, siteID, pool := newShares(t)
+	ctx := context.Background()
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return now }
+
+	slug, info, err := service.CreateWithExpiry(ctx, principal, siteID, "", intPointer(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantExpiry := now.Add(7 * 24 * time.Hour)
+	if info.ExpiresAt == nil || !info.ExpiresAt.Equal(wantExpiry) {
+		t.Fatalf("created expiry = %v, want %v", info.ExpiresAt, wantExpiry)
+	}
+	if _, ok := service.Principal(ctx, slug, ""); !ok {
+		t.Fatal("unexpired share was refused")
+	}
+
+	protectedSlug, protected, err := service.CreateWithExpiry(ctx, principal, siteID, "correct horse battery staple", intPointer(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie, err := service.Open(ctx, protectedSlug, "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = wantExpiry
+	if _, ok := service.Principal(ctx, slug, ""); ok {
+		t.Fatal("expired passwordless share was accepted")
+	}
+	if _, ok := service.Principal(ctx, protectedSlug, cookie); ok {
+		t.Fatal("expired protected share accepted its unlock cookie")
+	}
+	if _, err := service.Open(ctx, protectedSlug, "correct horse battery staple"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("expired share open error = %v, want ErrInvalid", err)
+	}
+
+	if err := service.ChangeExpiry(ctx, principal, protected.ID, intPointer(30)); err != nil {
+		t.Fatal(err)
+	}
+	revivedCookie, err := service.Open(ctx, protectedSlug, "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := service.Principal(ctx, protectedSlug, revivedCookie); !ok {
+		t.Fatal("extended share was not revived")
+	}
+	if err := service.ChangeExpiry(ctx, principal, info.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(366 * 24 * time.Hour)
+	if _, ok := service.Principal(ctx, slug, ""); !ok {
+		t.Fatal("never-expiring share stopped working")
+	}
+
+	var otherUserID, otherOrgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('other@example.test', 'Other', 'hash') returning id`).Scan(&otherUserID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name, slug) values ('Other', 'other') returning id`).Scan(&otherOrgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id, user_id, role) values ($1, $2, 'owner')`, otherOrgID, otherUserID); err != nil {
+		t.Fatal(err)
+	}
+	other := authz.Principal{UserID: otherUserID, OrgID: otherOrgID, Role: authz.RoleOwner}
+	if err := service.ChangeExpiry(ctx, other, protected.ID, nil); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-org expiry change error = %v, want ErrNotFound", err)
+	}
+
+	var createdExpiry, changedExpiry *time.Time
+	if err := pool.QueryRow(ctx, `select (metadata->>'expires_at')::timestamptz from audit_log where action='share.created' and target_id=$1`, info.ID).Scan(&createdExpiry); err != nil {
+		t.Fatal(err)
+	}
+	if createdExpiry == nil || !createdExpiry.Equal(wantExpiry) {
+		t.Fatalf("created audit expiry = %v, want %v", createdExpiry, wantExpiry)
+	}
+	if err := pool.QueryRow(ctx, `select (metadata->>'expires_at')::timestamptz from audit_log where action='share.expiry_changed' and target_id=$1 order by id desc limit 1`, protected.ID).Scan(&changedExpiry); err != nil {
+		t.Fatal(err)
+	}
+	if changedExpiry == nil || !changedExpiry.Equal(time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)) {
+		t.Fatalf("changed audit expiry = %v", changedExpiry)
+	}
+}
+
+func intPointer(value int) *int { return &value }
+
 func TestCreateRejectsWeakSharePassword(t *testing.T) {
 	service, principal, siteID, _ := newShares(t)
 	if _, _, err := service.Create(context.Background(), principal, siteID, "password123"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {

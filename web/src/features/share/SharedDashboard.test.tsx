@@ -69,4 +69,18 @@ describe('shared dashboard', () => {
     )
     expect(await screen.findByText('123')).toBeVisible()
   })
+
+  it('shows the same unavailable state for inaccessible links without expiry details', async () => {
+    renderDashboard(
+      vi.fn().mockRejectedValue(
+        new ShareProblem('share-unavailable', 'resource not found'),
+      ),
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Link unavailable' })).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This shared dashboard is unavailable.',
+    )
+    expect(screen.queryByText(/expired/i)).not.toBeInTheDocument()
+  })
 })

@@ -294,6 +294,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"DELETE " + privatePrefix + "/orgs/{org}/api-keys/{key}",
 		"POST " + privatePrefix + "/sites/{site}/shares",
 		"GET " + privatePrefix + "/sites/{site}/shares",
+		"PATCH " + privatePrefix + "/sites/{site}/shares/{share}",
 		"DELETE " + privatePrefix + "/sites/{site}/shares/{share}",
 		"POST " + privatePrefix + "/sites/{site}/reports",
 		"GET " + privatePrefix + "/sites/{site}/reports",

@@ -718,6 +718,30 @@ func (e SessionTimelineItemKind) Valid() bool {
 	}
 }
 
+// Defines values for ShareExpiryDays.
+const (
+	ShareExpiryDaysN30  ShareExpiryDays = 30
+	ShareExpiryDaysN365 ShareExpiryDays = 365
+	ShareExpiryDaysN7   ShareExpiryDays = 7
+	ShareExpiryDaysN90  ShareExpiryDays = 90
+)
+
+// Valid indicates whether the value is a known member of the ShareExpiryDays enum.
+func (e ShareExpiryDays) Valid() bool {
+	switch e {
+	case ShareExpiryDaysN30:
+		return true
+	case ShareExpiryDaysN365:
+		return true
+	case ShareExpiryDaysN7:
+		return true
+	case ShareExpiryDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SiteRevenueCurrencyState.
 const (
 	SiteRevenueCurrencyConfigured   SiteRevenueCurrencyState = "configured"
@@ -831,6 +855,11 @@ type AnnotationPatch struct {
 	Text *string             `json:"text,omitempty"`
 }
 
+// ChangeShareExpiryRequest defines model for ChangeShareExpiryRequest.
+type ChangeShareExpiryRequest struct {
+	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
+}
+
 // ComparisonResult defines model for ComparisonResult.
 type ComparisonResult struct {
 	DateRange        DateRange                `json:"date_range"`
@@ -845,6 +874,12 @@ type CreateAPIKeyRequest struct {
 	Name      string     `json:"name"`
 	Scopes    []string   `json:"scopes"`
 	SiteIds   *[]int32   `json:"site_ids,omitempty"`
+}
+
+// CreateShareRequest defines model for CreateShareRequest.
+type CreateShareRequest struct {
+	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
+	Password      *string          `json:"password,omitempty"`
 }
 
 // CreateSiteRequest defines model for CreateSiteRequest.
@@ -865,6 +900,12 @@ type CreatedAPIKey struct {
 
 	// Key The secret value. It is shown once and cannot be retrieved later.
 	Key string `json:"key"`
+}
+
+// CreatedShare defines model for CreatedShare.
+type CreatedShare struct {
+	Share Share  `json:"share"`
+	Slug  string `json:"slug"`
 }
 
 // DateRange defines model for DateRange.
@@ -1165,6 +1206,11 @@ type JourneyResponse struct {
 
 // Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 type Metric string
+
+// OpenShareRequest defines model for OpenShareRequest.
+type OpenShareRequest struct {
+	Password *string `json:"password,omitempty"`
+}
 
 // OrderBy defines model for OrderBy.
 type OrderBy struct {
@@ -1657,6 +1703,25 @@ type SessionTimelineItem struct {
 // SessionTimelineItemKind defines model for SessionTimelineItem.Kind.
 type SessionTimelineItemKind string
 
+// Share defines model for Share.
+type Share struct {
+	CreatedAt         time.Time  `json:"created_at"`
+	CreatedBy         int64      `json:"created_by"`
+	ExpiresAt         *time.Time `json:"expires_at"`
+	Id                int64      `json:"id"`
+	PasswordProtected bool       `json:"password_protected"`
+	RevokedAt         *time.Time `json:"revoked_at,omitempty"`
+	SiteId            int32      `json:"site_id"`
+}
+
+// ShareExpiryDays Days from the current time, or null for no expiry.
+type ShareExpiryDays int
+
+// ShareList defines model for ShareList.
+type ShareList struct {
+	Data []Share `json:"data"`
+}
+
 // Site defines model for Site.
 type Site struct {
 	AllowedHosts []string `json:"allowed_hosts"`
@@ -2101,8 +2166,17 @@ type StartCurrentUserEmailChangeJSONRequestBody StartCurrentUserEmailChangeJSONB
 // ChangeCurrentUserPasswordJSONRequestBody defines body for ChangeCurrentUserPassword for application/json ContentType.
 type ChangeCurrentUserPasswordJSONRequestBody ChangeCurrentUserPasswordJSONBody
 
+// OpenSharedLinkJSONRequestBody defines body for OpenSharedLink for application/json ContentType.
+type OpenSharedLinkJSONRequestBody = OpenShareRequest
+
 // UpdateReplaySettingsJSONRequestBody defines body for UpdateReplaySettings for application/json ContentType.
 type UpdateReplaySettingsJSONRequestBody = ReplaySiteSettingsInput
+
+// CreateSharedLinkJSONRequestBody defines body for CreateSharedLink for application/json ContentType.
+type CreateSharedLinkJSONRequestBody = CreateShareRequest
+
+// ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
+type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
 
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
@@ -2261,6 +2335,9 @@ type ServerInterface interface {
 	// RequestProfileErasure Queue durable profile erasure
 	// (DELETE /api/private/profiles/{profile_id})
 	RequestProfileErasure(w http.ResponseWriter, r *http.Request, profileId int64)
+	// OpenSharedLink Unlock a password-protected shared dashboard
+	// (POST /api/private/share/{slug}/open)
+	OpenSharedLink(w http.ResponseWriter, r *http.Request, slug string)
 	// GetReplaySettings Get site replay settings
 	// (GET /api/private/sites/{site_id}/replay-settings)
 	GetReplaySettings(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -2276,6 +2353,18 @@ type ServerInterface interface {
 	// GetReplayData Download replay events
 	// (GET /api/private/sites/{site_id}/replays/{session_id}/data)
 	GetReplayData(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId string)
+	// ListSharedLinks List shared dashboard links
+	// (GET /api/private/sites/{site_id}/shares)
+	ListSharedLinks(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// CreateSharedLink Create a shared dashboard link
+	// (POST /api/private/sites/{site_id}/shares)
+	CreateSharedLink(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// RevokeSharedLink Revoke a shared dashboard link
+	// (DELETE /api/private/sites/{site_id}/shares/{share_id})
+	RevokeSharedLink(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
+	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
+	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -2654,6 +2743,32 @@ func (siw *ServerInterfaceWrapper) RequestProfileErasure(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// OpenSharedLink operation middleware
+func (siw *ServerInterfaceWrapper) OpenSharedLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenSharedLink(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetReplaySettings operation middleware
 func (siw *ServerInterfaceWrapper) GetReplaySettings(w http.ResponseWriter, r *http.Request) {
 
@@ -2848,6 +2963,128 @@ func (siw *ServerInterfaceWrapper) GetReplayData(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetReplayData(w, r, siteId, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSharedLinks operation middleware
+func (siw *ServerInterfaceWrapper) ListSharedLinks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSharedLinks(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSharedLink operation middleware
+func (siw *ServerInterfaceWrapper) CreateSharedLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSharedLink(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeSharedLink operation middleware
+func (siw *ServerInterfaceWrapper) RevokeSharedLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "share_id" -------------
+	var shareId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "share_id", r.PathValue("share_id"), &shareId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "share_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeSharedLink(w, r, siteId, shareId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeSharedLinkExpiry operation middleware
+func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "share_id" -------------
+	var shareId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "share_id", r.PathValue("share_id"), &shareId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "share_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeSharedLinkExpiry(w, r, siteId, shareId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4966,6 +5203,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChangeLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChange)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/password", wrapper.ChangeCurrentUserPassword)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/shares", wrapper.ListSharedLinks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site_id}/shares", wrapper.CreateSharedLink)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site_id}/shares/{share_id}", wrapper.RevokeSharedLink)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site_id}/shares/{share_id}", wrapper.ChangeSharedLinkExpiry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/share/{slug}/open", wrapper.OpenSharedLink)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays", wrapper.ListReplays)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/{session_id}/data", wrapper.GetReplayData)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/css/{hash}", wrapper.GetReplayCSS)

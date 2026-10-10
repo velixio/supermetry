@@ -55,12 +55,13 @@ type attemptLimiter struct {
 }
 
 type ShareInfo struct {
-	ID                int64
-	SiteID            int32
-	CreatedBy         int64
-	CreatedAt         time.Time
-	RevokedAt         *time.Time
-	PasswordProtected bool
+	ID                int64      `json:"id"`
+	SiteID            int32      `json:"site_id"`
+	CreatedBy         int64      `json:"created_by"`
+	CreatedAt         time.Time  `json:"created_at"`
+	ExpiresAt         *time.Time `json:"expires_at"`
+	RevokedAt         *time.Time `json:"revoked_at,omitempty"`
+	PasswordProtected bool       `json:"password_protected"`
 }
 
 type Shares struct {
@@ -93,8 +94,16 @@ func (s *Shares) SetCookieSecret(secret []byte) {
 }
 
 func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID int32, password string) (slug string, info ShareInfo, err error) {
+	return s.CreateWithExpiry(ctx, principal, siteID, password, nil)
+}
+
+func (s *Shares) CreateWithExpiry(ctx context.Context, principal authz.Principal, siteID int32, password string, expiresInDays *int) (slug string, info ShareInfo, err error) {
 	if !authz.Can(principal, authz.ActionSharesManage, siteID) || principal.UserID == 0 {
 		return "", ShareInfo{}, ErrForbidden
+	}
+	expiresAt, err := expiryFromDays(s.now(), expiresInDays)
+	if err != nil {
+		return "", ShareInfo{}, err
 	}
 
 	slug, slugHash := platformcrypto.NewToken("shr_")
@@ -125,7 +134,7 @@ func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID i
 		var createErr error
 		link, createErr = store.CreateSharedLink(ctx, tx, principal.OrgID, store.SharedLink{
 			SiteID: siteID, SlugHash: slugHash, PasswordHash: passwordHash,
-			CreatedBy: principal.UserID,
+			CreatedBy: principal.UserID, ExpiresAt: expiresAt,
 		})
 		if createErr != nil {
 			if errors.Is(createErr, pgx.ErrNoRows) {
@@ -134,7 +143,7 @@ func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID i
 			return createErr
 		}
 		return audit.Write(ctx, tx, principal, "share.created", "shared_link", link.ID, map[string]any{
-			"site_id": siteID, "password_protected": passwordHash != nil,
+			"site_id": siteID, "password_protected": passwordHash != nil, "expires_at": expiresAt,
 		})
 	})
 	if err != nil {
@@ -151,7 +160,7 @@ func (s *Shares) Open(ctx context.Context, slug, password string) (cookieValue s
 		return "", ErrRateLimited
 	}
 	link, err := s.lookup(ctx, slug)
-	if err != nil || link.RevokedAt != nil {
+	if err != nil || unavailable(link, now) {
 		return "", ErrInvalid
 	}
 	if link.PasswordHash == nil {
@@ -172,17 +181,61 @@ func (s *Shares) Open(ctx context.Context, slug, password string) (cookieValue s
 }
 
 func (s *Shares) Principal(ctx context.Context, slug, cookieValue string) (authz.Principal, bool) {
+	principal, err := s.Resolve(ctx, slug, cookieValue)
+	return principal, err == nil
+}
+
+func (s *Shares) Resolve(ctx context.Context, slug, cookieValue string) (authz.Principal, error) {
+	now := s.now()
 	link, err := s.lookup(ctx, slug)
-	if err != nil || link.RevokedAt != nil {
-		return authz.Principal{}, false
+	if err != nil || unavailable(link, now) {
+		return authz.Principal{}, ErrNotFound
 	}
-	if link.PasswordHash != nil && !validCookie(slug, cookieValue, s.cookieSecret(), s.now()) {
-		return authz.Principal{}, false
+	if link.PasswordHash != nil && !validCookie(slug, cookieValue, s.cookieSecret(), now) {
+		return authz.Principal{}, ErrPasswordRequired
 	}
 	return authz.Principal{
 		OrgID: link.OrgID, ShareID: link.ID, Role: authz.RoleShare,
 		SiteIDs: []int32{link.SiteID},
-	}, true
+	}, nil
+}
+
+func (s *Shares) ChangeExpiry(ctx context.Context, principal authz.Principal, id int64, expiresInDays *int) error {
+	if principal.UserID == 0 {
+		return ErrForbidden
+	}
+	expiresAt, err := expiryFromDays(s.now(), expiresInDays)
+	if err != nil {
+		return err
+	}
+	return s.store.Tx(ctx, func(tx pgx.Tx) error {
+		current, err := store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		link, err := store.SharedLinkByIDForUpdate(ctx, tx, principal.OrgID, id)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			return err
+		}
+		if !authz.Can(principal, authz.ActionSharesManage, link.SiteID) || !authz.Can(current, authz.ActionSharesManage, link.SiteID) {
+			return ErrForbidden
+		}
+		if err := store.ChangeSharedLinkExpiry(ctx, tx, principal.OrgID, id, expiresAt); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			return err
+		}
+		return audit.Write(ctx, tx, principal, "share.expiry_changed", "shared_link", id, map[string]any{
+			"expires_at": expiresAt,
+		})
+	})
 }
 
 func (s *Shares) Revoke(ctx context.Context, principal authz.Principal, id int64) error {
@@ -327,10 +380,27 @@ func cookieMAC(slug, expiry string, key []byte) []byte {
 	return mac.Sum(nil)
 }
 
+func expiryFromDays(now time.Time, expiresInDays *int) (*time.Time, error) {
+	if expiresInDays == nil {
+		return nil, nil
+	}
+	switch *expiresInDays {
+	case 7, 30, 90, 365:
+		expiresAt := now.Add(time.Duration(*expiresInDays) * 24 * time.Hour)
+		return &expiresAt, nil
+	default:
+		return nil, ErrInvalid
+	}
+}
+
+func unavailable(link store.SharedLink, now time.Time) bool {
+	return link.RevokedAt != nil || link.ExpiresAt != nil && !link.ExpiresAt.After(now)
+}
+
 func shareInfo(link store.SharedLink) ShareInfo {
 	return ShareInfo{
 		ID: link.ID, SiteID: link.SiteID, CreatedBy: link.CreatedBy,
-		CreatedAt: link.CreatedAt, RevokedAt: link.RevokedAt,
+		CreatedAt: link.CreatedAt, ExpiresAt: link.ExpiresAt, RevokedAt: link.RevokedAt,
 		PasswordProtected: link.PasswordHash != nil,
 	}
 }

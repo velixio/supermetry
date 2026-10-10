@@ -196,6 +196,51 @@ func TestOpenAPIProfileErasureEndpoints(t *testing.T) {
 	}
 }
 
+func TestOpenAPIShareExpiryContract(t *testing.T) {
+	source, err := os.ReadFile("openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Paths map[string]struct {
+			Get   *yaml.Node `yaml:"get"`
+			Post  *yaml.Node `yaml:"post"`
+			Patch *yaml.Node `yaml:"patch"`
+		} `yaml:"paths"`
+		Components struct {
+			Schemas map[string]yaml.Node `yaml:"schemas"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(source, &document); err != nil {
+		t.Fatal(err)
+	}
+	collection := document.Paths["/api/private/sites/{site_id}/shares"]
+	if collection.Get == nil || collection.Post == nil {
+		t.Fatal("share list/create operations are missing")
+	}
+	item := document.Paths["/api/private/sites/{site_id}/shares/{share_id}"]
+	if item.Patch == nil {
+		t.Fatal("share expiry PATCH operation is missing")
+	}
+	for _, name := range []string{"Share", "CreateShareRequest", "ChangeShareExpiryRequest"} {
+		if _, ok := document.Components.Schemas[name]; !ok {
+			t.Errorf("schema %s is missing", name)
+		}
+	}
+	var expiryDays struct {
+		Enum []int  `yaml:"enum"`
+		Type string `yaml:"type"`
+	}
+	if node, ok := document.Components.Schemas["ShareExpiryDays"]; ok {
+		if err := node.Decode(&expiryDays); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := expiryDays.Enum; len(got) != 4 || expiryDays.Type != "integer" {
+		t.Fatalf("expires_in_days enum = %v, want null/7/30/90/365", got)
+	}
+}
+
 func mapKeys[V any](values map[string]V) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {

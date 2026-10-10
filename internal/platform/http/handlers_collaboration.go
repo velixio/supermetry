@@ -3,6 +3,7 @@ package platformhttp
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -211,7 +212,8 @@ func (h *handler) createShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Password string `json:"password,omitempty"`
+		Password      string          `json:"password,omitempty"`
+		ExpiresInDays json.RawMessage `json:"expires_in_days"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -220,7 +222,11 @@ func (h *handler) createShare(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "share")
 		return
 	}
-	slug, info, err := h.deps.Shares.Create(r.Context(), principal, site.ID, request.Password)
+	expiresInDays, ok := decodeExpiryDays(w, request.ExpiresInDays, false)
+	if !ok {
+		return
+	}
+	slug, info, err := h.deps.Shares.CreateWithExpiry(r.Context(), principal, site.ID, request.Password, expiresInDays)
 	if err != nil {
 		if writePasswordPolicyProblem(w, err) {
 			return
@@ -240,7 +246,7 @@ func (h *handler) listShares(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "share")
 		return
 	}
-	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,site_id,created_by,created_at,revoked_at,password_hash is not null from shared_links where site_id=$1 order by id`, site.ID)
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,site_id,created_by,created_at,expires_at,revoked_at,password_hash is not null from shared_links where site_id=$1 order by id`, site.ID)
 	if err != nil {
 		serviceError(w, err)
 		return
@@ -251,13 +257,14 @@ func (h *handler) listShares(w http.ResponseWriter, r *http.Request) {
 		SiteID            int32      `json:"site_id"`
 		CreatedBy         int64      `json:"created_by"`
 		CreatedAt         time.Time  `json:"created_at"`
+		ExpiresAt         *time.Time `json:"expires_at"`
 		RevokedAt         *time.Time `json:"revoked_at,omitempty"`
 		PasswordProtected bool       `json:"password_protected"`
 	}
 	items := make([]share, 0)
 	for rows.Next() {
 		var item share
-		if err := rows.Scan(&item.ID, &item.SiteID, &item.CreatedBy, &item.CreatedAt, &item.RevokedAt, &item.PasswordProtected); err != nil {
+		if err := rows.Scan(&item.ID, &item.SiteID, &item.CreatedBy, &item.CreatedAt, &item.ExpiresAt, &item.RevokedAt, &item.PasswordProtected); err != nil {
 			serviceError(w, err)
 			return
 		}
@@ -268,6 +275,70 @@ func (h *handler) listShares(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+func (h *handler) changeShareExpiry(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSharesManage, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("share"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "share not found")
+		return
+	}
+	var request struct {
+		ExpiresInDays json.RawMessage `json:"expires_in_days"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	expiresInDays, ok := decodeExpiryDays(w, request.ExpiresInDays, true)
+	if !ok {
+		return
+	}
+	if h.deps.Shares == nil || h.deps.Store == nil {
+		unavailable(w, "share")
+		return
+	}
+	var actualSiteID int32
+	if err := h.deps.Store.Pool.QueryRow(r.Context(), `select sl.site_id from shared_links sl join sites s on s.id=sl.site_id where sl.id=$1 and sl.site_id=$2 and s.org_id=$3`, id, site.ID, principal.OrgID).Scan(&actualSiteID); errors.Is(err, pgx.ErrNoRows) {
+		writeProblem(w, http.StatusNotFound, "Not found", "share not found")
+		return
+	} else if err != nil {
+		serviceError(w, err)
+		return
+	}
+	if err := h.deps.Shares.ChangeExpiry(r.Context(), principal, id, expiresInDays); err != nil {
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func decodeExpiryDays(w http.ResponseWriter, raw json.RawMessage, required bool) (*int, bool) {
+	if len(raw) == 0 {
+		if required {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "expires_in_days is required")
+			return nil, false
+		}
+		return nil, true
+	}
+	if string(raw) == "null" {
+		return nil, true
+	}
+	var days int
+	if err := json.Unmarshal(raw, &days); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "expires_in_days must be null, 7, 30, 90, or 365")
+		return nil, false
+	}
+	switch days {
+	case 7, 30, 90, 365:
+		return &days, true
+	default:
+		writeProblem(w, http.StatusBadRequest, "Bad request", "expires_in_days must be null, 7, 30, 90, or 365")
+		return nil, false
+	}
 }
 
 func (h *handler) revokeShare(w http.ResponseWriter, r *http.Request) {
