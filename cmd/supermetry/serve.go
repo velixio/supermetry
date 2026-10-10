@@ -47,6 +47,7 @@ import (
 	platformhttp "supermetry/internal/platform/http"
 	"supermetry/internal/platform/invites"
 	"supermetry/internal/platform/keys"
+	"supermetry/internal/platform/lifecycle"
 	"supermetry/internal/platform/mail"
 	"supermetry/internal/platform/orgs"
 	"supermetry/internal/platform/reports"
@@ -240,13 +241,14 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill, engine.InvalidateSite)
 	heatmaps := heatmap.New(pool, registry)
 	sender := mail.NewSMTP(cfg.SMTP)
+	deletionNotices := lifecycle.NewNotices(pool, sender, cfg.BaseURL, settings.clock.Now)
 	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/totp/v1")
 	if err != nil {
 		return fmt.Errorf("initialize TOTP encryption: %w", err)
 	}
 	accounts := users.New(platformStore)
 	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL, platformauth.WithAuditSecret(cfg.SecretKey))
-	orgService := orgs.New(platformStore)
+	orgService := orgs.New(platformStore, databaseRegistry)
 	keyService := keys.New(platformStore)
 	defer keyService.Close()
 	shareService := shares.New(platformStore)
@@ -295,6 +297,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
+	siteService.SetClock(settings.clock.Now)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		TrackingMode: cfg.Tracking.Mode,
@@ -424,7 +427,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock, engine.InvalidateSite)
-	jobs = append(jobs, profileErasureWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
@@ -834,25 +837,18 @@ func runReplayMigration(ctx context.Context, pool *pgxpool.Pool, environment con
 }
 
 func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore replay.BlobStore, now time.Time) error {
-	rows, err := pool.Query(ctx, `select id from sites where deleted_at is not null order by id`)
+	siteIDs, err := store.SitesDueForErasure(ctx, pool, now)
 	if err != nil {
-		return fmt.Errorf("load sites pending erasure: %w", err)
+		return err
 	}
-	var siteIDs []int32
-	for rows.Next() {
-		var siteID int32
-		if err := rows.Scan(&siteID); err != nil {
-			rows.Close()
-			return fmt.Errorf("scan site pending erasure: %w", err)
-		}
-		siteIDs = append(siteIDs, siteID)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return fmt.Errorf("iterate sites pending erasure: %w", err)
-	}
-	rows.Close()
 	for _, siteID := range siteIDs {
+		claimed, err := store.ClaimSiteErasure(ctx, pool, siteID, now)
+		if err != nil {
+			return err
+		}
+		if !claimed {
+			continue
+		}
 		if replayStore != nil {
 			if err := replay.EraseSite(ctx, pool, replayStore, siteID); err != nil {
 				return err
@@ -861,9 +857,26 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore repl
 		if err := retention.Erase(ctx, pool, siteID, 10_000, 10*time.Millisecond); err != nil {
 			return err
 		}
-		if _, err := pool.Exec(ctx, `update sites set settings=jsonb_set(settings,'{erased_at}',to_jsonb($2::text)) where id=$1`, siteID, now.UTC().Format(time.RFC3339)); err != nil {
-			return fmt.Errorf("mark site %d erased: %w", siteID, err)
+		if err := store.MarkSiteErased(ctx, pool, siteID, now); err != nil {
+			return err
 		}
+	}
+	_, err = pool.Exec(ctx, `
+		update orgs o
+		set erased_at=$1
+		where o.deleted_at is not null and o.erased_at is null
+		  and not exists(select 1 from sites s where s.org_id=o.id and s.erased_at is null)
+		  and (
+		    not coalesce(
+		      (select (a.metadata->>'scheduled')::boolean from audit_log a
+		       where a.org_id=o.id and a.action='organization.deleted' and a.target_id=o.id
+		       order by a.id desc limit 1),
+		      exists(select 1 from sites s where s.org_id=o.id and s.deleted_with_org)
+		    )
+		    or o.deleted_at <= $2
+		  )`, now, now.Add(-lifecycle.DeletionGrace))
+	if err != nil {
+		return fmt.Errorf("mark organizations erased: %w", err)
 	}
 	return nil
 }

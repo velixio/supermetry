@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ComponentType, ReactNode } from 'react'
 import { Route } from './app.$org.settings.index'
 import { useOrganization } from '@/features/settings/routeContext'
@@ -10,6 +11,7 @@ vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: { component: ComponentType }) => ({
     options,
     useParams: () => ({ org: 'acme' }),
+    useNavigate: () => vi.fn(),
   }),
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
 }))
@@ -21,7 +23,7 @@ it.each(['owner', 'admin', 'editor', 'viewer'] as const)('shows %s access withou
     billing_admin: true, effective_capabilities: ['billing.manage'],
   })
   const Overview = Route.options.component as ComponentType
-  render(<Overview />)
+  render(<QueryClientProvider client={new QueryClient()}><Overview /></QueryClientProvider>)
   expect(screen.getByRole('heading', { name: 'Acme' })).toBeVisible()
   expect(screen.getByText(/No project data access/)).toBeVisible()
   expect(screen.getByRole('link', { name: 'Account settings' })).toHaveAttribute('href', '/app/account/profile')

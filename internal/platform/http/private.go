@@ -68,6 +68,7 @@ type DemoService interface {
 }
 
 type Deps struct {
+	Now          func() time.Time
 	TrackingMode privacy.Mode
 	BaseURL      string
 	HomepageURL  string
@@ -163,6 +164,9 @@ type handler struct {
 // complete authz.Principal is available; the analytics router may mount this
 // handler as a fallback under its public and private route trees.
 func New(deps Deps) http.Handler {
+	if deps.Now == nil {
+		deps.Now = time.Now
+	}
 	if deps.Shares != nil && len(deps.SecretKey) > 0 {
 		deps.Shares.SetCookieSecret(deps.SecretKey)
 	}
@@ -186,8 +190,11 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/icon/refetch", h.refetchSiteIcon)
 	mux.HandleFunc("PATCH /api/private/sites/{site}", h.updateSite)
 	mux.HandleFunc("DELETE /api/private/sites/{site}", h.deleteSite)
+	mux.HandleFunc("POST /api/private/sites/{site}/restore", h.restoreSite)
 	mux.HandleFunc("POST /api/private/orgs/{org}/api-keys", h.createAPIKey)
 	mux.HandleFunc("GET /api/private/orgs/{org}/audit", h.listAudit)
+	mux.HandleFunc("GET /api/private/orgs/{org}/sites/deleted", h.listDeletedSites)
+	mux.HandleFunc("PATCH /api/private/orgs/{org}", h.renameOrg)
 	mux.HandleFunc("DELETE /api/private/orgs/{org}", h.deleteOrg)
 	mux.HandleFunc("GET /api/private/share/{slug}/stats/summary", h.shareStats)
 	mux.HandleFunc("GET /api/private/sites/{site}/goals", h.listGoals)
@@ -222,6 +229,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/instance/replay-storage", h.getReplayStorage)
 	mux.HandleFunc("PUT /api/private/instance/replay-storage", h.putReplayStorage)
 	mux.HandleFunc("GET /api/private/me", h.me)
+	mux.HandleFunc("GET /api/private/me/orgs/deleted", h.listDeletedOrgs)
+	mux.HandleFunc("POST /api/private/me/orgs/{org}/restore", h.restoreOrg)
 	mux.HandleFunc("POST /api/private/me/demo-prompt/dismiss", h.dismissDemoPrompt)
 	mux.HandleFunc("PATCH /api/private/me", h.updateMe)
 	mux.HandleFunc("DELETE /api/private/me", h.deleteAccount)
@@ -332,7 +341,14 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 		if !authz.Can(current, authz.ActionOrgDelete, 0) {
 			return orgs.ErrForbidden
 		}
-		sites, err := tx.Exec(ctx, `update sites set deleted_at=now() where org_id=$1 and deleted_at is null`, id)
+		var scheduled bool
+		if err := tx.QueryRow(ctx, `select exists(select 1 from sites where org_id=$1 and not is_demo and erased_at is null)`, id).Scan(&scheduled); err != nil {
+			return err
+		}
+		sites, err := tx.Exec(ctx, `
+			update sites
+			set deleted_at=now(),deleted_with_org=$2,deletion_notified_at=null,deletion_reminded_at=null
+			where org_id=$1 and deleted_at is null`, id, scheduled)
 		if err != nil {
 			return err
 		}
@@ -345,7 +361,7 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 			return sitesvc.ErrNotFound
 		}
 		return audit.Write(ctx, tx, principal, "organization.deleted", "organization", id, map[string]any{
-			"sites_tombstoned": tombstoned,
+			"scheduled": scheduled, "sites_tombstoned": tombstoned,
 		})
 	})
 	if err != nil {

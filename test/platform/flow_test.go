@@ -75,14 +75,14 @@ type summary struct {
 func TestPlatformFlow(t *testing.T) {
 	env := start(t)
 	setup := env.setupURL(t)
-	owner := env.completeSetup(t, setup, "o@x.io", "Acme")
+	owner := env.completeSetup(t, setup, "o@example.test", "Acme")
 	site := owner.createSite(t, "Blog", "blog.example.com", "Europe/Berlin")
 	env.track(t, site.PublicID, "https://blog.example.com/", 20)
 	key := owner.createKey(t, "stats:read")
 	if value := env.publicSummary(t, key, site.ID).Pageviews; value != 20 {
 		t.Fatalf("pageviews via public API = %d", value)
 	}
-	invitation := owner.invite(t, "v@x.io", "viewer", []int32{site.ID})
+	invitation := owner.invite(t, "v@example.test", "viewer", []int32{site.ID})
 	viewer := env.acceptInvite(t, invitation, "Viewer", testPassword)
 	if value := viewer.privateSummary(t, site.ID).Pageviews; value != 20 {
 		t.Fatalf("viewer pageviews = %d", value)
@@ -98,7 +98,7 @@ func TestPlatformFlow(t *testing.T) {
 
 func TestUserCLI(t *testing.T) {
 	env := prepare(t)
-	output := env.runCLI(t, "user", "create", "--email", "c@x.io", "--org", "CLI Org")
+	output := env.runCLI(t, "user", "create", "--email", "c@example.test", "--org", "CLI Org")
 	if !strings.Contains(output, "/password-reset?token=") {
 		t.Fatalf("create output does not contain a password reset URL: %q", output)
 	}
@@ -107,13 +107,13 @@ func TestUserCLI(t *testing.T) {
 		select count(*) from memberships m
 		join users u on u.id=m.user_id
 		join orgs o on o.id=m.org_id
-		where u.email='c@x.io' and o.name='CLI Org' and m.role='owner'`).Scan(&memberships); err != nil {
+		where u.email='c@example.test' and o.name='CLI Org' and m.role='owner'`).Scan(&memberships); err != nil {
 		t.Fatal(err)
 	}
 	if memberships != 1 {
 		t.Fatalf("created owner memberships = %d", memberships)
 	}
-	output = env.runCLI(t, "user", "reset-password", "--email", "c@x.io")
+	output = env.runCLI(t, "user", "reset-password", "--email", "c@example.test")
 	if !strings.Contains(output, "/password-reset?token=") {
 		t.Fatalf("reset output does not contain a password reset URL: %q", output)
 	}
@@ -142,7 +142,7 @@ func TestSitesFileCompatibilityEndsAfterSetup(t *testing.T) {
 	}
 	env.processEnv = append(env.processEnv, "SUPERMETRY_SITES_FILE="+sitesPath)
 	startPrepared(t, env)
-	owner := env.completeSetup(t, env.setupURL(t), "o@x.io", "Acme")
+	owner := env.completeSetup(t, env.setupURL(t), "o@example.test", "Acme")
 	created := owner.createSite(t, "Blog", "blog.example.com", "UTC")
 	env.track(t, created.PublicID, "https://blog.example.com/", 1)
 	headers := http.Header{"Authorization": []string{"Bearer legacy-key"}}
@@ -154,10 +154,15 @@ func TestSiteErasureCatchesShutdownFlush(t *testing.T) {
 	env.setProcessEnv("SUPERMETRY_FLUSH_EVERY", "1h")
 	env.setProcessEnv("SUPERMETRY_SESSION_FLUSH", "1h")
 	startPrepared(t, env)
-	owner := env.completeSetup(t, env.setupURL(t), "o@x.io", "Acme")
+	owner := env.completeSetup(t, env.setupURL(t), "o@example.test", "Acme")
 	created := owner.createSite(t, "Blog", "blog.example.com", "UTC")
 	env.track(t, created.PublicID, "https://blog.example.com/", 1)
-	owner.request(t, http.MethodDelete, fmt.Sprintf("/api/private/sites/%d", created.ID), nil, http.StatusNoContent, nil)
+	owner.request(t, http.MethodDelete, fmt.Sprintf("/api/private/sites/%d", created.ID), nil, http.StatusOK, nil)
+	// Make the tombstone due while the event remains buffered, so shutdown must
+	// flush the writer before running the grace-aware erasure pass.
+	if _, err := env.pool.Exec(context.Background(), `update sites set deleted_at=deleted_at - interval '8 days' where id=$1`, created.ID); err != nil {
+		t.Fatal(err)
+	}
 	env.stop()
 	var count int
 	var erased bool
@@ -414,7 +419,7 @@ func (e *testEnv) acceptInvite(t *testing.T, token, name, password string) *clie
 	if err := e.pool.QueryRow(context.Background(), `select org_id from memberships where user_id=$1`, accepted.UserID).Scan(&orgID); err != nil {
 		t.Fatal(err)
 	}
-	return e.login(t, "v@x.io", password, orgID)
+	return e.login(t, "v@example.test", password, orgID)
 }
 
 func (c *client) privateSummary(t *testing.T, siteID int32) summary {

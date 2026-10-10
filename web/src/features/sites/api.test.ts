@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { post } = vi.hoisted(() => ({ post: vi.fn() }))
+const { privateRequest } = vi.hoisted(() => ({ privateRequest: vi.fn() }))
 
 vi.mock('@/lib/api', () => ({ api: { POST: post } }))
+vi.mock('@/features/settings/privateApi', () => ({ privateRequest }))
 
-import { refetchSiteIcon, SiteIconRefetchError } from './api'
+import { deleteSite, refetchSiteIcon, SiteIconRefetchError } from './api'
 
 describe('refetchSiteIcon', () => {
   beforeEach(() => post.mockReset())
@@ -40,5 +42,19 @@ describe('refetchSiteIcon', () => {
         status: 429,
       }),
     )
+  })
+})
+
+describe('deleteSite', () => {
+  beforeEach(() => privateRequest.mockReset())
+
+  it('returns the scheduled deletion response', async () => {
+    privateRequest.mockResolvedValue({ scheduled: true, purge_at: '2026-10-18T08:00:00Z' })
+    await expect(deleteSite(7, 3)).resolves.toEqual({ scheduled: true, purge_at: '2026-10-18T08:00:00Z' })
+  })
+
+  it('supports the legacy empty response', async () => {
+    privateRequest.mockResolvedValue(undefined)
+    await expect(deleteSite(7, 3)).resolves.toEqual({ scheduled: false, purge_at: null })
   })
 })

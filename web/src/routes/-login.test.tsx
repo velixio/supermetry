@@ -57,7 +57,7 @@ describe('login form', () => {
     const auth = createAuthApi(fetchMock)
 
     const result = await auth('/api/private/auth/login', {
-      email: 'o@x.io',
+      email: 'o@example.test',
       password: 'pw-123456789',
     })
 
@@ -79,7 +79,7 @@ describe('login form', () => {
     )
 
     fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'o@x.io' },
+      target: { value: 'o@example.test' },
     })
     fireEvent.change(screen.getByLabelText(/password/i), {
       target: { value: 'pw-123456789' },
@@ -99,7 +99,7 @@ describe('login form', () => {
     render(<LoginForm login={login} next="/" onSuccess={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'o@x.io' },
+      target: { value: 'o@example.test' },
     })
     fireEvent.change(screen.getByLabelText(/password/i), {
       target: { value: 'pw-123456789' },
@@ -127,7 +127,7 @@ describe('login form', () => {
     )
 
     fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'o@x.io' },
+      target: { value: 'o@example.test' },
     })
     fireEvent.change(screen.getByLabelText(/password/i), {
       target: { value: 'pw-123456789' },

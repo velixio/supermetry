@@ -5,11 +5,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/lifecycle"
 	"supermetry/internal/platform/store"
 )
 
@@ -28,6 +34,9 @@ var (
 	ErrNotFound      = errors.New("membership not found")
 	ErrInvalidRole   = errors.New("invalid organization role")
 	ErrInvalidAccess = errors.New("invalid membership access")
+	ErrInvalidName   = errors.New("invalid organization name")
+	ErrNotRestorable = errors.New("organization is not restorable")
+	ErrSiteLimit     = errors.New("site limit")
 )
 
 type Membership struct {
@@ -42,11 +51,21 @@ type Membership struct {
 }
 
 type Orgs struct {
-	store *store.Store
+	store       *store.Store
+	invalidator interface{ Invalidate() error }
+	maxSites    int
 }
 
-func New(data *store.Store) *Orgs {
-	return &Orgs{store: data}
+// SetSiteLimit caps live non-demo sites after an organization restore. Zero
+// means no limit.
+func (o *Orgs) SetSiteLimit(max int) { o.maxSites = max }
+
+func New(data *store.Store, invalidators ...interface{ Invalidate() error }) *Orgs {
+	service := &Orgs{store: data}
+	if len(invalidators) > 0 {
+		service.invalidator = invalidators[0]
+	}
+	return service
 }
 
 func (o *Orgs) Create(ctx context.Context, tx pgx.Tx, name string, ownerID int64) (int64, error) {
@@ -199,6 +218,134 @@ func (o *Orgs) MembershipsFor(ctx context.Context, userID int64) ([]Membership, 
 		})
 	}
 	return memberships, nil
+}
+
+func (o *Orgs) Restore(ctx context.Context, userID int64, orgID int64, now time.Time) error {
+	err := o.store.Tx(ctx, func(tx pgx.Tx) error {
+		var deletedAt *time.Time
+		var erasedAt *time.Time
+		if err := tx.QueryRow(ctx, `select deleted_at,erased_at from orgs where id=$1 for update`, orgID).Scan(&deletedAt, &erasedAt); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotRestorable
+			}
+			return fmt.Errorf("lock organization for restore: %w", err)
+		}
+		var role Role
+		if err := tx.QueryRow(ctx, `select role from memberships where org_id=$1 and user_id=$2 for update`, orgID, userID).Scan(&role); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrForbidden
+			}
+			return fmt.Errorf("lock restoring owner membership: %w", err)
+		}
+		if role != RoleOwner {
+			return ErrForbidden
+		}
+		var scheduled bool
+		if err := tx.QueryRow(ctx, `
+			select coalesce(
+			  (select (metadata->>'scheduled')::boolean from audit_log
+			   where org_id=$1 and action='organization.deleted' and target_id=$1
+			   order by id desc limit 1),
+			  exists(select 1 from sites where org_id=$1 and deleted_with_org)
+			)`, orgID).Scan(&scheduled); err != nil {
+			return fmt.Errorf("check scheduled organization deletion: %w", err)
+		}
+		if deletedAt == nil || erasedAt != nil || !scheduled || !lifecycle.Restorable(*deletedAt, false, now) {
+			return ErrNotRestorable
+		}
+		rows, err := tx.Query(ctx, `
+			select erasure_started_at from sites
+			where org_id=$1 and deleted_with_org and not is_demo and erased_at is null
+			order by id for update`, orgID)
+		if err != nil {
+			return fmt.Errorf("lock organization sites for restore: %w", err)
+		}
+		for rows.Next() {
+			var erasureStartedAt *time.Time
+			if err := rows.Scan(&erasureStartedAt); err != nil {
+				rows.Close()
+				return fmt.Errorf("scan organization site erasure claim: %w", err)
+			}
+			if erasureStartedAt != nil {
+				rows.Close()
+				return ErrNotRestorable
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return fmt.Errorf("iterate organization sites for restore: %w", err)
+		}
+		rows.Close()
+		if o.maxSites > 0 {
+			var restoredCount int
+			if err := tx.QueryRow(ctx, `select count(*) from sites where org_id=$1 and not is_demo and erased_at is null and (deleted_at is null or deleted_with_org)`, orgID).Scan(&restoredCount); err != nil {
+				return fmt.Errorf("count restored organization sites: %w", err)
+			}
+			if restoredCount > o.maxSites {
+				return ErrSiteLimit
+			}
+		}
+		if _, err := tx.Exec(ctx, `
+			update orgs set deleted_at=null,deletion_notified_at=null,deletion_reminded_at=null
+			where id=$1`, orgID); err != nil {
+			return fmt.Errorf("restore organization: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			update sites
+			set deleted_at=case when not is_demo and erased_at is null then null else deleted_at end,
+			    deleted_with_org=false,deletion_notified_at=null,deletion_reminded_at=null
+			where org_id=$1 and deleted_with_org`, orgID); err != nil {
+			return fmt.Errorf("restore organization sites: %w", err)
+		}
+		return audit.Write(ctx, tx, authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}, "organization.restored", "organization", orgID, nil)
+	})
+	if err != nil {
+		return err
+	}
+	if o.invalidator != nil {
+		if err := o.invalidator.Invalidate(); err != nil {
+			slog.WarnContext(ctx, "refresh site registry after organization restore", "err", err)
+		}
+	}
+	return nil
+}
+
+func (o *Orgs) Rename(ctx context.Context, principal authz.Principal, name string) error {
+	if !authz.Can(principal, authz.ActionOrgUpdate, 0) || principal.UserID == 0 {
+		return ErrForbidden
+	}
+	name = strings.TrimSpace(name)
+	if !utf8.ValidString(name) || utf8.RuneCountInString(name) < 1 || utf8.RuneCountInString(name) > 100 {
+		return ErrInvalidName
+	}
+	for _, r := range name {
+		if unicode.IsControl(r) {
+			return ErrInvalidName
+		}
+	}
+	return o.store.Tx(ctx, func(tx pgx.Tx) error {
+		var oldName string
+		if err := tx.QueryRow(ctx, `select name from orgs where id=$1 and deleted_at is null for update`, principal.OrgID).Scan(&oldName); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			return fmt.Errorf("lock organization for rename: %w", err)
+		}
+		current, err := store.CurrentMemberForUpdate(ctx, tx, principal.OrgID, principal.UserID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrForbidden
+			}
+			return err
+		}
+		if !authz.Can(current, authz.ActionOrgUpdate, 0) {
+			return ErrForbidden
+		}
+		if _, err := tx.Exec(ctx, `update orgs set name=$2 where id=$1`, principal.OrgID, name); err != nil {
+			return fmt.Errorf("rename organization: %w", err)
+		}
+		return audit.Write(ctx, tx, principal, "organization.renamed", "organization", principal.OrgID, map[string]any{"from": oldName, "to": name})
+	})
 }
 
 func validRole(role Role) bool {

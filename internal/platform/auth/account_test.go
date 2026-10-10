@@ -46,7 +46,7 @@ func newAccountEnv(t *testing.T) accountEnv {
 
 func TestUpdateName(t *testing.T) {
 	env := newAccountEnv(t)
-	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "pw-123456789")
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@example.test", "pw-123456789")
 	if err := env.a.UpdateName(ctx, userID, "  Updated User  "); err != nil {
 		t.Fatal(err)
 	}
@@ -106,12 +106,12 @@ func TestEmailChangeTokenExpires(t *testing.T) {
 
 func TestChangePasswordRevokesOtherSessions(t *testing.T) {
 	env := newAccountEnv(t)
-	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "old-password-1")
-	current, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "current")
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@example.test", "old-password-1")
+	current, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "current")
 	if err != nil {
 		t.Fatal(err)
 	}
-	other, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "other")
+	other, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "other")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,15 +127,15 @@ func TestChangePasswordRevokesOtherSessions(t *testing.T) {
 	if _, ok := env.a.Session(ctx, other); ok {
 		t.Fatal("other session remains")
 	}
-	if _, err := env.a.Login(ctx, "u@x.io", "new-password-1", "", "new"); err != nil {
+	if _, err := env.a.Login(ctx, "u@example.test", "new-password-1", "", "new"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestChangePasswordRejectsWeakPassword(t *testing.T) {
 	env := newAccountEnv(t)
-	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "old-password-1")
-	current, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "current")
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@example.test", "old-password-1")
+	current, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "current")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,8 +146,8 @@ func TestChangePasswordRejectsWeakPassword(t *testing.T) {
 
 func TestChangePasswordRejectsCurrentPassword(t *testing.T) {
 	env := newAccountEnv(t)
-	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "old-password-1")
-	current, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "current")
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@example.test", "old-password-1")
+	current, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "current")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,12 +158,12 @@ func TestChangePasswordRejectsCurrentPassword(t *testing.T) {
 
 func TestChangePasswordWeakPasswordDoesNotChangeHashOrRevokeSessions(t *testing.T) {
 	env := newAccountEnv(t)
-	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "old-password-1")
-	current, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "current")
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@example.test", "old-password-1")
+	current, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "current")
 	if err != nil {
 		t.Fatal(err)
 	}
-	other, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "other")
+	other, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "other")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,8 +289,8 @@ func TestEmailChangeConfirmationBindsToRequestingUser(t *testing.T) {
 
 func TestAccountChecksAreRateLimited(t *testing.T) {
 	env := newAccountEnv(t)
-	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@x.io", "pw-123456789")
-	session, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "current")
+	userID := createUser(t, authEnv{a: env.a, users: env.users, clock: env.clock, store: env.store}, "u@example.test", "pw-123456789")
+	session, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "current")
 	if err != nil {
 		t.Fatal(err)
 	}

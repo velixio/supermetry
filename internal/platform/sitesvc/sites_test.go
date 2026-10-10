@@ -58,6 +58,47 @@ func TestCreateRequiresUppercaseProjectCurrency(t *testing.T) {
 	}
 }
 
+type failingRegistry struct{ err error }
+
+func (f failingRegistry) Invalidate() error { return f.err }
+
+func TestRestoreSiteLimitAndPostCommitInvalidation(t *testing.T) {
+	service, registry, principal, pool := newSites(t)
+	ctx := context.Background()
+	service.SetSiteLimit(1)
+	deleted, err := service.Create(ctx, principal, "Deleted", []string{"deleted.example.test"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Delete(ctx, principal, deleted.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Create(ctx, principal, "Live", []string{"live.example.test"}, "UTC", 30, "USD"); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Restore(ctx, principal, deleted.ID); !errors.Is(err, ErrSiteLimit) {
+		t.Fatalf("Restore() error = %v, want ErrSiteLimit", err)
+	}
+	var stillDeleted bool
+	if err := pool.QueryRow(ctx, `select deleted_at is not null from sites where id=$1`, deleted.ID).Scan(&stillDeleted); err != nil || !stillDeleted {
+		t.Fatalf("site deleted=%t error=%v, want unchanged", stillDeleted, err)
+	}
+
+	service.SetSiteLimit(0)
+	service.registry = &Registry{}
+	_ = registry
+	// A real registry error is injected through the service hook so the committed
+	// restore remains successful.
+	service.SetInvalidator(failingRegistry{err: errors.New("refresh failed")})
+	if err := service.Restore(ctx, principal, deleted.ID); err != nil {
+		t.Fatalf("Restore() after commit error = %v, want nil", err)
+	}
+	var restored bool
+	if err := pool.QueryRow(ctx, `select deleted_at is null from sites where id=$1`, deleted.ID).Scan(&restored); err != nil || !restored {
+		t.Fatalf("site restored=%t error=%v, want restored despite invalidation failure", restored, err)
+	}
+}
+
 func TestUpdateRevenueCurrencySerializesConcurrentPermanentSelection(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
@@ -919,6 +960,73 @@ func TestDeleteAuditFailureRollsBackSoftDelete(t *testing.T) {
 	}
 	if _, ok := registry.Site(site.ID); !ok {
 		t.Fatal("failed delete audit removed site from registry")
+	}
+}
+
+func TestRestoreAuthorizesAuditsAndRefreshesRegistry(t *testing.T) {
+	service, registry, owner, pool := newSites(t)
+	ctx := context.Background()
+	now := time.Date(2026, time.October, 11, 12, 0, 0, 0, time.UTC)
+	service.SetClock(func() time.Time { return now })
+	site, err := service.Create(ctx, owner, "Restore", []string{"restore.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Delete(ctx, owner, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	var deletedAt time.Time
+	if err := pool.QueryRow(ctx, `select deleted_at from sites where id=$1`, site.ID).Scan(&deletedAt); err != nil {
+		t.Fatal(err)
+	}
+	if !deletedAt.Equal(now) {
+		t.Fatalf("deleted_at = %s, want injected time %s", deletedAt, now)
+	}
+	if _, ok := registry.Site(site.ID); ok {
+		t.Fatal("deleted site remained in registry")
+	}
+	viewer := owner
+	viewer.Role = authz.RoleViewer
+	if err := service.Restore(ctx, viewer, site.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("viewer Restore() error = %v, want ErrForbidden", err)
+	}
+	if _, err := pool.Exec(ctx, `update memberships set role='admin' where org_id=$1 and user_id=$2`, owner.OrgID, owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	admin := owner
+	admin.Role = authz.RoleAdmin
+	if err := service.Restore(ctx, admin, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := registry.Site(site.ID); !ok {
+		t.Fatal("restored site missing from registry")
+	}
+	var actions string
+	if err := pool.QueryRow(ctx, `select string_agg(action, ',' order by id) from audit_log where target_type='site' and target_id=$1`, site.ID).Scan(&actions); err != nil {
+		t.Fatal(err)
+	}
+	if actions != "site.created,site.deleted,site.restored" {
+		t.Fatalf("audit actions = %q", actions)
+	}
+}
+
+func TestRestoreRevalidatesCurrentMembership(t *testing.T) {
+	service, _, principal, pool := newSites(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	service.SetClock(func() time.Time { return now })
+	site, err := service.Create(ctx, principal, "Restore lock", []string{"restore-lock.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Delete(ctx, principal, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update memberships set role='viewer',site_ids=array[$3::integer] where org_id=$1 and user_id=$2`, principal.OrgID, principal.UserID, site.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Restore(ctx, principal, site.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("stale owner Restore() error = %v, want ErrForbidden", err)
 	}
 }
 

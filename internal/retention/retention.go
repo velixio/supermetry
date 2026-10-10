@@ -41,10 +41,8 @@ var eraseTables = []string{
 // Run drops expired hot-tier leaf partitions. A retention class keeps its
 // configured number of days plus one day of closing slack.
 func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, error) {
-	for _, table := range []string{"site_bot_rule_daily", "site_drop_daily"} {
-		if _, err := pool.Exec(ctx, "delete from "+table+" d using sites s where d.site_id=s.id and d.day < (($1::timestamptz at time zone s.timezone)::date - 90)", now); err != nil {
-			return nil, fmt.Errorf("delete expired %s rows: %w", table, err)
-		}
+	if err := deleteExpiredDropStats(ctx, pool, now); err != nil {
+		return nil, err
 	}
 	var expired []db.Partition
 	for _, table := range []string{"events", "sessions"} {
@@ -154,4 +152,47 @@ func wait(ctx context.Context, pause time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+// deleteExpiredDropStats removes drop-count rows older than 90 days of each
+// site's own local day. The local day is computed here, not in SQL: a database
+// built without every tz alias (for example Asia/Calcutta) rejects zone names
+// that Go accepts, and one such site must not stop retention for all of them.
+// An unknown zone name falls back to UTC.
+func deleteExpiredDropStats(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	rows, err := pool.Query(ctx, "select id, timezone from sites")
+	if err != nil {
+		return fmt.Errorf("list sites for drop-stat retention: %w", err)
+	}
+	type siteZone struct {
+		id       int32
+		timezone string
+	}
+	var sites []siteZone
+	for rows.Next() {
+		var site siteZone
+		if err := rows.Scan(&site.id, &site.timezone); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan site for drop-stat retention: %w", err)
+		}
+		sites = append(sites, site)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("list sites for drop-stat retention: %w", err)
+	}
+	for _, site := range sites {
+		location, err := time.LoadLocation(site.timezone)
+		if err != nil {
+			location = time.UTC
+		}
+		local := now.In(location)
+		cutoff := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -90)
+		for _, table := range []string{"site_bot_rule_daily", "site_drop_daily"} {
+			if _, err := pool.Exec(ctx, "delete from "+table+" where site_id=$1 and day < $2", site.id, cutoff); err != nil {
+				return fmt.Errorf("delete expired %s rows: %w", table, err)
+			}
+		}
+	}
+	return nil
 }

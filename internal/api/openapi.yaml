@@ -70,6 +70,37 @@ paths:
         '204': { description: The prompt is dismissed. }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/me/orgs/deleted:
+    get:
+      operationId: listDeletedOrganizations
+      security: [{ cookieAuth: [] }]
+      summary: List restorable organizations owned by the signed-in user
+      responses:
+        '200':
+          description: Organizations scheduled for deletion.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DeletedOrganization' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/private/me/orgs/{org}/restore:
+    post:
+      operationId: restoreOrganization
+      security: [{ cookieAuth: [] }]
+      summary: Restore an owned organization during its deletion grace period
+      parameters:
+        - $ref: '#/components/parameters/OrgPathID'
+      responses:
+        '204': { description: Organization restored. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The organization is outside its grace period or has been erased.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleError' }
   /api/private/orgs/{org}/demo:
     post:
       operationId: createDemoProject
@@ -107,6 +138,112 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DemoError'
+  /api/private/orgs/{org}:
+    parameters:
+      - $ref: '#/components/parameters/OrgPathID'
+    patch:
+      operationId: renameOrganization
+      security: [{ cookieAuth: [] }]
+      summary: Rename an organization without changing its slug
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '200':
+          description: Renamed organization.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '400':
+          description: The organization name is invalid.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteOrganization
+      security: [{ cookieAuth: [] }]
+      summary: Schedule or immediately delete an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password: { type: string, format: password }
+                totp_code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200':
+          description: Deletion accepted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletionResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/sites/deleted:
+    get:
+      operationId: listDeletedSites
+      security: [{ cookieAuth: [] }]
+      summary: List restorable sites in an organization
+      parameters:
+        - $ref: '#/components/parameters/OrgPathID'
+      responses:
+        '200':
+          description: Sites scheduled for deletion.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DeletedSite' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site_id}:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    delete:
+      operationId: deletePrivateSite
+      security: [{ cookieAuth: [] }]
+      summary: Schedule or immediately delete a site
+      responses:
+        '200':
+          description: Deletion accepted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletionResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site_id}/restore:
+    post:
+      operationId: restoreSite
+      security: [{ cookieAuth: [] }]
+      summary: Restore a site during its deletion grace period
+      parameters:
+        - $ref: '#/components/parameters/SitePathID'
+      responses:
+        '204': { description: Site restored. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The site cannot be restored.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleError' }
   /api/private/sites/{site}/demo/heartbeat:
     post:
       operationId: heartbeatDemoProject
@@ -1783,6 +1920,14 @@ components:
         type: integer
         format: int32
         minimum: 1
+    OrgPathID:
+      name: org
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
     GoalPathID:
       name: goal_id
       in: path
@@ -1969,6 +2114,53 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    Organization:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        slug: { type: string }
+        deleted_at: { type: [string, 'null'], format: date-time }
+        purge_at: { type: [string, 'null'], format: date-time }
+    DeletionResult:
+      type: object
+      additionalProperties: false
+      required: [scheduled, purge_at]
+      properties:
+        scheduled: { type: boolean }
+        purge_at: { type: [string, 'null'], format: date-time }
+    DeletedSite:
+      type: object
+      additionalProperties: false
+      required: [id, name, deleted_at, purge_at]
+      properties:
+        id: { type: integer, format: int32 }
+        name: { type: string }
+        deleted_at: { type: string, format: date-time }
+        purge_at: { type: string, format: date-time }
+    DeletedOrganization:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, deleted_at, purge_at, sites]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        slug: { type: string }
+        deleted_at: { type: string, format: date-time }
+        purge_at: { type: string, format: date-time }
+        sites:
+          type: array
+          items: { type: string }
+    LifecycleError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum: [invalid_name, not_restorable]
     CreateDemoRequest:
       type: object
       additionalProperties: false
@@ -2269,6 +2461,8 @@ components:
           x-enum-varnames: [SiteRevenueCurrencyUnconfigured, SiteRevenueCurrencyConfigured, SiteRevenueCurrencyConflict]
         is_demo: { type: boolean }
         demo_ready: { type: boolean }
+        deleted_at: { type: [string, 'null'], format: date-time }
+        purge_at: { type: [string, 'null'], format: date-time }
         demo_expires_at:
           type: string
           format: date-time

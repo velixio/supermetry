@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"sort"
 	"strconv"
 	"strings"
@@ -169,7 +170,13 @@ func garbageCollectCSS(ctx context.Context, store BlobStore, siteID int32, rows 
 	}
 	referenced := make(map[string]struct{})
 	for _, row := range rows {
-		if err := collectReplayCSSReferences(ctx, store, row.blobKey, referenced); err != nil {
+		err := collectReplayCSSReferences(ctx, store, row.blobKey, referenced)
+		if errors.Is(err, fs.ErrNotExist) {
+			// The recording file is already gone, so it references no CSS. One
+			// missing blob must not stop retention for the whole site.
+			continue
+		}
+		if err != nil {
 			return fmt.Errorf("collect CSS references from replay session %d for site %d: %w", row.sessionID, siteID, err)
 		}
 	}

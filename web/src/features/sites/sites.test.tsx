@@ -2,12 +2,22 @@ import '@testing-library/jest-dom/vitest'
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 
 import { SiteForm } from './SiteForm'
 import { SitesPage, siteActions } from './SitesPage'
 import { renderWithRouter } from '@/test/renderWithRouter'
 
 afterEach(cleanup)
+
+function renderSites(node: ReactNode) {
+  renderWithRouter(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      {node}
+    </QueryClientProvider>,
+  )
+}
 
 describe('SiteForm', () => {
   it('submits name, domains, time zone, and retention', async () => {
@@ -49,7 +59,7 @@ describe('SitesPage', () => {
 
   it('confirms deletion before calling the private API', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined)
-    renderWithRouter(<SitesPage org="acme" role="owner" sites={[site]} onDelete={onDelete} />)
+    renderSites(<SitesPage org="acme" role="owner" sites={[site]} onDelete={onDelete} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Docs' }))
     expect(screen.getByRole('alertdialog')).toBeVisible()
@@ -58,8 +68,19 @@ describe('SitesPage', () => {
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith(7))
   })
 
+  it.each([
+    [false, 'The site stops collecting data now. You can restore it for 7 days; after that its data is permanently deleted.'],
+    [true, 'The demo project and its data are deleted now.'],
+  ])('shows the correct deletion consequence when demo is %s', async (isDemo, copy) => {
+    renderSites(
+      <SitesPage org="acme" role="owner" sites={[{ ...site, is_demo: isDemo }]} onDelete={vi.fn()} />,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Docs' }))
+    expect(screen.getByText(copy)).toBeVisible()
+  })
+
   it('guides an empty organization to add its first site', async () => {
-    renderWithRouter(<SitesPage org="acme" role="owner" sites={[]} onDelete={vi.fn()} />)
+    renderSites(<SitesPage org="acme" role="owner" sites={[]} onDelete={vi.fn()} />)
     expect(await screen.findByRole('link', { name: 'Add your first site' })).toHaveAttribute(
       'href',
       '/app/acme/sites/new',

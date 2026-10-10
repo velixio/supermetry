@@ -11,6 +11,8 @@ import (
 	"unicode"
 
 	"github.com/jackc/pgx/v5"
+
+	"supermetry/internal/platform/lifecycle"
 )
 
 type Membership struct {
@@ -23,6 +25,19 @@ type Membership struct {
 	Capabilities []string
 	BillingAdmin bool
 	CreatedAt    time.Time
+}
+
+type DeletedOrg struct {
+	ID        int64
+	Name      string
+	Slug      string
+	DeletedAt time.Time
+	PurgeAt   time.Time
+	Sites     []string
+}
+
+type orgRowsQuerier interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
 }
 
 func CreateOrg(ctx context.Context, tx pgx.Tx, name string, ownerID int64) (int64, error) {
@@ -83,6 +98,44 @@ func MembershipsFor(ctx context.Context, db *Store, userID int64) ([]Membership,
 		return nil, fmt.Errorf("iterate memberships: %w", err)
 	}
 	return memberships, nil
+}
+
+func DeletedOrgsForOwner(ctx context.Context, q orgRowsQuerier, userID int64, now time.Time) ([]DeletedOrg, error) {
+	rows, err := q.Query(ctx, `
+		select o.id,o.name,o.slug,o.deleted_at,
+		       coalesce(array_agg(s.name order by s.name,s.id) filter (where s.id is not null), '{}'::text[])
+		from memberships m
+		join orgs o on o.id=m.org_id
+		left join sites s on s.org_id=o.id and not s.is_demo and s.erased_at is null
+		where m.user_id=$1 and m.role='owner'
+		  and o.deleted_at is not null and o.deleted_at > $2
+		  and o.erased_at is null
+		  and coalesce(
+			(select (a.metadata->>'scheduled')::boolean from audit_log a
+			 where a.org_id=o.id and a.action='organization.deleted' and a.target_id=o.id
+			 order by a.id desc limit 1),
+			exists(select 1 from sites scheduled_site where scheduled_site.org_id=o.id and scheduled_site.deleted_with_org)
+		  )
+		group by o.id,o.name,o.slug,o.deleted_at
+		order by o.name,o.id`, userID, now.Add(-lifecycle.DeletionGrace))
+	if err != nil {
+		return nil, fmt.Errorf("query deleted organizations: %w", err)
+	}
+	defer rows.Close()
+
+	deleted := make([]DeletedOrg, 0)
+	for rows.Next() {
+		var org DeletedOrg
+		if err := rows.Scan(&org.ID, &org.Name, &org.Slug, &org.DeletedAt, &org.Sites); err != nil {
+			return nil, fmt.Errorf("scan deleted organization: %w", err)
+		}
+		org.PurgeAt = lifecycle.PurgeAt(org.DeletedAt)
+		deleted = append(deleted, org)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate deleted organizations: %w", err)
+	}
+	return deleted, nil
 }
 
 func slugify(name string) string {

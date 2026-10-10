@@ -49,6 +49,7 @@ const (
 	ActionChannelsManage  Action = "channels.manage"
 	ActionAlertsManage    Action = "alerts.manage"
 	ActionAuditRead       Action = "audit.read"
+	ActionOrgUpdate       Action = "org.update"
 	ActionOrgDelete       Action = "org.delete"
 	ActionOrgTransfer     Action = "org.transfer"
 )
@@ -60,7 +61,7 @@ var roleActions = map[Role]map[Action]bool{
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
-		ActionOrgDelete: true, ActionOrgTransfer: true,
+		ActionOrgUpdate: true, ActionOrgDelete: true, ActionOrgTransfer: true,
 	},
 	RoleAdmin: {
 		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true,
@@ -68,6 +69,7 @@ var roleActions = map[Role]map[Action]bool{
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
+		ActionOrgUpdate: true,
 	},
 	RoleEditor: {
 		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true,

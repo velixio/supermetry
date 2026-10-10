@@ -14,7 +14,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { Role } from '@/components/Sidebar'
-import type { Site } from '@/routes/app.$org'
+import type { Me, Site } from '@/routes/app.$org'
+import { DeletedSitesSection } from '@/features/lifecycle/DeletedSitesSection'
+import { queryClient } from '@/lib/queryClient'
 
 export type SiteAction = 'edit' | 'installation' | 'delete'
 
@@ -42,17 +44,27 @@ export function SitesPage({
   const [pendingDelete, setPendingDelete] = useState<Site>()
   const [deleting, setDeleting] = useState(false)
   const actions = siteActions(role)
+  const membership = queryClient.getQueryData<Me>(['me'])?.memberships.find((item) => item.org.slug === org)
+  const deletedSites = (
+    <DeletedSitesSection
+      orgId={membership?.org.id}
+      refreshKey={sites.map((site) => site.id).join(',')}
+    />
+  )
 
   if (sites.length === 0) {
     return (
-      <section className="mx-auto flex min-h-[55vh] max-w-xl flex-col items-start justify-center gap-3">
-        <GlobeIcon className="size-8 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-2xl font-semibold tracking-tight">No sites yet</h1>
-        <p className="text-sm text-muted-foreground">Add a site when you are ready to start collecting analytics.</p>
-        {role === 'owner' || role === 'admin' ? (
-          <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add your first site</Link></Button>
-        ) : null}
-      </section>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <section className="flex min-h-[45vh] max-w-xl flex-col items-start justify-center gap-3">
+          <GlobeIcon className="size-8 text-muted-foreground" aria-hidden="true" />
+          <h1 className="text-2xl font-semibold tracking-tight">No sites yet</h1>
+          <p className="text-sm text-muted-foreground">Add a site when you are ready to start collecting analytics.</p>
+          {role === 'owner' || role === 'admin' ? (
+            <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add your first site</Link></Button>
+          ) : null}
+        </section>
+        {deletedSites}
+      </div>
     )
   }
 
@@ -92,11 +104,16 @@ export function SitesPage({
           )
         })}
       </ul>
+      {deletedSites}
       <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => !open && setPendingDelete(undefined)}>
         <DialogContent role="alertdialog">
           <DialogHeader>
             <DialogTitle>Delete {pendingDelete?.name}?</DialogTitle>
-            <DialogDescription>This hides the site immediately and schedules its analytics data for removal. This action cannot be undone.</DialogDescription>
+            <DialogDescription>
+              {pendingDelete?.is_demo
+                ? 'The demo project and its data are deleted now.'
+                : 'The site stops collecting data now. You can restore it for 7 days; after that its data is permanently deleted.'}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>

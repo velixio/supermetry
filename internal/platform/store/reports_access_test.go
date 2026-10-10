@@ -26,8 +26,8 @@ func TestReportSubscriptionsRequireCurrentAccess(t *testing.T) {
 	var org, viewer, member int64
 	var siteA, siteB int32
 	pool.QueryRow(ctx, `insert into orgs(name, slug) values ('Acme', 'acme') returning id`).Scan(&org)
-	pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('v@x.io', 'V', 'h') returning id`).Scan(&viewer)
-	pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('m@x.io', 'M', 'h') returning id`).Scan(&member)
+	pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('v@example.test', 'V', 'h') returning id`).Scan(&viewer)
+	pool.QueryRow(ctx, `insert into users(email, name, password_hash) values ('m@example.test', 'M', 'h') returning id`).Scan(&member)
 	pool.QueryRow(ctx, `insert into sites(org_id, public_id, name, timezone, retention_class) values ($1, 'aaaaaaaaaaaa', 'A', 'UTC', 30) returning id`, org).Scan(&siteA)
 	pool.QueryRow(ctx, `insert into sites(org_id, public_id, name, timezone, retention_class) values ($1, 'bbbbbbbbbbbb', 'B', 'UTC', 30) returning id`, org).Scan(&siteB)
 	exec(`insert into memberships(org_id, user_id, role, site_ids) values ($1, $2, 'viewer', array[$3::int])`, org, viewer, siteA)
@@ -46,15 +46,15 @@ func TestReportSubscriptionsRequireCurrentAccess(t *testing.T) {
 		}
 		return out
 	}
-	if got := recipients(); !got["v@x.io"] || !got["m@x.io"] {
+	if got := recipients(); !got["v@example.test"] || !got["m@example.test"] {
 		t.Fatalf("both current members must receive: %v", got)
 	}
 	exec(`update memberships set site_ids = array[$3::int] where org_id = $1 and user_id = $2`, org, viewer, siteB)
-	if got := recipients(); got["v@x.io"] {
+	if got := recipients(); got["v@example.test"] {
 		t.Fatal("viewer restricted to another site still receives site A's report")
 	}
 	exec(`delete from memberships where org_id = $1 and user_id = $2`, org, member)
-	if got := recipients(); got["m@x.io"] {
+	if got := recipients(); got["m@example.test"] {
 		t.Fatal("removed member still receives the report")
 	}
 }

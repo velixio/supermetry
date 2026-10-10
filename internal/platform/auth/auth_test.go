@@ -102,11 +102,11 @@ func TestLoginRateLimitIsPerNormalizedEmail(t *testing.T) {
 
 func TestLoginSuccessAndFailureAreAuditedWithoutRequestSecrets(t *testing.T) {
 	env := newAuth(t)
-	userID := createUser(t, env, "u@x.io", "pw-123456789")
+	userID := createUser(t, env, "u@example.test", "pw-123456789")
 	orgID := addOwnerMembership(t, env, userID)
 	const client = "plaintext-client-identifier"
 	loginCtx := auth.WithClientKey(ctx, client)
-	if _, err := env.a.Login(loginCtx, "u@x.io", "wrong-password", "", "Browser"); !errors.Is(err, auth.ErrInvalid) {
+	if _, err := env.a.Login(loginCtx, "u@example.test", "wrong-password", "", "Browser"); !errors.Is(err, auth.ErrInvalid) {
 		t.Fatalf("failed Login() error = %v", err)
 	}
 	var actorUserID *int64
@@ -133,7 +133,7 @@ func TestLoginSuccessAndFailureAreAuditedWithoutRequestSecrets(t *testing.T) {
 	if strings.Contains(string(metadataJSON), client) {
 		t.Fatalf("audit metadata retained plaintext client: %s", metadataJSON)
 	}
-	if _, err := env.a.Login(loginCtx, "u@x.io", "pw-123456789", "", "Browser"); err != nil {
+	if _, err := env.a.Login(loginCtx, "u@example.test", "pw-123456789", "", "Browser"); err != nil {
 		t.Fatal(err)
 	}
 	rows, err := env.store.Pool.Query(ctx, `select action from audit_log where org_id=$1 and action like 'auth.login%' order by id`, orgID)
@@ -156,7 +156,7 @@ func TestLoginSuccessAndFailureAreAuditedWithoutRequestSecrets(t *testing.T) {
 
 func TestLoginAuditFailureStillReturnsInvalidCredentials(t *testing.T) {
 	env := newAuth(t)
-	userID := createUser(t, env, "u@x.io", "pw-123456789")
+	userID := createUser(t, env, "u@example.test", "pw-123456789")
 	addOwnerMembership(t, env, userID)
 	if _, err := env.store.Pool.Exec(ctx, `
 		create sequence login_audit_attempts;
@@ -173,7 +173,7 @@ func TestLoginAuditFailureStillReturnsInvalidCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := env.a.Login(auth.WithClientKey(ctx, "client"), "u@x.io", "wrong", "", "Browser"); !errors.Is(err, auth.ErrInvalid) {
+	if _, err := env.a.Login(auth.WithClientKey(ctx, "client"), "u@example.test", "wrong", "", "Browser"); !errors.Is(err, auth.ErrInvalid) {
 		t.Fatalf("Login() error = %v, want ErrInvalid", err)
 	}
 	waitFor(t, func() (bool, error) {
@@ -185,12 +185,12 @@ func TestLoginAuditFailureStillReturnsInvalidCredentials(t *testing.T) {
 
 func TestLoginRateLimitUsesClientKey(t *testing.T) {
 	env := newAuth(t)
-	createUser(t, env, "u@x.io", "pw-123456789")
+	createUser(t, env, "u@example.test", "pw-123456789")
 	clientCtx := auth.WithClientKey(ctx, "ephemeral-client-hash")
 	for i := 0; i < 20; i++ {
-		_, _ = env.a.Login(clientCtx, "missing"+string(rune('a'+i))+"@x.io", "wrong", "", "x")
+		_, _ = env.a.Login(clientCtx, "missing"+string(rune('a'+i))+"@example.test", "wrong", "", "x")
 	}
-	if _, err := env.a.Login(clientCtx, "u@x.io", "pw-123456789", "", "x"); !errors.Is(err, auth.ErrRateLimited) {
+	if _, err := env.a.Login(clientCtx, "u@example.test", "pw-123456789", "", "x"); !errors.Is(err, auth.ErrRateLimited) {
 		t.Fatalf("21st client attempt must be limited, got %v", err)
 	}
 }
@@ -215,29 +215,29 @@ func TestSignupRejectsWeakPassword(t *testing.T) {
 
 func TestResetRequestsAreLimitedPerTargetAndClient(t *testing.T) {
 	env := newAuth(t)
-	createUser(t, env, "u@x.io", "old-password-1")
+	createUser(t, env, "u@example.test", "old-password-1")
 	clientCtx := auth.WithClientKey(ctx, "reset-client")
 	for i := 0; i < 3; i++ {
-		if _, err := env.a.StartReset(clientCtx, "U@X.IO"); err != nil {
+		if _, err := env.a.StartReset(clientCtx, "U@EXAMPLE.TEST"); err != nil {
 			t.Fatalf("attempt %d: %v", i+1, err)
 		}
 	}
-	if _, err := env.a.StartReset(clientCtx, "u@x.io"); !errors.Is(err, auth.ErrRateLimited) {
+	if _, err := env.a.StartReset(clientCtx, "u@example.test"); !errors.Is(err, auth.ErrRateLimited) {
 		t.Fatalf("paired client limit error = %v, want ErrRateLimited", err)
 	}
 	for _, client := range []string{"other-client", "third-client"} {
-		if _, err := env.a.StartReset(auth.WithClientKey(ctx, client), "u@x.io"); err != nil {
+		if _, err := env.a.StartReset(auth.WithClientKey(ctx, client), "u@example.test"); err != nil {
 			t.Fatalf("distinct client %q unexpectedly limited: %v", client, err)
 		}
 	}
-	if _, err := env.a.StartReset(auth.WithClientKey(ctx, "fourth-client"), "u@x.io"); !errors.Is(err, auth.ErrRateLimited) {
+	if _, err := env.a.StartReset(auth.WithClientKey(ctx, "fourth-client"), "u@example.test"); !errors.Is(err, auth.ErrRateLimited) {
 		t.Fatalf("target limit error = %v, want ErrRateLimited", err)
 	}
 
 	env = newAuth(t)
 	clientCtx = auth.WithClientKey(ctx, "shared-client")
 	for i := 0; i < 20; i++ {
-		_, _ = env.a.StartReset(clientCtx, "missing"+string(rune('a'+i))+"@x.io")
+		_, _ = env.a.StartReset(clientCtx, "missing"+string(rune('a'+i))+"@example.test")
 	}
 	if _, err := env.a.StartReset(clientCtx, "another@example.test"); !errors.Is(err, auth.ErrRateLimited) {
 		t.Fatalf("client limit error = %v, want ErrRateLimited", err)
@@ -246,9 +246,9 @@ func TestResetRequestsAreLimitedPerTargetAndClient(t *testing.T) {
 
 func TestLoginTruncatesDeviceLabelAtUTF8Boundary(t *testing.T) {
 	env := newAuth(t)
-	createUser(t, env, "u@x.io", "pw-123456789")
+	createUser(t, env, "u@example.test", "pw-123456789")
 	label := strings.Repeat("a", 199) + "界"
-	cookie, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", label)
+	cookie, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", label)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,8 +264,8 @@ func TestLoginTruncatesDeviceLabelAtUTF8Boundary(t *testing.T) {
 func TestSessionIdleAndAbsoluteExpiry(t *testing.T) {
 	clock := newFakeClock()
 	env := newAuthWithClock(t, clock)
-	createUser(t, env, "u@x.io", "pw-123456789")
-	cookie, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "Chrome on macOS")
+	createUser(t, env, "u@example.test", "pw-123456789")
+	cookie, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "Chrome on macOS")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +278,7 @@ func TestSessionIdleAndAbsoluteExpiry(t *testing.T) {
 		t.Fatal("idle expiry not applied")
 	}
 
-	cookie, err = env.a.Login(ctx, "u@x.io", "pw-123456789", "", "x")
+	cookie, err = env.a.Login(ctx, "u@example.test", "pw-123456789", "", "x")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,12 +293,12 @@ func TestSessionIdleAndAbsoluteExpiry(t *testing.T) {
 
 func TestSessionListRevokeAndLogout(t *testing.T) {
 	env := newAuth(t)
-	uid := createUser(t, env, "u@x.io", "pw-123456789")
-	first, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "Chrome on macOS")
+	uid := createUser(t, env, "u@example.test", "pw-123456789")
+	first, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "Chrome on macOS")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "Firefox on Linux")
+	second, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "Firefox on Linux")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,13 +332,13 @@ func TestSessionListRevokeAndLogout(t *testing.T) {
 
 func TestSessionRevocationsAreAudited(t *testing.T) {
 	env := newAuth(t)
-	userID := createUser(t, env, "u@x.io", "pw-123456789")
+	userID := createUser(t, env, "u@example.test", "pw-123456789")
 	orgID := addOwnerMembership(t, env, userID)
-	first, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "first")
+	first, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "first")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "second")
+	second, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "second")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,8 +379,8 @@ func TestSessionRevocationsAreAudited(t *testing.T) {
 
 func TestSessionsOmitsExpiredSessions(t *testing.T) {
 	env := newAuth(t)
-	uid := createUser(t, env, "u@x.io", "pw-123456789")
-	if _, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "x"); err != nil {
+	uid := createUser(t, env, "u@example.test", "pw-123456789")
+	if _, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "x"); err != nil {
 		t.Fatal(err)
 	}
 	env.clock.Advance(91 * 24 * time.Hour)
@@ -395,8 +395,8 @@ func TestSessionsOmitsExpiredSessions(t *testing.T) {
 
 func TestResetTokenSingleUse(t *testing.T) {
 	env := newAuth(t)
-	createUser(t, env, "u@x.io", "old-password-1")
-	link, err := env.a.StartReset(ctx, "u@x.io")
+	createUser(t, env, "u@example.test", "old-password-1")
+	link, err := env.a.StartReset(ctx, "u@example.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,15 +407,15 @@ func TestResetTokenSingleUse(t *testing.T) {
 	if err := env.a.FinishReset(ctx, token, "again-password"); !errors.Is(err, auth.ErrInvalid) {
 		t.Fatalf("reset token reused: %v", err)
 	}
-	if _, err := env.a.Login(ctx, "u@x.io", "new-password-1", "", "x"); err != nil {
+	if _, err := env.a.Login(ctx, "u@example.test", "new-password-1", "", "x"); err != nil {
 		t.Fatalf("new password rejected: %v", err)
 	}
 }
 
 func TestFinishResetRejectsWeakPassword(t *testing.T) {
 	env := newAuth(t)
-	createUser(t, env, "u@x.io", "old-password-1")
-	link, err := env.a.StartReset(auth.WithClientKey(ctx, "reset-client"), "u@x.io")
+	createUser(t, env, "u@example.test", "old-password-1")
+	link, err := env.a.StartReset(auth.WithClientKey(ctx, "reset-client"), "u@example.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -426,12 +426,12 @@ func TestFinishResetRejectsWeakPassword(t *testing.T) {
 
 func TestResetTokenExpiresAndRevokesSessions(t *testing.T) {
 	env := newAuth(t)
-	createUser(t, env, "u@x.io", "old-password-1")
-	cookie, err := env.a.Login(ctx, "u@x.io", "old-password-1", "", "x")
+	createUser(t, env, "u@example.test", "old-password-1")
+	cookie, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "x")
 	if err != nil {
 		t.Fatal(err)
 	}
-	link, err := env.a.StartReset(ctx, "u@x.io")
+	link, err := env.a.StartReset(ctx, "u@example.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +443,7 @@ func TestResetTokenExpiresAndRevokesSessions(t *testing.T) {
 		t.Fatal("failed reset revoked session")
 	}
 
-	link, err = env.a.StartReset(ctx, "u@x.io")
+	link, err = env.a.StartReset(ctx, "u@example.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +457,7 @@ func TestResetTokenExpiresAndRevokesSessions(t *testing.T) {
 
 func TestTOTPRequiredAfterEnroll(t *testing.T) {
 	env := newAuth(t)
-	uid := createUser(t, env, "u@x.io", "pw-123456789")
+	uid := createUser(t, env, "u@example.test", "pw-123456789")
 	otpauthURL, recovery, err := env.a.EnrollTOTP(ctx, uid, "pw-123456789", "")
 	if err != nil {
 		t.Fatal(err)
@@ -468,13 +468,13 @@ func TestTOTPRequiredAfterEnroll(t *testing.T) {
 	if err := env.a.ConfirmTOTP(ctx, uid, codeFor(t, otpauthURL, env.clock.Now())); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := env.a.Login(ctx, "u@x.io", "pw-123456789", "", "x"); !errors.Is(err, auth.ErrTOTPRequired) {
+	if _, err := env.a.Login(ctx, "u@example.test", "pw-123456789", "", "x"); !errors.Is(err, auth.ErrTOTPRequired) {
 		t.Fatalf("missing TOTP = %v", err)
 	}
-	if _, err := env.a.Login(ctx, "u@x.io", "pw-123456789", recovery[0], "x"); err != nil {
+	if _, err := env.a.Login(ctx, "u@example.test", "pw-123456789", recovery[0], "x"); err != nil {
 		t.Fatalf("recovery code rejected: %v", err)
 	}
-	if _, err := env.a.Login(ctx, "u@x.io", "pw-123456789", recovery[0], "x"); !errors.Is(err, auth.ErrInvalid) {
+	if _, err := env.a.Login(ctx, "u@example.test", "pw-123456789", recovery[0], "x"); !errors.Is(err, auth.ErrInvalid) {
 		t.Fatalf("recovery code reused: %v", err)
 	}
 }
@@ -485,14 +485,14 @@ func TestSetupOnlyOnce(t *testing.T) {
 	if !ok {
 		t.Fatal("setup URL missing on empty install")
 	}
-	uid, oid, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "o@x.io", "Owner", "pw-123456789", "Acme")
+	uid, oid, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "o@example.test", "Owner", "pw-123456789", "Acme")
 	if err != nil || uid == 0 || oid == 0 {
 		t.Fatalf("CompleteSetup() = %d, %d, %v", uid, oid, err)
 	}
 	if _, ok := env.a.SetupURL(ctx); ok {
 		t.Fatal("setup still open")
 	}
-	if _, _, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "e@x.io", "Evil", "pw-123456789", "Evil"); !errors.Is(err, auth.ErrInvalid) {
+	if _, _, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "e@example.test", "Evil", "pw-123456789", "Evil"); !errors.Is(err, auth.ErrInvalid) {
 		t.Fatalf("setup token reusable: %v", err)
 	}
 	var role string
@@ -507,7 +507,7 @@ func TestSetupRejectsWeakPassword(t *testing.T) {
 	if !ok {
 		t.Fatal("setup URL missing")
 	}
-	if _, _, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "o@x.io", "Owner", "password123", "Acme"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
+	if _, _, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "o@example.test", "Owner", "password123", "Acme"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
 		t.Fatalf("CompleteSetup() error = %v, want ErrPasswordCommon", err)
 	}
 }

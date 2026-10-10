@@ -1,5 +1,6 @@
-import { createFileRoute, Link, Outlet, redirect } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, redirect, useRouter } from '@tanstack/react-router'
 import { AccountFrame } from '@/components/AccountFrame'
+import { DeletedOrgsList } from '@/features/lifecycle/DeletedOrgsList'
 import { queryClient } from '@/lib/queryClient'
 import { meQueryOptions, useMe } from './app.$org'
 
@@ -15,6 +16,7 @@ export const Route = createFileRoute('/app/account')({
 
 function AccountLayout() {
   const me = useMe()
+  const router = useRouter()
   if (!me.data) return <main className="p-6" role="status">Loading account…</main>
   return (
     <AccountFrame me={me.data}>
@@ -26,6 +28,7 @@ function AccountLayout() {
         ))}
       </nav>
       <Outlet />
+      <DeletedOrgsList navigate={(path) => router.history.push(path)} />
     </AccountFrame>
   )
 }

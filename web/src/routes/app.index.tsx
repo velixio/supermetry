@@ -9,6 +9,7 @@ import type { ManagedSite, SiteInput } from '@/features/sites/types'
 import { en } from '@/messages/en'
 import { canCreateSites } from '@/components/Sidebar'
 import { AccountFrame } from '@/components/AccountFrame'
+import { NoOrgScreen } from '@/features/lifecycle/NoOrgScreen'
 import { useMe, type Me } from './app.$org'
 
 export const Route = createFileRoute('/app/')({
@@ -38,6 +39,13 @@ export function IndexPage() {
   }
 
   const membership = me.data.memberships[0]
+  if (!membership) {
+    return (
+      <AccountFrame me={me.data}>
+        <NoOrgScreen navigate={navigate} />
+      </AccountFrame>
+    )
+  }
   if (membership && (membership.sites.length > 0 || !canCreateSites(membership.role))) {
     return <Onboarding me={me.data} navigate={navigate} />
   }

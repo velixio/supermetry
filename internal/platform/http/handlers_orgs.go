@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
 )
@@ -201,5 +203,20 @@ func (h *handler) deleteOrg(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	if h.deps.Store == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	response, err := h.deletedOrgResult(r.Context(), orgID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Preserve compatibility for custom MutationService implementations that
+		// perform deletion outside the configured platform store.
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
 }

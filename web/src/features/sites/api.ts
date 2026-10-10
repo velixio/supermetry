@@ -2,6 +2,7 @@ import { privateRequest } from '@/features/settings/privateApi'
 import { api } from '@/lib/api'
 
 import type { ManagedSite, SiteInput, SiteUpdate } from './types'
+import type { DeletionResult } from '@/features/lifecycle/api'
 
 export function createSite(input: SiteInput, orgId: number): Promise<ManagedSite> {
   return privateRequest<ManagedSite>('POST', '/api/private/sites', {
@@ -10,8 +11,11 @@ export function createSite(input: SiteInput, orgId: number): Promise<ManagedSite
   })
 }
 
-export function deleteSite(siteId: number, orgId: number): Promise<void> {
-  return privateRequest<void>('DELETE', `/api/private/sites/${siteId}`, { orgId })
+export async function deleteSite(siteId: number, orgId: number): Promise<DeletionResult> {
+  return (await privateRequest<DeletionResult | undefined>('DELETE', `/api/private/sites/${siteId}`, { orgId })) ?? {
+    scheduled: false,
+    purge_at: null,
+  }
 }
 
 export class SiteRequestError extends Error {

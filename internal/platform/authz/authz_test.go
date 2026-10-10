@@ -14,6 +14,9 @@ func TestCanMatrix(t *testing.T) {
 	}{
 		{name: "owner deletes org", principal: Principal{Role: RoleOwner, OrgID: 1}, action: ActionOrgDelete, want: true},
 		{name: "admin cannot delete org", principal: Principal{Role: RoleAdmin, OrgID: 1}, action: ActionOrgDelete, want: false},
+		{name: "owner updates org", principal: Principal{Role: RoleOwner, OrgID: 1}, action: ActionOrgUpdate, want: true},
+		{name: "admin updates org", principal: Principal{Role: RoleAdmin, OrgID: 1}, action: ActionOrgUpdate, want: true},
+		{name: "editor cannot update org", principal: Principal{Role: RoleEditor, OrgID: 1}, action: ActionOrgUpdate, want: false},
 		{name: "admin manages keys", principal: Principal{Role: RoleAdmin, OrgID: 1}, action: ActionKeysManage, want: true},
 		{name: "editor cannot manage keys", principal: Principal{Role: RoleEditor, OrgID: 1}, action: ActionKeysManage, want: false},
 		{name: "keys manager key manages keys", principal: Principal{Role: RoleKey, OrgID: 1, Scopes: []string{"keys:manage"}}, action: ActionKeysManage, want: true},

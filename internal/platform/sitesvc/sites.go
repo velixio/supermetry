@@ -33,6 +33,7 @@ var (
 	ErrForbidden = errors.New("forbidden")
 	ErrInvalid   = errors.New("invalid site")
 	ErrNotFound  = errors.New("site not found")
+	ErrSiteLimit = errors.New("site limit")
 
 	publicIDEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 	hostLabelPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -56,11 +57,14 @@ type SitePatch struct {
 }
 
 type Sites struct {
-	trackingMode   privacy.Mode
-	store          *store.Store
-	registry       *Registry
-	discoverIcon   func(context.Context, string) string
-	invalidateSite func(int32)
+	trackingMode       privacy.Mode
+	store              *store.Store
+	registry           *Registry
+	now                func() time.Time
+	discoverIcon       func(context.Context, string) string
+	invalidateSite     func(int32)
+	maxSites           int
+	restoreInvalidator interface{ Invalidate() error }
 }
 
 var malformedTrackerLogged sync.Map
@@ -70,7 +74,21 @@ func New(data *store.Store, registry *Registry, modes ...privacy.Mode) *Sites {
 	if len(modes) > 0 {
 		mode = modes[0]
 	}
-	return &Sites{store: data, registry: registry, discoverIcon: siteicon.Discover, trackingMode: mode}
+	return &Sites{store: data, registry: registry, restoreInvalidator: registry, now: time.Now, discoverIcon: siteicon.Discover, trackingMode: mode}
+}
+
+// SetSiteLimit caps live non-demo sites restored or created for an organization.
+// Zero means no limit.
+func (s *Sites) SetSiteLimit(max int) { s.maxSites = max }
+
+// SetInvalidator replaces the post-restore registry invalidator.
+func (s *Sites) SetInvalidator(invalidator interface{ Invalidate() error }) {
+	s.restoreInvalidator = invalidator
+}
+
+// SetClock replaces the lifecycle clock. Configure it before serving requests.
+func (s *Sites) SetClock(now func() time.Time) {
+	s.now = now
 }
 
 func (s *Sites) Create(ctx context.Context, principal authz.Principal, name string, hosts []string, timezone string, retentionDays int, currency string) (coresites.Site, error) {
@@ -96,6 +114,9 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 		}
 		if !authz.Can(current, authz.ActionSiteCreate, 0) {
 			return ErrForbidden
+		}
+		if err := s.checkSiteLimit(ctx, tx, principal.OrgID, 1); err != nil {
+			return err
 		}
 		for attempt := 0; attempt < maxCreateAttempts; attempt++ {
 			publicID, err := newPublicID()
@@ -289,7 +310,7 @@ func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32)
 		if !authz.Can(current, authz.ActionSiteDelete, id) {
 			return ErrForbidden
 		}
-		if err := store.SoftDeleteSite(ctx, tx, principal.OrgID, id); err != nil {
+		if err := store.SoftDeleteSiteAt(ctx, tx, principal.OrgID, id, s.now()); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNotFound
 			}
@@ -304,6 +325,74 @@ func (s *Sites) Delete(ctx context.Context, principal authz.Principal, id int32)
 		return fmt.Errorf("refresh site registry: %w", err)
 	}
 	return nil
+}
+
+func (s *Sites) Restore(ctx context.Context, principal authz.Principal, id int32) error {
+	if principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+		return ErrForbidden
+	}
+	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
+		current, err := currentSiteRestorePrincipal(ctx, tx, principal)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		if current.Role != authz.RoleOwner && current.Role != authz.RoleAdmin {
+			return ErrForbidden
+		}
+		if err := store.RestoreSite(ctx, tx, principal.OrgID, id, s.now()); err != nil {
+			return err
+		}
+		if err := s.checkSiteLimit(ctx, tx, principal.OrgID, 0); err != nil {
+			return err
+		}
+		return audit.Write(ctx, tx, principal, "site.restored", "site", int64(id), nil)
+	})
+	if err != nil {
+		return err
+	}
+	if s.restoreInvalidator != nil {
+		if err := s.restoreInvalidator.Invalidate(); err != nil {
+			slog.WarnContext(ctx, "refresh site registry after restore", "err", err)
+		}
+	}
+	return nil
+}
+
+func (s *Sites) checkSiteLimit(ctx context.Context, tx pgx.Tx, orgID int64, adding int) error {
+	if s.maxSites <= 0 {
+		return nil
+	}
+	var count int
+	if err := tx.QueryRow(ctx, `select count(*) from sites where org_id=$1 and deleted_at is null and not is_demo`, orgID).Scan(&count); err != nil {
+		return fmt.Errorf("count live sites: %w", err)
+	}
+	if count+adding > s.maxSites {
+		return ErrSiteLimit
+	}
+	return nil
+}
+
+func (s *Sites) ListDeleted(ctx context.Context, principal authz.Principal) ([]store.DeletedSite, error) {
+	if principal.Role != authz.RoleOwner && principal.Role != authz.RoleAdmin {
+		return nil, ErrForbidden
+	}
+	return store.DeletedSites(ctx, s.store.Pool, principal.OrgID, s.now())
+}
+
+func currentSiteRestorePrincipal(ctx context.Context, tx pgx.Tx, principal authz.Principal) (authz.Principal, error) {
+	if principal.Role == authz.RoleKey {
+		return authz.Principal{}, pgx.ErrNoRows
+	}
+	current := authz.Principal{OrgID: principal.OrgID, UserID: principal.UserID}
+	err := tx.QueryRow(ctx, `
+		select role,site_ids,capabilities,billing_admin
+		from memberships where org_id=$1 and user_id=$2 for share`,
+		principal.OrgID, principal.UserID,
+	).Scan(&current.Role, &current.SiteIDs, &current.Capabilities, &current.BillingAdmin)
+	return current, err
 }
 
 func currentSitePrincipal(ctx context.Context, tx pgx.Tx, principal authz.Principal) (authz.Principal, error) {

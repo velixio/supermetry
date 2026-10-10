@@ -43,6 +43,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/me/orgs/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List restorable organizations owned by the signed-in user */
+        get: operations["listDeletedOrganizations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/me/orgs/{org}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore an owned organization during its deletion grace period */
+        post: operations["restoreOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/orgs/{org}/demo": {
         parameters: {
             query?: never;
@@ -54,6 +88,79 @@ export interface paths {
         put?: never;
         /** Create and start seeding the organization's demo project */
         post: operations["createDemoProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Schedule or immediately delete an organization */
+        delete: operations["deleteOrganization"];
+        options?: never;
+        head?: never;
+        /** Rename an organization without changing its slug */
+        patch: operations["renameOrganization"];
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/sites/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List restorable sites in an organization */
+        get: operations["listDeletedSites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Schedule or immediately delete a site */
+        delete: operations["deletePrivateSite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a site during its deletion grace period */
+        post: operations["restoreSite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1147,6 +1254,45 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Organization: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            slug: string;
+            /** Format: date-time */
+            deleted_at?: string | null;
+            /** Format: date-time */
+            purge_at?: string | null;
+        };
+        DeletionResult: {
+            scheduled: boolean;
+            /** Format: date-time */
+            purge_at: string | null;
+        };
+        DeletedSite: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            /** Format: date-time */
+            deleted_at: string;
+            /** Format: date-time */
+            purge_at: string;
+        };
+        DeletedOrganization: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            slug: string;
+            /** Format: date-time */
+            deleted_at: string;
+            /** Format: date-time */
+            purge_at: string;
+            sites: string[];
+        };
+        LifecycleError: {
+            /** @enum {string} */
+            error: "invalid_name" | "not_restorable";
+        };
         CreateDemoRequest: {
             /** @example Europe/Berlin */
             timezone: string;
@@ -1365,6 +1511,10 @@ export interface components {
             revenue_currency_state: "unconfigured" | "configured" | "conflict";
             is_demo: boolean;
             demo_ready: boolean;
+            /** Format: date-time */
+            deleted_at?: string | null;
+            /** Format: date-time */
+            purge_at?: string | null;
             /**
              * Format: date-time
              * @description Expiry time for a demo project; returned only by private endpoints.
@@ -2365,6 +2515,7 @@ export interface components {
     parameters: {
         SiteID: number;
         SitePathID: number;
+        OrgPathID: number;
         GoalPathID: number;
         FunnelPathID: number;
         Period: components["schemas"]["Period"];
@@ -2514,6 +2665,59 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    listDeletedOrganizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organizations scheduled for deletion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedOrganization"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    restoreOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization restored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The organization is outside its grace period or has been erased. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleError"];
+                };
+            };
+        };
+    };
     createDemoProject: {
         parameters: {
             query?: never;
@@ -2556,6 +2760,161 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DemoError"];
+                };
+            };
+        };
+    };
+    deleteOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: password */
+                    password: string;
+                    totp_code?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Deletion accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    renameOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Renamed organization. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Organization"];
+                };
+            };
+            /** @description The organization name is invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDeletedSites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sites scheduled for deletion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedSite"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deletePrivateSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deletion accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    restoreSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Site restored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The site cannot be restored. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleError"];
                 };
             };
         };

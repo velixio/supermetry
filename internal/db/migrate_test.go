@@ -181,7 +181,7 @@ func TestPlatformMigrationTables(t *testing.T) {
 	}
 	if _, err := pool.Exec(ctx, `
 		insert into users(email, name, password_hash)
-		values ('A@x.io', 'a', 'h'), ('a@X.io', 'b', 'h')`); err == nil {
+		values ('A@example.test', 'a', 'h'), ('a@EXAMPLE.test', 'b', 'h')`); err == nil {
 		t.Fatal("email must be case-insensitive unique")
 	}
 }

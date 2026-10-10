@@ -12,12 +12,15 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"supermetry/internal/platform/lifecycle"
 )
 
 const demoPublicIDAttempts = 8
 
 var (
 	ErrDemoExists        = errors.New("demo site already exists")
+	ErrNotRestorable     = errors.New("site is not restorable")
 	demoPublicIDEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 )
 
@@ -117,6 +120,15 @@ type DemoState struct {
 	LiveThrough *time.Time
 }
 
+type DeletedSite struct {
+	ID        int32
+	PublicID  string
+	Name      string
+	DeletedAt time.Time
+	PurgeAt   time.Time
+	WithOrg   bool
+}
+
 func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 	err := tx.QueryRow(ctx, `
 		insert into sites (org_id, public_id, name, allowed_hosts, timezone, retention_class, revenue_currency, revenue_currency_state)
@@ -207,15 +219,140 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 }
 
 func SoftDeleteSite(ctx context.Context, tx pgx.Tx, orgID int64, id int32) error {
+	return SoftDeleteSiteAt(ctx, tx, orgID, id, time.Now())
+}
+
+func SoftDeleteSiteAt(ctx context.Context, tx pgx.Tx, orgID int64, id int32, deletedAt time.Time) error {
 	command, err := tx.Exec(ctx, `
 		update sites
-		set deleted_at = now()
-		where id = $1 and org_id = $2 and deleted_at is null`, id, orgID)
+		set deleted_at = $3, deleted_with_org = false,
+		    deletion_notified_at = null, deletion_reminded_at = null
+		where id = $1 and org_id = $2 and deleted_at is null`, id, orgID, deletedAt)
 	if err != nil {
 		return fmt.Errorf("soft-delete site: %w", err)
 	}
 	if command.RowsAffected() == 0 {
 		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+type siteRowsQuerier interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}
+
+func SitesDueForErasure(ctx context.Context, q siteRowsQuerier, now time.Time) ([]int32, error) {
+	rows, err := q.Query(ctx, `
+		select id
+		from sites
+		where deleted_at is not null
+		  and erased_at is null
+		  and (erasure_started_at is not null or is_demo or deleted_at <= $1::timestamptz - interval '7 days')
+		order by id`, now)
+	if err != nil {
+		return nil, fmt.Errorf("query sites due for erasure: %w", err)
+	}
+	defer rows.Close()
+	result := make([]int32, 0)
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan site due for erasure: %w", err)
+		}
+		result = append(result, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate sites due for erasure: %w", err)
+	}
+	return result, nil
+}
+
+func ClaimSiteErasure(ctx context.Context, q DBTX, id int32, now time.Time) (bool, error) {
+	var claimedID int32
+	err := q.QueryRow(ctx, `
+		update sites
+		set erasure_started_at=coalesce(erasure_started_at,$2)
+		where id=$1 and erased_at is null and deleted_at is not null
+		  and (erasure_started_at is not null or is_demo or deleted_at <= $2::timestamptz - interval '7 days')
+		returning id`, id, now).Scan(&claimedID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("claim site %d for erasure: %w", id, err)
+	}
+	return true, nil
+}
+
+func MarkSiteErased(ctx context.Context, q DBTX, id int32, at time.Time) error {
+	tag, err := q.Exec(ctx, `
+		update sites
+		set erased_at=$2,
+		    settings=jsonb_set(settings,'{erased_at}',to_jsonb($3::text))
+		where id=$1 and erased_at is null`, id, at, at.UTC().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("mark site %d erased: %w", id, err)
+	}
+	if tag.RowsAffected() != 1 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func DeletedSites(ctx context.Context, q siteRowsQuerier, orgID int64, now time.Time) ([]DeletedSite, error) {
+	rows, err := q.Query(ctx, `
+		select s.id,s.public_id,s.name,s.deleted_at,s.deleted_with_org
+		from sites s
+		join orgs o on o.id=s.org_id
+		where s.org_id=$1
+		  and s.deleted_at is not null
+		  and s.deleted_at > $2
+		  and s.erased_at is null
+		  and not s.is_demo
+		  and o.deleted_at is null
+		order by s.deleted_at,s.id`, orgID, now.Add(-lifecycle.DeletionGrace))
+	if err != nil {
+		return nil, fmt.Errorf("query deleted sites: %w", err)
+	}
+	defer rows.Close()
+	result := make([]DeletedSite, 0)
+	for rows.Next() {
+		var site DeletedSite
+		if err := rows.Scan(&site.ID, &site.PublicID, &site.Name, &site.DeletedAt, &site.WithOrg); err != nil {
+			return nil, fmt.Errorf("scan deleted site: %w", err)
+		}
+		site.PurgeAt = lifecycle.PurgeAt(site.DeletedAt)
+		result = append(result, site)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate deleted sites: %w", err)
+	}
+	return result, nil
+}
+
+func RestoreSite(ctx context.Context, tx pgx.Tx, orgID int64, id int32, now time.Time) error {
+	var deletedAt *time.Time
+	var erasedAt, erasureStartedAt *time.Time
+	var demo bool
+	err := tx.QueryRow(ctx, `
+		select s.deleted_at,s.erased_at,s.erasure_started_at,s.is_demo
+		from sites s join orgs o on o.id=s.org_id
+		where s.id=$1 and s.org_id=$2 and o.deleted_at is null
+		for update of s`, id, orgID).Scan(&deletedAt, &erasedAt, &erasureStartedAt, &demo)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotRestorable
+	}
+	if err != nil {
+		return fmt.Errorf("lock site for restore: %w", err)
+	}
+	if deletedAt == nil || erasedAt != nil || erasureStartedAt != nil || demo || !deletedAt.After(now.Add(-lifecycle.DeletionGrace)) {
+		return ErrNotRestorable
+	}
+	if _, err := tx.Exec(ctx, `
+		update sites set deleted_at=null,deleted_with_org=false,
+		deletion_notified_at=null,deletion_reminded_at=null
+		where id=$1`, id); err != nil {
+		return fmt.Errorf("restore site: %w", err)
 	}
 	return nil
 }

@@ -158,7 +158,7 @@ func TestReplayEndToEnd(t *testing.T) {
 	if got, want := string(plain), "{\"type\":4}\n{\"type\":2}\n"; got != want {
 		t.Fatalf("replay data = %q, want %q", got, want)
 	}
-	doReplayRequest(t, router, http.MethodDelete, fmt.Sprintf("/api/private/sites/%d", siteID), nil, http.StatusNoContent)
+	doReplayRequest(t, router, http.MethodDelete, fmt.Sprintf("/api/private/sites/%d", siteID), nil, http.StatusOK)
 	if err := replay.EraseSite(ctx, pool, blobs, siteID); err != nil {
 		t.Fatal(err)
 	}

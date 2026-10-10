@@ -120,7 +120,7 @@ func TestDeleteOrgTombstonesSitesAndRevokesTenantAccess(t *testing.T) {
 	if err := f.data.Pool.QueryRow(ctx, `select deleted_at from orgs where id=$1`, f.orgID).Scan(&orgDeletedAt); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := f.data.Pool.Query(ctx, `select id,deleted_at from sites where org_id=$1 order by id`, f.orgID)
+	rows, err := f.data.Pool.Query(ctx, `select id,deleted_at,deleted_with_org from sites where org_id=$1 order by id`, f.orgID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,11 +129,15 @@ func TestDeleteOrgTombstonesSitesAndRevokesTenantAccess(t *testing.T) {
 	for rows.Next() {
 		var siteID int32
 		var deletedAt time.Time
-		if err := rows.Scan(&siteID, &deletedAt); err != nil {
+		var deletedWithOrg bool
+		if err := rows.Scan(&siteID, &deletedAt, &deletedWithOrg); err != nil {
 			t.Fatal(err)
 		}
 		if !deletedAt.Equal(orgDeletedAt) {
 			t.Fatalf("site %d deleted_at=%s, org deleted_at=%s", siteID, deletedAt, orgDeletedAt)
+		}
+		if !deletedWithOrg {
+			t.Fatalf("site %d deleted_with_org=false, want true", siteID)
 		}
 		seen[siteID] = true
 	}
@@ -156,6 +160,10 @@ func TestDeleteOrgTombstonesSitesAndRevokesTenantAccess(t *testing.T) {
 	if err != nil || len(memberships) != 0 {
 		t.Fatalf("memberships after delete=%v err=%v", memberships, err)
 	}
+	deletedOrgs, err := store.DeletedOrgsForOwner(ctx, f.data.Pool, f.userID, time.Now())
+	if err != nil || len(deletedOrgs) != 1 || deletedOrgs[0].ID != f.orgID {
+		t.Fatalf("deleted organizations=%v err=%v", deletedOrgs, err)
+	}
 	reports, err := store.ReportSubscriptions(ctx, f.data)
 	if err != nil || len(reports) != 0 {
 		t.Fatalf("deliverable reports after delete=%v err=%v", reports, err)
@@ -176,8 +184,101 @@ func TestDeleteOrgTombstonesSitesAndRevokesTenantAccess(t *testing.T) {
 		t.Fatalf("retained access artifacts=%d, want 3 for background lifecycle", retainedArtifacts)
 	}
 	var siteCount int
-	if err := f.data.Pool.QueryRow(ctx, `select (metadata->>'sites_tombstoned')::integer from audit_log where action='organization.deleted' and target_id=$1`, f.orgID).Scan(&siteCount); err != nil || siteCount != 2 {
-		t.Fatalf("audit sites_tombstoned=%d err=%v", siteCount, err)
+	var scheduled bool
+	if err := f.data.Pool.QueryRow(ctx, `select (metadata->>'sites_tombstoned')::integer,(metadata->>'scheduled')::boolean from audit_log where action='organization.deleted' and target_id=$1`, f.orgID).Scan(&siteCount, &scheduled); err != nil || siteCount != 2 || !scheduled {
+		t.Fatalf("audit sites_tombstoned=%d scheduled=%t err=%v", siteCount, scheduled, err)
+	}
+}
+
+func TestDeleteOrgKeepsEarlierSiteLifecycle(t *testing.T) {
+	f := newOrgDeleteFixture(t)
+	ctx := context.Background()
+	service := Services{Store: f.data, Sites: f.sites}
+	priorDeletedAt := time.Now().UTC().Add(-3 * 24 * time.Hour).Truncate(time.Microsecond)
+	var priorSiteID int32
+	if err := f.data.Pool.QueryRow(ctx, `
+		insert into sites(org_id,public_id,name,timezone,retention_class,deleted_at)
+		values ($1,'prior-delete','Prior','UTC',30,$2) returning id`, f.orgID, priorDeletedAt).Scan(&priorSiteID); err != nil {
+		t.Fatal(err)
+	}
+	liveSiteID := f.createSite(t, "live")
+
+	if err := service.DeleteOrg(ctx, f.principal, f.orgID); err != nil {
+		t.Fatal(err)
+	}
+	var gotPriorDeletedAt time.Time
+	var priorWithOrg, liveWithOrg bool
+	if err := f.data.Pool.QueryRow(ctx, `select deleted_at,deleted_with_org from sites where id=$1`, priorSiteID).Scan(&gotPriorDeletedAt, &priorWithOrg); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.data.Pool.QueryRow(ctx, `select deleted_with_org from sites where id=$1`, liveSiteID).Scan(&liveWithOrg); err != nil {
+		t.Fatal(err)
+	}
+	if !gotPriorDeletedAt.Equal(priorDeletedAt) || priorWithOrg || !liveWithOrg {
+		t.Fatalf("prior deleted_at=%s with_org=%t, live with_org=%t", gotPriorDeletedAt, priorWithOrg, liveWithOrg)
+	}
+}
+
+func TestDeleteOrgWithoutLiveRealSitesIsImmediate(t *testing.T) {
+	tests := []struct {
+		name string
+		demo bool
+	}{
+		{name: "no sites"},
+		{name: "demo only", demo: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			f := newOrgDeleteFixture(t)
+			ctx := context.Background()
+			if test.demo {
+				if _, err := f.data.Pool.Exec(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class,is_demo) values ($1,'onlydemo0001','Demo','UTC',90,true)`, f.orgID); err != nil {
+					t.Fatal(err)
+				}
+			}
+			service := Services{Store: f.data, Sites: f.sites}
+			if err := service.DeleteOrg(ctx, f.principal, f.orgID); err != nil {
+				t.Fatal(err)
+			}
+			var scheduled bool
+			if err := f.data.Pool.QueryRow(ctx, `select coalesce((metadata->>'scheduled')::boolean,false) from audit_log where action='organization.deleted' and target_id=$1`, f.orgID).Scan(&scheduled); err != nil {
+				t.Fatal(err)
+			}
+			if scheduled {
+				t.Fatal("immediate organization deletion audited as scheduled")
+			}
+			if test.demo {
+				var deletedWithOrg bool
+				if err := f.data.Pool.QueryRow(ctx, `select deleted_with_org from sites where org_id=$1`, f.orgID).Scan(&deletedWithOrg); err != nil {
+					t.Fatal(err)
+				}
+				if deletedWithOrg {
+					t.Fatal("demo site was marked deleted_with_org")
+				}
+			}
+		})
+	}
+}
+
+func TestDeleteOrgWithOnlyPreviouslyDeletedRealSiteIsScheduled(t *testing.T) {
+	f := newOrgDeleteFixture(t)
+	ctx := context.Background()
+	deletedAt := time.Now().UTC().Add(-48 * time.Hour)
+	if _, err := f.data.Pool.Exec(ctx, `
+		insert into sites(org_id,public_id,name,timezone,retention_class,deleted_at)
+		values ($1,'prior-only01','Prior only','UTC',30,$2)`, f.orgID, deletedAt); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := (Services{Store: f.data, Sites: f.sites}).DeleteOrg(ctx, f.principal, f.orgID); err != nil {
+		t.Fatal(err)
+	}
+	var scheduled bool
+	if err := f.data.Pool.QueryRow(ctx, `select (metadata->>'scheduled')::boolean from audit_log where action='organization.deleted' and target_id=$1`, f.orgID).Scan(&scheduled); err != nil {
+		t.Fatal(err)
+	}
+	if !scheduled {
+		t.Fatal("organization with unerased real data was deleted immediately")
 	}
 }
 

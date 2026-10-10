@@ -389,7 +389,20 @@ func (h *handler) deleteSite(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	if strings.HasPrefix(r.URL.Path, "/api/public/v1/") {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if h.deps.Store == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	response, err := h.deletedSiteResult(r.Context(), principal.OrgID, site.ID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *handler) responseSite(r *http.Request, site coresites.Site) siteResponse {
