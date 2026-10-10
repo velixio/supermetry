@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -352,6 +353,22 @@ func (h *handler) createOrg(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Store == nil {
 		unavailable(w, "organization")
 		return
+	}
+	if h.deps.MaxOrgsPerUser > 0 {
+		var admin bool
+		var owned int
+		if err := h.deps.Store.Pool.QueryRow(r.Context(), `
+			select u.is_admin,
+			       (select count(*) from memberships m join orgs o on o.id=m.org_id
+			         where m.user_id=u.id and m.role='owner' and o.deleted_at is null)
+			from users u where u.id=$1`, principal.UserID).Scan(&admin, &owned); err != nil {
+			serviceError(w, err)
+			return
+		}
+		if !admin && owned >= h.deps.MaxOrgsPerUser {
+			writeProblem(w, http.StatusForbidden, "Limit reached", fmt.Sprintf("you already own %d organizations; ask an instance admin to add more", owned))
+			return
+		}
 	}
 	var created struct {
 		ID   int64  `json:"id"`

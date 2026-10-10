@@ -489,6 +489,10 @@ func TestSetupOnlyOnce(t *testing.T) {
 	if err != nil || uid == 0 || oid == 0 {
 		t.Fatalf("CompleteSetup() = %d, %d, %v", uid, oid, err)
 	}
+	var admin bool
+	if err := env.store.Pool.QueryRow(ctx, `select is_admin from users where id=$1`, uid).Scan(&admin); err != nil || !admin {
+		t.Fatalf("setup user is_admin=%t err=%v, want an instance admin", admin, err)
+	}
 	if _, ok := env.a.SetupURL(ctx); ok {
 		t.Fatal("setup still open")
 	}

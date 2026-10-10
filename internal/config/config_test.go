@@ -465,3 +465,26 @@ func TestLoadRejectsInvalidReplayEnvironment(t *testing.T) {
 		})
 	}
 }
+
+func TestCreationLimits(t *testing.T) {
+	got, err := Load(env(baseEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MaxOrgsPerUser != 3 || got.MaxSitesPerOrg != 10 {
+		t.Fatalf("defaults = %d orgs, %d sites, want 3 and 10", got.MaxOrgsPerUser, got.MaxSitesPerOrg)
+	}
+	values := baseEnv()
+	values["SUPERMETRY_MAX_ORGS_PER_USER"] = "7"
+	values["SUPERMETRY_MAX_SITES_PER_ORG"] = "25"
+	got, err = Load(env(values))
+	if err != nil || got.MaxOrgsPerUser != 7 || got.MaxSitesPerOrg != 25 {
+		t.Fatalf("override = %+v, %v", got, err)
+	}
+	for _, bad := range []string{"0", "-1", "many"} {
+		values["SUPERMETRY_MAX_ORGS_PER_USER"] = bad
+		if _, err := Load(env(values)); err == nil {
+			t.Errorf("accepted SUPERMETRY_MAX_ORGS_PER_USER=%q", bad)
+		}
+	}
+}

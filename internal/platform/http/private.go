@@ -70,9 +70,11 @@ type DemoService interface {
 type Deps struct {
 	Now          func() time.Time
 	TrackingMode privacy.Mode
-	BaseURL      string
-	HomepageURL  string
-	TrackerPath  string
+	// MaxOrgsPerUser caps the organizations a non-admin user may own. Zero means no cap.
+	MaxOrgsPerUser int
+	BaseURL        string
+	HomepageURL    string
+	TrackerPath    string
 	// SecureCookies forces the Secure flag on every cookie. Set it when
 	// SUPERMETRY_BASE_URL is https so production never downgrades, even behind a
 	// proxy that omits X-Forwarded-Proto.
@@ -616,6 +618,8 @@ func serviceError(w http.ResponseWriter, err error) {
 		errors.Is(err, orgs.ErrForbidden), errors.Is(err, invites.ErrForbidden),
 		errors.Is(err, shares.ErrForbidden), errors.Is(err, reports.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
+	case errors.Is(err, sitesvc.ErrLimit):
+		writeProblem(w, http.StatusForbidden, "Limit reached", err.Error())
 	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, keys.ErrInvalid), errors.Is(err, orgs.ErrInvalidRole),
 		errors.Is(err, orgs.ErrInvalidAccess),
 		errors.Is(err, orgs.ErrLastOwner), errors.Is(err, invites.ErrInvalid),

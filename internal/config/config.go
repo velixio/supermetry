@@ -18,6 +18,8 @@ const (
 	defaultEventPath        = "/api/public/v1/events"
 	defaultTrackerPath      = "/js/script.js"
 	defaultQueueSize        = 65536
+	defaultMaxOrgsPerUser   = 3
+	defaultMaxSitesPerOrg   = 10
 	defaultDedupEntries     = 250000
 	defaultFlushEvery       = time.Second
 	defaultSessionFlush     = 10 * time.Second
@@ -50,21 +52,25 @@ type SMTP struct {
 }
 
 type Config struct {
-	Tracking             TrackingMode
-	TrackingPaths        privacy.PathPolicy
-	DatabaseURL          string
-	Listen               string
-	BaseURL              string
-	HomepageURL          string
-	EventPath            string
-	TrackerPath          string
-	GeoIPPath            string
-	DataDir              string
-	MaxMindAccountID     string
-	MaxMindLicenseKey    string
-	MaxMindEditions      []string
-	SitesFile            string
-	QueueSize            int
+	Tracking          TrackingMode
+	TrackingPaths     privacy.PathPolicy
+	DatabaseURL       string
+	Listen            string
+	BaseURL           string
+	HomepageURL       string
+	EventPath         string
+	TrackerPath       string
+	GeoIPPath         string
+	DataDir           string
+	MaxMindAccountID  string
+	MaxMindLicenseKey string
+	MaxMindEditions   []string
+	SitesFile         string
+	QueueSize         int
+	// MaxOrgsPerUser and MaxSitesPerOrg limit what a user who is not an instance
+	// admin may create. Instance admins are unlimited.
+	MaxOrgsPerUser       int
+	MaxSitesPerOrg       int
 	DedupEntries         int
 	FlushEvery           time.Duration
 	SessionFlush         time.Duration
@@ -131,6 +137,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		MaxMindEditions:      geo.MaxMindEditions,
 		SitesFile:            getenv("SUPERMETRY_SITES_FILE"),
 		QueueSize:            defaultQueueSize,
+		MaxOrgsPerUser:       defaultMaxOrgsPerUser,
+		MaxSitesPerOrg:       defaultMaxSitesPerOrg,
 		DedupEntries:         defaultDedupEntries,
 		FlushEvery:           defaultFlushEvery,
 		SessionFlush:         defaultSessionFlush,
@@ -249,6 +257,22 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 
+	for _, limit := range []struct {
+		name   string
+		target *int
+	}{
+		{"SUPERMETRY_MAX_ORGS_PER_USER", &c.MaxOrgsPerUser},
+		{"SUPERMETRY_MAX_SITES_PER_ORG", &c.MaxSitesPerOrg},
+	} {
+		if raw := getenv(limit.name); raw != "" {
+			value, err := strconv.Atoi(raw)
+			if err != nil || value <= 0 {
+				errs = append(errs, fmt.Errorf("%s must be a positive integer", limit.name))
+			} else {
+				*limit.target = value
+			}
+		}
+	}
 	if raw := getenv("SUPERMETRY_QUEUE_SIZE"); raw != "" {
 		value, err := strconv.Atoi(raw)
 		if err != nil || value <= 0 {

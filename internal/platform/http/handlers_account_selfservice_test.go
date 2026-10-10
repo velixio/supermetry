@@ -179,3 +179,26 @@ func TestCreateOrgHTTP(t *testing.T) {
 		t.Fatalf("membership role=%q err=%v", role, err)
 	}
 }
+
+func TestCreateOrgLimitAppliesToEveryoneExceptInstanceAdmins(t *testing.T) {
+	fixture := newAccountHTTPFixture(t, &mail.Fake{})
+	principal := authz.Principal{UserID: fixture.userID, OrgID: 1, Role: authz.RoleOwner}
+	fixture.handler = platformhttp.New(platformhttp.Deps{
+		Auth: fixture.auth, Store: fixture.store, MaxOrgsPerUser: 2,
+		Authenticator: actorAuthenticator{"owner": principal},
+	})
+	for _, name := range []string{"One", "Two"} {
+		if got := fixture.request(t, http.MethodPost, "/api/private/orgs", `{"name":"`+name+`"}`, true); got.Code != http.StatusCreated {
+			t.Fatalf("create %s status=%d body=%s", name, got.Code, got.Body.String())
+		}
+	}
+	if got := fixture.request(t, http.MethodPost, "/api/private/orgs", `{"name":"Three"}`, true); got.Code != http.StatusForbidden {
+		t.Fatalf("third org status=%d body=%s", got.Code, got.Body.String())
+	}
+	if _, err := fixture.store.Pool.Exec(context.Background(), `update users set is_admin=true where id=$1`, fixture.userID); err != nil {
+		t.Fatal(err)
+	}
+	if got := fixture.request(t, http.MethodPost, "/api/private/orgs", `{"name":"Three"}`, true); got.Code != http.StatusCreated {
+		t.Fatalf("instance admin status=%d body=%s", got.Code, got.Body.String())
+	}
+}

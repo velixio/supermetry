@@ -32,6 +32,8 @@ Gotchas:
 | `SUPERMETRY_LISTEN` | Address the HTTP server listens on. | `:8080` | `127.0.0.1:8787` |
 | `SUPERMETRY_TRUSTED_PROXIES` | Comma-separated IPs or CIDR prefixes of reverse proxies whose `X-Forwarded-For` is trusted. A bare IP means a single-host prefix. | empty (no proxy trusted) | `127.0.0.1/32,10.0.0.5` |
 | `SUPERMETRY_SIGNUP` | Signup mode: `open` or `invite`. Any other value is rejected. | `open` | `invite` |
+| `SUPERMETRY_MAX_ORGS_PER_USER` | Most organizations one user may own. Instance admins are exempt. Must be a positive integer. | `3` | `5` |
+| `SUPERMETRY_MAX_SITES_PER_ORG` | Most sites one organization may have. Instance admins are exempt, and the demo project does not count. Must be a positive integer. | `10` | `25` |
 | `SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS` | Boolean (Go `ParseBool`: `1`, `t`, `true`, `0`, `f`, `false`, ...). Passed to the alert webhook client as "allow private". Exact effect: see source, `internal/alerts` and `cmd/supermetry/serve.go`. | `false` | `false` |
 
 Notification destinations, including Telegram, are configured in the application rather than through environment variables. See [Notification channels](notifications.md) for routing, secret handling, testing, and Telegram setup.
@@ -169,3 +171,14 @@ SUPERMETRY_SIGNUP=invite
 ```
 
 Never commit your real `.env`.
+
+## Instance admins
+
+The account created during first-run setup is an instance admin. Instance admins can create organizations and sites without the two limits above. Grant or remove the flag from the command line:
+
+```sh
+supermetry user make-admin --email you@example.com
+supermetry user remove-admin --email you@example.com
+```
+
+The last instance admin cannot be removed. On an existing instance, the migration makes the oldest account an instance admin.

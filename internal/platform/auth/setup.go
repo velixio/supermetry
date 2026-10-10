@@ -92,8 +92,8 @@ func (a *Auth) CompleteSetup(ctx context.Context, token, email, name, password, 
 			return ErrInvalid
 		}
 		if err := tx.QueryRow(ctx, `
-			insert into users(email,name,password_hash,created_at)
-			values ($1,$2,$3,$4) returning id`,
+			insert into users(email,name,password_hash,created_at,is_admin)
+			values ($1,$2,$3,$4,true) returning id`,
 			normalizedEmail, name, passwordHash, a.clock.Now()).Scan(&userID); err != nil {
 			return err
 		}

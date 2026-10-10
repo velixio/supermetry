@@ -33,7 +33,10 @@ var (
 	ErrForbidden = errors.New("forbidden")
 	ErrInvalid   = errors.New("invalid site")
 	ErrNotFound  = errors.New("site not found")
-	ErrSiteLimit = errors.New("site limit")
+	// ErrSiteLimit means the organization already has the most live sites a
+	// non-admin may create or restore. ErrLimit is the same error.
+	ErrSiteLimit = errors.New("site limit reached")
+	ErrLimit     = ErrSiteLimit
 
 	publicIDEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 	hostLabelPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -77,8 +80,8 @@ func New(data *store.Store, registry *Registry, modes ...privacy.Mode) *Sites {
 	return &Sites{store: data, registry: registry, restoreInvalidator: registry, now: time.Now, discoverIcon: siteicon.Discover, trackingMode: mode}
 }
 
-// SetSiteLimit caps live non-demo sites restored or created for an organization.
-// Zero means no limit.
+// SetSiteLimit caps live non-demo sites created or restored for an organization
+// by anyone who is not an instance admin. Zero means no limit.
 func (s *Sites) SetSiteLimit(max int) { s.maxSites = max }
 
 // SetInvalidator replaces the post-restore registry invalidator.
@@ -115,7 +118,7 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 		if !authz.Can(current, authz.ActionSiteCreate, 0) {
 			return ErrForbidden
 		}
-		if err := s.checkSiteLimit(ctx, tx, principal.OrgID, 1); err != nil {
+		if err := s.checkSiteLimit(ctx, tx, principal, 1); err != nil {
 			return err
 		}
 		for attempt := 0; attempt < maxCreateAttempts; attempt++ {
@@ -345,7 +348,7 @@ func (s *Sites) Restore(ctx context.Context, principal authz.Principal, id int32
 		if err := store.RestoreSite(ctx, tx, principal.OrgID, id, s.now()); err != nil {
 			return err
 		}
-		if err := s.checkSiteLimit(ctx, tx, principal.OrgID, 0); err != nil {
+		if err := s.checkSiteLimit(ctx, tx, current, 0); err != nil {
 			return err
 		}
 		return audit.Write(ctx, tx, principal, "site.restored", "site", int64(id), nil)
@@ -361,16 +364,24 @@ func (s *Sites) Restore(ctx context.Context, principal authz.Principal, id int32
 	return nil
 }
 
-func (s *Sites) checkSiteLimit(ctx context.Context, tx pgx.Tx, orgID int64, adding int) error {
+func (s *Sites) checkSiteLimit(ctx context.Context, tx pgx.Tx, principal authz.Principal, adding int) error {
 	if s.maxSites <= 0 {
 		return nil
 	}
+	if principal.UserID != 0 {
+		var admin bool
+		if err := tx.QueryRow(ctx, `select is_admin from users where id=$1`, principal.UserID).Scan(&admin); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		} else if admin {
+			return nil
+		}
+	}
 	var count int
-	if err := tx.QueryRow(ctx, `select count(*) from sites where org_id=$1 and deleted_at is null and not is_demo`, orgID).Scan(&count); err != nil {
+	if err := tx.QueryRow(ctx, `select count(*) from sites where org_id=$1 and deleted_at is null and not is_demo`, principal.OrgID).Scan(&count); err != nil {
 		return fmt.Errorf("count live sites: %w", err)
 	}
 	if count+adding > s.maxSites {
-		return ErrSiteLimit
+		return fmt.Errorf("%w: this organization already has %d sites; ask an instance admin to add more", ErrSiteLimit, s.maxSites)
 	}
 	return nil
 }

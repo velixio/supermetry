@@ -298,10 +298,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
 	siteService.SetClock(settings.clock.Now)
+	siteService.SetSiteLimit(cfg.MaxSitesPerOrg)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
 	platformHandler := platformhttp.New(platformhttp.Deps{
-		TrackingMode: cfg.Tracking.Mode,
-		BaseURL:      cfg.BaseURL, HomepageURL: cfg.HomepageURL, TrackerPath: cfg.TrackerPath,
+		TrackingMode:   cfg.Tracking.Mode,
+		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
+		BaseURL:        cfg.BaseURL, HomepageURL: cfg.HomepageURL, TrackerPath: cfg.TrackerPath,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
 		},

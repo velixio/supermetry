@@ -1077,3 +1077,29 @@ func TestAnonymousServiceRejectsProfileEscalationBeforeStorage(t *testing.T) {
 		t.Fatalf("error=%v", err)
 	}
 }
+
+func TestSiteLimitAppliesToEveryoneExceptInstanceAdmins(t *testing.T) {
+	service, _, principal, pool := newSites(t)
+	ctx := context.Background()
+	service.SetSiteLimit(2)
+	for i, host := range []string{"one.example.test", "two.example.test"} {
+		if _, err := service.Create(ctx, principal, "Site", []string{host}, "UTC", 30, "USD"); err != nil {
+			t.Fatalf("site %d: %v", i+1, err)
+		}
+	}
+	if _, err := service.Create(ctx, principal, "Third", []string{"three.example.test"}, "UTC", 30, "USD"); !errors.Is(err, ErrLimit) {
+		t.Fatalf("third site error=%v, want ErrLimit", err)
+	}
+	// An API key has no user, so it is capped too.
+	keyPrincipal := principal
+	keyPrincipal.UserID = 0
+	if _, err := service.Create(ctx, keyPrincipal, "Key", []string{"key.example.test"}, "UTC", 30, "USD"); err == nil {
+		t.Fatal("keyless principal bypassed the site limit")
+	}
+	if _, err := pool.Exec(ctx, `update users set is_admin=true where id=$1`, principal.UserID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Create(ctx, principal, "Third", []string{"three.example.test"}, "UTC", 30, "USD"); err != nil {
+		t.Fatalf("instance admin was limited: %v", err)
+	}
+}
