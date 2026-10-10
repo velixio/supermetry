@@ -9,7 +9,8 @@
 #   SUPERMETRY_DATABASE_URL=postgres://supermetry:<password>@postgres:5432/supermetry?sslmode=disable
 # and start with the bundled-db profile (a global flag, so it goes before `up`):
 #   docker compose --profile bundled-db up -d --build
-# The container takes its user, password and database from that URL. A
+# The container takes its user, password and database from that URL; whatever the
+# URL leaves out defaults to `supermetry`, including the password. A
 # POSTGRES_PASSWORD in ../.env, if set, is used instead.
 
 # Fixed project name, so containers, networks and volumes are called supermetry-*

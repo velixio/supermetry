@@ -32,7 +32,7 @@ Then start it with the `bundled-db` profile. `--profile` is a global flag, so it
 docker compose --profile bundled-db up -d --build
 ```
 
-The `postgres` container creates that user, password and database from the URL the first time it starts, so there is nothing else to set. (If `POSTGRES_PASSWORD` is set in `../.env`, it is used instead, with the user and database `supermetry`.) The password may be percent-encoded, as in any URL. The credentials are only read when the data volume is empty: changing the URL later does not change an existing database. The database is kept in the `postgres-data` volume.
+The `postgres` container creates that user, password and database from the URL the first time it starts, so there is nothing else to set. Anything the URL leaves out defaults to `supermetry`, including the password, so `postgres://supermetry:supermetry@postgres:5432/supermetry` works with no other setup. The application connects with the URL as written, so keep the password in the URL itself. The default password is only reasonable because the container publishes no port: it is reachable from the Compose network only. Choose your own password for anything else. (If `POSTGRES_PASSWORD` is set in `../.env`, it is used instead, with the user and database `supermetry`.) The password may be percent-encoded, as in any URL. The credentials are only read when the data volume is empty: changing the URL later does not change an existing database. The database is kept in the `postgres-data` volume.
 
 The `postgres` container reads the same `../.env`, so it also receives the other `SUPERMETRY_*` values. They are harmless to it, but keep the file private.
 
