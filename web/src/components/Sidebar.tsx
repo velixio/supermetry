@@ -193,7 +193,7 @@ function navigationLink(
   return unreachable
 }
 
-export function PanelSidebar({
+export function SupermetrySidebar({
   me,
   membership,
   requestedSite,

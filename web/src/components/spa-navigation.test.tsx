@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import type { Me, Membership } from '@/routes/app.$org'
 
-import { PanelSidebar } from './Sidebar'
+import { SupermetrySidebar } from './Sidebar'
 import { RoutePending } from './RoutePending'
 import { SidebarProvider } from './ui/sidebar'
 import { TooltipProvider } from './ui/tooltip'
@@ -35,7 +35,7 @@ function renderSidebar(initialEntry = '/app/acme/docs-public/realtime') {
     component: () => (
       <TooltipProvider>
         <SidebarProvider>
-          <PanelSidebar me={me} membership={membership} requestedSite="docs-public" />
+          <SupermetrySidebar me={me} membership={membership} requestedSite="docs-public" />
           <Outlet />
         </SidebarProvider>
       </TooltipProvider>

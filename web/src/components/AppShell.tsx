@@ -25,7 +25,7 @@ import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 import type { Me, Membership } from '@/routes/app.$org'
 
-import { activeSite, matchesSite, PanelSidebar } from './Sidebar'
+import { activeSite, matchesSite, SupermetrySidebar } from './Sidebar'
 import { HeaderMenus } from './HeaderMenus'
 
 function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number; org: string; site: string; detailsAvailable: boolean }) {
@@ -100,7 +100,7 @@ export function AppShell({
     <AuthorizationProvider membership={membership}>
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
-        <PanelSidebar me={me} membership={membership} requestedSite={requestedSite} />
+        <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} />
         <SidebarInset>
           <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4">
             <div className="flex min-w-0 items-center gap-2">
