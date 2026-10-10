@@ -118,6 +118,7 @@ describe('SPA navigation', () => {
     expect(text.indexOf('Projects')).toBeLessThan(text.indexOf('Docs'))
     expect(text.indexOf('Docs')).toBeLessThan(text.indexOf('Organizations'))
     expect(text.indexOf('Organizations')).toBeLessThan(text.lastIndexOf('Acme'))
+    expect(screen.getByRole('menuitem', { name: /Add organization/ })).toHaveAttribute('href', '/app/account/organizations/new')
   })
 
   it('renders a stable skeleton fallback for delayed route chunks', () => {

@@ -55,6 +55,7 @@ export const en = {
     health: 'Data health',
     organization: 'Organization',
     organizations: 'Organizations',
+    addOrganization: '+ Add organization',
     projects: 'Projects',
     brand: 'Supermetry',
     site: 'Site',

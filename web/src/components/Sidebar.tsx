@@ -280,6 +280,12 @@ export function SupermetrySidebar({
                   )}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem asChild>
+                <Link to="/app/account/organizations/new" onClick={closeMobile}>
+                  <PlusIcon />
+                  {en.navigation.addOrganization}
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

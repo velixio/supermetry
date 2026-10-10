@@ -46,6 +46,7 @@ import { Route as AppOrgSettingsNotificationsRouteImport } from './routes/app.$o
 import { Route as AppOrgSettingsReplayStorageRouteImport } from './routes/app.$org.settings.replay-storage'
 import { Route as AppOrgSitesIndexRouteImport } from './routes/app.$org.sites.index'
 import { Route as AppOrgSitesNewRouteImport } from './routes/app.$org.sites.new'
+import { Route as AppAccountOrganizationsNewRouteImport } from './routes/app.account.organizations.new'
 import { Route as AppOrgSiteFunnelsIndexRouteImport } from './routes/app.$org.$site.funnels.index'
 import { Route as AppOrgSiteFunnelsIdRouteImport } from './routes/app.$org.$site.funnels.$id'
 import { Route as AppOrgSiteProfilesIndexRouteImport } from './routes/app.$org.$site.profiles.index'
@@ -250,6 +251,12 @@ const AppOrgSitesNewRoute = AppOrgSitesNewRouteImport.update({
   path: '/sites/new',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppAccountOrganizationsNewRoute =
+  AppAccountOrganizationsNewRouteImport.update({
+    id: '/organizations/new',
+    path: '/organizations/new',
+    getParentRoute: () => AppAccountRoute,
+  } as any)
 const AppOrgSiteFunnelsIndexRoute = AppOrgSiteFunnelsIndexRouteImport.update({
   id: '/$site/funnels/',
   path: '/$site/funnels/',
@@ -375,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
+  '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
   '/app/$org/$site/': typeof AppOrgSiteIndexRoute
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
@@ -428,6 +436,7 @@ export interface FileRoutesByTo {
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
+  '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
   '/app/$org/$site': typeof AppOrgSiteIndexRoute
   '/app/$org/settings': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites': typeof AppOrgSitesIndexRoute
@@ -484,6 +493,7 @@ export interface FileRoutesById {
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
+  '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
   '/app/$org/$site/': typeof AppOrgSiteIndexRoute
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
@@ -541,6 +551,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
     | '/app/$org/sites/new'
+    | '/app/account/organizations/new'
     | '/app/$org/$site/'
     | '/app/$org/settings/'
     | '/app/$org/sites/'
@@ -594,6 +605,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
     | '/app/$org/sites/new'
+    | '/app/account/organizations/new'
     | '/app/$org/$site'
     | '/app/$org/settings'
     | '/app/$org/sites'
@@ -649,6 +661,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
     | '/app/$org/sites/new'
+    | '/app/account/organizations/new'
     | '/app/$org/$site/'
     | '/app/$org/settings/'
     | '/app/$org/sites/'
@@ -942,6 +955,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSitesNewRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/account/organizations/new': {
+      id: '/app/account/organizations/new'
+      path: '/organizations/new'
+      fullPath: '/app/account/organizations/new'
+      preLoaderRoute: typeof AppAccountOrganizationsNewRouteImport
+      parentRoute: typeof AppAccountRoute
+    }
     '/app/$org/$site/funnels/': {
       id: '/app/$org/$site/funnels/'
       path: '/$site/funnels'
@@ -1167,12 +1187,14 @@ interface AppAccountRouteChildren {
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
   AppAccountSessionsRoute: typeof AppAccountSessionsRoute
+  AppAccountOrganizationsNewRoute: typeof AppAccountOrganizationsNewRoute
 }
 
 const AppAccountRouteChildren: AppAccountRouteChildren = {
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
   AppAccountSessionsRoute: AppAccountSessionsRoute,
+  AppAccountOrganizationsNewRoute: AppAccountOrganizationsNewRoute,
 }
 
 const AppAccountRouteWithChildren = AppAccountRoute._addFileChildren(
