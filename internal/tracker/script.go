@@ -28,9 +28,13 @@ type Script struct {
 // tracker. Snippet attributes may tighten settings; disabled collection features cannot
 // be re-enabled by dataset overrides.
 func BuildScript(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) Script {
+	return buildScript(publicID, settings, replaySettings, false)
+}
+
+func buildScript(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings, forceFull bool) Script {
 	prefix := prelude(publicID, settings, replaySettings)
 	source := script
-	if settings.AnyExtension() || replaySettings.Enabled {
+	if forceFull || settings.AnyExtension() || replaySettings.Enabled {
 		source = fullScript
 	}
 	body := make([]byte, 0, len(prefix)+len(source))
@@ -109,7 +113,7 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 	return builder.String()
 }
 
-var siteScriptBuilder = BuildScript
+var siteScriptBuilder = buildScript
 
 type siteScriptCacheKey struct {
 	publicID        string
@@ -118,6 +122,7 @@ type siteScriptCacheKey struct {
 	replayConsent   string
 	profilesEnabled bool
 	mode            privacy.Mode
+	full            bool
 }
 
 // SiteHandler serves generated tracker scripts for sites in the in-memory
@@ -147,7 +152,7 @@ func SiteHandlerWithPolicy(registry sites.Registry, replayEnv config.ReplayEnv, 
 		if cached, ok := cache.Load(key); ok {
 			return cached.(Script)
 		}
-		built := siteScriptBuilder(key.publicID, key.settings, replaySettings)
+		built := siteScriptBuilder(key.publicID, key.settings, replaySettings, key.full)
 		identityPrelude := `(d=>{d.tracking=` + strconv.Quote(key.mode.String()) + `;`
 		if !key.profilesEnabled {
 			identityPrelude += `d.profiles="false";`
@@ -194,7 +199,7 @@ func SiteHandlerWithPolicy(registry sites.Registry, replayEnv config.ReplayEnv, 
 		replaySettings := replay.ResolveSite(replayEnv, site.Replay)
 		generated := load(siteScriptCacheKey{
 			publicID: publicID, settings: settings, profilesEnabled: mode == privacy.Identified && site.ProfilesEnabled, mode: mode,
-			replayEnabled: replaySettings.Enabled, replayConsent: replaySettings.Consent,
+			replayEnabled: replaySettings.Enabled, replayConsent: replaySettings.Consent, full: request.URL.Query().Get("full") == "1",
 		}, replaySettings)
 
 		w.Header().Set("Content-Type", "application/javascript")

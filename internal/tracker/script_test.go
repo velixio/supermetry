@@ -202,6 +202,49 @@ func TestSiteHandlerServesAndRevalidatesGeneratedScript(t *testing.T) {
 	}
 }
 
+func TestSiteHandlerFullQuerySelectsFullTrackerWithDistinctETag(t *testing.T) {
+	disabled := false
+	registry := scriptRegistry{"abc123def456": {
+		PublicID: "abc123def456",
+		Tracker: sites.TrackerSettingsInput{
+			Outbound: &disabled, Downloads: &disabled, Forms: &disabled,
+			Vitals: &disabled, NotFound: &disabled, Hash: &disabled, Clicks: &disabled,
+		},
+	}}
+	handler := SiteHandler(registry, config.ReplayEnv{})
+
+	core := httptest.NewRecorder()
+	handler.ServeHTTP(core, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js", nil))
+	full := httptest.NewRecorder()
+	handler.ServeHTTP(full, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js?full=1", nil))
+
+	if !bytes.HasSuffix(core.Body.Bytes(), script) {
+		t.Fatal("default request did not receive core tracker")
+	}
+	if !bytes.HasSuffix(full.Body.Bytes(), fullScript) {
+		t.Fatal("full=1 request did not receive full tracker")
+	}
+	if core.Header().Get("ETag") == full.Header().Get("ETag") {
+		t.Fatalf("core and full variants share ETag %q", core.Header().Get("ETag"))
+	}
+
+	conditional := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/js/abc123def456.js?full=1", nil)
+	request.Header.Set("If-None-Match", full.Header().Get("ETag"))
+	handler.ServeHTTP(conditional, request)
+	if conditional.Code != http.StatusNotModified || conditional.Body.Len() != 0 {
+		t.Fatalf("conditional full response = %d %q, want 304 with empty body", conditional.Code, conditional.Body.String())
+	}
+
+	wrongVariant := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodGet, "/js/abc123def456.js", nil)
+	request.Header.Set("If-None-Match", full.Header().Get("ETag"))
+	handler.ServeHTTP(wrongVariant, request)
+	if wrongVariant.Code != http.StatusOK {
+		t.Fatalf("full ETag revalidated core variant with status %d", wrongVariant.Code)
+	}
+}
+
 func TestSiteHandlerRejectsUnknownAndMalformedIDs(t *testing.T) {
 	t.Parallel()
 
@@ -234,9 +277,9 @@ func TestSiteHandlerCachesBySiteAndSettings(t *testing.T) {
 	originalBuilder := siteScriptBuilder
 	t.Cleanup(func() { siteScriptBuilder = originalBuilder })
 	builds := 0
-	siteScriptBuilder = func(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) Script {
+	siteScriptBuilder = func(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings, forceFull bool) Script {
 		builds++
-		return BuildScript(publicID, settings, replaySettings)
+		return buildScript(publicID, settings, replaySettings, forceFull)
 	}
 	handler := SiteHandler(registry, config.ReplayEnv{})
 	var first []byte

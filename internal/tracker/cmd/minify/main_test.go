@@ -46,6 +46,26 @@ func TestStripFull(t *testing.T) {
 	}
 }
 
+func TestStripFullSelectsCoreBlocks(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("a;/*@core*/b;/*@end*/c;")
+	core, err := stripFull(source, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(core) != "a;b;c;" {
+		t.Fatalf("core stripFull() = %q, want %q", core, "a;b;c;")
+	}
+	full, err := stripFull(source, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(full) != "a;c;" {
+		t.Fatalf("full stripFull() = %q, want %q", full, "a;c;")
+	}
+}
+
 func TestStripFullRejectsBadMarkers(t *testing.T) {
 	t.Parallel()
 

@@ -6,10 +6,12 @@ const source = fs.readFileSync(`${__dirname}/tracker.js`, "utf8");
 const extensions = fs.readFileSync(`${__dirname}/tracker.extensions.js`, "utf8");
 
 function buildSource(full) {
-  return source.replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "");
+  return source
+    .replace(/\/\*@full\*\/([\s\S]*?)\/\*@end\*\//g, full ? "$1" : "")
+    .replace(/\/\*@core\*\/([\s\S]*?)\/\*@end\*\//g, full ? "" : "$1");
 }
 
-function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, doNotTrack = "0", ignored = false, crypto = {}} = {}) {
+function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, doNotTrack = "0", ignored = false, crypto = {}, loadInjectedFull = false, windowValues = {}, injectionError = false} = {}) {
   const events = new Map();
   const listeners = new Map();
   const payloads = [];
@@ -46,12 +48,25 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
     },
   });
   const location = {hostname: "example.com", href: "https://example.com/start"};
+  const loadedScripts = [];
+  const scriptAttributes = Object.entries({...dataset}).map(([name, value]) => ({
+    name: `data-${name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`,
+    value,
+  }));
+  if (includeSite && !Object.hasOwn(dataset, "site")) {
+    scriptAttributes.push({name: "data-site", value: "site-1"});
+  }
+  const currentScript = {
+    src: "https://analytics.example/js/site-1.js?cache=1",
+    dataset: {...(includeSite ? {site: "site-1"} : {}), ...dataset},
+    attributes: scriptAttributes,
+    hasAttribute(name) {
+      return this.attributes.some((attribute) => attribute.name == name);
+    },
+  };
   const document = {
     body: {scrollHeight: 1000},
-    currentScript: {
-      dataset: {...(includeSite ? {site: "site-1"} : {}), ...dataset},
-      hasAttribute: () => false,
-    },
+    currentScript,
     documentElement: {scrollHeight: 1000},
     hidden: false,
     referrer: "https://referrer.example/",
@@ -65,10 +80,34 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
         registered.forEach((callback) => callback(...args));
       });
     },
+    createElement(tagName) {
+      assert.equal(tagName, "script");
+      const attributes = [];
+      return {
+        attributes,
+        dataset: {},
+        hasAttribute(name) {
+          return attributes.some((attribute) => attribute.name == name);
+        },
+        setAttribute(name, value) {
+          attributes.push({name, value});
+          if (name.startsWith("data-")) {
+            const key = name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+            this.dataset[key] = value;
+          }
+        },
+      };
+    },
+    head: {
+      appendChild(child) {
+        if (injectionError) throw new Error("script injection blocked");
+        loadedScripts.push(child);
+      },
+    },
     querySelector: () => null,
   };
   Object.defineProperty(document, "cookie", {get: forbidStorage, set: forbidStorage});
-  const window = {};
+  const window = {...windowValues};
   Object.defineProperties(window, {
     localStorage: {value: localStorage},
     sessionStorage: {get: forbidStorage},
@@ -123,10 +162,17 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
     window,
   };
   vm.runInNewContext(prelude + buildSource(full), context, {filename: "tracker.js"});
+  if (loadInjectedFull) {
+    for (const injected of loadedScripts) {
+      if (new URL(injected.src).searchParams.get("full") != "1") continue;
+      document.currentScript = injected;
+      vm.runInNewContext(buildSource(true), context, {filename: "tracker.full.js"});
+    }
+  }
   if (withExtensions) {
     vm.runInNewContext(extensions, context, {filename: "tracker.extensions.js"});
   }
-  return {context, events, supermetry: window.supermetry, payloads, storage, setNow: (value) => now = value};
+  return {context, events, supermetry: window.supermetry, payloads, storage, loadedScripts, setNow: (value) => now = value};
 }
 
 function element({tagName = "BUTTON", classes = [], attributes = {}, parentElement = null} = {}) {
@@ -199,6 +245,43 @@ function testConsentQueueKeepsCreationTimestamp() {
   tracker.supermetry.consent(true);
 
   assert.equal(tracker.payloads[0].ts, 1100);
+}
+
+function testCoreLoadsFullTrackerAndWaitsForConsent() {
+  const tracker = loadTracker({dataset: {consent: "required", customOption: "kept"}, loadInjectedFull: true});
+
+  assert.equal(tracker.loadedScripts.length, 1, "core must load the full tracker exactly once");
+  assert.equal(new URL(tracker.loadedScripts[0].src).searchParams.get("full"), "1");
+  assert.equal(tracker.loadedScripts[0].dataset.consent, "required");
+  assert.equal(tracker.loadedScripts[0].dataset.customOption, "kept");
+  assert.deepEqual(tracker.payloads, [], "required consent must prevent every network send");
+
+  tracker.supermetry.consent(true);
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
+}
+
+function testCoreLoadsFullTrackerForManualModeWithoutPageview() {
+  const tracker = loadTracker({dataset: {manual: "true"}, loadInjectedFull: true});
+
+  assert.equal(tracker.loadedScripts.length, 1, "core must load the full tracker exactly once");
+  assert.deepEqual(tracker.payloads, [], "manual mode must suppress the automatic pageview");
+}
+
+function testCoreLoadsFullTrackerForBeforeSend() {
+  const tracker = loadTracker({
+    dataset: {beforeSend: "dropEvent"},
+    loadInjectedFull: true,
+    windowValues: {dropEvent: () => null},
+  });
+
+  assert.equal(tracker.loadedScripts.length, 1, "core must load the full tracker exactly once");
+  assert.deepEqual(tracker.payloads, [], "beforeSend hook must control the initial pageview");
+}
+
+function testCoreFailsClosedWhenFullTrackerCannotLoad() {
+  const tracker = loadTracker({dataset: {consent: "required"}, injectionError: true});
+
+  assert.deepEqual(tracker.payloads, [], "failed full tracker injection must not fall back to core sends");
 }
 
 function testClear() {
@@ -550,9 +633,9 @@ function testDataAttributeTakesPrecedenceOverClassTag() {
   assert.deepEqual(tracker.payloads.slice(1).map((payload) => payload.name), ["Attribute Event"]);
 }
 
-function testCoreBuildExcludesFullRoutingFeatures() {
+function testCoreBuildExcludesFullRoutingImplementations() {
   const core = buildSource(false);
-  for (const forbidden of ["hashchange", "beforeSend", "consent", "data.manual"]) {
+  for (const forbidden of ["hashchange", "replaceState", "supermetry.consent", "paused.findIndex"]) {
     assert.equal(core.includes(forbidden), false, `core build contains ${forbidden}`);
   }
 }
@@ -622,6 +705,10 @@ testIdentifyAndSubsequentEvents();
 testPayloadContractFields();
 testPayloadIDFallsBackToRandomHex();
 testConsentQueueKeepsCreationTimestamp();
+testCoreLoadsFullTrackerAndWaitsForConsent();
+testCoreLoadsFullTrackerForManualModeWithoutPageview();
+testCoreLoadsFullTrackerForBeforeSend();
+testCoreFailsClosedWhenFullTrackerCannotLoad();
 testClear();
 testOmittedTraits();
 testValidationBoundaries();
@@ -647,7 +734,7 @@ testClassTaggedFormReplacesAutomaticFormEvent();
 testClassTaggedClickIncludesValidProperties();
 testMalformedClassTagsAreIgnored();
 testDataAttributeTakesPrecedenceOverClassTag();
-testCoreBuildExcludesFullRoutingFeatures();
+testCoreBuildExcludesFullRoutingImplementations();
 testOptOutStopsSendsAndOptInResumes();
 testStoredOptOutSuppressesInitialPageview();
 testHeatmapIsOffByDefaultAndExplicitlyEnabled();

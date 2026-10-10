@@ -8,6 +8,24 @@
     return;
   }
 
+  /*@core*/
+  if (data.consent == "required" || data.manual == "true" || data.beforeSend) {
+    try {
+      var replacement = document.createElement("script");
+      for (var attribute of script.attributes) {
+        if (attribute.name.startsWith("data-")) {
+          replacement.setAttribute(attribute.name, attribute.value);
+        }
+      }
+      var replacementURL = new URL(script.src, location.href);
+      replacementURL.searchParams.set("full", "1");
+      replacement.src = replacementURL;
+      document.head.appendChild(replacement);
+    } catch (error) {}
+    return;
+  }
+  /*@end*/
+
   /*@full*/
   var manual = data.manual == "true";
   var viewStarted = !manual;

@@ -44,43 +44,46 @@ func main() {
 
 func stripFull(source []byte, keep bool) ([]byte, error) {
 	const (
-		startMarker = "/*@full*/"
-		endMarker   = "/*@end*/"
+		fullMarker = "/*@full*/"
+		coreMarker = "/*@core*/"
+		endMarker  = "/*@end*/"
 	)
 
 	var output bytes.Buffer
-	inFull := false
 	for len(source) > 0 {
-		start := bytes.Index(source, []byte(startMarker))
+		fullStart := bytes.Index(source, []byte(fullMarker))
+		coreStart := bytes.Index(source, []byte(coreMarker))
 		end := bytes.Index(source, []byte(endMarker))
-		if !inFull {
-			if end >= 0 && (start < 0 || end < start) {
-				return nil, fmt.Errorf("stray %s marker", endMarker)
-			}
-			if start < 0 {
-				output.Write(source)
-				break
-			}
-			output.Write(source[:start])
-			source = source[start+len(startMarker):]
-			inFull = true
-			continue
+		start := fullStart
+		marker := fullMarker
+		keepBlock := keep
+		if start < 0 || coreStart >= 0 && coreStart < start {
+			start = coreStart
+			marker = coreMarker
+			keepBlock = !keep
 		}
-
-		if start >= 0 && (end < 0 || start < end) {
-			return nil, fmt.Errorf("nested %s marker", startMarker)
+		if end >= 0 && (start < 0 || end < start) {
+			return nil, fmt.Errorf("stray %s marker", endMarker)
 		}
+		if start < 0 {
+			output.Write(source)
+			break
+		}
+		output.Write(source[:start])
+		source = source[start+len(marker):]
+		end = bytes.Index(source, []byte(endMarker))
 		if end < 0 {
-			return nil, fmt.Errorf("unclosed %s marker", startMarker)
+			return nil, fmt.Errorf("unclosed %s marker", marker)
 		}
-		if keep {
+		fullStart = bytes.Index(source, []byte(fullMarker))
+		coreStart = bytes.Index(source, []byte(coreMarker))
+		if fullStart >= 0 && fullStart < end || coreStart >= 0 && coreStart < end {
+			return nil, fmt.Errorf("nested conditional marker")
+		}
+		if keepBlock {
 			output.Write(source[:end])
 		}
 		source = source[end+len(endMarker):]
-		inFull = false
-	}
-	if inFull {
-		return nil, fmt.Errorf("unclosed %s marker", startMarker)
 	}
 	return output.Bytes(), nil
 }
