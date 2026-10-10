@@ -13,6 +13,20 @@ import (
 
 var version = "dev"
 
+const usage = "usage: supermetry [serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|migrate-labels|user|version]\nWith no command, supermetry serves."
+
+// commandName returns the subcommand to run. With no command, supermetry serves.
+func commandName(args []string) string {
+	if len(args) < 2 {
+		return "serve"
+	}
+	switch args[1] {
+	case "-h", "--help", "help":
+		return "help"
+	}
+	return args[1]
+}
+
 func main() {
 	// Read ./.env (or SUPERMETRY_ENV_FILE); variables already in the environment win.
 	envFile := os.Getenv("SUPERMETRY_ENV_FILE")
@@ -23,12 +37,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: supermetry {serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|migrate-labels|version}")
-		os.Exit(2)
+	command := commandName(os.Args)
+	if command == "help" {
+		fmt.Println(usage)
+		return
 	}
 
-	switch os.Args[1] {
+	switch command {
 	case "version":
 		fmt.Printf("supermetry %s\n", version)
 	case "migrate":
@@ -83,7 +98,7 @@ func main() {
 			os.Exit(1)
 		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: supermetry {serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|version}")
+		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(2)
 	}
 }

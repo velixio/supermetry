@@ -41,7 +41,7 @@ make build                       # builds the dashboard, then the binary in bin/
 export SUPERMETRY_DATABASE_URL=postgres://user:pass@127.0.0.1:5432/supermetry
 export SUPERMETRY_SECRET_KEY=$(openssl rand -hex 32)
 export SUPERMETRY_BASE_URL=http://localhost:8787
-bin/supermetry serve
+bin/supermetry          # same as: bin/supermetry serve
 ```
 
 Migrations run at startup. `bin/supermetry --help` lists the other commands (`backup`, `restore`, `migrate`, `close-days`, `geoip`).
