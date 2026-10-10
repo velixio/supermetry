@@ -83,9 +83,10 @@ Work through these in order.
 6. **Clean up data already stored.** The tools available today:
    - **Profile erasure** (identified tracking mode only): `DELETE /api/private/profiles/{profile}` removes one profile's events, sessions and replays and rebuilds the affected days.
    - **Retention** drops whole expired partitions. It cannot target spam.
+   - **Delete stored traffic** (site settings, Tracking, owners and admins; `POST /api/private/sites/{site}/purge-requests`): removes the sessions and events that match a date range and a source and/or a country, then rebuilds the affected days. It needs the caller's password. Session recordings are not touched, and there is no filter by IP address or path.
    - **Deleting the site** (`DELETE /api/private/sites/{site}`) erases all of its data.
 
-   There is no tool yet to delete events by time range, referrer or IP. If the spam is bad enough to matter, add an annotation for the affected period so readers know to discount it.
+   If spam cannot be matched by source or country, add an annotation for the affected period so readers know to discount it.
 
 ### 3. Credential stuffing and account lockout
 
