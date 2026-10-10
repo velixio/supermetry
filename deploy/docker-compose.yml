@@ -11,8 +11,14 @@
 # and start with the bundled-db profile:
 #   docker compose --profile bundled-db up -d --build
 
+# Fixed project name, so containers, networks and volumes are called supermetry-*
+# whatever this directory is named.
+name: supermetry
+
 services:
   supermetry:
+    image: supermetry
+    container_name: supermetry
     build:
       context: ..
       dockerfile: Dockerfile
@@ -35,6 +41,7 @@ services:
     restart: unless-stopped
 
   postgres:
+    container_name: supermetry-postgres
     profiles: ["bundled-db"]
     image: postgres:18-alpine
     environment:
