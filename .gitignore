@@ -67,3 +67,6 @@ tools/bench/rig/rig.local.conf
 tools/bench/results/
 tools/bench/**/*.log.gz
 tools/bench/replay/node_modules/
+
+# Local development state created by make (dev secret key)
+.dev/

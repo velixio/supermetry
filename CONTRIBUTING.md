@@ -4,8 +4,8 @@ Thanks for helping. Please open an issue before starting large changes so we can
 
 ## Setup
 
-- Go (see `go.mod` for the version), PostgreSQL, and [Bun](https://bun.sh) for the dashboard.
-- Tests that touch the database use `SUPERMETRY_TEST_DSN`. Point it at a disposable PostgreSQL database; tests create their own temporary schemas.
+- Go (see `go.mod` for the version), [Bun](https://bun.sh) for the dashboard, and Docker.
+- No database setup: `make dev` and `make test` start PostgreSQL in Docker on port 5433 and use it. To use your own server instead, set `SUPERMETRY_DATABASE_URL` (app) or `SUPERMETRY_TEST_DSN` (tests, a disposable database; tests create their own temporary schemas).
 
 ```sh
 make build

@@ -54,8 +54,13 @@ Migrations run at startup. `bin/supermetry --help` lists the other commands (`ba
 
 ## Development
 
+You need Go, [Bun](https://bun.sh) and Docker. No database settings are needed: unless `.env` sets
+`SUPERMETRY_DATABASE_URL` (or `SUPERMETRY_TEST_DSN` for tests), `make` starts PostgreSQL in Docker on
+port 5433 and uses it. `make dev-db-down` stops it; its data is kept.
+
 ```sh
-make test    # Go tests; needs SUPERMETRY_TEST_DSN pointing at a disposable PostgreSQL database
+make dev     # build and run the server
+make test    # Go tests
 make lint    # go vet and gofmt
 ```
 

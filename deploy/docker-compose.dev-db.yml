@@ -1,12 +1,13 @@
 # Development PostgreSQL on port 5433, so it never collides with a PostgreSQL
 # already running on this machine at 5432.
 #
-#   make dev-db-up     # or: docker compose -f deploy/docker-compose.dev-db.yml up -d
-#   make dev-db-down   # stop it; data is kept in the supermetry-dev-pg volume
+# You don't start it yourself: `make run`, `make dev`, `make migrate` and `make test`
+# start it and use it whenever .env sets no database URL. `make dev-db-down` stops it;
+# the data is kept in the supermetry-dev-pg volume.
 #
 # Two databases, both owned by user supermetry (password supermetry):
-#   supermetry       for the app:   SUPERMETRY_DATABASE_URL=postgres://supermetry:supermetry@127.0.0.1:5433/supermetry?sslmode=disable
-#   supermetry_test  for go test:   SUPERMETRY_TEST_DSN=postgres://supermetry:supermetry@127.0.0.1:5433/supermetry_test?sslmode=disable
+#   supermetry       used by the app
+#   supermetry_test  used by go test
 #
 # Local development only: the password is fixed and the port is bound to
 # 127.0.0.1. Never use this file for a server.
