@@ -193,6 +193,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/private/sites/{site}", h.updateSite)
 	mux.HandleFunc("DELETE /api/private/sites/{site}", h.deleteSite)
 	mux.HandleFunc("POST /api/private/sites/{site}/restore", h.restoreSite)
+	mux.HandleFunc("GET /api/private/sites/{site}/purge-requests", h.listDataPurges)
+	mux.HandleFunc("POST /api/private/sites/{site}/purge-requests", h.createDataPurge)
 	mux.HandleFunc("POST /api/private/orgs/{org}/api-keys", h.createAPIKey)
 	mux.HandleFunc("GET /api/private/orgs/{org}/audit", h.listAudit)
 	mux.HandleFunc("GET /api/private/orgs/{org}/sites/deleted", h.listDeletedSites)

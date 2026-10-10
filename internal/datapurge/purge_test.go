@@ -23,11 +23,11 @@ func TestInputValidation(t *testing.T) {
 		"bad country":    {From: day, To: day, Country: "USA"},
 		"digit country":  {From: day, To: day, Country: "U1"},
 	} {
-		if _, err := in.normalized(); !errors.Is(err, ErrInvalid) {
+		if _, err := in.Normalized(); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s: error=%v, want ErrInvalid", name, err)
 		}
 	}
-	got, err := Input{From: day, To: day, Country: " in "}.normalized()
+	got, err := Input{From: day, To: day, Country: " in "}.Normalized()
 	if err != nil || got.Country != "IN" {
 		t.Fatalf("country filter = %+v, %v", got, err)
 	}

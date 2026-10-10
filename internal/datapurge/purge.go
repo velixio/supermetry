@@ -70,7 +70,7 @@ type Input struct {
 	RequestedBy string
 }
 
-func (in Input) normalized() (Input, error) {
+func (in Input) Normalized() (Input, error) {
 	in.Source = strings.TrimSpace(in.Source)
 	in.Country = strings.ToUpper(strings.TrimSpace(in.Country))
 	if in.From.IsZero() || in.To.IsZero() || in.From.After(in.To) {
@@ -93,7 +93,7 @@ func (in Input) normalized() (Input, error) {
 
 // Create records a request for the worker to carry out.
 func Create(ctx context.Context, pool *pgxpool.Pool, in Input) (Request, error) {
-	in, err := in.normalized()
+	in, err := in.Normalized()
 	if err != nil {
 		return Request{}, err
 	}
@@ -113,6 +113,13 @@ func Create(ctx context.Context, pool *pgxpool.Pool, in Input) (Request, error) 
 		return Request{}, fmt.Errorf("record data purge: %w", err)
 	}
 	return request, nil
+}
+
+// Active reports whether the site has a purge that has not finished.
+func Active(ctx context.Context, pool *pgxpool.Pool, siteID int32) (bool, error) {
+	var active bool
+	err := pool.QueryRow(ctx, `select exists(select 1 from data_purge_requests where site_id=$1 and status in ('pending','running','settling'))`, siteID).Scan(&active)
+	return active, err
 }
 
 // List returns the most recent requests for a site, newest first.
