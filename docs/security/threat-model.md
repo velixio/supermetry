@@ -8,7 +8,7 @@ How to read the tables:
 
 - **Control** means it exists in code today, with the file that implements it.
 - **Missing** means a control a reader would reasonably expect, which we looked for and did not find.
-- **Planned** items are being built on unmerged branches. They are not controls yet.
+- **Planned** marks a next step that does not exist yet. **Done** marks a control added after the first version of this analysis.
 - Anything we could not confirm by reading code is marked *unverified*.
 
 ## Actors
@@ -93,11 +93,11 @@ A second, smaller issue: `Resolve` skips private hops, so a client whose real ad
 
 | Residual risk | Severity | Next step |
 |---|---|---|
-| Forged events for any site, from any client | High for data integrity | **Planned:** per-site strict origin mode (also require a matching `Origin` header). Note that this stops browser-based spam from other origins, not scripted senders. Consider an optional signed or proxied event endpoint for high-value sites |
-| Referrer spam outside the static list | Medium | **Planned:** per-site blocked-referrer list. Also document how to refresh `internal/enrich/lists` |
-| Shared 100k-per-kind dictionary, so one site can degrade all sites | Medium | **Planned:** per-site dictionary share caps. Export `ingest.DimensionOverflow` (`internal/ingest/handler.go:555`) on `/metrics`; today nothing reads it |
+| Forged events for any site, from any client | High for data integrity | **Done:** opt-in per-site strict origin mode (requires a matching `Origin` or `Referer`; see `docs/tracking-privacy.md`). It stops browser-based spam from other origins, not scripted senders. Consider an optional signed or proxied event endpoint for high-value sites |
+| Referrer spam outside the static list | Medium | **Done:** per-site blocked-referrer list and the operator file `SUPERMETRY_REFERRER_SPAM_FILE` (startup only) |
+| Shared 100k-per-kind dictionary, so one site can degrade all sites | Medium | **Done:** per-site share of each kind's dictionary capacity, daily garbage collection of unreferenced entries, and 80% and 95% fill warnings. Overflow is also counted per site on the health page |
 | Rate limits are hard-coded and per process | Medium | Make them configurable. Document that multi-instance deployments need a limiter in the proxy |
-| No per-site view of drops | Medium | **Planned:** per-site drop counters on the health page. Today all counters are instance-wide |
+| No per-site view of drops | Medium | **Done:** per-site daily drop counts with spike warnings on the health page (bots by rule name, rate limits, privacy signals, overflow). Only counts are stored, never IPs or user agents |
 | Unset `SUPERMETRY_TRUSTED_PROXIES` behind a proxy | Medium (misconfiguration) | Log a startup warning when requests arrive with `X-Forwarded-For` from an untrusted peer |
 | No tool to delete spam already stored, by time range, referrer or IP | Medium | Add a site-scoped purge for a time range plus filter, followed by a rollup rebuild. Today the options are profile erasure (identified mode only), retention, or deleting the site |
 | Public ID cannot be rotated | Low | Add rotation, keeping the old ID accepted for a grace period |
@@ -140,7 +140,7 @@ A second, smaller issue: `Resolve` skips private hops, so a client whose real ad
 | Residual risk | Severity | Next step |
 |---|---|---|
 | Quota checked hourly, CSS outside the quota | Medium | Check quota at upload time and count CSS toward it |
-| Empty Origin accepted | Medium | With strict origin mode (planned, see surface 1), require Origin for replay too |
+| Empty Origin accepted | Medium | Strict origin mode now exists for event ingest (see surface 1); apply the same requirement to replay intake |
 | Replays can load remote resources in the player | Low | Proxy or strip remote URLs in the player, or tighten `img-src` and `frame-src` on playback routes |
 | IPv6 keyed per address | Low | Use /64 as ingest does |
 

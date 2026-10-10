@@ -47,7 +47,7 @@ This section is for operators of a Supermetry instance. Every variable, command 
 
 ### 1. Recognise spam and floods
 
-1. **Open the Data health page**: `/app/<org>/health` in the dashboard. It reads `GET /api/private/health`. The counters are instance-wide, not per site.
+1. **Open the Data health page**: `/app/<org>/health` in the dashboard. It reads `GET /api/private/health`. The top counters are instance-wide (admins only). The **Dropped and throttled traffic** section shows, per site and per day, how many events were dropped by reason (bot rule, rate limit, privacy signal, dictionary overflow) with a **Spike** badge when today is far above the 7-day average. Only counts are stored.
 2. **Scrape `/metrics`.** Set `SUPERMETRY_METRICS_TOKEN` and send `Authorization: Bearer <token>`. Without a token, only loopback clients can read it. The useful counters, all prefixed `supermetry_`:
 
    | Counter | A rise means |
@@ -160,7 +160,5 @@ Replay intake is off unless `SUPERMETRY_REPLAY_ENABLED=true`, and each site must
 
 These are being worked on and are **not** in the current release. Do not rely on them:
 
-- Per-site drop counters on the health page.
-- Per-site shares of the value dictionary.
 - Deleting events by time range, referrer or IP.
 - Secret key rotation.
