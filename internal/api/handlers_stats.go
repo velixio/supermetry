@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,8 +14,10 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"supermetry/internal/dict"
+	"supermetry/internal/dropstats"
 	"supermetry/internal/health"
 	"supermetry/internal/realtime"
+	"supermetry/internal/salts"
 	"supermetry/internal/session"
 	"supermetry/internal/sites"
 )
@@ -714,9 +717,31 @@ func realtimeLabel(dictionary dictionaryResolver, kind dict.Kind, encoded string
 	return encoded
 }
 
-func dataHealthHandler(progressProvider RollupBackfillProgressFunc, failedErasuresProvider FailedProfileErasuresFunc) http.HandlerFunc {
+func dataHealthHandler(progressProvider RollupBackfillProgressFunc, failedErasuresProvider FailedProfileErasuresFunc, dropReader DropStatsReader, registry sites.Registry, now func() time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeRequest(w, r, 0, "admin:read") {
+		principal, ok := r.Context().Value(principalContextKey{}).(Principal)
+		if !ok {
+			writeProblem(w, unauthorized())
+			return
+		}
+		// Instance-wide counters, queue depth and backfill state stay behind
+		// admin:read. A caller that can only manage sites sees just the drop
+		// counts of the sites it is allowed to access.
+		instanceScope := principal.hasScope("admin:read")
+		if !instanceScope && !principal.hasScope("sites:write") {
+			writeProblem(w, forbidden("the credential does not grant the required scope"))
+			return
+		}
+		if !instanceScope {
+			siteDrops, err := authorizedSiteDrops(r, dropReader, registry, now())
+			if err != nil {
+				writeProblem(w, internalProblem())
+				return
+			}
+			writeJSON(w, http.StatusOK, DataHealthResponse{
+				RollupBackfill: RollupBackfillProgress{Status: "finished"},
+				SiteDrops:      siteDrops,
+			})
 			return
 		}
 		snapshot := health.Snapshot()
@@ -747,6 +772,11 @@ func dataHealthHandler(progressProvider RollupBackfillProgressFunc, failedErasur
 				return
 			}
 		}
+		siteDrops, err := authorizedSiteDrops(r, dropReader, registry, now())
+		if err != nil {
+			writeProblem(w, internalProblem())
+			return
+		}
 		writeJSON(w, http.StatusOK, DataHealthResponse{
 			BotsFiltered:          bots,
 			CloseLagSeconds:       snapshot["close_lag_seconds"],
@@ -758,6 +788,8 @@ func dataHealthHandler(progressProvider RollupBackfillProgressFunc, failedErasur
 			QueueDepth:            int64(snapshot["writer_queue_depth"]),
 			FailedProfileErasures: failedProfileErasures,
 			RollupBackfill:        backfill,
+			SiteDrops:             siteDrops,
+			InstanceScope:         true,
 		})
 	}
 }
@@ -773,6 +805,60 @@ type DataHealthResponse struct {
 	QueueDepth            int64                  `json:"queue_depth"`
 	FailedProfileErasures int64                  `json:"failed_profile_erasures"`
 	RollupBackfill        RollupBackfillProgress `json:"rollup_backfill"`
+	SiteDrops             []SiteDropHealth       `json:"site_drops"`
+	InstanceScope         bool                   `json:"instance_scope"`
+}
+
+type SiteDropHealth struct {
+	SiteID       int32                    `json:"site_id"`
+	SitePublicID string                   `json:"site_public_id"`
+	Reasons      []DropReasonHealth       `json:"reasons"`
+	TopBotRules  []dropstats.BotRuleCount `json:"top_bot_rules"`
+}
+
+type DropReasonHealth struct {
+	Reason              string  `json:"reason"`
+	Today               int64   `json:"today"`
+	Previous7Days       int64   `json:"previous_7_days"`
+	Trailing7DayAverage float64 `json:"trailing_7_day_average"`
+	Spike               bool    `json:"spike"`
+}
+
+func authorizedSiteDrops(r *http.Request, reader DropStatsReader, registry sites.Registry, now time.Time) ([]SiteDropHealth, error) {
+	if reader == nil || registry == nil {
+		return []SiteDropHealth{}, nil
+	}
+	principal, ok := r.Context().Value(principalContextKey{}).(Principal)
+	if !ok {
+		return nil, fmt.Errorf("missing principal")
+	}
+	requested := make([]dropstats.SiteDay, 0)
+	publicIDs := make(map[int32]string)
+	for _, site := range registry.All() {
+		if site.TZ != nil && principal.allowsSite(site) {
+			requested = append(requested, dropstats.SiteDay{SiteID: site.ID, Today: salts.LocalDay(now, site.TZ)})
+			publicIDs[site.ID] = site.PublicID
+		}
+	}
+	summaries, err := reader.Read(r.Context(), requested)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]SiteDropHealth, 0, len(summaries))
+	for _, summary := range summaries {
+		publicID, allowed := publicIDs[summary.SiteID]
+		if !allowed {
+			continue
+		}
+		row := SiteDropHealth{SiteID: summary.SiteID, SitePublicID: publicID, TopBotRules: summary.TopBotRules, Reasons: make([]DropReasonHealth, 0, len(dropstats.Reasons()))}
+		for _, reason := range dropstats.Reasons() {
+			today, previous := summary.Today[reason], summary.Previous7[reason]
+			row.Reasons = append(row.Reasons, DropReasonHealth{Reason: reason.String(), Today: today, Previous7Days: previous, Trailing7DayAverage: float64(previous) / 7, Spike: dropstats.Spike(today, previous)})
+		}
+		result = append(result, row)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].SiteID < result[j].SiteID })
+	return result, nil
 }
 
 type RollupBackfillProgress struct {

@@ -2014,6 +2014,32 @@ export interface components {
             /** Format: int64 */
             failed_profile_erasures: number;
             rollup_backfill: components["schemas"]["RollupBackfillProgress"];
+            site_drops: components["schemas"]["SiteDropHealth"][];
+            /** @description True when the instance-wide counters in this response are populated (admin:read); false when only site_drops is filled for the caller's sites. */
+            instance_scope: boolean;
+        };
+        SiteDropHealth: {
+            /** Format: int32 */
+            site_id: number;
+            site_public_id: string;
+            reasons: components["schemas"]["DropReasonHealth"][];
+            top_bot_rules: components["schemas"]["BotRuleCount"][];
+        };
+        DropReasonHealth: {
+            /** @enum {string} */
+            reason: "bot_user_agent" | "bot_headless" | "bot_spam_referrer" | "rate_limited_ip" | "rate_limited_site" | "rate_limited_global" | "privacy_signal" | "dimension_overflow" | "host_not_allowed" | "clock_skew";
+            /** Format: int64 */
+            today: number;
+            /** Format: int64 */
+            previous_7_days: number;
+            /** Format: double */
+            trailing_7_day_average: number;
+            spike: boolean;
+        };
+        BotRuleCount: {
+            rule: string;
+            /** Format: int64 */
+            count: number;
         };
         RollupBackfillProgress: {
             /** @enum {string} */

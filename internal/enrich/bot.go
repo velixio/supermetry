@@ -39,6 +39,12 @@ var referrerSpam []byte
 
 type crawlerMatcher struct {
 	pattern *regexp.Regexp
+	rules   []crawlerRule
+}
+
+type crawlerRule struct {
+	name    string
+	pattern *regexp.Regexp
 }
 
 type crawlerEntry struct {
@@ -65,6 +71,26 @@ func (e *Enricher) BotWithBlockedReferrers(ua string, ip netip.Addr, referrer st
 		return BotSpamReferrer
 	default:
 		return BotNone
+	}
+}
+
+// BotRule returns bounded filter metadata for a matched bot. It never returns
+// request-provided user-agent or referrer text.
+func (e *Enricher) BotRule(ua, _ string, reason BotReason) string {
+	switch reason {
+	case BotHeadless:
+		return "headless"
+	case BotSpamReferrer:
+		return "spam_referrer"
+	case BotUserAgent:
+		for _, rule := range e.crawler.rules {
+			if rule.pattern.MatchString(ua) {
+				return rule.name
+			}
+		}
+		return "crawler_list"
+	default:
+		return ""
 	}
 }
 
@@ -150,6 +176,7 @@ func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 		return crawlerMatcher{}, nil, fmt.Errorf("parse crawler list: %w", err)
 	}
 	patterns := make([]string, 0, len(crawlers))
+	rules := make([]crawlerRule, 0, len(crawlers))
 	for _, crawler := range crawlers {
 		pattern := crawler.Pattern
 		if override, ok := crawlerPatternOverrides[pattern]; ok {
@@ -157,6 +184,11 @@ func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 		}
 		if pattern != "" {
 			patterns = append(patterns, pattern)
+			compiled, err := regexp.Compile(`(?i)(?:` + pattern + `)`)
+			if err != nil {
+				return crawlerMatcher{}, nil, fmt.Errorf("compile crawler rule %q: %w", crawler.Pattern, err)
+			}
+			rules = append(rules, crawlerRule{name: pattern, pattern: compiled})
 		}
 	}
 	pattern, err := regexp.Compile(`(?i)(?:` + strings.Join(patterns, "|") + `)`)
@@ -176,5 +208,5 @@ func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 		return crawlerMatcher{}, nil, fmt.Errorf("parse spam list: %w", err)
 	}
 
-	return crawlerMatcher{pattern: pattern}, spam, nil
+	return crawlerMatcher{pattern: pattern, rules: rules}, spam, nil
 }

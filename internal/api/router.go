@@ -23,6 +23,7 @@ import (
 	"supermetry/internal/clientip"
 	"supermetry/internal/config"
 	"supermetry/internal/dict"
+	"supermetry/internal/dropstats"
 	"supermetry/internal/ingest"
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
@@ -53,6 +54,10 @@ type RollupBackfillProgressFunc func(context.Context) (running bool, daysDone, t
 // their retries and need an administrator's attention.
 type FailedProfileErasuresFunc func(context.Context) (int64, error)
 
+type DropStatsReader interface {
+	Read(context.Context, []dropstats.SiteDay) ([]dropstats.SiteSummary, error)
+}
+
 // Deps contains the services exposed by the analytics HTTP router.
 type Deps struct {
 	Config         config.Config
@@ -79,6 +84,7 @@ type Deps struct {
 	Ready                  func() bool
 	RollupBackfillProgress RollupBackfillProgressFunc
 	FailedProfileErasures  FailedProfileErasuresFunc
+	DropStats              DropStatsReader
 }
 
 // NewRouter mounts the public integration API, private dashboard API and
@@ -146,7 +152,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("POST "+privatePrefix+"/retention/query", h.retentionRequest)
 	private.HandleFunc("GET "+privatePrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	private.HandleFunc("GET "+privatePrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
-	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress, deps.FailedProfileErasures))
+	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress, deps.FailedProfileErasures, deps.DropStats, deps.Sites, now))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, private))))
 	registerPlatformRoutes(mux, deps.Platform, deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow)

@@ -17,6 +17,7 @@ import (
 
 	"supermetry/internal/clientip"
 	"supermetry/internal/dict"
+	"supermetry/internal/dropstats"
 	"supermetry/internal/enrich"
 	"supermetry/internal/health"
 	"supermetry/internal/privacy"
@@ -63,6 +64,7 @@ type Handler struct {
 	TrustedProxies []netip.Prefix
 	Clock          Clock
 	Dedup          *Deduplicator
+	DropStats      *dropstats.Recorder
 	Diag           bool // log how each client address was resolved (SUPERMETRY_INGEST_DIAG=1)
 	// DimensionCardinalityLimit configures the per-site, per-local-day limit
 	// shared by every dictionary kind. Zero uses 10,000 for previously
@@ -122,6 +124,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if site.RespectPrivacySignals && (r.Header.Get("Sec-GPC") == "1" || r.Header.Get("DNT") == "1") {
 		health.PrivacySignalsDropped.Add(1)
+		h.recordDrop(site, dropstats.PrivacySignal, "", time.Time{})
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -143,7 +146,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pageURL, err := parsePageURL(payload.URL)
-	if err != nil || !site.Allows(strings.ToLower(pageURL.Hostname())) {
+	if err != nil {
+		h.invalid(w)
+		return
+	}
+	if !site.Allows(strings.ToLower(pageURL.Hostname())) {
+		h.recordDrop(site, dropstats.HostNotAllowed, "", time.Time{})
 		h.invalid(w)
 		return
 	}
@@ -175,6 +183,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if eventTime.After(receivedAt.Add(5 * time.Minute)) {
 			eventTime = receivedAt
 			health.IngestClockSkew.Add(1)
+			h.recordDrop(site, dropstats.ClockSkew, "", receivedAt)
 		}
 	}
 	originalURL := payload.URL
@@ -234,6 +243,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if reason := ingestRateLimit(h.Limiter, ipRateKey(ip), "site:"+strconv.FormatInt(int64(site.ID), 10)); reason != RateLimitNone {
 		recordIngestRateLimit(reason)
+		h.recordDrop(site, dropReasonForRateLimit(reason), "", receivedAt)
 		w.Header().Set("Retry-After", "1")
 		w.WriteHeader(http.StatusTooManyRequests)
 		return
@@ -242,6 +252,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if reason := h.Enricher.BotWithBlockedReferrers(r.UserAgent(), ip, payload.Referrer, site.BlockedReferrers); reason != enrich.BotNone {
 			Bots[reason].Add(1)
 			health.BotsFiltered[reason].Add(1)
+			h.recordDrop(site, dropReasonForBot(reason), h.Enricher.BotRule(r.UserAgent(), payload.Referrer, reason), receivedAt)
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
@@ -270,6 +281,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if reason := h.Enricher.BotWithBlockedReferrers(ua, ip, payload.Referrer, site.BlockedReferrers); reason != enrich.BotNone {
 		Bots[reason].Add(1)
 		health.BotsFiltered[reason].Add(1)
+		h.recordDrop(site, dropReasonForBot(reason), h.Enricher.BotRule(ua, payload.Referrer, reason), receivedAt)
 		if h.Diag {
 			h.logBotDrop(reason, ip, location)
 		}
@@ -576,6 +588,7 @@ func (h *Handler) dimensionID(ctx context.Context, siteID int32, localDay time.T
 	if original != OtherValue {
 		if resolved, ok := h.Dict.Value(kind, ids[0]); ok && resolved == OtherValue {
 			DimensionOverflow.Add(1)
+			h.DropStats.Record(siteID, localDay, dropstats.DimensionOverflow, "")
 		}
 	}
 	return ids[0], nil
@@ -638,6 +651,38 @@ func recordIngestRateLimit(reason RateLimitReason) {
 		health.IngestRateLimitedSite.Add(1)
 	case RateLimitGlobal:
 		health.IngestRateLimitedGlobal.Add(1)
+	}
+}
+
+func (h *Handler) recordDrop(site sites.Site, reason dropstats.Reason, rule string, eventTime time.Time) {
+	if eventTime.IsZero() {
+		eventTime = time.Now()
+		if h.Clock != nil {
+			eventTime = h.Clock.Now()
+		}
+	}
+	h.DropStats.Record(site.ID, salts.LocalDay(eventTime, site.TZ), reason, rule)
+}
+
+func dropReasonForRateLimit(reason RateLimitReason) dropstats.Reason {
+	switch reason {
+	case RateLimitIP:
+		return dropstats.RateLimitedIP
+	case RateLimitSite:
+		return dropstats.RateLimitedSite
+	default:
+		return dropstats.RateLimitedGlobal
+	}
+}
+
+func dropReasonForBot(reason enrich.BotReason) dropstats.Reason {
+	switch reason {
+	case enrich.BotHeadless:
+		return dropstats.BotHeadless
+	case enrich.BotSpamReferrer:
+		return dropstats.BotSpamReferrer
+	default:
+		return dropstats.BotUserAgent
 	}
 }
 

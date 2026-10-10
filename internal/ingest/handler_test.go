@@ -23,6 +23,7 @@ import (
 
 	"supermetry/internal/db"
 	"supermetry/internal/dict"
+	"supermetry/internal/dropstats"
 	"supermetry/internal/enrich"
 	"supermetry/internal/health"
 	"supermetry/internal/ingest"
@@ -126,6 +127,36 @@ func TestHostilePayloads(t *testing.T) {
 	}
 	if events != 2 || visitorID == 123 || sessionID == 456 {
 		t.Fatalf("events=%d visitor_id=%d session_id=%d", events, visitorID, sessionID)
+	}
+}
+
+func TestBotDropStoresOneReasonWithoutUserAgentText(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	if _, err := f.pool.Exec(t.Context(), `insert into orgs(name,slug) values('Drops','drops');
+insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values(1,1,'dropstats001','Drops','UTC',30)`); err != nil {
+		t.Fatal(err)
+	}
+	f.h.DropStats = dropstats.New(f.pool, dropstats.Options{MaxSites: 10})
+	ua := "Mozilla/5.0 Googlebot/2.1 private-user-agent-marker"
+	if response := post(t, f.h, okBody, ua, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if err := f.h.DropStats.Flush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	var reason, rule string
+	var count, reasons int64
+	if err := f.pool.QueryRow(t.Context(), `select min(reason),sum(count),count(*) from site_drop_daily where site_id=1`).Scan(&reason, &count, &reasons); err != nil {
+		t.Fatal(err)
+	}
+	if reason != "bot_user_agent" || count != 1 || reasons != 1 {
+		t.Fatalf("drop rows reason=%q count=%d rows=%d", reason, count, reasons)
+	}
+	if err := f.pool.QueryRow(t.Context(), `select rule from site_bot_rule_daily where site_id=1`).Scan(&rule); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(rule, "private-user-agent-marker") || rule == ua {
+		t.Fatalf("stored rule leaked UA: %q", rule)
 	}
 }
 

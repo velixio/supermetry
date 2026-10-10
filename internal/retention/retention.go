@@ -15,6 +15,8 @@ import (
 )
 
 var eraseTables = []string{
+	"site_bot_rule_daily",
+	"site_drop_daily",
 	"heatmap_cells",
 	"events",
 	"sessions",
@@ -37,6 +39,11 @@ var eraseTables = []string{
 // Run drops expired hot-tier leaf partitions. A retention class keeps its
 // configured number of days plus one day of closing slack.
 func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, error) {
+	for _, table := range []string{"site_bot_rule_daily", "site_drop_daily"} {
+		if _, err := pool.Exec(ctx, "delete from "+table+" d using sites s where d.site_id=s.id and d.day < (($1::timestamptz at time zone s.timezone)::date - 90)", now); err != nil {
+			return nil, fmt.Errorf("delete expired %s rows: %w", table, err)
+		}
+	}
 	var expired []db.Partition
 	for _, table := range []string{"events", "sessions"} {
 		partitions, err := db.ListPartitions(ctx, pool, table)

@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/config"
 	"supermetry/internal/db"
 	"supermetry/internal/dict"
+	"supermetry/internal/dropstats"
 	"supermetry/internal/geoupdate"
 	"supermetry/internal/health"
 	"supermetry/internal/heatmap"
@@ -321,6 +322,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		platformHandler = transitionFromCompatibility(platformHandler, compatibility)
 	}
 	intakeLimiter := ingest.NewIngestRateLimiter(10_000, 10_000)
+	dropRecorder := dropstats.New(pool, dropstats.Options{})
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
 		PathPolicy:   cfg.TrackingPaths,
@@ -328,6 +330,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Sessions: sessions, Writer: w, Limiter: intakeLimiter,
 		TrustedProxies: cfg.TrustedProxies, Clock: settings.clock,
 		Dedup:             ingest.NewDeduplicator(cfg.DedupEntries),
+		DropStats:         dropRecorder,
 		ProfileTombstones: profileTombstones,
 		Diag:              os.Getenv("SUPERMETRY_INGEST_DIAG") == "1",
 	}
@@ -368,6 +371,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			err := pool.QueryRow(ctx, `select count(*) from profile_erasure_requests where status='failed'`).Scan(&count)
 			return count, err
 		},
+		DropStats: dropRecorder,
 	})
 	listener, err := settings.listen("tcp", cfg.Listen)
 	if err != nil {
@@ -381,6 +385,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	writerCtx, cancelWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
 	go func() { writerDone <- w.Run(writerCtx) }()
+	dropStatsCtx, cancelDropStats := context.WithCancel(context.Background())
+	dropStatsDone := make(chan error, 1)
+	go func() { dropStatsDone <- dropRecorder.Run(dropStatsCtx) }()
 	var cancelReplayIndex context.CancelFunc
 	var replayIndexDone chan error
 	if replayIndex != nil {
@@ -437,6 +444,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-writerDone:
 		cause = err
 		writerDone = nil
+	case err := <-dropStatsDone:
+		cause = err
+		dropStatsDone = nil
 	case err := <-replayIndexDone:
 		cause = err
 		replayIndexDone = nil
@@ -465,6 +475,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelWriter()
 	if writerDone != nil {
 		cause = errors.Join(cause, <-writerDone)
+	}
+	cancelDropStats()
+	if dropStatsDone != nil {
+		cause = errors.Join(cause, <-dropStatsDone)
 	}
 	if cancelReplayIndex != nil {
 		cancelReplayIndex()

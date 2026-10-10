@@ -198,3 +198,33 @@ func TestInAppBrowsersAreNotBots(t *testing.T) {
 		t.Errorf("WhatsApp link-preview fetcher = %v, want BotUserAgent", reason)
 	}
 }
+
+func TestBotRuleReturnsOnlyBoundedFilterMetadata(t *testing.T) {
+	enricher, err := enrich.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer enricher.Close()
+	tests := []struct {
+		name   string
+		ua     string
+		ref    string
+		reason enrich.BotReason
+		want   string
+	}{
+		{name: "crawler rule", ua: "Mozilla/5.0 Googlebot/2.1 private-marker", reason: enrich.BotUserAgent, want: `Googlebot\/`},
+		{name: "headless category", ua: "HeadlessChrome private-marker", reason: enrich.BotHeadless, want: "headless"},
+		{name: "spam category", ua: desktopUserAgent(), ref: "https://best-seo-offer.com/private-marker", reason: enrich.BotSpamReferrer, want: "spam_referrer"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := enricher.BotRule(tt.ua, tt.ref, tt.reason)
+			if got != tt.want {
+				t.Fatalf("BotRule() = %q, want %q", got, tt.want)
+			}
+			if got == tt.ua || got == tt.ref {
+				t.Fatal("BotRule retained request text")
+			}
+		})
+	}
+}

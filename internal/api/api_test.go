@@ -434,7 +434,13 @@ type orgSites map[int32]sites.Site
 
 func (o orgSites) ByPublicID(string) (sites.Site, bool) { return sites.Site{}, false }
 func (o orgSites) Site(id int32) (sites.Site, bool)     { s, ok := o[id]; return s, ok }
-func (o orgSites) All() []sites.Site                    { return nil }
+func (o orgSites) All() []sites.Site {
+	result := make([]sites.Site, 0, len(o))
+	for _, site := range o {
+		result = append(result, site)
+	}
+	return result
+}
 
 func TestAuthorizationScopeSiteAndCSRF(t *testing.T) {
 	// Sites 1 and 2 belong to org 7; principals are scoped to org 7.

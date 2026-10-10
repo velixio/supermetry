@@ -16,6 +16,7 @@ import (
 	"supermetry/internal/config"
 	"supermetry/internal/db"
 	"supermetry/internal/dict"
+	"supermetry/internal/dropstats"
 	"supermetry/internal/health"
 	"supermetry/internal/ingest"
 	"supermetry/internal/realtime"
@@ -26,6 +27,16 @@ import (
 type queryFunc struct {
 	query  func(api.QueryRequest) (api.QueryResponse, error)
 	funnel func(api.FunnelRequest) (api.FunnelResponse, error)
+}
+
+type dropStatsReaderStub struct {
+	requested []dropstats.SiteDay
+	rows      []dropstats.SiteSummary
+}
+
+func (s *dropStatsReaderStub) Read(_ context.Context, requested []dropstats.SiteDay) ([]dropstats.SiteSummary, error) {
+	s.requested = append([]dropstats.SiteDay(nil), requested...)
+	return s.rows, nil
 }
 
 func (q queryFunc) Query(_ context.Context, request api.QueryRequest) (api.QueryResponse, error) {
@@ -816,6 +827,84 @@ func TestDataHealthShowsCollectionReliabilityCounters(t *testing.T) {
 	}
 	if body.ClockSkewClamps != int64(beforeClockSkew+7) {
 		t.Errorf("clock skew clamps = %d, want %d", body.ClockSkewClamps, beforeClockSkew+7)
+	}
+}
+
+func TestDataHealthIncludesOnlyPrincipalSites(t *testing.T) {
+	reader := &dropStatsReaderStub{rows: []dropstats.SiteSummary{{SiteID: 2}, {SiteID: 1}}}
+	router := identifiedRouter(api.Deps{
+		Config: config.Config{},
+		PrivateAuth: principalAuth{principal: api.Principal{
+			OrgID: 7, Scopes: []string{"sites:write"}, SiteIDs: []int32{1},
+		}},
+		Sites: orgSites{
+			1: {ID: 1, OrgID: 7, PublicID: "allowed", TZ: time.FixedZone("plus-five-thirty", 19800)},
+			2: {ID: 2, OrgID: 8, PublicID: "foreign", TZ: time.UTC},
+		},
+		DropStats: reader,
+		Now:       func() time.Time { return time.Date(2026, 10, 10, 20, 0, 0, 0, time.UTC) },
+	})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/private/health", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if len(reader.requested) != 1 || reader.requested[0].SiteID != 1 || reader.requested[0].Today.Format(time.DateOnly) != "2026-10-11" {
+		t.Fatalf("requested sites = %+v", reader.requested)
+	}
+	var body api.DataHealthResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.SiteDrops) != 1 || body.SiteDrops[0].SiteID != 1 {
+		t.Fatalf("site drops = %+v", body.SiteDrops)
+	}
+	if strings.Contains(response.Body.String(), "foreign") || strings.Contains(response.Body.String(), `"site_id":2`) {
+		t.Fatalf("foreign site leaked: %s", response.Body.String())
+	}
+}
+
+func TestDataHealthKeepsInstanceDataBehindAdminScope(t *testing.T) {
+	newRouter := func(scopes ...string) http.Handler {
+		return identifiedRouter(api.Deps{
+			Config: config.Config{},
+			PrivateAuth: principalAuth{principal: api.Principal{
+				OrgID: 7, Scopes: scopes, SiteIDs: []int32{1},
+			}},
+			Sites:     orgSites{1: {ID: 1, OrgID: 7, PublicID: "mine", TZ: time.UTC}},
+			DropStats: &dropStatsReaderStub{rows: []dropstats.SiteSummary{{SiteID: 1}}},
+			Now:       func() time.Time { return time.Date(2026, 10, 10, 20, 0, 0, 0, time.UTC) },
+			FailedProfileErasures: func(context.Context) (int64, error) {
+				return 9, nil
+			},
+			RollupBackfillProgress: func(context.Context) (bool, int, int, error) {
+				return true, 5, 10, nil
+			},
+		})
+	}
+	get := func(scopes ...string) (*httptest.ResponseRecorder, api.DataHealthResponse) {
+		response := httptest.NewRecorder()
+		newRouter(scopes...).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/private/health", nil))
+		var body api.DataHealthResponse
+		_ = json.Unmarshal(response.Body.Bytes(), &body)
+		return response, body
+	}
+
+	response, body := get("sites:write")
+	if response.Code != http.StatusOK {
+		t.Fatalf("sites:write status=%d body=%s", response.Code, response.Body.String())
+	}
+	if body.InstanceScope || body.FailedProfileErasures != 0 || body.RollupBackfill.Status != "finished" || len(body.SiteDrops) != 1 {
+		t.Fatalf("sites:write response exposes instance data or lacks site drops: %+v", body)
+	}
+
+	response, body = get("admin:read")
+	if response.Code != http.StatusOK || !body.InstanceScope || body.FailedProfileErasures != 9 || body.RollupBackfill.Status != "running" {
+		t.Fatalf("admin:read response lacks instance data: status=%d %+v", response.Code, body)
+	}
+
+	if response, _ = get("stats:read"); response.Code != http.StatusForbidden {
+		t.Fatalf("stats:read status=%d, want 403", response.Code)
 	}
 }
 

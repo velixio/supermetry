@@ -3279,7 +3279,7 @@ components:
     DataHealthResponse:
       type: object
       additionalProperties: false
-      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds, duplicates, late_drops, clock_skew_clamps, failed_profile_erasures, rollup_backfill]
+      required: [ingest_rate, drops_503, bots_filtered, queue_depth, close_lag_seconds, duplicates, late_drops, clock_skew_clamps, failed_profile_erasures, rollup_backfill, site_drops, instance_scope]
       properties:
         ingest_rate:
           type: number
@@ -3314,6 +3314,45 @@ components:
           minimum: 0
         rollup_backfill:
           $ref: '#/components/schemas/RollupBackfillProgress'
+        site_drops:
+          type: array
+          items: { $ref: '#/components/schemas/SiteDropHealth' }
+        instance_scope:
+          type: boolean
+          description: True when the instance-wide counters in this response are populated (admin:read); false when only site_drops is filled for the caller's sites.
+    SiteDropHealth:
+      type: object
+      additionalProperties: false
+      required: [site_id, site_public_id, reasons, top_bot_rules]
+      properties:
+        site_id: { type: integer, format: int32 }
+        site_public_id: { type: string }
+        reasons:
+          type: array
+          items: { $ref: '#/components/schemas/DropReasonHealth' }
+        top_bot_rules:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/BotRuleCount' }
+    DropReasonHealth:
+      type: object
+      additionalProperties: false
+      required: [reason, today, previous_7_days, trailing_7_day_average, spike]
+      properties:
+        reason:
+          type: string
+          enum: [bot_user_agent, bot_headless, bot_spam_referrer, rate_limited_ip, rate_limited_site, rate_limited_global, privacy_signal, dimension_overflow, host_not_allowed, clock_skew]
+        today: { type: integer, format: int64, minimum: 0 }
+        previous_7_days: { type: integer, format: int64, minimum: 0 }
+        trailing_7_day_average: { type: number, format: double, minimum: 0 }
+        spike: { type: boolean }
+    BotRuleCount:
+      type: object
+      additionalProperties: false
+      required: [rule, count]
+      properties:
+        rule: { type: string, maxLength: 160 }
+        count: { type: integer, format: int64, minimum: 0 }
     RollupBackfillProgress:
       type: object
       additionalProperties: false

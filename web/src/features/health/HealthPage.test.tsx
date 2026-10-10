@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { HealthPage } from "./HealthPage";
@@ -28,6 +28,7 @@ it("shows historical breakdown backfill progress", async () => {
     duplicates: 0,
     late_drops: 0,
     clock_skew_clamps: 0,
+    instance_scope: true,
     rollup_backfill: { status: "running", days_done: 37, total_days: 120 },
   });
   const client = new QueryClient({
@@ -55,6 +56,7 @@ it("hides historical breakdown progress after completion", async () => {
     duplicates: 0,
     late_drops: 0,
     clock_skew_clamps: 0,
+    instance_scope: true,
     rollup_backfill: { status: "finished", days_done: 120, total_days: 120 },
   });
   const client = new QueryClient({
@@ -68,7 +70,9 @@ it("hides historical breakdown progress after completion", async () => {
   );
 
   expect(await screen.findByText("Data health")).toBeVisible();
-  expect(screen.queryByText(/Updating historical breakdowns/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/Updating historical breakdowns/),
+  ).not.toBeInTheDocument();
 });
 
 it("shows collection reliability signals in a distinct section", async () => {
@@ -82,6 +86,7 @@ it("shows collection reliability signals in a distinct section", async () => {
     late_drops: 5,
     clock_skew_clamps: 7,
     failed_profile_erasures: 0,
+    instance_scope: true,
     rollup_backfill: { status: "finished", days_done: 120, total_days: 120 },
   });
   const client = new QueryClient({
@@ -113,6 +118,7 @@ it("shows failed profile erasure requests that need attention", async () => {
     late_drops: 0,
     clock_skew_clamps: 0,
     failed_profile_erasures: 2,
+    instance_scope: true,
     rollup_backfill: { status: "finished", days_done: 120, total_days: 120 },
   });
   const client = new QueryClient({
@@ -125,7 +131,102 @@ it("shows failed profile erasure requests that need attention", async () => {
     </QueryClientProvider>,
   );
 
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "2 profile erasure requests need attention.",
+  );
+});
+
+it("shows per-site dropped traffic and spike warnings", async () => {
+  request.mockResolvedValue({
+    ingest_rate: 0,
+    drops_503: 0,
+    bots_filtered: 0,
+    queue_depth: 0,
+    close_lag_seconds: 0,
+    duplicates: 0,
+    late_drops: 0,
+    clock_skew_clamps: 0,
+    failed_profile_erasures: 0,
+    instance_scope: true,
+    rollup_backfill: { status: "finished", days_done: 0, total_days: 0 },
+    site_drops: [
+      {
+        site_id: 7,
+        site_public_id: "",
+        reasons: [
+          {
+            reason: "bot_user_agent",
+            today: 140,
+            previous_7_days: 70,
+            trailing_7_day_average: 10,
+            spike: true,
+          },
+          {
+            reason: "privacy_signal",
+            today: 3,
+            previous_7_days: 14,
+            trailing_7_day_average: 2,
+            spike: false,
+          },
+        ],
+        top_bot_rules: [{ rule: "Googlebot\\/", count: 80 }],
+      },
+    ],
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  render(
+    <QueryClientProvider client={client}>
+      <HealthPage orgId={42} />
+    </QueryClientProvider>,
+  );
+
+  await screen.findByText("Site 7");
+  const section = screen.getByRole("region", {
+    name: "Dropped and throttled traffic",
+  });
+  expect(section).toHaveTextContent("Site 7");
+  expect(section).toHaveTextContent("Bot user agent140");
+  expect(section).toHaveTextContent("Spike");
+  expect(section).toHaveTextContent("Googlebot\\/80");
   expect(
-    await screen.findByRole("alert"),
-  ).toHaveTextContent("2 profile erasure requests need attention.");
+    screen.getByRole("link", { name: "Why traffic is dropped" }),
+  ).toBeVisible();
+  expect(request).toHaveBeenCalledWith("GET", "/api/private/health", {
+    orgId: 42,
+  });
+});
+
+it("hides instance-wide counters when the server only returned site data", async () => {
+  request.mockResolvedValue({
+    ingest_rate: 0,
+    drops_503: 0,
+    bots_filtered: 0,
+    queue_depth: 0,
+    close_lag_seconds: 0,
+    duplicates: 0,
+    late_drops: 0,
+    clock_skew_clamps: 0,
+    failed_profile_erasures: 0,
+    instance_scope: false,
+    rollup_backfill: { status: "finished", days_done: 0, total_days: 0 },
+    site_drops: [],
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  render(
+    <QueryClientProvider client={client}>
+      <HealthPage orgId={42} />
+    </QueryClientProvider>,
+  );
+
+  await waitFor(() => expect(screen.queryByText("Queue depth")).toBeNull());
+  expect(screen.queryByText("Events per second")).toBeNull();
+  expect(
+    screen.getByRole("region", { name: "Dropped and throttled traffic" }),
+  ).toBeVisible();
 });

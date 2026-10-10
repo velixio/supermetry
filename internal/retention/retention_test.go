@@ -59,6 +59,73 @@ func TestRunDropsOnlyExpiredPerClass(t *testing.T) {
 	}
 }
 
+func TestRunDeletesDropStatsOlderThanNinetyDays(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into orgs(name,slug) values('Org','org');
+insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values(1,1,'dropstats001','Site','UTC',30);
+insert into site_drop_daily(site_id,day,reason,count) values(1,'2026-07-09','privacy_signal',1),(1,'2026-07-10','privacy_signal',2);
+insert into site_bot_rule_daily(site_id,day,rule,count) values(1,'2026-07-09','headless',1),(1,'2026-07-10','headless',2)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := retention.Run(ctx, pool, time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"site_drop_daily", "site_bot_rule_daily"} {
+		var days []time.Time
+		rows, err := pool.Query(ctx, "select day from "+table+" order by day")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for rows.Next() {
+			var day time.Time
+			if err := rows.Scan(&day); err != nil {
+				t.Fatal(err)
+			}
+			days = append(days, day)
+		}
+		rows.Close()
+		if len(days) != 1 || days[0].Format(time.DateOnly) != "2026-07-10" {
+			t.Fatalf("%s days = %v, want only cutoff day", table, days)
+		}
+	}
+}
+
+func TestRunUsesEachSitesLocalDayForDropStatsRetention(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into orgs(name,slug) values('Org','org');
+insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values(1,1,'dropstats001','Site','America/Los_Angeles',30);
+insert into site_drop_daily(site_id,day,reason,count) values(1,'2026-07-08','privacy_signal',1),(1,'2026-07-09','privacy_signal',2)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := retention.Run(ctx, pool, time.Date(2026, 10, 8, 1, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	var days []time.Time
+	rows, err := pool.Query(ctx, `select day from site_drop_daily order by day`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var day time.Time
+		if err := rows.Scan(&day); err != nil {
+			t.Fatal(err)
+		}
+		days = append(days, day)
+	}
+	if len(days) != 1 || days[0].Format(time.DateOnly) != "2026-07-09" {
+		t.Fatalf("days = %v, want local cutoff day", days)
+	}
+}
+
 func TestRunDropsEmptyExpiredReplayPartitions(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
