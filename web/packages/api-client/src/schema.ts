@@ -1674,6 +1674,8 @@ export interface components {
          * @enum {string}
          */
         Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "exit_rate" | "time_on_page" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
+        /** @enum {string} */
+        StatsBreakdownDimension: "browser" | "browser_version" | "channel" | "city" | "country" | "device" | "entry" | "event" | "exit" | "goal" | "hour" | "hour_of_day" | "hostname" | "language" | "os" | "os_version" | "page" | "path" | "region" | "screen_size" | "source" | "time" | "utm_campaign" | "utm_medium" | "utm_source" | "weekday";
         Filter: {
             /** @description Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. Region and city accept the legacy one-value [place] form for any country and the country-scoped [place, ISO country code] form. */
             dimension: string;
@@ -1699,7 +1701,7 @@ export interface components {
             /** @default true */
             include_imported: boolean;
             metrics: components["schemas"]["Metric"][];
-            /** @description Dimensions to group by. browser_version, os_version, screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop, desktop, and large, while stored value 0 is returned as an empty string for Unknown. */
+            /** @description Dimensions to group by. weekday (Sunday=0 through Saturday=6) and hour_of_day (0 through 23) use the site's time zone, read retained raw data, and require a range inside the site's raw-retention window; visitors and pageviews are available for the 7-by-24 Traffic grid. browser_version, os_version, screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop, desktop, and large, while stored value 0 is returned as an empty string for Unknown. */
             dimensions?: string[];
             filters?: components["schemas"]["Filter"][];
             order_by?: components["schemas"]["OrderBy"][];
@@ -3636,8 +3638,8 @@ export interface operations {
                 filter?: components["parameters"]["Filters"];
                 compare?: components["parameters"]["Compare"];
                 format?: components["parameters"]["Format"];
-                /** @description Analytics dimension to group by, including browser_version, os_version, screen_size, language, and hostname. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. */
-                dimension: string;
+                /** @description Analytics dimensions to group by. Pass one value normally, or weekday,hour_of_day for the Traffic grid. Traffic buckets use the site's time zone unless timezone is explicitly supplied; weekday is 0 for Sunday through 6 for Saturday, and hour_of_day is 0 through 23. Traffic grid requests read retained raw data and must fit inside the site's named raw-retention window. The Traffic grid supports distinct visitors and summed pageviews, and missing cells are omitted. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. */
+                dimension: components["schemas"]["StatsBreakdownDimension"][];
                 /** @description 1-1000, or all for a CSV export capped at 100,000 rows. CSV requires stats:read and data:export. */
                 limit?: components["parameters"]["StatsLimit"];
                 cursor?: components["parameters"]["Cursor"];

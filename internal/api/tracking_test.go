@@ -88,7 +88,10 @@ func TestAnonymousSafeDimensionsAndCanonicalFilters(t *testing.T) {
 	}{
 		{"country", `{"site_id":1,"metrics":["visitors"],"dimensions":["country"]}`, 200},
 		{"device", `{"site_id":1,"metrics":["visitors"],"dimensions":["device"]}`, 200},
+		{"traffic grid", `{"site_id":1,"metrics":["visitors","pageviews"],"dimensions":["weekday","hour_of_day"]}`, 200},
 		{"country filter", `{"site_id":1,"metrics":["visitors"],"filters":[{"dimension":"country","operator":"is","values":["US"]}]}`, 200},
+		{"traffic filter", `{"site_id":1,"metrics":["visitors"],"filters":[{"dimension":"hour_of_day","operator":"is","values":["23"]}]}`, 200},
+		{"invalid traffic filter", `{"site_id":1,"metrics":["visitors"],"filters":[{"dimension":"weekday","operator":"is","values":["7"]}]}`, 403},
 		{"hostile filter", `{"site_id":1,"metrics":["visitors"],"filters":[{"dimension":"browser","operator":"is","values":["private"]}]}`, 403},
 		{"probe filter", `{"site_id":1,"metrics":["visitors"],"filters":[{"dimension":"browser","operator":"contains","values":["Chrome"]}]}`, 403},
 	} {
@@ -105,6 +108,19 @@ func TestAnonymousSafeDimensionsAndCanonicalFilters(t *testing.T) {
 				t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 			}
 		})
+	}
+}
+
+func TestAnonymousResponseKeepsCanonicalTrafficDimensions(t *testing.T) {
+	input := api.QueryResponse{
+		Columns: []string{"weekday", "hour_of_day", "visitors", "pageviews"},
+		Rows:    []map[string]any{{"weekday": "0", "hour_of_day": "23", "visitors": float64(2), "pageviews": float64(4)}},
+		Totals:  map[string]float64{"visitors": 2, "pageviews": 4},
+		Meta:    api.QueryMeta{SourcesUsed: []string{"hot"}},
+	}
+	got := api.SanitizeAnonymousResponse(input, api.QueryRequest{Dimensions: &[]string{"weekday", "hour_of_day"}, Metrics: []api.Metric{api.Visitors, api.Pageviews}})
+	if len(got.Rows) != 1 || got.Rows[0]["weekday"] != "0" || got.Rows[0]["hour_of_day"] != "23" {
+		t.Fatalf("rows=%v", got.Rows)
 	}
 }
 

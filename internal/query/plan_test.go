@@ -101,6 +101,14 @@ func TestPlanReadsRawSessionsForHourlyTimeseries(t *testing.T) {
 	}
 }
 
+func TestPlanReadsRawSessionsForTrafficGrid(t *testing.T) {
+	parts := query.Plan(normalized("2026-09-09", "2026-10-08", []string{"weekday", "hour_of_day"}, nil), day("2026-10-08"))
+	want := []query.Part{{Route: query.RouteHot, From: day("2026-09-09"), To: day("2026-10-08")}}
+	if !reflect.DeepEqual(parts, want) {
+		t.Fatalf("Plan() = %+v, want %+v", parts, want)
+	}
+}
+
 func normalized(from, to string, dimensions []string, filters []api.Filter, metrics ...api.Metric) query.Normalized {
 	if len(metrics) == 0 {
 		metrics = []api.Metric{api.Visitors, api.Visits, api.Pageviews}

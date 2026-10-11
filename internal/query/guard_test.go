@@ -11,6 +11,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"supermetry/internal/api"
+	"supermetry/internal/db"
 	"supermetry/internal/query"
 	"supermetry/internal/sites"
 	"supermetry/internal/testpg"
@@ -201,6 +202,19 @@ func TestNormalizeAcceptsMaximumRangeAndLimit(t *testing.T) {
 	}
 	if normalized.Limit != 1000 {
 		t.Fatalf("Limit = %d, want 1000", normalized.Limit)
+	}
+}
+
+func TestNormalizeAcceptsTrafficGridDimensionsAndCompleteLimit(t *testing.T) {
+	t.Parallel()
+
+	req := withLimit(withDimensions(requestPeriod(api.N30d), "weekday", "hour_of_day"), 168)
+	normalized, problem := query.Normalize(req, sites.Site{ID: 1, TZ: time.UTC, Retention: db.Ret30}, time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC))
+	if problem != nil {
+		t.Fatalf("Normalize() problem = %+v", problem)
+	}
+	if !reflect.DeepEqual(normalized.Dimensions, []string{"weekday", "hour_of_day"}) || normalized.Limit != 168 {
+		t.Fatalf("Normalize() dimensions/limit = %v/%d", normalized.Dimensions, normalized.Limit)
 	}
 }
 

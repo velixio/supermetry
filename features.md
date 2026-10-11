@@ -21,6 +21,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | UTM breakdowns | ✓ | ✓ | ✓ | ✅ (raw `utm_source` stored separately from the blended source) |
 | Entry and exit pages | ✓ | ✓ | ✓ | ✅ |
 | Region and city | ✓ | ✓ | ✓ | ✅ (world map on the Countries card) |
+| Weekday × local-hour traffic grid | ✓ | ✓ | ? | ✅ (site-timezone visitors and pageviews within raw retention) |
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |

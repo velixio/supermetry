@@ -760,10 +760,24 @@ paths:
         - name: dimension
           in: query
           required: true
-          description: Analytics dimension to group by, including browser_version, os_version, screen_size, language, and hostname. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other.
+          description: >-
+            Analytics dimensions to group by. Pass one value normally, or weekday,hour_of_day for the Traffic grid.
+            Traffic buckets use the site's time zone unless timezone is explicitly supplied; weekday is 0 for Sunday
+            through 6 for Saturday, and hour_of_day is 0 through 23. Traffic grid requests read retained raw data and
+            must fit inside the site's named raw-retention window. The Traffic grid supports distinct visitors and
+            summed pageviews, and missing cells are omitted. screen_size returns mobile, tablet, laptop, desktop, or
+            large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and
+            returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants,
+            or Other.
+          style: form
+          explode: false
           schema:
-            type: string
-            example: page
+            type: array
+            minItems: 1
+            maxItems: 3
+            items:
+              $ref: '#/components/schemas/StatsBreakdownDimension'
+            example: [weekday, hour_of_day]
         - $ref: '#/components/parameters/StatsLimit'
         - $ref: '#/components/parameters/Cursor'
       responses:
@@ -2742,6 +2756,35 @@ components:
         - conversion_rate
         - total_revenue
         - average_revenue
+    StatsBreakdownDimension:
+      type: string
+      enum:
+        - browser
+        - browser_version
+        - channel
+        - city
+        - country
+        - device
+        - entry
+        - event
+        - exit
+        - goal
+        - hour
+        - hour_of_day
+        - hostname
+        - language
+        - os
+        - os_version
+        - page
+        - path
+        - region
+        - screen_size
+        - source
+        - time
+        - utm_campaign
+        - utm_medium
+        - utm_source
+        - weekday
     Filter:
       type: object
       additionalProperties: false
@@ -2795,7 +2838,12 @@ components:
             $ref: '#/components/schemas/Metric'
         dimensions:
           type: array
-          description: Dimensions to group by. browser_version, os_version, screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop, desktop, and large, while stored value 0 is returned as an empty string for Unknown.
+          description: >-
+            Dimensions to group by. weekday (Sunday=0 through Saturday=6) and hour_of_day (0 through 23) use the
+            site's time zone, read retained raw data, and require a range inside the site's raw-retention window;
+            visitors and pageviews are available for the 7-by-24 Traffic grid. browser_version, os_version,
+            screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop,
+            desktop, and large, while stored value 0 is returned as an empty string for Unknown.
           items:
             type: string
         filters:
