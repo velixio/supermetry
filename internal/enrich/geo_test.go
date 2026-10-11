@@ -357,3 +357,43 @@ func TestCheckFileRejectsCorruptSeparator(t *testing.T) {
 		t.Fatal("CheckFile(missing) = nil error, want failure")
 	}
 }
+
+// GeoIPSource decides which provider the dashboard credits: MaxMind when any MaxMind
+// database is loaded, otherwise the bundled DB-IP database.
+func TestGeoIPSourceNamesMaxMindOnlyWhenMaxMindDataIsLoaded(t *testing.T) {
+	country := mmdbtype.Map{"country": mmdbtype.Map{"iso_code": mmdbtype.String("CA")}}
+
+	bundled, err := enrich.NewWithGeo(enrich.GeoPaths{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = bundled.Close() })
+	if got := bundled.GeoIPSource(); got != "dbip" {
+		t.Fatalf("bundled database: source = %q, want dbip", got)
+	}
+
+	cases := []struct {
+		name  string
+		paths enrich.GeoPaths
+	}{
+		{name: "GeoLite2 country file", paths: enrich.GeoPaths{Country: writeMMDB(t, "GeoLite2-Country", country)}},
+		{name: "GeoLite2 city file", paths: enrich.GeoPaths{City: writeMMDB(t, "GeoLite2-City", country)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e, err := enrich.NewWithGeo(tc.paths)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = e.Close() })
+			if got := e.GeoIPSource(); got != "maxmind" {
+				t.Fatalf("source = %q, want maxmind", got)
+			}
+		})
+	}
+
+	var nilEnricher *enrich.Enricher
+	if got := nilEnricher.GeoIPSource(); got != "dbip" {
+		t.Fatalf("nil enricher: source = %q, want dbip", got)
+	}
+}
