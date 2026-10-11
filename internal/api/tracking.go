@@ -55,7 +55,7 @@ func ValidateAnonymousQuery(request QueryRequest) error {
 				return ErrAnonymousHistory
 			}
 			for _, value := range filter.Values {
-				if _, valid := canonicalAnonymousDimension(filter.Dimension, value); !valid || value == "" {
+				if _, valid := CanonicalAnonymousDimension(filter.Dimension, value); !valid || value == "" {
 					return ErrAnonymousHistory
 				}
 			}
@@ -78,7 +78,8 @@ func anonymousDimensionAllowed(dimension string) bool {
 	return dimension == "weekday" || dimension == "hour_of_day" || privacy.AnonymousDimensionAllowed(dimension)
 }
 
-func canonicalAnonymousDimension(dimension, value string) (string, bool) {
+// CanonicalAnonymousDimension validates and normalizes a finite anonymous dimension value.
+func CanonicalAnonymousDimension(dimension, value string) (string, bool) {
 	maximum := -1
 	switch dimension {
 	case "weekday":
@@ -159,7 +160,7 @@ func SanitizeAnonymousResponseWithPolicy(response QueryResponse, request QueryRe
 				if verified {
 					item[dimension] = value
 				} else {
-					item[dimension], _ = canonicalAnonymousDimension(dimension, value)
+					item[dimension], _ = CanonicalAnonymousDimension(dimension, value)
 				}
 			}
 			for _, metric := range request.Metrics {

@@ -14,7 +14,6 @@ import (
 
 	"supermetry/internal/api"
 	platformgoals "supermetry/internal/platform/goals"
-	"supermetry/internal/privacy"
 	"supermetry/internal/sites"
 )
 
@@ -433,23 +432,6 @@ func containsMetric(metrics []api.Metric, value string) bool {
 		}
 	}
 	return false
-}
-
-func canonicalAnonymousDimension(dimension, value string) (string, bool) {
-	maximum := -1
-	switch dimension {
-	case "weekday":
-		maximum = 6
-	case "hour_of_day":
-		maximum = 23
-	default:
-		return privacy.CanonicalDimensionValue(dimension, value)
-	}
-	parsed, err := strconv.Atoi(value)
-	if err != nil || parsed < 0 || parsed > maximum || strconv.Itoa(parsed) != value {
-		return "", false
-	}
-	return value, true
 }
 
 func copyValues[T any](values *[]T) []T {

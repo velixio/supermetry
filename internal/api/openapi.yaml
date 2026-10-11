@@ -761,7 +761,9 @@ paths:
           in: query
           required: true
           description: >-
-            Analytics dimensions to group by. Pass one value normally, or weekday,hour_of_day for the Traffic grid.
+            Analytics dimensions to group by. Supply dimensions as repeated parameters, comma-separated values, or a
+            mixture of both; order is preserved. For example, dimension=weekday&dimension=hour_of_day and
+            dimension=weekday,hour_of_day are equivalent for the Traffic grid.
             Traffic buckets use the site's time zone unless timezone is explicitly supplied; weekday is 0 for Sunday
             through 6 for Saturday, and hour_of_day is 0 through 23. Traffic grid requests read retained raw data and
             must fit inside the site's named raw-retention window. The Traffic grid supports distinct visitors and
@@ -770,7 +772,7 @@ paths:
             returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants,
             or Other.
           style: form
-          explode: false
+          explode: true
           schema:
             type: array
             minItems: 1

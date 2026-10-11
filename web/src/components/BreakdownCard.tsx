@@ -1,11 +1,13 @@
 import { lazy, Suspense, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
 import { formatBreakdownMetric, metricLabel } from '@/lib/breakdown-metrics'
 import { fmt } from '@/lib/format'
-import type { Filter } from '@/lib/search'
+import type { DashboardSearch, Filter } from '@/lib/search'
+import { en } from '@/messages/en'
 import { useStats, type StatsQuery } from '@/lib/stats'
 
 import { DetailsDialog } from './DetailsDialog'
@@ -31,6 +33,7 @@ type BreakdownCardProps = {
   allowFilter?: boolean
   verifiedPaths?: boolean
   description?: string
+  mapLink?: { org: string; site: string; search: DashboardSearch }
 }
 
 const WorldMap = lazy(() => import('./WorldMap').then((module) => ({ default: module.WorldMap })))
@@ -56,7 +59,7 @@ function filterAccessibleLabel(dimension: string, label: string, display: string
   return label
 }
 
-export function BreakdownCard({ title, tabs, query, onFilter, map = false, allowSearch = true, allowFilter = true, verifiedPaths = false, description }: BreakdownCardProps) {
+export function BreakdownCard({ title, tabs, query, onFilter, map = false, allowSearch = true, allowFilter = true, verifiedPaths = false, description, mapLink }: BreakdownCardProps) {
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
   const [view, setView] = useState<'list' | 'map'>('list')
   const activeTab = tabs.find((tab) => tab.key === activeKey) ?? tabs[0]
@@ -112,6 +115,11 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {mapLink && activeTab?.dimension === 'country' ? (
+            <Button asChild size="xs" variant="ghost">
+              <Link to="/app/$org/$site/map" params={{ org: mapLink.org, site: mapLink.site }} search={{ ...mapLink.search, metric: mapLink.search.metric === 'pageviews' ? 'pageviews' : 'visitors' }}>{en.map.openFullMap}</Link>
+            </Button>
+          ) : null}
           {map && activeTab?.dimension === 'country' ? (
             <div aria-label={`${title} view`} className="flex items-center gap-1" role="group">
               <Button

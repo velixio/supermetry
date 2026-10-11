@@ -23,8 +23,15 @@ type TimeseriesApi = {
     },
   ) => Promise<{ data?: QueryResponse | string; error?: Problem; response: Response }>
 }
+type BreakdownApi = {
+  GET: (
+    path: '/api/private/stats/breakdown',
+    options: { params: { query: Record<string, string | number | boolean | string[] | undefined> }; signal?: AbortSignal },
+  ) => Promise<{ data?: QueryResponse | string; error?: Problem; response: Response }>
+}
 
 const timeseriesApi = api as unknown as TimeseriesApi
+const breakdownApi = api as unknown as BreakdownApi
 
 export type StatsQuery = {
   siteId: number
@@ -185,6 +192,37 @@ export function useTimeseries(
     refetchInterval: query.live === true && current
       ? (state) => terminalAuthorizationError(state.state.error) ? false : 30_000
       : false,
+  })
+}
+
+export function useBreakdown(query: StatsQuery, enabled = true): UseQueryResult<QueryResponse, Problem> {
+  const params = {
+    site_id: query.siteId,
+    period: 'custom' as const,
+    date_from: query.dateRange.from,
+    date_to: query.dateRange.to,
+    timezone: query.timezone,
+    metrics: query.metrics.join(','),
+    filter: serializeFilters(query.filters),
+    ...(query.compare === 'previous_period' ? { compare: query.compare } : {}),
+    dimension: query.dimensions ?? [],
+    ...(query.limit === undefined ? {} : { limit: String(query.limit) }),
+    cursor: query.cursor,
+  }
+  const current = includesToday(query)
+  const queryKey = ['stats', query.siteId, 'breakdown', params, ...(query.trackingMode ? [query.trackingMode] : [])]
+  const retry = useStatsRetry(queryKey)
+  return useQuery<QueryResponse, Problem>({
+    queryKey,
+    enabled,
+    retry,
+    queryFn: async ({ signal }) => {
+      const { data, error, response } = await breakdownApi.GET('/api/private/stats/breakdown', { params: { query: params }, signal })
+      if (error) throw error
+      if (!data || typeof data === 'string') throw missingResponse(response.status)
+      return data
+    },
+    staleTime: current ? 30_000 : 300_000,
   })
 }
 

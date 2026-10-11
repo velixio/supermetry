@@ -388,7 +388,7 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 	if e.trackingMode != privacy.Identified {
 		for i := range rows {
 			for j, dimension := range normalized.Dimensions {
-				rows[i].dimensions[j], _ = canonicalAnonymousDimension(dimension, rows[i].dimensions[j])
+				rows[i].dimensions[j], _ = api.CanonicalAnonymousDimension(dimension, rows[i].dimensions[j])
 			}
 		}
 	}

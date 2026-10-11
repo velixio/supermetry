@@ -24,6 +24,7 @@ export type Site = {
   slug?: string
   public_id?: string
   timezone?: string
+  retention_days?: number
   profiles_enabled?: boolean
   icon_url?: string
   allowed_hosts?: string[]

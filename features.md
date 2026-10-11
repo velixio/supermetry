@@ -22,6 +22,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Entry and exit pages | ✓ | ✓ | ✓ | ✅ |
 | Region and city | ✓ | ✓ | ✓ | ✅ (world map on the Countries card) |
 | Weekday × local-hour traffic grid | ✓ | ✓ | ? | ✅ (site-timezone visitors and pageviews within raw retention) |
+| Interactive country map page with traffic grid and details | ✓ | ✓ | ? | ✅ |
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |

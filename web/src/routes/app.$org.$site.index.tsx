@@ -190,6 +190,7 @@ function DashboardStateRoute() {
             allowFilter={!page}
             verifiedPaths={page}
             description={anonymous ? page ? 'Partial coverage: only verified page data under the current path policy. Historical unverified data and imports are excluded. Page filters and detailed searches are unavailable.' : 'Only canonical categories are available. Free-text labels, versions, and searches are restricted in anonymous mode.' : undefined}
+            mapLink={card.map ? { org, site: siteSlug, search } : undefined}
           />
         })}
       </div>

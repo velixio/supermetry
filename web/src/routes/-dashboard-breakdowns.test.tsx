@@ -159,6 +159,7 @@ describe('dashboard breakdown route', () => {
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
     ).toEqual(['Countries', 'Regions', 'Cities', 'Language'])
+    expect(within(locations).getByRole('link', { name: 'Open full map' })).toHaveAttribute('href', expect.stringContaining('/app/acme/example/map'))
 
     const sources = screen.getByRole('region', { name: 'Sources' })
     expect(within(sources).queryByRole('tab', { name: 'Referrer' })).not.toBeInTheDocument()
