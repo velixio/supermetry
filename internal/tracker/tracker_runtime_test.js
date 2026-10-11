@@ -63,6 +63,17 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
     hasAttribute(name) {
       return this.attributes.some((attribute) => attribute.name == name);
     },
+    cloneNode() {
+      const attributes = this.attributes.map((attribute) => ({...attribute}));
+      return {
+        src: this.src,
+        dataset: {...this.dataset},
+        attributes,
+        hasAttribute(name) {
+          return attributes.some((attribute) => attribute.name == name);
+        },
+      };
+    },
   };
   const document = {
     body: {scrollHeight: 1000},
@@ -633,11 +644,25 @@ function testDataAttributeTakesPrecedenceOverClassTag() {
   assert.deepEqual(tracker.payloads.slice(1).map((payload) => payload.name), ["Attribute Event"]);
 }
 
-function testCoreBuildExcludesFullRoutingImplementations() {
+function testCoreBuildKeepsCompactRoutingAndExcludesAdvancedControls() {
   const core = buildSource(false);
-  for (const forbidden of ["hashchange", "replaceState", "supermetry.consent", "paused.findIndex"]) {
+  for (const required of ["replaceState", "lastLocation"]) {
+    assert.equal(core.includes(required), true, `core build is missing ${required}`);
+  }
+  for (const forbidden of ["hashchange", "supermetry.consent", "paused.findIndex"]) {
     assert.equal(core.includes(forbidden), false, `core build contains ${forbidden}`);
   }
+
+  const tracker = loadTracker();
+  tracker.context.history.replaceState({}, "", "/start");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
+  tracker.context.history.replaceState({}, "", "/next");
+  assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
+    "pageview", "engagement", "pageview",
+  ]);
+  tracker.context.location.href = "https://example.com/next#section";
+  tracker.events.get("window:popstate")();
+  assert.equal(tracker.payloads.length, 3, "core must ignore hash-only popstate changes");
 }
 
 function testOptOutStopsSendsAndOptInResumes() {
@@ -734,7 +759,7 @@ testClassTaggedFormReplacesAutomaticFormEvent();
 testClassTaggedClickIncludesValidProperties();
 testMalformedClassTagsAreIgnored();
 testDataAttributeTakesPrecedenceOverClassTag();
-testCoreBuildExcludesFullRoutingImplementations();
+testCoreBuildKeepsCompactRoutingAndExcludesAdvancedControls();
 testOptOutStopsSendsAndOptInResumes();
 testStoredOptOutSuppressesInitialPageview();
 testHeatmapIsOffByDefaultAndExplicitlyEnabled();

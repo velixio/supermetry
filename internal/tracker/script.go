@@ -33,16 +33,100 @@ func BuildScript(publicID string, settings sites.TrackerSettings, replaySettings
 
 func buildScript(publicID string, settings sites.TrackerSettings, replaySettings replay.SiteSettings, forceFull bool) Script {
 	prefix := prelude(publicID, settings, replaySettings)
-	source := script
-	if forceFull || settings.AnyExtension() || replaySettings.Enabled {
-		source = fullScript
+	parts := [][]byte{script}
+	var lazy []string
+	if forceFull {
+		parts = [][]byte{fullScript}
+	} else if settings.AnyExtension() || replaySettings.Enabled {
+		parts = [][]byte{runtimeScript, clicksScript}
+		if settings.Outbound {
+			parts = append(parts, outboundScript)
+		}
+		if settings.Downloads {
+			parts = append(parts, downloadsScript)
+		}
+		if settings.Forms {
+			parts = append(parts, formsScript)
+		}
+		if settings.NotFound {
+			parts = append(parts, notFoundScript)
+		}
+		if settings.Vitals {
+			lazy = append(lazy, "vitals")
+		}
+		if settings.Clicks {
+			lazy = append(lazy, "heatmap")
+		}
+		if replaySettings.Enabled {
+			parts = append(parts, replayScript)
+		}
+		if len(lazy) != 0 {
+			parts = append(parts, moduleLoader(strings.Join(lazy, ",")))
+		}
 	}
-	body := make([]byte, 0, len(prefix)+len(source))
+	size := len(prefix) + len(parts)
+	for _, part := range parts {
+		size += len(part)
+	}
+	body := make([]byte, 0, size)
 	body = append(body, prefix...)
-	body = append(body, source...)
+	for index, part := range parts {
+		if index != 0 {
+			body = append(body, ';')
+		}
+		body = append(body, part...)
+	}
 	digest := sha256.Sum256(body)
 	etag := `"` + hex.EncodeToString(digest[:])[:16] + `"`
 	return Script{Body: body, ETag: etag}
+}
+
+func moduleLoader(names string) []byte {
+	return []byte(`(()=>{var s=document.currentScript.cloneNode(),u=new URL(s.src);u.searchParams.set("module",` + strconv.Quote(names) + `);s.src=u;document.head.appendChild(s)})()`)
+}
+
+func buildModuleScript(names string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) (Script, bool) {
+	var parts [][]byte
+	seen := make(map[string]bool, 3)
+	for _, name := range strings.Split(names, ",") {
+		if seen[name] {
+			return Script{}, false
+		}
+		seen[name] = true
+		var source []byte
+		switch name {
+		case "vitals":
+			if !settings.Vitals {
+				return Script{}, false
+			}
+			source = vitalsScript
+		case "heatmap":
+			if !settings.Clicks {
+				return Script{}, false
+			}
+			source = heatmapScript
+		case "replay":
+			if !replaySettings.Enabled {
+				return Script{}, false
+			}
+			source = replayScript
+		default:
+			return Script{}, false
+		}
+		parts = append(parts, source)
+	}
+	if len(parts) == 0 {
+		return Script{}, false
+	}
+	body := make([]byte, 0)
+	for index, part := range parts {
+		if index != 0 {
+			body = append(body, ';')
+		}
+		body = append(body, part...)
+	}
+	digest := sha256.Sum256(body)
+	return Script{Body: body, ETag: `"` + hex.EncodeToString(digest[:])[:16] + `"`}, true
 }
 
 const defaultEventPath = "/api/public/v1/events"
@@ -197,23 +281,36 @@ func SiteHandlerWithPolicy(registry sites.Registry, replayEnv config.ReplayEnv, 
 		}
 		settings := site.Tracker.Resolve(site.HeatmapsEnabled)
 		replaySettings := replay.ResolveSite(replayEnv, site.Replay)
+		if modules := request.URL.Query().Get("module"); modules != "" {
+			generated, valid := buildModuleScript(modules, settings, replaySettings)
+			if !valid {
+				http.NotFound(w, request)
+				return
+			}
+			serveScript(w, request, generated)
+			return
+		}
 		generated := load(siteScriptCacheKey{
 			publicID: publicID, settings: settings, profilesEnabled: mode == privacy.Identified && site.ProfilesEnabled, mode: mode,
 			replayEnabled: replaySettings.Enabled, replayConsent: replaySettings.Consent, full: request.URL.Query().Get("full") == "1",
 		}, replaySettings)
 
-		w.Header().Set("Content-Type", "application/javascript")
-		w.Header().Set("Cache-Control", "public, max-age=60")
-		w.Header().Set("ETag", generated.ETag)
-		if request.Header.Get("If-None-Match") == generated.ETag {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
-		w.Header().Set("Content-Length", strconv.Itoa(len(generated.Body)))
-		if request.Method != http.MethodHead {
-			_, _ = w.Write(generated.Body)
-		}
+		serveScript(w, request, generated)
 	})
+}
+
+func serveScript(w http.ResponseWriter, request *http.Request, generated Script) {
+	w.Header().Set("Content-Type", "application/javascript")
+	w.Header().Set("Cache-Control", "public, max-age=60")
+	w.Header().Set("ETag", generated.ETag)
+	if request.Header.Get("If-None-Match") == generated.ETag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(generated.Body)))
+	if request.Method != http.MethodHead {
+		_, _ = w.Write(generated.Body)
+	}
 }
 
 func validPublicID(publicID string) bool {

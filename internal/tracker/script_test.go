@@ -17,7 +17,7 @@ import (
 
 func noReplay() replay.SiteSettings { return replay.SiteSettings{} }
 
-func TestBuildScriptDefaultsToFullTracker(t *testing.T) {
+func TestBuildScriptDefaultsToEnabledModules(t *testing.T) {
 	t.Parallel()
 
 	const publicID = "abc123def456"
@@ -26,8 +26,16 @@ func TestBuildScriptDefaultsToFullTracker(t *testing.T) {
 	if !bytes.HasPrefix(got.Body, []byte(wantPrelude)) {
 		t.Fatalf("body prefix = %q, want %q", got.Body[:min(len(got.Body), len(wantPrelude))], wantPrelude)
 	}
-	if !bytes.Equal(got.Body[len(wantPrelude):], fullScript) {
-		t.Fatal("default script does not contain the embedded full tracker")
+	for _, marker := range [][]byte{[]byte("Outbound Link: Click"), []byte("File Download"), []byte("Form: Submit")} {
+		if !bytes.Contains(got.Body, marker) {
+			t.Errorf("default script is missing enabled module %q", marker)
+		}
+	}
+	if bytes.Contains(got.Body, []byte("/replay.js")) {
+		t.Fatal("default script contains disabled replay module")
+	}
+	if !bytes.Contains(got.Body, []byte(`searchParams.set("module","vitals,heatmap")`)) {
+		t.Fatal("default script does not lazily load Vitals and heatmaps")
 	}
 	if len(wantPrelude) >= 300 {
 		t.Fatalf("prelude = %d bytes, want under 300", len(wantPrelude))
@@ -107,33 +115,50 @@ func TestBuildScriptUsesCoreWhenEveryExtensionIsOff(t *testing.T) {
 	}
 }
 
-func TestBuildScriptSelectsFullTrackerForEachSetting(t *testing.T) {
+func TestBuildScriptSelectsModuleForEachSetting(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
 		settings sites.TrackerSettings
+		marker   string
 	}{
-		{name: "outbound", settings: sites.TrackerSettings{Outbound: true}},
-		{name: "downloads", settings: sites.TrackerSettings{Downloads: true}},
-		{name: "forms", settings: sites.TrackerSettings{Forms: true}},
-		{name: "vitals", settings: sites.TrackerSettings{Vitals: true}},
-		{name: "not found", settings: sites.TrackerSettings{NotFound: true}},
-		{name: "hash routing", settings: sites.TrackerSettings{Hash: true}},
-		{name: "clicks", settings: sites.TrackerSettings{Clicks: true}},
+		{name: "outbound", settings: sites.TrackerSettings{Outbound: true}, marker: "Outbound Link: Click"},
+		{name: "downloads", settings: sites.TrackerSettings{Downloads: true}, marker: "File Download"},
+		{name: "forms", settings: sites.TrackerSettings{Forms: true}, marker: "Form: Submit"},
+		{name: "vitals", settings: sites.TrackerSettings{Vitals: true}, marker: `searchParams.set("module","vitals")`},
+		{name: "not found", settings: sites.TrackerSettings{NotFound: true}, marker: `track("404"`},
+		{name: "hash routing", settings: sites.TrackerSettings{Hash: true}, marker: "hashchange"},
+		{name: "clicks", settings: sites.TrackerSettings{Clicks: true}, marker: `searchParams.set("module","heatmap")`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			got := BuildScript("abc123def456", test.settings, noReplay())
-			_, source, ok := bytes.Cut(got.Body, []byte("\n"))
-			if !ok {
-				t.Fatal("script has no prelude separator")
-			}
-			if !bytes.Equal(source, fullScript) {
-				t.Fatal("enabled setting did not select the full tracker")
+			if !bytes.Contains(got.Body, []byte(test.marker)) {
+				t.Fatalf("enabled setting did not select module marker %q", test.marker)
 			}
 		})
+	}
+}
+
+func TestBuildScriptIncludesOnlyEnabledOptionalModules(t *testing.T) {
+	t.Parallel()
+
+	got := BuildScript("abc123def456", sites.TrackerSettings{Outbound: true}, noReplay()).Body
+	if !bytes.Contains(got, []byte("Outbound Link: Click")) {
+		t.Fatal("outbound-enabled script is missing outbound tracking")
+	}
+	for _, unwanted := range [][]byte{
+		[]byte("File Download"),
+		[]byte("Form: Submit"),
+		[]byte("Web Vitals"),
+		[]byte(`name:"heatmap"`),
+		[]byte("/replay.js"),
+	} {
+		if bytes.Contains(got, unwanted) {
+			t.Errorf("outbound-only script contains disabled module %q", unwanted)
+		}
 	}
 }
 
@@ -352,8 +377,30 @@ func TestScriptHasReplayConfigWhenEnabled(t *testing.T) {
 	if !bytes.Contains(prelude, []byte(`d.replay="always";`)) {
 		t.Fatalf("enabled script prelude = %q, want replay consent config", prelude)
 	}
-	if !bytes.Equal(source, fullScript) {
-		t.Fatal("replay-enabled site did not receive the full tracker")
+	if !bytes.Contains(source, []byte("/replay.js")) {
+		t.Fatal("replay-enabled site did not receive the replay bootstrap")
+	}
+}
+
+func TestSiteHandlerServesOnlyEnabledLazyModules(t *testing.T) {
+	enabled := true
+	registry := scriptRegistry{"abc123def456": {
+		PublicID: "abc123def456",
+		Tracker:  sites.TrackerSettingsInput{Vitals: &enabled, Clicks: &enabled},
+	}}
+	handler := SiteHandler(registry, config.ReplayEnv{})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js?module=vitals,heatmap", nil))
+	if response.Code != http.StatusOK || !bytes.Contains(response.Body.Bytes(), []byte("Web Vitals")) || !bytes.Contains(response.Body.Bytes(), []byte(`name:"heatmap"`)) {
+		t.Fatalf("enabled module response = %d %q", response.Code, response.Body.String())
+	}
+
+	disabled := false
+	registry["abc123def456"] = sites.Site{PublicID: "abc123def456", Tracker: sites.TrackerSettingsInput{Vitals: &disabled, Clicks: &disabled}}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js?module=vitals", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("disabled module status = %d, want 404", response.Code)
 	}
 }
 

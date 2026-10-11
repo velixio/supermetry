@@ -10,6 +10,9 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"supermetry/internal/replay"
+	"supermetry/internal/sites"
 )
 
 func TestHandlerServesTracker(t *testing.T) {
@@ -91,7 +94,8 @@ func TestScriptContract(t *testing.T) {
 		`navigator.webdriver`,
 		`navigator.sendBeacon`,
 		`keepalive: true`,
-		`history.pushState`,
+		`route("pushState")`,
+		`route("replaceState")`,
 		`"popstate"`,
 		`"pagehide"`,
 		`document.addEventListener("visibilitychange"`,
@@ -149,6 +153,7 @@ func TestMinifiedTrackerGzipSize(t *testing.T) {
 
 	response := httptest.NewRecorder()
 	Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/js/script.js", nil))
+	rawSize := response.Body.Len()
 
 	var compressed bytes.Buffer
 	zw, err := gzip.NewWriterLevel(&compressed, gzip.BestCompression)
@@ -161,33 +166,39 @@ func TestMinifiedTrackerGzipSize(t *testing.T) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// Required GPC/DNT controls and fail-closed delegation grow the 1004-byte
-	// baseline to 1264 bytes. Keep the ceiling at the next 25-byte boundary;
-	// replay/heavy features remain outside the core build.
-	t.Logf("core tracker gzip: %d bytes (baseline 1004; budget 1275)", compressed.Len())
-	if got := compressed.Len(); got > 1275 {
-		t.Fatalf("gzipped tracker = %d bytes, want at most 1275-byte privacy budget", got)
+	const target = 1175 // desired 100-byte headroom under the original ceiling
+	const budget = 1264 // never regress the measured pre-refactor build
+	t.Logf("core tracker: %d raw / %d gzip bytes (target %d; regression budget %d)", rawSize, compressed.Len(), target, budget)
+	if got := compressed.Len(); got > budget {
+		t.Fatalf("gzipped tracker = %d bytes, want at most %d bytes", got, budget)
 	}
 }
 
 func TestMinifiedFullTrackerGzipSize(t *testing.T) {
 	t.Parallel()
 
-	response := httptest.NewRecorder()
-	FullHandler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/js/script.full.js", nil))
+	generated := BuildScript("abc123def456", sites.TrackerSettings{
+		Outbound: true, Downloads: true, Forms: true, Vitals: true,
+		NotFound: true, Hash: true, Clicks: true,
+	}, replay.SiteSettings{Enabled: true, Consent: "always"})
+	identityPrelude := []byte(`(d=>{d.tracking="anonymous";d.profiles="false";})(document.currentScript.dataset);` + "\n")
+	body := append(identityPrelude, generated.Body...)
 
 	var compressed bytes.Buffer
 	zw, err := gzip.NewWriterLevel(&compressed, gzip.BestCompression)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := io.Copy(zw, response.Body); err != nil {
+	if _, err := zw.Write(body); err != nil {
 		t.Fatal(err)
 	}
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if got := compressed.Len(); got > 3002+400 {
-		t.Fatalf("gzipped full tracker = %d bytes, want at most 400 bytes over 3002-byte baseline", got)
+	const target = 3139 // desired 10% reduction from the measured generated build
+	const budget = target
+	t.Logf("generated full tracker: %d raw / %d gzip bytes (target %d; regression budget %d)", len(body), compressed.Len(), target, budget)
+	if got := compressed.Len(); got > budget {
+		t.Fatalf("gzipped full tracker = %d bytes, want at most %d bytes", got, budget)
 	}
 }

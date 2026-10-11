@@ -150,18 +150,13 @@
     document.addEventListener("visibilitychange", () => document.hidden && sendVitals());
     addEventListener("pagehide", sendVitals);
 
-    var navigate = history.pushState;
-    history.pushState = (...args) => {
-      navigate.apply(history, args);
-      sendVitals();
-      start(1);
-    };
-    addEventListener("popstate", () => sendVitals() || start(1));
+    p._nav.push(() => { sendVitals(); start(1); });
     start();
   }
 
   if (d.heatmap == "true") {
     let points = [];
+    let pageURL = location.href;
     p._clearHeatmap = () => { points = []; };
     const root = document.documentElement;
 
@@ -184,7 +179,7 @@
       const payload = {
         site: d.site,
         name: "heatmap",
-        url: location.href,
+        url: pageURL,
         screen_width: screen.width,
         clicks: points,
         doc_h: bound(root.scrollHeight, 100000),
@@ -197,11 +192,6 @@
 
     document.addEventListener("click", heatClick);
     addEventListener("pagehide", sendHeatmap);
-    const heatNavigate = history.pushState;
-    history.pushState = function () {
-      sendHeatmap();
-      heatNavigate.apply(history, arguments);
-    };
-    addEventListener("popstate", sendHeatmap, true);
+    p._nav.push(() => { sendHeatmap(); pageURL = location.href; });
   }
 })();
