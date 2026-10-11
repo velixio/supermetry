@@ -14,7 +14,7 @@ Read your analytics, manage sites and send server-side events over HTTP.
 - **Dates** are `YYYY-MM-DD` in the site's time zone. Ranges are inclusive and can span up to 366 days (except `period=all`).
 - **Periods:** `today`, `yesterday`, `7d`, `30d`, `month`, `last_month`, `6mo`, `12mo`, `year`, `all`, or `custom` with `date_from` and `date_to`.
 - **Filters:** `filter=dimension:operator:value1,value2`. Repeat the parameter for several filters (up to 10). A filter takes at most 50 values, and all `contains` and `starts_with` values in one request together are capped at 100. Requests over these limits get a 400 problem response. Operators are `is`, `is_not`, `contains` and `starts_with`. Use `GET /sites/{site_id}/suggestions` to find valid values.
-- **Dimensions:** `page`, `entry`, `exit`, `source`, `utm_source`, `utm_medium`, `utm_campaign`, `country`, `region`, `city`, `browser`, `os`, `device`, `event`, `goal`, `prop:<key>`, plus `time` and `hour` for time series.
+- **Dimensions:** `page`, `entry`, `exit`, `source`, `utm_source`, `utm_medium`, `utm_campaign`, `country`, `region`, `city`, `browser`, `os`, `device`, `event`, `goal`, `prop:<key>`, `weekday`, `hour_of_day`, plus `time` and `hour` for time series.
 - **Metrics:** `visitors`, `visits`, `pageviews`, `views_per_visit`, `bounce_rate`, `visit_duration`, `engagement_time`, `scroll_depth`, `events`, `conversions`, `conversion_rate`, `total_revenue`, `average_revenue`.
 - **Pagination:** list endpoints return a `cursor`. Pass it back to get the next page. Page sizes are capped (`limit` ≤ 1000 for queries).
 - **CSV:** stats and query endpoints return CSV with `Accept: text/csv` or `format=csv`.
@@ -30,10 +30,28 @@ Read your analytics, manage sites and send server-side events over HTTP.
 | POST | `/query` | The general query: up to 3 dimensions × any metrics × filters, ordered and paginated |
 | GET | `/realtime?site_id` | Visitors live now (last 5 minutes), plus the last 30 minutes per minute and by page, source, country, city, device and event, and a recent-activity feed |
 
+### Traffic by weekday and hour
+
+Use `weekday` and `hour_of_day` together to build a 7-by-24 traffic grid. Dimensions may be comma-separated or supplied as repeated `dimension` parameters; their order is preserved. Set `limit=168` to allow every possible cell, and request `visitors`, `pageviews`, or both.
+
 ```sh
-curl "https://supermetry.com/api/public/v1/stats/breakdown?site_id=1&period=30d&dimension=page&metrics=visitors,pageviews" \
+curl "https://supermetry.com/api/public/v1/stats/breakdown?site_id=1&period=30d&dimension=weekday,hour_of_day&metrics=visitors,pageviews&limit=168" \
   -H "Authorization: Bearer <api-key>"
 ```
+
+```json
+{
+  "columns": ["weekday", "hour_of_day", "visitors", "pageviews"],
+  "rows": [
+    { "weekday": "1", "hour_of_day": "9", "visitors": 42, "pageviews": 77 },
+    { "weekday": "1", "hour_of_day": "10", "visitors": 35, "pageviews": 58 }
+  ],
+  "totals": { "visitors": 63, "pageviews": 135 },
+  "meta": { "sources_used": ["hot"], "cached": false, "imported_included": false }
+}
+```
+
+Weekdays are numbered `0` for Sunday through `6` for Saturday; hours run from `0` through `23`. Buckets are computed in the site's time zone. These dimensions are hot-tier only, so the whole date range must be inside the site's raw-retention window. The seven-day limit for `interval=hour` time series does not apply. A range that starts outside a 30-day retention window, for example, returns `400` with `Traffic breakdowns are available only within the site's 30-day raw retention window`.
 
 ## Reports
 
