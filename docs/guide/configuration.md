@@ -87,6 +87,8 @@ Mode 2: `SUPERMETRY_MAXMIND_ACCOUNT_ID` is set. At startup Supermetry:
 3. downloads each missing edition from MaxMind. If a download fails, startup fails;
 4. loads the databases.
 
+The dashboard footer credits whichever provider is in use: DB-IP in Mode 1, and in Mode 2 the notice MaxMind's license asks for ("This product includes GeoLite Data created by MaxMind"). Keep it visible; the license applies to internal use too.
+
 While running, a `geoip-update` job runs every 24 hours (`geoIPUpdateInterval`). If a background refresh fails, Supermetry logs a warning and keeps serving. The `supermetry geoip` subcommand also uses these variables.
 
 | Variable | Meaning | Default | Example |
