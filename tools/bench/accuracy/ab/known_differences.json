@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "metric": "revenue",
+    "product": "plausible",
+    "reason": "Plausible Community Edition has no revenue reporting.",
+    "evidence": "POST /api/v2/query with the total_revenue metric returns HTTP 400 'Invalid metric \"total_revenue\"' (Community Edition v3.2.1)."
+  }
+]

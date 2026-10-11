@@ -225,3 +225,30 @@ class FetchTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnavailableMetricTests(unittest.TestCase):
+    def _base(self):
+        # Complete, mutually consistent dicts: only the metric under test differs.
+        values = {
+            "visitors": 10, "visits": 10, "pageviews": 10, "events": 10, "bounce_rate": 50.0,
+            "top_pages": [("/", 10)], "top_sources": [("(direct)", 10)], "utm_campaign": {},
+            "devices": {"desktop": 10}, "browsers": {"Chrome": 10}, "oses": {"Linux": 10},
+            "custom_events": {}, "revenue": {"USD": 12.5},
+        }
+        return dict(values), dict(values), dict(values)
+
+    def test_a_metric_the_product_cannot_provide_is_explained_when_known(self):
+        truth_values, supermetry, plausible = self._base()
+        plausible["revenue"] = None
+        known = [{"metric": "revenue", "product": "plausible", "reason": "no revenue in CE", "evidence": "HTTP 400"}]
+        rows = {row["metric"]: row for row in compare(truth_values, supermetry, plausible, known)}
+        self.assertEqual(rows["revenue"]["status"], "EXPLAINED")
+        self.assertEqual(rows["revenue"]["verdict_plausible"], "no revenue in CE")
+
+    def test_a_metric_the_product_cannot_provide_is_unexplained_otherwise(self):
+        truth_values, supermetry, plausible = self._base()
+        plausible["revenue"] = None
+        rows = {row["metric"]: row for row in compare(truth_values, supermetry, plausible, [])}
+        self.assertEqual(rows["revenue"]["status"], "UNEXPLAINED")
+        self.assertEqual(rows["revenue"]["verdict_plausible"], "not available")

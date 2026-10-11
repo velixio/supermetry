@@ -107,7 +107,16 @@ def fetch_plausible(stack: dict[str, Any], date_from: str, date_to: str) -> dict
     browsers = query(["visit:browser"], ["visitors"]).get("results", [])
     operating_systems = query(["visit:os"], ["visitors"]).get("results", [])
     # event:name exposes all custom events and does not require registered goals.
-    events = query(["event:name"], ["events", "total_revenue"]).get("results", [])
+    try:
+        events = query(["event:name"], ["events", "total_revenue"]).get("results", [])
+        revenue_supported = True
+    except RuntimeError as error:
+        # Plausible Community Edition does not have revenue reporting: its v2 API
+        # answers HTTP 400 'Invalid metric "total_revenue"'. Anything else is a real error.
+        if "total_revenue" not in str(error):
+            raise
+        events = query(["event:name"], ["events"]).get("results", [])
+        revenue_supported = False
 
     result = {name: summary.get(name) for name in SUMMARY_METRICS}
     result.update(
@@ -121,7 +130,7 @@ def fetch_plausible(stack: dict[str, Any], date_from: str, date_to: str) -> dict
             "custom_events": _plausible_mapping(
                 [row for row in events if _plausible_dimension(row) not in {"", "pageview"}]
             ),
-            "revenue": _revenue_from_plausible(events),
+            "revenue": _revenue_from_plausible(events) if revenue_supported else None,
         }
     )
     return result
@@ -152,8 +161,15 @@ def compare(
                 continue
             expected = _expected_for_product(truth_value, metric, product)
             if actual is _MISSING or actual is None:
-                verdicts[product] = "not available"
-                mismatches.append(product)
+                # A product that cannot report a metric at all is a documented
+                # difference only when known_differences.json says so.
+                entry = _known_difference(known, metric, product)
+                if entry is not None:
+                    verdicts[product] = entry["reason"]
+                    explained.append(product)
+                else:
+                    verdicts[product] = "not available"
+                    mismatches.append(product)
                 continue
             if _matches(metric, expected, actual):
                 verdicts[product] = "MATCH"
