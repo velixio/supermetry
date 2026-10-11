@@ -10,9 +10,10 @@ A first install takes one command and a few answers. Nobody has to make up a sec
 
 - Binaries come from public GitHub Releases. The repo goes public on 2026-10-11.
 - The installer asks: Docker or binary.
-- Docker uses our own image plus `postgres:18-alpine`.
+- Docker uses our own image plus `postgres:18-alpine`. The image is either downloaded from GHCR (default) or built locally.
 - The binary path runs a full service setup on Linux: systemd, a reverse proxy and a readiness check. macOS and Windows get the binary and `.env` only.
-- The reverse proxy is the user's choice: nginx, Caddy or none.
+- The reverse proxy is the user's choice: nginx, Caddy or none. The default is none. nginx configs go in `/etc/nginx/conf.d/`.
+- The server starts with plain `supermetry`. `serve` is not needed (no subcommand already serves; `serve` stays as an alias). Docs, printed commands and the systemd unit drop it.
 - The listen address is asked for. Localhost is the default and the recommended choice.
 - If the database test fails, the user edits the values they already entered instead of retyping them.
 - SMTP is optional. `.env` always carries commented placeholders for it.
@@ -71,7 +72,9 @@ All prompts and setup logic live here: one implementation for every OS, testable
 2. **Public URL**, e.g. `https://analytics.example.com`. It becomes `SUPERMETRY_BASE_URL`. Must be http(s).
 3. **Docker path:**
    1. Ask for an install directory (default `/opt/supermetry` on Linux, `./supermetry` elsewhere). Write `docker-compose.yml` there:
-      - the image `ghcr.io/velixio/supermetry:<version>`;
+      - the app image, from one of two sources (asked; default **download**):
+        - **download:** `image: ghcr.io/velixio/supermetry:<version>`, then `docker compose pull`;
+        - **build:** fetch the source tarball for `<version>` from the GitHub Release into `<dir>/src`, then set `build: ./src` and run `docker compose build`;
       - `postgres:18-alpine` with a named volume and no published port;
       - the app port bound per the listen question (step 4.3).
    2. Write `.env` with:
@@ -79,7 +82,7 @@ All prompts and setup logic live here: one implementation for every OS, testable
       - a random `POSTGRES_PASSWORD`;
       - `SUPERMETRY_BASE_URL`;
       - the SMTP placeholders.
-   3. Ask which reverse proxy to set up (nginx, Caddy, none), as in step 4.5.
+   3. Ask which reverse proxy to set up (nginx, Caddy, none; default none), as in step 4.5.
    4. Run `docker compose up -d`. Poll `/readyz`. On failure, print the last 50 lines of `docker compose logs supermetry`.
 4. **Binary path:**
    1. **Database.** Ask for a URL, or host / port (5432) / user / password / database (`supermetry`) / sslmode (`disable` for localhost, `require` otherwise).
@@ -104,9 +107,9 @@ All prompts and setup logic live here: one implementation for every OS, testable
         - `SUPERMETRY_TRUSTED_PROXIES=127.0.0.1` when a local proxy is chosen;
         - commented SMTP placeholders (`SUPERMETRY_SMTP_HOST`, `_PORT`, `_USER`, `_PASS`, `_FROM`) with a one-line note that they can be filled in any time, followed by a restart.
       - If the file exists, show a diff summary and ask before replacing it. The existing secret key is always kept, because changing it breaks existing logins and encrypted data.
-   5. **Reverse proxy (Linux).** Ask: nginx, Caddy or none.
+   5. **Reverse proxy (Linux).** Ask: nginx, Caddy or none. The default is **none**.
       - **nginx:**
-        - write `/etc/nginx/sites-available/supermetry.conf` (or `conf.d/` on distros without `sites-*`) and link it;
+        - write `/etc/nginx/conf.d/supermetry.conf` (no `sites-available`/`sites-enabled`);
         - run `nginx -t`, then reload;
         - if `certbot` is installed, offer `certbot --nginx -d <domain>`; otherwise print that command.
       - **Caddy:** append a site block for the domain to `/etc/caddy/Caddyfile` (backing up the file first), run `caddy validate`, then reload. HTTPS is automatic.
@@ -115,10 +118,10 @@ All prompts and setup logic live here: one implementation for every OS, testable
    6. **Service (Linux).**
       - Create the `supermetry` system user.
       - Install the binary to `/usr/local/bin/supermetry`.
-      - Write `/etc/systemd/system/supermetry.service`, reusing the existing `deploy/supermetry.service`.
+      - Write `/etc/systemd/system/supermetry.service`, reusing the existing `deploy/supermetry.service` with `ExecStart=/usr/local/bin/supermetry` (no `serve`).
       - Run `systemctl daemon-reload` and `systemctl enable --now supermetry`.
    7. **Check.** Poll `/readyz`, then print `systemctl status supermetry --no-pager` (head) and the result. On failure, print the last 50 lines of `journalctl -u supermetry`.
-   8. **macOS / Windows.** After the `.env` step, print the command to start the server (`supermetry serve`) and where `.env` lives. No service and no proxy.
+   8. **macOS / Windows.** After the `.env` step, print the command to start the server (`supermetry`) and where `.env` lives. No service and no proxy.
 5. **Finish.** Print `Open <BASE_URL>/app to create your admin account`, plus the commands to start, stop, restart, enable, disable and view logs.
 
 ### 3.2 Non-interactive use
@@ -128,7 +131,8 @@ Flags mirror every prompt:
 - `--base-url`
 - `--database-url` or `--db-host/--db-port/--db-user/--db-password/--db-name/--db-sslmode`
 - `--listen`
-- `--proxy nginx|caddy|none`
+- `--proxy nginx|caddy|none` (default `none`)
+- `--image download|build` (default `download`)
 - `--dir`
 - `--yes`
 
@@ -151,7 +155,7 @@ The Linux service install needs root. If not run as root, the installer:
 
 ## 4. Running without configuration
 
-`serve` with no `.env` and no database settings in the environment prints:
+`supermetry` with no `.env` and no database settings in the environment prints:
 
 ```text
 Supermetry is not configured. Run `supermetry install`, or set SUPERMETRY_DATABASE_URL, SUPERMETRY_SECRET_KEY and SUPERMETRY_BASE_URL.
