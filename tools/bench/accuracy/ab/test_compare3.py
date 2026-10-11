@@ -175,6 +175,8 @@ class FetchTest(unittest.TestCase):
     def test_fetch_supermetry_maps_query_rows_to_truth_contract(self):
         def response(_url, _key, body):
             dimension = (body.get("dimensions") or [""])[0]
+            if not dimension and body.get("metrics") == ["total_revenue"]:
+                return {"totals": {"total_revenue": 49}}
             if not dimension:
                 return {"totals": {"visitors": 3, "visits": 3, "pageviews": 4, "events": 5, "bounce_rate": 50}}
             fixtures = {
@@ -184,10 +186,9 @@ class FetchTest(unittest.TestCase):
                 "device": [{"device": "Desktop", "visitors": 3}],
                 "browser": [{"browser": "Chrome", "visitors": 3}],
                 "os": [{"os": "Windows", "visitors": 3}],
-                "event": [{"event": "Purchase", "events": 1, "total_revenue": 49}],
+                "event": [{"event": "Purchase", "events": 1}],
             }
-            totals = {"total_revenue": 49} if dimension == "event" else {}
-            return {"rows": fixtures[dimension], "totals": totals}
+            return {"rows": fixtures[dimension], "totals": {}}
 
         stack = {"supermetry": {"api_url": "http://127.0.0.1:18090", "key": "key", "site_id": 1}}
         with mock.patch("ab.compare3.request_json", side_effect=response):
@@ -252,3 +253,56 @@ class UnavailableMetricTests(unittest.TestCase):
         rows = {row["metric"]: row for row in compare(truth_values, supermetry, plausible, [])}
         self.assertEqual(rows["revenue"]["status"], "UNEXPLAINED")
         self.assertEqual(rows["revenue"]["verdict_plausible"], "not available")
+
+
+class NormalisationTests(unittest.TestCase):
+    @staticmethod
+    def _supermetry_response(_url, _key, body):
+        dimension = (body.get("dimensions") or [""])[0]
+        if not dimension and body.get("metrics") == ["total_revenue"]:
+            return {"totals": {}}
+        if not dimension:
+            return {"totals": {"visitors": 2, "visits": 2, "pageviews": 2, "events": 7, "bounce_rate": 0}}
+        rows = {
+            "source": [{"source": "", "visitors": 2}],
+            "event": [{"event": "Web Vitals", "events": 4}, {"event": "Signup", "events": 3}],
+        }
+        return {"rows": rows.get(dimension, []), "totals": {}}
+
+    def test_empty_supermetry_source_is_direct_and_web_vitals_are_excluded(self):
+        stack = {"supermetry": {"api_url": "http://127.0.0.1:18090", "key": "key", "site_id": 1}}
+        with mock.patch("ab.compare3.request_json", side_effect=self._supermetry_response):
+            result = fetch_supermetry(stack, "2026-10-10", "2026-10-11")
+        self.assertEqual(result["top_sources"], [["(direct)", 2]])
+        self.assertEqual(result["custom_events"], {"Signup": 3})
+        self.assertEqual(result["events"], 3)  # 7 stored events minus 4 Web Vitals
+
+    def test_plausible_not_set_campaign_and_os_names_are_mapped(self):
+        def response(_url, _key, body):
+            dimension = (body.get("dimensions") or [""])[0]
+            if not dimension:
+                return {"results": [{"metrics": [1, 1, 1, 1, 0]}]}
+            rows = {
+                "visit:utm_campaign": [{"dimensions": ["(not set)"], "metrics": [5]}, {"dimensions": ["launch"], "metrics": [2]}],
+                "visit:os": [{"dimensions": ["GNU/Linux"], "metrics": [1]}, {"dimensions": ["Mac"], "metrics": [2]}, {"dimensions": ["iPadOS"], "metrics": [3]}],
+                "event:name": [{"dimensions": ["engagement"], "metrics": [0]}, {"dimensions": ["Signup"], "metrics": [1]}],
+            }
+            return {"results": rows.get(dimension, [])}
+
+        stack = {"plausible": {"url": "http://127.0.0.1:8000", "key": "key", "domain": "site1.test"}}
+        with mock.patch("ab.compare3.request_json", side_effect=lambda u, k, b: response(u, k, b) if "total_revenue" not in str(b) else (_ for _ in ()).throw(RuntimeError('HTTP 400 Invalid metric "total_revenue"'))):
+            result = fetch_plausible(stack, "2026-10-10", "2026-10-11")
+        self.assertEqual(result["utm_campaign"], {"launch": 2})
+        self.assertEqual(result["oses"], {"Linux": 1, "macOS": 2, "iOS": 3})
+        self.assertEqual(result["custom_events"], {"Signup": 1})
+
+    def test_events_are_compared_against_each_products_own_definition(self):
+        base = {
+            "visitors": 1, "visits": 1, "pageviews": 3, "events": 4, "events_plausible": 4, "events_supermetry": 1,
+            "bounce_rate": 0.0, "top_pages": [], "top_sources": [], "utm_campaign": {}, "devices": {}, "browsers": {},
+            "oses": {}, "custom_events": {}, "revenue": {},
+        }
+        supermetry = dict(base, events=1)
+        plausible = dict(base, events=4)
+        rows = {row["metric"]: row for row in compare(base, supermetry, plausible, [])}
+        self.assertEqual(rows["events"]["status"], "MATCH")

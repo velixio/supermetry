@@ -31,6 +31,7 @@ def truth(scenario: Scenario) -> dict:
     revenue: defaultdict[str, float] = defaultdict(float)
     pageviews = 0
     event_count = 0
+    custom_count = 0
     plausible_bounces = 0
     supermetry_bounces = 0
 
@@ -70,6 +71,7 @@ def truth(scenario: Scenario) -> dict:
                 continue
             visit_customs += 1
             event_count += 1
+            custom_count += 1
             custom_events[name] += 1
             if step.revenue is not None:
                 revenue[step.currency] += step.revenue
@@ -88,6 +90,10 @@ def truth(scenario: Scenario) -> dict:
         "visits": visits,
         "pageviews": pageviews,
         "events": event_count,
+        # The two products define the events metric differently (see the README):
+        # Plausible counts pageviews and custom events, Supermetry counts custom events only.
+        "events_plausible": event_count,
+        "events_supermetry": custom_count,
         "bounce_rate_plausible": _percentage(plausible_bounces, visits),
         "bounce_rate_supermetry": _percentage(supermetry_bounces, visits),
         "top_pages": _top(page_counts),

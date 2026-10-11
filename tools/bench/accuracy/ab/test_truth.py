@@ -191,3 +191,21 @@ class DuplicateNavigationTests(unittest.TestCase):
     def test_a_full_reload_of_the_same_page_is_a_new_pageview(self):
         result = truth(scenario(visit("a", Step("goto", path="/about"), Step("goto", path="/about"))))
         self.assertEqual(result["pageviews"], 2)
+
+
+class EventsDefinitionTests(unittest.TestCase):
+    def test_each_product_has_its_own_events_definition(self):
+        result = truth(
+            scenario(
+                visit(
+                    "a",
+                    Step("goto", path="/"),
+                    Step("goto", path="/pricing"),
+                    Step("event", name="Signup"),
+                    Step("download", href="https://example.test/f.pdf"),
+                )
+            )
+        )
+        self.assertEqual(result["events_plausible"], 4)  # 2 pageviews + 2 custom
+        self.assertEqual(result["events_supermetry"], 2)  # custom events only
+        self.assertEqual(result["events"], result["events_plausible"])

@@ -54,15 +54,23 @@ def fetch_supermetry(stack: dict[str, Any], date_from: str, date_to: str) -> dic
     devices = query(["device"], ["visitors"]).get("rows", [])
     browsers = query(["browser"], ["visitors"]).get("rows", [])
     operating_systems = query(["os"], ["visitors"]).get("rows", [])
-    events_response = query(["event"], ["events", "total_revenue"])
-    event_rows = events_response.get("rows", [])
+    # Ask for revenue in its own query: adding total_revenue to a query that groups by event
+    # silently restricts the rows to events that carry revenue.
+    event_rows = query(["event"], ["events"]).get("rows", [])
+    revenue_response = query([], ["total_revenue"])
+    # "Web Vitals" is telemetry the Supermetry tracker sends by itself; it is stored as an
+    # event but is not traffic from the scenario, so it is excluded from both numbers.
+    web_vitals = sum(row.get("events", 0) for row in event_rows if row.get("event") == "Web Vitals")
 
     result = {name: summary.get(name) for name in SUMMARY_METRICS}
+    if isinstance(result.get("events"), (int, float)):
+        result["events"] = result["events"] - web_vitals
     result.update(
         {
             "top_pages": _pairs(pages, "page", "pageviews"),
             "top_sources": [
-                [_normalise_source(str(row.get("source", ""))), row.get("visitors", 0)]
+                # Supermetry reports direct traffic as an empty source.
+                [_normalise_source(str(row.get("source", ""))) or "(direct)", row.get("visitors", 0)]
                 for row in sources
             ],
             "utm_campaign": _mapping(campaigns, "utm_campaign", "visitors"),
@@ -70,11 +78,11 @@ def fetch_supermetry(stack: dict[str, Any], date_from: str, date_to: str) -> dic
             "browsers": _mapping(browsers, "browser", "visitors"),
             "oses": _mapping(operating_systems, "os", "visitors"),
             "custom_events": _mapping(
-                [row for row in event_rows if row.get("event") not in {None, "", "pageview"}],
+                [row for row in event_rows if row.get("event") not in {None, "", "pageview", "Web Vitals"}],
                 "event",
                 "events",
             ),
-            "revenue": _revenue_from_supermetry(events_response),
+            "revenue": _revenue_from_supermetry(revenue_response),
         }
     )
     return result
@@ -128,7 +136,8 @@ def fetch_plausible(stack: dict[str, Any], date_from: str, date_to: str) -> dict
         {
             "top_pages": _plausible_pairs(pages, normalise=False),
             "top_sources": _plausible_pairs(sources, normalise=True),
-            "utm_campaign": _plausible_mapping(campaigns),
+            # "(not set)" is Plausible's bucket for visitors without a campaign.
+            "utm_campaign": {k: v for k, v in _plausible_mapping(campaigns).items() if k != "(not set)"},
             "devices": _plausible_mapping(devices, str.lower),
             "browsers": _plausible_mapping(browsers),
             "oses": _plausible_mapping(operating_systems, lambda name: _PLAUSIBLE_OS_NAMES.get(name, name)),
@@ -270,19 +279,25 @@ def render_json(rows: list[dict[str, Any]], meta: dict[str, Any]) -> str:
     return json.dumps({"meta": meta, "rows": rows}, indent=2, sort_keys=True) + "\n"
 
 
+# Metrics the two products define differently; truth carries one value per product
+# (bounce_rate_plausible / bounce_rate_supermetry, events_plausible / events_supermetry).
+_PER_PRODUCT_METRICS = {"bounce_rate", "events"}
+
+
 def _truth_value(truth: dict[str, Any], metric: str) -> Any:
-    if metric != "bounce_rate":
+    if metric not in _PER_PRODUCT_METRICS:
         return truth.get(metric)
-    if "bounce_rate" in truth:
-        return truth["bounce_rate"]
-    return {
-        "supermetry": truth.get("bounce_rate_supermetry"),
-        "plausible": truth.get("bounce_rate_plausible"),
+    per_product = {
+        "supermetry": truth.get(f"{metric}_supermetry"),
+        "plausible": truth.get(f"{metric}_plausible"),
     }
+    if per_product["supermetry"] is None and per_product["plausible"] is None:
+        return truth.get(metric)
+    return per_product
 
 
 def _expected_for_product(truth_value: Any, metric: str, product: str) -> Any:
-    if metric == "bounce_rate" and isinstance(truth_value, dict):
+    if metric in _PER_PRODUCT_METRICS and isinstance(truth_value, dict):
         return truth_value.get(product)
     return truth_value
 
