@@ -81,6 +81,23 @@ describe('MainChart', () => {
     ).toHaveTextContent('7')
   })
 
+  it('describes the chart range, total, peak, and low beside its data table', () => {
+    mockSeries([
+      ['2026-10-01', 5],
+      ['2026-10-02', 7],
+    ])
+
+    render(<MainChart query={query} metric="visitors" compare="off" interval="day" />)
+
+    const summary = screen.getByText(
+      'Visitors over time from Oct 1, 2026 to Oct 2, 2026. Total 12. Peak 7 on Oct 2, 2026. Low 5 on Oct 1, 2026.',
+    )
+    expect(summary).toHaveClass('sr-only')
+    const chart = screen.getByRole('img', { name: 'visitors over time' })
+    expect(chart).toHaveAttribute('aria-describedby', summary.id)
+    expect(screen.getByRole('table', { name: 'visitors over time' })).toBeInTheDocument()
+  })
+
   it('picks hourly interval for today and daily for 30d', () => {
     expect(autoInterval('2026-10-07', '2026-10-07')).toBe('hour')
     expect(autoInterval('2026-09-08', '2026-10-07')).toBe('day')

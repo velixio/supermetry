@@ -66,6 +66,7 @@ describe('GoalsPage', () => {
     )
 
     await waitFor(() => expect(get).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Goal name'), {
       target: { value: 'Signup complete' },
     })

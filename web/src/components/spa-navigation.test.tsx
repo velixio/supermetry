@@ -106,6 +106,22 @@ describe('SPA navigation', () => {
     expect(screen.queryByRole('link', { name: 'Map' })).not.toBeInTheDocument()
   })
 
+  it('groups navigation into labelled 44px-tall sections without changing item order', async () => {
+    renderSidebar()
+
+    const expected = {
+      Analyze: ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays'],
+      Behaviour: ['Journeys', 'Retention', 'Profiles', 'Heatmaps', 'Web Vitals'],
+      Conversion: ['Funnels', 'Goals', 'Revenue'],
+      Manage: ['Sites', 'Data health'],
+    }
+    for (const [name, links] of Object.entries(expected)) {
+      const navigation = await screen.findByRole('navigation', { name })
+      expect(Array.from(navigation.querySelectorAll('a')).map((link) => link.textContent?.trim())).toEqual(links)
+      for (const link of navigation.querySelectorAll('a')) expect(link).toHaveClass('h-11')
+    }
+  })
+
   it('shows the brand name and one dropdown listing projects, then organizations', async () => {
     renderSidebar()
 

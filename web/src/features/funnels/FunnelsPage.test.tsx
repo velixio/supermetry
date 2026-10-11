@@ -26,6 +26,7 @@ describe('FunnelsPage', () => {
   it('counts sessions by default and can switch to visitors', () => {
     render(<FunnelsPage siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} />)
 
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Count by' })).toHaveTextContent('Sessions')
     expect(useFunnelResult).toHaveBeenLastCalledWith(
       7,

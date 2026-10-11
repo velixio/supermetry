@@ -34,7 +34,7 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
   const visits = conversions.data?.totals?.visits
 
   return (
-    <main className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Goals</h1>
         <p className="text-sm text-muted-foreground">Track the pages and events that matter.</p>
@@ -73,7 +73,7 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
           }}
         />
       </div>
-    </main>
+    </div>
   )
 }
 

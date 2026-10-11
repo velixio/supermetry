@@ -79,6 +79,7 @@ describe('ProfileDetailPage', () => {
 
     renderPage()
 
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'ada-42' })).toBeVisible()
     expect(screen.getByText('plan')).toBeVisible()
     expect(screen.getByText('pro')).toBeVisible()

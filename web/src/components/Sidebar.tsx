@@ -1,7 +1,6 @@
 import { isAnonymousTracking } from '@/lib/tracking-policy'
 import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 import { hasCapability, type Authorization } from '@/lib/authorization'
-import { Fragment } from 'react'
 import {
   ActivityIcon,
   ChartNoAxesCombinedIcon,
@@ -39,6 +38,7 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -74,6 +74,13 @@ const managementNavigation = [
 export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
+
+const navigationSections = [
+  { key: 'analyze', label: en.a11y2.sidebarSections.analyze, suffixes: ['', '/events', '/sessions', '/realtime'] },
+  { key: 'behaviour', label: en.a11y2.sidebarSections.behaviour, suffixes: ['/journeys', '/retention', '/profiles', '/heatmaps', '/vitals'] },
+  { key: 'conversion', label: en.a11y2.sidebarSections.conversion, suffixes: ['/funnels', '/goals', '/revenue'] },
+  { key: 'manage', label: en.a11y2.sidebarSections.manage, suffixes: ['/sites', '/health'] },
+] as const
 
 export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site): NavigationItem[] {
   const items: NavigationItem[] = [...coreNavigation, managementNavigation[0]]
@@ -212,12 +219,14 @@ export function SupermetrySidebar({
   const closeMobile = () => setOpenMobile(false)
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
+  const visibleItems = visibleNavigation(membership.role, Boolean(site), membership, site)
+  const showReplays = Boolean(site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read'))
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
       <SidebarHeader>
         <Link aria-label="Supermetry home" className="mb-1 flex h-8 items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={closeMobile}>
-          <BrandLogo className="h-7 w-7" mark />
+          <BrandLogo className="h-7 w-7" decorative mark />
           <span className="truncate text-base font-semibold group-data-[collapsible=icon]:hidden">{en.navigation.brand}</span>
         </Link>
         <DropdownMenu>
@@ -299,52 +308,48 @@ export function SupermetrySidebar({
         </DropdownMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {visibleNavigation(membership.role, Boolean(site), membership, site).map((item) => (
-                <Fragment key={item.label}>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={navigationIsActive(
-                        item,
-                        pathname,
-                        membership.org.slug,
-                        currentSite,
-                      )}
-                      tooltip={item.label}
-                    >
-                      {navigationLink(
-                        item,
-                        membership.org.slug,
-                        currentSite,
-                        navigationIsActive(
-                          item,
-                          pathname,
-                          membership.org.slug,
-                          currentSite,
-                        ),
-                        closeMobile,
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  {item.suffix === '/realtime' && site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read') ? (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(`/app/${membership.org.slug}/${currentSite}/replays`)}
-                        tooltip="Replays"
-                      >
-                        <ReplayNavLink enabled org={membership.org.slug} site={currentSite} onClick={closeMobile} />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ) : null}
-                </Fragment>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navigationSections.map((section) => {
+          const suffixes = new Set<string>(section.suffixes)
+          const items = visibleItems.filter((item) => suffixes.has(item.suffix))
+          if (items.length === 0 && !(section.key === 'analyze' && showReplays)) return null
+          const headingId = `sidebar-${section.key}-heading`
+          return (
+            <SidebarGroup key={section.key}>
+              <SidebarGroupLabel asChild><h2 id={headingId}>{section.label}</h2></SidebarGroupLabel>
+              <SidebarGroupContent>
+                <nav aria-labelledby={headingId}>
+                  <SidebarMenu>
+                    {items.flatMap((item) => {
+                      const active = navigationIsActive(item, pathname, membership.org.slug, currentSite)
+                      const rows = [
+                        <SidebarMenuItem key={item.label}>
+                          <SidebarMenuButton asChild className="h-11" isActive={active} tooltip={item.label}>
+                            {navigationLink(item, membership.org.slug, currentSite, active, closeMobile)}
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>,
+                      ]
+                      if (item.suffix === '/realtime' && showReplays) {
+                        rows.push(
+                          <SidebarMenuItem key="Replays">
+                            <SidebarMenuButton
+                              asChild
+                              className="h-11"
+                              isActive={pathname.startsWith(`/app/${membership.org.slug}/${currentSite}/replays`)}
+                              tooltip="Replays"
+                            >
+                              <ReplayNavLink enabled org={membership.org.slug} site={currentSite} onClick={closeMobile} />
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>,
+                        )
+                      }
+                      return rows
+                    })}
+                  </SidebarMenu>
+                </nav>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        })}
       </SidebarContent>
     </Sidebar>
   )

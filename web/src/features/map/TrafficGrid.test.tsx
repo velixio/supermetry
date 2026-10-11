@@ -8,12 +8,12 @@ describe('TrafficGrid', () => {
   afterEach(cleanup)
 
   it('renders all cells, readable margins, peak windows, weekday share, a legend, and a portalled tooltip', () => {
-    render(<TrafficGrid metric="visitors" rows={[
+    render(<TrafficGrid dateRange={{ from: '2026-09-28', to: '2026-09-30' }} metric="visitors" rows={[
       { weekday: 1, hour_of_day: 13, visitors: 89 },
       { weekday: 2, hour_of_day: 13, visitors: 40 },
     ]} timezone="America/New_York" locale="en-GB" />)
 
-    expect(screen.getAllByRole('gridcell')).toHaveLength(168)
+    expect(screen.getAllByRole('gridcell').filter((cell) => cell.tagName === 'BUTTON')).toHaveLength(168)
     expect(screen.getByText('Busiest: Monday 13:00, 89 visitors')).toBeVisible()
     expect(screen.getByText('Quietest weekday: Wednesday')).toBeVisible()
     expect(screen.getByLabelText('Monday total: 89 visitors')).toBeVisible()
@@ -31,13 +31,29 @@ describe('TrafficGrid', () => {
     expect(screen.getByRole('tooltip')).toHaveClass('pointer-events-none')
   })
 
+  it('describes the range, total, peak, and low and relates the interactive grid to it', () => {
+    render(<TrafficGrid dateRange={{ from: '2026-09-28', to: '2026-09-30' }} metric="visitors" rows={[
+      { weekday: 1, hour_of_day: 13, visitors: 89 },
+      { weekday: 2, hour_of_day: 13, visitors: 40 },
+    ]} timezone="America/New_York" locale="en-GB" />)
+
+    const summary = screen.getByText(
+      'Weekly rhythm from 28 Sept 2026 to 30 Sept 2026. Total 129 visitors. Peak 89 on Monday at 13:00. Low 0 on Monday at 00:00.',
+    )
+    expect(summary).toHaveClass('sr-only')
+    expect(screen.getAllByText('Busiest: Monday 13:00, 89 visitors')).toHaveLength(1)
+    const grid = screen.getByRole('grid', { name: 'Weekly traffic by weekday and hour' })
+    expect(grid).toHaveAttribute('aria-describedby', summary.id)
+    expect(screen.getByRole('table', { name: 'Weekly traffic data' })).toBeInTheDocument()
+  })
+
   it('uses no label, value, or tick token smaller than 12px and gives rows and hourly bars room', () => {
     const { container } = render(<TrafficGrid metric="visitors" rows={[]} timezone="UTC" locale="en-GB" />)
     const classNames = [...container.querySelectorAll<HTMLElement>('[class]')].map((node) => node.className).join(' ')
 
     expect(classNames).not.toMatch(/text-\[(?:8|9|10|11)px\]/)
     expect(container.querySelector('[role="row"][data-weekday-row]')).toHaveClass('min-h-7')
-    expect(screen.getByLabelText('Hourly totals')).toHaveClass('min-h-10')
+    expect(screen.getByRole('rowheader', { name: 'Hourly totals' }).parentElement).toHaveClass('min-h-10')
   })
 
   it('has one tab stop and supports arrows plus Home and End within weekday rows', () => {

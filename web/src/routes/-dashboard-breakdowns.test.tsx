@@ -120,8 +120,15 @@ describe('dashboard breakdown route', () => {
 
     expect(await screen.findByRole('region', { name: 'Where' })).toBeVisible()
     expect(screen.getByRole('region', { name: 'Weekly rhythm' })).toBeVisible()
-    expect(screen.getByTestId('where-when-band')).toHaveClass('items-start')
-    expect(screen.getByTestId('where-when-band')).not.toHaveClass('items-stretch')
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toHaveClass('sr-only')
+    const band = screen.getByTestId('where-when-band')
+    expect(band).toHaveClass('lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]')
+    expect(band).toHaveClass('items-start')
+    expect(band).not.toHaveClass('items-stretch')
+    expect(Array.from(band.children).map((child) => child.getAttribute('data-dashboard-band-item'))).toEqual(['where', 'weekly-rhythm', 'goals-events'])
+    expect(band.querySelector('[data-dashboard-band-item="weekly-rhythm"]')).toHaveClass('lg:col-start-2', 'lg:row-span-2')
+    expect(band.querySelector('[data-dashboard-band-item="goals-events"]')).toHaveClass('lg:col-start-1', 'lg:row-start-2')
     await waitFor(() => expect(get.mock.calls.filter(([path]) => path === '/api/private/stats/breakdown').length).toBeGreaterThanOrEqual(2))
     const overviewRequests = get.mock.calls
       .filter(([path]) => path === '/api/private/stats/breakdown')
@@ -183,7 +190,7 @@ describe('dashboard breakdown route', () => {
     get.mockResolvedValue({ data: { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }] }] }, response: new Response(null, { status: 200 }) })
     renderDashboard()
     await screen.findByRole('region', { name: 'Verified pages' })
-    fireEvent.click(await screen.findByRole('button', { name: /filter by country India/i }))
+    fireEvent.click(await screen.findByRole('button', { description: 'Filter by country India' }))
     expect(await screen.findByText(/Verified page analytics require no filters/)).toBeVisible()
     await waitFor(() => expect(post.mock.calls.some(([, options]) => options.body.dimensions?.[0] === 'country' && options.body.filters.length > 0)).toBe(true))
     expect(post.mock.calls.some(([, options]) => options.body.dimensions?.[0] === 'page' && options.body.filters.length > 0)).toBe(false)
@@ -262,7 +269,7 @@ describe('dashboard breakdown route', () => {
     fireEvent.click(within(sources).getByRole('tab', { name: 'Channels' }))
     fireEvent.click(
       await within(sources).findByRole('button', {
-        name: 'Filter by channel Organic Search',
+        description: 'Filter by channel Organic Search',
       }),
     )
     await waitFor(() =>
@@ -284,7 +291,7 @@ describe('dashboard breakdown route', () => {
       fireEvent.click(within(locations).getByRole('tab', { name: tab }))
       fireEvent.click(
         await within(locations).findByRole('button', {
-          name: `Filter by ${dimension} ${label}, United States`,
+          description: `Filter by ${dimension} ${label}, United States`,
         }),
       )
 
@@ -304,7 +311,7 @@ describe('dashboard breakdown route', () => {
     fireEvent.keyDown(document, { key: 'm' })
     await waitFor(() => expect(router.state.location.search.period).toBe('30d'))
 
-    fireEvent.click(await screen.findByRole('button', { name: /filter by country India/i }))
+    fireEvent.click(await screen.findByRole('button', { description: 'Filter by country India' }))
 
     await waitFor(() =>
       expect(router.state.location.search.f).toEqual(['country:is:IN']),

@@ -116,10 +116,9 @@ describe('AppShell live visitor badge', () => {
   it('shows counts, accessible detail, tooltip, and a realtime link on nested site routes', async () => {
     const { router } = renderShell('/app/acme/docs-public/settings/general')
 
-    const badge = await screen.findByRole('link', {
-      name: '12 active now, 48 in the last 30 minutes',
-    })
+    const badge = await screen.findByRole('link', { name: /12 live/ })
     expect(badge).toHaveTextContent('● 12 live')
+    expect(badge).toHaveAccessibleDescription('12 active now, 48 in the last 30 minutes')
     expect(badge).toHaveAttribute('href', '/app/acme/docs-public/realtime')
 
     fireEvent.focus(badge)
@@ -129,6 +128,20 @@ describe('AppShell live visitor badge', () => {
 
     fireEvent.click(badge)
     await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs-public/realtime'))
+  })
+
+  it('owns one labelled main landmark after a first-focusable skip link', async () => {
+    const { container } = renderShell('/app/acme/docs-public/settings/general')
+
+    const skip = await screen.findByRole('link', { name: 'Skip to main content' })
+    expect(container.querySelector('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])')).toBe(skip)
+    expect(skip).toHaveAttribute('href', '#main-content')
+    expect(skip).toHaveClass('-left-[10000px]', 'focus:fixed', 'focus:z-[100]', 'focus:rounded-full', 'focus:ring-2')
+    expect(container.querySelectorAll('main')).toHaveLength(1)
+    expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('id', 'main-content')
+    expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByRole('banner', { name: 'Application header' })).toBeVisible()
+    expect(screen.getByRole('complementary', { name: 'Application sidebar' })).toBeVisible()
   })
 
   it('credits DB-IP throughout the authenticated app', async () => {
@@ -142,7 +155,7 @@ describe('AppShell live visitor badge', () => {
 
   it.each(['docs', 'docs-public', '7'])('keeps current site context for the %s alias', async (alias) => {
     renderShell(`/app/acme/${alias}/settings/general`)
-    expect(await screen.findByRole('link', { name: '12 active now, 48 in the last 30 minutes' })).toHaveAttribute('href', `/app/acme/${alias}/realtime`)
+    expect(await screen.findByRole('link', { name: /12 live/ })).toHaveAttribute('href', `/app/acme/${alias}/realtime`)
     expect(useLiveSummary).toHaveBeenCalledWith(7)
     fireEvent.keyDown(screen.getByRole('button', { name: 'Settings' }), { key: 'ArrowDown' })
     expect(await screen.findByRole('menuitem', { name: /Site settings\s*Docs/ })).toHaveAttribute('href', '/app/acme/docs/settings/general')
@@ -156,9 +169,7 @@ describe('AppShell live visitor badge', () => {
     })
     renderShell('/app/acme/docs-public/settings/general')
 
-    expect(await screen.findByRole('link', {
-      name: '1 active now, 9 in the last 30 minutes',
-    })).toHaveTextContent('● 1 live')
+    expect(await screen.findByRole('link', { name: /1 live/ })).toHaveTextContent('● 1 live')
   })
 
   it('shows a muted placeholder while loading and hides errors', async () => {
@@ -196,8 +207,10 @@ describe('AppShell live visitor badge', () => {
     renderShell('/app/acme/docs-public/realtime', anonymousMembership)
     expect(await screen.findByRole('heading', { name: 'Unavailable in anonymous tracking mode' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Realtime page' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('12 active now, 48 in the last 30 minutes')).toHaveTextContent('● 12 live')
-    expect(screen.queryByRole('link', { name: '12 active now, 48 in the last 30 minutes' })).not.toBeInTheDocument()
+    const badge = screen.getByText('12 live').closest('[tabindex="0"]')
+    expect(badge).toHaveTextContent('● 12 live')
+    expect(badge).toHaveAccessibleDescription('12 active now, 48 in the last 30 minutes')
+    expect(screen.queryByRole('link', { name: /12 live/ })).not.toBeInTheDocument()
     expect(useReplayAvailability).not.toHaveBeenCalled()
     for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals']) {
       expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument()
