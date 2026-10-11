@@ -46,7 +46,9 @@ test('dashboard numbers equal the API and click-to-filter refetches every card',
     fmtCompact(api.totals.pageviews),
   )
 
-  await page.getByRole('button', { name: /filter by country IN/i }).click()
+  const indiaFilter = page.getByRole('region', { name: 'Location' }).getByRole('button', { name: /^India/ })
+  await expect(indiaFilter).toHaveAttribute('aria-describedby')
+  await indiaFilter.click()
   await expect
     .poll(() => new URL(page.url()).searchParams.getAll('f'))
     .toContain('country:is:IN')

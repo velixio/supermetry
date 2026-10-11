@@ -14,5 +14,6 @@ describe('NoDataBanner', () => {
       'href',
       '/app/acme/docs/settings/installation',
     )
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 })

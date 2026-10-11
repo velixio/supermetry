@@ -7,6 +7,7 @@ import { countryLabel } from '@/lib/country'
 import { fmt } from '@/lib/format'
 import { useBreakdown, type StatsQuery } from '@/lib/stats'
 import type { Filter } from '@/lib/search'
+import { en } from '@/messages/en'
 
 import { CountryDetails } from './CountryDetails'
 import { CountryTable, type CountryMetricRow } from './CountryTable'
@@ -32,16 +33,31 @@ export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
   const ranked = [...rows].filter((row) => row[metric] > 0).sort((left, right) => right[metric] - left[metric])
   const total = ranked.reduce((sum, row) => sum + row[metric], 0)
   const leader = ranked[0]
+  const low = ranked.at(-1)
   const metricLabel = metric === 'visitors' ? 'visitors' : 'pageviews'
-  const summary = leader
-    ? `${countryLabel(leader.country)} leads with ${fmt.number(leader[metric])} ${metricLabel}, ${fmt.percent((leader[metric] / total) * 100)} of the total.`
-    : 'No country has traffic in the selected range.'
+  const countryValue = (row: CountryMetricRow | undefined) => row
+    ? en.a11y2.countryValue.replace('{country}', countryLabel(row.country)).replace('{value}', fmt.number(row[metric]))
+    : '0'
+  const summary = en.a11y2.dataSummary
+    .replace('{title}', 'Where')
+    .replace('{from}', fmt.date(query.dateRange.from, query.timezone ?? 'UTC'))
+    .replace('{to}', fmt.date(query.dateRange.to, query.timezone ?? 'UTC'))
+    .replace('{total}', `${fmt.number(total)} ${metricLabel}`)
+    .replace('{peak}', countryValue(leader))
+    .replace('{low}', countryValue(low))
+  const leaderHeadline = leader
+    ? en.a11y2.whereLeader
+      .replace('{country}', countryLabel(leader.country))
+      .replace('{value}', fmt.number(leader[metric]))
+      .replace('{metric}', metricLabel)
+    : undefined
 
   return (
     <Card className="min-w-0 overflow-hidden" aria-labelledby="where-title">
       <CardHeader className="border-b">
         <CardTitle id="where-title">Where</CardTitle>
-        <CardDescription id="where-summary">{summary}</CardDescription>
+        <CardDescription className="sr-only" id="where-summary">{summary}</CardDescription>
+        {leaderHeadline ? <p className="text-sm font-medium">{leaderHeadline}</p> : null}
       </CardHeader>
       <CardContent className="p-0">
         {countries.isPending ? (
@@ -54,8 +70,8 @@ export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
         ) : ranked.length === 0 ? (
           <div className="flex min-h-80 items-center justify-center p-4" role="status"><p className="text-sm text-muted-foreground">No traffic in this range</p></div>
         ) : (
-          <div className="grid min-h-80 min-w-0 items-start gap-5 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(9rem,2fr)]">
-            <div className="min-w-0" data-map-column>
+          <div className="grid min-h-80 min-w-0 items-start gap-4 p-4 xl:grid-cols-[minmax(60%,1fr)_minmax(14rem,40%)]">
+            <div className="min-w-0 lg:min-h-[260px]" data-map-column>
               <Suspense fallback={<Skeleton className="aspect-2/1 w-full" />}>
                 <WorldMap
                   activeCountry={activeCountry}
@@ -70,7 +86,7 @@ export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
                 />
               </Suspense>
             </div>
-            <div className="min-w-0 self-start">
+            <div className="min-w-0 self-start xl:min-w-56">
               <CountryTable
                 activeCountry={activeCountry}
                 metric={metric}

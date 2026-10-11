@@ -137,7 +137,9 @@ describe('BreakdownCard', () => {
 
     expect(useStats).toHaveBeenCalledWith(expect.objectContaining({ dimensions: ['region', 'country'] }))
     expect(screen.getByRole('presentation', { hidden: true })).toHaveAttribute('src', '/flags/us.svg')
-    fireEvent.click(screen.getByRole('button', { name: 'Filter by region California, United States' }))
+    const region = screen.getByRole('button', { name: 'California5' })
+    expect(region).toHaveAccessibleDescription('Filter by region California, United States')
+    fireEvent.click(region)
     expect(onFilter).toHaveBeenCalledWith({ dimension: 'region', operator: 'is', values: ['California', 'US'] })
   })
 
@@ -157,8 +159,12 @@ describe('BreakdownCard', () => {
 
     render(<BreakdownCard title="Cities" tabs={tabs('city')} query={baseQuery} onFilter={onFilter} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Filter by city Springfield, United States' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Filter by city Springfield, Canada' }))
+    const usCity = screen.getByRole('button', { name: 'Springfield5' })
+    const caCity = screen.getByRole('button', { name: 'Springfield3' })
+    expect(usCity).toHaveAccessibleDescription('Filter by city Springfield, United States')
+    expect(caCity).toHaveAccessibleDescription('Filter by city Springfield, Canada')
+    fireEvent.click(usCity)
+    fireEvent.click(caCity)
     expect(onFilter).toHaveBeenNthCalledWith(1, { dimension: 'city', operator: 'is', values: ['Springfield', 'US'] })
     expect(onFilter).toHaveBeenNthCalledWith(2, { dimension: 'city', operator: 'is', values: ['Springfield', 'CA'] })
   })
@@ -203,7 +209,9 @@ describe('BreakdownCard', () => {
     }
 
     render(<FilterHarness />)
-    fireEvent.click(screen.getByRole('button', { name: /filter by country IN/i }))
+    const country = screen.getByRole('button', { name: 'India5' })
+    expect(country).toHaveAccessibleDescription('Filter by country India')
+    fireEvent.click(country)
     expect(screen.getByLabelText('URL filters')).toHaveTextContent('country:is:IN')
   })
 
@@ -221,6 +229,7 @@ describe('BreakdownCard', () => {
     )
 
     expect(screen.getByText('Unknown')).toBeVisible()
+    expect(screen.getByText('Unknown').closest('[title="Unknown"]')).toHaveClass('text-foreground')
     expect(
       screen.queryByRole('button', { name: /filter by browser_version/i }),
     ).not.toBeInTheDocument()
@@ -246,7 +255,9 @@ describe('BreakdownCard', () => {
     )
 
     expect(screen.getByText(label)).toBeVisible()
-    expect(screen.getByRole('button', { name: `Filter by screen_size ${value}` })).toBeEnabled()
+    const filter = screen.getByRole('button', { name: `${label}5` })
+    expect(filter).toHaveAccessibleDescription(`Filter by screen_size ${value}`)
+    expect(filter).toBeEnabled()
   })
 
   it('keeps the Location country breakdown as a list because Where owns the map', () => {

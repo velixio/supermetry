@@ -113,7 +113,7 @@ function ProfileDetailPageContent({
 
   if (erasureId && erasureStatus) {
     return (
-      <main className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         <header className="flex min-w-0 flex-col gap-1">
           <p className="text-sm text-muted-foreground">Profile</p>
           <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.data.external_id}</h1>
@@ -126,7 +126,7 @@ function ProfileDetailPageContent({
           onDeleted={onDeleted}
           onRetry={(id) => retryErasure.mutate(id)}
         />
-      </main>
+      </div>
     )
   }
 
@@ -140,7 +140,7 @@ function ProfileDetailPageContent({
   const firstReplayId = replayRows[0]?.sessionId
 
   return (
-    <main className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <header className="flex min-w-0 flex-col gap-1">
           <p className="text-sm text-muted-foreground">Profile</p>
@@ -232,7 +232,7 @@ function ProfileDetailPageContent({
           onSessionChange={(id) => onReplayChange(id, { replace: true })}
         />
       ) : null}
-    </main>
+    </div>
   )
 }
 

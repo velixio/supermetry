@@ -20,6 +20,7 @@ import { OsLabel } from '@/components/visitor/OsLabel'
 import { TimelineItem } from '@/features/sessions/TimelineItem'
 import { useSession } from '@/features/sessions/api'
 import { getReplayCSS, getReplayData } from '@/lib/replay-api'
+import { en } from '@/messages/en'
 
 import { ReplayPlayer, type MountPlayer, type ReplayPlayerHandle } from './ReplayPlayer'
 
@@ -116,7 +117,7 @@ function ReplayOverlayContent({
             ) : null}
           </section>
 
-          <aside className="flex w-full shrink-0 flex-col gap-6 border-t p-4 lg:w-80 lg:overflow-y-auto lg:border-t-0 lg:border-l">
+          <aside aria-label={en.a11y2.replayDetails} className="flex w-full shrink-0 flex-col gap-6 border-t p-4 lg:w-80 lg:overflow-y-auto lg:border-t-0 lg:border-l">
             <section className="flex flex-col gap-3" aria-labelledby="replay-visitor-heading">
               <h2 className="font-medium" id="replay-visitor-heading">Visitor details</h2>
               <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">

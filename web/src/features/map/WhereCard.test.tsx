@@ -54,6 +54,22 @@ describe('WhereCard', () => {
     expect(screen.getByRole('table', { name: 'Country visitors' })).toBeInTheDocument()
   })
 
+  it('summarizes the selected range and keeps the desktop map prominent', async () => {
+    const { container } = render(<WhereCard metric="visitors" query={query} onFilter={vi.fn()} />)
+
+    const summary = screen.getByText(
+      'Where from Sep 28, 2026 to Sep 30, 2026. Total 150 visitors. Peak India with 100. Low United States with 50.',
+    )
+    expect(summary).toHaveClass('sr-only')
+    expect(screen.getByText('India leads with 100 visitors.')).toBeVisible()
+    const map = await screen.findByRole('group', { name: 'World map' })
+    expect(map).toHaveAttribute('aria-describedby', summary.id)
+    expect(container.querySelector('[data-map-column]')).toHaveClass('lg:min-h-[260px]')
+    expect(map).toHaveClass('lg:min-h-[260px]')
+    expect(map.closest('[class*="grid-cols"]')).toHaveClass('xl:grid-cols-[minmax(60%,1fr)_minmax(14rem,40%)]')
+    expect(container.querySelector('[data-country-name]')).toHaveClass('whitespace-normal')
+  })
+
   it('selects a country, mounts details lazily, and applies the dashboard filter', async () => {
     const onFilter = vi.fn()
     render(<WhereCard metric="visitors" query={query} onFilter={onFilter} />)

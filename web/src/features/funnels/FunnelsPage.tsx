@@ -34,7 +34,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
   }, [selected])
 
   return (
-    <main className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Funnels</h1>
         <p className="text-sm text-muted-foreground">See where sessions or visitors continue and where they leave.</p>
@@ -122,6 +122,6 @@ export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
           ) : null}
         </section>
       </div>
-    </main>
+    </div>
   )
 }

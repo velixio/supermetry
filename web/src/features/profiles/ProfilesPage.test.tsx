@@ -22,6 +22,7 @@ describe('ProfilesPage', () => {
 
     render(<ProfilesPage orgId={1} orgSlug="acme" page={1} search="" siteId={7} siteSlug="docs" onFirst={() => undefined} onNext={() => undefined} onPrevious={() => undefined} onSearchChange={() => undefined} />)
 
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Profiles are disabled' })).toBeVisible()
     expect(screen.getByText(/enable profiles in general site settings/i)).toBeVisible()
     expect(screen.getByText(/supermetry\.identify\("user-123"/)).toBeVisible()

@@ -50,6 +50,7 @@ describe('JourneysPage', () => {
       />,
     )
 
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'User journeys' })).toBeVisible()
     expect(screen.getByRole('img', { name: 'User journey path flow' })).toBeVisible()
     expect(document.querySelector('datalist option[value="/pricing"]')).toBeInTheDocument()

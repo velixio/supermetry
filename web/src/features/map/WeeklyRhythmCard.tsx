@@ -11,6 +11,7 @@ export function WeeklyRhythmCard({ query, metric, onShorten }: {
   const traffic = useBreakdown({ ...query, metrics: [metric], dimensions: ['weekday', 'hour_of_day'], limit: 168 })
   return (
     <TrafficGrid
+      dateRange={query.dateRange}
       error={traffic.error}
       isLoading={traffic.isPending}
       metric={metric}

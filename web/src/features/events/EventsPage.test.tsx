@@ -57,6 +57,7 @@ describe('EventsPage', () => {
     renderPage()
 
     expect(await screen.findByRole('cell', { name: 'signup' })).toBeVisible()
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     expect(screen.getByRole('cell', { name: '/pricing' })).toBeVisible()
     expect(screen.getByText('plan: pro')).toBeVisible()
     expect(screen.getByRole('columnheader', { name: 'Location' })).toBeVisible()

@@ -39,13 +39,13 @@ export function CountryTable({ rows, metric, selectedCountry, activeCountry, onA
           const label = countryLabel(row.country)
           const active = row.country === activeCountry
           return (
-            <li key={row.country} className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2">
+            <li key={row.country} className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-1.5">
               <span className="text-right text-xs tabular-nums text-muted-foreground" aria-hidden="true">{index + 1}</span>
               <button
                 aria-label={`${label}, rank ${index + 1}, ${fmt.number(value)} ${metricLabel}, ${fmt.percent(share)}`}
                 aria-pressed={row.country === selectedCountry}
                 className={cn(
-                  'min-w-0 rounded-md px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
+                  'min-w-0 rounded-md px-1.5 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
                   active || row.country === selectedCountry ? 'bg-muted' : null,
                 )}
                 data-active={active || undefined}
@@ -58,7 +58,7 @@ export function CountryTable({ rows, metric, selectedCountry, activeCountry, onA
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <Flag code={row.country} />
-                  <span className="truncate text-sm">{label}</span>
+                  <span className="whitespace-normal break-words text-sm leading-tight" data-country-name>{label}</span>
                 </span>
                 <span aria-label={`${label} share`} className="mt-1 block h-1 overflow-hidden rounded-full bg-muted-foreground/15" data-share={share.toFixed(1)}>
                   <span aria-hidden="true" className="block h-full rounded-full bg-accent" style={{ width: `${share}%` }} />

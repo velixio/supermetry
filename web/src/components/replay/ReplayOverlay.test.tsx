@@ -54,6 +54,7 @@ describe('ReplayOverlay', () => {
     )
 
     await waitFor(() => expect(mountPlayer).toHaveBeenCalled())
+    expect(screen.getByRole('complementary', { name: 'Replay details' })).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: /signup/i }))
 
     expect(goto).toHaveBeenCalledWith(60250)

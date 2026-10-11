@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 
 import { ChartTooltip, rectFromElement, type TooltipRect } from '@/components/ChartTooltip'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
 } from './trafficGrid'
 
 type TrafficGridProps = {
+  dateRange?: { from: string; to: string }
   rows: Array<Record<string, unknown>>
   metric: TrafficMetric
   timezone: string
@@ -54,6 +55,15 @@ function timezoneLabel(timezone: string, locale?: string): string {
   }
 }
 
+function rangeDateLabel(value: string, locale?: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T12:00:00Z`))
+}
+
 function retentionDays(detail?: string): number | undefined {
   const match = detail?.match(/site's (\d+)-day raw retention window/i)
   return match ? Number(match[1]) : undefined
@@ -63,7 +73,8 @@ function cellLabel(cell: TrafficCell, weekday: string, metric: string, locale?: 
   return `${weekday} ${hourLabel(cell.hour, locale)}: ${fmt.number(cell.value)} ${metric}`
 }
 
-export function TrafficGrid({ rows, metric, timezone, locale, isLoading = false, error, onRetry, onShorten }: TrafficGridProps) {
+export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoading = false, error, onRetry, onShorten }: TrafficGridProps) {
+  const summaryId = useId()
   const weekdays = useMemo(() => orderedWeekdays(locale), [locale])
   const cells = useMemo(() => trafficCells(rows, metric, locale), [rows, metric, locale])
   const totals = useMemo(() => marginTotals(cells), [cells])
@@ -83,6 +94,30 @@ export function TrafficGrid({ rows, metric, timezone, locale, isLoading = false,
   const days = retentionDays(error?.detail)
   const selectedCell = touchedIndex === undefined ? undefined : cells[touchedIndex]
   const quietestName = quietest ? weekdays.find((day) => day.index === quietest.weekday)?.name : undefined
+  const total = cells.reduce((sum, cell) => sum + cell.value, 0)
+  const low = cells.reduce<TrafficCell | undefined>((lowest, cell) => !lowest || cell.value < lowest.value ? cell : lowest, undefined)
+  const rangeLabel = dateRange
+    ? { from: rangeDateLabel(dateRange.from, locale), to: rangeDateLabel(dateRange.to, locale) }
+    : { from: en.a11y2.selectedRange, to: '' }
+  const peakDay = peak ? weekdays.find((day) => day.index === peak.weekday)?.name ?? '' : ''
+  const lowDay = low ? weekdays.find((day) => day.index === low.weekday)?.name ?? '' : ''
+  const trafficValue = (cell: TrafficCell | undefined, weekday: string) => cell
+    ? en.a11y2.weeklyValue.replace('{value}', fmt.number(cell.value)).replace('{weekday}', weekday).replace('{hour}', hourLabel(cell.hour, locale))
+    : '0'
+  const dataSummary = dateRange
+    ? en.a11y2.dataSummary
+      .replace('{title}', 'Weekly rhythm')
+      .replace('{from}', rangeLabel.from)
+      .replace('{to}', rangeLabel.to)
+      .replace('{total}', `${fmt.number(total)} ${metricLabel}`)
+      .replace('{peak}', trafficValue(peak, peakDay))
+      .replace('{low}', trafficValue(low, lowDay))
+    : en.a11y2.selectedDataSummary
+      .replace('{title}', 'Weekly rhythm')
+      .replace('{range}', rangeLabel.from)
+      .replace('{total}', `${fmt.number(total)} ${metricLabel}`)
+      .replace('{peak}', trafficValue(peak, peakDay))
+      .replace('{low}', trafficValue(low, lowDay))
 
   const showTooltip = (index: number, element: HTMLElement) => {
     setTooltipIndex(index)
@@ -125,6 +160,7 @@ export function TrafficGrid({ rows, metric, timezone, locale, isLoading = false,
       <CardHeader className="gap-1 border-b">
         <CardTitle id="weekly-rhythm-title">Weekly rhythm</CardTitle>
         <CardDescription>{en.map.trafficCaption.replace('{timezone}', timezoneLabel(timezone, locale))}</CardDescription>
+        <p className="sr-only" id={summaryId}>{dataSummary}</p>
         {summary ? <p className="text-sm font-medium" aria-live="polite">{summary}</p> : null}
         {quietestName ? <p className="text-xs text-muted-foreground">Quietest weekday: {quietestName}</p> : null}
       </CardHeader>
@@ -143,19 +179,20 @@ export function TrafficGrid({ rows, metric, timezone, locale, isLoading = false,
         ) : (
           <>
             {maximum === 0 ? <p className="text-sm text-muted-foreground" role="status">{en.map.noTraffic}</p> : null}
-            <div aria-label="Weekly traffic by weekday and hour" className="relative min-w-0" role="grid">
+            <div aria-describedby={summaryId} aria-label="Weekly traffic by weekday and hour" className="relative min-w-0" role="grid">
               <div ref={axisRef} className="grid grid-cols-[2.75rem_repeat(24,minmax(0,1fr))_3rem] gap-px pb-1" role="row">
-                <span aria-hidden="true" />
+                <span className="sr-only" role="columnheader">Weekday</span>
                 {Array.from({ length: 24 }, (_, hour) => (
                   <span key={hour} className="min-w-0 text-center text-xs leading-4 text-muted-foreground" role="columnheader">
+                    <span className="sr-only">{hourLabel(hour, locale)}</span>
                     {hour % 6 === 0
-                      ? hourLabel(hour, locale).replace(/\s/g, '')
+                      ? <span aria-hidden="true">{hourLabel(hour, locale).replace(/\s/g, '')}</span>
                       : hour % 3 === 0
-                        ? <span className="hidden xl:inline">{hourLabel(hour, locale).replace(/\s/g, '')}</span>
+                        ? <span aria-hidden="true" className="hidden xl:inline">{hourLabel(hour, locale).replace(/\s/g, '')}</span>
                         : ''}
                   </span>
                 ))}
-                <span className="sr-only">Day total</span>
+                <span className="sr-only" role="columnheader">Day total</span>
               </div>
               {weekdays.map((weekday, row) => (
                 <div key={weekday.index} className="grid min-h-7 grid-cols-[2.75rem_repeat(24,minmax(0,1fr))_3rem] items-center gap-px" data-weekday-row role="row">
@@ -194,30 +231,30 @@ export function TrafficGrid({ rows, metric, timezone, locale, isLoading = false,
                       </button>
                     )
                   })}
-                  <span aria-label={`${weekday.name} total: ${fmt.number(totals.weekday[row])} ${metricLabel}`} className="relative h-5 overflow-hidden rounded-sm bg-muted text-right text-xs leading-5 tabular-nums">
+                  <span aria-label={`${weekday.name} total: ${fmt.number(totals.weekday[row])} ${metricLabel}`} className="relative h-5 overflow-hidden rounded-sm bg-muted text-right text-xs leading-5 tabular-nums" role="gridcell">
                     <span aria-hidden="true" className="absolute inset-y-0 left-0 bg-accent/50" style={{ width: `${maximum > 0 ? (totals.weekday[row] / Math.max(...totals.weekday)) * 100 : 0}%` }} />
                     <span className="relative px-1">{fmt.number(totals.weekday[row])}</span>
                   </span>
                 </div>
               ))}
-              <div className="mt-1 grid min-h-10 grid-cols-[2.75rem_repeat(24,minmax(0,1fr))_3rem] gap-px" aria-label="Hourly totals">
-                <span aria-hidden="true" />
+              <div className="mt-1 grid min-h-10 grid-cols-[2.75rem_repeat(24,minmax(0,1fr))_3rem] gap-px" role="row">
+                <span className="sr-only" role="rowheader">Hourly totals</span>
                 {totals.hour.map((value, hour) => (
-                  <span key={hour} aria-label={`${hourLabel(hour, locale)} total: ${fmt.number(value)} ${metricLabel}`} className="relative min-h-10 rounded-sm bg-muted">
+                  <span key={hour} aria-label={`${hourLabel(hour, locale)} total: ${fmt.number(value)} ${metricLabel}`} className="relative min-h-10 rounded-sm bg-muted" role="gridcell">
                     <span aria-hidden="true" className="absolute inset-x-0 bottom-0 rounded-sm bg-accent/50" style={{ height: `${Math.max(...totals.hour) > 0 ? (value / Math.max(...totals.hour)) * 100 : 0}%` }} />
                   </span>
                 ))}
-                <span aria-hidden="true" />
+                <span aria-label="All hours" role="gridcell" />
               </div>
-              {tooltipIndex !== undefined ? <ChartTooltip anchor={tooltipAnchor} avoid={tooltipAvoid} className="flex items-center gap-1">
+            </div>
+            {tooltipIndex !== undefined ? <ChartTooltip anchor={tooltipAnchor} avoid={tooltipAvoid} className="flex items-center gap-1">
                   <span>{weekdays[Math.floor(tooltipIndex / 24)].name}</span>
                   <span>{hourLabel(cells[tooltipIndex].hour, locale)}</span>
                   <span>{fmt.number(cells[tooltipIndex].value)} {metricLabel}</span>
                 </ChartTooltip> : null}
-            </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <span>{en.map.fewer}</span>
-              <span aria-label="Traffic intensity legend" className="flex gap-1">{[1, 2, 3, 4, 5].map((step) => <span key={step} aria-hidden="true" className={cn('size-3 rounded-[2px]', stepClasses[step])} />)}</span>
+              <span aria-label="Traffic intensity legend" className="flex gap-1" role="img">{[1, 2, 3, 4, 5].map((step) => <span key={step} aria-hidden="true" className={cn('size-3 rounded-[2px]', stepClasses[step])} />)}</span>
               <span>{en.map.more}</span>
             </div>
             <section className="border-t pt-4" aria-labelledby="peak-windows-title">

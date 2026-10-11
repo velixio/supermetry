@@ -43,7 +43,7 @@ export function JourneysPage({
     .filter((page) => page !== '')
 
   return (
-    <main className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">User journeys</h1>
         <p className="text-sm text-muted-foreground">Follow the pages visitors viewed in sequence. Repeated consecutive pageviews are collapsed.</p>
@@ -68,6 +68,6 @@ export function JourneysPage({
       ) : (
         <JourneyFlow links={report.data.links} nodes={report.data.nodes} />
       )}
-    </main>
+    </div>
   )
 }

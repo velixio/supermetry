@@ -37,6 +37,7 @@ describe('RetentionPage', () => {
       />,
     )
 
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Retention' })).toBeVisible()
     expect(screen.getByText(/cannot identify the same person across days/i)).toBeVisible()
     fireEvent.change(screen.getByLabelText('Group cohorts by'), { target: { value: 'week' } })

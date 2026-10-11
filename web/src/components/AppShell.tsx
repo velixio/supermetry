@@ -1,6 +1,6 @@
 import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
 import { AuthorizationProvider } from '@/lib/authorization'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
 
@@ -32,6 +32,7 @@ import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 
 function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number; org: string; site: string; detailsAvailable: boolean }) {
+  const descriptionId = useId()
   const summary = useLiveSummary(siteId)
   if (summary.isError) return null
 
@@ -53,12 +54,13 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
     <Tooltip>
       <TooltipTrigger asChild>
         {detailsAvailable ? (
-          <Link aria-label={description} params={{ org, site }} title={description} to="/app/$org/$site/realtime">
+          <Link aria-describedby={descriptionId} params={{ org, site }} to="/app/$org/$site/realtime">
             {badge}
           </Link>
-        ) : <span aria-label={description} tabIndex={0}>{badge}</span>}
+        ) : <span aria-describedby={descriptionId} tabIndex={0}>{badge}</span>}
       </TooltipTrigger>
       <TooltipContent>{description}</TooltipContent>
+      <span className="sr-only" id={descriptionId}>{description}</span>
     </Tooltip>
   )
 }
@@ -103,9 +105,19 @@ export function AppShell({
     <AuthorizationProvider membership={membership}>
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
+        <a
+          className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden whitespace-nowrap focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:h-auto focus:w-auto focus:overflow-visible focus:rounded-full focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+          href="#main-content"
+          onClick={(event) => {
+            event.preventDefault()
+            document.getElementById('main-content')?.focus()
+          }}
+        >
+          {en.a11y2.skipToMain}
+        </a>
         <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} />
         <SidebarInset>
-          <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4">
+          <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4">
             <div className="flex min-w-0 items-center gap-2">
               <SidebarTrigger aria-label={en.navigation.collapse} />
               {site ? (
@@ -146,7 +158,7 @@ export function AppShell({
               <HeaderMenus me={me} membership={membership} site={scopedSite} />
             </div>
           </header>
-          <main className="min-w-0 flex-1 p-4 md:p-6">
+          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
             {scopedSite?.is_demo ? (
               <DemoBanner org={membership.org} site={scopedSite} />
             ) : (

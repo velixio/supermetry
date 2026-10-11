@@ -79,6 +79,7 @@ describe('HeatmapsPage', () => {
   it('renders the selected live page in a sandboxed device preview', () => {
     const { props } = renderPage()
 
+    expect(screen.queryByRole('main')).not.toBeInTheDocument()
     const frame = screen.getByTitle('Live preview of /pricing')
     expect(frame).toHaveAttribute('sandbox', 'allow-same-origin allow-scripts')
     expect(frame).toHaveAttribute('src', 'https://shop.example.com/pricing')

@@ -56,22 +56,22 @@ function DashboardStateRoute() {
       }),
   })
 
-  if (!site) return <p className="sr-only">{en.loadingDashboard}</p>
+  if (!site) return <><h1 className="sr-only">{en.navigation.dashboard}</h1><p className="sr-only">{en.loadingDashboard}</p></>
 
   if (!trackingPolicyKnown(site)) {
-    return <section className="rounded-xl border bg-card p-5 space-y-3" role="status">
+    return <><h1 className="sr-only">{en.navigation.dashboard}</h1><section className="rounded-xl border bg-card p-5 space-y-3" role="status">
       <h2 className="font-medium">Tracking policy is unavailable</h2>
       <p className="text-sm text-muted-foreground">Reload the policy before opening analytics. No dashboard data has been requested.</p>
       <Button variant="outline" onClick={() => void me.refetch()}>Reload tracking policy</Button>
-    </section>
+    </section></>
   }
   const anonymous = isAnonymousTracking(site)
   if (anonymous && filters.some((filter) => !isAnonymousFilterAllowed(filter))) {
-    return <section className="rounded-xl border bg-card p-5 space-y-3" role="status">
+    return <><h1 className="sr-only">{en.navigation.dashboard}</h1><section className="rounded-xl border bg-card p-5 space-y-3" role="status">
       <h2 className="font-medium">These filters are unavailable in anonymous mode</h2>
       <p className="text-sm text-muted-foreground">The saved URL includes filters that could reveal identifying data. Clear them to view safe aggregate analytics.</p>
       <Button variant="outline" onClick={() => updateSearch(replaceFilters(search, filters.filter(isAnonymousFilterAllowed)))}>Clear unavailable filters</Button>
-    </section>
+    </section></>
   }
   const timezone = site.timezone || 'UTC'
 
@@ -128,6 +128,7 @@ function DashboardStateRoute() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
+      <h1 className="sr-only">{en.navigation.dashboard}</h1>
       <div className="flex flex-wrap items-start justify-between gap-3">
         {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
           <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
@@ -201,12 +202,16 @@ function DashboardStateRoute() {
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {breakdownCards.slice(0, 4).map(renderBreakdownCard)}
       </div>
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]" data-testid="where-when-band">
-        <WhereCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} />
-        <WeeklyRhythmCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={shortenToRawRange} />
-      </div>
-      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-        {breakdownCards.slice(4).map(renderBreakdownCard)}
+      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:grid-rows-[auto_auto]" data-testid="where-when-band">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1" data-dashboard-band-item="where">
+          <WhereCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} />
+        </div>
+        <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1" data-dashboard-band-item="weekly-rhythm">
+          <WeeklyRhythmCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={shortenToRawRange} />
+        </div>
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2" data-dashboard-band-item="goals-events">
+          {breakdownCards.slice(4).map(renderBreakdownCard)}
+        </div>
       </div>
     </div>
   )

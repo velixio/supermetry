@@ -75,7 +75,7 @@ export function EventsPage({
   }
 
   return (
-    <main className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold tracking-tight">Events</h1>
         <p className="text-sm text-muted-foreground">Inspect recent pageviews, custom events, and their properties.</p>
@@ -177,6 +177,6 @@ export function EventsPage({
           onSessionChange={(id) => onReplayChange(id, { replace: true })}
         />
       ) : null}
-    </main>
+    </div>
   )
 }

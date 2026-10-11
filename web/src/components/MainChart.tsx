@@ -1,5 +1,5 @@
 import { ErrorState } from './ErrorState'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import {
   Area,
   AreaChart,
@@ -30,6 +30,7 @@ import type { Annotation } from '@/features/annotations/types'
 import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useTimeseries, type StatsQuery } from '../lib/stats'
+import { en } from '../messages/en'
 
 export type ChartInterval = 'hour' | 'day' | 'week' | 'month'
 
@@ -258,6 +259,7 @@ export function MainChart({
   onEditAnnotation,
   onDeleteAnnotation,
 }: MainChartProps) {
+  const summaryId = useId()
   const [selectedInterval, setSelectedInterval] = useState<ChartInterval | undefined>(interval)
 
   useEffect(() => {
@@ -295,6 +297,19 @@ export function MainChart({
   }))
   const label = `${metricLabel(chartMetric)} over time`
   const timezone = query.timezone ?? 'UTC'
+  const peak = points.reduce<ChartPoint | undefined>((best, point) => !best || point.value > best.value ? point : best, undefined)
+  const low = points.reduce<ChartPoint | undefined>((best, point) => !best || point.value < best.value ? point : best, undefined)
+  const total = numeric(current.data?.totals ?? {}, chartMetric)
+  const pointSummary = (point: ChartPoint | undefined) => point
+    ? en.a11y2.peakOn.replace('{value}', metricValue(chartMetric, point.value)).replace('{time}', timeBucketLabel(point.time, resolvedInterval, timezone))
+    : '0'
+  const summary = en.a11y2.dataSummary
+    .replace('{title}', `${label.charAt(0).toUpperCase()}${label.slice(1)}`)
+    .replace('{from}', fmt.date(query.dateRange.from, timezone))
+    .replace('{to}', fmt.date(query.dateRange.to, timezone))
+    .replace('{total}', metricValue(chartMetric, total))
+    .replace('{peak}', pointSummary(peak))
+    .replace('{low}', pointSummary(low))
   if (current.isError || (compare === 'previous_year' && previousYearResult.isError)) {
     const failed = current.isError ? current : previousYearResult
     return <ErrorState detail={failed.error?.detail} onRetry={() => void failed.refetch()} />
@@ -322,6 +337,7 @@ export function MainChart({
           </SelectContent>
         </Select>
       </div>
+      <p className="sr-only" id={summaryId}>{summary}</p>
       <ChartContainer>
         <AnnotationMarkers
           annotations={annotations}
@@ -331,35 +347,37 @@ export function MainChart({
           onEdit={onEditAnnotation}
           onDelete={onDeleteAnnotation}
         />
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <AreaChart accessibilityLayer data={points}>
-            <defs>
-              <linearGradient id="main-chart-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="time" axisLine={false} tickLine={false} tickFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
-            <YAxis axisLine={false} tickLine={false} width={40} />
-            <Tooltip labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
-            <Area
-              dataKey="value"
-              fill="url(#main-chart-fill)"
-              stroke="var(--chart-1)"
-              strokeWidth={2}
-            />
-            {compare === 'off' ? null : (
+        <div aria-describedby={summaryId} aria-label={label} className="size-full" role="img">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <AreaChart accessibilityLayer data={points}>
+              <defs>
+                <linearGradient id="main-chart-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="time" axisLine={false} tickLine={false} tickFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
+              <YAxis axisLine={false} tickLine={false} width={40} />
+              <Tooltip labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
               <Area
-                dataKey="comparison"
-                fill="none"
-                stroke="var(--chart-2)"
-                strokeDasharray="6 6"
-                strokeOpacity={0.4}
+                dataKey="value"
+                fill="url(#main-chart-fill)"
+                stroke="var(--chart-1)"
+                strokeWidth={2}
               />
-            )}
-          </AreaChart>
-        </ResponsiveContainer>
+              {compare === 'off' ? null : (
+                <Area
+                  dataKey="comparison"
+                  fill="none"
+                  stroke="var(--chart-2)"
+                  strokeDasharray="6 6"
+                  strokeOpacity={0.4}
+                />
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </ChartContainer>
 
       <table className="sr-only" aria-label={label}>

@@ -224,7 +224,7 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
   const host = site.data?.allowed_hosts[0] ?? ''
 
   return (
-    <main className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <header>
           <h1 className="text-xl font-semibold tracking-tight">Heatmaps</h1>
@@ -287,6 +287,6 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
           showScroll={showScroll}
         />
       )}
-    </main>
+    </div>
   )
 }

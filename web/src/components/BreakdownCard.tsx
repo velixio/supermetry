@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -54,6 +54,7 @@ function filterAccessibleLabel(dimension: string, label: string, display: string
 }
 
 export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true, allowFilter = true, verifiedPaths = false, description }: BreakdownCardProps) {
+  const filterDescriptionId = useId()
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
   const activeTab = tabs.find((tab) => tab.key === activeKey) ?? tabs[0]
   const cardQuery: StatsQuery = {
@@ -141,10 +142,14 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                   <tr key={`${label}:${index}`} className="border-t">
                     <td className="min-w-0 px-2 py-1">
                       {label === '' || !allowFilter || placeWithoutCountry ? (
-                        <span className="block min-w-0 px-2 py-2 font-medium text-muted-foreground">{display}</span>
+                        <span className="block min-w-0 px-2 py-2 font-medium text-foreground" title={display}>{display}</span>
                       ) : (
+                        <>
+                        <span className="sr-only" id={`${filterDescriptionId}-${index}`}>
+                          {`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, placeCountry)}`}
+                        </span>
                         <button
-                          aria-label={`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, placeCountry)}`}
+                          aria-describedby={`${filterDescriptionId}-${index}`}
                           className="w-full min-w-0 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                           type="button"
                           onClick={() => onFilter({
@@ -157,6 +162,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                         >
                           <span className="block min-w-0 truncate font-medium" title={display}>{display}</span>
                         </button>
+                        </>
                       )}
                     </td>
                     {displayedMetrics.map((metric) => (
@@ -183,14 +189,18 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
             return (
               <li key={`${label}:${index}`} className="min-w-0">
                 {label === '' || !allowFilter || placeWithoutCountry ? (
-                  <div className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-muted-foreground">
+                  <div className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-foreground">
                     <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
-                    <span className="relative min-w-0 truncate text-sm" title={display}>{display}</span>
+                    <span className="relative min-w-0 truncate text-sm text-foreground" title={display}>{display}</span>
                     <span className="relative text-sm tabular-nums">{fmt.number(value)}</span>
                   </div>
                 ) : (
+                  <>
+                  <span className="sr-only" id={`${filterDescriptionId}-${index}`}>
+                    {`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, country)}`}
+                  </span>
                   <button
-                    aria-label={`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, country)}`}
+                    aria-describedby={`${filterDescriptionId}-${index}`}
                     className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
                     type="button"
                     onClick={() =>
@@ -210,10 +220,11 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                         : null}
                       <span className="min-w-0 truncate" title={display}>{display}</span>
                     </span>
-                    <span className="relative text-sm tabular-nums text-muted-foreground">
+                    <span className="relative text-sm tabular-nums text-foreground">
                       {fmt.number(value)}
                     </span>
                   </button>
+                  </>
                 )}
               </li>
             )
