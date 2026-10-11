@@ -172,8 +172,8 @@ This product includes GeoLite Data created by MaxMind, available from
 <https://www.maxmind.com>. GeoLite data is downloaded by each installation
 when configured and is not bundled with Supermetry. Each operator accepts
 MaxMind's GeoLite End User License Agreement when they create their account,
-and the dashboard footer shows the notice above whenever MaxMind data is in
-use.
+and the dashboard footer shows an "IP geolocation by MaxMind" link, with the
+notice above as its hover text, whenever MaxMind data is in use.
 
 ## Public-domain and public data
 
