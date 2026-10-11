@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"supermetry/internal/platform/orgs"
 	"supermetry/internal/platform/sitesvc"
 	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
 	coresites "supermetry/internal/sites"
 	"supermetry/internal/testpg"
 )
@@ -198,6 +200,112 @@ func TestAnonymousAuthRouteMatrix(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthHTTPPasswordLengthBoundary(t *testing.T) {
+	var mailer *mail.Fake
+	tests := []struct {
+		name    string
+		prepare func(*testing.T, context.Context, *platformauth.Auth, *store.Store) (string, func(string) string, int)
+	}{
+		{
+			name: "setup",
+			prepare: func(t *testing.T, ctx context.Context, authService *platformauth.Auth, _ *store.Store) (string, func(string) string, int) {
+				t.Helper()
+				link, ok := authService.SetupURL(ctx)
+				if !ok {
+					t.Fatal("setup URL missing")
+				}
+				token := queryToken(t, link)
+				return "/api/private/setup", func(password string) string {
+					return fmt.Sprintf(`{"token":%q,"email":"owner@example.test","name":"Owner","password":%q,"org_name":"Acme"}`, token, password)
+				}, http.StatusCreated
+			},
+		},
+		{
+			name: "signup",
+			prepare: func(_ *testing.T, _ context.Context, _ *platformauth.Auth, _ *store.Store) (string, func(string) string, int) {
+				return "/api/private/auth/signup", func(password string) string {
+					return fmt.Sprintf(`{"email":"owner@example.test","name":"Owner","password":%q,"org_name":"Acme"}`, password)
+				}, http.StatusCreated
+			},
+		},
+		{
+			name: "reset",
+			prepare: func(t *testing.T, ctx context.Context, authService *platformauth.Auth, data *store.Store) (string, func(string) string, int) {
+				t.Helper()
+				if _, err := users.New(data).Create(ctx, "owner@example.test", "Owner", "old-password"); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := authService.StartReset(platformauth.WithClientKey(ctx, "password-boundary"), "owner@example.test"); err != nil {
+					t.Fatal(err)
+				}
+				if len(mailer.Sent) != 1 {
+					t.Fatalf("sent %d reset messages, want 1", len(mailer.Sent))
+				}
+				// An enabled mailer receives the link; it is not returned to the caller.
+				_, link, _ := strings.Cut(mailer.Sent[0].Text, "\n\n")
+				token := queryToken(t, strings.TrimSpace(link))
+				return "/api/private/auth/password-reset/confirm", func(password string) string {
+					return fmt.Sprintf(`{"token":%q,"password":%q}`, token, password)
+				}, http.StatusNoContent
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pool, _ := testpg.New(t)
+			ctx := context.Background()
+			if err := db.Migrate(ctx, pool); err != nil {
+				t.Fatal(err)
+			}
+			data := &store.Store{Pool: pool}
+			box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/totp/v1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			mailer = &mail.Fake{}
+			authService := platformauth.New(data, mailer, box, "https://supermetry.example")
+			path, body, successStatus := tt.prepare(t, ctx, authService, data)
+			handler := platformhttp.New(platformhttp.Deps{Auth: authService, Signup: "open"})
+
+			for _, boundary := range []struct {
+				name     string
+				password string
+				status   int
+			}{
+				{name: "five characters rejected", password: "short", status: http.StatusBadRequest},
+				{name: "six characters accepted", password: "sixsix", status: successStatus},
+			} {
+				t.Run(boundary.name, func(t *testing.T) {
+					request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body(boundary.password)))
+					request.Header.Set("Content-Type", "application/json")
+					request.RemoteAddr = "192.0.2.10:12345"
+					response := httptest.NewRecorder()
+					handler.ServeHTTP(response, request)
+					if response.Code != boundary.status {
+						t.Fatalf("status=%d body=%s, want %d", response.Code, response.Body.String(), boundary.status)
+					}
+					if boundary.status == http.StatusBadRequest && !strings.Contains(response.Body.String(), "password must be at least 6 characters") {
+						t.Fatalf("password policy body=%s", response.Body.String())
+					}
+				})
+			}
+		})
+	}
+}
+
+func queryToken(t *testing.T, rawURL string) string {
+	t.Helper()
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token := parsed.Query().Get("token"); token != "" {
+		return token
+	}
+	t.Fatalf("token missing from %q", rawURL)
+	return ""
 }
 
 func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {

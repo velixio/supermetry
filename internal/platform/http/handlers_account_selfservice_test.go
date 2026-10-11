@@ -2,6 +2,7 @@ package platformhttp_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -105,6 +106,26 @@ func TestAccountSelfServiceHTTP(t *testing.T) {
 			t.Fatalf("status=%d body=%s", got.Code, got.Body.String())
 		}
 	})
+}
+
+func TestChangePasswordHTTPPasswordLengthBoundary(t *testing.T) {
+	fixture := newAccountHTTPFixture(t, &mail.Fake{})
+	for _, boundary := range []struct {
+		name     string
+		password string
+		status   int
+	}{
+		{name: "five characters rejected", password: "short", status: http.StatusBadRequest},
+		{name: "six characters accepted", password: "sixsix", status: http.StatusNoContent},
+	} {
+		t.Run(boundary.name, func(t *testing.T) {
+			body := fmt.Sprintf(`{"current_password":"pw-123456789","new_password":%q}`, boundary.password)
+			result := fixture.request(t, http.MethodPost, "/api/private/me/password", body, true)
+			if result.Code != boundary.status {
+				t.Fatalf("status=%d body=%s, want %d", result.Code, result.Body.String(), boundary.status)
+			}
+		})
+	}
 }
 
 func TestEmailChangeWithoutSMTPIsConflict(t *testing.T) {

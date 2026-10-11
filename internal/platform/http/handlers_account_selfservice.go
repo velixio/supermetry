@@ -132,7 +132,7 @@ func (h *handler) changePassword(w http.ResponseWriter, r *http.Request) {
 			rateLimited(w)
 		} else if errors.Is(err, platformauth.ErrInvalid) {
 			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "current password is invalid")
-		} else {
+		} else if !writePasswordPolicyProblem(w, err) {
 			serviceError(w, err)
 		}
 		return

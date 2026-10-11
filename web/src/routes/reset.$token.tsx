@@ -40,7 +40,7 @@ function ResetPage() {
               name="password"
               type="password"
               autoComplete="new-password"
-			  minLength={10}
+			  minLength={6}
               required
             />
 			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>

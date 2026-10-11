@@ -87,7 +87,7 @@ describe('signup page', () => {
     )
 
     const password = await screen.findByLabelText('Password')
-    expect(password).toHaveAttribute('minlength', '10')
+    expect(password).toHaveAttribute('minlength', '6')
     expect(screen.getByText(en.auth.passwordPolicy)).toBeVisible()
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })

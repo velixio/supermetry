@@ -140,6 +140,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := db.Migrate(ctx, pool); err != nil {
 		return err
 	}
+	var usersExist bool
+	if err := pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&usersExist); err != nil {
+		return fmt.Errorf("check platform users: %w", err)
+	}
+	logAdminSetup(slog.Default(), cfg.BaseURL, usersExist)
 	platformStore := &store.Store{Pool: pool}
 	// One replay blob store serves ingest, dashboard reads, retention and erasure.
 	var replayStore replay.BlobStore
@@ -178,10 +183,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var registry sites.Registry = databaseRegistry
 	refreshRegistry := databaseRegistry.Invalidate
 	var compatibility *compatibilityMode
-	var usersExist bool
-	if err := pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&usersExist); err != nil {
-		return fmt.Errorf("check platform users: %w", err)
-	}
 	if !usersExist && cfg.SitesFile != "" {
 		fileRegistry, err := newReloadableRegistry(cfg.SitesFile)
 		if err != nil {
@@ -540,6 +541,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		cancelReplayStore()
 	}
 	return errors.Join(cause, httpErr)
+}
+
+func logAdminSetup(logger *slog.Logger, baseURL string, usersExist bool) {
+	if usersExist {
+		return
+	}
+	logger.Info("No admin account yet: finish setup at " + strings.TrimRight(baseURL, "/") + "/app")
 }
 
 func postgresReady(pool *pgxpool.Pool) bool {

@@ -114,8 +114,12 @@ func TestAcceptRejectsWeakPasswordForNewUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := env.service.Accept(ctx, tokenFromLink(t, link), 0, "New User", "password123"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
-		t.Fatalf("Accept() error = %v, want ErrPasswordCommon", err)
+	token := tokenFromLink(t, link)
+	if _, err := env.service.Accept(ctx, token, 0, "New User", "short"); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
+		t.Fatalf("Accept() five-character password error = %v, want ErrPasswordTooShort", err)
+	}
+	if _, err := env.service.Accept(ctx, token, 0, "New User", "sixsix"); err != nil {
+		t.Fatalf("Accept() six-character password error = %v", err)
 	}
 }
 

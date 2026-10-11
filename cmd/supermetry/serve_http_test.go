@@ -35,6 +35,22 @@ func TestClampIngestRatesPreservesOrderingAndWarnsOnce(t *testing.T) {
 	}
 }
 
+func TestLogAdminSetup(t *testing.T) {
+	var output bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&output, nil))
+
+	logAdminSetup(logger, "https://analytics.example/", false)
+	if got := output.String(); !strings.Contains(got, `msg="No admin account yet: finish setup at https://analytics.example/app"`) {
+		t.Fatalf("setup log = %q", got)
+	}
+
+	output.Reset()
+	logAdminSetup(logger, "https://analytics.example", true)
+	if output.Len() != 0 {
+		t.Fatalf("setup log with existing user = %q", output.String())
+	}
+}
+
 func TestWarnLoopbackProxyRisk(t *testing.T) {
 	tests := []struct {
 		name    string

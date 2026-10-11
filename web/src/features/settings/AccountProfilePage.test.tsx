@@ -26,6 +26,7 @@ describe('account profile self-service', () => {
     await waitFor(() => expect(request).toHaveBeenCalledWith('POST', '/api/private/me/email', { new_email: 'new@example.test', password: 'pw-123456789' }))
 
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'pw-123456789' } })
+    expect(screen.getByLabelText('New password')).toHaveAttribute('minlength', '6')
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password-1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Change password' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('POST', '/api/private/me/password', { current_password: 'pw-123456789', new_password: 'new-password-1' }))

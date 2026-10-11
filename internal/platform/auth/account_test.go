@@ -142,6 +142,9 @@ func TestChangePasswordRejectsWeakPassword(t *testing.T) {
 	if err := env.a.ChangePassword(ctx, userID, "old-password-1", "short", current); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
 		t.Fatalf("weak password error = %v, want ErrPasswordTooShort", err)
 	}
+	if err := env.a.ChangePassword(ctx, userID, "old-password-1", "sixsix", current); err != nil {
+		t.Fatalf("six-character password error = %v", err)
+	}
 }
 
 func TestChangePasswordRejectsCurrentPassword(t *testing.T) {

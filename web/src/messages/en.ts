@@ -16,7 +16,7 @@ export const en = {
     signInDescription: 'Use your account to open your dashboard.',
     totpDescription: 'Enter the six-digit code from your authenticator app.',
     genericError: 'Sign in failed. Check your details and try again.',
-	passwordPolicy: 'Use at least 10 characters and avoid common passwords.',
+	passwordPolicy: 'Use at least 6 characters and avoid common passwords.',
     setupHeading: 'Set up Supermetry',
     setupDescription: 'Create the first owner and organization.',
     completeSetup: 'Complete setup',
