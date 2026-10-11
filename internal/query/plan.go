@@ -74,9 +74,9 @@ func planParts(req Normalized, from time.Time, isClosed func(time.Time) bool) []
 	if from.After(req.To) {
 		return nil
 	}
-	// Hour buckets are intentionally limited by the API to seven days and are
-	// read from retained raw sessions because the closed tier stores civil days.
-	if containsDimension(req.Dimensions, "hour") {
+	// Sub-day and weekday/hour grid buckets read retained raw sessions because
+	// the closed tier stores civil days only.
+	if containsAny(req.Dimensions, "hour", "weekday", "hour_of_day") {
 		return []Part{{Route: RouteHot, From: from, To: req.To}}
 	}
 	parts := make([]Part, 0, 3)
@@ -246,6 +246,9 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 }
 
 func (e *Engine) queryNormalized(ctx context.Context, req api.QueryRequest, site sites.Site, normalized Normalized, now time.Time, metadata closeMetadata) (api.QueryResponse, error) {
+	if err := validateTrafficRange(normalized, site, now); err != nil {
+		return api.QueryResponse{}, err
+	}
 	closedThrough := metadata.closedThrough(normalized.From, normalized.To)
 	parts := metadata.plan(normalized)
 	if e.forcedRoute != nil {
@@ -385,7 +388,7 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 	if e.trackingMode != privacy.Identified {
 		for i := range rows {
 			for j, dimension := range normalized.Dimensions {
-				rows[i].dimensions[j], _ = privacy.CanonicalDimensionValue(dimension, rows[i].dimensions[j])
+				rows[i].dimensions[j], _ = canonicalAnonymousDimension(dimension, rows[i].dimensions[j])
 			}
 		}
 	}
@@ -456,6 +459,27 @@ func (e *Engine) executeNormalized(ctx context.Context, req api.QueryRequest, si
 		}
 	}
 	return response, nil
+}
+
+func validateTrafficRange(req Normalized, site sites.Site, now time.Time) error {
+	if !containsAny(req.Dimensions, "weekday", "hour_of_day") {
+		return nil
+	}
+	location := site.TZ
+	if location == nil {
+		location = time.UTC
+	}
+	today := civilDate(now.In(location))
+	if req.To.After(today) {
+		return errors.New("date_range.to must not be after today in the site's timezone")
+	}
+	if site.Retention != 0 {
+		oldest := today.AddDate(0, 0, -int(site.Retention)+1)
+		if req.From.Before(oldest) {
+			return fmt.Errorf("Traffic breakdowns are available only within the site's %d-day raw retention window", site.Retention)
+		}
+	}
+	return nil
 }
 
 func eventAttributionMeta(req Normalized, parts []Part) *api.QueryEventAttribution {

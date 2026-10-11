@@ -3,9 +3,11 @@ package api_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -110,6 +112,53 @@ func TestStatsGETTranslatesParametersToQuery(t *testing.T) {
 	}
 	if got.Compare == nil || *got.Compare != api.PreviousPeriod {
 		t.Fatalf("compare = %v", got.Compare)
+	}
+}
+
+func TestStatsBreakdownAcceptsTrafficGridDimensionsForThirtyDays(t *testing.T) {
+	var got api.QueryRequest
+	router := statsTestRouter(queryFunc{query: func(request api.QueryRequest) (api.QueryResponse, error) {
+		got = request
+		return emptyQueryResponse(), nil
+	}}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/breakdown?site_id=1&period=30d&dimension=weekday,hour_of_day&metrics=visitors,pageviews&limit=168", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if got.Dimensions == nil || !reflect.DeepEqual(*got.Dimensions, []string{"weekday", "hour_of_day"}) {
+		t.Fatalf("dimensions=%v", got.Dimensions)
+	}
+	if got.Limit == nil || *got.Limit != 168 {
+		t.Fatalf("limit=%v", got.Limit)
+	}
+	hourlyRequest := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/timeseries?site_id=1&period=30d&interval=hour", nil)
+	hourlyRequest.Header.Set("Authorization", "Bearer test-key")
+	hourlyResponse := httptest.NewRecorder()
+	router.ServeHTTP(hourlyResponse, hourlyRequest)
+	assertRecorderProblem(t, hourlyResponse, http.StatusBadRequest)
+	if !strings.Contains(hourlyResponse.Body.String(), "hour interval is limited to seven days") {
+		t.Fatalf("hourly body=%s", hourlyResponse.Body.String())
+	}
+}
+
+func TestStatsBreakdownReturnsTrafficRetentionErrorAsProblem(t *testing.T) {
+	router := statsTestRouter(queryFunc{query: func(api.QueryRequest) (api.QueryResponse, error) {
+		return api.QueryResponse{}, errors.New("Traffic breakdowns are available only within the site's 30-day raw retention window")
+	}}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/breakdown?site_id=1&period=30d&dimension=weekday,hour_of_day", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	assertRecorderProblem(t, response, http.StatusBadRequest)
+	if !strings.Contains(response.Body.String(), "30-day raw retention window") {
+		t.Fatalf("body=%s", response.Body.String())
 	}
 }
 

@@ -51,11 +51,11 @@ func ValidateAnonymousQuery(request QueryRequest) error {
 			if filter.Operator != Is && filter.Operator != IsNot {
 				return ErrAnonymousHistory
 			}
-			if !privacy.AnonymousDimensionAllowed(filter.Dimension) {
+			if !anonymousDimensionAllowed(filter.Dimension) {
 				return ErrAnonymousHistory
 			}
 			for _, value := range filter.Values {
-				if _, valid := privacy.CanonicalDimensionValue(filter.Dimension, value); !valid || value == "" {
+				if _, valid := canonicalAnonymousDimension(filter.Dimension, value); !valid || value == "" {
 					return ErrAnonymousHistory
 				}
 			}
@@ -63,7 +63,7 @@ func ValidateAnonymousQuery(request QueryRequest) error {
 	}
 	if request.Dimensions != nil {
 		for _, dimension := range *request.Dimensions {
-			if !privacy.AnonymousDimensionAllowed(dimension) {
+			if !anonymousDimensionAllowed(dimension) {
 				return ErrAnonymousHistory
 			}
 		}
@@ -72,6 +72,27 @@ func ValidateAnonymousQuery(request QueryRequest) error {
 		return ErrAnonymousHistory
 	}
 	return nil
+}
+
+func anonymousDimensionAllowed(dimension string) bool {
+	return dimension == "weekday" || dimension == "hour_of_day" || privacy.AnonymousDimensionAllowed(dimension)
+}
+
+func canonicalAnonymousDimension(dimension, value string) (string, bool) {
+	maximum := -1
+	switch dimension {
+	case "weekday":
+		maximum = 6
+	case "hour_of_day":
+		maximum = 23
+	default:
+		return privacy.CanonicalDimensionValue(dimension, value)
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 || parsed > maximum || strconv.Itoa(parsed) != value {
+		return "", false
+	}
+	return value, true
 }
 
 func anonymousCursor(value string) bool {
@@ -138,7 +159,7 @@ func SanitizeAnonymousResponseWithPolicy(response QueryResponse, request QueryRe
 				if verified {
 					item[dimension] = value
 				} else {
-					item[dimension], _ = privacy.CanonicalDimensionValue(dimension, value)
+					item[dimension], _ = canonicalAnonymousDimension(dimension, value)
 				}
 			}
 			for _, metric := range request.Metrics {

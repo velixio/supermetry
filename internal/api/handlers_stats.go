@@ -54,7 +54,14 @@ func (h *handlers) statsBreakdown(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, badRequest("dimension is required"))
 		return
 	}
-	h.runStats(w, r, "breakdown", []Metric{Visitors, Pageviews}, []string{dimension}, "")
+	dimensions := strings.Split(dimension, ",")
+	for _, value := range dimensions {
+		if value == "" {
+			writeProblem(w, badRequest("dimension must not contain empty values"))
+			return
+		}
+	}
+	h.runStats(w, r, "breakdown", []Metric{Visitors, Pageviews}, dimensions, "")
 }
 
 func (h *handlers) runStats(w http.ResponseWriter, r *http.Request, endpoint string, defaults []Metric, dimensions []string, interval string) {

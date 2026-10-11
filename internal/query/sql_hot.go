@@ -134,6 +134,10 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		case "hour":
 			location := req.SQLZone()
 			return "to_char(date_trunc('hour', s.start at time zone " + builder.arg(location) + "), 'YYYY-MM-DD\"T\"HH24:00:00')", nil, nil
+		case "weekday":
+			return "extract(dow from s.start at time zone " + builder.arg(req.SQLZone()) + ")::int", nil, nil
+		case "hour_of_day":
+			return "extract(hour from s.start at time zone " + builder.arg(req.SQLZone()) + ")::int", nil, nil
 		default:
 			return "", nil, fmt.Errorf("dimension %q is not available from hot sessions", dimension)
 		}
@@ -259,6 +263,10 @@ func buildCustomHotSQL(req Normalized, part Part) (string, []any, error) {
 		case "hour":
 			location := req.SQLZone()
 			return "to_char(date_trunc('hour', e.ts at time zone " + builder.arg(location) + "), 'YYYY-MM-DD\"T\"HH24:00:00')", nil, nil
+		case "weekday":
+			return "extract(dow from e.ts at time zone " + builder.arg(req.SQLZone()) + ")::int", nil, nil
+		case "hour_of_day":
+			return "extract(hour from e.ts at time zone " + builder.arg(req.SQLZone()) + ")::int", nil, nil
 		default:
 			return baseResolver(dimension)
 		}

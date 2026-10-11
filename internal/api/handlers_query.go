@@ -164,7 +164,7 @@ func writeQueryError(w http.ResponseWriter, err error) {
 
 func isClientQueryError(detail string) bool {
 	prefixes := []string{
-		"Web Vitals ", "a funnel requires", "at least one metric", "at most ", "date range ",
+		"Traffic breakdowns ", "Web Vitals ", "a funnel requires", "at least one metric", "at most ", "date range ",
 		"date_range.", "date_range or period", "filter ", "funnel date range",
 		"funnel step ", "invalid cursor", "invalid funnel", "invalid timezone",
 		"limit ", "order_by ", "provide either", "site_id ", "site timezone",
