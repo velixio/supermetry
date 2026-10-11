@@ -78,7 +78,7 @@ _EVENTS = ("Signup", "Newsletter", "Demo Request")
 _CAMPAIGNS = ("launch", "autumn-sale", "newsletter", "brand")
 
 
-def generate(seed: int, visitors: int) -> Scenario:
+def generate(seed: int, visitors: int, ip_offset: int = 0) -> Scenario:
     """Return a pure, deterministic scenario containing one visit per visitor.
 
     The category pools encode the requested traffic mix: 35% bounces, 40%
@@ -89,6 +89,11 @@ def generate(seed: int, visitors: int) -> Scenario:
     """
     if visitors < 0:
         raise ValueError("visitors must be non-negative")
+    if ip_offset < 0:
+        raise ValueError("ip_offset must be non-negative")
+    # ip_offset shifts the slot used for the IP, the user-agent generation and the
+    # visit id, so a second scenario (the volume run) can never reuse an
+    # (IP, user agent) pair or an id from the first one.
 
     rng = random.Random(seed)
     traffic = _mixed_values(rng, _TRAFFIC_MIX, visitors)
@@ -96,11 +101,12 @@ def generate(seed: int, visitors: int) -> Scenario:
     utm_slots = _mixed_values(rng, [True] * 25 + [False] * 75, visitors)
     visits = []
     for index, (category, device, has_utm) in enumerate(zip(traffic, devices, utm_slots, strict=True)):
-        user_agent, viewport, browser, operating_system = _identity(rng, device, index)
+        slot = index + ip_offset
+        user_agent, viewport, browser, operating_system = _identity(rng, device, slot)
         visits.append(
             Visit(
-                id=f"visitor-{index + 1:06d}",
-                ip=_ip_address(index),
+                id=f"visitor-{slot + 1:06d}",
+                ip=_ip_address(slot),
                 user_agent=user_agent,
                 viewport=viewport,
                 device=device,

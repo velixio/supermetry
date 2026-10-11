@@ -71,3 +71,25 @@ class ScenarioTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IpOffsetTests(unittest.TestCase):
+    def test_offset_scenarios_never_share_an_ip_and_user_agent_pair(self) -> None:
+        first = generate(7, 300)
+        second = generate(8, 1200, ip_offset=300)
+        pairs = [(v.ip, v.user_agent) for v in (*first.visits, *second.visits)]
+        self.assertEqual(len(pairs), len(set(pairs)))
+        ids = [v.id for v in (*first.visits, *second.visits)]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_zero_offset_matches_the_default(self) -> None:
+        self.assertEqual(to_json(generate(7, 50)), to_json(generate(7, 50, ip_offset=0)))
+
+    def test_offset_is_deterministic(self) -> None:
+        a = to_json(generate(9, 40, ip_offset=500))
+        b = to_json(generate(9, 40, ip_offset=500))
+        self.assertEqual(a, b)
+
+    def test_negative_offset_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            generate(7, 10, ip_offset=-1)
