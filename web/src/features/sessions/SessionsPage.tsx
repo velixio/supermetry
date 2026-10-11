@@ -1,6 +1,7 @@
 import { useCapability } from '@/lib/authorization'
 import { ListPager } from '@/components/ListPager'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import {
   Sheet,
@@ -19,6 +20,8 @@ import { DeviceLabel } from '@/components/visitor/DeviceLabel'
 import { Location } from '@/components/visitor/Location'
 import { OsLabel } from '@/components/visitor/OsLabel'
 import type { Filter } from '@/lib/search'
+import { en } from '@/messages/en'
+import { PlayIcon } from 'lucide-react'
 
 import { useSession, useSessions } from './api'
 import { TimelineItem } from './TimelineItem'
@@ -37,6 +40,81 @@ function formatDuration(milliseconds: number): string {
   const minutes = Math.floor(seconds / 60)
   const remainder = seconds % 60
   return `${minutes}m ${remainder}s`
+}
+
+function formatCount(value: number, singular: string, plural: string): string {
+  return `${value.toLocaleString()} ${value === 1 ? singular : plural}`
+}
+
+function SessionCard({
+  session,
+  canReadProfiles,
+  canReplay,
+  org,
+  site,
+  onReplayChange,
+  onSelect,
+}: {
+  session: SessionSummary
+  canReadProfiles: boolean
+  canReplay: boolean
+  org?: string
+  site?: string
+  onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
+  onSelect: (sessionId?: string) => void
+}) {
+  const started = formatDate(session.started_at)
+  const hasReplay = (session as SessionSummary & { has_replay?: boolean }).has_replay
+
+  return (
+    <li aria-label={`${en.sessions.card.sessionStarted} ${started}`}>
+      <Card className="gap-3 py-3">
+        <CardHeader className="flex items-start justify-between gap-2">
+          <CardTitle>
+            <Button
+              aria-label={`View session ${session.id}`}
+              className="min-h-11 justify-start px-0 text-left whitespace-normal"
+              variant="link"
+              onClick={() => onSelect(session.id)}
+            >
+              <time dateTime={session.started_at}>{started}</time>
+            </Button>
+          </CardTitle>
+          {canReplay && org && site ? (
+            onReplayChange && hasReplay ? (
+              <Button aria-label="Play replay" className="size-11" size="icon" type="button" variant="ghost" onClick={() => onReplayChange(session.id)}>
+                <PlayIcon />
+              </Button>
+            ) : (
+              <div className="[&_[data-slot=button]]:size-11">
+                <ReplayLink hasReplay={hasReplay} org={org} site={site} sessionId={session.id} />
+              </div>
+            )
+          ) : null}
+        </CardHeader>
+        <CardContent className="flex min-w-0 flex-col gap-3 text-sm">
+          <p className="[overflow-wrap:anywhere] font-medium">{session.entry_page} → {session.exit_page}</p>
+          <Location city={session.city} country={session.country} />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <BrowserLabel value={session.browser} />
+            <OsLabel value={session.os} />
+            <DeviceLabel value={session.device} />
+          </div>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+            <dt className="text-muted-foreground">{en.sessions.card.source}</dt>
+            <dd className="[overflow-wrap:anywhere]">{session.source || 'Direct'}</dd>
+            <dt className="text-muted-foreground">{en.sessions.card.profile}</dt>
+            <dd className="[overflow-wrap:anywhere]">{(canReadProfiles ? session.external_id : undefined) ?? 'Anonymous'}</dd>
+          </dl>
+        </CardContent>
+        <CardFooter className="flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground tabular-nums">
+          <span>{formatDuration(session.duration_ms)}</span>
+          <span>{formatCount(session.pageviews, en.sessions.card.page, en.sessions.card.pages)}</span>
+          <span>{formatCount(session.events, en.sessions.card.event, en.sessions.card.events)}</span>
+        </CardFooter>
+      </Card>
+    </li>
+  )
 }
 
 export function SessionsPage({
@@ -93,7 +171,7 @@ export function SessionsPage({
     })) ?? []
 
   return (
-    <main className="flex min-w-0 flex-col gap-6">
+    <main className="flex min-w-0 max-w-full flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold tracking-tight">Sessions</h1>
         <p className="text-sm text-muted-foreground">Inspect anonymous visits without linking people across days.</p>
@@ -113,20 +191,34 @@ export function SessionsPage({
           </EmptyHeader>
         </Empty>
       ) : (
-        <section className="flex flex-col gap-4">
-          <div className="overflow-x-auto rounded-xl border bg-card">
-            <Table aria-label="Sessions">
+        <section className="flex min-w-0 max-w-full flex-col gap-4">
+          <ol aria-label="Sessions" className="flex flex-col gap-3 md:hidden">
+            {sessions.data.data.map((session) => (
+              <SessionCard
+                key={`${session.started_at}:${session.id}`}
+                canReadProfiles={canReadProfiles}
+                canReplay={canReplay}
+                onReplayChange={onReplayChange}
+                onSelect={onSelect}
+                org={org}
+                session={session}
+                site={site}
+              />
+            ))}
+          </ol>
+          <div className="hidden min-w-0 max-w-full overflow-hidden rounded-xl border bg-card md:block">
+            <Table aria-label="Sessions" className="min-w-[680px] lg:min-w-[980px] xl:min-w-[1450px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Started</TableHead>
+                  <TableHead className="sticky left-0 bg-card after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border">Started</TableHead>
                   {canReplay ? <TableHead>Replay</TableHead> : null}
                   <TableHead>Entry → exit</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Browser</TableHead>
-                  <TableHead>OS</TableHead>
-                  <TableHead>Device</TableHead>
-                  <TableHead>Profile</TableHead>
+                  <TableHead className="hidden xl:table-cell">Source</TableHead>
+                  <TableHead className="hidden lg:table-cell">Location</TableHead>
+                  <TableHead className="hidden lg:table-cell">Browser</TableHead>
+                  <TableHead className="hidden lg:table-cell">OS</TableHead>
+                  <TableHead className="hidden xl:table-cell">Device</TableHead>
+                  <TableHead className="hidden xl:table-cell">Profile</TableHead>
                   <TableHead className="text-right">Duration</TableHead>
                   <TableHead className="text-right">Views / events</TableHead>
                 </TableRow>
@@ -134,19 +226,19 @@ export function SessionsPage({
               <TableBody>
                 {sessions.data.data.map((session) => (
                   <TableRow key={`${session.started_at}:${session.id}`}>
-                    <TableCell>
+                    <TableCell className="sticky left-0 bg-card after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border">
                       <Button aria-label={`View session ${session.id}`} className="h-auto p-0" variant="link" onClick={() => onSelect(session.id)}>
                         <time dateTime={session.started_at}>{formatDate(session.started_at)}</time>
                       </Button>
                     </TableCell>
                     {canReplay ? <TableCell>{org && site ? <ReplayLink hasReplay={(session as SessionSummary & { has_replay?: boolean }).has_replay} org={org} site={site} sessionId={session.id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell> : null}
                     <TableCell>{session.entry_page} → {session.exit_page}</TableCell>
-                    <TableCell>{session.source || 'Direct'}</TableCell>
-                    <TableCell><Location city={session.city} country={session.country} /></TableCell>
-                    <TableCell><BrowserLabel value={session.browser} /></TableCell>
-                    <TableCell><OsLabel value={session.os} /></TableCell>
-                    <TableCell><DeviceLabel value={session.device} /></TableCell>
-                    <TableCell>{(canReadProfiles ? session.external_id : undefined) ?? 'Anonymous'}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{session.source || 'Direct'}</TableCell>
+                    <TableCell className="hidden lg:table-cell"><Location city={session.city} country={session.country} /></TableCell>
+                    <TableCell className="hidden lg:table-cell"><BrowserLabel value={session.browser} /></TableCell>
+                    <TableCell className="hidden lg:table-cell"><OsLabel value={session.os} /></TableCell>
+                    <TableCell className="hidden xl:table-cell"><DeviceLabel value={session.device} /></TableCell>
+                    <TableCell className="hidden xl:table-cell">{(canReadProfiles ? session.external_id : undefined) ?? 'Anonymous'}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatDuration(session.duration_ms)}</TableCell>
                     <TableCell className="text-right tabular-nums">{session.pageviews} / {session.events}</TableCell>
                   </TableRow>

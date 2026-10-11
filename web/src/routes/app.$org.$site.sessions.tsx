@@ -13,6 +13,9 @@ import { en } from '@/messages/en'
 
 import { useMe } from './app.$org'
 
+// metric, include_imported, and live are deliberate compatibility no-ops here.
+// Shared navigation and old bookmarks may still send them; parsing them keeps
+// those links valid while Sessions only acts on the fields used below.
 const sessionsSearch = dashboardSearch.extend({
   ...paginationSearch,
   session: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
@@ -20,8 +23,12 @@ const sessionsSearch = dashboardSearch.extend({
   replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
 })
 
+export function parseSessionsSearch(search: unknown) {
+  return sessionsSearch.parse(search)
+}
+
 export const Route = createFileRoute('/app/$org/$site/sessions')({
-  validateSearch: (search) => sessionsSearch.parse(search),
+  validateSearch: parseSessionsSearch,
   component: SessionsRoute,
 })
 
@@ -40,8 +47,8 @@ function SessionsRoute() {
   const { filters, dropped } = parseFilters(search.f)
   const timezone = site.timezone || 'UTC'
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-hidden [contain:inline-size]">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <FilterBar
           dropped={dropped}
           filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
