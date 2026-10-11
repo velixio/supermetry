@@ -1,0 +1,26 @@
+[Unit]
+Description=Supermetry web analytics
+Wants=network-online.target postgresql.service
+After=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=supermetry
+Group=supermetry
+EnvironmentFile=/etc/supermetry/supermetry.env
+Environment=SUPERMETRY_DATA_DIR=/var/lib/supermetry
+WorkingDirectory=/var/lib/supermetry
+ExecStart=/usr/local/bin/supermetry
+Restart=on-failure
+RestartSec=5s
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/supermetry
+StateDirectory=supermetry
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target

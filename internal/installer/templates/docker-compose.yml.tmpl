@@ -1,0 +1,35 @@
+services:
+  supermetry:
+{{if eq .Image "build"}}    build: ./src
+{{else}}    image: ghcr.io/velixio/supermetry:{{.Version}}
+{{end}}    env_file: .env
+    environment:
+      SUPERMETRY_DATABASE_HOST: postgres
+      SUPERMETRY_DATABASE_USER: supermetry
+      SUPERMETRY_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      SUPERMETRY_DATABASE_NAME: supermetry
+      SUPERMETRY_DATABASE_SSLMODE: disable
+    ports:
+      - "{{.ListenHost}}:{{.Port}}:8787"
+    volumes:
+      - supermetry-data:/var/lib/supermetry
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: supermetry
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: supermetry
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supermetry -d supermetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  supermetry-data:
+  postgres-data:
