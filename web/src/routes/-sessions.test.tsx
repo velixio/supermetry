@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }))
@@ -12,6 +12,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
 
 import { routeTree } from '@/routeTree.gen'
 import { parseSearch, stringifySearch } from '@/router'
+import { parseSessionsSearch } from './app.$org.$site.sessions'
 
 const me = {
   user: { id: 1, name: 'Viewer', email: 'viewer@example.com' },
@@ -80,6 +81,16 @@ describe('sessions route', () => {
     ))
   })
 
+  it('ignores unknown parameters and accepts legacy shared no-ops', async () => {
+    const router = renderPath('/app/acme/example/sessions?period=7d&compare=previous_period&metric=pageviews&include_imported=false&live=true&unknown=value')
+
+    expect(await screen.findByRole('heading', { name: 'Sessions' })).toBeVisible()
+    const validatedSearch = parseSessionsSearch(router.state.location.search)
+    expect(validatedSearch).toMatchObject({ period: '7d', compare: 'previous_period' })
+    expect(validatedSearch).toMatchObject({ metric: 'pageviews', include_imported: false, live: true })
+    expect(validatedSearch).not.toHaveProperty('unknown')
+  })
+
   it('returns to page 1 and the original cursor after Next then Previous', async () => {
     get.mockImplementation((path: string) => Promise.resolve({
       data: path === '/api/private/me' ? me : { data: [session], next_cursor: 'cursor-2', total: 2, total_capped: false },
@@ -125,7 +136,8 @@ describe('sessions route', () => {
     }))
     const router = renderPath('/app/acme/example/sessions?page=2&cursors=cursor-2')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Play replay' }))
+    const table = await screen.findByRole('table', { name: 'Sessions' })
+    fireEvent.click(within(table).getByRole('button', { name: 'Play replay' }))
 
     await waitFor(() => expect(router.state.location.search).toMatchObject({ page: '2', replay: '301' }))
     expect(router.state.location.search).toHaveProperty('cursors')

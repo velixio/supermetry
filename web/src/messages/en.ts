@@ -169,6 +169,17 @@ export const en = {
       exitRate: 'Exit rate',
     },
   },
+  sessions: {
+    card: {
+      sessionStarted: 'Session started',
+      source: 'Source',
+      profile: 'Profile',
+      page: 'page',
+      pages: 'pages',
+      event: 'event',
+      events: 'events',
+    },
+  },
   map: {
     visitors: 'Visitors',
     pageviews: 'Pageviews',
