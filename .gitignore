@@ -70,3 +70,6 @@ tools/bench/replay/node_modules/
 
 # Local development state created by make (dev secret key)
 .dev/
+
+# Dependencies of the accuracy driver and other tools
+tools/**/node_modules/
