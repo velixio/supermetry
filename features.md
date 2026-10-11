@@ -41,7 +41,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 
 | Feature | Plausible | Umami | OpenPanel | Supermetry |
 |---|---|---|---|---|
-| Script under 1 KB gzip | ✓ | – | – | ✅ (936 B core; full script 2.3 KB) |
+| Script under 1 KB gzip | ✓ | – | – | ⚠️ (1,255 B core; 2,895 B all-feature initial response, with optional modules) |
 | No cookies | ✓ | ✓ | ✓ | ✅ |
 | SPA pageviews | ✓ | ✓ | ✓ | ✅ |
 | Scroll depth and engagement time | ✓ | – | ? | ✅ |

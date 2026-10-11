@@ -11,9 +11,18 @@ import (
 	jsmin "github.com/tdewolff/minify/v2/js"
 )
 
+type pathsFlag []string
+
+func (p *pathsFlag) String() string { return fmt.Sprint([]string(*p)) }
+func (p *pathsFlag) Set(value string) error {
+	*p = append(*p, value)
+	return nil
+}
+
 func main() {
 	in := flag.String("in", "tracker.js", "input JavaScript file")
-	appendPath := flag.String("append", "", "optional JavaScript file to append")
+	var appendPaths pathsFlag
+	flag.Var(&appendPaths, "append", "optional JavaScript file to append (repeatable)")
 	out := flag.String("out", "tracker.min.js", "output JavaScript file")
 	full := flag.Bool("full", false, "keep /*@full*/ blocks")
 	flag.Parse()
@@ -26,8 +35,8 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if *appendPath != "" {
-		extra, err := os.ReadFile(*appendPath)
+	for _, appendPath := range appendPaths {
+		extra, err := os.ReadFile(appendPath)
 		if err != nil {
 			fail(err)
 		}
@@ -91,7 +100,7 @@ func stripFull(source []byte, keep bool) ([]byte, error) {
 func minify(source []byte) ([]byte, error) {
 	m := minifier.New()
 	m.AddFunc("application/javascript", jsmin.Minify)
-	return m.Bytes("application/javascript", source)
+	return m.Bytes("application/javascript;inline=1", source)
 }
 
 func fail(err error) {

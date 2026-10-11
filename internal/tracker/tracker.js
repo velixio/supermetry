@@ -1,25 +1,17 @@
 (() => {
   var script = document.currentScript;
-  var data = script && script.dataset;
-  var host = location.hostname;
-  if (!data || !data.site || navigator.webdriver ||
+  var data = script.dataset;
+  if (!data.site || navigator.webdriver ||
       !script.hasAttribute("data-allow-localhost") &&
-      /(^|\.)localhost$|^127\.|^\[::1\]$/.test(host)) {
+      /(^|\.)localhost$|^127\.|^\[::1\]$/.test(location.hostname)) {
     return;
   }
 
   /*@core*/
   if (data.consent == "required" || data.manual == "true" || data.beforeSend) {
     try {
-      var replacement = document.createElement("script");
-      for (var attribute of script.attributes) {
-        if (attribute.name.startsWith("data-")) {
-          replacement.setAttribute(attribute.name, attribute.value);
-        }
-      }
-      var replacementURL = new URL(script.src, location.href);
-      replacementURL.searchParams.set("full", "1");
-      replacement.src = replacementURL;
+      var replacement = script.cloneNode();
+      replacement.src = script.src + (script.src.includes("?") ? "&" : "?") + "full=1";
       document.head.appendChild(replacement);
     } catch (error) {}
     return;
@@ -29,8 +21,8 @@
   /*@full*/
   var manual = data.manual == "true";
   var viewStarted = !manual;
-  var lastLocation = location.href;
   /*@end*/
+  var lastLocation = location.href;
   var endpoint = data.api || "/api/public/v1/events";
   var ignored;
   try { ignored = localStorage.supermetry_ignore; } catch (_) {}
@@ -54,10 +46,10 @@
       }).catch(() => 0);
   }
 
-  /*@full*/
   function key(url) {
     return data.hash == "true" ? url : url.split("#")[0];
   }
+  /*@full*/
   function run(payload) {
     var hook = supermetry.beforeSend || window[data.beforeSend];
     var result;
@@ -143,8 +135,7 @@
   }
 
   function updateScroll() {
-    var body = document.body;
-    var height = Math.max(document.documentElement.scrollHeight, body?.scrollHeight || 0);
+    var height = Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0);
     if (height) {
       maxScroll = Math.max(maxScroll, Math.min(100,
         Math.round(100 * (scrollY + innerHeight) / height)));
@@ -152,10 +143,8 @@
   }
 
   function startPage(url, props) {
-    /*@full*/
-    viewStarted = true;
+    /*@full*/ viewStarted = true; /*@end*/
     lastLocation = location.href;
-    /*@end*/
     pageURL = url || location.href;
     active = maxScroll = 0;
     started = document.hidden ? 0 : Date.now();
@@ -164,27 +153,25 @@
   }
 
   function navigate() {
-    /*@full*/
-    if (manual || key(location.href) == key(lastLocation)) return;
-    /*@end*/
+    if (/*@full*/ manual || /*@end*/ key(location.href) == key(lastLocation)) return;
+    /*@full*/ supermetry._nav.forEach((hook) => hook()); /*@end*/
     flushEngagement();
     startPage();
   }
 
-  var pushState = history.pushState;
-  history.pushState = (...args) => {
-    pushState.apply(history, args);
-    navigate();
-  };
+  function route(name) {
+    var original = history[name];
+    history[name] = (...args) => {
+      original.apply(history, args);
+      navigate();
+    };
+  }
+  route("pushState");
   addEventListener("popstate", navigate);
   /*@full*/
   if (data.hash == "true") addEventListener("hashchange", navigate);
-  var replaceState = history.replaceState;
-  history.replaceState = (...args) => {
-    replaceState.apply(history, args);
-    navigate();
-  };
   /*@end*/
+  route("replaceState");
   addEventListener("scroll", () => {
     /*@full*/ if (!viewStarted) return; /*@end*/
     updateScroll();
@@ -197,22 +184,7 @@
 
   var supermetry = window.supermetry = window.supermetry || {};
   /*@full*/
-  var startReplay;
-  var replayGranted;
-  if (data.replay) {
-    startReplay = () => {
-      var connection = navigator.connection;
-      if (!permitted() || supermetry._replayDenied || supermetry._replay || connection?.saveData || /^(slow-)?2g$/.test(connection?.effectiveType)) return;
-      var origin = new URL(endpoint, location.href).origin;
-      supermetry._replay = {s: data.site, o: origin};
-      var replayScript = document.createElement("script");
-      replayScript.src = origin + "/replay.js";
-      document.head.appendChild(replayScript);
-    };
-    supermetry.replay = {trigger: (reason) => supermetry._replayTrigger = reason || "manual"};
-    replayGranted = data.replay == "never" || data.replay == "auto" && !gated;
-    if (replayGranted) startReplay();
-  }
+  supermetry._nav = [];
   supermetry._post = post;
   supermetry._allowed = permitted;
   /*@end*/
@@ -224,11 +196,8 @@
     /*@end*/
     try { value ? localStorage.supermetry_ignore = 1 : delete localStorage.supermetry_ignore; } catch (_) {}
     /*@full*/
-    if (data.replay) {
-      supermetry._replayDenied = value;
-      if (value) supermetry._replayStop?.();
-      else if (replayGranted) startReplay();
-    }
+    supermetry._privacyState = !value;
+    supermetry._privacy?.(!value);
     /*@end*/
   };
   supermetry.optOut = opt(1);
@@ -245,23 +214,17 @@
     startPage(url, options?.props);
   };
   supermetry.consent = (granted) => {
-    supermetry._replayConsent = !!granted;
     denied = !granted;
     if (!granted) { profileID = 0; supermetry._clearHeatmap?.(); }
-    if (data.replay) {
-      replayGranted = granted;
-      supermetry._replayDenied = !granted;
-      if (!granted) supermetry._replayStop?.();
-    }
+    supermetry._privacyState = !!granted;
+    supermetry._privacy?.(!!granted);
     if (!gated) {
-      if (granted && startReplay) startReplay();
       return;
     }
     var queued = paused;
     denied = !granted;
     paused = granted ? 0 : [];
     if (granted && queued) queued.forEach(emit);
-    if (granted && startReplay) startReplay();
   };
   /*@end*/
   supermetry.track = (name, props, options) => send(name, props, 0, 0, options?.revenue);

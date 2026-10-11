@@ -128,7 +128,11 @@ func TestCheckedInMinifiedFullTrackerIsCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := minify(append(core, extensions...))
+	replay, err := os.ReadFile("../../tracker.replay.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := minify(append(append(core, extensions...), replay...))
 	if err != nil {
 		t.Fatal(err)
 	}
