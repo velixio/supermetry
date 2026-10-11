@@ -571,7 +571,7 @@ func sameOriginRequest(r *http.Request, baseURL string) bool {
 func writePasswordPolicyProblem(w http.ResponseWriter, err error) bool {
 	switch {
 	case errors.Is(err, platformcrypto.ErrPasswordTooShort):
-		writeProblem(w, http.StatusBadRequest, "Password policy", "password must be at least 10 characters")
+		writeProblem(w, http.StatusBadRequest, "Password policy", "password must be at least 6 characters")
 		return true
 	case errors.Is(err, platformcrypto.ErrPasswordCommon):
 		writeProblem(w, http.StatusBadRequest, "Password policy", "choose a less common password")

@@ -422,6 +422,9 @@ func TestFinishResetRejectsWeakPassword(t *testing.T) {
 	if err := env.a.FinishReset(ctx, tokenFrom(t, link), "short"); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
 		t.Fatalf("FinishReset() error = %v, want ErrPasswordTooShort", err)
 	}
+	if err := env.a.FinishReset(ctx, tokenFrom(t, link), "sixsix"); err != nil {
+		t.Fatalf("FinishReset() six-character password error = %v", err)
+	}
 }
 
 func TestResetTokenExpiresAndRevokesSessions(t *testing.T) {
@@ -511,8 +514,22 @@ func TestSetupRejectsWeakPassword(t *testing.T) {
 	if !ok {
 		t.Fatal("setup URL missing")
 	}
-	if _, _, err := env.a.CompleteSetup(ctx, tokenFrom(t, setupURL), "o@example.test", "Owner", "password123", "Acme"); !errors.Is(err, platformcrypto.ErrPasswordCommon) {
-		t.Fatalf("CompleteSetup() error = %v, want ErrPasswordCommon", err)
+	token := tokenFrom(t, setupURL)
+	if _, _, err := env.a.CompleteSetup(ctx, token, "o@example.test", "Owner", "short", "Acme"); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
+		t.Fatalf("CompleteSetup() five-character password error = %v, want ErrPasswordTooShort", err)
+	}
+	if _, _, err := env.a.CompleteSetup(ctx, token, "o@example.test", "Owner", "sixsix", "Acme"); err != nil {
+		t.Fatalf("CompleteSetup() six-character password error = %v", err)
+	}
+}
+
+func TestSignupPasswordLengthBoundary(t *testing.T) {
+	env := newAuth(t)
+	if _, err := env.a.Signup(auth.WithClientKey(ctx, "short-signup"), "short@example.test", "Short", "short", "Short org", ""); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
+		t.Fatalf("Signup() five-character password error = %v, want ErrPasswordTooShort", err)
+	}
+	if _, err := env.a.Signup(auth.WithClientKey(ctx, "six-signup"), "six@example.test", "Six", "sixsix", "Six org", ""); err != nil {
+		t.Fatalf("Signup() six-character password error = %v", err)
 	}
 }
 

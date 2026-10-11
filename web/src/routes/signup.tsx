@@ -132,7 +132,7 @@ export function SignupPageContent({
           </Field>
           <Field>
             <FieldLabel htmlFor="password">{en.auth.password}</FieldLabel>
-			<Input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required />
+			<Input id="password" name="password" type="password" autoComplete="new-password" minLength={6} required />
 			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
           <Field>

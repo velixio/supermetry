@@ -14,8 +14,8 @@ func TestValidateNewPassword(t *testing.T) {
 		password string
 		wantErr  error
 	}{
-		{name: "ten characters", password: "safe-pass!", wantErr: nil},
-		{name: "too short", password: "nine-char", wantErr: platformcrypto.ErrPasswordTooShort},
+		{name: "six characters", password: "sixsix", wantErr: nil},
+		{name: "five characters", password: "short", wantErr: platformcrypto.ErrPasswordTooShort},
 		{name: "common password", password: "password123", wantErr: platformcrypto.ErrPasswordCommon},
 		{name: "common password ignores case and whitespace", password: "  PASSWORD123  ", wantErr: platformcrypto.ErrPasswordCommon},
 	}

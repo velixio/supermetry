@@ -45,7 +45,7 @@ function InvitationPage() {
           </Field>
           <Field>
             <FieldLabel htmlFor="password">{en.auth.password}</FieldLabel>
-			<Input id="password" name="password" type="password" minLength={10} required />
+			<Input id="password" name="password" type="password" minLength={6} required />
 			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
           {message ? <FieldError>{message}</FieldError> : null}

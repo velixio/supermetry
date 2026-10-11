@@ -242,3 +242,39 @@ func TestInvitationHTTPGrantSerialization(t *testing.T) {
 		t.Fatalf("invitation list: %d %s", w.Code, w.Body)
 	}
 }
+
+func TestInvitationHTTPPasswordLengthBoundary(t *testing.T) {
+	f := newMembershipHTTPFixture(t)
+	path := fmt.Sprintf("/api/private/orgs/%d/invitations", f.orgID)
+	created := f.request(http.MethodPost, path, "owner", `{"email":"new@example.test","role":"viewer","site_ids":[]}`)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", created.Code, created.Body.String())
+	}
+	var response struct {
+		Link string `json:"link"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	token := queryToken(t, response.Link)
+	acceptPath := "/api/private/invitations/" + token + "/accept"
+
+	for _, boundary := range []struct {
+		name     string
+		password string
+		status   int
+	}{
+		{name: "five characters rejected", password: "short", status: http.StatusBadRequest},
+		{name: "six characters accepted", password: "sixsix", status: http.StatusOK},
+	} {
+		t.Run(boundary.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, acceptPath, strings.NewReader(fmt.Sprintf(`{"name":"New User","password":%q}`, boundary.password)))
+			request.Header.Set("Content-Type", "application/json")
+			result := httptest.NewRecorder()
+			f.handler.ServeHTTP(result, request)
+			if result.Code != boundary.status {
+				t.Fatalf("status=%d body=%s, want %d", result.Code, result.Body.String(), boundary.status)
+			}
+		})
+	}
+}

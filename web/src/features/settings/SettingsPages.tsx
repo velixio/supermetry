@@ -486,7 +486,7 @@ export function SharesPage({
 		  <FieldGroup>
 			<Field>
 			  <FieldLabel htmlFor="share-password">Optional share password</FieldLabel>
-			  <Input id="share-password" name="password" type="password" minLength={10} placeholder="Optional password" />
+			  <Input id="share-password" name="password" type="password" minLength={6} placeholder="Optional password" />
 			  <FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
 			</Field>
 			<Field>

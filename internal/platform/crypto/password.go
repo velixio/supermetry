@@ -24,7 +24,7 @@ const (
 var errInvalidPasswordHash = errors.New("invalid argon2id password hash")
 
 var (
-	ErrPasswordTooShort = errors.New("password must be at least 10 characters")
+	ErrPasswordTooShort = errors.New("password must be at least 6 characters")
 	ErrPasswordCommon   = errors.New("password is too common")
 )
 
@@ -42,7 +42,7 @@ var commonPasswords = func() map[string]struct{} {
 // ValidateNewPassword applies the policy for newly chosen account and share
 // passwords. Existing hashes remain valid so deployments can upgrade safely.
 func ValidateNewPassword(password string) error {
-	if utf8.RuneCountInString(password) < 10 {
+	if utf8.RuneCountInString(password) < 6 {
 		return ErrPasswordTooShort
 	}
 	if _, found := commonPasswords[strings.ToLower(strings.TrimSpace(password))]; found {
