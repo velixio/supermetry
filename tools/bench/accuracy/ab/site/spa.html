@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SPA route fixture</title><style>body{max-width:46rem;margin:3rem auto;padding:0 1.5rem;background:#f7f8f5;color:#17211b;font:16px/1.6 system-ui,sans-serif}nav{display:flex;gap:1rem}a{color:#18794e}output{display:block;margin-top:2rem;padding:1rem;border-left:4px solid #18794e;background:#fff}:focus-visible{outline:3px solid #18794e}</style></head>
+<body><a href="/">Accuracy lab</a><h1>Client-side routes</h1><nav aria-label="SPA routes"><a href="/spa/a">Alpha</a><a href="/spa/b">Beta</a><a href="/spa/c">Gamma</a></nav><output id="route"></output>
+<script>
+const route = document.querySelector("#route");
+function render() { route.textContent = `Current route: ${location.pathname}`; }
+document.querySelector("nav").addEventListener("click", event => {
+  const link = event.target.closest("a");
+  if (!link) return;
+  event.preventDefault();
+  history.pushState({}, "", link.href);
+  render();
+});
+addEventListener("popstate", render);
+render();
+</script></body></html>
