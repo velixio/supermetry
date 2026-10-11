@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql
+.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -77,6 +77,9 @@ dev-db-down:
 
 dev-db-psql:
 	$(DEV_DB) exec postgres psql -U supermetry -d supermetry
+
+soak:
+	python3 tools/bench/soak/soak.py $(SOAK_ARGS)
 
 # Remove build and test artifacts (keeps node_modules and .env).
 clean:
