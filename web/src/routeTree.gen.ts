@@ -30,6 +30,7 @@ import { Route as AppOrgSiteEventsRouteImport } from './routes/app.$org.$site.ev
 import { Route as AppOrgSiteGoalsRouteImport } from './routes/app.$org.$site.goals'
 import { Route as AppOrgSiteHeatmapsRouteImport } from './routes/app.$org.$site.heatmaps'
 import { Route as AppOrgSiteJourneysRouteImport } from './routes/app.$org.$site.journeys'
+import { Route as AppOrgSiteMapRouteImport } from './routes/app.$org.$site.map'
 import { Route as AppOrgSiteRealtimeRouteImport } from './routes/app.$org.$site.realtime'
 import { Route as AppOrgSiteRetentionRouteImport } from './routes/app.$org.$site.retention'
 import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.revenue'
@@ -167,6 +168,11 @@ const AppOrgSiteHeatmapsRoute = AppOrgSiteHeatmapsRouteImport.update({
 const AppOrgSiteJourneysRoute = AppOrgSiteJourneysRouteImport.update({
   id: '/$site/journeys',
   path: '/$site/journeys',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteMapRoute = AppOrgSiteMapRouteImport.update({
+  id: '/$site/map',
+  path: '/$site/map',
   getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgSiteRealtimeRoute = AppOrgSiteRealtimeRouteImport.update({
@@ -368,6 +374,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
+  '/app/$org/$site/map': typeof AppOrgSiteMapRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
@@ -422,6 +429,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
+  '/app/$org/$site/map': typeof AppOrgSiteMapRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
@@ -479,6 +487,7 @@ export interface FileRoutesById {
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
+  '/app/$org/$site/map': typeof AppOrgSiteMapRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
@@ -537,6 +546,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
     | '/app/$org/$site/journeys'
+    | '/app/$org/$site/map'
     | '/app/$org/$site/realtime'
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
     | '/app/$org/$site/journeys'
+    | '/app/$org/$site/map'
     | '/app/$org/$site/realtime'
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
@@ -647,6 +658,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
     | '/app/$org/$site/journeys'
+    | '/app/$org/$site/map'
     | '/app/$org/$site/realtime'
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
@@ -841,6 +853,13 @@ declare module '@tanstack/react-router' {
       path: '/$site/journeys'
       fullPath: '/app/$org/$site/journeys'
       preLoaderRoute: typeof AppOrgSiteJourneysRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/map': {
+      id: '/app/$org/$site/map'
+      path: '/$site/map'
+      fullPath: '/app/$org/$site/map'
+      preLoaderRoute: typeof AppOrgSiteMapRouteImport
       parentRoute: typeof AppOrgRoute
     }
     '/app/$org/$site/realtime': {
@@ -1139,6 +1158,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteGoalsRoute: typeof AppOrgSiteGoalsRoute
   AppOrgSiteHeatmapsRoute: typeof AppOrgSiteHeatmapsRoute
   AppOrgSiteJourneysRoute: typeof AppOrgSiteJourneysRoute
+  AppOrgSiteMapRoute: typeof AppOrgSiteMapRoute
   AppOrgSiteRealtimeRoute: typeof AppOrgSiteRealtimeRoute
   AppOrgSiteRetentionRoute: typeof AppOrgSiteRetentionRoute
   AppOrgSiteRevenueRoute: typeof AppOrgSiteRevenueRoute
@@ -1163,6 +1183,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteGoalsRoute: AppOrgSiteGoalsRoute,
   AppOrgSiteHeatmapsRoute: AppOrgSiteHeatmapsRoute,
   AppOrgSiteJourneysRoute: AppOrgSiteJourneysRoute,
+  AppOrgSiteMapRoute: AppOrgSiteMapRoute,
   AppOrgSiteRealtimeRoute: AppOrgSiteRealtimeRoute,
   AppOrgSiteRetentionRoute: AppOrgSiteRetentionRoute,
   AppOrgSiteRevenueRoute: AppOrgSiteRevenueRoute,

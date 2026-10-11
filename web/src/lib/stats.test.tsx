@@ -8,11 +8,13 @@ const { get, post } = vi.hoisted(() => ({
   post: vi.fn(),
 }))
 
-vi.mock('./api', () => ({
+vi.mock('./api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./api')>()),
   api: { GET: get, POST: post },
 }))
 
-import { useRealtime, useStats, useTimeseries, type StatsQuery } from './stats'
+import { createApi } from './api'
+import { useBreakdown, useRealtime, useStats, useTimeseries, type StatsQuery } from './stats'
 
 function setup() {
   const client = new QueryClient({
@@ -153,6 +155,69 @@ describe('useTimeseries', () => {
         filter: ['city:is:Springfield,US'],
         interval: 'week',
         include_imported: false,
+      } },
+      signal: expect.any(AbortSignal),
+    })
+  })
+})
+
+describe('useBreakdown', () => {
+  it('builds the exact repeated-dimension traffic query string', async () => {
+    let requestURL = ''
+    const client = createApi({
+      fetch: async (input) => {
+        requestURL = input instanceof Request ? input.url : String(input)
+        return new Response(JSON.stringify({
+          columns: ['weekday', 'hour_of_day', 'visitors'],
+          rows: [],
+          totals: { visitors: 0 },
+          meta: { sources_used: ['hot'], cached: false },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      },
+    })
+    get.mockImplementation((path, options) => client.GET(path, options))
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useBreakdown({
+      siteId: 7,
+      dateRange: { from: '2026-09-28', to: '2026-09-30' },
+      metrics: ['visitors'],
+      dimensions: ['weekday', 'hour_of_day'],
+      filters: [],
+      timezone: 'America/New_York',
+      limit: 168,
+    }), { wrapper })
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(new URL(requestURL).search).toBe(
+      '?site_id=7&period=custom&date_from=2026-09-28&date_to=2026-09-30&timezone=America%2FNew_York&metrics=visitors&dimension=weekday&dimension=hour_of_day&limit=168',
+    )
+  })
+
+  it('serializes multiple dimensions and filters for the breakdown endpoint', async () => {
+    get.mockResolvedValue({
+      data: { columns: ['weekday', 'hour_of_day', 'visitors'], rows: [], totals: { visitors: 0 }, meta: { sources_used: ['raw'], cached: false } },
+      response: { status: 200 },
+    })
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useBreakdown({
+      ...closedQuery,
+      dimensions: ['weekday', 'hour_of_day'],
+      filters: [{ dimension: 'country', operator: 'is', values: ['IN'] }],
+      limit: 168,
+    }), { wrapper })
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(get).toHaveBeenCalledWith('/api/private/stats/breakdown', {
+      params: { query: {
+        site_id: 7,
+        period: 'custom',
+        date_from: '2026-09-01',
+        date_to: '2026-09-30',
+        timezone: 'UTC',
+        metrics: 'visitors',
+        filter: ['country:is:IN'],
+        dimension: ['weekday', 'hour_of_day'],
+        limit: '168',
       } },
       signal: expect.any(AbortSignal),
     })

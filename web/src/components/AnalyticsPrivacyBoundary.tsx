@@ -11,7 +11,7 @@ import type { Site } from '@/routes/app.$org'
 const restrictedScreens = new Set([
   'events', 'sessions', 'profiles', 'journeys', 'retention', 'heatmaps',
   'replays', 'funnels', 'vitals', 'goals', 'realtime',
-  'revenue',
+  'revenue', 'map',
 ])
 
 export function anonymousRouteRestricted(pathname: string): boolean {

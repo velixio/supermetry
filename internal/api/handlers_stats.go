@@ -49,19 +49,37 @@ func (h *handlers) statsTimeseries(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) statsBreakdown(w http.ResponseWriter, r *http.Request) {
-	dimension := r.URL.Query().Get("dimension")
-	if dimension == "" {
+	dimensions, problem := parseStatsDimensions(r.URL.Query()["dimension"])
+	if problem != nil {
+		writeProblem(w, *problem)
+		return
+	}
+	if len(dimensions) == 0 {
 		writeProblem(w, badRequest("dimension is required"))
 		return
 	}
-	dimensions := strings.Split(dimension, ",")
-	for _, value := range dimensions {
-		if value == "" {
-			writeProblem(w, badRequest("dimension must not contain empty values"))
-			return
+	h.runStats(w, r, "breakdown", []Metric{Visitors, Pageviews}, dimensions, "")
+}
+
+func parseStatsDimensions(values []string) ([]string, *Problem) {
+	dimensions := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			dimension := strings.TrimSpace(part)
+			if dimension == "" {
+				problem := badRequest("dimension must not contain empty values")
+				return nil, &problem
+			}
+			if _, duplicate := seen[dimension]; duplicate {
+				problem := badRequest("dimension must not contain duplicates")
+				return nil, &problem
+			}
+			seen[dimension] = struct{}{}
+			dimensions = append(dimensions, dimension)
 		}
 	}
-	h.runStats(w, r, "breakdown", []Metric{Visitors, Pageviews}, dimensions, "")
+	return dimensions, nil
 }
 
 func (h *handlers) runStats(w http.ResponseWriter, r *http.Request, endpoint string, defaults []Metric, dimensions []string, interval string) {

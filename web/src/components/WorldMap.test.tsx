@@ -67,4 +67,44 @@ describe('WorldMap', () => {
 
     expect(onSelect).toHaveBeenCalledWith('US')
   })
+
+  it('shows metric legend values and announces the share of total', () => {
+    render(<WorldMap metric="pageviews" rows={[{ country: 'IN', visitors: 10, pageviews: 1_234 }, { country: 'US', visitors: 20, pageviews: 8_766 }]} showLegend onSelect={vi.fn()} />)
+    expect(screen.getByLabelText('Map legend')).toHaveTextContent('0Pageviews8,766')
+    expect(screen.getByRole('button', { name: 'India: 1,234 pageviews, 12.3 percent' })).toBeInTheDocument()
+  })
+
+  it('clears selection with Escape and visibly marks the selected country', () => {
+    const onClear = vi.fn()
+    const { container } = render(<WorldMap rows={[{ country: 'IN', visitors: 12 }]} selectedCountry="IN" showLegend onClear={onClear} onSelect={vi.fn()} />)
+    const country = screen.getByRole('button', { name: /India: 12 visitors, 100 percent/ })
+    expect(container.querySelector('[data-country="IN"]')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.keyDown(country, { key: 'Escape' })
+    expect(onClear).toHaveBeenCalledOnce()
+  })
+
+  it('draws the selected country last with a thin non-scaling interaction ring', () => {
+    const { container } = render(
+      <WorldMap
+        rows={[
+          { country: 'US', visitors: 100 },
+          { country: 'IN', visitors: 20 },
+        ]}
+        selectedCountry="US"
+        onSelect={vi.fn()}
+      />,
+    )
+    const selected = container.querySelector('[data-country="US"]')
+    const svg = screen.getByRole('group', { name: 'World map' })
+
+    expect(svg.lastElementChild).toBe(selected)
+    expect(selected).toHaveAttribute('vector-effect', 'non-scaling-stroke')
+    expect(selected).toHaveClass('stroke-[2]')
+    expect(selected).toHaveClass('hover:stroke-[2]')
+    expect(selected).toHaveClass('focus-visible:stroke-[2]')
+    expect(selected).toHaveClass('stroke-ring')
+    expect(selected).toHaveClass('hover:stroke-ring')
+    expect(selected).not.toHaveClass('stroke-[3]')
+    expect(selected).not.toHaveClass('stroke-foreground')
+  })
 })

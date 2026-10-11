@@ -62,7 +62,7 @@ export default async function globalSetup(config: FullConfig) {
   const token = new URL(resetURL).searchParams.get('token')
   if (!token) throw new Error('supermetry user create did not return a reset token')
 
-  const api = await playwrightRequest.newContext({ baseURL })
+  const api = await playwrightRequest.newContext({ baseURL, extraHTTPHeaders: { Origin: baseURL } })
   const reset = await api.post('/api/private/auth/password-reset/confirm', {
     data: { token, password },
   })

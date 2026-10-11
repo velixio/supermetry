@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"supermetry/internal/api"
@@ -21,9 +22,12 @@ import (
 	"supermetry/internal/dropstats"
 	"supermetry/internal/health"
 	"supermetry/internal/ingest"
+	"supermetry/internal/privacy"
+	analyticsquery "supermetry/internal/query"
 	"supermetry/internal/realtime"
 	"supermetry/internal/session"
 	"supermetry/internal/sites"
+	"supermetry/internal/testpg"
 )
 
 type queryFunc struct {
@@ -144,6 +148,101 @@ func TestStatsBreakdownAcceptsTrafficGridDimensionsForThirtyDays(t *testing.T) {
 	if !strings.Contains(hourlyResponse.Body.String(), "hour interval is limited to seven days") {
 		t.Fatalf("hourly body=%s", hourlyResponse.Body.String())
 	}
+}
+
+func TestStatsBreakdownAcceptsRepeatedCommaSeparatedAndMixedDimensions(t *testing.T) {
+	pool, router := trafficStatsTestRouter(t)
+	_ = pool
+	const prefix = "/api/private/stats/breakdown?site_id=1&timezone=America%2FNew_York&metrics=visitors&period=custom&date_from=2026-10-10&date_to=2026-10-10&"
+	tests := []struct {
+		name       string
+		dimensions string
+		want       []string
+	}{
+		{name: "comma separated", dimensions: "dimension=weekday,hour_of_day&limit=168", want: []string{"weekday", "hour_of_day"}},
+		{name: "repeated exact web request", dimensions: "dimension=weekday&dimension=hour_of_day&limit=168", want: []string{"weekday", "hour_of_day"}},
+		{name: "mixed", dimensions: "dimension=weekday,%20hour_of_day&dimension=country&limit=168", want: []string{"weekday", "hour_of_day", "country"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, prefix+tt.dimensions, nil))
+			if response.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+			var body api.QueryResponse
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if len(body.Rows) != 1 {
+				t.Fatalf("rows=%v, want one traffic row", body.Rows)
+			}
+			for _, dimension := range tt.want {
+				if _, ok := body.Rows[0][dimension]; !ok {
+					t.Errorf("row=%v, missing dimension %q", body.Rows[0], dimension)
+				}
+			}
+			if !reflect.DeepEqual(body.Columns[:len(tt.want)], tt.want) {
+				t.Errorf("columns=%v, want dimensions in order %v", body.Columns, tt.want)
+			}
+		})
+	}
+}
+
+func TestStatsBreakdownRejectsEmptyAndDuplicateDimensions(t *testing.T) {
+	_, router := trafficStatsTestRouter(t)
+	const prefix = "/api/private/stats/breakdown?site_id=1&timezone=America%2FNew_York&metrics=visitors&period=custom&date_from=2026-10-10&date_to=2026-10-10&"
+	tests := []struct {
+		name       string
+		dimensions string
+		want       string
+	}{
+		{name: "empty repeated value", dimensions: "dimension=weekday&dimension=", want: "dimension must not contain empty values"},
+		{name: "duplicate across forms", dimensions: "dimension=weekday,hour_of_day&dimension=weekday", want: "dimension must not contain duplicates"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, prefix+tt.dimensions, nil))
+			assertRecorderProblem(t, response, http.StatusBadRequest)
+			if !strings.Contains(response.Body.String(), tt.want) {
+				t.Fatalf("body=%s, want %q", response.Body.String(), tt.want)
+			}
+		})
+	}
+}
+
+func trafficStatsTestRouter(t *testing.T) (*pgxpool.Pool, http.Handler) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	from := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, from, from.AddDate(0, 0, 2)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into sessions(site_id,retention_class,session_id,visitor_id,start,last,local_day,country,pageviews)
+values (1,0,1,101,'2026-10-10 18:20Z','2026-10-10 18:20Z','2026-10-10','US',3)`); err != nil {
+		t.Fatal(err)
+	}
+	newYork, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := orgSites{1: {ID: 1, OrgID: 7, PublicID: "traffic-http", TZ: newYork, Retention: db.RetForever}}
+	engine := analyticsquery.NewEngine(pool, nil, registry)
+	engine.SetTrackingMode(privacy.Identified)
+	return pool, identifiedRouter(api.Deps{
+		Query: engine,
+		PrivateAuth: principalAuth{principal: api.Principal{
+			OrgID: 7, Scopes: []string{"stats:read"}, SiteIDs: []int32{1},
+		}},
+		Sites: registry,
+		Now:   func() time.Time { return time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC) },
+	})
 }
 
 func TestStatsBreakdownReturnsTrafficRetentionErrorAsProblem(t *testing.T) {
