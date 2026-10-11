@@ -16,7 +16,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { createApi } from '@/lib/api'
 import { resetAfterLogin } from '@/lib/session-lifecycle'
-import { signedInRedirect } from '@/lib/signed-in'
 import { applyPreferredTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 
@@ -108,10 +107,51 @@ function safeNext(next: string): string {
   return `${parsed.pathname}${parsed.search}${parsed.hash}`
 }
 
+type LoginMembership = { org: { slug: string } }
+
+function targetOrganization(target: string): string | undefined {
+  const pathname = new URL(target, window.location.origin).pathname
+  const match = /^\/app\/([^/]+)(?:\/|$)/.exec(pathname)
+  if (!match || match[1] === 'account') return undefined
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
+function permittedTarget(target: string, memberships: LoginMembership[]): string {
+  const org = targetOrganization(target)
+  return !org || memberships.some((membership) => membership.org.slug === org)
+    ? target
+    : '/app'
+}
+
+async function signedInTarget(
+  target: string,
+  fetchMe: typeof globalThis.fetch = (...args) => globalThis.fetch(...args),
+): Promise<string | null> {
+  try {
+    const response = await fetchMe('/api/private/me', {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    })
+    if (!response.ok) return null
+    const body = (await response.json()) as {
+      user?: unknown
+      memberships?: LoginMembership[]
+    }
+    if (!body?.user || !Array.isArray(body.memberships)) return null
+    return permittedTarget(target, body.memberships)
+  } catch {
+    return null
+  }
+}
+
 export const Route = createFileRoute('/login')({
   validateSearch: (search) => loginSearch.parse(search),
   beforeLoad: async ({ search }) => {
-    const target = await signedInRedirect(safeNext(search.next ?? '/app'))
+    const target = await signedInTarget(safeNext(search.next ?? '/app'))
     if (target) throw redirect({ href: target, replace: true })
   },
   component: LoginPage,
@@ -142,12 +182,12 @@ function LoginPage() {
         postPrivate('/api/private/auth/login', credentials)
       }
       next={safeNext(search.next ?? '/app')}
-      onSuccess={(next) => {
+      onSuccess={async (next) => {
         resetAfterLogin()
         applyPreferredTheme()
         // Server routes (such as the emailed email-change link) need a full load.
         if (next.startsWith('/api/')) window.location.assign(next)
-        else router.history.replace(next)
+        else router.history.replace((await signedInTarget(next)) ?? '/app')
       }}
       signup={signup}
     />

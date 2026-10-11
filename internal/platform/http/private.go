@@ -69,6 +69,7 @@ type DemoService interface {
 
 type Deps struct {
 	Now          func() time.Time
+	Version      string
 	TrackingMode privacy.Mode
 	// MaxOrgsPerUser caps the organizations a non-admin user may own. Zero means no cap.
 	MaxOrgsPerUser int
@@ -171,6 +172,9 @@ type handler struct {
 func New(deps Deps) http.Handler {
 	if deps.Now == nil {
 		deps.Now = time.Now
+	}
+	if deps.Version == "" {
+		deps.Version = "dev"
 	}
 	if deps.Shares != nil && len(deps.SecretKey) > 0 {
 		deps.Shares.SetCookieSecret(deps.SecretKey)

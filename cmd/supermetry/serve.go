@@ -303,6 +303,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	siteService.SetSiteLimit(cfg.MaxSitesPerOrg)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
 	platformHandler := platformhttp.New(platformhttp.Deps{
+		Version:        version,
 		TrackingMode:   cfg.Tracking.Mode,
 		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
 		BaseURL:        cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
@@ -593,9 +594,16 @@ func newHTTPServer(handler http.Handler, cfg config.Config) *http.Server {
 func appSecurityHeaders(baseURL string, next http.Handler) http.Handler {
 	// The script hash permits only the pre-paint theme initializer in web/index.html.
 	const policy = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	const replayViewerPolicy = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: blob: https:; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	hsts := strings.HasPrefix(strings.ToLower(baseURL), "https://")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", policy)
+		requestPolicy := policy
+		// rrweb rebuilds the recorded document in an inherited sandboxed iframe,
+		// so only viewer HTML needs the recorded page's external font sources.
+		if isReplayViewerPath(r.URL.Path) {
+			requestPolicy = replayViewerPolicy
+		}
+		w.Header().Set("Content-Security-Policy", requestPolicy)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		if hsts {
@@ -603,6 +611,17 @@ func appSecurityHeaders(baseURL string, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func isReplayViewerPath(path string) bool {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) < 4 || parts[0] != "app" || parts[1] == "" || parts[2] == "" {
+		return false
+	}
+	if len(parts) == 4 {
+		return parts[3] == "sessions" || parts[3] == "events" || parts[3] == "replays"
+	}
+	return len(parts) == 5 && parts[4] != "" && (parts[3] == "replays" || parts[3] == "profiles")
 }
 
 func pauseRollupBackfill(ctx context.Context) error {

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"supermetry/internal/api"
 )
@@ -62,5 +63,42 @@ func TestEveryPlatformRouteIsForwarded(t *testing.T) {
 		if response.Code != 218 {
 			t.Errorf("%s %s answered %d, not forwarded to the platform handler", route[0], route[1], response.Code)
 		}
+	}
+}
+
+func TestSetupStatusIsAuthenticationNeutralAndRateLimited(t *testing.T) {
+	forwarded := 0
+	platform := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		forwarded++
+		w.WriteHeader(218)
+	})
+	router := identifiedRouter(api.Deps{
+		Platform:     platform,
+		RateLimitNow: func() time.Time { return time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC) },
+	})
+
+	for requestNumber := 1; requestNumber <= 30; requestNumber++ {
+		request := httptest.NewRequest(http.MethodGet, "/api/private/setup/status", nil)
+		request.RemoteAddr = "198.51.100.8:4321"
+		request.Header.Set("Authorization", "Bearer ignored")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != 218 {
+			t.Fatalf("request %d status=%d body=%s, want forwarded response", requestNumber, response.Code, response.Body.String())
+		}
+		if response.Header().Get("RateLimit-Limit") == "" {
+			t.Fatalf("request %d is missing rate-limit headers", requestNumber)
+		}
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/private/setup/status", nil)
+	request.RemoteAddr = "198.51.100.8:4321"
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("exhausted status=%d body=%s, want 429", response.Code, response.Body.String())
+	}
+	if forwarded != 30 {
+		t.Fatalf("platform calls=%d, want 30", forwarded)
 	}
 }

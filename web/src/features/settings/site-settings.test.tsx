@@ -62,6 +62,9 @@ describe('site settings', () => {
       'aria-current',
       'page',
     )
+    expect(screen.getByRole('navigation', { name: 'Site settings' })).toBeVisible()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
   })
 
   it('shows install guides, proxy advice, and a relative live status', () => {

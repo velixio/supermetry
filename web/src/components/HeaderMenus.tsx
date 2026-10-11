@@ -49,6 +49,7 @@ export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Mem
           <DropdownMenuLabel className="flex flex-col gap-1">
             <span className="truncate">{me.user.name || 'Your account'}</span>
             <span className="break-all text-xs font-normal text-muted-foreground">{me.user.email}</span>
+            <span className="text-xs font-normal text-muted-foreground">Supermetry {me.version || 'dev'}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>

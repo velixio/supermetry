@@ -7,15 +7,23 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
+import { QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { loginRedirect } from './app.$org'
 import { LoginForm, authResultMessage, createAuthApi } from './login'
 import { en } from '@/messages/en'
+import { queryClient } from '@/lib/queryClient'
+import { routeTree } from '@/routeTree.gen'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  queryClient.clear()
+  vi.unstubAllGlobals()
+})
 beforeEach(() => {
+  queryClient.clear()
   window.scrollTo = vi.fn()
 })
 
@@ -29,6 +37,62 @@ function renderWithRouter(children: ReactNode) {
 }
 
 describe('login form', () => {
+  it('uses the dashboard instead of an unavailable organization after sign in', async () => {
+    let signedIn = false
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init)
+      const path = new URL(request.url).pathname
+      if (path === '/api/private/auth/config') {
+        return new Response(
+          '{"signup":"invite","setup_required":false,"homepage_url":"/"}',
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      if (path === '/api/private/auth/login') {
+        signedIn = true
+        return new Response('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      if (path === '/api/private/me') {
+        return new Response(
+          signedIn
+            ? '{"user":{"id":1,"name":"Owner","email":"owner@example.test"},"memberships":[{"org":{"id":1,"name":"Acme","slug":"acme"},"role":"owner","sites":[]}]}'
+            : '{}',
+          {
+            status: signedIn ? 200 : 401,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        )
+      }
+      throw new Error(`Unexpected request: ${request.method} ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({
+        initialEntries: ['/login?next=%2Fapp%2Fmissing%2Fsite'],
+      }),
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+
+    fireEvent.change(await screen.findByLabelText(/email/i), {
+      target: { value: 'owner@example.test' },
+    })
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'pw-123456789' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/app'))
+    expect(router.state.location.pathname).not.toBe('/app/missing/site')
+  })
+
   it('uses the dark auth surface by default', () => {
     render(<LoginForm login={vi.fn()} next="/" onSuccess={vi.fn()} />)
 

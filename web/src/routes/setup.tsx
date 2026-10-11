@@ -1,11 +1,12 @@
 import { type FormEvent, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
+import { signedInRedirect } from '@/lib/signed-in'
 
 import { AuthScreen, authResultMessage, postPrivate } from './login'
 
@@ -13,11 +14,40 @@ const setupSearch = z.object({ token: z.string().optional().catch(undefined) })
 
 export const Route = createFileRoute('/setup')({
   validateSearch: (search) => setupSearch.parse(search),
+  beforeLoad: async ({ search }) => {
+    const destination = await setupRouteDestination(search.token)
+    if (destination) throw redirect({ href: destination, replace: true })
+  },
   component: SetupPage,
 })
 
+export async function setupRouteDestination(
+  token: string | undefined,
+  fetch: typeof globalThis.fetch = (...args) => globalThis.fetch(...args),
+): Promise<'/app' | '/login' | null> {
+  const signedIn = await signedInRedirect('/app', fetch)
+  if (signedIn) return '/app'
+  if (!token) return '/login'
+  try {
+    const response = await fetch('/api/private/setup/status', {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    })
+    if (!response.ok) return '/login'
+    const status = (await response.json()) as { available?: unknown }
+    return status.available === true ? null : '/login'
+  } catch {
+    return '/login'
+  }
+}
+
 function SetupPage() {
   const { token = '' } = Route.useSearch()
+
+  return <SetupForm token={token} />
+}
+
+export function SetupForm({ token }: { token: string }) {
   const [message, setMessage] = useState('')
 
   async function submit(event: FormEvent<HTMLFormElement>) {

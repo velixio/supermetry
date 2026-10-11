@@ -101,6 +101,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		} `json:"user"`
 		Memberships         []membershipResponse `json:"memberships"`
 		DemoPromptDismissed bool                 `json:"demo_prompt_dismissed"`
+		Version             string               `json:"version"`
 	}{
 		User: struct {
 			ID          int64      `json:"id"`
@@ -112,6 +113,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt},
 		Memberships:         items,
 		DemoPromptDismissed: demoPromptDismissed,
+		Version:             h.deps.Version,
 	})
 }
 
