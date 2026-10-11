@@ -97,3 +97,105 @@ func findSnapshot(t *testing.T, snapshots []session.Snapshot, sessionID int64) s
 	t.Fatalf("session %d not found in snapshots", sessionID)
 	return session.Snapshot{}
 }
+
+func migratedPool(t *testing.T, now time.Time) *pgxpool.Pool {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -5), now.AddDate(0, 0, 2)); err != nil {
+		t.Fatal(err)
+	}
+	return pool
+}
+
+func insertFlushedSessionRow(t *testing.T, pool *pgxpool.Pool, siteID int32, visitorID, sessionID int64, start, last time.Time, pageviews int32) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(), `
+INSERT INTO sessions (
+    site_id, retention_class, session_id, visitor_id, start, last, local_day,
+    entry_path, exit_path, source_id, utm_source_id, medium_id, campaign_id, country, region_id, city_id,
+    browser_id, os_id, device, pageviews, events, engagement_ms, bounce
+) VALUES ($1, $2, $3, $4, $5, $6, $7, 1, 1, 11, 16, 12, 13, 'US', 21, 22, 14, 15, 2, $8, 0, 0, false)`,
+		siteID, db.Ret30, sessionID, visitorID, start, last, start.UTC().Truncate(24*time.Hour), pageviews)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func touch(memory *session.Memory, visitorID int64, now time.Time) session.Result {
+	return memory.Touch(session.Hit{
+		SiteID: 1, Retention: db.Ret30, TS: now, LocalDay: salts.LocalDay(now, time.UTC),
+		VisitorID: visitorID, Kind: 0, PathID: 3,
+	})
+}
+
+// A session ends only after 30 idle minutes, so a live one can be days old. Restoring it must
+// read back to where it began, not just the last half hour.
+func TestLongRunningSessionIsRestoredFromItsFirstEvent(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	pool := migratedPool(t, now)
+	started := now.Add(-72 * time.Hour)
+	insertEvents(t, pool, 1, 91, 900, started, now.Add(-48*time.Hour), now.Add(-24*time.Hour), now.Add(-10*time.Minute))
+	insertFlushedSessionRow(t, pool, 1, 91, 900, started, now.Add(-10*time.Minute), 4)
+
+	memory := session.NewMemory(4, realClock{})
+	restored, err := rehydrate.Run(context.Background(), pool, memory, now)
+	if err != nil || restored != 1 {
+		t.Fatalf("restored=%d err=%v", restored, err)
+	}
+	if result := touch(memory, 91, now); result.New || result.SessionID != 900 {
+		t.Fatalf("long session split after restart: %+v", result)
+	}
+	snapshot := findSnapshot(t, memory.Dirty(10), 900)
+	if !snapshot.Start.Equal(started) || snapshot.Pageviews != 5 {
+		t.Fatalf("long session restored as start=%s pageviews=%d, want start=%s pageviews=5 (4 stored + this hit)", snapshot.Start, snapshot.Pageviews, started)
+	}
+}
+
+// A session row flushed a little before the cutoff, with events after it that were never
+// flushed, is still live and must keep its original start.
+func TestSessionFlushedJustBeforeTheCutoffKeepsItsStart(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	pool := migratedPool(t, now)
+	started := now.Add(-3 * time.Hour)
+	insertEvents(t, pool, 1, 92, 901, started, now.Add(-35*time.Minute), now.Add(-2*time.Minute))
+	insertFlushedSessionRow(t, pool, 1, 92, 901, started, now.Add(-35*time.Minute), 2)
+
+	memory := session.NewMemory(4, realClock{})
+	restored, err := rehydrate.Run(context.Background(), pool, memory, now)
+	if err != nil || restored != 1 {
+		t.Fatalf("restored=%d err=%v", restored, err)
+	}
+	if result := touch(memory, 92, now); result.New || result.SessionID != 901 {
+		t.Fatalf("session split after restart: %+v", result)
+	}
+	snapshot := findSnapshot(t, memory.Dirty(10), 901)
+	if !snapshot.Start.Equal(started) || snapshot.Pageviews != 4 {
+		t.Fatalf("restored start=%s pageviews=%d, want start=%s pageviews=4 (3 stored + this hit)", snapshot.Start, snapshot.Pageviews, started)
+	}
+}
+
+// Sessions that went idle long ago are history, not live sessions, however old their events.
+func TestFinishedSessionsAreNotRestored(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	pool := migratedPool(t, now)
+	insertEvents(t, pool, 1, 93, 902, now.Add(-50*time.Hour), now.Add(-49*time.Hour))
+	insertFlushedSessionRow(t, pool, 1, 93, 902, now.Add(-50*time.Hour), now.Add(-49*time.Hour), 2)
+	insertEvents(t, pool, 1, 94, 903, now.Add(-4*time.Minute))
+	insertFlushedSessionRow(t, pool, 1, 94, 903, now.Add(-4*time.Minute), now.Add(-4*time.Minute), 1)
+
+	memory := session.NewMemory(4, realClock{})
+	restored, err := rehydrate.Run(context.Background(), pool, memory, now)
+	if err != nil || restored != 1 {
+		t.Fatalf("restored=%d err=%v, want exactly the live session", restored, err)
+	}
+	if result := touch(memory, 94, now); result.New || result.SessionID != 903 {
+		t.Fatalf("live session not continued: %+v", result)
+	}
+	if result := touch(memory, 93, now); !result.New {
+		t.Fatalf("finished session was resurrected: %+v", result)
+	}
+}
