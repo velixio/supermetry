@@ -304,7 +304,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		TrackingMode:   cfg.Tracking.Mode,
 		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
-		BaseURL:        cfg.BaseURL, HomepageURL: cfg.HomepageURL, TrackerPath: cfg.TrackerPath,
+		BaseURL:        cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
 		},
