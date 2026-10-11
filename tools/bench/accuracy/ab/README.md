@@ -48,8 +48,8 @@ differences are not reliable.
 
 ## Known differences
 
-The file starts as an empty JSON array. Add only reviewed, intentional product
-differences with this schema:
+The file lists reviewed, intentional product differences. Today it has one entry:
+Plausible Community Edition has no revenue reporting. Add entries with this schema:
 
 ```json
 {"metric":"bounce_rate","product":"plausible","reason":"concise explanation","evidence":"public issue, documentation URL, or reproducible observation"}
@@ -57,6 +57,35 @@ differences with this schema:
 
 `product` is `supermetry` or `plausible`. Entries match only that metric and
 product; they never suppress missing data or a broken-tracker result.
+
+## How the products differ, and what the harness does about it
+
+These are not bugs. The comparison accounts for each one, so they never show up
+as a mismatch. Each is covered by a unit test in `test_compare3.py`.
+
+| Difference | Handling |
+|---|---|
+| The **events** metric: Supermetry counts custom events only (pageviews are a separate metric), Plausible counts pageviews and custom events. | Truth carries one value per product (`events_supermetry`, `events_plausible`). |
+| Supermetry's tracker sends **Web Vitals** events by itself. They are stored and counted as events. | Excluded from Supermetry's `events` and from its custom event names; they are not scenario traffic. |
+| Supermetry reports **direct traffic** as an empty source; Plausible says `(direct)`. | Mapped to `(direct)`. |
+| Plausible reports visitors without a campaign as `(not set)`. | Ignored. |
+| **Operating system names**: Plausible says `GNU/Linux`, `Mac` and `iPadOS` where Supermetry says `Linux`, `macOS` and `iOS`. | Plausible's names are mapped to Supermetry's. |
+| Plausible's `engagement` event is its own time-on-page signal. | Not counted as a custom event. |
+| Plausible Community Edition has **no revenue reporting** (`total_revenue` is rejected with HTTP 400). | Listed in `known_differences.json`. |
+| A single-page-app navigation to the page the visitor is already on is **not a pageview** in either tracker. | Truth, the driver and the volume run all skip it. |
+
+## Things to know when running it
+
+- **Supermetry keeps referrers, UTM parameters and event properties only for projects that
+  opt in** (`profiles_enabled`, on an instance running `SUPERMETRY_TRACKING_MODE=identified`).
+  Without that, the source, campaign and property breakdowns are empty by design. The
+  harness turns it on for its benchmark project so the comparison is fair; it does not
+  change what a default install records.
+- Asking Supermetry's query API for `total_revenue` in the same query as a breakdown by
+  `event` restricts the rows to events that carry revenue, so the other event names
+  disappear. The harness queries revenue on its own.
+- The public API is rate limited. While waiting for ingestion to settle, the run polls one
+  pageviews query per product, and runs the full set of queries once.
 
 ## Metric definitions
 
