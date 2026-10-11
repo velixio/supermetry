@@ -125,6 +125,7 @@ def _run(
     *,
     env: Mapping[str, str] | None = None,
     capture: bool = False,
+    input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         args,
@@ -132,6 +133,7 @@ def _run(
         env=dict(env) if env is not None else None,
         check=True,
         text=True,
+        input=input_text,
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.STDOUT if capture else None,
     )
@@ -221,7 +223,8 @@ def _create_supermetry_resources(
     cookies = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
     base = "http://127.0.0.1:18090"
-    host = {"Host": "app.test:18090"}
+    # Private POSTs must carry an Origin that matches SUPERMETRY_BASE_URL (CSRF protection).
+    host = {"Host": "app.test:18090", "Origin": "http://app.test:18090"}
     _request_json(
         opener,
         "POST",
@@ -405,7 +408,6 @@ def up(*, workdir: Path = DEFAULT_WORKDIR) -> dict[str, Any]:
     if state_path.exists():
         raise RuntimeError(f"stack state already exists: {state_path}; run down first")
     workdir.mkdir(parents=True, exist_ok=True)
-    rpc_path = workdir / "mkkey.exs"
     process: subprocess.Popen[bytes] | None = None
     log_handle: Any = None
     plausible_touched = False
@@ -417,10 +419,13 @@ def up(*, workdir: Path = DEFAULT_WORKDIR) -> dict[str, Any]:
         _run([str(RIG / "up.sh"), "plausible"])
         _run([str(RIG / "seed.sh"), "plausible", "2"])
         plausible_key = secrets.token_hex(24)
-        rpc_path.unlink(missing_ok=True)
-        _write_private_text(rpc_path, render_mkkey(plausible_key))
         docker = _docker()
-        _run(docker + ["cp", str(rpc_path), "plausible-plausible-1:/tmp/mkkey.exs"])
+        # Pipe the script in on stdin: `docker cp` would keep the private 0600 mode
+        # of a host file, which the container's own user cannot read (eacces).
+        _run(
+            docker + ["exec", "-i", "plausible-plausible-1", "sh", "-c", "cat > /tmp/mkkey.exs"],
+            input_text=render_mkkey(plausible_key),
+        )
         _run(
             docker
             + [
@@ -431,7 +436,6 @@ def up(*, workdir: Path = DEFAULT_WORKDIR) -> dict[str, Any]:
                 'Code.eval_file("/tmp/mkkey.exs")',
             ]
         )
-        rpc_path.unlink(missing_ok=True)
 
         def plausible_query_ready() -> bool:
             try:
@@ -521,7 +525,7 @@ def up(*, workdir: Path = DEFAULT_WORKDIR) -> dict[str, Any]:
             cleanups.append(lambda: _drop_database(DATABASE))
         if plausible_touched:
             cleanups.append(lambda: _run([str(RIG / "down.sh"), "plausible", "--purge"]))
-        cleanups.extend((lambda: rpc_path.unlink(missing_ok=True), lambda: state_path.unlink(missing_ok=True)))
+        cleanups.extend((lambda: state_path.unlink(missing_ok=True),))
         for cleanup in cleanups:
             try:
                 cleanup()
