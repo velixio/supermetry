@@ -2,6 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 
 type Source = 'dbip' | 'maxmind'
 
+// MaxMind's license asks for attribution and gives this sentence as its example. The footer shows
+// a short link in the same style as the DB-IP credit and keeps the full sentence as its hover text.
+const maxmindNotice = 'This product includes GeoLite Data created by MaxMind, available from https://www.maxmind.com.'
+
 // The credit each geolocation provider's license asks for. DB-IP's database is bundled with
 // Supermetry; MaxMind's GeoLite data is downloaded by the operator when they configure an
 // account, and its license says to credit MaxMind wherever the data is used.
@@ -26,18 +30,15 @@ export function GeolocationCredit() {
 
   if (source === 'maxmind') {
     return (
-      <>
-        This product includes GeoLite Data created by MaxMind, available from{' '}
-        <a
-          className="underline-offset-4 hover:text-foreground hover:underline"
-          href="https://www.maxmind.com"
-          rel="noreferrer"
-          target="_blank"
-        >
-          https://www.maxmind.com
-        </a>
-        .
-      </>
+      <a
+        className="underline-offset-4 hover:text-foreground hover:underline"
+        href="https://www.maxmind.com"
+        rel="noreferrer"
+        target="_blank"
+        title={maxmindNotice}
+      >
+        IP geolocation by MaxMind
+      </a>
     )
   }
   return (

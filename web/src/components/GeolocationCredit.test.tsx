@@ -34,18 +34,17 @@ describe('GeolocationCredit', () => {
       'href',
       'https://db-ip.com',
     )
-    expect(screen.queryByText(/MaxMind/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /MaxMind/ })).not.toBeInTheDocument()
   })
 
-  it("shows MaxMind's required notice when GeoLite data is in use", async () => {
+  it('credits MaxMind, with its full notice on hover, when GeoLite data is in use', async () => {
     stubConfig({ geoip_source: 'maxmind' })
     renderCredit()
-    expect(
-      await screen.findByText(/This product includes GeoLite Data created by MaxMind, available from/),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'https://www.maxmind.com' })).toHaveAttribute(
-      'href',
-      'https://www.maxmind.com',
+    const link = await screen.findByRole('link', { name: 'IP geolocation by MaxMind' })
+    expect(link).toHaveAttribute('href', 'https://www.maxmind.com')
+    expect(link).toHaveAttribute(
+      'title',
+      'This product includes GeoLite Data created by MaxMind, available from https://www.maxmind.com.',
     )
     expect(screen.queryByRole('link', { name: 'IP geolocation by DB-IP.com' })).not.toBeInTheDocument()
   })
@@ -68,6 +67,6 @@ describe('GeolocationCredit', () => {
     const { container } = renderCredit()
     expect(container).toBeEmptyDOMElement()
     release({ ok: true, json: async () => ({ geoip_source: 'maxmind' }) } as Response)
-    await waitFor(() => expect(screen.getByText(/created by MaxMind/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('link', { name: 'IP geolocation by MaxMind' })).toBeInTheDocument())
   })
 })
