@@ -27,6 +27,25 @@ func Run(ctx context.Context, pool *pgxpool.Pool, store session.Store, now time.
 	}
 	cutoff := reference.Add(-session.IdleTimeout)
 
+	// Every read below is bounded from the oldest moment a live session can have started, so
+	// Postgres can skip the older partitions of events and sessions. Without the bound, each
+	// live session scanned every partition: about 75 ms per session with 300 partitions, which
+	// made startup take 10 seconds for 140 sessions and minutes for a busy instance.
+	//
+	// A live session started no earlier than the oldest start among session rows touched since
+	// cutoff-IdleTimeout (the margin covers rows flushed a moment before the cutoff, since the
+	// writer flushes within seconds). A live session with no row yet was flushed less than one
+	// flush interval ago, so it started after the cutoff.
+	var oldestLive time.Time
+	if err := pool.QueryRow(ctx, `SELECT coalesce(min(start), $1::timestamptz) FROM sessions WHERE last >= $2`,
+		cutoff, cutoff.Add(-session.IdleTimeout)).Scan(&oldestLive); err != nil {
+		return 0, fmt.Errorf("find oldest live session start: %w", err)
+	}
+	lower := cutoff
+	if oldestLive.Before(lower) {
+		lower = oldestLive
+	}
+
 	rows, err := pool.Query(ctx, `
 WITH candidates AS MATERIALIZED (
     SELECT site_id, retention_class, session_id
@@ -70,6 +89,7 @@ WITH candidates AS MATERIALIZED (
 		(array_agg(e.device ORDER BY e.ts, e.tableoid, e.ctid))[1] AS device
     FROM events AS e
     JOIN candidates AS c USING (site_id, retention_class, session_id)
+    WHERE e.ts >= $2
     GROUP BY e.site_id, e.retention_class, e.session_id
 )
 SELECT
@@ -107,11 +127,12 @@ LEFT JOIN LATERAL (
     WHERE site_id = e.site_id
       AND retention_class = e.retention_class
       AND session_id = e.session_id
+      AND start >= $2
     ORDER BY last DESC
     LIMIT 1
 ) AS s ON true
 WHERE greatest(e.event_last, s.last) >= $1
-ORDER BY e.site_id, e.session_id`, cutoff)
+ORDER BY e.site_id, e.session_id`, cutoff, lower)
 	if err != nil {
 		return 0, fmt.Errorf("load open sessions: %w", err)
 	}
