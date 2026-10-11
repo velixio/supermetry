@@ -97,14 +97,13 @@ describe('SPA navigation', () => {
     expect(screen.getByRole('heading', { name: 'Dashboard page' })).toBeInTheDocument()
   })
 
-  it('places Map immediately after Realtime and before permission-gated Replays', async () => {
+  it('places permission-gated Replays immediately after Realtime without a Map destination', async () => {
     renderSidebar()
 
     const realtime = await screen.findByRole('link', { name: 'Realtime' })
-    const map = screen.getByRole('link', { name: 'Map' })
     const replays = screen.getByRole('link', { name: 'Replays' })
-    expect(realtime.closest('li')?.nextElementSibling).toBe(map.closest('li'))
-    expect(map.closest('li')?.nextElementSibling).toBe(replays.closest('li'))
+    expect(realtime.closest('li')?.nextElementSibling).toBe(replays.closest('li'))
+    expect(screen.queryByRole('link', { name: 'Map' })).not.toBeInTheDocument()
   })
 
   it('shows the brand name and one dropdown listing projects, then organizations', async () => {

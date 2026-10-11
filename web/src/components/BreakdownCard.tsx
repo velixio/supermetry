@@ -1,13 +1,11 @@
-import { lazy, Suspense, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
 import { formatBreakdownMetric, metricLabel } from '@/lib/breakdown-metrics'
 import { fmt } from '@/lib/format'
-import type { DashboardSearch, Filter } from '@/lib/search'
-import { en } from '@/messages/en'
+import type { Filter } from '@/lib/search'
 import { useStats, type StatsQuery } from '@/lib/stats'
 
 import { DetailsDialog } from './DetailsDialog'
@@ -28,15 +26,11 @@ type BreakdownCardProps = {
   tabs: BreakdownTab[]
   query: StatsQuery
   onFilter: (filter: Filter) => void
-  map?: boolean
   allowSearch?: boolean
   allowFilter?: boolean
   verifiedPaths?: boolean
   description?: string
-  mapLink?: { org: string; site: string; search: DashboardSearch }
 }
-
-const WorldMap = lazy(() => import('./WorldMap').then((module) => ({ default: module.WorldMap })))
 
 const screenSizeLabels: Record<string, string> = {
   mobile: 'Mobile (<768px)',
@@ -59,11 +53,9 @@ function filterAccessibleLabel(dimension: string, label: string, display: string
   return label
 }
 
-export function BreakdownCard({ title, tabs, query, onFilter, map = false, allowSearch = true, allowFilter = true, verifiedPaths = false, description, mapLink }: BreakdownCardProps) {
+export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true, allowFilter = true, verifiedPaths = false, description }: BreakdownCardProps) {
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
-  const [view, setView] = useState<'list' | 'map'>('list')
   const activeTab = tabs.find((tab) => tab.key === activeKey) ?? tabs[0]
-  const mapActive = map && activeTab?.dimension === 'country' && view === 'map'
   const cardQuery: StatsQuery = {
     ...query,
     metrics: activeTab ? (activeTab.metrics ?? [activeTab.metric]) : query.metrics,
@@ -75,7 +67,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
     orderBy: activeTab
       ? [{ column: activeTab.metric, direction: 'desc' }]
       : query.orderBy,
-    limit: mapActive ? 250 : 10,
+    limit: 10,
   }
   const result = useStats(cardQuery)
   const privacy = result.data?.meta?.privacy
@@ -103,10 +95,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
                   size="xs"
                   type="button"
                   variant={tab.key === activeTab?.key ? 'secondary' : 'ghost'}
-                  onClick={() => {
-                    setActiveKey(tab.key)
-                    if (tab.dimension !== 'country') setView('list')
-                  }}
+                  onClick={() => setActiveKey(tab.key)}
                 >
                   {tab.label ?? tab.key}
                 </Button>
@@ -115,33 +104,6 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {mapLink && activeTab?.dimension === 'country' ? (
-            <Button asChild size="xs" variant="ghost">
-              <Link to="/app/$org/$site/map" params={{ org: mapLink.org, site: mapLink.site }} search={{ ...mapLink.search, metric: mapLink.search.metric === 'pageviews' ? 'pageviews' : 'visitors' }}>{en.map.openFullMap}</Link>
-            </Button>
-          ) : null}
-          {map && activeTab?.dimension === 'country' ? (
-            <div aria-label={`${title} view`} className="flex items-center gap-1" role="group">
-              <Button
-                aria-pressed={view === 'list'}
-                size="xs"
-                type="button"
-                variant={view === 'list' ? 'secondary' : 'ghost'}
-                onClick={() => setView('list')}
-              >
-                List
-              </Button>
-              <Button
-                aria-pressed={view === 'map'}
-                size="xs"
-                type="button"
-                variant={view === 'map' ? 'secondary' : 'ghost'}
-                onClick={() => setView('map')}
-              >
-                Map
-              </Button>
-            </div>
-          ) : null}
           {activeTab && !verifiedPaths ? <DetailsDialog dimension={activeTab.dimension} query={cardQuery} title={title} allowSearch={allowSearch} /> : null}
         </div>
       </header>
@@ -158,22 +120,6 @@ export function BreakdownCard({ title, tabs, query, onFilter, map = false, allow
         <ErrorState detail="Verified page coverage could not be confirmed. Reload before viewing this breakdown." onRetry={() => void result.refetch()} />
       ) : rows.length === 0 || !activeTab ? (
         verifiedPaths ? <p className="px-4 py-6 text-sm text-muted-foreground">No verified page data in this range. Older unverified records and imports are excluded.</p> : <EmptyState />
-      ) : mapActive ? (
-        <Suspense
-          fallback={
-            <div className="min-h-36 p-4" aria-label={`Loading ${title} map`}>
-              <Skeleton className="h-32 w-full" />
-            </div>
-          }
-        >
-          <WorldMap
-            rows={rows.map((row) => ({
-              country: String(row.country ?? ''),
-              visitors: Number(row.visitors ?? 0),
-            }))}
-            onSelect={(code) => onFilter({ dimension: 'country', operator: 'is', values: [code] })}
-          />
-        </Suspense>
       ) : displayedMetrics.length > 1 ? (
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">

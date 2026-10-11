@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Flag } from '@/components/Flag'
@@ -168,7 +167,10 @@ export function CountryDetails(props: CountryDetailsProps) {
           if (!open) props.onClear()
         }}
       >
-        <SheetContent className="max-h-[88dvh] overflow-y-auto" side="bottom">
+        <SheetContent
+          className="max-h-[88dvh] overflow-y-auto bg-popover pb-[max(1rem,env(safe-area-inset-bottom))] data-open:animate-none data-closed:animate-none"
+          side="bottom"
+        >
           <SheetHeader>
             <SheetTitle>{title}</SheetTitle>
             <SheetDescription>{en.map.details}</SheetDescription>
@@ -179,14 +181,9 @@ export function CountryDetails(props: CountryDetailsProps) {
     )
   }
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <CountryDetailsBody {...props} />
-      </CardContent>
-      <CardFooter className="sr-only">{en.map.details}</CardFooter>
-    </Card>
+    <section className="min-w-0 border-t bg-card" aria-label={en.map.details}>
+      <header className="p-4"><h3 className="text-sm font-medium">{title}</h3></header>
+      <CountryDetailsBody {...props} />
+    </section>
   )
 }

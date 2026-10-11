@@ -7,83 +7,81 @@ import { TrafficGrid } from './TrafficGrid'
 describe('TrafficGrid', () => {
   afterEach(cleanup)
 
-  it('renders all cells, a peak summary, and a focus tooltip', () => {
-    render(
-      <TrafficGrid
-        metric="visitors"
-        rows={[{ weekday: 5, hour_of_day: 19, visitors: 164 }]}
-        timezone="America/New_York"
-        locale="en-US"
-      />,
-    )
+  it('renders all cells, readable margins, peak windows, weekday share, a legend, and a portalled tooltip', () => {
+    render(<TrafficGrid metric="visitors" rows={[
+      { weekday: 1, hour_of_day: 13, visitors: 89 },
+      { weekday: 2, hour_of_day: 13, visitors: 40 },
+    ]} timezone="America/New_York" locale="en-GB" />)
 
     expect(screen.getAllByRole('gridcell')).toHaveLength(168)
-    expect(screen.getByText('Busiest: Friday 7 PM, 164 visitors')).toBeVisible()
-    const peak = screen.getByRole('gridcell', {
-      name: 'Friday 7 PM: 164 visitors',
-    })
+    expect(screen.getByText('Busiest: Monday 13:00, 89 visitors')).toBeVisible()
+    expect(screen.getByText('Quietest weekday: Wednesday')).toBeVisible()
+    expect(screen.getByLabelText('Monday total: 89 visitors')).toBeVisible()
+    expect(screen.getByLabelText('13:00 total: 129 visitors')).toBeVisible()
+    expect(screen.getByLabelText('Traffic intensity legend').children).toHaveLength(5)
+    expect(screen.getByRole('heading', { name: 'Peak windows' })).toBeVisible()
+    expect(screen.getByText('Monday 13:00, 89 visitors')).toBeVisible()
+    expect(screen.getByText('Tuesday 13:00, 40 visitors')).toBeVisible()
+    expect(screen.getByText('Weekdays carry 100 percent of visits')).toBeVisible()
+    const peak = screen.getByRole('gridcell', { name: 'Monday 13:00: 89 visitors' })
+    expect(peak).toHaveAttribute('data-busiest', 'true')
     fireEvent.focus(peak)
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Friday7 PM164 visitors')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Monday13:0089 visitors')
+    expect(screen.getByRole('tooltip').parentElement).toBe(document.body)
+    expect(screen.getByRole('tooltip')).toHaveClass('pointer-events-none')
   })
 
-  it('has one tab stop and wraps arrow-key focus in both axes', () => {
+  it('uses no label, value, or tick token smaller than 12px and gives rows and hourly bars room', () => {
+    const { container } = render(<TrafficGrid metric="visitors" rows={[]} timezone="UTC" locale="en-GB" />)
+    const classNames = [...container.querySelectorAll<HTMLElement>('[class]')].map((node) => node.className).join(' ')
+
+    expect(classNames).not.toMatch(/text-\[(?:8|9|10|11)px\]/)
+    expect(container.querySelector('[role="row"][data-weekday-row]')).toHaveClass('min-h-7')
+    expect(screen.getByLabelText('Hourly totals')).toHaveClass('min-h-10')
+  })
+
+  it('has one tab stop and supports arrows plus Home and End within weekday rows', () => {
     render(<TrafficGrid metric="pageviews" rows={[]} timezone="UTC" locale="en-US" />)
-    const sundayMidnight = screen.getByRole('gridcell', {
-      name: 'Sunday 12 AM: 0 pageviews',
-    })
-    const saturdayMidnight = screen.getByRole('gridcell', {
-      name: 'Saturday 12 AM: 0 pageviews',
-    })
-    const sundayEleven = screen.getByRole('gridcell', {
-      name: 'Sunday 11 PM: 0 pageviews',
-    })
+    const sundayMidnight = screen.getByRole('gridcell', { name: 'Sunday 12 AM: 0 pageviews' })
+    const sundayOne = screen.getByRole('gridcell', { name: 'Sunday 1 AM: 0 pageviews' })
+    const mondayMidnight = screen.getByRole('gridcell', { name: 'Monday 12 AM: 0 pageviews' })
 
     expect(screen.getAllByRole('gridcell').filter((cell) => cell.tabIndex === 0)).toHaveLength(1)
     sundayMidnight.focus()
-    fireEvent.keyDown(sundayMidnight, { key: 'ArrowLeft' })
-    expect(saturdayMidnight).toHaveFocus()
-    fireEvent.keyDown(saturdayMidnight, { key: 'ArrowRight' })
-    expect(sundayMidnight).toHaveFocus()
-    fireEvent.keyDown(sundayMidnight, { key: 'ArrowUp' })
-    expect(sundayEleven).toHaveFocus()
+    fireEvent.keyDown(sundayMidnight, { key: 'ArrowRight' })
+    expect(sundayOne).toHaveFocus()
+    fireEvent.keyDown(sundayOne, { key: 'ArrowDown' })
+    const mondayOne = screen.getByRole('gridcell', { name: 'Monday 1 AM: 0 pageviews' })
+    expect(mondayOne).toHaveFocus()
+    fireEvent.keyDown(mondayOne, { key: 'Home' })
+    expect(mondayMidnight).toHaveFocus()
+    fireEvent.keyDown(mondayMidnight, { key: 'End' })
+    expect(screen.getByRole('gridcell', { name: 'Monday 11 PM: 0 pageviews' })).toHaveFocus()
   })
 
-  it('shows loading and empty states', () => {
-    const { rerender } = render(<TrafficGrid isLoading metric="visitors" rows={[]} timezone="UTC" />)
-    expect(screen.getByLabelText('Loading traffic by hour')).toBeVisible()
+  it('shows a tapped cell value in the summary line', () => {
+    render(<TrafficGrid metric="visitors" rows={[{ weekday: 1, hour_of_day: 13, visitors: 89 }]} timezone="UTC" locale="en-US" />)
+    fireEvent.pointerDown(screen.getByRole('gridcell', { name: 'Monday 1 PM: 89 visitors' }), { pointerType: 'touch' })
+    expect(screen.getByText('Monday 1 PM: 89 visitors')).toBeVisible()
+  })
 
+  it('reserves the weekly strip height while loading and renders the empty state', () => {
+    const { rerender } = render(<TrafficGrid isLoading metric="visitors" rows={[]} timezone="UTC" />)
+    expect(screen.getByLabelText('Loading traffic by hour')).toHaveClass('min-h-56')
     rerender(<TrafficGrid metric="visitors" rows={[]} timezone="UTC" />)
     expect(screen.getByText('No traffic in this range')).toBeVisible()
   })
 
-  it('turns the retention problem into an actionable shorter-range message', () => {
+  it('turns retention errors into the longest allowed range action', () => {
     const onShorten = vi.fn()
-    render(
-      <TrafficGrid
-        error={{
-          detail: "Traffic breakdowns are available only within the site's 7-day raw retention window",
-        }}
-        metric="visitors"
-        rows={[]}
-        timezone="UTC"
-        onRetry={vi.fn()}
-        onShorten={onShorten}
-      />,
-    )
-
-    expect(
-      screen.getByText('This range is longer than the 7 days of raw data kept for this site. Choose a shorter range.'),
-    ).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Use last 7 days' }))
-    expect(onShorten).toHaveBeenCalledWith(7)
+    render(<TrafficGrid error={{ detail: "Traffic breakdowns are available only within the site's 90-day raw retention window" }} metric="visitors" rows={[]} timezone="UTC" onShorten={onShorten} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Use last 90 days' }))
+    expect(onShorten).toHaveBeenCalledWith(90)
   })
 
   it('shows a retry action for an ordinary error', () => {
     const onRetry = vi.fn()
-    render(
-      <TrafficGrid error={{ detail: 'Request failed' }} metric="visitors" rows={[]} timezone="UTC" onRetry={onRetry} />,
-    )
-
+    render(<TrafficGrid error={{ detail: 'Request failed' }} metric="visitors" rows={[]} timezone="UTC" onRetry={onRetry} />)
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalledOnce()
   })

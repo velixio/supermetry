@@ -189,7 +189,7 @@ describe('useBreakdown', () => {
 
     await vi.waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(new URL(requestURL).search).toBe(
-      '?site_id=7&period=custom&date_from=2026-09-28&date_to=2026-09-30&timezone=America%2FNew_York&metrics=visitors&dimension=weekday&dimension=hour_of_day&limit=168',
+      '?site_id=7&period=custom&date_from=2026-09-28&date_to=2026-09-30&timezone=America%2FNew_York&metrics=visitors&dimension=weekday&dimension=hour_of_day&limit=168&include_imported=true',
     )
   })
 
@@ -204,6 +204,8 @@ describe('useBreakdown', () => {
       dimensions: ['weekday', 'hour_of_day'],
       filters: [{ dimension: 'country', operator: 'is', values: ['IN'] }],
       limit: 168,
+      compare: 'previous_year',
+      includeImported: false,
     }), { wrapper })
 
     await vi.waitFor(() => expect(result.current.isSuccess).toBe(true))
@@ -216,8 +218,10 @@ describe('useBreakdown', () => {
         timezone: 'UTC',
         metrics: 'visitors',
         filter: ['country:is:IN'],
+        compare: 'previous_year',
         dimension: ['weekday', 'hour_of_day'],
         limit: '168',
+        include_imported: false,
       } },
       signal: expect.any(AbortSignal),
     })

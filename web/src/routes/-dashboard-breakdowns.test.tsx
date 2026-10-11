@@ -41,7 +41,23 @@ describe('dashboard breakdown route', () => {
       configurable: true,
       value: vi.fn(),
     })
-    get.mockResolvedValue({ data: me, response: new Response(null, { status: 200 }) })
+    get.mockImplementation((path: string, options?: { params?: { query?: Record<string, unknown> } }) => {
+      if (path === '/api/private/stats/breakdown') {
+        const query = options?.params?.query ?? {}
+        const dimensions = (query.dimension ?? []) as string[]
+        const metrics = String(query.metrics ?? 'visitors').split(',')
+        const filters = (query.filter ?? []) as string[]
+        let rows: Array<Record<string, unknown>> = []
+        if (dimensions.join(',') === 'country') rows = [{ country: 'IN', visitors: 100, pageviews: 200 }]
+        else if (dimensions.join(',') === 'weekday,hour_of_day') rows = [{ weekday: 1, hour_of_day: 13, visitors: 89, pageviews: 178 }]
+        else if (filters.includes('country:is:IN')) rows = [{ [dimensions[0] ?? 'page']: 'Example', [metrics[0]]: 5 }]
+        return Promise.resolve({
+          data: { columns: [...dimensions, ...metrics], rows, totals: {}, meta: { sources_used: ['raw'], cached: false } },
+          response: new Response(null, { status: 200 }),
+        })
+      }
+      return Promise.resolve({ data: me, response: new Response(null, { status: 200 }) })
+    })
     post.mockImplementation(
       (_path: string, options: { body: { dimensions?: string[]; metrics: string[] } }) => {
         const dimensions = options.body.dimensions ?? []
@@ -96,6 +112,33 @@ describe('dashboard breakdown route', () => {
     )
     return router
   }
+
+  it('renders Where and Weekly rhythm with dashboard state and lazily filters from country details', async () => {
+    const history = createMemoryHistory({ initialEntries: ['/app/acme/example?period=custom&from=2026-09-28&to=2026-09-30&metric=pageviews&compare=previous_year&include_imported=false'] })
+    const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><RouterProvider router={router} /></QueryClientProvider>)
+
+    expect(await screen.findByRole('region', { name: 'Where' })).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Weekly rhythm' })).toBeVisible()
+    expect(screen.getByTestId('where-when-band')).toHaveClass('items-start')
+    expect(screen.getByTestId('where-when-band')).not.toHaveClass('items-stretch')
+    await waitFor(() => expect(get.mock.calls.filter(([path]) => path === '/api/private/stats/breakdown').length).toBeGreaterThanOrEqual(2))
+    const overviewRequests = get.mock.calls
+      .filter(([path]) => path === '/api/private/stats/breakdown')
+      .map(([, options]) => options.params.query)
+    expect(overviewRequests).toEqual(expect.arrayContaining([
+      expect.objectContaining({ dimension: ['country'], metrics: 'visitors,pageviews', compare: 'previous_year', include_imported: false }),
+      expect.objectContaining({ dimension: ['weekday', 'hour_of_day'], metrics: 'pageviews', compare: 'previous_year', include_imported: false }),
+    ]))
+    expect(await screen.findByRole('button', { name: 'India: 200 pageviews, 100 percent' }, { timeout: 5_000 })).toBeVisible()
+    expect(screen.getByRole('gridcell', { name: 'Monday 1 PM: 178 pageviews' })).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: /India, rank 1/i }))
+    expect(await screen.findByRole('heading', { name: /India/ })).toBeVisible()
+    await waitFor(() => expect(get.mock.calls.filter(([path], index) => path === '/api/private/stats/breakdown' && ((get.mock.calls[index]?.[1]?.params?.query?.filter ?? []) as string[]).includes('country:is:IN')).length).toBeGreaterThanOrEqual(4))
+    fireEvent.click(screen.getByRole('button', { name: 'Filter the dashboard to this country' }))
+    await waitFor(() => expect(router.state.location.search.f).toEqual(['country:is:IN']))
+  }, 15_000)
 
   it('uses only safe anonymous breakdowns and labels the verified page subset', async () => {
     get.mockResolvedValue({ data: { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: ['instance_anonymous'] } }] }] }, response: new Response(null, { status: 200 }) })
@@ -153,13 +196,14 @@ describe('dashboard breakdown route', () => {
   it('shows country, region, and city tabs without a referrer tab', async () => {
     renderDashboard()
 
-    const locations = await screen.findByRole('region', { name: 'Countries' })
+    const locations = await screen.findByRole('region', { name: 'Location' })
     expect(
       within(locations)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
     ).toEqual(['Countries', 'Regions', 'Cities', 'Language'])
-    expect(within(locations).getByRole('link', { name: 'Open full map' })).toHaveAttribute('href', expect.stringContaining('/app/acme/example/map'))
+    expect(within(locations).queryByRole('button', { name: 'Map' })).not.toBeInTheDocument()
+    expect(within(locations).queryByRole('link', { name: 'Open full map' })).not.toBeInTheDocument()
 
     const sources = screen.getByRole('region', { name: 'Sources' })
     expect(within(sources).queryByRole('tab', { name: 'Referrer' })).not.toBeInTheDocument()
@@ -173,7 +217,7 @@ describe('dashboard breakdown route', () => {
   it('shows the new device tabs and hides Hostname for a single-host site', async () => {
     renderDashboard()
 
-    const devices = await screen.findByRole('region', { name: 'Devices' })
+    const devices = await screen.findByRole('region', { name: 'Environment' })
     expect(within(devices).getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
       'Browser',
       'Browser version',
@@ -183,7 +227,7 @@ describe('dashboard breakdown route', () => {
       'Screen size',
     ])
 
-    const locations = screen.getByRole('region', { name: 'Countries' })
+    const locations = screen.getByRole('region', { name: 'Location' })
     expect(within(locations).queryByRole('tab', { name: 'Hostname' })).not.toBeInTheDocument()
   })
 
@@ -201,7 +245,7 @@ describe('dashboard breakdown route', () => {
 
     renderDashboard()
 
-    const locations = await screen.findByRole('region', { name: 'Countries' })
+    const locations = await screen.findByRole('region', { name: 'Location' })
     expect(within(locations).getByRole('tab', { name: 'Hostname' })).toBeVisible()
   })
 
@@ -235,7 +279,7 @@ describe('dashboard breakdown route', () => {
     'clicking a %s row adds its filter to router search',
     async (tab, dimension, label, encoded) => {
       const router = renderDashboard()
-      const locations = await screen.findByRole('region', { name: 'Countries' })
+      const locations = await screen.findByRole('region', { name: 'Location' })
 
       fireEvent.click(within(locations).getByRole('tab', { name: tab }))
       fireEvent.click(

@@ -20,9 +20,9 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Page, source, country, browser, OS and device breakdowns | ✓ | ✓ | ✓ | ✅ |
 | UTM breakdowns | ✓ | ✓ | ✓ | ✅ (raw `utm_source` stored separately from the blended source) |
 | Entry and exit pages | ✓ | ✓ | ✓ | ✅ |
-| Region and city | ✓ | ✓ | ✓ | ✅ (world map on the Countries card) |
+| Region and city | ✓ | ✓ | ✓ | ✅ (Location breakdowns plus the dashboard Where card) |
 | Weekday × local-hour traffic grid | ✓ | ✓ | ? | ✅ (site-timezone visitors and pageviews within raw retention) |
-| Interactive country map page with traffic grid and details | ✓ | ✓ | ? | ✅ |
+| Dashboard geography and weekly rhythm cards | ✓ | ✓ | ? | ✅ (linked map/list, country details, locale-aware 168-cell rhythm) |
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |

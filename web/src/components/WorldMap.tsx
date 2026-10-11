@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import worldPaths from '@/assets/world-paths.json'
+import { ChartTooltip, rectFromElement, rectFromPoint, type TooltipRect } from '@/components/ChartTooltip'
 import { rampStep } from '@/features/map/rampStep'
 import { countryLabel, normalizeCountryCode } from '@/lib/country'
 import { fmt } from '@/lib/format'
@@ -14,14 +15,17 @@ const TABLE_LABEL = 'Country visitors'
 const COUNTRY_HEADING = 'Country'
 const VISITORS_HEADING = 'Visitors'
 const VISITORS_SUFFIX = 'visitors'
-const stepClasses = ['fill-muted', 'fill-accent/20', 'fill-accent/40', 'fill-accent/60', 'fill-accent/80', 'fill-accent'] as const
+const stepClasses = ['fill-muted/40', 'fill-accent/20', 'fill-accent/40', 'fill-accent/60', 'fill-accent/80', 'fill-accent'] as const
 
 type WorldMapProps = {
   rows: { country: string; visitors: number; pageviews?: number }[]
   metric?: 'visitors' | 'pageviews'
   selectedCountry?: string
+  activeCountry?: string
+  describedBy?: string
   showLegend?: boolean
   onClear?(): void
+  onActiveChange?(code?: string): void
   onSelect(code: string): void
 }
 type CountryRow = { country: string; visitors: number; pageviews: number }
@@ -29,8 +33,11 @@ type CountryRow = { country: string; visitors: number; pageviews: number }
 const fullNumber = new Intl.NumberFormat('en-US')
 const percentage = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
-export function WorldMap({ rows, metric = 'visitors', selectedCountry, showLegend = false, onClear, onSelect }: WorldMapProps) {
-  const [activeCode, setActiveCode] = useState<string>()
+export function WorldMap({ rows, metric = 'visitors', selectedCountry, activeCountry, describedBy, showLegend = false, onClear, onActiveChange, onSelect }: WorldMapProps) {
+  const [localActiveCode, setLocalActiveCode] = useState<string>()
+  const [tooltipAnchor, setTooltipAnchor] = useState<TooltipRect>()
+  const pathRefs = useRef(new Map<string, SVGPathElement>())
+  const activeCode = activeCountry ?? localActiveCode ?? selectedCountry
   const data = useMemo(() => normalizeRows(rows), [rows])
   const valueByCountry = useMemo(() => new Map(data.map((row) => [row.country, row[metric]])), [data, metric])
   const maximum = data.reduce((largest, row) => Math.max(largest, row[metric]), 0)
@@ -45,9 +52,18 @@ export function WorldMap({ rows, metric = 'visitors', selectedCountry, showLegen
   const metricLabel = metric === 'visitors' ? en.map.visitors : en.map.pageviews
   const metricSuffix = metricLabel.toLowerCase()
 
+  useLayoutEffect(() => {
+    if (!activeCode) {
+      setTooltipAnchor(undefined)
+      return
+    }
+    const path = pathRefs.current.get(activeCode)
+    if (path) setTooltipAnchor(rectFromElement(path))
+  }, [activeCode])
+
   return (
-    <div className="relative flex h-full min-h-36 flex-col p-3">
-      <svg aria-label={WORLD_MAP_LABEL} className="min-h-0 w-full flex-1" role="group" viewBox="0 0 1000 500">
+    <div className="flex w-full min-w-0 flex-col">
+      <svg aria-describedby={describedBy} aria-label={WORLD_MAP_LABEL} className="block aspect-2/1 w-full" role="group" viewBox="0 0 1000 500">
         {paths.map(([country, path]) => {
           const value = valueByCountry.get(country) ?? 0
           const step = rampStep(value, maximum)
@@ -57,25 +73,40 @@ export function WorldMap({ rows, metric = 'visitors', selectedCountry, showLegen
             : `${countryLabel(country)}: ${fmt.number(value)} ${VISITORS_SUFFIX}`
           const interactive = value > 0
           const selected = country === selectedCountry
+          const active = country === activeCode
           return <path
             key={country}
+            ref={(node) => {
+              if (node) pathRefs.current.set(country, node)
+              else pathRefs.current.delete(country)
+            }}
             aria-label={interactive ? label : undefined}
+            aria-describedby={interactive ? describedBy : undefined}
             aria-pressed={interactive ? selected : undefined}
             className={cn(
-              'stroke-background stroke-[1] transition-colors outline-none',
+              'stroke-border stroke-[0.75] transition-colors outline-none',
               stepClasses[step],
               interactive ? 'cursor-pointer hover:stroke-ring hover:stroke-[2] focus-visible:stroke-ring focus-visible:stroke-[2]' : null,
+              active ? 'stroke-ring stroke-[2]' : null,
               selected ? 'stroke-ring stroke-[2]' : null,
             )}
             d={path}
+            data-active={active || undefined}
             data-country={country}
             data-step={step}
             role={interactive ? 'button' : undefined}
             tabIndex={interactive ? 0 : undefined}
             vectorEffect="non-scaling-stroke"
-            onBlur={() => setActiveCode(undefined)}
-            onClick={interactive ? () => onSelect(country) : undefined}
-            onFocus={() => setActiveCode(country)}
+            onBlur={() => { setLocalActiveCode(undefined); onActiveChange?.(undefined) }}
+            onClick={interactive ? (event) => {
+              setTooltipAnchor(rectFromPoint(event.clientX, event.clientY))
+              onSelect(country)
+            } : undefined}
+            onFocus={(event) => {
+              setTooltipAnchor(rectFromElement(event.currentTarget))
+              setLocalActiveCode(country)
+              onActiveChange?.(country)
+            }}
             onKeyDown={interactive ? (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
@@ -85,20 +116,25 @@ export function WorldMap({ rows, metric = 'visitors', selectedCountry, showLegen
                 onClear?.()
               }
             } : undefined}
-            onMouseEnter={() => setActiveCode(country)}
-            onMouseLeave={() => setActiveCode(undefined)}
+            onMouseEnter={(event) => {
+              setTooltipAnchor(rectFromPoint(event.clientX, event.clientY))
+              setLocalActiveCode(country)
+              onActiveChange?.(country)
+            }}
+            onMouseMove={(event) => setTooltipAnchor(rectFromPoint(event.clientX, event.clientY))}
+            onMouseLeave={() => { setLocalActiveCode(undefined); onActiveChange?.(undefined) }}
           />
         })}
       </svg>
-      {activeRow ? <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-md bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md ring-1 ring-border" role="tooltip">
+      {activeRow ? <ChartTooltip anchor={tooltipAnchor} className="flex items-center gap-2">
         <Flag code={activeRow.country} />
         <span>{countryLabel(activeRow.country)}</span>
         <span className="tabular-nums text-muted-foreground">
           {showLegend ? `${fullNumber.format(activeRow[metric])} ${metricSuffix}` : fmt.number(activeRow[metric])}
           {showLegend && total > 0 ? ` · ${percentage.format((activeRow[metric] / total) * 100)}%` : ''}
         </span>
-      </div> : null}
-      {showLegend ? <div aria-label={en.map.legend} className="flex items-center gap-2 px-1 pt-3 text-xs text-muted-foreground">
+      </ChartTooltip> : null}
+      {showLegend ? <div aria-label={en.map.legend} className="flex items-center gap-2 pt-2 text-xs text-muted-foreground">
         <span className="tabular-nums">0</span>
         <span aria-hidden="true" className="flex flex-1 overflow-hidden rounded-sm">
           {stepClasses.slice(1).map((stepClass) => <span key={stepClass} className={cn('h-2 flex-1', stepClass.replace('fill-', 'bg-'))} />)}

@@ -7,6 +7,8 @@ import { DashboardExportMenu } from '../components/DashboardExportMenu'
 import { FilterBar } from '../components/FilterBar'
 import { MainChart } from '../components/MainChart'
 import { AnnotationManager } from '../features/annotations/AnnotationManager'
+import { WeeklyRhythmCard } from '../features/map/WeeklyRhythmCard'
+import { WhereCard } from '../features/map/WhereCard'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
 import { Button } from '../components/ui/button'
@@ -93,6 +95,36 @@ function DashboardStateRoute() {
   const onFilter = (filter: Filter) => {
     if (!anonymous || isAnonymousFilterAllowed(filter)) void navigate({ search: addFilter(search, filter) })
   }
+  const renderBreakdownCard = (card: BreakdownCardDefinition) => {
+    const page = anonymous && card.title === 'Pages'
+    const tabs = anonymous
+      ? page ? [{ key: 'verified', label: 'Verified', dimension: 'page', metric: 'visitors' as const, metrics: ['visitors', 'visits', 'pageviews'] as StatsQuery['metrics'] }]
+        : card.tabs.filter((tab) => isAnonymousDimensionAllowed(tab.dimension))
+      : visibleTabs(card.tabs, site.allowed_hosts)
+    if (tabs.length === 0 || (page && filters.length > 0)) {
+      return <section key={card.title} aria-label={page ? 'Verified pages' : card.title} className="rounded-xl border bg-card p-4" role="region">
+        <h2 className="text-sm font-medium">{page ? 'Verified pages' : card.title}</h2>
+        <p className="mt-3 text-sm text-muted-foreground">{page ? 'Verified page analytics require no filters. Remove active filters to view this partial dataset.' : 'Goals and event breakdowns are unavailable in anonymous mode because their labels may contain identifying data.'}</p>
+      </section>
+    }
+    return <BreakdownCard
+      key={card.title}
+      title={page ? 'Verified pages' : anonymous && card.title === 'Sources' ? 'Channels' : card.title}
+      tabs={tabs}
+      query={page ? { ...query, includeImported: false } : query}
+      onFilter={onFilter}
+      allowSearch={!anonymous}
+      allowFilter={!page}
+      verifiedPaths={page}
+      description={anonymous ? page ? 'Partial coverage: only verified page data under the current path policy. Historical unverified data and imports are excluded. Page filters and detailed searches are unavailable.' : 'Only canonical categories are available. Free-text labels, versions, and searches are restricted in anonymous mode.' : undefined}
+    />
+  }
+  const shortenToRawRange = (days: number) => {
+    const end = new Date(`${query.dateRange.to}T12:00:00Z`)
+    const start = new Date(end)
+    start.setUTCDate(start.getUTCDate() - Math.max(0, days - 1))
+    updateSearch({ ...search, period: 'custom', from: start.toISOString().slice(0, 10), to: query.dateRange.to })
+  }
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
@@ -167,38 +199,22 @@ function DashboardStateRoute() {
         )}
       </AnnotationManager>}
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-        {breakdownCards.map((card) => {
-          const page = anonymous && card.title === 'Pages'
-          const tabs = anonymous
-            ? page ? [{ key: 'verified', label: 'Verified', dimension: 'page', metric: 'visitors' as const, metrics: ['visitors', 'visits', 'pageviews'] as StatsQuery['metrics'] }]
-              : card.tabs.filter((tab) => isAnonymousDimensionAllowed(tab.dimension))
-            : visibleTabs(card.tabs, site.allowed_hosts)
-          if (tabs.length === 0 || (page && filters.length > 0)) {
-            return <section key={card.title} aria-label={page ? 'Verified pages' : card.title} className="rounded-xl border bg-card p-4" role="region">
-              <h2 className="text-sm font-medium">{page ? 'Verified pages' : card.title}</h2>
-              <p className="mt-3 text-sm text-muted-foreground">{page ? 'Verified page analytics require no filters. Remove active filters to view this partial dataset.' : 'Goals and event breakdowns are unavailable in anonymous mode because their labels may contain identifying data.'}</p>
-            </section>
-          }
-          return <BreakdownCard
-            key={card.title}
-            map={card.map}
-            title={page ? 'Verified pages' : anonymous && card.title === 'Sources' ? 'Channels' : card.title}
-            tabs={tabs}
-            query={page ? { ...query, includeImported: false } : query}
-            onFilter={onFilter}
-            allowSearch={!anonymous}
-            allowFilter={!page}
-            verifiedPaths={page}
-            description={anonymous ? page ? 'Partial coverage: only verified page data under the current path policy. Historical unverified data and imports are excluded. Page filters and detailed searches are unavailable.' : 'Only canonical categories are available. Free-text labels, versions, and searches are restricted in anonymous mode.' : undefined}
-            mapLink={card.map ? { org, site: siteSlug, search } : undefined}
-          />
-        })}
+        {breakdownCards.slice(0, 4).map(renderBreakdownCard)}
+      </div>
+      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]" data-testid="where-when-band">
+        <WhereCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} />
+        <WeeklyRhythmCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={shortenToRawRange} />
+      </div>
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+        {breakdownCards.slice(4).map(renderBreakdownCard)}
       </div>
     </div>
   )
 }
 
-const breakdownCards: { title: string; tabs: BreakdownTab[]; map?: boolean }[] = [
+type BreakdownCardDefinition = { title: string; tabs: BreakdownTab[] }
+
+const breakdownCards: BreakdownCardDefinition[] = [
   {
     title: 'Pages',
     tabs: [
@@ -224,8 +240,7 @@ const breakdownCards: { title: string; tabs: BreakdownTab[]; map?: boolean }[] =
     ],
   },
   {
-    title: 'Countries',
-    map: true,
+    title: 'Location',
     tabs: [
       { key: 'country', label: 'Countries', dimension: 'country', metric: 'visitors' },
       { key: 'region', label: 'Regions', dimension: 'region', metric: 'visitors' },
@@ -235,7 +250,7 @@ const breakdownCards: { title: string; tabs: BreakdownTab[]; map?: boolean }[] =
     ],
   },
   {
-    title: 'Devices',
+    title: 'Environment',
     tabs: [
       { key: 'browser', label: 'Browser', dimension: 'browser', metric: 'visitors' },
       { key: 'browser-version', label: 'Browser version', dimension: 'browser_version', metric: 'visitors' },

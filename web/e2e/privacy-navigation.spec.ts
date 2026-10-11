@@ -106,7 +106,7 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
   const pages = page.getByRole('region', { name: 'Verified pages', exact: true })
   await expect(pages).toBeVisible()
   await expect(pages.getByText(/Partial coverage: only verified page data/)).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Countries', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Location', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Channels', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: `Visitors ${fmtCompact(baselineVisitors + 3)}`, exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: `Pageviews ${fmtCompact(baselinePageviews + 3)}`, exact: true })).toBeVisible()
