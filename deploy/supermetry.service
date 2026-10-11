@@ -10,7 +10,7 @@ Group=supermetry
 EnvironmentFile=/etc/supermetry/supermetry.env
 Environment=SUPERMETRY_DATA_DIR=/var/lib/supermetry
 WorkingDirectory=/var/lib/supermetry
-ExecStart=/usr/local/bin/supermetry serve
+ExecStart=/usr/local/bin/supermetry
 Restart=on-failure
 RestartSec=5s
 
