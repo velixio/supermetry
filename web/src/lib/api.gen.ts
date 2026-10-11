@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/private/setup/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check whether first-run setup is available
+         * @description Returns only whether the one-time setup flow is still available. Authentication does not change the response.
+         */
+        get: operations["getSetupStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/me": {
         parameters: {
             query?: never;
@@ -1332,6 +1352,8 @@ export interface components {
                 sites: components["schemas"]["Site"][];
             }[];
             demo_prompt_dismissed: boolean;
+            /** @description Build version reported by the running binary; development builds report dev. */
+            version: string;
         };
         /**
          * @description Days from the current time, or null for no expiry.
@@ -2555,6 +2577,33 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getSetupStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup availability. */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        available: boolean;
+                    };
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     getCurrentUser: {
         parameters: {
             query?: never;

@@ -18,6 +18,7 @@ import (
 
 func (h *handler) registerAuth(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/auth/config", h.authConfig)
+	mux.HandleFunc("GET /api/private/setup/status", h.setupStatus)
 	mux.HandleFunc("POST /api/private/auth/login", h.login)
 	mux.HandleFunc("POST /api/private/auth/signup", h.signup)
 	mux.HandleFunc("POST /api/private/auth/logout", h.logout)
@@ -26,6 +27,21 @@ func (h *handler) registerAuth(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/auth/email-change/confirm", h.confirmEmailChange)
 	mux.HandleFunc("POST /api/private/auth/email-change/confirm", h.confirmEmailChange)
 	mux.HandleFunc("POST /api/private/setup", h.setup)
+}
+
+func (h *handler) setupStatus(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Auth == nil {
+		unavailable(w, "authentication")
+		return
+	}
+	available, err := h.deps.Auth.SetupRequired(r.Context())
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		Available bool `json:"available"`
+	}{Available: available})
 }
 
 func (h *handler) authConfig(w http.ResponseWriter, r *http.Request) {

@@ -31,7 +31,7 @@ const collectionCounters: { key: HealthCounterKey; label: string }[] = [
   { key: "clock_skew_clamps", label: "Clock-skew clamps" },
 ];
 
-export function HealthPage({ orgId }: { orgId?: number } = {}) {
+export function HealthPage({ orgId, version = "dev" }: { orgId?: number; version?: string } = {}) {
   const health = useQuery({
     queryKey: ["data-health", orgId],
     queryFn: () =>
@@ -46,6 +46,7 @@ export function HealthPage({ orgId }: { orgId?: number } = {}) {
         <p className="text-sm text-muted-foreground">
           Live intake and aggregation signals, refreshed every five seconds.
         </p>
+        <p className="text-xs text-muted-foreground">Supermetry {version || "dev"}</p>
       </header>
       {instanceScope && health.data?.rollup_backfill.status === "running" ? (
         <p

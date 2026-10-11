@@ -20,15 +20,21 @@ function AccountLayout() {
   if (!me.data) return <main className="p-6" role="status">Loading account…</main>
   return (
     <AccountFrame me={me.data}>
-      <nav aria-label="Account settings" className="flex flex-wrap gap-1 border-b pb-3">
-        {([
-          ['/app/account/profile', 'Profile'], ['/app/account/security', 'Security'], ['/app/account/sessions', 'Sessions'],
-        ] as const).map(([to, label]) => (
-          <Link key={to} to={to} className="rounded-md px-3 py-2 text-sm hover:bg-accent" activeProps={{ className: 'bg-accent font-medium', 'aria-current': 'page' }}>{label}</Link>
-        ))}
-      </nav>
+      <AccountSettingsNavigation />
       <Outlet />
       <DeletedOrgsList navigate={(path) => router.history.push(path)} />
     </AccountFrame>
+  )
+}
+
+export function AccountSettingsNavigation() {
+  return (
+    <nav aria-label="Account settings" className="flex flex-wrap gap-1 border-b pb-3">
+      {([
+        ['/app/account/profile', 'Profile'], ['/app/account/security', 'Security'], ['/app/account/sessions', 'Sessions'],
+      ] as const).map(([to, label]) => (
+        <Link key={to} to={to} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-accent" activeProps={{ className: 'bg-accent font-medium', 'aria-current': 'page' }}>{label}</Link>
+      ))}
+    </nav>
   )
 }

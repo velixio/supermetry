@@ -18,6 +18,34 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it.each([
+  [undefined, "Supermetry dev"],
+  ["1.4.2", "Supermetry 1.4.2"],
+])("shows build version %s in the header", async (version, label) => {
+  request.mockResolvedValue({
+    ingest_rate: 0,
+    drops_503: 0,
+    bots_filtered: 0,
+    queue_depth: 0,
+    close_lag_seconds: 0,
+    duplicates: 0,
+    late_drops: 0,
+    clock_skew_clamps: 0,
+    failed_profile_erasures: 0,
+    instance_scope: true,
+    rollup_backfill: { status: "finished", days_done: 0, total_days: 0 },
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  render(
+    <QueryClientProvider client={client}>
+      <HealthPage version={version} />
+    </QueryClientProvider>,
+  );
+
+  expect(await screen.findByText(label)).toBeVisible();
+});
+
 it("shows historical breakdown backfill progress", async () => {
   request.mockResolvedValue({
     ingest_rate: 0,

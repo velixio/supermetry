@@ -14,7 +14,7 @@ const organizationSettingsTabs = [
 export function OrganizationSettingsTabs({ org, current, showReplay = false, canManage = true }: { org: string; current: string; showReplay?: boolean; canManage?: boolean }) {
   return (
     <nav aria-label="Organization settings" className="overflow-x-auto border-b">
-      <div role="tablist" className="flex min-w-max gap-5">
+      <div className="flex min-w-max gap-5">
         {organizationSettingsTabs.filter(([value]) => value === 'settings' || (canManage && (value !== 'replay-storage' || showReplay))).map(([value, label, to]) => (
           <Link
             key={value}

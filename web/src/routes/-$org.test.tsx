@@ -1,4 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import '@testing-library/jest-dom/vitest'
+
+import { QueryClientProvider } from '@tanstack/react-query'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  createMemoryHistory,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   canCreateSites,
@@ -7,10 +16,121 @@ import {
   organizationHref,
   visibleNavigation,
 } from './app.$org'
+import { queryClient } from '@/lib/queryClient'
+import { routeTree } from '@/routeTree.gen'
+
+vi.mock('@/lib/session-lifecycle', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/session-lifecycle')>()
+  return { ...actual, expireSession: vi.fn() }
+})
 
 const identifiedSite = { id: 7, name: 'Docs', tracking_policy: { instance_mode: 'identified' as const, effective_mode: 'anonymous' as const, configured_profiles_enabled: false, restrictions: [] } }
 
+const me = {
+  user: { id: 1, name: 'Owner', email: 'owner@example.test' },
+  memberships: [
+    {
+      org: { id: 1, name: 'Acme', slug: 'acme' },
+      role: 'owner',
+      sites: [{ id: 7, name: 'Docs', public_id: 'docs-public' }],
+    },
+    {
+      org: { id: 2, name: 'Other', slug: 'other' },
+      role: 'viewer',
+      sites: [],
+    },
+  ],
+}
+
+function meResponse(status = 200) {
+  return vi.fn(async () =>
+    new Response(status === 200 ? JSON.stringify(me) : '{}', {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  )
+}
+
+function renderRoute(path: string) {
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [path] }),
+  })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
+  return router
+}
+
+beforeEach(() => {
+  queryClient.clear()
+  window.scrollTo = vi.fn()
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: () => ({
+      matches: false,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }),
+  })
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  })
+})
+
+afterEach(() => {
+  cleanup()
+  queryClient.clear()
+  vi.unstubAllGlobals()
+})
+
 describe('organization shell authentication', () => {
+  it('redirects a signed-out organization request to login with the full destination', async () => {
+    vi.stubGlobal('fetch', meResponse(401))
+    const router = renderRoute('/app/missing?period=30d')
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+    expect(router.state.location.search).toEqual({
+      next: '/app/missing?period=30d',
+    })
+  })
+
+  it('renders an in-route not-found page for an unavailable organization', async () => {
+    vi.stubGlobal('fetch', meResponse())
+    renderRoute('/app/missing')
+
+    expect(
+      await screen.findByText('We could not find that organisation'),
+    ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Acme' })).toHaveAttribute(
+      'href',
+      '/app/acme/docs-public',
+    )
+    expect(screen.getByRole('link', { name: 'Other' })).toHaveAttribute(
+      'href',
+      '/app/other/settings',
+    )
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
+      'href',
+      '/app',
+    )
+  })
+
+  it('keeps a valid organization on its existing organization shell', async () => {
+    vi.stubGlobal('fetch', meResponse())
+    const router = renderRoute('/app/acme')
+
+    expect(await screen.findByText('Acme', { exact: true })).toBeVisible()
+    expect(router.state.location.pathname).toBe('/app/acme')
+    expect(
+      screen.queryByText('We could not find that organisation'),
+    ).toBeNull()
+  })
+
   it('preserves the full dashboard URL when authentication expires', () => {
     expect(loginRedirect('/app/acme/blog', '?period=30d')).toBe(
       '/login?next=%2Fapp%2Facme%2Fblog%3Fperiod%3D30d',

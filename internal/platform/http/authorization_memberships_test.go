@@ -73,7 +73,7 @@ func newMembershipHTTPFixture(t *testing.T) membershipHTTPFixture {
 	o := orgs.New(data)
 	f.authenticator = platformhttp.NewAuthenticator(a, nil, nil, o)
 	f.analyticsAuth = authn.New(a, nil, nil, o)
-	f.handler = platformhttp.New(platformhttp.Deps{Auth: a, Store: data, Orgs: o, Invites: invites.New(data, users.New(data), &mail.Fake{}, "https://supermetry.example"), Authenticator: f.authenticator})
+	f.handler = platformhttp.New(platformhttp.Deps{Version: "1.4.2", Auth: a, Store: data, Orgs: o, Invites: invites.New(data, users.New(data), &mail.Fake{}, "https://supermetry.example"), Authenticator: f.authenticator})
 	return f
 }
 

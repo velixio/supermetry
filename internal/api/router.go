@@ -226,6 +226,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 	if platform == nil {
 		return
 	}
+	mux.Handle("GET "+privatePrefix+"/setup/status", anonymousRateLimited(anonymousLimiter, trustedProxies, platform))
 	public := authenticateRateLimited(auth, registry, keyedLimiter, anonymousLimiter, trustedProxies, now, false, platform)
 	for _, pattern := range []string{
 		"GET " + publicPrefix + "/api-keys",
@@ -365,6 +366,14 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 	} {
 		mux.Handle(pattern, platform)
 	}
+}
+
+func anonymousRateLimited(limiter *apiTokenBuckets, trustedProxies []netip.Prefix, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if allowAnonymousAPIRequest(w, r, limiter, trustedProxies) {
+			next.ServeHTTP(w, r)
+		}
+	})
 }
 
 func registerStats(mux *http.ServeMux, prefix string, h *handlers) {

@@ -161,3 +161,43 @@ func TestAppSecurityHeaders(t *testing.T) {
 		})
 	}
 }
+
+func TestAppSecurityHeadersScopesReplayFontSourcesToViewerHTML(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		wantFont string
+	}{
+		{name: "replay viewer", path: "/app/acme/example/replays/123", wantFont: "font-src 'self' data: blob: https:"},
+		{name: "replay list overlay", path: "/app/acme/example/replays/", wantFont: "font-src 'self' data: blob: https:"},
+		{name: "sessions overlay", path: "/app/acme/example/sessions", wantFont: "font-src 'self' data: blob: https:"},
+		{name: "events overlay", path: "/app/acme/example/events", wantFont: "font-src 'self' data: blob: https:"},
+		{name: "profile detail overlay", path: "/app/acme/example/profiles/123", wantFont: "font-src 'self' data: blob: https:"},
+		{name: "dashboard HTML", path: "/app/acme/example", wantFont: "font-src 'self'"},
+		{name: "profiles index", path: "/app/acme/example/profiles", wantFont: "font-src 'self'"},
+		{name: "replay settings", path: "/app/acme/example/settings/replay", wantFont: "font-src 'self'"},
+		{name: "similarly named non-viewer", path: "/app/acme/example/replays-archive/123", wantFont: "font-src 'self'"},
+		{name: "replay API", path: "/api/private/sites/42/replays/123/data", wantFont: "font-src 'self'"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			appSecurityHeaders("https://analytics.example", http.NotFoundHandler()).ServeHTTP(
+				response,
+				httptest.NewRequest(http.MethodGet, tt.path, nil),
+			)
+
+			var gotFont string
+			for directive := range strings.SplitSeq(response.Header().Get("Content-Security-Policy"), ";") {
+				directive = strings.TrimSpace(directive)
+				if strings.HasPrefix(directive, "font-src ") {
+					gotFont = directive
+					break
+				}
+			}
+			if gotFont != tt.wantFont {
+				t.Errorf("font CSP for %s = %q, want %q", tt.path, gotFont, tt.wantFont)
+			}
+		})
+	}
+}

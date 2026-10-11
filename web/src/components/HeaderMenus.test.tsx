@@ -73,9 +73,17 @@ it.each([true, false])('shows identity and explicit current-session logout with 
   openMenu('Account')
   expect(await screen.findByText('Alex Example')).toBeVisible()
   expect(screen.getByText('alex@example.test')).toBeVisible()
+  expect(screen.getByText('Supermetry dev')).toBeVisible()
   expect(screen.getByRole('menuitem', { name: 'Account settings' })).toHaveAttribute('href', '/app/account/profile')
   fireEvent.click(screen.getByRole('menuitem', { name: 'Log out' }))
   expect(requestLogout).toHaveBeenCalledTimes(1)
+})
+
+it('shows the server build version in the account menu', async () => {
+  render(<HeaderMenus me={{ ...me, version: '1.4.2' }} />)
+
+  openMenu('Account')
+  expect(await screen.findByText('Supermetry 1.4.2')).toBeVisible()
 })
 
 it('keeps account content and account controls accessible without memberships', async () => {

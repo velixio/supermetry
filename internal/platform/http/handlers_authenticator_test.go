@@ -84,6 +84,23 @@ func TestAccountSessionIndependentOfOrganization(t *testing.T) {
 	}
 }
 
+func TestCurrentUserIncludesBuildVersion(t *testing.T) {
+	f := newMembershipHTTPFixture(t)
+	response := f.request(http.MethodGet, "/api/private/me", "owner", "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("me status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Version != "1.4.2" {
+		t.Fatalf("version=%q, want 1.4.2", body.Version)
+	}
+}
+
 func TestLogoutCurrentSessionAndCSRF(t *testing.T) {
 	f := newMembershipHTTPFixture(t)
 	ctx := context.Background()

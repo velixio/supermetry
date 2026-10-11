@@ -14,6 +14,29 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/private/setup/status:
+    get:
+      operationId: getSetupStatus
+      security: []
+      summary: Check whether first-run setup is available
+      description: Returns only whether the one-time setup flow is still available. Authentication does not change the response.
+      responses:
+        '200':
+          description: Setup availability.
+          headers:
+            RateLimit-Limit: { $ref: '#/components/headers/RateLimitLimit' }
+            RateLimit-Remaining: { $ref: '#/components/headers/RateLimitRemaining' }
+            RateLimit-Reset: { $ref: '#/components/headers/RateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [available]
+                properties:
+                  available: { type: boolean }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/private/me:
     get:
       operationId: getCurrentUser
@@ -2196,7 +2219,7 @@ components:
           description: Existing public site identifier, present for demo_exists.
     CurrentUserResponse:
       type: object
-      required: [user, memberships, demo_prompt_dismissed]
+      required: [user, memberships, demo_prompt_dismissed, version]
       properties:
         user:
           type: object
@@ -2237,6 +2260,9 @@ components:
                 items:
                   $ref: '#/components/schemas/Site'
         demo_prompt_dismissed: { type: boolean }
+        version:
+          type: string
+          description: Build version reported by the running binary; development builds report dev.
     ShareExpiryDays:
       type: integer
       enum: [7, 30, 90, 365]
