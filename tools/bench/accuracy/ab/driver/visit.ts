@@ -147,9 +147,14 @@ export async function runVisit(browser: Browser, visit: Visit, siteURL: string):
   });
 
   let firstGoto = true;
+  let currentPath: string | null = null;
   try {
     for (const step of visit.steps) {
-      const expectsTracking = step.kind !== "wait";
+      // A single-page-app navigation to the page the visitor is already on is not a
+      // pageview in Plausible (which ignores it) and is not counted by the truth model.
+      const repeatedSpa = step.kind === "spa" && step.path === currentPath;
+      if (step.kind === "goto" || step.kind === "spa") currentPath = step.path;
+      const expectsTracking = step.kind !== "wait" && !repeatedSpa;
       const before = { ...counts };
       await performStep(page, step, siteURL, firstGoto, visit);
       if (step.kind === "goto") firstGoto = false;

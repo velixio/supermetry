@@ -47,8 +47,16 @@ def truth(scenario: Scenario) -> dict:
         browser_visitors[current.browser] += 1
         os_visitors[current.os] += 1
 
+        current_path = None
         for step in current.steps:
             if step.kind in _PAGEVIEW_KINDS:
+                # A single-page-app navigation to the URL the visitor is already on
+                # changes nothing, so it is not a new pageview. A full page load
+                # (goto) of the same page is: a reload is a pageview in every tool.
+                repeated = step.kind == "spa" and step.path == current_path
+                current_path = step.path
+                if repeated:
+                    continue
                 visit_pageviews += 1
                 pageviews += 1
                 event_count += 1

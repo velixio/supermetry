@@ -164,3 +164,30 @@ class TruthTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DuplicateNavigationTests(unittest.TestCase):
+    def test_spa_navigation_to_the_current_page_is_not_a_pageview(self):
+        result = truth(
+            scenario(
+                visit(
+                    "a",
+                    Step("goto", path="/spa"),
+                    Step("spa", path="/spa/a"),
+                    Step("spa", path="/spa/a"),
+                    Step("spa", path="/spa/b"),
+                )
+            )
+        )
+        self.assertEqual(result["pageviews"], 3)
+        self.assertEqual(result["events"], 3)
+        self.assertEqual(dict(result["top_pages"]), {"/spa": 1, "/spa/a": 1, "/spa/b": 1})
+
+    def test_visit_with_only_a_repeated_page_is_still_a_bounce(self):
+        result = truth(scenario(visit("a", Step("goto", path="/spa"), Step("spa", path="/spa"))))
+        self.assertEqual(result["pageviews"], 1)
+        self.assertEqual(result["bounce_rate_plausible"], 100.0)
+
+    def test_a_full_reload_of_the_same_page_is_a_new_pageview(self):
+        result = truth(scenario(visit("a", Step("goto", path="/about"), Step("goto", path="/about"))))
+        self.assertEqual(result["pageviews"], 2)
