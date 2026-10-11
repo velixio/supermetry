@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"log/slog"
 	"net"
@@ -10,10 +11,12 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"supermetry/internal/api"
 	"supermetry/internal/config"
 	"supermetry/internal/testpg"
 )
@@ -117,7 +120,7 @@ func TestCSPInlineScriptHashMatchesSPA(t *testing.T) {
 	want := "'sha256-" + base64.StdEncoding.EncodeToString(digest[:]) + "'"
 
 	response := httptest.NewRecorder()
-	appSecurityHeaders("https://analytics.example", http.NotFoundHandler()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/app", nil))
+	appSecurityHeaders(config.Config{}, http.NotFoundHandler()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/app", nil))
 	if csp := response.Header().Get("Content-Security-Policy"); !strings.Contains(csp, want) {
 		t.Fatalf("CSP %q does not permit the SPA initializer %s", csp, want)
 	}
@@ -125,26 +128,42 @@ func TestCSPInlineScriptHashMatchesSPA(t *testing.T) {
 
 func TestAppSecurityHeaders(t *testing.T) {
 	tests := []struct {
-		name     string
-		baseURL  string
-		wantHSTS bool
+		name      string
+		configure func(*http.Request)
+		trusted   []netip.Prefix
+		wantHSTS  bool
 	}{
-		{name: "HTTPS enables HSTS", baseURL: "https://analytics.example", wantHSTS: true},
-		{name: "HTTP omits HSTS", baseURL: "http://analytics.example", wantHSTS: false},
+		{name: "direct HTTPS enables HSTS", configure: func(r *http.Request) { r.TLS = &tls.ConnectionState{} }, wantHSTS: true},
+		{name: "plain HTTP omits HSTS"},
+		{name: "trusted forwarded HTTPS enables HSTS", configure: func(r *http.Request) {
+			r.RemoteAddr = "192.0.2.10:1234"
+			r.Header.Set("X-Forwarded-Proto", "https")
+		}, trusted: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}, wantHSTS: true},
+		{name: "untrusted forwarded HTTPS omits HSTS", configure: func(r *http.Request) {
+			r.RemoteAddr = "198.51.100.10:1234"
+			r.Header.Set("X-Forwarded-Proto", "https")
+		}, trusted: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := appSecurityHeaders(tt.baseURL, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			handler := appSecurityHeaders(config.Config{TrustedProxies: tt.trusted}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
 			}))
 			response := httptest.NewRecorder()
-			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/app", nil))
+			request := httptest.NewRequest(http.MethodGet, "/app", nil)
+			if tt.configure != nil {
+				tt.configure(request)
+			}
+			handler.ServeHTTP(response, request)
 
 			if got := response.Header().Get("X-Content-Type-Options"); got != "nosniff" {
 				t.Errorf("X-Content-Type-Options = %q", got)
 			}
 			if got := response.Header().Get("Referrer-Policy"); got != "strict-origin-when-cross-origin" {
 				t.Errorf("Referrer-Policy = %q", got)
+			}
+			if got := response.Header().Get("Permissions-Policy"); got == "" {
+				t.Error("Permissions-Policy is absent")
 			}
 			csp := response.Header().Get("Content-Security-Policy")
 			for _, directive := range []string{"default-src 'self'", "script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='", "style-src 'self' 'unsafe-inline'", "frame-ancestors 'none'", "object-src 'none'"} {
@@ -177,12 +196,12 @@ func TestAppSecurityHeadersScopesReplayFontSourcesToViewerHTML(t *testing.T) {
 		{name: "profiles index", path: "/app/acme/example/profiles", wantFont: "font-src 'self'"},
 		{name: "replay settings", path: "/app/acme/example/settings/replay", wantFont: "font-src 'self'"},
 		{name: "similarly named non-viewer", path: "/app/acme/example/replays-archive/123", wantFont: "font-src 'self'"},
-		{name: "replay API", path: "/api/private/sites/42/replays/123/data", wantFont: "font-src 'self'"},
+		{name: "replay API", path: "/api/private/sites/42/replays/123/data", wantFont: ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			appSecurityHeaders("https://analytics.example", http.NotFoundHandler()).ServeHTTP(
+			appSecurityHeaders(config.Config{}, http.NotFoundHandler()).ServeHTTP(
 				response,
 				httptest.NewRequest(http.MethodGet, tt.path, nil),
 			)
@@ -199,5 +218,123 @@ func TestAppSecurityHeadersScopesReplayFontSourcesToViewerHTML(t *testing.T) {
 				t.Errorf("font CSP for %s = %q, want %q", tt.path, gotFont, tt.wantFont)
 			}
 		})
+	}
+}
+
+func TestSecurityHeadersByRouteClass(t *testing.T) {
+	const (
+		appPermissions    = "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-write=(self), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()"
+		lockedPermissions = "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-write=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()"
+		apiCSP            = "default-src 'none'; frame-ancestors 'none'"
+		shareCSP          = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	)
+	appCSP := "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	replayCSP := strings.Replace(appCSP, "font-src 'self'", "font-src 'self' data: blob: https:", 1)
+
+	base := map[string]string{
+		"X-Content-Type-Options": "nosniff",
+		"Referrer-Policy":        "no-referrer",
+		"Permissions-Policy":     lockedPermissions,
+	}
+	with := func(values map[string]string) map[string]string {
+		result := make(map[string]string, len(base)+len(values))
+		for name, value := range base {
+			result[name] = value
+		}
+		for name, value := range values {
+			result[name] = value
+		}
+		return result
+	}
+	tests := []struct {
+		name string
+		path string
+		want map[string]string
+	}{
+		{name: "SPA page", path: "/app/acme/site", want: with(map[string]string{"Content-Security-Policy": appCSP, "Referrer-Policy": "strict-origin-when-cross-origin", "Permissions-Policy": appPermissions, "X-Frame-Options": "DENY", "Cross-Origin-Resource-Policy": "same-origin", "Cross-Origin-Opener-Policy": "same-origin"})},
+		{name: "replay viewer page", path: "/app/acme/site/replays/123", want: with(map[string]string{"Content-Security-Policy": replayCSP, "Referrer-Policy": "strict-origin-when-cross-origin", "Permissions-Policy": appPermissions, "X-Frame-Options": "DENY", "Cross-Origin-Resource-Policy": "same-origin", "Cross-Origin-Opener-Policy": "same-origin"})},
+		{name: "authenticated API", path: "/api/private/me", want: with(map[string]string{"Content-Security-Policy": apiCSP, "X-Frame-Options": "DENY", "Cross-Origin-Resource-Policy": "same-origin"})},
+		{name: "public API v1", path: "/api/public/v1/stats/summary", want: with(map[string]string{"Content-Security-Policy": apiCSP, "X-Frame-Options": "DENY", "Cross-Origin-Resource-Policy": "same-origin"})},
+		{name: "tracker script", path: "/js/script.js", want: with(map[string]string{"Cross-Origin-Resource-Policy": "cross-origin"})},
+		{name: "tracker event", path: "/api/public/v1/events", want: with(map[string]string{"Cross-Origin-Resource-Policy": "cross-origin"})},
+		{name: "replay chunk", path: "/api/replay/chunk", want: with(map[string]string{"Cross-Origin-Resource-Policy": "cross-origin"})},
+		{name: "replay CSS", path: "/api/replay/css/abc", want: with(map[string]string{"Cross-Origin-Resource-Policy": "cross-origin"})},
+		{name: "health", path: "/healthz", want: with(map[string]string{"Content-Security-Policy": apiCSP, "X-Frame-Options": "DENY", "Cross-Origin-Resource-Policy": "same-origin"})},
+		{name: "metrics", path: "/metrics", want: with(map[string]string{"Content-Security-Policy": apiCSP, "X-Frame-Options": "DENY", "Cross-Origin-Resource-Policy": "same-origin"})},
+		{name: "share-link page", path: "/share/shr_example", want: with(map[string]string{"Content-Security-Policy": shareCSP, "Permissions-Policy": appPermissions, "X-Frame-Options": "DENY", "Cross-Origin-Resource-Policy": "same-origin"})},
+	}
+	managed := []string{"Content-Security-Policy", "X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-Frame-Options", "Strict-Transport-Security", "Cross-Origin-Resource-Policy", "Cross-Origin-Opener-Policy"}
+	cfg := config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"}
+	handler := appSecurityHeaders(cfg, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, tt.path, nil))
+			for _, name := range managed {
+				values := response.Header().Values(name)
+				if len(values) > 1 {
+					t.Errorf("%s has duplicate values %q", name, values)
+				}
+				if got := response.Header().Get(name); got != tt.want[name] {
+					t.Errorf("%s = %q, want %q", name, got, tt.want[name])
+				}
+			}
+		})
+	}
+}
+
+func TestTrackerCrossOriginContract(t *testing.T) {
+	cfg := config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js"}
+	router := api.NewRouter(api.Deps{
+		Config: cfg,
+		Ingest: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) }),
+	})
+	handler := appSecurityHeaders(cfg, router)
+	tests := []struct {
+		name        string
+		method      string
+		path        string
+		wantStatus  int
+		wantMethods string
+	}{
+		{name: "tracker script GET", method: http.MethodGet, path: "/js/script.js", wantStatus: http.StatusOK},
+		{name: "event preflight", method: http.MethodOptions, path: "/api/public/v1/events", wantStatus: http.StatusNoContent, wantMethods: "POST, OPTIONS"},
+		{name: "event POST", method: http.MethodPost, path: "/api/public/v1/events", wantStatus: http.StatusAccepted, wantMethods: "POST, OPTIONS"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(tt.method, tt.path, strings.NewReader(`{}`))
+			request.Header.Set("Origin", "https://publisher.example")
+			request.Header.Set("Content-Type", "text/plain")
+			if tt.method == http.MethodOptions {
+				request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+				request.Header.Set("Access-Control-Request-Headers", "content-type")
+			}
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", response.Code, tt.wantStatus, response.Body.String())
+			}
+			if got := response.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+				t.Errorf("Access-Control-Allow-Origin = %q, want *", got)
+			}
+			if got := response.Header().Get("Cross-Origin-Resource-Policy"); got != "cross-origin" {
+				t.Errorf("Cross-Origin-Resource-Policy = %q, want cross-origin", got)
+			}
+			if got := response.Header().Get("Access-Control-Allow-Methods"); got != tt.wantMethods {
+				t.Errorf("Access-Control-Allow-Methods = %q, want %q", got, tt.wantMethods)
+			}
+			if tt.method == http.MethodOptions && !slices.Contains(strings.Split(response.Header().Get("Access-Control-Allow-Headers"), ", "), "Content-Type") {
+				t.Errorf("Access-Control-Allow-Headers = %q, want Content-Type", response.Header().Get("Access-Control-Allow-Headers"))
+			}
+		})
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/public/v1/query", strings.NewReader(`{}`))
+	request.Header.Set("Origin", "https://attacker.example")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if got := response.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("authenticated API permits arbitrary cross-origin reads: Access-Control-Allow-Origin=%q", got)
 	}
 }

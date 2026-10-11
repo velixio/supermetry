@@ -7,14 +7,19 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"github.com/mileusna/useragent"
+	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
+
+	"github.com/mileusna/useragent"
 
 	"supermetry/internal/clientip"
 	platformauth "supermetry/internal/platform/auth"
 )
+
+const authCookieLifetime = 90 * 24 * time.Hour
 
 func (h *handler) registerAuth(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/auth/config", h.authConfig)
@@ -191,8 +196,8 @@ func (h *handler) clientAddress(r *http.Request) string {
 }
 
 func (h *handler) setAuthCookies(w http.ResponseWriter, r *http.Request, token, csrfToken string) {
-	h.setCookie(w, r, platformauth.CookieName, token, 90*24*time.Hour)
-	http.SetCookie(w, &http.Cookie{Name: "supermetry_csrf", Value: csrfToken, Path: "/", Secure: h.cookieSecure(r), SameSite: http.SameSiteLaxMode})
+	h.setCookie(w, r, platformauth.CookieName, token, authCookieLifetime)
+	http.SetCookie(w, &http.Cookie{Name: "supermetry_csrf", Value: csrfToken, Path: "/", MaxAge: int(authCookieLifetime.Seconds()), Secure: h.cookieSecure(r), SameSite: http.SameSiteLaxMode})
 }
 
 func (h *handler) logout(w http.ResponseWriter, r *http.Request) {
@@ -287,17 +292,37 @@ func (h *handler) setup(w http.ResponseWriter, r *http.Request) {
 }
 
 // secureRequest reports whether the client reached us over HTTPS, directly or
-// through a TLS-terminating proxy. Cookies are marked Secure only then, so plain
-// http (LAN, development) still works; a spoofed header can only make a cookie
-// stricter, never expose it.
-func secureRequest(r *http.Request) bool {
-	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+// through a configured TLS-terminating proxy. Cookies are marked Secure only
+// then, so plain HTTP (LAN and development) still works and untrusted clients
+// cannot spoof proxy transport metadata.
+func secureRequest(r *http.Request, trustedProxies []netip.Prefix) bool {
+	if r.TLS != nil {
+		return true
+	}
+	if !strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https") {
+		return false
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	peer, err := netip.ParseAddr(host)
+	if err != nil {
+		return false
+	}
+	peer = peer.Unmap()
+	for _, prefix := range trustedProxies {
+		if prefix.Contains(peer) {
+			return true
+		}
+	}
+	return false
 }
 
 // cookieSecure is always true for https deployments (fail closed) and, for
 // plain-http deployments such as LAN or development, follows the request.
 func (h *handler) cookieSecure(r *http.Request) bool {
-	return h.deps.SecureCookies || secureRequest(r)
+	return h.deps.SecureCookies || secureRequest(r, h.deps.TrustedProxies)
 }
 
 func (h *handler) setCookie(w http.ResponseWriter, r *http.Request, name, value string, maxAge time.Duration) {

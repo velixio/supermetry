@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -583,7 +584,7 @@ func warnLoopbackProxyRisk(logger *slog.Logger, addr net.Addr, trustedProxies []
 
 func newHTTPServer(handler http.Handler, cfg config.Config) *http.Server {
 	return &http.Server{
-		Handler:           appSecurityHeaders(cfg.BaseURL, handler),
+		Handler:           appSecurityHeaders(cfg, handler),
 		ReadTimeout:       cfg.HTTPReadTimeout,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      cfg.HTTPWriteTimeout,
@@ -591,26 +592,162 @@ func newHTTPServer(handler http.Handler, cfg config.Config) *http.Server {
 	}
 }
 
-func appSecurityHeaders(baseURL string, next http.Handler) http.Handler {
+type securityRouteClass uint8
+
+const (
+	securityRouteApp securityRouteClass = iota
+	securityRouteReplayViewer
+	securityRouteAPI
+	securityRouteTracker
+	securityRouteCrossOriginIntake
+	securityRouteShare
+	securityRouteCount
+)
+
+type securityPolicy struct {
+	contentSecurityPolicy string
+	referrerPolicy        string
+	permissionsPolicy     string
+	frameOptions          string
+	resourcePolicy        string
+	openerPolicy          string
+	allowOrigin           string
+}
+
+const (
 	// The script hash permits only the pre-paint theme initializer in web/index.html.
-	const policy = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-	const replayViewerPolicy = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: blob: https:; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-	hsts := strings.HasPrefix(strings.ToLower(baseURL), "https://")
+	appContentSecurityPolicy          = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	replayViewerContentSecurityPolicy = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: blob: https:; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	shareContentSecurityPolicy        = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	apiContentSecurityPolicy          = "default-src 'none'; frame-ancestors 'none'"
+	appPermissionsPolicy              = "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-write=(self), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()"
+	lockedPermissionsPolicy           = "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-write=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()"
+)
+
+var securityPolicies = [securityRouteCount]securityPolicy{
+	securityRouteApp: {
+		contentSecurityPolicy: appContentSecurityPolicy,
+		referrerPolicy:        "strict-origin-when-cross-origin",
+		permissionsPolicy:     appPermissionsPolicy,
+		frameOptions:          "DENY",
+		resourcePolicy:        "same-origin",
+		openerPolicy:          "same-origin",
+	},
+	securityRouteReplayViewer: {
+		contentSecurityPolicy: replayViewerContentSecurityPolicy,
+		referrerPolicy:        "strict-origin-when-cross-origin",
+		permissionsPolicy:     appPermissionsPolicy,
+		frameOptions:          "DENY",
+		resourcePolicy:        "same-origin",
+		openerPolicy:          "same-origin",
+	},
+	securityRouteAPI: {
+		contentSecurityPolicy: apiContentSecurityPolicy,
+		referrerPolicy:        "no-referrer",
+		permissionsPolicy:     lockedPermissionsPolicy,
+		frameOptions:          "DENY",
+		resourcePolicy:        "same-origin",
+	},
+	securityRouteTracker: {
+		referrerPolicy:    "no-referrer",
+		permissionsPolicy: lockedPermissionsPolicy,
+		resourcePolicy:    "cross-origin",
+		allowOrigin:       "*",
+	},
+	securityRouteCrossOriginIntake: {
+		referrerPolicy:    "no-referrer",
+		permissionsPolicy: lockedPermissionsPolicy,
+		resourcePolicy:    "cross-origin",
+		allowOrigin:       "*",
+	},
+	// Share pages are not embeddable: framing stays denied until a share
+	// explicitly opts in (planned with configurable shares).
+	securityRouteShare: {
+		contentSecurityPolicy: shareContentSecurityPolicy,
+		referrerPolicy:        "no-referrer",
+		permissionsPolicy:     appPermissionsPolicy,
+		frameOptions:          "DENY",
+		resourcePolicy:        "same-origin",
+	},
+}
+
+func appSecurityHeaders(cfg config.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestPolicy := policy
-		// rrweb rebuilds the recorded document in an inherited sandboxed iframe,
-		// so only viewer HTML needs the recorded page's external font sources.
-		if isReplayViewerPath(r.URL.Path) {
-			requestPolicy = replayViewerPolicy
-		}
-		w.Header().Set("Content-Security-Policy", requestPolicy)
+		policy := securityPolicies[classifySecurityRoute(cfg, r.URL.Path)]
+		setOptionalHeader(w.Header(), "Content-Security-Policy", policy.contentSecurityPolicy)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		if hsts {
+		w.Header().Set("Referrer-Policy", policy.referrerPolicy)
+		w.Header().Set("Permissions-Policy", policy.permissionsPolicy)
+		setOptionalHeader(w.Header(), "X-Frame-Options", policy.frameOptions)
+		setOptionalHeader(w.Header(), "Cross-Origin-Resource-Policy", policy.resourcePolicy)
+		setOptionalHeader(w.Header(), "Cross-Origin-Opener-Policy", policy.openerPolicy)
+		setOptionalHeader(w.Header(), "Access-Control-Allow-Origin", policy.allowOrigin)
+		if secureRequest(r, cfg.TrustedProxies) {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func setOptionalHeader(header http.Header, name, value string) {
+	if value != "" {
+		header.Set(name, value)
+	}
+}
+
+func classifySecurityRoute(cfg config.Config, requestPath string) securityRouteClass {
+	if requestPath == cfg.EventPath || requestPath == "/api/replay/start" || requestPath == "/api/replay/chunk" || strings.HasPrefix(requestPath, "/api/replay/css/") {
+		return securityRouteCrossOriginIntake
+	}
+	if requestPath == "/replay.js" || isTrackerPath(cfg.TrackerPath, requestPath) {
+		return securityRouteTracker
+	}
+	if strings.HasPrefix(requestPath, "/share/") {
+		return securityRouteShare
+	}
+	if strings.HasPrefix(requestPath, "/api/") || requestPath == "/healthz" || requestPath == "/readyz" || requestPath == "/metrics" {
+		return securityRouteAPI
+	}
+	// rrweb rebuilds the recorded document in an inherited sandboxed iframe,
+	// so only viewer HTML needs the recorded page's external font sources.
+	if isReplayViewerPath(requestPath) {
+		return securityRouteReplayViewer
+	}
+	return securityRouteApp
+}
+
+func isTrackerPath(trackerPath, requestPath string) bool {
+	if trackerPath == "" {
+		return false
+	}
+	if requestPath == trackerPath || requestPath == strings.TrimSuffix(trackerPath, ".js")+".full.js" {
+		return true
+	}
+	return strings.HasPrefix(requestPath, path.Dir(trackerPath)+"/") && strings.HasSuffix(requestPath, ".js")
+}
+
+func secureRequest(r *http.Request, trustedProxies []netip.Prefix) bool {
+	if r.TLS != nil {
+		return true
+	}
+	if !strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https") {
+		return false
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	peer, err := netip.ParseAddr(host)
+	if err != nil {
+		return false
+	}
+	peer = peer.Unmap()
+	for _, prefix := range trustedProxies {
+		if prefix.Contains(peer) {
+			return true
+		}
+	}
+	return false
 }
 
 func isReplayViewerPath(path string) bool {
