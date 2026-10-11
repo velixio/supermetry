@@ -435,6 +435,8 @@ def json_request(opener: urllib.request.OpenerDirector, path: str, body: dict[st
     request = urllib.request.Request(BASE_URL + path, data=data, method="POST" if body is not None else "GET")
     if body is not None:
         request.add_header("Content-Type", "application/json")
+        # Private POSTs must carry an Origin matching SUPERMETRY_BASE_URL (CSRF protection).
+        request.add_header("Origin", BASE_URL)
     for name, value in (headers or {}).items():
         request.add_header(name, value)
     with opener.open(request, timeout=5) as response:
