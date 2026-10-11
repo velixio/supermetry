@@ -19,18 +19,21 @@ Privacy-friendly, self-hosted web analytics. One Go binary and PostgreSQL. No Cl
 - PostgreSQL (18 is what CI runs).
 - Redis is not needed. A single instance runs without it.
 
-## Quick start (Docker Compose)
+## Quick start
+
+Linux and macOS:
 
 ```sh
-cp .env.example .env
-# Edit .env: set SUPERMETRY_SECRET_KEY, SUPERMETRY_BASE_URL and SUPERMETRY_DATABASE_URL
-# (use host.docker.internal, not localhost, to reach PostgreSQL on this machine)
-cd deploy
-docker compose up -d --build
-# No PostgreSQL yet? See deploy/README.md for the bundled-db profile.
+curl -fsSL https://github.com/velixio/supermetry/releases/latest/download/install.sh | sh
 ```
 
-Open `SUPERMETRY_BASE_URL/app` and finish the setup. See [deploy/README.md](deploy/README.md) for systemd, upgrades and reverse-proxy examples, and [docs/guide/configuration.md](docs/guide/configuration.md) for every setting.
+Windows PowerShell:
+
+```powershell
+irm https://github.com/velixio/supermetry/releases/latest/download/install.ps1 | iex
+```
+
+Open `<your URL>/app` and create your admin account. See [deploy/README.md](deploy/README.md) for unattended installs, manual deployment, service management, upgrades, backups, and reverse proxies. See [docs/guide/configuration.md](docs/guide/configuration.md) for every setting.
 
 ## Build from source
 
@@ -39,9 +42,9 @@ You need Go and [Bun](https://bun.sh).
 ```sh
 make build                       # builds the dashboard, then the binary in bin/
 export SUPERMETRY_DATABASE_URL=postgres://user:pass@127.0.0.1:5432/supermetry
-export SUPERMETRY_SECRET_KEY=$(openssl rand -hex 32)
+export SUPERMETRY_SECRET_KEY=$(openssl rand -base64 32)
 export SUPERMETRY_BASE_URL=http://localhost:8787
-bin/supermetry          # same as: bin/supermetry serve
+./bin/supermetry
 ```
 
 Migrations run at startup. `bin/supermetry --help` lists the other commands (`backup`, `restore`, `migrate`, `close-days`, `geoip`).
