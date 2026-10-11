@@ -158,7 +158,9 @@ func NewRouter(deps Deps) http.Handler {
 	registerPlatformRoutes(mux, deps.Platform, deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow)
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
-		mux.Handle("POST "+deps.Config.EventPath, deps.Ingest)
+		ingest := trackerCORS(deps.Ingest)
+		mux.Handle("POST "+deps.Config.EventPath, ingest)
+		mux.Handle("OPTIONS "+deps.Config.EventPath, ingest)
 	}
 	if deps.Config.Replay.Enabled && deps.Replay != nil {
 		mux.Handle("POST /api/replay/start", deps.Replay)
@@ -220,6 +222,19 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
 	return requestID(recoverProblems(mux))
+}
+
+func trackerCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Authenticator, registry sites.Registry, keyedLimiter ingest.RateLimiter, anonymousLimiter *apiTokenBuckets, trustedProxies []netip.Prefix, now func() time.Time) {
