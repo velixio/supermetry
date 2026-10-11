@@ -13,7 +13,6 @@ import {
   Globe2Icon,
   GaugeIcon,
   MousePointer2Icon,
-  MapIcon,
   PlusIcon,
   RouteIcon,
   Rows3Icon,
@@ -57,7 +56,6 @@ const coreNavigation = [
   { label: en.navigation.events, suffix: '/events', icon: CodeXmlIcon, scope: 'site' },
   { label: en.navigation.sessions, suffix: '/sessions', icon: Rows3Icon, scope: 'site' },
   { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
-  { label: en.navigation.map, suffix: '/map', icon: MapIcon, scope: 'site' },
   { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { label: en.navigation.profiles, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
@@ -184,8 +182,6 @@ function navigationLink(
       )
     case '/realtime':
       return <Link to="/app/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
-    case '/map':
-      return <Link to="/app/$org/$site/map" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
     case '/goals':
       return <Link to="/app/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
     case '/revenue':
@@ -333,7 +329,7 @@ export function SupermetrySidebar({
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {item.suffix === '/map' && site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read') ? (
+                  {item.suffix === '/realtime' && site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read') ? (
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild

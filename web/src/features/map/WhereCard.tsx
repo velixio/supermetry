@@ -1,0 +1,96 @@
+import { lazy, Suspense, useState } from 'react'
+
+import { ErrorState } from '@/components/ErrorState'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { countryLabel } from '@/lib/country'
+import { fmt } from '@/lib/format'
+import { useBreakdown, type StatsQuery } from '@/lib/stats'
+import type { Filter } from '@/lib/search'
+
+import { CountryDetails } from './CountryDetails'
+import { CountryTable, type CountryMetricRow } from './CountryTable'
+import type { TrafficMetric } from './trafficGrid'
+
+const WorldMap = lazy(() => import('@/components/WorldMap').then((module) => ({ default: module.WorldMap })))
+
+type WhereCardProps = {
+  query: StatsQuery
+  metric: TrafficMetric
+  onFilter(filter: Filter): void
+}
+
+export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
+  const [selectedCountry, setSelectedCountry] = useState<string>()
+  const [activeCountry, setActiveCountry] = useState<string>()
+  const countries = useBreakdown({ ...query, metrics: ['visitors', 'pageviews'], dimensions: ['country'], limit: 250 })
+  const rows: CountryMetricRow[] = (countries.data?.rows ?? []).map((row) => ({
+    country: String(row.country ?? ''),
+    visitors: Number(row.visitors ?? 0),
+    pageviews: Number(row.pageviews ?? 0),
+  }))
+  const ranked = [...rows].filter((row) => row[metric] > 0).sort((left, right) => right[metric] - left[metric])
+  const total = ranked.reduce((sum, row) => sum + row[metric], 0)
+  const leader = ranked[0]
+  const metricLabel = metric === 'visitors' ? 'visitors' : 'pageviews'
+  const summary = leader
+    ? `${countryLabel(leader.country)} leads with ${fmt.number(leader[metric])} ${metricLabel}, ${fmt.percent((leader[metric] / total) * 100)} of the total.`
+    : 'No country has traffic in the selected range.'
+
+  return (
+    <Card className="min-w-0 overflow-hidden" aria-labelledby="where-title">
+      <CardHeader className="border-b">
+        <CardTitle id="where-title">Where</CardTitle>
+        <CardDescription id="where-summary">{summary}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {countries.isPending ? (
+          <div className="grid min-h-80 gap-4 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(9rem,2fr)]" aria-label="Loading geography">
+            <Skeleton className="aspect-2/1 w-full self-center" />
+            <div className="space-y-2">{Array.from({ length: 8 }, (_, index) => <Skeleton key={index} className="h-9 w-full" />)}</div>
+          </div>
+        ) : countries.isError ? (
+          <div className="min-h-80 p-4"><ErrorState detail={countries.error?.detail} onRetry={() => void countries.refetch()} /></div>
+        ) : ranked.length === 0 ? (
+          <div className="flex min-h-80 items-center justify-center p-4" role="status"><p className="text-sm text-muted-foreground">No traffic in this range</p></div>
+        ) : (
+          <div className="grid min-h-80 min-w-0 items-start gap-5 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(9rem,2fr)]">
+            <div className="min-w-0" data-map-column>
+              <Suspense fallback={<Skeleton className="aspect-2/1 w-full" />}>
+                <WorldMap
+                  activeCountry={activeCountry}
+                  describedBy="where-summary"
+                  metric={metric}
+                  onActiveChange={setActiveCountry}
+                  onClear={() => setSelectedCountry(undefined)}
+                  onSelect={setSelectedCountry}
+                  rows={rows}
+                  selectedCountry={selectedCountry}
+                  showLegend
+                />
+              </Suspense>
+            </div>
+            <div className="min-w-0 self-start">
+              <CountryTable
+                activeCountry={activeCountry}
+                metric={metric}
+                onActiveChange={setActiveCountry}
+                onSelect={setSelectedCountry}
+                rows={rows}
+                selectedCountry={selectedCountry}
+              />
+            </div>
+          </div>
+        )}
+        {selectedCountry ? (
+          <CountryDetails
+            country={selectedCountry}
+            query={{ ...query, metrics: [metric] }}
+            onClear={() => setSelectedCountry(undefined)}
+            onFilter={() => onFilter({ dimension: 'country', operator: 'is', values: [selectedCountry] })}
+          />
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}

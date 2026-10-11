@@ -168,7 +168,7 @@ export function useTimeseries(
     timezone: query.timezone,
     metrics: query.metrics.join(','),
     filter: serializeFilters(query.filters),
-    ...(query.compare === 'previous_period' ? { compare: query.compare } : {}),
+    ...(query.compare && query.compare !== 'off' ? { compare: query.compare } : {}),
     interval,
     include_imported: query.includeImported !== false,
   }
@@ -204,9 +204,10 @@ export function useBreakdown(query: StatsQuery, enabled = true): UseQueryResult<
     timezone: query.timezone,
     metrics: query.metrics.join(','),
     filter: serializeFilters(query.filters),
-    ...(query.compare === 'previous_period' ? { compare: query.compare } : {}),
+    ...(query.compare && query.compare !== 'off' ? { compare: query.compare } : {}),
     dimension: query.dimensions ?? [],
     ...(query.limit === undefined ? {} : { limit: String(query.limit) }),
+    include_imported: query.includeImported !== false,
     cursor: query.cursor,
   }
   const current = includesToday(query)

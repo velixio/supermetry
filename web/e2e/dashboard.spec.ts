@@ -92,7 +92,7 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   )
   await expect(page.locator('[data-trend="good"], [data-trend="bad"]').first()).toBeVisible()
 
-  const countries = page.getByRole('region', { name: 'Countries' })
+  const countries = page.getByRole('region', { name: 'Location' })
   await countries.getByRole('button', { name: 'Details' }).click()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'CSV' }).click()

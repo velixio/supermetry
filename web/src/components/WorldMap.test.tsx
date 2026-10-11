@@ -37,13 +37,15 @@ describe('WorldMap', () => {
     expect(screen.getByRole('table', { name: 'Country visitors' })).toBeInTheDocument()
   })
 
-  it('shows a formatted flag, country name, and visitor count on hover and focus', () => {
+  it('shows a formatted flag, country name, and visitor count in a portalled pointer-safe tooltip', () => {
     render(<WorldMap rows={[{ country: 'IN', visitors: 12_345 }]} onSelect={vi.fn()} />)
     const country = screen.getByRole('button', { name: 'India: 12.3K visitors' })
 
     fireEvent.mouseEnter(country)
     expect(screen.getByRole('tooltip')).toHaveTextContent('India12.3K')
     expect(screen.getByRole('tooltip').querySelector('img')).toHaveAttribute('src', '/flags/in.svg')
+    expect(screen.getByRole('tooltip').parentElement).toBe(document.body)
+    expect(screen.getByRole('tooltip')).toHaveClass('pointer-events-none')
 
     fireEvent.mouseLeave(country)
     fireEvent.focus(country)
@@ -106,5 +108,20 @@ describe('WorldMap', () => {
     expect(selected).toHaveClass('hover:stroke-ring')
     expect(selected).not.toHaveClass('stroke-[3]')
     expect(selected).not.toHaveClass('stroke-foreground')
+  })
+
+  it('links map hover and focus to an externally highlighted country', () => {
+    const onActiveChange = vi.fn()
+    const { container, rerender } = render(
+      <WorldMap rows={[{ country: 'IN', visitors: 12 }]} onActiveChange={onActiveChange} onSelect={vi.fn()} />,
+    )
+    const india = screen.getByRole('button', { name: 'India: 12 visitors' })
+    fireEvent.mouseEnter(india)
+    expect(onActiveChange).toHaveBeenLastCalledWith('IN')
+    fireEvent.mouseLeave(india)
+    expect(onActiveChange).toHaveBeenLastCalledWith(undefined)
+
+    rerender(<WorldMap activeCountry="IN" rows={[{ country: 'IN', visitors: 12 }]} onActiveChange={onActiveChange} onSelect={vi.fn()} />)
+    expect(container.querySelector('[data-country="IN"]')).toHaveAttribute('data-active', 'true')
   })
 })

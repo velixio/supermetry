@@ -46,7 +46,6 @@ export const en = {
     vitals: 'Web Vitals',
     funnels: 'Funnels',
     realtime: 'Realtime',
-    map: 'Map',
     goals: 'Goals',
     revenue: 'Revenue',
     settings: 'Site settings',
@@ -171,7 +170,6 @@ export const en = {
     },
   },
   map: {
-    title: 'Map',
     visitors: 'Visitors',
     pageviews: 'Pageviews',
     countries: 'Countries',
@@ -187,7 +185,6 @@ export const en = {
     retention: "This range is longer than the {days} days of raw data kept for this site. Choose a shorter range.",
     useLastDays: 'Use last {days} days',
     legend: 'Map legend',
-    openFullMap: 'Open full map',
     clearSelection: 'Clear selection',
     filterDashboard: 'Filter the dashboard to this country',
     detailsLoading: 'Loading country details',
