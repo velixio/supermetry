@@ -7,6 +7,7 @@ import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
 import { isAnonymousTracking } from '@/lib/tracking-policy'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
 import { LiveBadge } from '@/components/LiveBadge'
+import { GeolocationCredit } from '@/components/GeolocationCredit'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -163,9 +164,7 @@ export function AppShell({
             </AuthorizationCacheBoundary>
           </main>
           <footer className="px-4 pb-4 text-center text-xs text-muted-foreground md:px-6">
-            <a className="underline-offset-4 hover:text-foreground hover:underline" href="https://db-ip.com">
-              IP geolocation by DB-IP.com
-            </a>
+            <GeolocationCredit />
           </footer>
         </SidebarInset>
       </SidebarProvider>

@@ -274,7 +274,7 @@ func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {
 	configRequest := httptest.NewRequest(http.MethodGet, "/api/private/auth/config", nil)
 	configResponse := httptest.NewRecorder()
 	handler.ServeHTTP(configResponse, configRequest)
-	if configResponse.Code != http.StatusOK || configResponse.Body.String() != "{\"setup_required\":false,\"signup\":\"open\",\"homepage_url\":\"https://supermetry.com\"}\n" {
+	if configResponse.Code != http.StatusOK || configResponse.Body.String() != "{\"setup_required\":false,\"signup\":\"open\",\"homepage_url\":\"https://supermetry.com\",\"geoip_source\":\"dbip\"}\n" {
 		t.Fatalf("config status=%d body=%s", configResponse.Code, configResponse.Body.String())
 	}
 }

@@ -74,7 +74,10 @@ type Deps struct {
 	MaxOrgsPerUser int
 	BaseURL        string
 	HomepageURL    string
-	TrackerPath    string
+	// GeoIPSource reports which geolocation provider is in use ("dbip" or "maxmind"), so the
+	// dashboard can show the credit that provider's license requires. Nil means the bundled one.
+	GeoIPSource func() string
+	TrackerPath string
 	// SecureCookies forces the Secure flag on every cookie. Set it when
 	// SUPERMETRY_BASE_URL is https so production never downgrades, even behind a
 	// proxy that omits X-Forwarded-Proto.

@@ -46,11 +46,17 @@ func (h *handler) authConfig(w http.ResponseWriter, r *http.Request) {
 	if homepageURL == "" {
 		homepageURL = "https://supermetry.com"
 	}
+	// Only the two known provider names are ever reported, whatever the source returns.
+	geoIPSource := "dbip"
+	if h.deps.GeoIPSource != nil && h.deps.GeoIPSource() == "maxmind" {
+		geoIPSource = "maxmind"
+	}
 	writeJSON(w, http.StatusOK, struct {
 		SetupRequired bool   `json:"setup_required"`
 		Signup        string `json:"signup"`
 		HomepageURL   string `json:"homepage_url"`
-	}{SetupRequired: setupRequired, Signup: mode, HomepageURL: homepageURL})
+		GeoIPSource   string `json:"geoip_source"`
+	}{SetupRequired: setupRequired, Signup: mode, HomepageURL: homepageURL, GeoIPSource: geoIPSource})
 }
 
 func (h *handler) login(w http.ResponseWriter, r *http.Request) {
