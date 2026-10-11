@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql
+.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql accuracy-ab
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -9,6 +9,9 @@ build: web
 build-go:
 	mkdir -p bin
 	go build -o bin/supermetry ./cmd/supermetry
+
+accuracy-ab: build-go
+	python3 tools/bench/accuracy/ab/run.py
 
 fixtures:
 	go run ./tools/gen --tier tiny --seed 42 --out test/golden/testdata/tiny.ndjson --sites test/golden/testdata/tiny.sites.json --truth test/golden/testdata/tiny.truth.json
