@@ -80,6 +80,11 @@ def fetch_supermetry(stack: dict[str, Any], date_from: str, date_to: str) -> dic
     return result
 
 
+# Plausible and Supermetry name the same operating systems differently; map Plausible's
+# names onto Supermetry's (and the truth model's) so only real differences remain.
+_PLAUSIBLE_OS_NAMES = {"GNU/Linux": "Linux", "Mac": "macOS", "iPadOS": "iOS"}
+
+
 def fetch_plausible(stack: dict[str, Any], date_from: str, date_to: str) -> dict[str, Any]:
     """Fetch Plausible statistics in the truth-model shape."""
     config = stack["plausible"]
@@ -126,9 +131,10 @@ def fetch_plausible(stack: dict[str, Any], date_from: str, date_to: str) -> dict
             "utm_campaign": _plausible_mapping(campaigns),
             "devices": _plausible_mapping(devices, str.lower),
             "browsers": _plausible_mapping(browsers),
-            "oses": _plausible_mapping(operating_systems),
+            "oses": _plausible_mapping(operating_systems, lambda name: _PLAUSIBLE_OS_NAMES.get(name, name)),
             "custom_events": _plausible_mapping(
-                [row for row in events if _plausible_dimension(row) not in {"", "pageview"}]
+                # "engagement" is Plausible's own time-on-page signal, not a custom event.
+                [row for row in events if _plausible_dimension(row) not in {"", "pageview", "engagement"}]
             ),
             "revenue": _revenue_from_plausible(events) if revenue_supported else None,
         }

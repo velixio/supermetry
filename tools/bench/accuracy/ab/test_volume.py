@@ -2,6 +2,7 @@ import json
 import tempfile
 import threading
 import unittest
+import urllib.parse
 from pathlib import Path
 
 from ab import volume
@@ -145,3 +146,39 @@ class VolumeRunTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VolumeFidelityTests(unittest.TestCase):
+    def test_utm_keys_become_utm_query_parameters(self):
+        events = volume.visit_events(
+            {
+                "referrer": "",
+                "utm": {"source": "google", "medium": "cpc", "campaign": "launch"},
+                "steps": [{"kind": "goto", "path": "/pricing"}],
+            }
+        )
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(events[0].url).query)
+        self.assertEqual(query, {"utm_source": ["google"], "utm_medium": ["cpc"], "utm_campaign": ["launch"]})
+
+    def test_already_prefixed_utm_keys_are_not_prefixed_twice(self):
+        events = volume.visit_events({"referrer": "", "utm": {"utm_campaign": "launch"}, "steps": [{"kind": "goto", "path": "/"}]})
+        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(events[0].url).query), {"utm_campaign": ["launch"]})
+
+    def test_spa_navigation_to_the_current_page_sends_no_pageview(self):
+        events = volume.visit_events(
+            {
+                "referrer": "",
+                "utm": {},
+                "steps": [
+                    {"kind": "goto", "path": "/spa"},
+                    {"kind": "spa", "path": "/spa/a"},
+                    {"kind": "spa", "path": "/spa/a"},
+                    {"kind": "spa", "path": "/spa/b"},
+                ],
+            }
+        )
+        self.assertEqual([urllib.parse.urlsplit(e.url).path for e in events], ["/spa", "/spa/a", "/spa/b"])
+
+    def test_a_repeated_full_page_load_still_sends_a_pageview(self):
+        events = volume.visit_events({"referrer": "", "utm": {}, "steps": [{"kind": "goto", "path": "/a"}, {"kind": "goto", "path": "/a"}]})
+        self.assertEqual(len(events), 2)

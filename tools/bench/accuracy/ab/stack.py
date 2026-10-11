@@ -268,6 +268,10 @@ def _create_supermetry_resources(
     public_id = site.get("public_id", site.get("PublicID"))
     if not isinstance(site_id, int) or not isinstance(public_id, str):
         raise RuntimeError("Supermetry site response is missing id or public_id")
+    # Supermetry keeps referrers, UTM parameters and event properties only for projects that
+    # opt in with profiles_enabled (on an identified instance); without it those breakdowns
+    # are empty by design. Plausible records them always, so enable it for a fair comparison.
+    _request_json(opener, "PATCH", base + f"/api/private/sites/{site_id}", {"profiles_enabled": True}, org_headers)
     snippet = _request_json(
         opener,
         "GET",

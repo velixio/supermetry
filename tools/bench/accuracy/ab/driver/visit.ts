@@ -56,7 +56,10 @@ async function performStep(page: Page, step: Step, siteURL: string, firstGoto: b
     case "goto": {
       const url = new URL(step.path, siteURL);
       if (firstGoto) {
-        for (const [key, value] of Object.entries(visit.utm)) url.searchParams.set(key, value);
+        // The scenario stores UTM keys without the prefix ("campaign"); the URL needs utm_*.
+        for (const [key, value] of Object.entries(visit.utm)) {
+          url.searchParams.set(key.startsWith("utm_") ? key : `utm_${key}`, value);
+        }
       }
       await page.goto(url.href, {
         waitUntil: "domcontentloaded",

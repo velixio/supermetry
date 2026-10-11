@@ -48,7 +48,10 @@ def _landing_url(path: str, utm: Mapping[str, str]) -> str:
     if not utm:
         return url
     parts = urllib.parse.urlsplit(url)
-    query = urllib.parse.urlencode(list(utm.items()))
+    # The scenario stores UTM keys without the prefix ("campaign"); the URL needs utm_*.
+    query = urllib.parse.urlencode(
+        [(key if key.startswith("utm_") else f"utm_{key}", value) for key, value in utm.items()]
+    )
     return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
 
 
@@ -58,10 +61,18 @@ def visit_events(visit: Mapping[str, Any]) -> list[Event]:
     referrer = str(visit.get("referrer", ""))
     first_navigation = True
     events: list[Event] = []
+    page_path: str | None = None
     for step in visit.get("steps", []):
         kind = step.get("kind")
         if kind in {"goto", "spa", "hash"}:
             path = str(step.get("path", ""))
+            # A single-page-app navigation to the page the visitor is already on is not
+            # a pageview (a browser tracker would not report it either).
+            repeated = kind == "spa" and path == page_path
+            if kind != "hash":
+                page_path = path
+            if repeated:
+                continue
             if kind == "hash" and path.startswith("#"):
                 parts = urllib.parse.urlsplit(current_url)
                 current_url = urllib.parse.urlunsplit(
