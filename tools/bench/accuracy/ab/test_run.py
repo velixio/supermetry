@@ -111,7 +111,7 @@ class RunTest(unittest.TestCase):
         def compare(_truth, _supermetry, _plausible, _known):
             return [{"metric": "events", "status": "UNEXPLAINED"}]
 
-        deps = self._deps(compare=compare, stability=lambda _fetch: ({"pageviews": 2}, {"pageviews": 2}, False))
+        deps = self._deps(compare=compare, stability=lambda _fetch, probe=None: ({"pageviews": 2}, {"pageviews": 2}, False))
         with tempfile.TemporaryDirectory() as directory:
             code = run.run(run.RunOptions(visitors=1, volume=1, out=Path(directory)), deps)
             reports = list(Path(directory).glob("accuracy-ab-*.json"))
@@ -171,7 +171,7 @@ class RunTest(unittest.TestCase):
             "volume": lambda *_args: None,
             "fetch_supermetry": lambda *_args: {"pageviews": 2},
             "fetch_plausible": lambda *_args: {"pageviews": 2},
-            "stability": lambda fetch: (*fetch(), True),
+            "stability": lambda fetch, probe=None: (*fetch(), True),
             "compare": lambda *_args: [{"metric": "pageviews", "status": "MATCH"}],
             "render_markdown": lambda _rows, meta: f"stability: {meta['stability']}\n",
             "render_json": lambda rows, meta: json.dumps({"meta": meta, "rows": rows}) + "\n",
@@ -198,3 +198,49 @@ class RunTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProbeStabilityTests(unittest.TestCase):
+    def test_probe_polls_cheaply_and_fetches_once_when_totals_settle(self):
+        from ab.run import wait_until_stable
+
+        clock = [0.0]
+        probes, fetches = [], []
+
+        def probe():
+            probes.append(clock[0])
+            return (5, 5) if clock[0] < 4 else (9, 9)
+
+        def fetch():
+            fetches.append(clock[0])
+            return {"pageviews": 9}, {"pageviews": 9}
+
+        def sleeper(seconds):
+            clock[0] += seconds
+
+        result = wait_until_stable(
+            fetch, probe=probe, stable_for=6, timeout=60, interval=2, monotonic=lambda: clock[0], sleeper=sleeper
+        )
+        self.assertEqual(result, ({"pageviews": 9}, {"pageviews": 9}, True))
+        self.assertEqual(len(fetches), 1)
+        self.assertGreater(len(probes), 3)
+
+    def test_probe_timeout_still_returns_the_data_marked_not_stable(self):
+        from ab.run import wait_until_stable
+
+        clock = [0.0]
+        counter = [0]
+
+        def probe():
+            counter[0] += 1
+            return (counter[0], counter[0])
+
+        def sleeper(seconds):
+            clock[0] += seconds
+
+        supermetry, plausible, stable = wait_until_stable(
+            lambda: ({"pageviews": 1}, {"pageviews": 1}),
+            probe=probe, stable_for=10, timeout=12, interval=2, monotonic=lambda: clock[0], sleeper=sleeper,
+        )
+        self.assertFalse(stable)
+        self.assertEqual(supermetry, {"pageviews": 1})

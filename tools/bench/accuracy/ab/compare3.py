@@ -136,6 +136,26 @@ def fetch_plausible(stack: dict[str, Any], date_from: str, date_to: str) -> dict
     return result
 
 
+def fetch_pageviews(stack: dict[str, Any], date_from: str, date_to: str) -> tuple[Any, Any]:
+    """Cheap probe for the stability loop: one query per product, pageviews only."""
+    supermetry = stack["supermetry"]
+    plausible = stack["plausible"]
+    sm = request_json(
+        supermetry.get("api_url", supermetry["url"]).rstrip("/") + "/api/public/v1/query",
+        supermetry["key"],
+        {"site_id": supermetry["site_id"], "date_range": {"from": date_from, "to": date_to}, "metrics": ["pageviews"]},
+    )
+    pl = request_json(
+        plausible["url"].rstrip("/") + "/api/v2/query",
+        plausible["key"],
+        {"site_id": plausible["domain"], "date_range": [date_from, date_to], "metrics": ["pageviews"]},
+    )
+    return (
+        sm.get("totals", {}).get("pageviews"),
+        (pl.get("results") or [{}])[0].get("metrics", [None])[0],
+    )
+
+
 def compare(
     truth: dict[str, Any],
     supermetry: dict[str, Any],

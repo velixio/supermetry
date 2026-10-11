@@ -77,7 +77,9 @@ def run(options: RunOptions | None = None, deps: Mapping[str, Any] | None = None
                 dependencies["fetch_plausible"](stack_config, date_from, date_to),
             )
 
-        supermetry, plausible, stable = dependencies["stability"](fetch)
+        probe_pageviews = dependencies.get("fetch_pageviews")
+        probe = (lambda: probe_pageviews(stack_config, date_from, date_to)) if probe_pageviews else None
+        supermetry, plausible, stable = dependencies["stability"](fetch, probe=probe)
         rows = dependencies["compare"](expected, supermetry, plausible, dependencies["load_known"]())
         meta = {
             "date_from": date_from,
@@ -125,6 +127,7 @@ def _utc_date_range(first: datetime, last: datetime) -> tuple[str, str]:
 def wait_until_stable(
     fetch: Callable[[], tuple[dict[str, Any], dict[str, Any]]],
     *,
+    probe: Callable[[], tuple[Any, Any]] | None = None,
     stable_for: float = 10,
     timeout: float = 120,
     interval: float = 2,
@@ -136,17 +139,25 @@ def wait_until_stable(
     stable_since = began
     previous: tuple[Any, Any] | None = None
     latest: tuple[dict[str, Any], dict[str, Any]] = ({}, {})
+    # With a probe, poll one cheap query per product (the public API is rate limited)
+    # and run the full set of queries only once, when the totals settle or time runs out.
     while True:
-        latest = fetch()
-        current = (latest[0].get("pageviews"), latest[1].get("pageviews"))
+        if probe is not None:
+            current = tuple(probe())
+        else:
+            latest = fetch()
+            current = (latest[0].get("pageviews"), latest[1].get("pageviews"))
         now = monotonic()
+        settled = False
         if current != previous:
             previous = current
             stable_since = now
         elif now - stable_since >= stable_for:
-            return latest[0], latest[1], True
-        if now - began >= timeout:
-            return latest[0], latest[1], False
+            settled = True
+        if settled or now - began >= timeout:
+            if probe is not None:
+                latest = fetch()
+            return latest[0], latest[1], settled
         sleeper(min(interval, max(timeout - (now - began), 0)))
 
 
@@ -220,6 +231,7 @@ def _default_dependencies() -> dict[str, Any]:
         "fetch_supermetry": compare3.fetch_supermetry,
         "fetch_plausible": compare3.fetch_plausible,
         "stability": wait_until_stable,
+        "fetch_pageviews": compare3.fetch_pageviews,
         "compare": compare3.compare,
         "render_markdown": compare3.render_markdown,
         "render_json": compare3.render_json,
