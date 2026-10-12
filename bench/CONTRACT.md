@@ -1,6 +1,6 @@
 # Benchmark contract (go/no-go gate steps 4–5)
 
-The shared spec for every agent working under `bench/`. Thresholds and the rig are in [../scorecard.md](../scorecard.md). Hard rules are in [../CLAUDE.md](../CLAUDE.md): never touch `knowledge/`, never copy AGPL code, and be test-first for core logic. This is **throwaway benchmark code**, not the product.
+The shared spec for every agent working under `bench/`. Thresholds and the rig are in [../scorecard.md](../scorecard.md). Hard rules are in the repository agent guide: never touch `knowledge/`, never copy AGPL code, and be test-first for core logic. This is **throwaway benchmark code**, not the product.
 
 ## Layout and ownership
 

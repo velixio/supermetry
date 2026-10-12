@@ -1,6 +1,6 @@
 # Easy Install Implementation Plan
 
-> **For agentic workers:** each task below is one Codex job in its own worktree (`scripts/codex-job.sh`). Use superpowers test-driven-development and verification-before-completion. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** each task below is one worker job in its own worktree (the job runner script). Use superpowers test-driven-development and verification-before-completion. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** a one-command installer that downloads the right release binary, asks a few questions, tests PostgreSQL before writing anything, and leaves a running Supermetry (Docker or systemd) with an admin-setup link.
 
@@ -63,7 +63,7 @@
 - [ ] Write `deploy/install.ps1`.
 - [ ] Update `scripts/release.sh`; run `SUPERMETRY_RELEASE_TARGETS="linux/amd64 windows/amd64" scripts/release.sh` (or the closest local equivalent) and check that `dist/` has a `.tar.gz`, a `.zip`, `SHA256SUMS` and both install scripts.
 - [ ] Update `release.yml` and `supermetry.service`.
-- [ ] Write the commit plan message to `.codex-runs/install-release.msg`.
+- [ ] Write the commit plan message to the commit message file for `install-release`.
 
 ### Task 2: `internal/installer` and `supermetry install` (job `install-cmd`)
 
@@ -104,7 +104,7 @@
 - [ ] Write the failing pgcheck tests; implement; pass.
 - [ ] Write the failing Run flow tests with fakes; implement `install.go`; pass.
 - [ ] Wire `cmd/supermetry/main.go`; run `go build ./... && ./supermetry install --help` (or `go run ./cmd/supermetry install --help`).
-- [ ] gofmt, `go vet ./...`, `go test ./...`; write `.codex-runs/install-cmd.msg`.
+- [ ] gofmt, `go vet ./...`, `go test ./...`; write the commit message file for `install-cmd`.
 
 ### Task 3: Password minimum 6 and the admin-setup log line (job `install-auth`)
 
@@ -117,7 +117,7 @@
 - [ ] Change the tests to expect 6; run them; they fail.
 - [ ] Change the policy and forms; Go and web gates pass.
 - [ ] Add the log line with a test if serve has a testable seam; otherwise check it manually against the dev database.
-- [ ] Write `.codex-runs/install-auth.msg`.
+- [ ] Write the commit message file for `install-auth`.
 
 ### Task 4: README and deploy docs (job `install-docs`)
 
@@ -142,9 +142,9 @@
 - Modify: `.env.example`. Make sure the SMTP keys are present as commented placeholders.
 
 - [ ] Rewrite the docs; check every env var name you mention exists via `grep -rn NAME internal/config`.
-- [ ] Write `.codex-runs/install-docs.msg`.
+- [ ] Write the commit message file for `install-docs`.
 
-## Integration (Claude)
+## Integration (orchestrator)
 
 - [ ] After each job: review the diff, run the gates in the worktree, commit with the job's message, and merge into main. Merge order: auth, release, cmd, docs.
 - [ ] Final: end-to-end on a Debian 13 systemd container (spec §7). Update todo.md.
