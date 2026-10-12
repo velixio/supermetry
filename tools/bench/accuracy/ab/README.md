@@ -19,6 +19,11 @@ Run the complete benchmark from the repository root:
 make accuracy-ab
 ```
 
+Before starting the product stacks, this command also runs the deterministic
+five-minute live-window fixture and focused Go tests. The fixture covers exact
+4:59/5:00/5:01 edges, repeats across minutes, tabs and SPA activity, shared
+networks, bots, DNT/GPC, and engagement-only activity.
+
 The command starts isolated product stacks, drives browser and volume traffic,
 waits for ingestion to settle, writes timestamped Markdown and JSON reports
 under `tools/bench/results/`, and tears the stacks down. It returns non-zero for
