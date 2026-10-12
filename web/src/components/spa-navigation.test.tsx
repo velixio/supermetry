@@ -226,3 +226,65 @@ describe('SPA navigation', () => {
     ])
   })
 })
+
+describe('icon rail', () => {
+  beforeEach(() => {
+    globalThis.ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    window.scrollTo = () => undefined
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }),
+    })
+  })
+  afterEach(() => {
+    document.cookie = 'sidebar_state=; path=/; max-age=0'
+  })
+
+  it('collapses to an icon rail that keeps every destination named', async () => {
+    renderSidebar('/app/acme/docs-public/realtime', { defaultOpen: false })
+    await screen.findByRole('link', { name: 'Realtime' })
+    const sidebar = document.querySelector('[data-slot="sidebar"]')
+    expect(sidebar).toHaveAttribute('data-state', 'collapsed')
+    expect(sidebar).toHaveAttribute('data-collapsible', 'icon')
+    for (const name of ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays', 'Funnels', 'Site settings', 'Organization settings']) {
+      expect(screen.getByRole('link', { name })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: /Docs\s*Acme/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Funnels' })).toBeInTheDocument()
+  })
+
+  it('names a collapsed item with a tooltip on keyboard focus', async () => {
+    renderSidebar('/app/acme/docs-public/realtime', { defaultOpen: false })
+    fireEvent.focus(await screen.findByRole('link', { name: 'Funnels' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Funnels')
+  })
+
+  it('scrolls the rail on short screens instead of clipping the bottom items', async () => {
+    renderSidebar('/app/acme/docs-public/realtime', { defaultOpen: false })
+    await screen.findByRole('link', { name: 'Realtime' })
+    const content = document.querySelector('[data-slot="sidebar-content"]')
+    expect(content).toHaveClass('group-data-[collapsible=icon]:overflow-auto')
+    expect(content).not.toHaveClass('group-data-[collapsible=icon]:overflow-hidden')
+  })
+
+  it('fits the site switcher icon inside the 32px rail button', async () => {
+    renderSidebar('/app/acme/docs-public/realtime', { defaultOpen: false })
+    expect(await screen.findByRole('button', { name: /Docs\s*Acme/ })).toHaveClass('group-data-[collapsible=icon]:p-1.5!')
+  })
+
+  it('toggles with Ctrl or Cmd+B and records the state in the sidebar_state cookie', async () => {
+    renderSidebar('/app/acme/docs-public/realtime', { defaultOpen: false })
+    await screen.findByRole('link', { name: 'Realtime' })
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
+    await waitFor(() => expect(document.querySelector('[data-slot="sidebar"]')).toHaveAttribute('data-state', 'expanded'))
+    expect(document.cookie).toContain('sidebar_state=true')
+    fireEvent.keyDown(window, { key: 'b', metaKey: true })
+    await waitFor(() => expect(document.querySelector('[data-slot="sidebar"]')).toHaveAttribute('data-state', 'collapsed'))
+    expect(document.cookie).toContain('sidebar_state=false')
+  })
+})

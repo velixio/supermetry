@@ -254,7 +254,7 @@ export function SupermetrySidebar({
         </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="h-auto py-1.5" tooltip={`${membership.org.name} / ${site?.name ?? en.navigation.site}`}>
+            <SidebarMenuButton className="h-auto py-1.5 group-data-[collapsible=icon]:p-1.5!" tooltip={`${membership.org.name} / ${site?.name ?? en.navigation.site}`}>
               {site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} /> : null}
               <span className="flex min-w-0 flex-col text-left leading-tight">
                 <span className="truncate">{site?.name ?? en.navigation.site}</span>
@@ -330,7 +330,7 @@ export function SupermetrySidebar({
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
         {navigationSections.map((section) => {
           const suffixes = new Set<string>(section.suffixes)
           const items = visibleItems.filter((item) => suffixes.has(item.suffix))
