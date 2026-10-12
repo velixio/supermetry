@@ -1,5 +1,6 @@
 import type { APIRequestContext } from '@playwright/test'
 
+import { removeSavedDashboards } from './dashboards-cleanup'
 import { expect, test, type Owner } from './fixtures'
 
 const range = { from: '2026-09-28', to: '2026-09-30' }
@@ -48,6 +49,9 @@ function fullLayout(funnelId: number) {
     ],
   }
 }
+
+test.beforeEach(({ request, owner }) => removeSavedDashboards(request, owner))
+test.afterEach(({ request, owner }) => removeSavedDashboards(request, owner))
 
 test('a saved dashboard renders every widget kind with overrides, switcher and responsive grid', async ({ page, request, owner }) => {
   const funnelId = await createFunnel(request, owner)
