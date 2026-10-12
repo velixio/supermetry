@@ -27,7 +27,19 @@ func WithTestName(request *http.Request, name string) *http.Request {
 
 // Wrap returns next unchanged unless route recording is enabled.
 func Wrap(next http.Handler) http.Handler {
-	filename := os.Getenv(Env)
+	return WrapFile(next, os.Getenv(Env))
+}
+
+// File returns the configured recording file, falling back to the environment so
+// tests that build a bare config (and make api-inventory) still record routes.
+func File(configured string) string {
+	if configured != "" {
+		return configured
+	}
+	return os.Getenv(Env)
+}
+
+func WrapFile(next http.Handler, filename string) http.Handler {
 	if filename == "" {
 		return next
 	}

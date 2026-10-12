@@ -76,7 +76,7 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Listen != ":8080" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.DedupEntries != 250000 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" || c.IngestRateIP != 1000 || c.IngestRateSite != 5000 || c.IngestRateGlobal != 10000 {
+	if c.Listen != ":8787" || c.EventPath != "/api/public/v1/events" || c.TrackerPath != "/js/script.js" || c.QueueSize != 65536 || c.DedupEntries != 250000 || c.FlushEvery != time.Second || c.QueryTimeout != 10*time.Second || c.Signup != "invite" || c.IngestRateIP != 1000 || c.IngestRateSite != 5000 || c.IngestRateGlobal != 10000 {
 		t.Fatalf("bad defaults: %+v", c)
 	}
 	if c.HTTPReadTimeout != 30*time.Second || c.HTTPWriteTimeout != 60*time.Second {
@@ -90,6 +90,22 @@ func TestLoadDefaultsAndRequired(t *testing.T) {
 	}
 	if want := []string{"GeoLite2-City", "GeoLite2-ASN"}; !reflect.DeepEqual(c.MaxMindEditions, want) {
 		t.Errorf("MaxMindEditions = %v, want %v", c.MaxMindEditions, want)
+	}
+}
+
+func TestLocalBaseURLPortMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		base, listen string
+		want         bool
+	}{
+		{"http://localhost:8787", ":8787", false},
+		{"http://127.0.0.1:8787", ":8080", true},
+		{"https://[::1]:443", ":8787", true},
+		{"https://example.com", ":8080", false},
+	} {
+		if got := LocalBaseURLPortMismatch(tc.base, tc.listen); got != tc.want {
+			t.Errorf("LocalBaseURLPortMismatch(%q,%q)=%v want %v", tc.base, tc.listen, got, tc.want)
+		}
 	}
 }
 

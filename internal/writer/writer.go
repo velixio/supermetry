@@ -8,14 +8,19 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/dict"
+	"supermetry/internal/health"
 	"supermetry/internal/privacy"
 	"supermetry/internal/session"
 	"supermetry/internal/sites"
@@ -34,6 +39,7 @@ const (
 // Dropped counts events rejected because the writer has no remaining
 // capacity. Written counts events committed to PostgreSQL.
 var Dropped, Written atomic.Int64
+var PoisonDropped, ShutdownAbandoned atomic.Int64
 
 // Clock supplies the writer's view of current time.
 type Clock interface {
@@ -137,6 +143,7 @@ func (w *Writer) RejectEventIfUnavailable() bool {
 	defer w.stateMu.RUnlock()
 	if !w.accepting || len(w.slots) == cap(w.slots) {
 		Dropped.Add(1)
+		health.WriterQueueFullDropped.Add(1)
 		return true
 	}
 	return false
@@ -151,6 +158,7 @@ func (w *Writer) ReserveEvent() (*EventReservation, bool) {
 	defer w.stateMu.RUnlock()
 	if !w.accepting {
 		Dropped.Add(1)
+		health.WriterQueueFullDropped.Add(1)
 		return nil, false
 	}
 	select {
@@ -159,6 +167,7 @@ func (w *Writer) ReserveEvent() (*EventReservation, bool) {
 		return &EventReservation{w: w}, true
 	default:
 		Dropped.Add(1)
+		health.WriterQueueFullDropped.Add(1)
 		return nil, false
 	}
 }
@@ -184,12 +193,38 @@ func (r *EventReservation) Commit(e Event) bool {
 		w := r.w
 		defer w.inflight.Done()
 		copyEventMaps(&e)
+		sanitizeEvent(&e)
 		// ReserveEvent guarantees queue capacity. A blocking send avoids a
 		// lossy fallback if that invariant is accidentally weakened later.
 		w.ch <- e
 		committed = true
 	})
 	return committed
+}
+
+func sanitizeText(value string) string {
+	if utf8.ValidString(value) && !strings.ContainsRune(value, '\x00') {
+		return value
+	}
+	return strings.ReplaceAll(strings.ToValidUTF8(value, "�"), "\x00", "")
+}
+
+func sanitizeEvent(e *Event) {
+	e.Country = sanitizeText(e.Country)
+	e.RevenueCurrency = sanitizeText(e.RevenueCurrency)
+	e.ProfileExternalID = sanitizeText(e.ProfileExternalID)
+	for k, v := range e.Props {
+		e.Props[sanitizeText(k)] = sanitizeText(v)
+		if k != sanitizeText(k) {
+			delete(e.Props, k)
+		}
+	}
+	for k, v := range e.ProfileTraits {
+		e.ProfileTraits[sanitizeText(k)] = sanitizeText(v)
+		if k != sanitizeText(k) {
+			delete(e.ProfileTraits, k)
+		}
+	}
 }
 
 // Cancel releases an unused reservation. It is safe to defer and becomes a
@@ -307,6 +342,10 @@ func (w *Writer) shutdownEvents(batch []Event, write func(context.Context, []Eve
 	for {
 		if len(batch) != 0 {
 			if err := w.retryEvents(shutdownCtx, shutdownCtx, batch, write); err != nil {
+				abandoned := int64(len(batch) + len(w.ch))
+				ShutdownAbandoned.Add(abandoned)
+				health.WriterShutdownAbandoned.Add(uint64(abandoned))
+				slog.Error("writer abandoned queued rows during shutdown", "count", abandoned, "error", err)
 				return fmt.Errorf("flush events at shutdown: %w", err)
 			}
 			w.release(batch)
@@ -346,10 +385,53 @@ func (w *Writer) stopAccepting() {
 }
 
 func (w *Writer) retryEvents(waitCtx, attemptCtx context.Context, batch []Event, write func(context.Context, []Event) error) error {
-	return retryOperation(waitCtx, attemptCtx, func(ctx context.Context) error {
+	before := PoisonDropped.Load()
+	err := retryOperation(waitCtx, attemptCtx, func(ctx context.Context) error {
 		w.suppressRestrictedIdentity(batch)
 		return write(ctx, batch)
 	})
+	if err == nil || !isPermanentWriteError(err) {
+		return err
+	}
+	err = w.writeEventsBisected(waitCtx, attemptCtx, batch, write)
+	if count := PoisonDropped.Load() - before; count > 0 {
+		health.WriterPoisonDropped.Add(uint64(count))
+		slog.Warn("dropped permanently invalid event rows", "count", count)
+	}
+	return err
+}
+
+func isPermanentWriteError(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	code := pgErr.Code
+	return len(code) >= 2 && (code[:2] == "22" || code[:2] == "23" || code[:2] == "42")
+}
+
+func (w *Writer) writeEventsBisected(waitCtx, attemptCtx context.Context, batch []Event, write func(context.Context, []Event) error) error {
+	if len(batch) == 1 {
+		PoisonDropped.Add(1)
+		return nil
+	}
+	mid := len(batch) / 2
+	for _, part := range [][]Event{batch[:mid], batch[mid:]} {
+		err := write(attemptCtx, part)
+		if err == nil {
+			continue
+		}
+		if isPermanentWriteError(err) {
+			if err = w.writeEventsBisected(waitCtx, attemptCtx, part, write); err != nil {
+				return err
+			}
+			continue
+		}
+		if err = retryOperation(waitCtx, attemptCtx, func(ctx context.Context) error { return write(ctx, part) }); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func retryOperation(waitCtx, attemptCtx context.Context, operation func(context.Context) error) error {
@@ -357,6 +439,8 @@ func retryOperation(waitCtx, attemptCtx context.Context, operation func(context.
 	for {
 		if err := operation(attemptCtx); err == nil {
 			return nil
+		} else if isPermanentWriteError(err) || attemptCtx.Err() != nil {
+			return err
 		}
 		if err := waitBackoff(waitCtx, backoff); err != nil {
 			return err
@@ -393,6 +477,10 @@ func (w *Writer) shutdownSessions(pending []session.Snapshot) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if _, err := w.flushSessions(shutdownCtx, pending); err != nil {
+		abandoned := int64(len(pending))
+		ShutdownAbandoned.Add(abandoned)
+		health.WriterShutdownAbandoned.Add(uint64(abandoned))
+		slog.Error("writer abandoned session rows during shutdown", "count", abandoned, "error", err)
 		return fmt.Errorf("flush sessions at shutdown: %w", err)
 	}
 	return nil
@@ -419,6 +507,18 @@ func (w *Writer) retrySessions(ctx context.Context, snapshots []session.Snapshot
 	for {
 		if err := w.upsertSessions(ctx, snapshots); err == nil {
 			return nil
+		} else if isPermanentWriteError(err) {
+			if len(snapshots) == 1 {
+				PoisonDropped.Add(1)
+				health.WriterPoisonDropped.Add(1)
+				slog.Warn("dropping permanently invalid session snapshot", "count", 1)
+				return nil
+			}
+			mid := len(snapshots) / 2
+			if err = w.retrySessions(ctx, snapshots[:mid]); err != nil {
+				return err
+			}
+			return w.retrySessions(ctx, snapshots[mid:])
 		}
 		if err := waitBackoff(ctx, backoff); err != nil {
 			return err
