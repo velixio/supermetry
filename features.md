@@ -37,6 +37,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Session replay | – | ✓ | ✓ | ✅ (responsive contain-fit player and independent detail scrolling) |
 | Heatmaps | – | ✓ | – | ✅ (aggregated clicks + scroll map, opt-in) |
 | User profiles and `identify` | – | ✓ | ✓ | ✅ (opt-in per site) |
+| Saved cohorts and power users | – | ✓ | ? | ✅ (identified mode with profiles; condition builder, size and sample on demand, cohort as dashboard filter, top profiles by sessions or events) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
