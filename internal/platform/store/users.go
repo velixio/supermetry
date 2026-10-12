@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,13 @@ type User struct {
 	TOTPLastStep         *int64
 	CreatedAt            time.Time
 	LastLoginAt          *time.Time
+	Preferences          UserPreferences
+}
+
+type UserPreferences struct {
+	LandingPage string `json:"landing_page,omitempty"`
+	SitesView   string `json:"sites_view,omitempty"`
+	LastSiteID  *int32 `json:"last_site_id,omitempty"`
 }
 
 type DBTX interface {
@@ -43,7 +51,7 @@ func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
 	return scanUser(s.Pool.QueryRow(ctx, `
 		select id,email,name,password_hash,totp_secret_enc,totp_enabled,
 		       totp_recovery,totp_pending_secret_enc,totp_pending_recovery,
-		       totp_last_step,created_at,last_login_at
+			       totp_last_step,created_at,last_login_at,preferences
 		from users where lower(email)=lower($1) and deleted_at is null`, email))
 }
 
@@ -51,12 +59,13 @@ func (s *Store) UserByID(ctx context.Context, id int64) (User, error) {
 	return scanUser(s.Pool.QueryRow(ctx, `
 		select id,email,name,password_hash,totp_secret_enc,totp_enabled,
 		       totp_recovery,totp_pending_secret_enc,totp_pending_recovery,
-		       totp_last_step,created_at,last_login_at
+			       totp_last_step,created_at,last_login_at,preferences
 		from users where id=$1 and deleted_at is null`, id))
 }
 
 func scanUser(row pgx.Row) (User, error) {
 	var user User
+	var preferences []byte
 	err := row.Scan(
 		&user.ID,
 		&user.Email,
@@ -70,8 +79,34 @@ func scanUser(row pgx.Row) (User, error) {
 		&user.TOTPLastStep,
 		&user.CreatedAt,
 		&user.LastLoginAt,
+		&preferences,
 	)
+	if err == nil {
+		err = json.Unmarshal(preferences, &user.Preferences)
+	}
 	return user, err
+}
+
+func (s *Store) UpdateUserProfile(ctx context.Context, userID int64, name *string, preferences *UserPreferences) error {
+	var encoded []byte
+	var err error
+	if preferences != nil {
+		encoded, err = json.Marshal(preferences)
+		if err != nil {
+			return err
+		}
+	}
+	tag, err := s.Pool.Exec(ctx, `
+		update users
+		set name=coalesce($2,name), preferences=coalesce($3::jsonb,preferences)
+		where id=$1 and deleted_at is null`, userID, name, encoded)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Store) SetPendingTOTPEnrollment(ctx context.Context, userID int64, encryptedSecret []byte, recovery [][]byte) error {

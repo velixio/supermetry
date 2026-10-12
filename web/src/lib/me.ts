@@ -36,7 +36,14 @@ export type Me = {
   user: { id: number; name: string; email: string; totp_enabled?: boolean }
   memberships: Membership[]
   demo_prompt_dismissed?: boolean
+  preferences?: UserPreferences
   version?: string
+}
+
+export type UserPreferences = {
+  landing_page: 'overview' | 'last_site'
+  sites_view: 'cards' | 'table'
+  last_site_id?: number | null
 }
 
 export class AuthenticationRequired extends Error {}

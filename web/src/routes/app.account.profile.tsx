@@ -8,6 +8,6 @@ export const Route = createFileRoute("/app/account/profile")({
 function ProfileRoute() {
   const me = useMe();
   return me.data ? (
-    <AccountProfilePage name={me.data.user.name} email={me.data.user.email} totpEnabled={Boolean(me.data.user.totp_enabled)} onDeleted={() => window.location.assign('/login')} />
+    <AccountProfilePage name={me.data.user.name} email={me.data.user.email} totpEnabled={Boolean(me.data.user.totp_enabled)} preferences={me.data.preferences} onDeleted={() => window.location.assign('/login')} />
   ) : null;
 }

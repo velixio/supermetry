@@ -1042,6 +1042,42 @@ func (e StatsBreakdownDimension) Valid() bool {
 	}
 }
 
+// Defines values for UpdateCurrentUserRequestPreferencesLandingPage.
+const (
+	UpdateCurrentUserRequestPreferencesLandingPageLastSite UpdateCurrentUserRequestPreferencesLandingPage = "last_site"
+	UpdateCurrentUserRequestPreferencesLandingPageOverview UpdateCurrentUserRequestPreferencesLandingPage = "overview"
+)
+
+// Valid indicates whether the value is a known member of the UpdateCurrentUserRequestPreferencesLandingPage enum.
+func (e UpdateCurrentUserRequestPreferencesLandingPage) Valid() bool {
+	switch e {
+	case UpdateCurrentUserRequestPreferencesLandingPageLastSite:
+		return true
+	case UpdateCurrentUserRequestPreferencesLandingPageOverview:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateCurrentUserRequestPreferencesSitesView.
+const (
+	UpdateCurrentUserRequestPreferencesSitesViewCards UpdateCurrentUserRequestPreferencesSitesView = "cards"
+	UpdateCurrentUserRequestPreferencesSitesViewTable UpdateCurrentUserRequestPreferencesSitesView = "table"
+)
+
+// Valid indicates whether the value is a known member of the UpdateCurrentUserRequestPreferencesSitesView enum.
+func (e UpdateCurrentUserRequestPreferencesSitesView) Valid() bool {
+	switch e {
+	case UpdateCurrentUserRequestPreferencesSitesViewCards:
+		return true
+	case UpdateCurrentUserRequestPreferencesSitesViewTable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateSiteRequestRetentionDays.
 const (
 	UpdateSiteRequestRetentionDaysN0   UpdateSiteRequestRetentionDays = 0
@@ -1063,6 +1099,42 @@ func (e UpdateSiteRequestRetentionDays) Valid() bool {
 	case UpdateSiteRequestRetentionDaysN7:
 		return true
 	case UpdateSiteRequestRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserPreferencesLandingPage.
+const (
+	UserPreferencesLandingPageLastSite UserPreferencesLandingPage = "last_site"
+	UserPreferencesLandingPageOverview UserPreferencesLandingPage = "overview"
+)
+
+// Valid indicates whether the value is a known member of the UserPreferencesLandingPage enum.
+func (e UserPreferencesLandingPage) Valid() bool {
+	switch e {
+	case UserPreferencesLandingPageLastSite:
+		return true
+	case UserPreferencesLandingPageOverview:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserPreferencesSitesView.
+const (
+	UserPreferencesSitesViewCards UserPreferencesSitesView = "cards"
+	UserPreferencesSitesViewTable UserPreferencesSitesView = "table"
+)
+
+// Valid indicates whether the value is a known member of the UserPreferencesSitesView enum.
+func (e UserPreferencesSitesView) Valid() bool {
+	switch e {
+	case UserPreferencesSitesViewCards:
+		return true
+	case UserPreferencesSitesViewTable:
 		return true
 	default:
 		return false
@@ -1242,7 +1314,8 @@ type CurrentUserResponse struct {
 		SiteIds *[]int32                           `json:"site_ids"`
 		Sites   []Site                             `json:"sites"`
 	} `json:"memberships"`
-	User struct {
+	Preferences UserPreferences `json:"preferences"`
+	User        struct {
 		CreatedAt   time.Time           `json:"created_at"`
 		Email       openapi_types.Email `json:"email"`
 		Id          int64               `json:"id"`
@@ -2290,6 +2363,45 @@ type SiteList struct {
 	NextCursor *string `json:"next_cursor,omitempty"`
 }
 
+// SitesOverviewItem defines model for SitesOverviewItem.
+type SitesOverviewItem struct {
+	ChangePercent *float64  `json:"change_percent"`
+	CreatedAt     time.Time `json:"created_at"`
+	Domain        string    `json:"domain"`
+	IconUrl       *string   `json:"icon_url,omitempty"`
+	Id            int32     `json:"id"`
+
+	// InstallStatus Tracking state (waiting, receiving, or quiet).
+	InstallStatus string     `json:"install_status"`
+	LastEventAt   *time.Time `json:"last_event_at"`
+	LiveVisitors  int        `json:"live_visitors"`
+	Name          string     `json:"name"`
+	OrgId         int64      `json:"org_id"`
+	Organization  struct {
+		Id   int64  `json:"id"`
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+	} `json:"organization"`
+	PreviousVisitors int64  `json:"previous_visitors"`
+	PublicId         string `json:"public_id"`
+
+	// Role Membership role for the site's organization (owner, admin, editor, or viewer).
+	Role      string `json:"role"`
+	Sparkline []struct {
+		Start    time.Time `json:"start"`
+		Visitors int64     `json:"visitors"`
+	} `json:"sparkline"`
+	Timezone        string `json:"timezone"`
+	TrackingSnippet string `json:"tracking_snippet"`
+	Visitors        int64  `json:"visitors"`
+}
+
+// SitesOverviewResponse defines model for SitesOverviewResponse.
+type SitesOverviewResponse struct {
+	Data       []SitesOverviewItem `json:"data"`
+	NextCursor *string             `json:"next_cursor"`
+}
+
 // StatsBreakdownDimension defines model for StatsBreakdownDimension.
 type StatsBreakdownDimension string
 
@@ -2310,6 +2422,22 @@ type TopSource struct {
 	Source   string `json:"source"`
 	Visitors int64  `json:"visitors"`
 }
+
+// UpdateCurrentUserRequest defines model for UpdateCurrentUserRequest.
+type UpdateCurrentUserRequest struct {
+	Name        *string `json:"name,omitempty"`
+	Preferences *struct {
+		LandingPage *UpdateCurrentUserRequestPreferencesLandingPage `json:"landing_page,omitempty"`
+		LastSiteId  *int32                                          `json:"last_site_id,omitempty"`
+		SitesView   *UpdateCurrentUserRequestPreferencesSitesView   `json:"sites_view,omitempty"`
+	} `json:"preferences,omitempty"`
+}
+
+// UpdateCurrentUserRequestPreferencesLandingPage defines model for UpdateCurrentUserRequest.Preferences.LandingPage.
+type UpdateCurrentUserRequestPreferencesLandingPage string
+
+// UpdateCurrentUserRequestPreferencesSitesView defines model for UpdateCurrentUserRequest.Preferences.SitesView.
+type UpdateCurrentUserRequestPreferencesSitesView string
 
 // UpdateSiteRequest defines model for UpdateSiteRequest.
 type UpdateSiteRequest struct {
@@ -2336,6 +2464,19 @@ type UpdateSiteRequest struct {
 
 // UpdateSiteRequestRetentionDays defines model for UpdateSiteRequest.RetentionDays.
 type UpdateSiteRequestRetentionDays int
+
+// UserPreferences defines model for UserPreferences.
+type UserPreferences struct {
+	LandingPage UserPreferencesLandingPage `json:"landing_page"`
+	LastSiteId  *int32                     `json:"last_site_id,omitempty"`
+	SitesView   UserPreferencesSitesView   `json:"sites_view"`
+}
+
+// UserPreferencesLandingPage defines model for UserPreferences.LandingPage.
+type UserPreferencesLandingPage string
+
+// UserPreferencesSitesView defines model for UserPreferences.SitesView.
+type UserPreferencesSitesView string
 
 // ValidationError defines model for ValidationError.
 type ValidationError struct {
@@ -2500,11 +2641,6 @@ type DeleteCurrentUserJSONBody struct {
 	TotpCode *string `json:"totp_code,omitempty"`
 }
 
-// UpdateCurrentUserJSONBody defines parameters for UpdateCurrentUser.
-type UpdateCurrentUserJSONBody struct {
-	Name string `json:"name"`
-}
-
 // StartCurrentUserEmailChangeJSONBody defines parameters for StartCurrentUserEmailChange.
 type StartCurrentUserEmailChangeJSONBody struct {
 	NewEmail openapi_types.Email `json:"new_email"`
@@ -2526,6 +2662,14 @@ type DeleteOrganizationJSONBody struct {
 // RenameOrganizationJSONBody defines parameters for RenameOrganization.
 type RenameOrganizationJSONBody struct {
 	Name string `json:"name"`
+}
+
+// GetSitesOverviewParams defines parameters for GetSitesOverview.
+type GetSitesOverviewParams struct {
+	// Period Aggregate window; accepted values are 24h, 7d, and 30d.
+	Period *string `form:"period,omitempty" json:"period,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // ListReplaysParams defines parameters for ListReplays.
@@ -2735,7 +2879,7 @@ type UpdateReplayStorageJSONRequestBody = ReplayStorageInput
 type DeleteCurrentUserJSONRequestBody DeleteCurrentUserJSONBody
 
 // UpdateCurrentUserJSONRequestBody defines body for UpdateCurrentUser for application/json ContentType.
-type UpdateCurrentUserJSONRequestBody UpdateCurrentUserJSONBody
+type UpdateCurrentUserJSONRequestBody = UpdateCurrentUserRequest
 
 // StartCurrentUserEmailChangeJSONRequestBody defines body for StartCurrentUserEmailChange for application/json ContentType.
 type StartCurrentUserEmailChangeJSONRequestBody StartCurrentUserEmailChangeJSONBody
@@ -3234,7 +3378,7 @@ type ServerInterface interface {
 	// GetCurrentUser Get the signed-in user and memberships
 	// (GET /api/private/me)
 	GetCurrentUser(w http.ResponseWriter, r *http.Request)
-	// UpdateCurrentUser Update the display name
+	// UpdateCurrentUser Update account preferences or the display name
 	// (PATCH /api/private/me)
 	UpdateCurrentUser(w http.ResponseWriter, r *http.Request)
 	// DismissDemoPrompt Permanently dismiss the demo-project onboarding prompt
@@ -3279,6 +3423,9 @@ type ServerInterface interface {
 	// GetSharedDashboard Get the server-scoped shared dashboard summary
 	// (GET /api/private/share/{slug}/stats/summary)
 	GetSharedDashboard(w http.ResponseWriter, r *http.Request, slug string)
+	// GetSitesOverview List every site readable by the signed-in user with aggregate traffic
+	// (GET /api/private/sites/overview)
+	GetSitesOverview(w http.ResponseWriter, r *http.Request, params GetSitesOverviewParams)
 	// DeletePrivateSite Schedule or immediately delete a site
 	// (DELETE /api/private/sites/{site_id})
 	DeletePrivateSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -3940,6 +4087,65 @@ func (siw *ServerInterfaceWrapper) GetSharedDashboard(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSharedDashboard(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSitesOverview operation middleware
+func (siw *ServerInterfaceWrapper) GetSitesOverview(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSitesOverviewParams
+
+	// ------------- Optional query parameter "period" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "period", r.URL.Query(), &params.Period, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "period"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "period", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSitesOverview(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6604,6 +6810,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}", wrapper.DeleteOrganization)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/orgs/{org}", wrapper.RenameOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/sites/deleted", wrapper.ListDeletedSites)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/overview", wrapper.GetSitesOverview)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site_id}", wrapper.DeletePrivateSite)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site_id}/restore", wrapper.RestoreSite)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/demo/heartbeat", wrapper.HeartbeatDemoProject)

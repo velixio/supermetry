@@ -337,6 +337,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/invitations/{token}/accept",
 		"POST " + privatePrefix + "/share/{slug}/open",
 		"GET " + privatePrefix + "/sites",
+		"GET " + privatePrefix + "/sites/overview",
 		"POST " + privatePrefix + "/sites",
 		"GET " + privatePrefix + "/sites/{site}",
 		"GET " + privatePrefix + "/sites/{site}/snippet",

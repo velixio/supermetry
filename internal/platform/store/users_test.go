@@ -105,3 +105,28 @@ func TestAcceptTOTPStepRejectsReplayAndOlderWindowCodes(t *testing.T) {
 		})
 	}
 }
+
+func TestUserPreferencesRoundTrip(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var userID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('preferences@example.test','User','hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	siteID := int32(42)
+	want := store.UserPreferences{LandingPage: "overview", SitesView: "table", LastSiteID: &siteID}
+	if err := data.UpdateUserProfile(ctx, userID, nil, &want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := data.UserByID(ctx, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Preferences.LandingPage != want.LandingPage || got.Preferences.SitesView != want.SitesView || got.Preferences.LastSiteID == nil || *got.Preferences.LastSiteID != siteID {
+		t.Fatalf("preferences=%+v want=%+v", got.Preferences, want)
+	}
+}

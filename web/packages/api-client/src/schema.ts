@@ -42,7 +42,7 @@ export interface paths {
         delete: operations["deleteCurrentUser"];
         options?: never;
         head?: never;
-        /** Update the display name */
+        /** Update account preferences or the display name */
         patch: operations["updateCurrentUser"];
         trace?: never;
     };
@@ -143,6 +143,23 @@ export interface paths {
         };
         /** List restorable sites in an organization */
         get: operations["listDeletedSites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List every site readable by the signed-in user with aggregate traffic */
+        get: operations["getSitesOverview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1398,6 +1415,7 @@ export interface components {
                 /** Format: date-time */
                 last_login_at?: string;
             };
+            preferences: components["schemas"]["UserPreferences"];
             memberships: {
                 org: {
                     /** Format: int64 */
@@ -1416,6 +1434,68 @@ export interface components {
             demo_prompt_dismissed: boolean;
             /** @description Build version reported by the running binary; development builds report dev. */
             version: string;
+        };
+        UserPreferences: {
+            /** @enum {string} */
+            landing_page: "overview" | "last_site";
+            /** @enum {string} */
+            sites_view: "cards" | "table";
+            /** Format: int32 */
+            last_site_id?: number | null;
+        };
+        UpdateCurrentUserRequest: {
+            name?: string;
+            preferences?: {
+                /** @enum {string} */
+                landing_page?: "overview" | "last_site";
+                /** @enum {string} */
+                sites_view?: "cards" | "table";
+                /** Format: int32 */
+                last_site_id?: number | null;
+            };
+        };
+        SitesOverviewResponse: {
+            data: components["schemas"]["SitesOverviewItem"][];
+            next_cursor: string | null;
+        };
+        SitesOverviewItem: {
+            /** Format: int32 */
+            id: number;
+            /** Format: int64 */
+            org_id: number;
+            public_id: string;
+            name: string;
+            domain: string;
+            timezone: string;
+            icon_url?: string;
+            organization: {
+                /** Format: int64 */
+                id: number;
+                name: string;
+                slug: string;
+            };
+            /** @description Membership role for the site's organization (owner, admin, editor, or viewer). */
+            role: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: int64 */
+            visitors: number;
+            /** Format: int64 */
+            previous_visitors: number;
+            /** Format: double */
+            change_percent: number | null;
+            sparkline: {
+                /** Format: date-time */
+                start: string;
+                /** Format: int64 */
+                visitors: number;
+            }[];
+            live_visitors: number;
+            /** Format: date-time */
+            last_event_at: string | null;
+            /** @description Tracking state (waiting, receiving, or quiet). */
+            install_status: string;
+            tracking_snippet: string;
         };
         /**
          * @description Days from the current time, or null for no expiry.
@@ -2817,9 +2897,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    name: string;
-                };
+                "application/json": components["schemas"]["UpdateCurrentUserRequest"];
             };
         };
         responses: {
@@ -3054,6 +3132,34 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getSitesOverview: {
+        parameters: {
+            query?: {
+                /** @description Aggregate window; accepted values are 24h, 7d, and 30d. */
+                period?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of readable sites. Traffic is derived from bounded aggregate tables. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SitesOverviewResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["RateLimited"];
         };
     };
     deletePrivateSite: {

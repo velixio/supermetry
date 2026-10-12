@@ -76,6 +76,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		Sites                 []siteResponse `json:"sites"`
 	}
 	items := make([]membershipResponse, 0, len(memberships))
+	totalSites := 0
 	for _, membership := range memberships {
 		sites, err := h.membershipSites(r.Context(), membership)
 		if err != nil {
@@ -90,7 +91,9 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		item.Org.Name = membership.OrgName
 		item.Org.Slug = membership.OrgSlug
 		items = append(items, item)
+		totalSites += len(sites)
 	}
+	preferences := effectiveUserPreferences(user.Preferences, totalSites)
 	writeJSON(w, http.StatusOK, struct {
 		User struct {
 			ID          int64      `json:"id"`
@@ -100,9 +103,10 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 			CreatedAt   time.Time  `json:"created_at"`
 			LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 		} `json:"user"`
-		Memberships         []membershipResponse `json:"memberships"`
-		DemoPromptDismissed bool                 `json:"demo_prompt_dismissed"`
-		Version             string               `json:"version"`
+		Preferences         store.UserPreferences `json:"preferences"`
+		Memberships         []membershipResponse  `json:"memberships"`
+		DemoPromptDismissed bool                  `json:"demo_prompt_dismissed"`
+		Version             string                `json:"version"`
 	}{
 		User: struct {
 			ID          int64      `json:"id"`
@@ -112,10 +116,24 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 			CreatedAt   time.Time  `json:"created_at"`
 			LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 		}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt},
+		Preferences:         preferences,
 		Memberships:         items,
 		DemoPromptDismissed: demoPromptDismissed,
 		Version:             h.deps.Version,
 	})
+}
+
+func effectiveUserPreferences(preferences store.UserPreferences, siteCount int) store.UserPreferences {
+	if preferences.LandingPage == "" {
+		preferences.LandingPage = "last_site"
+		if siteCount >= 2 {
+			preferences.LandingPage = "overview"
+		}
+	}
+	if preferences.SitesView == "" {
+		preferences.SitesView = "cards"
+	}
+	return preferences
 }
 
 func (h *handler) membershipSites(ctx context.Context, membership orgs.Membership) ([]siteResponse, error) {

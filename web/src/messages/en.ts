@@ -278,4 +278,10 @@ export const en = {
     emptyNext: 'Try a wider date range or remove a filter.',
     noTrafficNext: 'Choose a wider range or verify that tracking is installed.',
   },
+
+  // F20 sites overview.
+  sitesOverview: {
+    title: 'Sites',
+    description: 'Traffic and installation health across every site you can access.',
+  },
 } as const

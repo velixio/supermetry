@@ -3,11 +3,30 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { Onboarding } from './app.index'
+import { Onboarding } from '@/features/sites/Onboarding'
+import { landingTarget } from '@/features/sites/SitesOverviewLanding'
 
 afterEach(cleanup)
 
 describe('onboarding', () => {
+  it('defaults one site to its dashboard and multiple sites to overview', () => {
+    const single = {
+      user: { id: 1, name: 'Owner', email: 'owner@example.com' },
+      memberships: [{ org: { id: 1, name: 'Acme', slug: 'acme' }, role: 'owner' as const, sites: [{ id: 7, name: 'Docs', public_id: 'docs-public' }] }],
+    }
+    expect(landingTarget(single)).toBe('/app/acme/docs-public')
+    expect(landingTarget({ ...single, memberships: [{ ...single.memberships[0], sites: [...single.memberships[0].sites, { id: 8, name: 'Shop', public_id: 'shop-public' }] }] })).toBeUndefined()
+  })
+
+  it('honors overview and last-site preferences', () => {
+    const me = {
+      user: { id: 1, name: 'Owner', email: 'owner@example.com' },
+      memberships: [{ org: { id: 1, name: 'Acme', slug: 'acme' }, role: 'owner' as const, sites: [{ id: 7, name: 'Docs', public_id: 'docs-public' }, { id: 8, name: 'Shop', public_id: 'shop-public' }] }],
+    }
+    expect(landingTarget({ ...me, preferences: { landing_page: 'overview', sites_view: 'cards' } })).toBeUndefined()
+    expect(landingTarget({ ...me, preferences: { landing_page: 'last_site', sites_view: 'cards', last_site_id: 8 } })).toBe('/app/acme/shop-public')
+  })
+
   it('creates a first site with all settings and opens Installation', async () => {
     const createSite = vi.fn().mockResolvedValue({
       id: 7,
