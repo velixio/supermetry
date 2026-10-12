@@ -315,6 +315,8 @@ func hotSpecialSemiJoinConditions(builder *sqlBuilder, filters []api.Filter, def
 				return nil, errors.New(`invalid filter "goal_id"`)
 			}
 			predicate, err = hotGoalEventPredicate(builder, goal, "fe")
+		case filter.Dimension == "cohort":
+			predicate, err = cohortMembership(builder, filter, "fe.profile_id")
 		case filter.Dimension == "event" || filter.Dimension == "goal":
 			filter.Dimension = "event"
 			matches, matchErr := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {
@@ -392,6 +394,12 @@ func hotSpecialConditions(builder *sqlBuilder, filters []api.Filter, goalDefinit
 				return nil, err
 			}
 			conditions = append(conditions, condition)
+		case filter.Dimension == "cohort":
+			member, err := cohortMembership(builder, filter, "ce.profile_id")
+			if err != nil {
+				return nil, err
+			}
+			conditions = append(conditions, "exists (select 1 from events ce where ce.site_id=s.site_id and ce.session_id=s.session_id and "+member+")")
 		case filter.Dimension == "event" || filter.Dimension == "goal":
 			filter.Dimension = "event"
 			matches, err := filterConditions(builder, []api.Filter{filter}, func(string) (string, *dict.Kind, error) {

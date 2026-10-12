@@ -179,6 +179,7 @@ const dimensions = new Set([
   'browser_version',
   'channel',
   'city',
+  'cohort',
   'country',
   'device',
   'entry',

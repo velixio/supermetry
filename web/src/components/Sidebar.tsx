@@ -18,6 +18,7 @@ import {
   Rows3Icon,
   TablePropertiesIcon,
   UserRoundIcon,
+  UsersRoundIcon,
 } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 
@@ -60,6 +61,7 @@ const coreNavigation = [
   { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { label: en.navigation.profiles, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
+  { label: en.navigation.cohorts, suffix: '/cohorts', icon: UsersRoundIcon, scope: 'site' },
   { label: en.navigation.heatmaps, suffix: '/heatmaps', icon: MousePointer2Icon, scope: 'site' },
   { label: en.navigation.vitals, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
   { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
@@ -79,7 +81,7 @@ export type NavigationItem =
 
 const navigationSections = [
   { key: 'analyze', label: en.a11y2.sidebarSections.analyze, suffixes: ['', '/events', '/sessions', '/realtime'] },
-  { key: 'behaviour', label: en.a11y2.sidebarSections.behaviour, suffixes: ['/journeys', '/retention', '/profiles', '/heatmaps', '/vitals'] },
+  { key: 'behaviour', label: en.a11y2.sidebarSections.behaviour, suffixes: ['/journeys', '/retention', '/profiles', '/cohorts', '/heatmaps', '/vitals'] },
   { key: 'conversion', label: en.a11y2.sidebarSections.conversion, suffixes: ['/funnels', '/goals', '/revenue'] },
   { key: 'manage', label: en.a11y2.sidebarSections.manage, suffixes: ['/sites', '/links', '/health'] },
 ] as const
@@ -88,7 +90,7 @@ export function visibleNavigation(role: Role, hasSite = true, authorization?: Au
   const items: NavigationItem[] = [...coreNavigation, managementNavigation[0], managementNavigation[2]]
   if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
   return items.filter((item) => (hasSite || item.scope === 'org') &&
-    (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
+    (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && ((item.suffix !== '/profiles' && item.suffix !== '/cohorts') || hasCapability(authorization, 'profiles.read')))
 }
 
 export function canCreateSites(role: Role): boolean {
@@ -176,6 +178,8 @@ function navigationLink(
       return <Link to="/app/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, interval: 'day', identity: 'anonymous' }} {...props}>{content}</Link>
     case '/profiles':
       return <Link to="/app/$org/$site/profiles" params={{ org, site }} {...props}>{content}</Link>
+    case '/cohorts':
+      return <Link to="/app/$org/$site/cohorts" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
     case '/heatmaps':
       return <Link to="/app/$org/$site/heatmaps" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, path: '', device: 'desktop' }} {...props}>{content}</Link>
     case '/vitals':

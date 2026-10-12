@@ -23,6 +23,7 @@ type handlers struct {
 	query    queryService
 	sessions sessionExploreService
 	revenue  revenueService
+	cohorts  cohortService
 	heatmaps heatmapService
 	now      func() time.Time
 }
@@ -147,6 +148,10 @@ func (h *handlers) currentTime() time.Time {
 }
 
 func writeQueryError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrCohortsUnavailable) || errors.Is(err, ErrCohortNotFound) || errors.Is(err, ErrCohortInput) {
+		writeCohortError(w, err)
+		return
+	}
 	if errors.Is(err, ErrAnonymousHistory) {
 		writeProblem(w, forbidden(ErrAnonymousHistory.Error()))
 		return

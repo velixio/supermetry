@@ -11,7 +11,7 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   const realtime = `${dashboard}/realtime`
   let meRequests = 0
   page.on('request', (request) => {
-    if (request.url().endsWith('/api/private/me')) meRequests += 1
+    if (request.method() === 'GET' && request.url().endsWith('/api/private/me')) meRequests += 1
   })
   await page.setViewportSize({ width: 1440, height: 900 })
   await owner.login(page, dashboard)

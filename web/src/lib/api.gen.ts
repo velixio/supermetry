@@ -1621,6 +1621,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/cohorts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * List saved cohorts
+         * @description Cohorts are saved audience definitions; membership is evaluated on demand and never stored.
+         */
+        get: operations["listCohorts"];
+        put?: never;
+        /**
+         * Save a cohort
+         * @description Requires an owner, admin or editor role. The change is recorded in the organization audit log.
+         */
+        post: operations["createCohort"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/cohorts/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate a cohort definition
+         * @description Counts the profiles matching a saved cohort (`cohort_id`) or an unsaved `definition`, against retained data only, over a rolling window of
+         *     `window_days` ending now. The count stops at 100,000 (`size_capped`) and the query is cancelled at the statement timeout (503).
+         *     A sample of members (`sample_limit` up to 50) is returned only to callers holding `profiles:read`; otherwise `sample_withheld` is true.
+         *     Requires identified tracking with profiles enabled; anonymous mode answers 403 with the policy explanation.
+         */
+        post: operations["evaluateCohort"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/cohorts/{cohort}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cohort: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a cohort */
+        delete: operations["deleteCohort"];
+        options?: never;
+        head?: never;
+        /** Rename or redefine a cohort */
+        patch: operations["updateCohort"];
+        trace?: never;
+    };
+    "/api/private/cohorts/{cohort}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cohort: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate a cohort
+         * @description Creates a copy named "<name> (copy)", numbered when that name is taken.
+         */
+        post: operations["duplicateCohort"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/power-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Top profiles by sessions or events
+         * @description Profiles whose sessions or events (pageviews and custom events) inside the inclusive date range, in the site time zone, reach `min`,
+         *     busiest first. `qualifying` counts every profile at or above the threshold (stopping at 100,000). Needs `profiles:read` because external ids can be
+         *     personal data, and identified tracking with profiles enabled.
+         */
+        get: operations["listPowerUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/notification-history": {
         parameters: {
             query?: never;
@@ -2526,6 +2643,119 @@ export interface components {
         Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "exit_rate" | "time_on_page" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
         /** @enum {string} */
         StatsBreakdownDimension: "browser" | "browser_version" | "channel" | "city" | "country" | "device" | "entry" | "event" | "exit" | "goal" | "hour" | "hour_of_day" | "hostname" | "language" | "os" | "os_version" | "page" | "path" | "region" | "screen_size" | "source" | "time" | "utm_campaign" | "utm_medium" | "utm_source" | "weekday";
+        /**
+         * @description One test on a profile. `event`: performed the custom event `name` at least `min_count` times in the window. `page`: viewed `path`
+         *     (`operator` is or starts_with) at least `min_count` times. `event_property`: performed event `name` with property `key` equal to `value`
+         *     at least `min_count` times. `activity`: has at least `min_count` `metric` (sessions or events) in the window. `first_seen` and `last_seen`:
+         *     the profile's first or last activity is `within` or `before` the last `days` days. `negate` inverts the test.
+         */
+        CohortCondition: {
+            /** @enum {string} */
+            type: "event" | "page" | "event_property" | "activity" | "first_seen" | "last_seen";
+            negate?: boolean;
+            name?: string;
+            path?: string;
+            /** @enum {string} */
+            operator?: "is" | "starts_with";
+            key?: string;
+            value?: string;
+            /** @enum {string} */
+            metric?: "sessions" | "events";
+            min_count?: number;
+            /** @enum {string} */
+            relation?: "within" | "before";
+            days?: number;
+        };
+        CohortDefinition: {
+            /** @enum {string} */
+            match: "all" | "any";
+            /** @description Rolling window, in 24-hour days ending at evaluation time, applied to event, page, property and activity conditions. */
+            window_days: number;
+            conditions: components["schemas"]["CohortCondition"][];
+        };
+        CohortInput: {
+            name: string;
+            definition: components["schemas"]["CohortDefinition"];
+        };
+        Cohort: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            name: string;
+            definition: components["schemas"]["CohortDefinition"];
+            /** Format: int64 */
+            created_by?: number | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CohortList: {
+            data: components["schemas"]["Cohort"][];
+        };
+        /** @description Provide exactly one of cohort_id and definition. */
+        CohortEvaluateRequest: {
+            /** Format: int64 */
+            cohort_id?: number;
+            definition?: components["schemas"]["CohortDefinition"];
+            /** @default 0 */
+            sample_limit: number;
+        };
+        CohortMember: {
+            /** Format: int64 */
+            id: number;
+            external_id: string;
+            /** Format: date-time */
+            first_seen_at: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            /**
+             * Format: int64
+             * @description Sessions inside the window.
+             */
+            sessions: number;
+            /**
+             * Format: int64
+             * @description Pageviews and custom events inside the window.
+             */
+            events: number;
+        };
+        CohortEvaluation: {
+            /** Format: int64 */
+            size: number;
+            size_capped: boolean;
+            /** Format: date-time */
+            window_from: string;
+            /** Format: date-time */
+            window_to: string;
+            sample: components["schemas"]["CohortMember"][];
+            /** @description True when a sample was requested but the caller lacks profiles:read. */
+            sample_withheld: boolean;
+        };
+        PowerUser: {
+            /** Format: int64 */
+            id: number;
+            external_id: string;
+            /** Format: date-time */
+            first_seen_at: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            /** Format: int64 */
+            sessions: number;
+            /** Format: int64 */
+            events: number;
+        };
+        PowerUsers: {
+            /** @enum {string} */
+            metric: "sessions" | "events";
+            /** Format: int32 */
+            min: number;
+            /** Format: int64 */
+            qualifying: number;
+            qualifying_capped: boolean;
+            data: components["schemas"]["PowerUser"][];
+        };
         Filter: {
             /** @description Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. Region and city accept the legacy one-value [place] form for any country and the country-scoped [place, ISO country code] form. */
             dimension: string;
@@ -6504,6 +6734,222 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listCohorts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved cohorts by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CohortList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createCohort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CohortInput"];
+            };
+        };
+        responses: {
+            /** @description Created cohort. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cohort"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A cohort with this name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    evaluateCohort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CohortEvaluateRequest"];
+            };
+        };
+        responses: {
+            /** @description Cohort size and optional sample. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CohortEvaluation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteCohort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cohort: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateCohort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cohort: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CohortInput"];
+            };
+        };
+        responses: {
+            /** @description Updated cohort. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cohort"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A cohort with this name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    duplicateCohort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cohort: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The copy. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cohort"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPowerUsers: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                /** @description sessions or events. */
+                metric?: string;
+                min?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Power users. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerUsers"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listNotificationHistory: {

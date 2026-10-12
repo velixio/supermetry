@@ -165,6 +165,32 @@ curl -X POST https://supermetry.com/api/public/v1/events \
 
 Connection instructions for common clients are under **Organization settings → API keys** in the dashboard.
 
+## Cohorts and power users
+
+Saved audiences for identified sites with profiles enabled. Dashboard session endpoints (not part of the public API-key surface):
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/private/sites/{site}/cohorts` | Saved cohorts (any member of the site) |
+| POST | `/api/private/sites/{site}/cohorts` | Save a cohort (owner, admin or editor; audited, up to 100 per site) |
+| PATCH | `/api/private/cohorts/{cohort}` | Rename or redefine |
+| DELETE | `/api/private/cohorts/{cohort}` | Delete |
+| POST | `/api/private/cohorts/{cohort}/duplicate` | Copy as `<name> (copy)` |
+| POST | `/api/private/sites/{site}/cohorts/evaluate` | Size, and optionally a sample, of a saved cohort (`cohort_id`) or an unsaved `definition` |
+| GET | `/api/private/sites/{site}/power-users` | Top profiles by `metric` = `sessions` or `events` inside `from`..`to`, at least `min` (needs `profiles:read`) |
+
+A cohort definition is `match` (`all` or `any`), `window_days` (1 to 90) and 1 to 10 conditions. Conditions: `event` (custom event `name`, at least `min_count` times), `page` (`path`, `operator` `is` or `starts_with`), `event_property` (event `name` with `key` equal to `value`), `activity` (at least `min_count` `metric` = `sessions` or `events`), `first_seen` and `last_seen` (`relation` `within` or `before` the last `days` days, up to 365). `negate` inverts any condition.
+
+Rules worth knowing:
+
+- Nothing person-level is stored: a cohort is only its conditions. Membership is computed on demand from retained events and profiles, so it changes with time and never reaches past the raw retention window.
+- The window is rolling, in 24-hour days ending at evaluation time, and both edges are inclusive. `first_seen` and `last_seen` compare the profile timestamps with now minus `days`; `within` includes the cutoff instant and `before` excludes it.
+- Counts stop at 100,000 (`size_capped`). Evaluation runs under the statement timeout and the shared query-slot limit; a definition that cannot finish in time answers `503`.
+- The `evaluate` sample (up to 50 profiles with their external ids) is returned only to callers holding `profiles:read`; others get the size and `sample_withheld: true`. Power users always need `profiles:read`.
+- Anonymous mode, or a site with profiles off, answers `403` with the policy explanation.
+- A saved cohort works as a filter: `{"dimension": "cohort", "operator": "is", "values": ["<id>"]}` in `/api/private/query` and the sessions list. It matches sessions of people in the cohort evaluated at query time (sessions without a profile never match), bypasses result caching, and is not available for funnels, journeys or retention.
+- `sessions` count distinct sessions with a pageview or custom event; `events` count pageviews and custom events. Engagement beacons never count.
+
 ## Operations endpoints
 
 `GET /healthz` (process alive) and `GET /readyz` (ready to serve) are outside `/api` and need no key. `GET /metrics` (Prometheus) needs `Authorization: Bearer <SUPERMETRY_METRICS_TOKEN>` when that variable is set; without it, only clients on the same machine (loopback) can read it, and everyone else gets 404.

@@ -111,7 +111,7 @@ describe('SPA navigation', () => {
 
     const expected = {
       Analyze: ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays'],
-      Behaviour: ['Journeys', 'Retention', 'Profiles', 'Heatmaps', 'Web Vitals'],
+      Behaviour: ['Journeys', 'Retention', 'Profiles', 'Cohorts', 'Heatmaps', 'Web Vitals'],
       Conversion: ['Funnels', 'Goals', 'Revenue'],
       Manage: ['Sites', 'Links and pixels', 'Data health'],
     }
