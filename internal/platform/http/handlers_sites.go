@@ -42,6 +42,8 @@ type siteResponse struct {
 	IconURL               string                         `json:"icon_url"`
 	RevenueCurrency       string                         `json:"revenue_currency,omitempty"`
 	RevenueCurrencyState  coresites.RevenueCurrencyState `json:"revenue_currency_state"`
+	InstallStatus         coresites.InstallStatus        `json:"install_status"`
+	LastSeenAt            *time.Time                     `json:"last_seen_at"`
 	IsDemo                *bool                          `json:"is_demo,omitempty"`
 	DemoReady             *bool                          `json:"demo_ready,omitempty"`
 	DemoFailed            *bool                          `json:"demo_failed,omitempty"`
@@ -121,7 +123,8 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
 		coalesce(settings->'strict_origin'='true'::jsonb,false),coalesce(settings->'blocked_referrers','[]'::jsonb),
 		coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,
-		is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at),created_at
+		is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at),
+		(select last_event_at from site_last_event where site_id=sites.id),created_at
 		from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 		order by created_at,id limit $3`
 	args := []any{principal.OrgID, principal.SiteIDs, limit + 1}
@@ -134,7 +137,8 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			coalesce(settings->'respect_privacy_signals'='true'::jsonb,true),
 			coalesce(settings->'strict_origin'='true'::jsonb,false),coalesce(settings->'blocked_referrers','[]'::jsonb),
 			coalesce(settings->>'icon_url',''),coalesce(revenue_currency::text,''),revenue_currency_state,
-			is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at),created_at
+			is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at),
+			(select last_event_at from site_last_event where site_id=sites.id),created_at
 			from sites where org_id=$1 and deleted_at is null and ($2::integer[] is null or id=any($2))
 			and (created_at,id)>($3,$4) order by created_at,id limit $5`
 		args = []any{principal.OrgID, principal.SiteIDs, cursor.CreatedAt, cursor.ID, limit + 1}
@@ -163,14 +167,21 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 			&item.response.RespectPrivacySignals,
 			&item.response.StrictOrigin, &item.response.BlockedReferrers,
 			&item.response.IconURL, &item.response.RevenueCurrency, &item.response.RevenueCurrencyState,
-			&isDemo, &demoReady, &demoFailed, &demoStartedAt, &item.createdAt); err != nil {
+			&isDemo, &demoReady, &demoFailed, &demoStartedAt, &item.response.LastSeenAt, &item.createdAt); err != nil {
 			return nil, "", err
 		}
 		item.response.Timezone = timezone
 		item.response.RetentionDays = int(db.RetentionClass(retention))
+		if item.response.LastSeenAt == nil {
+			item.response.LastSeenAt, err = coresites.LastEventAt(r.Context(), h.deps.Store.Pool, item.response.ID, db.RetentionClass(retention), h.deps.Now())
+			if err != nil {
+				return nil, "", err
+			}
+		}
 		tracker := sitesvc.ParseStoredTracker(item.response.ID, trackerRaw)
 		item.response.Tracker = tracker.Resolve(item.response.HeatmapsEnabled)
 		item.response.TrackerURL = h.trackerURL(item.response.PublicID)
+		item.response.InstallStatus = coresites.InstallStatusAt(item.response.LastSeenAt, h.deps.Now())
 		if !strings.HasPrefix(r.URL.Path, "/api/public/v1/") {
 			item.response.IsDemo = boolPointer(isDemo)
 			item.response.DemoReady = boolPointer(demoReady)
@@ -425,6 +436,7 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		IconURL:               site.IconURL,
 		RevenueCurrency:       site.RevenueCurrency,
 		RevenueCurrencyState:  site.RevenueCurrencyState,
+		InstallStatus:         coresites.InstallWaiting,
 	}
 	if !strings.HasPrefix(r.URL.Path, "/api/public/v1/") {
 		response.IsDemo = boolPointer(site.Demo)
@@ -435,9 +447,15 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 		var isDemo, demoReady, demoFailed bool
 		var demoStartedAt *time.Time
 		_ = h.deps.Store.Pool.QueryRow(r.Context(), `
-			select name,coalesce(settings->>'icon_url',''),is_demo,demo_seeded_at is not null,settings ? 'demo_seed_failed_at',coalesce(demo_started_at,created_at)
-			from sites where id=$1 and org_id=$2 and deleted_at is null`, site.ID, site.OrgID).
-			Scan(&response.Name, &response.IconURL, &isDemo, &demoReady, &demoFailed, &demoStartedAt)
+			select s.name,coalesce(s.settings->>'icon_url',''),s.is_demo,s.demo_seeded_at is not null,
+			       s.settings ? 'demo_seed_failed_at',coalesce(s.demo_started_at,s.created_at),
+			       (select last_event_at from site_last_event where site_id=s.id)
+			from sites s where s.id=$1 and s.org_id=$2 and s.deleted_at is null`, site.ID, site.OrgID).
+			Scan(&response.Name, &response.IconURL, &isDemo, &demoReady, &demoFailed, &demoStartedAt, &response.LastSeenAt)
+		if response.LastSeenAt == nil {
+			response.LastSeenAt, _ = coresites.LastEventAt(r.Context(), h.deps.Store.Pool, site.ID, site.Retention, h.deps.Now())
+		}
+		response.InstallStatus = coresites.InstallStatusAt(response.LastSeenAt, h.deps.Now())
 		if !strings.HasPrefix(r.URL.Path, "/api/public/v1/") {
 			response.IsDemo = boolPointer(isDemo)
 			response.DemoReady = boolPointer(demoReady)

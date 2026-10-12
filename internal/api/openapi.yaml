@@ -2462,7 +2462,7 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state, is_demo, demo_ready]
+      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state, install_status, last_seen_at, is_demo, demo_ready]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -2501,6 +2501,15 @@ components:
           type: string
           enum: [unconfigured, configured, conflict]
           x-enum-varnames: [SiteRevenueCurrencyUnconfigured, SiteRevenueCurrencyConfigured, SiteRevenueCurrencyConflict]
+        install_status:
+          type: string
+          enum: [waiting, receiving, quiet]
+          x-enum-varnames: [SiteInstallStatusWaiting, SiteInstallStatusReceiving, SiteInstallStatusQuiet]
+          description: Derived from the site's most recent accepted event.
+        last_seen_at:
+          type: [string, 'null']
+          format: date-time
+          description: Timestamp of the site's most recent accepted event, or null before the first event.
         is_demo: { type: boolean }
         demo_ready: { type: boolean }
         deleted_at: { type: [string, 'null'], format: date-time }

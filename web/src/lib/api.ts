@@ -78,7 +78,8 @@ type PrivatePaths = {
               retention_days?: number
               allowed_hosts?: string[]
               profiles_enabled?: boolean
-              last_event_received_at?: string
+              install_status?: 'waiting' | 'receiving' | 'quiet'
+              last_seen_at?: string | null
               icon_url: string
             }
           }
