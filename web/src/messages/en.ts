@@ -180,6 +180,20 @@ export const en = {
       events: 'events',
     },
   },
+  // Replay triage
+  replays: {
+    title: 'Replays', description: 'Find and save recordings that need a closer look.', filters: 'Replay filters',
+    search: 'Search replays', searchPlaceholder: 'Entry, exit, country, browser, or event', view: 'Replay view',
+    all: 'All', saved: 'Saved', layout: 'List layout', table: 'Table', cards: 'Cards',
+    minimumDuration: 'Minimum duration in seconds', maximumDuration: 'Maximum duration in seconds',
+    events: 'Event activity', any: 'Any activity', hasEvents: 'Has events', noEvents: 'No events',
+    save: 'Save replay', unsave: 'Remove saved replay', saveRetry: 'Try saving again.', loading: 'Loading replays',
+    noSaved: 'No saved replays', noSavedDescription: 'Save a replay to keep it close at hand.', noResults: 'No replays found',
+    noResultsFiltered: 'Clear a filter or try a broader search.', noResultsDescription: 'Try a wider date range or adjust replay sampling.',
+    showAll: 'Show all replays', clearFilters: 'Clear filters', cardsLabel: 'Replay cards', tableLabel: 'Session replays',
+    play: 'Play', started: 'Started', location: 'Location', browser: 'Browser', os: 'OS', device: 'Device',
+    actions: 'Actions', duration: 'Duration', pages: 'Pages', trigger: 'Trigger',
+  },
   map: {
     visitors: 'Visitors',
     pageviews: 'Pageviews',
