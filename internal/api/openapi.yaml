@@ -1177,7 +1177,10 @@ paths:
     post:
       operationId: journeyQuery
       summary: Run a page journey query
-      description: The date range must fit within the site's raw-event retention window.
+      description: >-
+        Counts distinct daily visitors across page flows in site-local sessions (consecutive repeats of a page collapse).
+        Reads closed days and recent raw events, so ranges are limited to 366 days but not to the raw retention window.
+        Answers 403 in anonymous tracking mode, where visitors cannot be linked across days.
       requestBody:
         required: true
         content:
@@ -4773,9 +4776,11 @@ components:
         start_path:
           type: string
           minLength: 1
+          maxLength: 2048
         end_path:
           type: string
           minLength: 1
+          maxLength: 2048
         steps:
           type: integer
           minimum: 2

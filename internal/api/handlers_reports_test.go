@@ -72,6 +72,8 @@ func TestJourneyReport(t *testing.T) {
 		{name: "steps above maximum", body: `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"steps":6,"limit":5}`},
 		{name: "zero limit", body: `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"steps":3,"limit":0}`},
 		{name: "limit above maximum", body: `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"steps":3,"limit":11}`},
+		{name: "oversized start_path", body: `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"start_path":"/` + strings.Repeat("a", 2100) + `","steps":3,"limit":5}`},
+		{name: "oversized end_path", body: `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"end_path":"/` + strings.Repeat("a", 2100) + `","steps":3,"limit":5}`},
 		{name: "both path anchors", body: `{"site_id":1,"date_range":{"from":"2026-10-01","to":"2026-10-02"},"start_path":"/","end_path":"/done","steps":3,"limit":5}`},
 	}
 	for _, tt := range tests {

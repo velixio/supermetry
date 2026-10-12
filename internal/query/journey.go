@@ -67,6 +67,11 @@ func (e *Engine) Journey(ctx context.Context, req api.JourneyRequest) (api.Journ
 	}
 	response := api.JourneyResponse{Nodes: []api.JourneyNode{}, Links: []api.JourneyLink{}}
 	err = WithStatementTimeout(ctx, e.pool, queryTimeout, func(tx pgx.Tx) error {
+		// Sorting a month of sessions spills to disk at the default 4MB; the
+		// global query slots bound how many of these run at once.
+		if _, setErr := tx.Exec(ctx, "set local work_mem = '64MB'"); setErr != nil {
+			return setErr
+		}
 		rows, queryErr := tx.Query(ctx, querySQL, args...)
 		if queryErr != nil {
 			return queryErr
@@ -125,14 +130,13 @@ func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, locati
 		}
 		fromArg, toArg := builder.arg(dateParam(from)), builder.arg(dateParam(closedTo))
 		sequenceQueries = append(sequenceQueries, `select s.day as local_day,s.visitor_id,s.session_id,true as ended,
-       array_agg(d.value order by u.ord) as paths
+       array_agg((u.code >> 2)::int8 order by u.ord) as paths
 from sessions_closed s
 cross join lateral (
   select code,ord,lag(code >> 2) over(order by ord) as previous_path
   from unnest(s.seq) with ordinality sequence(code,ord)
-  where code>0
+  where code>0 and (code >> 2)>0
 ) u
-join dict d on d.kind=`+fmt.Sprint(dict.Path)+` and d.id=(u.code >> 2)
 where s.site_id=`+siteArg+` and s.day between `+fromArg+`::date and `+toArg+`::date
   and (u.code >> 2) is distinct from u.previous_path`+andSQL(conditions)+`
 group by s.day,s.visitor_id,s.session_id`)
@@ -160,27 +164,23 @@ group by s.day,s.visitor_id,s.session_id`)
          (s.last < `+endArg+` and s.last < `+endedBeforeArg+`) as ended
   from sessions s
   where `+where+`
-)`, `numbered as (
-  select e.site_id,ss.local_day,ss.visitor_id,e.session_id,ss.ended,e.path_id,e.ts,
-         row_number() over (partition by e.site_id,e.session_id order by e.ts,e.path_id desc) as event_order
+)`, `compared as (
+  select ss.local_day,ss.visitor_id,e.session_id,ss.ended,e.path_id,e.ts,
+         lag(e.path_id) over (partition by e.site_id,e.session_id order by e.ts,e.path_id desc) as previous_path
   from selected_sessions ss
   join events e on e.site_id=ss.site_id and e.session_id=ss.session_id
   where e.site_id=`+siteArg+` and e.retention_class=`+retentionArg+`
     and e.local_day between `+fromArg+`::date and `+toArg+`::date
-    and e.ts>=`+startArg+` and e.ts<`+endArg+` and e.kind=0
-)`, `compared as (
-  select *,lag(path_id) over (partition by site_id,session_id order by event_order) as previous_path
-  from numbered
+    and e.ts>=`+startArg+` and e.ts<`+endArg+` and e.kind=0 and e.path_id>0
 )`)
 		sequenceQueries = append(sequenceQueries, `select c.local_day,c.visitor_id,c.session_id,c.ended,
-       array_agg(d.value order by c.event_order) as paths
+       array_agg(c.path_id::int8 order by c.ts,c.path_id desc) as paths
 from compared c
-join dict d on d.kind=`+fmt.Sprint(dict.Path)+` and d.id=c.path_id
 where c.previous_path is distinct from c.path_id
 group by c.local_day,c.visitor_id,c.session_id,c.ended`)
 	}
 	if len(sequenceQueries) == 0 {
-		sequenceQueries = append(sequenceQueries, "select null::date local_day,0::int8 visitor_id,0::int8 session_id,false ended,'{}'::text[] paths where false")
+		sequenceQueries = append(sequenceQueries, "select null::date local_day,0::int8 visitor_id,0::int8 session_id,false ended,'{}'::int8[] paths where false")
 	}
 
 	anchorIndex := "1"
@@ -188,56 +188,71 @@ group by c.local_day,c.visitor_id,c.session_id,c.ended`)
 	displayPaths := "paths[1:" + stepsArg + "]"
 	appendExit := true
 	if req.StartPath != nil {
-		anchor := builder.arg(*req.StartPath)
+		anchor := pathIDArg(builder, *req.StartPath)
 		anchorIndex = "array_position(paths," + anchor + ")"
 		anchorPredicate = anchorIndex + " is not null"
 		displayPaths = "paths[anchor_index:anchor_index+" + stepsArg + "-1]"
 	} else if req.EndPath != nil {
-		anchor := builder.arg(*req.EndPath)
+		anchor := pathIDArg(builder, *req.EndPath)
 		anchorIndex = "(select max(ord)::int from unnest(paths) with ordinality p(path,ord) where path=" + anchor + ")"
 		anchorPredicate = anchorIndex + " is not null"
-		displayPaths = "array_fill(null::text, array[greatest(0," + stepsArg + "-least(" + stepsArg + ",anchor_index))]) || paths[greatest(1,anchor_index-" + stepsArg + "+1):anchor_index]"
+		displayPaths = "array_fill(null::int8, array[greatest(0," + stepsArg + "-least(" + stepsArg + ",anchor_index))]) || paths[greatest(1,anchor_index-" + stepsArg + "+1):anchor_index]"
 		appendExit = false
 	}
 	if appendExit {
-		displayPaths = "case when ended and cardinality(" + displayPaths + ") < " + stepsArg + " then " + displayPaths + " || 'exit'::text else " + displayPaths + " end"
+		displayPaths = "case when ended and cardinality(" + displayPaths + ") < " + stepsArg + " then " + displayPaths + " || (-1)::int8 else " + displayPaths + " end"
 	}
 	ctes := append(hotCTEs, "sequences as ("+strings.Join(sequenceQueries, "\nunion all\n")+")")
 	querySQL := `with ` + strings.Join(ctes, ",\n") + `, indexed as (
   select *, ` + anchorIndex + ` as anchor_index from sequences
 ), displayed as (
-  select local_day, visitor_id, session_id, ended, ` + displayPaths + ` as paths
+  select dense_rank() over (order by local_day, visitor_id) as vid,
+         row_number() over (order by local_day, session_id) as sk,
+         ended, ` + displayPaths + ` as paths
   from indexed where ` + anchorPredicate + `
 ), positions as (
-  select local_day, visitor_id, session_id, ord::int as step, path
+  select vid, sk, ord::int as step, path
   from displayed cross join lateral unnest(paths) with ordinality p(path,ord)
   where path is not null
 ), raw_nodes as (
-  select step, path, count(distinct (local_day,visitor_id))::int8 as visitors
+  select step, path, count(distinct vid)::int8 as visitors
   from positions group by step,path
 ), page_ranks as (
   select step,path,row_number() over (partition by step order by visitors desc,path) as rank
-  from raw_nodes where path<>'exit'
+  from raw_nodes where path<>-1
 ), mapped as (
-  select p.local_day,p.visitor_id,p.session_id,p.step,
-         case when p.path='exit' then p.path when r.rank>` + limitArg + ` then 'other' else p.path end as path
+  select p.vid,p.sk,p.step,
+         case when p.path=-1 then p.path when r.rank>` + limitArg + ` then -2::int8 else p.path end as path
   from positions p left join page_ranks r using(step,path)
 ), nodes as (
-  select step,path,count(distinct (local_day,visitor_id))::int8 as visitors
+  select step,path,count(distinct vid)::int8 as visitors
   from mapped group by step,path
 ), links as (
   select a.step,a.path as from_path,b.path as to_path,
-         count(distinct (a.local_day,a.visitor_id))::int8 as visitors
-  from mapped a join mapped b on b.local_day=a.local_day and b.session_id=a.session_id and b.step=a.step+1
+         count(distinct a.vid)::int8 as visitors
+  from mapped a join mapped b on b.sk=a.sk and b.step=a.step+1
   group by a.step,a.path,b.path
 ), result as (
-  select 'node'::text as kind,step,path,null::text as to_path,visitors from nodes
+  select 'node'::text as kind,step,path as path_id,null::int8 as to_id,visitors from nodes
   union all
   select 'link',step,from_path,to_path,visitors from links
+), labelled as (
+  select r.kind,r.step,r.visitors,r.path_id,r.to_id,
+         case r.path_id when -1 then 'exit' when -2 then 'other' else a.value end as path,
+         case r.to_id when -1 then 'exit' when -2 then 'other' else b.value end as to_path
+  from result r
+  left join dict a on a.kind=` + fmt.Sprint(dict.Path) + ` and a.id=r.path_id
+  left join dict b on b.kind=` + fmt.Sprint(dict.Path) + ` and b.id=r.to_id
 )
-select kind,step,path,to_path,visitors from result
+select kind,step,path,to_path,visitors from labelled
 order by case kind when 'node' then 0 else 1 end,step,visitors desc,path,to_path nulls first`
 	return querySQL, builder.args, nil
+}
+
+// pathIDArg binds a path value as a parameter and resolves it to its dictionary
+// id; an unknown path resolves to null, which matches no session.
+func pathIDArg(builder *sqlBuilder, path string) string {
+	return "(select id::int8 from dict where kind=" + fmt.Sprint(dict.Path) + " and value=" + builder.arg(path) + ")"
 }
 
 func buildJourneyTierConditions(builder *sqlBuilder, filters []api.Filter, closed bool, part Part) ([]string, error) {
