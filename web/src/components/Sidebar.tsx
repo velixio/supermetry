@@ -100,6 +100,11 @@ export function visibleNavigation(role: Role, hasSite = true, authorization?: Au
     (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && ((item.suffix !== '/profiles' && item.suffix !== '/cohorts') || hasCapability(authorization, 'profiles.read')))
 }
 
+/** Replays need a site that is not anonymous-tracking and the replay.read capability. */
+export function replaysAvailable(authorization: Authorization | undefined, site: Site | undefined): boolean {
+  return Boolean(site && !isAnonymousTracking(site) && hasCapability(authorization, 'replay.read'))
+}
+
 export function canCreateSites(role: Role): boolean {
   return role === 'owner' || role === 'admin'
 }
@@ -316,7 +321,7 @@ export function SupermetrySidebar({
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
   const visibleItems = visibleNavigation(membership.role, Boolean(site), membership, site)
-  const showReplays = Boolean(site && !isAnonymousTracking(site) && hasCapability(membership, 'replay.read'))
+  const showReplays = replaysAvailable(membership, site)
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
