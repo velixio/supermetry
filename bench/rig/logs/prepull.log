@@ -1,4 +1,0 @@
-ghcr.io/plausible/community-edition:v3.2.1
-docker.io/library/postgres:16-alpine
-docker.io/clickhouse/clickhouse-server:24.12-alpine
-ghcr.io/umami-software/umami:3.4.0

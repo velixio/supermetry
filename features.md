@@ -157,7 +157,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 - ~~LICENSE file~~ ✅, ~~Docker image, release binaries, systemd unit, installer~~ ✅, ~~backup/restore~~ ✅
 - ~~Server-side events API docs~~ ✅ (`docs/api.md`); landing page and docs (Astro + Starlight)
 - ~~Trust fixes T1–T8~~ ✅ (see competitor-profiles/_summary.md); full security review still to do
-- ~~Accuracy check (reference, 0 mismatches)~~ ✅; real-traffic comparison with Plausible (`bench/accuracy/compare-live.py`) and product benchmark (D25) ⏳
+- ~~Accuracy check (reference, 0 mismatches)~~ ✅; real-traffic comparison with Plausible (`tools/bench/accuracy/compare_live.py`) and product benchmark (D25) ⏳
 - Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
 
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
