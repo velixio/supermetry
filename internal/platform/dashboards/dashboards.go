@@ -115,7 +115,7 @@ func (s *Service) insert(ctx context.Context, principal authz.Principal, siteID 
 	var created api.Dashboard
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
 		// Serialize writers per site so the cap cannot be raced past.
-		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended('dashboards:'||$1::text,0))`, siteID); err != nil {
+		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(1684108387, $1::int)`, siteID); err != nil {
 			return err
 		}
 		var count int
@@ -229,7 +229,7 @@ func (s *Service) SetDefault(ctx context.Context, principal authz.Principal, sit
 			}
 			return err
 		}
-		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended('dashboards:'||$1::text,0))`, siteID); err != nil {
+		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(1684108387, $1::int)`, siteID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `update dashboards set is_default=false where site_id=$1 and is_default and id<>$2`, siteID, id); err != nil {
