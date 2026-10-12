@@ -54,6 +54,7 @@ function RevenueRoute() {
     </div>
     <RevenueReport
       siteId={site.id}
+      orgId={membership?.org.id}
       currency={site.revenue_currency}
       timezone={timezone}
       dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
