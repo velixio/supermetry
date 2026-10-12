@@ -32,7 +32,7 @@ export function RetentionHeatmap({
             : `Identity window: ${identityWindow}. Supermetry cannot identify the same person across days; week and month views group daily cohorts without linking them. Mode: ${retentionMode}.`}
         </p>
       </div>
-      <div className="min-w-0 overflow-x-auto rounded-xl border bg-card">
+      <div className="min-w-0 overflow-x-auto rounded-xl border bg-card" tabIndex={0}>
         <table aria-label={title} className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b text-left">

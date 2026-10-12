@@ -62,7 +62,7 @@ export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
       </CardHeader>
       <CardContent className="p-0">
         {countries.isPending ? (
-          <div className="grid min-h-80 gap-4 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(9rem,2fr)]" aria-label="Loading geography">
+          <div className="grid min-h-80 gap-4 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(9rem,2fr)]" role="status" aria-label="Loading geography">
             <Skeleton className="aspect-2/1 w-full self-center" />
             <div className="space-y-2">{Array.from({ length: 8 }, (_, index) => <Skeleton key={index} className="h-9 w-full" />)}</div>
           </div>

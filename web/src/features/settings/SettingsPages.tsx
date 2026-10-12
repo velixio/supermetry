@@ -1430,7 +1430,7 @@ export function AuditPage({ orgId }: { orgId: number }) {
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
         />
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0}>
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b">

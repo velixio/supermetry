@@ -167,7 +167,7 @@ function GoalsWidget({ title, query, limit }: { title: string; query: StatsQuery
   return (
     <WidgetCard title={title}>
       {conversions.isError ? <ErrorState detail={conversions.error?.detail} onRetry={() => void conversions.refetch()} /> : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0}>
           <table aria-busy={conversions.isPending} className="w-full text-sm">
             <thead className="text-left text-muted-foreground">
               <tr><th className="py-2 pr-3 font-medium">{t.goalName}</th><th className="px-3 py-2 text-right font-medium">{t.goalConversions}</th><th className="py-2 pl-3 text-right font-medium">{t.goalRate}</th></tr>
@@ -217,7 +217,7 @@ function RetentionWidget({ title, query }: { title: string; query: StatsQuery })
       {report.isError ? <ErrorState detail={report.error?.detail} onRetry={() => void report.refetch()} />
         : report.isPending ? <Loading title={title} />
         : report.data.cohorts.length === 0 ? <Message>{t.retentionEmpty}</Message>
-        : <div className="overflow-x-auto"><RetentionHeatmap cohorts={report.data.cohorts} identityWindow={report.data.identity_window} interval="week" retentionMode={report.data.retention_mode} /></div>}
+        : <div className="overflow-x-auto" tabIndex={0}><RetentionHeatmap cohorts={report.data.cohorts} identityWindow={report.data.identity_window} interval="week" retentionMode={report.data.retention_mode} /></div>}
     </WidgetCard>
   )
 }

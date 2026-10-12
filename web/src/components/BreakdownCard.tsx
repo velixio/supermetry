@@ -119,7 +119,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
       {result.isError ? (
         <ErrorState detail={result.error?.detail} onRetry={() => void result.refetch()} />
       ) : result.isPending || result.isLoading ? (
-        <div className="flex min-h-36 flex-col gap-3 p-4" aria-label={ui.breakdown.loading(title)}>
+        <div className="flex min-h-36 flex-col gap-3 p-4" role="status" aria-label={ui.breakdown.loading(title)}>
           <Skeleton className="h-7 w-full" />
           <Skeleton className="h-7 w-4/5" />
           <Skeleton className="h-7 w-3/5" />
