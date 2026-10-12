@@ -550,6 +550,37 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { description: A submitted field is locked by an environment variable. }
   /api/public/v1/events:
+    options:
+      operationId: preflightEvent
+      security: []
+      summary: Negotiate cross-origin event submission
+      description: Returns the CORS policy used by browser-based event senders.
+      parameters:
+        - name: Origin
+          in: header
+          required: false
+          schema: { type: string, format: uri }
+        - name: Access-Control-Request-Method
+          in: header
+          required: false
+          schema: { type: string, enum: [POST] }
+        - name: Access-Control-Request-Headers
+          in: header
+          required: false
+          schema: { type: string, example: Content-Type }
+      responses:
+        '204':
+          description: Cross-origin event submission is permitted.
+          headers:
+            Access-Control-Allow-Origin:
+              description: Origins permitted to submit events.
+              schema: { type: string, example: '*' }
+            Access-Control-Allow-Methods:
+              description: Methods accepted by the event endpoint.
+              schema: { type: string, example: 'POST, OPTIONS' }
+            Access-Control-Allow-Headers:
+              description: Request headers accepted by the event endpoint.
+              schema: { type: string, example: Content-Type }
     post:
       operationId: submitEvent
       security: []
@@ -613,6 +644,64 @@ paths:
                 url: 'https://www.example.com/pricing',
               }),
             });
+  /api/public/v1/mcp:
+    post:
+      operationId: mcp
+      summary: Call the Model Context Protocol endpoint
+      description: >-
+        JSON-only Streamable HTTP MCP endpoint. The API key must grant
+        stats:read; individual tools may require profiles:read, replay:read,
+        or data:export. Invalid credentials, insufficient scopes, and other
+        protocol-level failures are returned with HTTP 200 in the JSON-RPC
+        response envelope. Invalid origin or protocol headers, rate limits,
+        and service availability use RFC 9457 problem details. JSON-RPC
+        notifications and response-only messages are acknowledged with 202.
+      parameters:
+        - name: MCP-Protocol-Version
+          in: header
+          required: false
+          schema:
+            type: string
+            enum: ['2025-06-18', '2025-03-26']
+        - name: Origin
+          in: header
+          required: false
+          description: When present, the origin host must match the request host.
+          schema: { type: string, format: uri }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MCPMessage'
+      responses:
+        '200':
+          description: JSON-RPC result or protocol-level error.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPResponse'
+        '202':
+          description: A notification or response-only message was accepted without a response body.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: The request Origin does not match the request host.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /api/public/v1/heatmaps/query:
     post:
       operationId: heatmapQuery
@@ -2459,6 +2548,48 @@ components:
         key:
           type: string
           description: The secret value. It is shown once and cannot be retrieved later.
+    MCPMessage:
+      oneOf:
+        - $ref: '#/components/schemas/MCPRequest'
+        - $ref: '#/components/schemas/MCPResponse'
+    MCPRequest:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc: { type: string, enum: ['2.0'] }
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: 'null'
+        method: { type: string, minLength: 1 }
+        params: {}
+    MCPError:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { type: integer }
+        message: { type: string }
+        data: {}
+    MCPResponse:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, id]
+      oneOf:
+        - required: [result]
+        - required: [error]
+      properties:
+        jsonrpc: { type: string, enum: ['2.0'] }
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: 'null'
+        result: {}
+        error:
+          $ref: '#/components/schemas/MCPError'
     AnnotationInput:
       type: object
       additionalProperties: false

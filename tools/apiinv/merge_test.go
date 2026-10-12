@@ -35,8 +35,8 @@ func TestMergeInventoryMatchesMultiSegmentWildcard(t *testing.T) {
 
 	routes := []Route{{Method: "GET", Pattern: "/api/private/sites/{site}/replays/{replay_path...}", Group: "/api/private/sites", Handler: "replayAsset", Auth: "session"}}
 	operations := []Operation{
-		{Method: "GET", Pattern: "/api/private/sites/{site_id}/replays/{session_id}/data", canonical: canonicalPattern("/api/private/sites/{site_id}/replays/{session_id}/data")},
-		{Method: "GET", Pattern: "/api/private/sites/{site_id}/replays/css/{hash}", canonical: canonicalPattern("/api/private/sites/{site_id}/replays/css/{hash}")},
+		{Method: "GET", Pattern: "/api/private/sites/{site_id}/replays/{session_id}/data"},
+		{Method: "GET", Pattern: "/api/private/sites/{site_id}/replays/css/{hash}"},
 	}
 
 	inventory := mergeInventory(routes, operations, hitSet{})

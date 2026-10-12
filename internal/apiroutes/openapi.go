@@ -1,4 +1,4 @@
-package main
+package apiroutes
 
 import (
 	"bufio"
@@ -15,7 +15,8 @@ var httpMethods = map[string]struct{}{
 	"get": {}, "post": {}, "put": {}, "patch": {}, "delete": {}, "options": {}, "head": {}, "trace": {},
 }
 
-func readOpenAPI(filename string) ([]Operation, error) {
+// ReadOpenAPI reads the HTTP operations declared by an OpenAPI document.
+func ReadOpenAPI(filename string) ([]Operation, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -50,8 +51,9 @@ func readOpenAPI(filename string) ([]Operation, error) {
 	return operations, nil
 }
 
-func readHits(filename string) (hitSet, error) {
-	hits := make(hitSet)
+// ReadHits reads the optional route-hit recorder output.
+func ReadHits(filename string) (HitSet, error) {
+	hits := make(HitSet)
 	if filename == "" {
 		return hits, nil
 	}
@@ -81,7 +83,8 @@ func readHits(filename string) (hitSet, error) {
 	return hits, scanner.Err()
 }
 
-func mergeInventory(routes []Route, operations []Operation, hits hitSet) Inventory {
+// MergeInventory annotates routes with OpenAPI and test-hit coverage.
+func MergeInventory(routes []Route, operations []Operation, hits HitSet) Inventory {
 	matchedOperations := make(map[int]bool)
 	for i := range routes {
 		route := &routes[i]
@@ -115,14 +118,18 @@ func mergeInventory(routes []Route, operations []Operation, hits hitSet) Invento
 }
 
 func routeMatchesOperation(route Route, operation Operation) bool {
-	if route.canonical == operation.canonical {
+	operationCanonical := operation.canonical
+	if operationCanonical == "" {
+		operationCanonical = canonicalPattern(operation.Pattern)
+	}
+	if route.canonical == operationCanonical {
 		return true
 	}
 	if !strings.Contains(route.Pattern, "...") {
 		return false
 	}
 	prefix := route.Pattern[:strings.LastIndex(route.Pattern, "{")]
-	return strings.HasPrefix(operation.canonical, canonicalPattern(prefix))
+	return strings.HasPrefix(operationCanonical, canonicalPattern(prefix))
 }
 
 func canonicalPattern(pattern string) string {

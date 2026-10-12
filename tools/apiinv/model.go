@@ -1,27 +1,24 @@
 package main
 
-type Route struct {
-	Method     string   `json:"method"`
-	Pattern    string   `json:"pattern"`
-	Group      string   `json:"group"`
-	Handler    string   `json:"handler"`
-	Auth       string   `json:"auth"`
-	InOpenAPI  bool     `json:"in_openapi"`
-	HitByTests []string `json:"hit_by_tests"`
-	canonical  string
+import "supermetry/internal/apiroutes"
+
+type Route = apiroutes.Route
+type Operation = apiroutes.Operation
+type Inventory = apiroutes.Inventory
+type hitSet = apiroutes.HitSet
+
+func collectRoutes(dir string) ([]Route, []string, error) {
+	return apiroutes.Collect(dir)
 }
 
-type Operation struct {
-	Method      string
-	Pattern     string
-	OperationID string
-	canonical   string
+func readOpenAPI(filename string) ([]Operation, error) {
+	return apiroutes.ReadOpenAPI(filename)
 }
 
-type Inventory struct {
-	Routes               []Route
-	OpenAPIWithoutRoute  []Operation
-	UnknownRegistrations []string
+func readHits(filename string) (hitSet, error) {
+	return apiroutes.ReadHits(filename)
 }
 
-type hitSet map[string]map[string]struct{}
+func mergeInventory(routes []Route, operations []Operation, hits hitSet) Inventory {
+	return apiroutes.MergeInventory(routes, operations, hits)
+}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+
+	"supermetry/internal/apiroutes"
 )
 
 func main() {
@@ -18,17 +20,10 @@ func main() {
 }
 
 func run(hitsFile, outDir string) error {
-	var routes []Route
-	var unknown []string
-	for _, dir := range []string{"internal/api", "internal/platform/http"} {
-		found, unresolved, err := collectRoutes(dir)
-		if err != nil {
-			return fmt.Errorf("collect %s: %w", dir, err)
-		}
-		routes = append(routes, found...)
-		unknown = append(unknown, unresolved...)
+	routes, unknown, err := apiroutes.Collect("internal/api", "internal/platform/http")
+	if err != nil {
+		return err
 	}
-	routes = deduplicateRoutes(routes)
 	operations, err := readOpenAPI("internal/api/openapi.yaml")
 	if err != nil {
 		return fmt.Errorf("read OpenAPI: %w", err)
@@ -43,20 +38,6 @@ func run(hitsFile, outDir string) error {
 		return fmt.Errorf("write inventory: %w", err)
 	}
 	return nil
-}
-
-func deduplicateRoutes(routes []Route) []Route {
-	byPattern := make(map[string]Route)
-	for _, route := range routes {
-		key := route.Method + "\x00" + route.Pattern
-		byPattern[key] = mergeRoute(byPattern[key], route)
-	}
-	result := make([]Route, 0, len(byPattern))
-	for _, route := range byPattern {
-		result = append(result, route)
-	}
-	sortRoutes(result)
-	return result
 }
 
 func uniqueStrings(values []string) []string {

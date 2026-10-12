@@ -497,6 +497,30 @@ export interface paths {
          */
         post: operations["submitEvent"];
         delete?: never;
+        /**
+         * Negotiate cross-origin event submission
+         * @description Returns the CORS policy used by browser-based event senders.
+         */
+        options: operations["preflightEvent"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Call the Model Context Protocol endpoint
+         * @description JSON-only Streamable HTTP MCP endpoint. The API key must grant stats:read; individual tools may require profiles:read, replay:read, or data:export. Invalid credentials, insufficient scopes, and other protocol-level failures are returned with HTTP 200 in the JSON-RPC response envelope. Invalid origin or protocol headers, rate limits, and service availability use RFC 9457 problem details. JSON-RPC notifications and response-only messages are acknowledged with 202.
+         */
+        post: operations["mcp"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1505,6 +1529,26 @@ export interface components {
             /** @description The secret value. It is shown once and cannot be retrieved later. */
             key: string;
         };
+        MCPMessage: components["schemas"]["MCPRequest"] | components["schemas"]["MCPResponse"];
+        MCPRequest: {
+            /** @enum {string} */
+            jsonrpc: "2.0";
+            id?: string | number | null;
+            method: string;
+            params?: unknown;
+        };
+        MCPError: {
+            code: number;
+            message: string;
+            data?: unknown;
+        };
+        MCPResponse: {
+            /** @enum {string} */
+            jsonrpc: "2.0";
+            id: string | number | null;
+            result?: unknown;
+            error?: components["schemas"]["MCPError"];
+        } & (unknown | unknown);
         AnnotationInput: {
             /** Format: date */
             day: string;
@@ -3649,6 +3693,84 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    preflightEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                Origin?: string;
+                "Access-Control-Request-Method"?: "POST";
+                "Access-Control-Request-Headers"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cross-origin event submission is permitted. */
+            204: {
+                headers: {
+                    /** @description Origins permitted to submit events. */
+                    "Access-Control-Allow-Origin"?: string;
+                    /** @description Methods accepted by the event endpoint. */
+                    "Access-Control-Allow-Methods"?: string;
+                    /** @description Request headers accepted by the event endpoint. */
+                    "Access-Control-Allow-Headers"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    mcp: {
+        parameters: {
+            query?: never;
+            header?: {
+                "MCP-Protocol-Version"?: "2025-06-18" | "2025-03-26";
+                /** @description When present, the origin host must match the request host. */
+                Origin?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPMessage"];
+            };
+        };
+        responses: {
+            /** @description JSON-RPC result or protocol-level error. */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPResponse"];
+                };
+            };
+            /** @description A notification or response-only message was accepted without a response body. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The request Origin does not match the request host. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     heatmapQuery: {
