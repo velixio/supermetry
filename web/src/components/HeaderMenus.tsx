@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { en } from '@/messages/en'
 import { Building2Icon, LogOutIcon, SettingsIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react'
@@ -8,9 +9,46 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { requestLogout } from '@/lib/session-lifecycle'
+import { siteSlug } from '@/lib/matchSite'
 import type { Me, Membership, Site } from '@/lib/me'
-import { siteSlug } from './Sidebar'
 import { ui } from '@/messages/ui'
+
+/**
+ * Identity, build version, account settings, instance administration and log out.
+ * The trigger is replaceable so the sidebar footer opens the same menu.
+ */
+export function AccountMenu({
+  me,
+  trigger,
+  side,
+  align = 'end',
+}: {
+  me: Me
+  trigger?: ReactNode
+  side?: 'top' | 'right' | 'bottom' | 'left'
+  align?: 'start' | 'center' | 'end'
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {trigger ?? <Button variant="ghost" size="sm"><UserRoundIcon aria-hidden="true" />{ui.menus.account}</Button>}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side={side} align={align} className="w-72 max-w-[calc(100vw-2rem)]" aria-label={ui.menus.accountMenu} aria-labelledby={undefined}>
+        <DropdownMenuLabel className="flex flex-col gap-1">
+          <span className="truncate">{me.user.name || ui.menus.yourAccount}</span>
+          <span className="break-all text-xs font-normal text-muted-foreground">{me.user.email}</span>
+          <span className="text-xs font-normal text-muted-foreground">Supermetry {me.version || 'dev'}</span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild><Link to="/app/account/profile"><UserRoundIcon aria-hidden="true" />{ui.menus.accountSettings}</Link></DropdownMenuItem>
+          {me.user.instance_admin ? <DropdownMenuItem asChild><Link to="/app/admin/users"><ShieldCheckIcon aria-hidden="true" />{en.admin.link}</Link></DropdownMenuItem> : null}
+          <DropdownMenuItem onSelect={() => void requestLogout()}><LogOutIcon aria-hidden="true" />{ui.menus.logOut}</DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Membership; site?: Site }) {
   const organizations = membership ? [membership] : me.memberships
@@ -43,24 +81,7 @@ export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Mem
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm"><UserRoundIcon aria-hidden="true" />{ui.menus.account}</Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]" aria-label={ui.menus.accountMenu}>
-          <DropdownMenuLabel className="flex flex-col gap-1">
-            <span className="truncate">{me.user.name || ui.menus.yourAccount}</span>
-            <span className="break-all text-xs font-normal text-muted-foreground">{me.user.email}</span>
-            <span className="text-xs font-normal text-muted-foreground">Supermetry {me.version || 'dev'}</span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem asChild><Link to="/app/account/profile"><UserRoundIcon aria-hidden="true" />{ui.menus.accountSettings}</Link></DropdownMenuItem>
-            {me.user.instance_admin ? <DropdownMenuItem asChild><Link to="/app/admin/users"><ShieldCheckIcon aria-hidden="true" />{en.admin.link}</Link></DropdownMenuItem> : null}
-            <DropdownMenuItem onSelect={() => void requestLogout()}><LogOutIcon aria-hidden="true" />{ui.menus.logOut}</DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <AccountMenu me={me} />
     </div>
   )
 }

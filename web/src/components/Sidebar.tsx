@@ -47,7 +47,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { matchesSite } from '@/lib/matchSite'
+import { matchesSite, siteSlug } from '@/lib/matchSite'
 import type { Me, Membership, Site } from '@/lib/me'
 import { en } from '@/messages/en'
 import { useCreateDemo } from '@/features/demo/useDemo'
@@ -99,10 +99,6 @@ export function canCreateSites(role: Role): boolean {
   return role === 'owner' || role === 'admin'
 }
 
-export function siteSlug(site: Site): string {
-  return site.slug ?? site.public_id ?? String(site.id)
-}
-
 export function organizationHref(membership: Membership): string {
   const site = membership.sites[0]
   return site
@@ -130,7 +126,7 @@ export function navigationIsActive(
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export { matchesSite }
+export { matchesSite, siteSlug }
 
 export function activeSite(membership: Membership, requested?: string): Site | undefined {
   return membership.sites.find((site) => matchesSite(site, requested)) ?? membership.sites[0]

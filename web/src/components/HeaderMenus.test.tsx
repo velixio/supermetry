@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { AnchorHTMLAttributes } from 'react'
 
-import { HeaderMenus } from './HeaderMenus'
+import { AccountMenu, HeaderMenus } from './HeaderMenus'
 import { AccountFrame } from './AccountFrame'
 import { requestLogout } from '@/lib/session-lifecycle'
 import type { Me, Membership, Site } from '@/lib/me'
@@ -94,4 +94,22 @@ it('keeps account content and account controls accessible without memberships', 
   expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
   openMenu('Account')
   expect(await screen.findByRole('menuitem', { name: 'Log out' })).toBeVisible()
+})
+
+it('opens the same account menu from a caller-supplied trigger', async () => {
+  render(
+    <AccountMenu
+      me={{ ...me, user: { ...me.user, instance_admin: true } }}
+      side="right"
+      trigger={<button type="button">Account</button>}
+    />,
+  )
+  expect(screen.getAllByRole('button', { name: 'Account' })).toHaveLength(1)
+  openMenu('Account')
+  expect(await screen.findByRole('menu', { name: 'Account menu' })).toBeVisible()
+  expect(screen.getByText('Alex Example')).toBeVisible()
+  expect(screen.getByRole('menuitem', { name: 'Account settings' })).toHaveAttribute('href', '/app/account/profile')
+  expect(screen.getByRole('menuitem', { name: 'Instance administration' })).toHaveAttribute('href', '/app/admin/users')
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Log out' }))
+  expect(requestLogout).toHaveBeenCalledTimes(1)
 })
