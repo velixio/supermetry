@@ -179,7 +179,7 @@ export function RevenueBreakdown(props: Props) {
   return <section className="flex min-w-0 flex-col gap-4" aria-labelledby={`${ids.breakdown}-title`}>
     <Card aria-busy={query.isPending}>
       <CardHeader>
-        <CardTitle><h2 id={`${ids.breakdown}-title`}>{t.title}</h2></CardTitle>
+        <CardTitle id={`${ids.breakdown}-title`}>{t.title}</CardTitle>
         <CardDescription>{t.description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
