@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
 import { Button } from '@/components/ui/button'
@@ -26,13 +28,15 @@ function RevenueRoute() {
 
   if (site.revenue_currency_state !== 'configured' || !site.revenue_currency) {
     const conflict = site.revenue_currency_state === 'conflict'
-    return <section className="flex max-w-2xl flex-col items-start gap-4 rounded-xl border bg-card p-5" role="status">
-      <h1 className="text-xl font-semibold tracking-tight">Revenue report unavailable</h1>
-      <p className="text-sm text-muted-foreground">{conflict
-        ? 'This project has mixed historical currencies. Revenue totals stay unavailable until the conflict is resolved without converting or merging amounts.'
-        : 'Choose the project’s permanent revenue currency before viewing totals and breakdowns.'}</p>
-      <Button asChild variant="outline"><Link to="/app/$org/$site/settings/general" params={{ org, site: siteSlug }}>Open site settings</Link></Button>
-    </section>
+    return <PageContainer>
+      <PageHeader title="Revenue report unavailable" />
+      <section className="flex max-w-2xl flex-col items-start gap-4 rounded-xl border bg-card p-5" role="status">
+        <p className="text-sm text-muted-foreground">{conflict
+          ? 'This project has mixed historical currencies. Revenue totals stay unavailable until the conflict is resolved without converting or merging amounts.'
+          : 'Choose the project’s permanent revenue currency before viewing totals and breakdowns.'}</p>
+        <Button asChild variant="outline"><Link to="/app/$org/$site/settings/general" params={{ org, site: siteSlug }}>Open site settings</Link></Button>
+      </section>
+    </PageContainer>
   }
 
   const { filters, dropped } = parseFilters(search.f)

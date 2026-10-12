@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router'
 import { CopyIcon, FilterIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon, UsersRoundIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -291,20 +293,18 @@ export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, pol
 
   if (policy) {
     return (
-      <section aria-labelledby="cohorts-unavailable" className="flex max-w-2xl flex-col items-start gap-3 py-6" role="status">
-        <h1 className="text-xl font-semibold tracking-tight" id="cohorts-unavailable">
-          {policy === 'anonymous' ? t.anonymousTitle : t.profilesOffTitle}
-        </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">{policy === 'anonymous' ? t.anonymousBody : t.profilesOffBody}</p>
-      </section>
+      <PageContainer>
+        <PageHeader title={<span id="cohorts-unavailable">{policy === 'anonymous' ? t.anonymousTitle : t.profilesOffTitle}</span>} />
+        <section aria-labelledby="cohorts-unavailable" className="flex max-w-2xl flex-col items-start gap-3" role="status">
+          <p className="text-sm leading-relaxed text-muted-foreground">{policy === 'anonymous' ? t.anonymousBody : t.profilesOffBody}</p>
+        </section>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">{t.title}</h1>
-      </header>
+    <PageContainer>
+      <PageHeader title={t.title} />
       <Tabs value={tab} onValueChange={(value) => { setSeed(undefined); setTab(value as 'cohorts' | 'power') }}>
         <TabsList aria-label={t.title}>
           <TabsTrigger className="h-9 px-4 md:h-7" value="cohorts">{t.tabCohorts}</TabsTrigger>
@@ -328,7 +328,7 @@ export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, pol
           />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   )
 }
 

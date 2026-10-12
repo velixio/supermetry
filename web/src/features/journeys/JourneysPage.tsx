@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -43,11 +45,8 @@ export function JourneysPage({
     .filter((page) => page !== '')
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">User journeys</h1>
-        <p className="text-sm text-muted-foreground">Follow the pages visitors viewed in sequence. Repeated consecutive pageviews are collapsed.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="User journeys" description="Follow the pages visitors viewed in sequence. Repeated consecutive pageviews are collapsed." />
       <JourneyControls
         direction={direction}
         path={path}
@@ -68,6 +67,6 @@ export function JourneysPage({
       ) : (
         <JourneyFlow links={report.data.links} nodes={report.data.nodes} />
       )}
-    </div>
+    </PageContainer>
   )
 }

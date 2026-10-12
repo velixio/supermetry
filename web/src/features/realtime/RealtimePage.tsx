@@ -9,6 +9,8 @@ import {
   TabletIcon,
 } from 'lucide-react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { Flag } from '@/components/Flag'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -163,11 +165,8 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
   }))
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Realtime</h1>
-        <p className="text-sm text-muted-foreground">A live view of the last 30 minutes. Updates every 5 seconds.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Realtime" description="A live view of the last 30 minutes. Updates every 5 seconds." />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
         <Card className="overflow-hidden border-primary/30 bg-primary/[0.03]">
@@ -252,6 +251,6 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
       </div>
 
       <ActivityFeed items={data.recent_activity} />
-    </div>
+    </PageContainer>
   )
 }

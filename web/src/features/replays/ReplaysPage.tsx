@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { BookmarkIcon } from 'lucide-react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { ListPager } from '@/components/ListPager'
 import { ReplayLink } from '@/components/replay/ReplayLink'
@@ -113,8 +115,8 @@ function ReplaysPageContent({ siteId, org, site, from, to, cursor, page, replayI
   const changeSaved = (replay: ReplayListItem, next: boolean) => saved.mutate({ sessionId: replay.session_id, saved: next })
 
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-6">
-      <header className="flex flex-col gap-1"><h1 className="text-xl font-semibold tracking-tight">{en.replays.title}</h1><p className="text-sm text-muted-foreground">{en.replays.description}</p></header>
+    <PageContainer>
+      <PageHeader title={en.replays.title} description={en.replays.description} />
       <section aria-label={en.replays.filters} className="flex flex-col gap-3 rounded-xl border bg-card p-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <Field className="min-w-0 flex-1"><FieldLabel htmlFor="replay-search">{en.replays.search}</FieldLabel><Input className="h-11" id="replay-search" maxLength={200} role="searchbox" value={search} placeholder={en.replays.searchPlaceholder} onChange={(event) => setSearch(event.currentTarget.value)} /></Field>
@@ -142,7 +144,7 @@ function ReplaysPageContent({ siteId, org, site, from, to, cursor, page, replayI
       )}
       {!replays.isPending && !replays.isError ? <ListPager fetching={replays.isFetching} hasNext={Boolean(data?.next_cursor)} page={page} pageSize={50} rowCount={data?.items.length ?? 0} total={data?.total} totalCapped={data?.total_capped} onFirst={onFirst} onNext={() => data?.next_cursor && onNext(data.next_cursor)} onPrevious={onPrevious} /> : null}
       {onReplayChange ? <ReplayOverlay open={Boolean(replayId)} org={org} rows={replayRows} sessionId={replayId} site={site} siteId={siteId} onOpenChange={(open) => !open && onReplayChange(undefined, { replace: true })} onSessionChange={(id) => onReplayChange(id, { replace: true })} /> : null}
-    </div>
+    </PageContainer>
   )
 }
 

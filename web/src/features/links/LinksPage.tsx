@@ -6,6 +6,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,19 +51,19 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
   const [deleting, setDeleting] = useState<ShortLink>()
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex max-w-2xl flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
-          <p className="text-sm text-muted-foreground">{t.description}</p>
-        </div>
-        {canManage ? (
-          <Button className="min-h-11" onClick={() => { save.reset(); setEditing(null) }}>
-            <PlusIcon data-icon="inline-start" />
-            {t.create}
-          </Button>
-        ) : null}
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader
+        title={t.title}
+        description={t.description}
+        actions={
+          canManage ? (
+            <Button className="min-h-11" onClick={() => { save.reset(); setEditing(null) }}>
+              <PlusIcon data-icon="inline-start" />
+              {t.create}
+            </Button>
+          ) : null
+        }
+      />
       <LinksTabs org={org} site={siteSlug} />
       {!canManage ? <p className="text-sm text-muted-foreground">{t.viewerNote}</p> : null}
       {remove.error ? <p role="alert" className="text-sm text-destructive">{remove.error.message}</p> : null}
@@ -170,6 +172,6 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   )
 }

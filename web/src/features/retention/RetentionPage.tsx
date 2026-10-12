@@ -1,4 +1,6 @@
 import { useCapability } from '@/lib/authorization'
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -24,46 +26,46 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
   const report = useRetentionReport(siteId, dateRange, filters, interval, identity)
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <header>
-          <h1 className="text-xl font-semibold tracking-tight">Retention</h1>
-          <p className="text-sm text-muted-foreground">
-            {identity === 'profile'
-              ? 'See how many identified users return in later cohort periods.'
-              : 'See how many daily identities return for another session on the same day.'}
-          </p>
-        </header>
-        <div className="flex flex-wrap gap-3">
-          {profilesEnabled ? (
+    <PageContainer>
+      <PageHeader
+        title="Retention"
+        description={
+          identity === 'profile'
+            ? 'See how many identified users return in later cohort periods.'
+            : 'See how many daily identities return for another session on the same day.'
+        }
+        actions={
+          <>
+            {profilesEnabled ? (
+              <Field className="w-44">
+                <FieldLabel htmlFor="retention-identity">Identify visitors by</FieldLabel>
+                <select
+                  className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  id="retention-identity"
+                  value={identity}
+                  onChange={(event) => onIdentityChange(event.target.value as RetentionIdentity)}
+                >
+                  <option value="anonymous">Anonymous day</option>
+                  <option value="profile">Identity profile</option>
+                </select>
+              </Field>
+            ) : null}
             <Field className="w-44">
-              <FieldLabel htmlFor="retention-identity">Identify visitors by</FieldLabel>
+              <FieldLabel htmlFor="retention-interval">Group cohorts by</FieldLabel>
               <select
                 className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                id="retention-identity"
-                value={identity}
-                onChange={(event) => onIdentityChange(event.target.value as RetentionIdentity)}
+                id="retention-interval"
+                value={interval}
+                onChange={(event) => onIntervalChange(event.target.value as RetentionInterval)}
               >
-                <option value="anonymous">Anonymous day</option>
-                <option value="profile">Identity profile</option>
+                <option value="day">Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
               </select>
             </Field>
-          ) : null}
-          <Field className="w-44">
-            <FieldLabel htmlFor="retention-interval">Group cohorts by</FieldLabel>
-            <select
-              className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              id="retention-interval"
-              value={interval}
-              onChange={(event) => onIntervalChange(event.target.value as RetentionInterval)}
-            >
-              <option value="day">Day</option>
-              <option value="week">Week</option>
-              <option value="month">Month</option>
-            </select>
-          </Field>
-        </div>
-      </div>
+          </>
+        }
+      />
       {report.isError ? (
         <ErrorState detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
@@ -82,7 +84,7 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
           retentionMode={report.data.retention_mode}
         />
       )}
-    </div>
+    </PageContainer>
   )
 }
 

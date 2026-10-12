@@ -11,6 +11,8 @@ import {
   YAxis,
 } from 'recharts'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Flag } from '@/components/Flag'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -179,11 +181,8 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
   const dimensionLabel = breakdownDimensions.find((item) => item.value === dimension)?.label ?? dimension
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold">Web Vitals</h1>
-        <p className="text-sm text-muted-foreground">Real-user loading, stability, and responsiveness at the 75th percentile.</p>
-      </div>
+    <PageContainer>
+      <PageHeader title="Web Vitals" description="Real-user loading, stability, and responsiveness at the 75th percentile." />
       {result.isPending ? <LoadingState /> : result.isError ? (
         <Empty role="alert"><EmptyHeader><EmptyTitle>Web Vitals could not be loaded</EmptyTitle><EmptyDescription>{result.error.detail ?? 'Try again in a moment.'}</EmptyDescription></EmptyHeader></Empty>
       ) : totalSamples === 0 ? (
@@ -220,6 +219,6 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
           </Card>
         </>
       ) : null}
-    </div>
+    </PageContainer>
   )
 }

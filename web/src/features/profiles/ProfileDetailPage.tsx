@@ -1,5 +1,7 @@
 import type { ComponentProps } from 'react'
 import { useCapability, AccessDenied } from '@/lib/authorization'
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { ListPager } from '@/components/ListPager'
 import { ReplayLink } from '@/components/replay/ReplayLink'
@@ -113,11 +115,8 @@ function ProfileDetailPageContent({
 
   if (erasureId && erasureStatus) {
     return (
-      <div className="flex min-w-0 flex-col gap-6">
-        <header className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm text-muted-foreground">Profile</p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.data.external_id}</h1>
-        </header>
+      <PageContainer>
+        <PageHeader title={profile.data.external_id} description="Profile" />
         <ProfileErasureState
           erasureId={erasureId}
           lastError={erasure.data?.last_error}
@@ -126,7 +125,7 @@ function ProfileDetailPageContent({
           onDeleted={onDeleted}
           onRetry={(id) => retryErasure.mutate(id)}
         />
-      </div>
+      </PageContainer>
     )
   }
 
@@ -140,29 +139,31 @@ function ProfileDetailPageContent({
   const firstReplayId = replayRows[0]?.sessionId
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <header className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm text-muted-foreground">Profile</p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.data.external_id}</h1>
-        </header>
-        {org && site ? <ReplayLink hasReplay={Boolean(firstReplayId)} org={org} site={site} sessionId={firstReplayId} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}
-        {canDelete ? (
-          <AlertDialog>
-            <AlertDialogTrigger asChild><Button variant="destructive">Delete profile</Button></AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete {profile.data.external_id}?</AlertDialogTitle>
-                <AlertDialogDescription>This permanently erases this profile and its events. Historical aggregate rollups cannot be un-counted. This action cannot be undone.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction disabled={remove.isPending} variant="destructive" onClick={() => remove.mutate(profileId)}>Delete profile permanently</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        ) : null}
-      </div>
+    <PageContainer>
+      <PageHeader
+        title={profile.data.external_id}
+        description="Profile"
+        actions={
+          <>
+          {org && site ? <ReplayLink hasReplay={Boolean(firstReplayId)} org={org} site={site} sessionId={firstReplayId} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}
+          {canDelete ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild><Button variant="destructive">Delete profile</Button></AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {profile.data.external_id}?</AlertDialogTitle>
+                  <AlertDialogDescription>This permanently erases this profile and its events. Historical aggregate rollups cannot be un-counted. This action cannot be undone.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction disabled={remove.isPending} variant="destructive" onClick={() => remove.mutate(profileId)}>Delete profile permanently</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
+          </>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Traits</CardTitle>
@@ -232,7 +233,7 @@ function ProfileDetailPageContent({
           onSessionChange={(id) => onReplayChange(id, { replace: true })}
         />
       ) : null}
-    </div>
+    </PageContainer>
   )
 }
 

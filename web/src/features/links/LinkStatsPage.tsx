@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -33,7 +35,7 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
   const stats = useLinkStats(linkId, range)
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
+    <PageContainer width="narrow">
       <Button asChild className="min-h-11 self-start" variant="ghost">
         <Link params={{ org, site: siteSlug }} to="/app/$org/$site/links">
           <ArrowLeftIcon data-icon="inline-start" />
@@ -42,19 +44,23 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
       </Button>
       {link.isError ? <p role="alert" className="text-sm text-destructive">{link.error.message}</p> : null}
       {link.data ? (
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold tracking-tight">
+        <PageHeader
+          title={
+            <span className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 break-words">{link.data.name}</span>
               <Badge variant={statusVariant(link.data.status)}>{t.status[link.data.status]}</Badge>
-            </h1>
-            <p className="mt-1 break-all font-mono text-sm">{absoluteShortUrl(link.data)}</p>
-            <p className="mt-1 break-all text-sm text-muted-foreground">{link.data.destination}</p>
-          </div>
-          <CopyButton label={t.copyShortUrl.replace('{name}', link.data.name)} text={absoluteShortUrl(link.data)} />
-        </header>
+            </span>
+          }
+          description={
+            <>
+              <span className="block break-all font-mono text-foreground">{absoluteShortUrl(link.data)}</span>
+              <span className="block break-all">{link.data.destination}</span>
+            </>
+          }
+          actions={<CopyButton label={t.copyShortUrl.replace('{name}', link.data.name)} text={absoluteShortUrl(link.data)} />}
+        />
       ) : (
-        <h1 className="text-2xl font-semibold tracking-tight">{t.statsTitle}</h1>
+        <PageHeader title={t.statsTitle} />
       )}
 
       <div className="flex flex-wrap items-end gap-4">
@@ -107,7 +113,7 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
           <p className="text-xs text-muted-foreground">{t.statsNote}</p>
         </>
       ) : null}
-    </div>
+    </PageContainer>
   )
 }
 

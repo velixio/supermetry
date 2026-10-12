@@ -3,6 +3,8 @@ import { useCapability, AccessDenied } from '@/lib/authorization'
 import { Link } from '@tanstack/react-router'
 import { SearchIcon, UserRoundIcon } from 'lucide-react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { ListPager } from '@/components/ListPager'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -49,11 +51,8 @@ function ProfilesPageContent({
   const data = profiles.data as Paged<NonNullable<typeof profiles.data>> | undefined
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Profiles</h1>
-        <p className="text-sm text-muted-foreground">Understand identified users across sessions and events.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Profiles" description="Understand identified users across sessions and events." />
       {profiles.isError ? (
         <ErrorState detail={profiles.error?.message} onRetry={() => void profiles.refetch?.()} />
       ) : profiles.isPending ? (
@@ -133,7 +132,7 @@ function ProfilesPageContent({
           />
         </section>
       )}
-    </div>
+    </PageContainer>
   )
 }
 

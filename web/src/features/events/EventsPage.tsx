@@ -1,6 +1,8 @@
 import { useCapability } from '@/lib/authorization'
 import { useEffect, useState, type FormEvent } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { ListPager } from '@/components/ListPager'
 import { ReplayLink } from '@/components/replay/ReplayLink'
@@ -76,11 +78,8 @@ export function EventsPage({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Events</h1>
-        <p className="text-sm text-muted-foreground">Inspect recent pageviews, custom events, and their properties.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Events" description="Inspect recent pageviews, custom events, and their properties." />
       <form className="flex items-end gap-2" onSubmit={submitName}>
         <FieldGroup className="max-w-sm flex-1">
           <Field>
@@ -178,6 +177,6 @@ export function EventsPage({
           onSessionChange={(id) => onReplayChange(id, { replace: true })}
         />
       ) : null}
-    </div>
+    </PageContainer>
   )
 }
