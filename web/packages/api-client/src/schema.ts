@@ -1768,11 +1768,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/private/dashboards/{dashboard}": {
+    "/api/private/sites/{site}/dashboards/{dashboard}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;
@@ -1783,7 +1784,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a dashboard
-         * @description Owner, admin or editor. Audited. Deleting the default returns the site to the built-in default.
+         * @description Owner, admin or editor. Audited. A dashboard of another site answers 404. Deleting the default returns the site to the built-in default.
          */
         delete: operations["deleteDashboard"];
         options?: never;
@@ -1796,11 +1797,12 @@ export interface paths {
         patch: operations["updateDashboard"];
         trace?: never;
     };
-    "/api/private/dashboards/{dashboard}/duplicate": {
+    "/api/private/sites/{site}/dashboards/{dashboard}/duplicate": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;
@@ -1818,11 +1820,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/private/dashboards/{dashboard}/default": {
+    "/api/private/sites/{site}/dashboards/{dashboard}/default": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;
@@ -7244,6 +7247,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;
@@ -7269,6 +7273,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;
@@ -7292,6 +7297,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;
@@ -7331,6 +7337,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;
@@ -7365,6 +7372,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                site: number;
                 dashboard: number;
             };
             cookie?: never;

@@ -89,7 +89,7 @@ func (h *handler) createDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) getDashboard(w http.ResponseWriter, r *http.Request) {
-	_, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionStatsRead)
+	_, _, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionStatsRead)
 	if !ok {
 		return
 	}
@@ -97,7 +97,7 @@ func (h *handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) updateDashboard(w http.ResponseWriter, r *http.Request) {
-	principal, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
+	principal, siteID, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
 	if !ok {
 		return
 	}
@@ -105,7 +105,7 @@ func (h *handler) updateDashboard(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &input) {
 		return
 	}
-	updated, err := dashboards.New(h.deps.Store).Update(r.Context(), principal, dashboard.Id, input.Name, input.Layout, input.Version)
+	updated, err := dashboards.New(h.deps.Store).Update(r.Context(), principal, siteID, dashboard.Id, input.Name, input.Layout, input.Version)
 	if err != nil {
 		dashboardError(w, err)
 		return
@@ -114,11 +114,11 @@ func (h *handler) updateDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) deleteDashboard(w http.ResponseWriter, r *http.Request) {
-	principal, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
+	principal, siteID, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
 	if !ok {
 		return
 	}
-	if err := dashboards.New(h.deps.Store).Delete(r.Context(), principal, dashboard.Id); err != nil {
+	if err := dashboards.New(h.deps.Store).Delete(r.Context(), principal, siteID, dashboard.Id); err != nil {
 		dashboardError(w, err)
 		return
 	}
@@ -126,11 +126,11 @@ func (h *handler) deleteDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) duplicateDashboard(w http.ResponseWriter, r *http.Request) {
-	principal, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
+	principal, siteID, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
 	if !ok {
 		return
 	}
-	copied, err := dashboards.New(h.deps.Store).Duplicate(r.Context(), principal, dashboard.Id)
+	copied, err := dashboards.New(h.deps.Store).Duplicate(r.Context(), principal, siteID, dashboard.Id)
 	if err != nil {
 		dashboardError(w, err)
 		return
@@ -139,11 +139,11 @@ func (h *handler) duplicateDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) setDefaultDashboard(w http.ResponseWriter, r *http.Request) {
-	principal, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
+	principal, siteID, dashboard, ok := h.dashboardPrincipal(w, r, authz.ActionSegmentsEdit)
 	if !ok {
 		return
 	}
-	updated, err := dashboards.New(h.deps.Store).SetDefault(r.Context(), principal, dashboard.Id)
+	updated, err := dashboards.New(h.deps.Store).SetDefault(r.Context(), principal, siteID, dashboard.Id)
 	if err != nil {
 		dashboardError(w, err)
 		return
@@ -151,36 +151,29 @@ func (h *handler) setDefaultDashboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
-// dashboardPrincipal resolves a dashboard by id and authorizes action against
-// its site. Unknown ids and dashboards of sites the caller cannot see are both
-// 404; a visible dashboard the caller may not act on is 403.
-func (h *handler) dashboardPrincipal(w http.ResponseWriter, r *http.Request, action authz.Action) (authz.Principal, api.Dashboard, bool) {
-	principal, ok := h.principal(w, r)
+// dashboardPrincipal authorizes action on the site named in the path, then
+// loads the dashboard scoped to that site. A dashboard id that belongs to
+// another site is indistinguishable from an unknown id: 404.
+func (h *handler) dashboardPrincipal(w http.ResponseWriter, r *http.Request, action authz.Action) (authz.Principal, int32, api.Dashboard, bool) {
+	principal, site, ok := h.sitePrincipal(w, r, action, h.resourceRoles(r)...)
 	if !ok {
-		return authz.Principal{}, api.Dashboard{}, false
+		return authz.Principal{}, 0, api.Dashboard{}, false
 	}
 	id, err := parseInt64(r.PathValue("dashboard"))
 	if err != nil || h.deps.Store == nil {
 		writeProblem(w, http.StatusNotFound, "Not found", "dashboard not found")
-		return authz.Principal{}, api.Dashboard{}, false
+		return authz.Principal{}, 0, api.Dashboard{}, false
 	}
-	dashboard, err := dashboards.New(h.deps.Store).Get(r.Context(), id)
+	dashboard, err := dashboards.New(h.deps.Store).Get(r.Context(), site.ID, id)
 	if errors.Is(err, dashboards.ErrNotFound) {
 		writeProblem(w, http.StatusNotFound, "Not found", "dashboard not found")
-		return authz.Principal{}, api.Dashboard{}, false
+		return authz.Principal{}, 0, api.Dashboard{}, false
 	}
 	if err != nil {
 		serviceError(w, err)
-		return authz.Principal{}, api.Dashboard{}, false
+		return authz.Principal{}, 0, api.Dashboard{}, false
 	}
-	if _, _, ok := h.visibleSite(w, principal, dashboard.SiteId); !ok {
-		return authz.Principal{}, api.Dashboard{}, false
-	}
-	if !roleAllowed(principal.Role, h.resourceRoles(r)) || !authz.Can(principal, action, dashboard.SiteId) {
-		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
-		return authz.Principal{}, api.Dashboard{}, false
-	}
-	return principal, dashboard, true
+	return principal, site.ID, dashboard, true
 }
 
 func dashboardError(w http.ResponseWriter, err error) {

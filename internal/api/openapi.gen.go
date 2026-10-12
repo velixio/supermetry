@@ -3643,9 +3643,6 @@ type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJ
 // UpdateCohortJSONRequestBody defines body for UpdateCohort for application/json ContentType.
 type UpdateCohortJSONRequestBody = CohortInput
 
-// UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
-type UpdateDashboardJSONRequestBody = DashboardUpdate
-
 // UpdateReplayStorageJSONRequestBody defines body for UpdateReplayStorage for application/json ContentType.
 type UpdateReplayStorageJSONRequestBody = ReplayStorageInput
 
@@ -3702,6 +3699,9 @@ type EvaluateCohortJSONRequestBody = CohortEvaluateRequest
 
 // CreateDashboardJSONRequestBody defines body for CreateDashboard for application/json ContentType.
 type CreateDashboardJSONRequestBody = DashboardInput
+
+// UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
+type UpdateDashboardJSONRequestBody = DashboardUpdate
 
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
@@ -4197,21 +4197,6 @@ type ServerInterface interface {
 	// DuplicateCohort Duplicate a cohort
 	// (POST /api/private/cohorts/{cohort}/duplicate)
 	DuplicateCohort(w http.ResponseWriter, r *http.Request, cohort int64)
-	// DeleteDashboard Delete a dashboard
-	// (DELETE /api/private/dashboards/{dashboard})
-	DeleteDashboard(w http.ResponseWriter, r *http.Request, dashboard int64)
-	// GetDashboard Get one dashboard
-	// (GET /api/private/dashboards/{dashboard})
-	GetDashboard(w http.ResponseWriter, r *http.Request, dashboard int64)
-	// UpdateDashboard Rename or re-lay out a dashboard
-	// (PATCH /api/private/dashboards/{dashboard})
-	UpdateDashboard(w http.ResponseWriter, r *http.Request, dashboard int64)
-	// SetDefaultDashboard Make a dashboard the site default
-	// (POST /api/private/dashboards/{dashboard}/default)
-	SetDefaultDashboard(w http.ResponseWriter, r *http.Request, dashboard int64)
-	// DuplicateDashboard Duplicate a dashboard
-	// (POST /api/private/dashboards/{dashboard}/duplicate)
-	DuplicateDashboard(w http.ResponseWriter, r *http.Request, dashboard int64)
 	// GetPrivateProfileErasure Get profile erasure status
 	// (GET /api/private/erasures/{erasure_id})
 	GetPrivateProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
@@ -4353,6 +4338,21 @@ type ServerInterface interface {
 	// GetDefaultDashboard Get the dashboard to open for the site
 	// (GET /api/private/sites/{site}/dashboards/default)
 	GetDefaultDashboard(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteDashboard Delete a dashboard
+	// (DELETE /api/private/sites/{site}/dashboards/{dashboard})
+	DeleteDashboard(w http.ResponseWriter, r *http.Request, site int32, dashboard int64)
+	// GetDashboard Get one dashboard
+	// (GET /api/private/sites/{site}/dashboards/{dashboard})
+	GetDashboard(w http.ResponseWriter, r *http.Request, site int32, dashboard int64)
+	// UpdateDashboard Rename or re-lay out a dashboard
+	// (PATCH /api/private/sites/{site}/dashboards/{dashboard})
+	UpdateDashboard(w http.ResponseWriter, r *http.Request, site int32, dashboard int64)
+	// SetDefaultDashboard Make a dashboard the site default
+	// (POST /api/private/sites/{site}/dashboards/{dashboard}/default)
+	SetDefaultDashboard(w http.ResponseWriter, r *http.Request, site int32, dashboard int64)
+	// DuplicateDashboard Duplicate a dashboard
+	// (POST /api/private/sites/{site}/dashboards/{dashboard}/duplicate)
+	DuplicateDashboard(w http.ResponseWriter, r *http.Request, site int32, dashboard int64)
 	// HeartbeatDemoProject Keep watched demo traffic active
 	// (POST /api/private/sites/{site}/demo/heartbeat)
 	HeartbeatDemoProject(w http.ResponseWriter, r *http.Request, site int32)
@@ -4985,136 +4985,6 @@ func (siw *ServerInterfaceWrapper) DuplicateCohort(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DuplicateCohort(w, r, cohort)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// DeleteDashboard operation middleware
-func (siw *ServerInterfaceWrapper) DeleteDashboard(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "dashboard" -------------
-	var dashboard int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteDashboard(w, r, dashboard)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetDashboard operation middleware
-func (siw *ServerInterfaceWrapper) GetDashboard(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "dashboard" -------------
-	var dashboard int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetDashboard(w, r, dashboard)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// UpdateDashboard operation middleware
-func (siw *ServerInterfaceWrapper) UpdateDashboard(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "dashboard" -------------
-	var dashboard int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateDashboard(w, r, dashboard)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// SetDefaultDashboard operation middleware
-func (siw *ServerInterfaceWrapper) SetDefaultDashboard(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "dashboard" -------------
-	var dashboard int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SetDefaultDashboard(w, r, dashboard)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// DuplicateDashboard operation middleware
-func (siw *ServerInterfaceWrapper) DuplicateDashboard(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "dashboard" -------------
-	var dashboard int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DuplicateDashboard(w, r, dashboard)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6451,6 +6321,181 @@ func (siw *ServerInterfaceWrapper) GetDefaultDashboard(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetDefaultDashboard(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDashboard operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "dashboard" -------------
+	var dashboard int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDashboard(w, r, site, dashboard)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDashboard operation middleware
+func (siw *ServerInterfaceWrapper) GetDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "dashboard" -------------
+	var dashboard int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDashboard(w, r, site, dashboard)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDashboard operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "dashboard" -------------
+	var dashboard int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDashboard(w, r, site, dashboard)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetDefaultDashboard operation middleware
+func (siw *ServerInterfaceWrapper) SetDefaultDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "dashboard" -------------
+	var dashboard int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDefaultDashboard(w, r, site, dashboard)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DuplicateDashboard operation middleware
+func (siw *ServerInterfaceWrapper) DuplicateDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "dashboard" -------------
+	var dashboard int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard", r.PathValue("dashboard"), &dashboard, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DuplicateDashboard(w, r, site, dashboard)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9307,11 +9352,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards", wrapper.CreateDashboard)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/default", wrapper.ClearDefaultDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/default", wrapper.GetDefaultDashboard)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/dashboards/{dashboard}", wrapper.DeleteDashboard)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/dashboards/{dashboard}", wrapper.GetDashboard)
-	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/dashboards/{dashboard}", wrapper.UpdateDashboard)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/dashboards/{dashboard}/duplicate", wrapper.DuplicateDashboard)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/dashboards/{dashboard}/default", wrapper.SetDefaultDashboard)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}", wrapper.DeleteDashboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}", wrapper.GetDashboard)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}", wrapper.UpdateDashboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/duplicate", wrapper.DuplicateDashboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/default", wrapper.SetDefaultDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/power-users", wrapper.ListPowerUsers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)

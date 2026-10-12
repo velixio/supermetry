@@ -2507,8 +2507,9 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-  /api/private/dashboards/{dashboard}:
+  /api/private/sites/{site}/dashboards/{dashboard}:
     parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
       - { name: dashboard, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
     get:
       operationId: getDashboard
@@ -2544,14 +2545,15 @@ paths:
     delete:
       operationId: deleteDashboard
       summary: Delete a dashboard
-      description: Owner, admin or editor. Audited. Deleting the default returns the site to the built-in default.
+      description: Owner, admin or editor. Audited. A dashboard of another site answers 404. Deleting the default returns the site to the built-in default.
       responses:
         '204': { description: Deleted. }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-  /api/private/dashboards/{dashboard}/duplicate:
+  /api/private/sites/{site}/dashboards/{dashboard}/duplicate:
     parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
       - { name: dashboard, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
     post:
       operationId: duplicateDashboard
@@ -2566,8 +2568,9 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: The site reached its limit., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
-  /api/private/dashboards/{dashboard}/default:
+  /api/private/sites/{site}/dashboards/{dashboard}/default:
     parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
       - { name: dashboard, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
     post:
       operationId: setDefaultDashboard

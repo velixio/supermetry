@@ -77,9 +77,9 @@ func (s *Service) List(ctx context.Context, siteID int32) ([]api.Dashboard, erro
 }
 
 // Get returns one saved dashboard.
-func (s *Service) Get(ctx context.Context, id int64) (api.Dashboard, error) {
+func (s *Service) Get(ctx context.Context, siteID int32, id int64) (api.Dashboard, error) {
 	dashboard, err := scan(func(dest ...any) error {
-		return s.store.Pool.QueryRow(ctx, `select `+selectColumns+` from dashboards where id=$1`, id).Scan(dest...)
+		return s.store.Pool.QueryRow(ctx, `select `+selectColumns+` from dashboards where id=$1 and site_id=$2`, id, siteID).Scan(dest...)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return api.Dashboard{}, ErrNotFound
@@ -144,7 +144,7 @@ func (s *Service) insert(ctx context.Context, principal authz.Principal, siteID 
 
 // Update renames and re-lays out a dashboard when expectedVersion matches the
 // stored version, and increments the version.
-func (s *Service) Update(ctx context.Context, principal authz.Principal, id int64, name string, layout api.DashboardLayout, expectedVersion int) (api.Dashboard, error) {
+func (s *Service) Update(ctx context.Context, principal authz.Principal, siteID int32, id int64, name string, layout api.DashboardLayout, expectedVersion int) (api.Dashboard, error) {
 	name, err := ValidateName(name)
 	if err != nil {
 		return api.Dashboard{}, err
@@ -156,7 +156,7 @@ func (s *Service) Update(ctx context.Context, principal authz.Principal, id int6
 	var updated api.Dashboard
 	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
 		var current int
-		if err := tx.QueryRow(ctx, `select version from dashboards where id=$1 for update`, id).Scan(&current); err != nil {
+		if err := tx.QueryRow(ctx, `select version from dashboards where id=$1 and site_id=$2 for update`, id, siteID).Scan(&current); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNotFound
 			}
@@ -167,8 +167,8 @@ func (s *Service) Update(ctx context.Context, principal authz.Principal, id int6
 		}
 		var scanErr error
 		updated, scanErr = scan(func(dest ...any) error {
-			return tx.QueryRow(ctx, `update dashboards set name=$2,layout=$3,version=version+1,updated_at=now() where id=$1 returning `+selectColumns,
-				id, name, encoded).Scan(dest...)
+			return tx.QueryRow(ctx, `update dashboards set name=$2,layout=$3,version=version+1,updated_at=now() where id=$1 and site_id=$4 returning `+selectColumns,
+				id, name, encoded, siteID).Scan(dest...)
 		})
 		if scanErr != nil {
 			return scanErr
@@ -180,10 +180,9 @@ func (s *Service) Update(ctx context.Context, principal authz.Principal, id int6
 
 // Delete removes a dashboard; deleting the default returns the site to the
 // built-in default.
-func (s *Service) Delete(ctx context.Context, principal authz.Principal, id int64) error {
+func (s *Service) Delete(ctx context.Context, principal authz.Principal, siteID int32, id int64) error {
 	return s.store.Tx(ctx, func(tx pgx.Tx) error {
-		var siteID int32
-		err := tx.QueryRow(ctx, `delete from dashboards where id=$1 returning site_id`, id).Scan(&siteID)
+		err := tx.QueryRow(ctx, `delete from dashboards where id=$1 and site_id=$2 returning site_id`, id, siteID).Scan(&siteID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
@@ -195,8 +194,8 @@ func (s *Service) Delete(ctx context.Context, principal authz.Principal, id int6
 }
 
 // Duplicate copies a dashboard as "<name> (copy)", numbering the copy when taken.
-func (s *Service) Duplicate(ctx context.Context, principal authz.Principal, id int64) (api.Dashboard, error) {
-	source, err := s.Get(ctx, id)
+func (s *Service) Duplicate(ctx context.Context, principal authz.Principal, siteID int32, id int64) (api.Dashboard, error) {
+	source, err := s.Get(ctx, siteID, id)
 	if err != nil {
 		return api.Dashboard{}, err
 	}
@@ -210,7 +209,7 @@ func (s *Service) Duplicate(ctx context.Context, principal authz.Principal, id i
 			suffix = " (copy " + strconv.Itoa(attempt) + ")"
 		}
 		name := truncateRunes(source.Name, maxNameRunes-utf8.RuneCountInString(suffix)) + suffix
-		copied, err := s.insert(ctx, principal, source.SiteId, name, encoded, "dashboard.duplicated", map[string]any{"source_id": id})
+		copied, err := s.insert(ctx, principal, siteID, name, encoded, "dashboard.duplicated", map[string]any{"source_id": id})
 		if errors.Is(err, ErrNameTaken) {
 			continue
 		}
@@ -220,11 +219,11 @@ func (s *Service) Duplicate(ctx context.Context, principal authz.Principal, id i
 }
 
 // SetDefault makes a dashboard the site default, replacing any previous one.
-func (s *Service) SetDefault(ctx context.Context, principal authz.Principal, id int64) (api.Dashboard, error) {
+func (s *Service) SetDefault(ctx context.Context, principal authz.Principal, siteID int32, id int64) (api.Dashboard, error) {
 	var result api.Dashboard
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
-		var siteID int32
-		if err := tx.QueryRow(ctx, `select site_id from dashboards where id=$1`, id).Scan(&siteID); err != nil {
+		var found int32
+		if err := tx.QueryRow(ctx, `select site_id from dashboards where id=$1 and site_id=$2`, id, siteID).Scan(&found); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNotFound
 			}
@@ -238,7 +237,7 @@ func (s *Service) SetDefault(ctx context.Context, principal authz.Principal, id 
 		}
 		var scanErr error
 		result, scanErr = scan(func(dest ...any) error {
-			return tx.QueryRow(ctx, `update dashboards set is_default=true where id=$1 returning `+selectColumns, id).Scan(dest...)
+			return tx.QueryRow(ctx, `update dashboards set is_default=true where id=$1 and site_id=$2 returning `+selectColumns, id, siteID).Scan(dest...)
 		})
 		if errors.Is(scanErr, pgx.ErrNoRows) {
 			return ErrNotFound
