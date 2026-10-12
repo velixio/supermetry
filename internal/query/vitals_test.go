@@ -46,6 +46,8 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 	assertVitalMetric(t, "lcp", response.Overall.Lcp, 3000, 5, .6, .2, .2)
 	assertVitalMetric(t, "cls", response.Overall.Cls, 200, 5, .6, .2, .2)
 	assertVitalMetric(t, "inp", response.Overall.Inp, 400, 5, .6, .2, .2)
+	assertVitalMetric(t, "fcp", response.Overall.Fcp, 2100, 5, .6, .4, 0)
+	assertVitalMetric(t, "ttfb", response.Overall.Ttfb, 1000, 5, .6, .4, 0)
 	if len(response.Breakdown) != 2 || response.Breakdown[0].Value != "/" || response.Breakdown[1].Value != "/pricing" {
 		t.Fatalf("breakdown = %+v", response.Breakdown)
 	}
@@ -57,6 +59,8 @@ func TestEngine_VitalsComputesP75RatingsAndBreakdown(t *testing.T) {
 	assertVitalTrendMetric(t, "2026-10-07 lcp", response.Timeseries[1].Lcp, 3000, 4000, 4800, 3)
 	assertVitalTrendMetric(t, "2026-10-07 cls", response.Timeseries[1].Cls, 200, 250, 290, 3)
 	assertVitalTrendMetric(t, "2026-10-07 inp", response.Timeseries[1].Inp, 400, 500, 580, 3)
+	assertVitalTrendMetric(t, "2026-10-07 fcp", response.Timeseries[1].Fcp, 2100, 2550, 2910, 3)
+	assertVitalTrendMetric(t, "2026-10-07 ttfb", response.Timeseries[1].Ttfb, 1000, 1400, 1720, 3)
 
 	filters := []api.Filter{{Dimension: "country", Operator: api.Is, Values: []string{"US"}}}
 	filtered, err := engine.Vitals(context.Background(), api.VitalsRequest{
@@ -480,17 +484,22 @@ func buildLegacyVitalsSQL(req normalizedVitals) (string, []any, error) {
 
 func vitalsAggregateSQL(where string) string {
 	return `with raw_vitals as (
-  select e.props->>'lcp' as lcp_raw,e.props->>'cls' as cls_raw,e.props->>'inp' as inp_raw
+  select e.props->>'lcp' as lcp_raw,e.props->>'cls' as cls_raw,e.props->>'inp' as inp_raw,
+         e.props->>'fcp' as fcp_raw,e.props->>'ttfb' as ttfb_raw
   from events e where ` + where + `
 ), parsed_vitals as (
   select case when length(lcp_raw) between 1 and 5 and lcp_raw ~ '^[0-9]+$' then lcp_raw::int end as lcp,
          case when length(cls_raw) between 1 and 5 and cls_raw ~ '^[0-9]+$' then cls_raw::int end as cls,
-         case when length(inp_raw) between 1 and 5 and inp_raw ~ '^[0-9]+$' then inp_raw::int end as inp
+         case when length(inp_raw) between 1 and 5 and inp_raw ~ '^[0-9]+$' then inp_raw::int end as inp,
+         case when length(fcp_raw) between 1 and 5 and fcp_raw ~ '^[0-9]+$' then fcp_raw::int end as fcp,
+         case when length(ttfb_raw) between 1 and 5 and ttfb_raw ~ '^[0-9]+$' then ttfb_raw::int end as ttfb
   from raw_vitals
 ), vitals as (
   select case when lcp <= 60000 then lcp end as lcp,
          case when cls <= 10000 then cls end as cls,
-         case when inp <= 60000 then inp end as inp
+         case when inp <= 60000 then inp end as inp,
+         case when fcp <= 60000 then fcp end as fcp,
+         case when ttfb <= 60000 then ttfb end as ttfb
   from parsed_vitals
 )
 select
@@ -508,7 +517,17 @@ select
   count(inp)::int8,
   coalesce(avg((inp <= 200)::int) filter (where inp is not null),0)::float8,
   coalesce(avg((inp > 200 and inp <= 500)::int) filter (where inp is not null),0)::float8,
-  coalesce(avg((inp > 500)::int) filter (where inp is not null),0)::float8
+  coalesce(avg((inp > 500)::int) filter (where inp is not null),0)::float8,
+  percentile_cont(0.75) within group (order by fcp) filter (where fcp is not null)::float8,
+  count(fcp)::int8,
+  coalesce(avg((fcp <= 1800)::int) filter (where fcp is not null),0)::float8,
+  coalesce(avg((fcp > 1800 and fcp <= 3000)::int) filter (where fcp is not null),0)::float8,
+  coalesce(avg((fcp > 3000)::int) filter (where fcp is not null),0)::float8,
+  percentile_cont(0.75) within group (order by ttfb) filter (where ttfb is not null)::float8,
+  count(ttfb)::int8,
+  coalesce(avg((ttfb <= 800)::int) filter (where ttfb is not null),0)::float8,
+  coalesce(avg((ttfb > 800 and ttfb <= 1800)::int) filter (where ttfb is not null),0)::float8,
+  coalesce(avg((ttfb > 1800)::int) filter (where ttfb is not null),0)::float8
 from vitals`
 }
 
@@ -550,17 +569,17 @@ values
 insert into events
   (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,country,browser_id,device,props)
 values
-  (1,30,'2026-10-06','2026-10-06 10:00Z',1,1,1,10,1,'US',20,0,'{"lcp":"1000","cls":"50","inp":"100"}'),
-  (1,30,'2026-10-06','2026-10-06 11:00Z',2,2,1,10,1,'US',20,1,'{"lcp":"2000","cls":"100","inp":"200"}'),
-  (1,30,'2026-10-07','2026-10-07 10:00Z',3,3,1,10,2,'IN',21,0,'{"lcp":"3000","cls":"200","inp":"400"}'),
-  (1,30,'2026-10-07','2026-10-07 11:00Z',4,4,1,10,2,'IN',21,1,'{"lcp":"5000","cls":"300","inp":"600"}'),
+	  (1,30,'2026-10-06','2026-10-06 10:00Z',1,1,1,10,1,'US',20,0,'{"lcp":"1000","cls":"50","inp":"100","fcp":"900","ttfb":"300"}'),
+	  (1,30,'2026-10-06','2026-10-06 11:00Z',2,2,1,10,1,'US',20,1,'{"lcp":"2000","cls":"100","inp":"200","fcp":"1700","ttfb":"700"}'),
+	  (1,30,'2026-10-07','2026-10-07 10:00Z',3,3,1,10,2,'IN',21,0,'{"lcp":"3000","cls":"200","inp":"400","fcp":"2100","ttfb":"1000"}'),
+	  (1,30,'2026-10-07','2026-10-07 11:00Z',4,4,1,10,2,'IN',21,1,'{"lcp":"5000","cls":"300","inp":"600","fcp":"3000","ttfb":"1800"}'),
 	(1,30,'2026-10-07','2026-10-07 12:00Z',5,5,1,10,2,'IN',21,1,'{"lcp":"invalid"}'),
 	(1,30,'2026-10-07','2026-10-07 13:00Z',6,6,1,10,2,'IN',21,1,'{"lcp":"999999999999999999999999999999"}'),
-	(1,30,'2026-10-07','2026-10-07 13:01Z',6,6,1,10,2,'IN',21,1,'{"lcp":"NaN","cls":"Infinity","inp":"-1"}'),
+	(1,30,'2026-10-07','2026-10-07 13:01Z',6,6,1,10,2,'IN',21,1,'{"lcp":"NaN","cls":"Infinity","inp":"-1","fcp":"60001","ttfb":"bad"}'),
 	(1,30,'2026-10-06','2026-10-06 10:00:01Z',1,1,1,11,1,'US',0,0,'{"plan":"pro"}'),
 	(1,30,'2026-10-06','2026-10-06 11:00:01Z',2,2,1,11,2,'US',0,1,'{"plan":"starter"}'),
 	(1,30,'2026-10-06','2026-10-06 23:59:30Z',7,7,1,11,1,'US',0,0,'{"plan":"pro"}'),
-	(1,30,'2026-10-07','2026-10-07 00:01:00Z',7,7,1,10,1,'US',20,0,'{"lcp":"1500","cls":"75","inp":"150"}')`)
+	(1,30,'2026-10-07','2026-10-07 00:01:00Z',7,7,1,10,1,'US',20,0,'{"lcp":"1500","cls":"75","inp":"150","fcp":"1200","ttfb":"500"}')`)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,7 @@ import type { Filter } from '@/lib/search'
 
 export type VitalMetric = components['schemas']['VitalMetric']
 export type VitalTrendMetric = components['schemas']['VitalTrendMetric']
-export type VitalMetricName = 'lcp' | 'cls' | 'inp'
+export type VitalMetricName = 'lcp' | 'cls' | 'inp' | 'fcp' | 'ttfb'
 export type VitalsDimension = components['schemas']['VitalsDimension']
 export type VitalsResponse = components['schemas']['VitalsResponse']
 

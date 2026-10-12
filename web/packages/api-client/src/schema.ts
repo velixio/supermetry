@@ -554,7 +554,7 @@ export interface paths {
         put?: never;
         /**
          * Query Web Vitals from raw events
-         * @description Returns overall and breakdown p75/rating shares plus daily p50, p75, p95, and sample counts for LCP, CLS, and INP. Daily buckets use the site's timezone. The requested range must be inside the raw-data retention window, end no later than the current site-local day, and span at most 366 days.
+         * @description Returns overall and breakdown p75/rating shares plus daily p50, p75, p95, and sample counts for LCP, CLS, INP, FCP, and TTFB. Daily buckets use the site's timezone. The requested range must be inside the raw-data retention window, end no later than the current site-local day, and span at most 366 days.
          */
         post: operations["vitalsQuery"];
         delete?: never;
@@ -1980,12 +1980,16 @@ export interface components {
             lcp: components["schemas"]["VitalMetric"];
             cls: components["schemas"]["VitalMetric"];
             inp: components["schemas"]["VitalMetric"];
+            fcp: components["schemas"]["VitalMetric"];
+            ttfb: components["schemas"]["VitalMetric"];
         };
         VitalsBreakdown: {
             value: string;
             lcp: components["schemas"]["VitalMetric"];
             cls: components["schemas"]["VitalMetric"];
             inp: components["schemas"]["VitalMetric"];
+            fcp: components["schemas"]["VitalMetric"];
+            ttfb: components["schemas"]["VitalMetric"];
         };
         VitalTrendMetric: {
             /** Format: double */
@@ -2003,6 +2007,8 @@ export interface components {
             lcp: components["schemas"]["VitalTrendMetric"];
             cls: components["schemas"]["VitalTrendMetric"];
             inp: components["schemas"]["VitalTrendMetric"];
+            fcp: components["schemas"]["VitalTrendMetric"];
+            ttfb: components["schemas"]["VitalTrendMetric"];
         };
         VitalsResponse: {
             overall: components["schemas"]["VitalsMetrics"];

@@ -72,25 +72,25 @@ func TestParsePayloadNormalizesWebVitalsProps(t *testing.T) {
 		{
 			name:      "keeps valid metrics and unrelated props",
 			eventName: "Web Vitals",
-			props:     `{"lcp":"2500","cls":"100","inp":"200","page":"/pricing"}`,
-			want:      map[string]string{"lcp": "2500", "cls": "100", "inp": "200", "page": "/pricing"},
+			props:     `{"lcp":"2500","cls":"100","inp":"200","fcp":"1800","ttfb":"800","page":"/pricing"}`,
+			want:      map[string]string{"lcp": "2500", "cls": "100", "inp": "200", "fcp": "1800", "ttfb": "800", "page": "/pricing"},
 		},
 		{
 			name:      "keeps inclusive caps",
 			eventName: "Web Vitals",
-			props:     `{"lcp":"60000","cls":"10000","inp":"60000"}`,
-			want:      map[string]string{"lcp": "60000", "cls": "10000", "inp": "60000"},
+			props:     `{"lcp":"60000","cls":"10000","inp":"60000","fcp":"60000","ttfb":"60000"}`,
+			want:      map[string]string{"lcp": "60000", "cls": "10000", "inp": "60000", "fcp": "60000", "ttfb": "60000"},
 		},
 		{
 			name:      "drops negative malformed and over-cap metrics",
 			eventName: "Web Vitals",
-			props:     `{"lcp":"-1","cls":"10001","inp":"fast","page":"/"}`,
+			props:     `{"lcp":"-1","cls":"10001","inp":"fast","fcp":"60001","ttfb":"-4","page":"/"}`,
 			want:      map[string]string{"page": "/"},
 		},
 		{
 			name:      "drops overlong metric before generic validation",
 			eventName: "Web Vitals",
-			props:     fmt.Sprintf(`{"lcp":%q,"page":"/"}`, strings.Repeat("9", 2001)),
+			props:     fmt.Sprintf(`{"lcp":%q,"fcp":%q,"ttfb":%q,"page":"/"}`, strings.Repeat("9", 2001), strings.Repeat("8", 2001), strings.Repeat("7", 2001)),
 			want:      map[string]string{"page": "/"},
 		},
 		{

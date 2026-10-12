@@ -26,7 +26,7 @@ type ObserverHarness = {
   observed: Array<{ type?: string; buffered?: boolean; durationThreshold?: number }>
 }
 
-function load(attributes = '', body = '', withObservers = false) {
+function load(attributes = '', body = '', withObservers = false, navigationResponseStart?: number) {
   const dom = new JSDOM(`<!doctype html><html><head>${body}</head><body></body></html>`, {
     runScripts: 'dangerously',
     url: 'https://site.example/start?private=yes',
@@ -47,6 +47,12 @@ function load(attributes = '', body = '', withObservers = false) {
     },
   })
   const observerHarness: ObserverHarness = { emit: () => {}, queue: () => {}, observed: [] }
+  if (navigationResponseStart !== undefined) {
+    Object.defineProperty(dom.window.performance, 'getEntriesByType', {
+      configurable: true,
+      value: (type: string) => type === 'navigation' ? [{ startTime: 0, responseStart: navigationResponseStart }] : [],
+    })
+  }
   if (withObservers) {
     const observers: Array<{
       callback: (list: { getEntries: () => Record<string, unknown>[] }) => void
@@ -292,14 +298,15 @@ describe('full tracker', () => {
     expect(payloads).toHaveLength(0)
   })
 
-  it('reports LCP, maximum CLS session window, and worst observed interaction once', () => {
-    const { dom, payloads, observers } = load('', '', true)
+  it('reports FCP, TTFB, LCP, maximum CLS session window, and worst observed interaction once', () => {
+    const { dom, payloads, observers } = load('', '', true, 640)
     expect(observers.observed).toContainEqual({
       type: 'event',
       buffered: true,
       durationThreshold: 40,
     })
     observers.emit('largest-contentful-paint', [{ startTime: 1234 }, { startTime: 2789 }])
+    observers.emit('paint', [{ name: 'first-paint', startTime: 700 }, { name: 'first-contentful-paint', startTime: 920 }])
     observers.emit('layout-shift', [
       { startTime: 0, value: 0.05, hadRecentInput: false },
       { startTime: 500, value: 0.08, hadRecentInput: false },
@@ -318,7 +325,7 @@ describe('full tracker', () => {
 
     const vitals = payloads.filter((payload) => payload.name === 'Web Vitals')
     expect(vitals).toHaveLength(1)
-    expect(vitals[0].props).toEqual({ lcp: '2789', cls: '130', inp: '540' })
+    expect(vitals[0].props).toEqual({ lcp: '2789', cls: '130', inp: '540', fcp: '920', ttfb: '640' })
   })
 
   it('stops LCP at first input and omits metrics that were not observed', () => {
@@ -350,8 +357,9 @@ describe('full tracker', () => {
   })
 
   it('flushes and resets Web Vitals for SPA navigation without replaying buffered entries', () => {
-    const { dom, payloads, observers } = load('', '', true)
+    const { dom, payloads, observers } = load('', '', true, 500)
     observers.emit('largest-contentful-paint', [{ startTime: 900 }])
+    observers.emit('paint', [{ name: 'first-contentful-paint', startTime: 650 }])
     observers.emit('layout-shift', [{ startTime: 300, value: 0.3, hadRecentInput: false }])
 
     observers.observed.length = 0
@@ -364,7 +372,7 @@ describe('full tracker', () => {
     dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
 
     expect(payloads.filter((payload) => payload.name === 'Web Vitals').map((payload) => payload.props)).toEqual([
-      { lcp: '900', cls: '300' },
+      { lcp: '900', cls: '300', fcp: '650', ttfb: '500' },
       { cls: '50' },
     ])
   })

@@ -125,6 +125,8 @@ func (e *Engine) Vitals(ctx context.Context, req api.VitalsRequest) (api.VitalsR
 				Lcp:   metrics.Lcp,
 				Cls:   metrics.Cls,
 				Inp:   metrics.Inp,
+				Fcp:   metrics.Fcp,
+				Ttfb:  metrics.Ttfb,
 			})
 		}
 		return rows.Err()
@@ -247,20 +249,26 @@ func buildVitalsCTE(req normalizedVitals, dimension *api.VitalsDimension, daily 
   select ` + dimensionSelect + `
     e.props->>'lcp' as lcp_raw,
     e.props->>'cls' as cls_raw,
-    e.props->>'inp' as inp_raw
+    e.props->>'inp' as inp_raw,
+    e.props->>'fcp' as fcp_raw,
+    e.props->>'ttfb' as ttfb_raw
   from events e
   where ` + where + `
 ), parsed_vitals as (
   select ` + dimensionColumn + `
     case when length(lcp_raw) between 1 and 5 and lcp_raw ~ '^[0-9]+$' then lcp_raw::int end as lcp,
     case when length(cls_raw) between 1 and 5 and cls_raw ~ '^[0-9]+$' then cls_raw::int end as cls,
-    case when length(inp_raw) between 1 and 5 and inp_raw ~ '^[0-9]+$' then inp_raw::int end as inp
+    case when length(inp_raw) between 1 and 5 and inp_raw ~ '^[0-9]+$' then inp_raw::int end as inp,
+    case when length(fcp_raw) between 1 and 5 and fcp_raw ~ '^[0-9]+$' then fcp_raw::int end as fcp,
+    case when length(ttfb_raw) between 1 and 5 and ttfb_raw ~ '^[0-9]+$' then ttfb_raw::int end as ttfb
   from raw_vitals
 ), vitals as (
   select ` + dimensionColumn + `
     case when lcp <= 60000 then lcp end as lcp,
     case when cls <= 10000 then cls end as cls,
-    case when inp <= 60000 then inp end as inp
+    case when inp <= 60000 then inp end as inp,
+    case when fcp <= 60000 then fcp end as fcp,
+    case when ttfb <= 60000 then ttfb end as ttfb
   from parsed_vitals
 )`
 	return cte, builder.args, nil
@@ -286,7 +294,17 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
   count(inp)::int8,
   coalesce(avg((inp <= 200)::int) filter (where inp is not null),0)::float8,
   coalesce(avg((inp > 200 and inp <= 500)::int) filter (where inp is not null),0)::float8,
-  coalesce(avg((inp > 500)::int) filter (where inp is not null),0)::float8`
+  coalesce(avg((inp > 500)::int) filter (where inp is not null),0)::float8,
+  percentile_cont(0.75) within group (order by fcp) filter (where fcp is not null)::float8,
+  count(fcp)::int8,
+  coalesce(avg((fcp <= 1800)::int) filter (where fcp is not null),0)::float8,
+  coalesce(avg((fcp > 1800 and fcp <= 3000)::int) filter (where fcp is not null),0)::float8,
+  coalesce(avg((fcp > 3000)::int) filter (where fcp is not null),0)::float8,
+  percentile_cont(0.75) within group (order by ttfb) filter (where ttfb is not null)::float8,
+  count(ttfb)::int8,
+  coalesce(avg((ttfb <= 800)::int) filter (where ttfb is not null),0)::float8,
+  coalesce(avg((ttfb > 800 and ttfb <= 1800)::int) filter (where ttfb is not null),0)::float8,
+  coalesce(avg((ttfb > 1800)::int) filter (where ttfb is not null),0)::float8`
 	if dimension == nil {
 		return cte + " select" + aggregates + " from vitals", args, nil
 	}
@@ -294,7 +312,7 @@ func buildVitalsSQL(req normalizedVitals, dimension *api.VitalsDimension) (strin
 from vitals
 where dimension <> '' and dimension <> '0'
 group by dimension
-order by count(lcp)+count(cls)+count(inp) desc, dimension
+order by count(lcp)+count(cls)+count(inp)+count(fcp)+count(ttfb) desc, dimension
 limit 20`, args, nil
 }
 
@@ -315,7 +333,15 @@ func buildVitalsTimeseriesSQL(req normalizedVitals) (string, []any, error) {
   percentile_cont(0.5) within group (order by inp) filter (where inp is not null)::float8,
   percentile_cont(0.75) within group (order by inp) filter (where inp is not null)::float8,
   percentile_cont(0.95) within group (order by inp) filter (where inp is not null)::float8,
-  count(inp)::int8
+  count(inp)::int8,
+  percentile_cont(0.5) within group (order by fcp) filter (where fcp is not null)::float8,
+  percentile_cont(0.75) within group (order by fcp) filter (where fcp is not null)::float8,
+  percentile_cont(0.95) within group (order by fcp) filter (where fcp is not null)::float8,
+  count(fcp)::int8,
+  percentile_cont(0.5) within group (order by ttfb) filter (where ttfb is not null)::float8,
+  percentile_cont(0.75) within group (order by ttfb) filter (where ttfb is not null)::float8,
+  percentile_cont(0.95) within group (order by ttfb) filter (where ttfb is not null)::float8,
+  count(ttfb)::int8
 from vitals
 group by day
 order by day`, args, nil
@@ -446,6 +472,8 @@ func scanVitalsMetricsWithPrefix(row vitalsScanner, prefix ...any) (api.VitalsMe
 		&metrics.Lcp.P75, &metrics.Lcp.Samples, &metrics.Lcp.Good, &metrics.Lcp.NeedsImprovement, &metrics.Lcp.Poor,
 		&metrics.Cls.P75, &metrics.Cls.Samples, &metrics.Cls.Good, &metrics.Cls.NeedsImprovement, &metrics.Cls.Poor,
 		&metrics.Inp.P75, &metrics.Inp.Samples, &metrics.Inp.Good, &metrics.Inp.NeedsImprovement, &metrics.Inp.Poor,
+		&metrics.Fcp.P75, &metrics.Fcp.Samples, &metrics.Fcp.Good, &metrics.Fcp.NeedsImprovement, &metrics.Fcp.Poor,
+		&metrics.Ttfb.P75, &metrics.Ttfb.Samples, &metrics.Ttfb.Good, &metrics.Ttfb.NeedsImprovement, &metrics.Ttfb.Poor,
 	)
 	if err := row.Scan(dest...); err != nil {
 		return api.VitalsMetrics{}, fmt.Errorf("scan Web Vitals aggregate: %w", err)
@@ -459,6 +487,8 @@ func scanVitalsTrendPoint(row vitalsScanner, prefix ...any) (api.VitalsTrendPoin
 		&point.Lcp.P50, &point.Lcp.P75, &point.Lcp.P95, &point.Lcp.Samples,
 		&point.Cls.P50, &point.Cls.P75, &point.Cls.P95, &point.Cls.Samples,
 		&point.Inp.P50, &point.Inp.P75, &point.Inp.P95, &point.Inp.Samples,
+		&point.Fcp.P50, &point.Fcp.P75, &point.Fcp.P95, &point.Fcp.Samples,
+		&point.Ttfb.P50, &point.Ttfb.P75, &point.Ttfb.P95, &point.Ttfb.Samples,
 	)
 	if err := row.Scan(dest...); err != nil {
 		return api.VitalsTrendPoint{}, fmt.Errorf("scan Web Vitals timeseries: %w", err)
