@@ -96,9 +96,9 @@ TEST_ENV := $(ENV) if [ -z "$$SUPERMETRY_TEST_DSN" ]; then $(DEV_DB_START) expor
 run: build
 	$(DB_ENV) $(CURDIR)/bin/supermetry serve
 
-# Build the dashboard once, the first time it is needed; later runs reuse web/dist
-# (run `make web` after changing the dashboard).
-web/dist/index.html:
+
+# Rebuild the dashboard when any source input changes.
+web/dist/index.html: $(shell find web/src web/packages web/public -type f 2>/dev/null) web/package.json web/index.html web/vite.config.ts
 	$(MAKE) web
 
 # Run with the dashboard, without rebuilding it on every start.

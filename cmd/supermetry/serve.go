@@ -126,6 +126,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return err
 	}
 	logTrackingMode(slog.Default(), cfg.Tracking)
+	warnLocalURLPortMismatch(slog.Default(), cfg.BaseURL, cfg.Listen)
 	warnPublicSignup(ctx, slog.Default(), cfg.Signup)
 	settings := serveOptions{clock: wallClock{}, geoUpdate: geoupdate.Update, listen: net.Listen}
 	for _, option := range options {
@@ -211,7 +212,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("ensure startup partitions: %w", err)
 	}
 	enricher := geo.enricher
-	if spamFile := strings.TrimSpace(os.Getenv("SUPERMETRY_REFERRER_SPAM_FILE")); spamFile != "" {
+	if spamFile := cfg.ReferrerSpamFile; spamFile != "" {
 		if err := enricher.MergeReferrerSpamFile(spamFile); err != nil {
 			return fmt.Errorf("load operator referrer spam file: %w", err)
 		}
@@ -227,7 +228,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	w := writer.New(pool, sessions, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush)
 	w.SetClock(settings.clock)
-	profileTombstones := profiletombstone.New(pool, settings.clock)
+	profileTombstones := profiletombstone.NewWithPollInterval(pool, settings.clock, cfg.TombstonePoll)
 	profileTombstones.SetSessions(sessions)
 	if err := profileTombstones.Load(ctx); err != nil {
 		return fmt.Errorf("load profile tombstones: %w", err)
@@ -253,12 +254,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	accounts := users.New(platformStore)
 	adminService := admin.New(platformStore)
 	authOptions := []platformauth.Option{platformauth.WithAuditSecret(cfg.SecretKey), platformauth.WithPolicySource(adminService)}
-	if raw := os.Getenv("SUPERMETRY_E2E_LOGIN_LIMIT"); raw != "" {
-		limit, parseErr := strconv.Atoi(raw)
-		if parseErr != nil || limit < 1 {
-			return fmt.Errorf("SUPERMETRY_E2E_LOGIN_LIMIT must be a positive integer")
-		}
-		authOptions = append(authOptions, platformauth.WithLoginAttemptCapacity(limit))
+	if cfg.E2ELoginLimit > 0 {
+		slog.Warn("SUPERMETRY_E2E_LOGIN_LIMIT is enabled; login throttling is reduced")
+		authOptions = append(authOptions, platformauth.WithLoginAttemptCapacity(cfg.E2ELoginLimit))
 	}
 	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL, authOptions...)
 	orgService := orgs.New(platformStore, databaseRegistry)
@@ -397,7 +395,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Dedup:             ingest.NewDeduplicator(cfg.DedupEntries),
 		DropStats:         dropRecorder,
 		ProfileTombstones: profileTombstones,
-		Diag:              os.Getenv("SUPERMETRY_INGEST_DIAG") == "1",
+		Diag:              cfg.IngestDiag,
 	}
 
 	// Replay owns a separate limiter, upload semaphore, blob store and index
@@ -587,6 +585,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		cancelReplayStore()
 	}
 	return errors.Join(cause, httpErr)
+}
+
+func warnLocalURLPortMismatch(logger *slog.Logger, baseURL, listen string) {
+	if config.LocalBaseURLPortMismatch(baseURL, listen) {
+		logger.Warn("loopback SUPERMETRY_BASE_URL port differs from server listen port; browser setup and login requests may fail Origin checks", "base_url", baseURL, "listen", listen)
+	}
 }
 
 func logAdminSetup(logger *slog.Logger, baseURL string, usersExist bool) {

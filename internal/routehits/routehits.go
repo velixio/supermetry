@@ -27,7 +27,10 @@ func WithTestName(request *http.Request, name string) *http.Request {
 
 // Wrap returns next unchanged unless route recording is enabled.
 func Wrap(next http.Handler) http.Handler {
-	filename := os.Getenv(Env)
+	return WrapFile(next, os.Getenv(Env))
+}
+
+func WrapFile(next http.Handler, filename string) http.Handler {
 	if filename == "" {
 		return next
 	}

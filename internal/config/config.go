@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultListen           = ":8080"
+	defaultListen           = ":8787"
 	defaultEventPath        = "/api/public/v1/events"
 	defaultTrackerPath      = "/js/script.js"
 	defaultQueueSize        = 65536
@@ -94,6 +94,11 @@ type Config struct {
 	// Search Console integration; it stays hidden while either is empty.
 	SearchConsoleClientID     string
 	SearchConsoleClientSecret string
+	E2ELoginLimit             int
+	IngestDiag                bool
+	ReferrerSpamFile          string
+	TombstonePoll             time.Duration
+	RouteHitsFile             string
 }
 
 type ReplayEnv struct {
@@ -121,12 +126,39 @@ func Load(getenv func(string) string) (Config, error) {
 	return LoadLookup(func(key string) (string, bool) { value := getenv(key); return value, value != "" })
 }
 
+// LocalBaseURLPortMismatch reports a loopback URL whose explicit/default HTTP
+// port differs from the configured server listen port.
+func LocalBaseURLPortMismatch(baseURL, listen string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Hostname() == "" {
+		return false
+	}
+	ip := net.ParseIP(u.Hostname())
+	if !strings.EqualFold(u.Hostname(), "localhost") && (ip == nil || !ip.IsLoopback()) {
+		return false
+	}
+	urlPort := u.Port()
+	if urlPort == "" {
+		if u.Scheme == "https" {
+			urlPort = "443"
+		} else {
+			urlPort = "80"
+		}
+	}
+	_, listenPort, err := net.SplitHostPort(listen)
+	if err != nil {
+		listenPort = strings.TrimPrefix(listen, ":")
+	}
+	return listenPort != "" && urlPort != listenPort
+}
+
 // LoadLookup preserves environment presence, including explicitly empty values.
 func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	getenv := func(key string) string { value, _ := lookup(key); return value }
 	tracking, trackingErr := ParseTrackingMode(lookup(TrackingModeEnv))
 	trackingPaths, trackingPathsErr := ParseTrackingPublicPaths(lookup(TrackingPublicPathsEnv))
 	geo, geoErr := LoadGeoIP(getenv)
+	var errs []error
 	c := Config{
 		Tracking:             tracking,
 		TrackingPaths:        trackingPaths,
@@ -158,6 +190,9 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		MetricsToken:         getenv("SUPERMETRY_METRICS_TOKEN"),
 		Signup:               valueOrDefault(getenv("SUPERMETRY_SIGNUP"), defaultSignup),
 		AllowPrivateWebhooks: false,
+		IngestDiag:           getenv("SUPERMETRY_INGEST_DIAG") == "1",
+		ReferrerSpamFile:     strings.TrimSpace(getenv("SUPERMETRY_REFERRER_SPAM_FILE")),
+		RouteHitsFile:        getenv("SUPERMETRY_ROUTE_HITS"),
 		SMTP: SMTP{
 			Host:     getenv("SUPERMETRY_SMTP_HOST"),
 			Port:     defaultSMTPPort,
@@ -167,7 +202,22 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 			StartTLS: true,
 		},
 	}
-	var errs []error
+	if raw := getenv("SUPERMETRY_E2E_LOGIN_LIMIT"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 1 {
+			errs = append(errs, errors.New("SUPERMETRY_E2E_LOGIN_LIMIT must be a positive integer"))
+		} else {
+			c.E2ELoginLimit = value
+		}
+	}
+	if raw := getenv("SUPERMETRY_TOMBSTONE_POLL"); raw != "" {
+		value, err := time.ParseDuration(raw)
+		if err != nil || value <= 0 {
+			errs = append(errs, errors.New("SUPERMETRY_TOMBSTONE_POLL must be a positive duration"))
+		} else {
+			c.TombstonePoll = value
+		}
+	}
 	if trackingPathsErr != nil {
 		errs = append(errs, trackingPathsErr)
 	}
