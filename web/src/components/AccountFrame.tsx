@@ -8,7 +8,7 @@ import { PoweredBySupermetry } from './PoweredBySupermetry'
 import { Button } from './ui/button'
 import { Toaster } from './ui/sonner'
 import { useTheme } from '@/lib/theme'
-import type { Me } from '@/routes/app.$org'
+import type { Me } from '@/lib/me'
 
 export function AccountFrame({ me, children }: { me: Me; children: ReactNode }) {
   const { theme, toggle } = useTheme()

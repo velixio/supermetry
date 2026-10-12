@@ -1,5 +1,3 @@
-import { z } from 'zod'
-
 export const periodValues = [
   'today',
   'yesterday',
@@ -42,10 +40,6 @@ export const filterOperatorValues = [
   'starts_with',
 ] as const
 
-export const Period = z.enum(periodValues)
-export const Compare = z.enum(compareValues)
-export const Metric = z.enum(metricValues)
-
 function validDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
   if (!match) return false
@@ -60,28 +54,60 @@ function validDate(value: string): boolean {
   )
 }
 
-export const DateStr = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine(validDate)
+type SearchRecord = Record<string, unknown>
 
-export const dashboardSearch = z.object({
-  period: Period.catch('30d'),
-  from: DateStr.optional(),
-  to: DateStr.optional(),
-  compare: Compare.catch('off'),
-  f: z.array(z.string()).catch([]),
-  metric: Metric.catch('visitors'),
-  live: z.coerce.boolean().optional(),
-  include_imported: z
-    .union([z.boolean(), z.enum(['true', 'false'])])
-    .optional()
-    .transform((value) => value === undefined || value === true || value === 'true'),
-})
+export function searchRecord(value: unknown): SearchRecord {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as SearchRecord : {}
+}
 
-export const paginationSearch = {
-  page: z.coerce.number().int().positive().optional().catch(undefined),
-  cursors: z.array(z.string()).optional().catch(undefined),
+export function searchString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+export function optionalSearchString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+export function searchEnum<const Values extends readonly string[]>(
+  value: unknown,
+  values: Values,
+  fallback: Values[number],
+): Values[number] {
+  return typeof value === 'string' && (values as readonly string[]).includes(value)
+    ? value as Values[number]
+    : fallback
+}
+
+export function positiveSearchInteger(value: unknown): number | undefined {
+  const number = typeof value === 'number' ? value : typeof value === 'string' && value !== '' ? Number(value) : NaN
+  return Number.isInteger(number) && number > 0 ? number : undefined
+}
+
+export function boundedSearchInteger(value: unknown, minimum: number, maximum: number, fallback: number): number {
+  const number = typeof value === 'number' ? value : typeof value === 'string' && value !== '' ? Number(value) : NaN
+  return Number.isInteger(number) && number >= minimum && number <= maximum ? number : fallback
+}
+
+export function positiveSearchID(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[1-9][0-9]*$/.test(value) ? value : undefined
+}
+
+export function searchBoolean(value: unknown, fallback = false): boolean {
+  if (value === true || value === 'true') return true
+  if (value === false || value === 'false') return false
+  return fallback
+}
+
+export function parsePaginationSearch(value: unknown): PaginationSearch {
+  const search = searchRecord(value)
+  const page = positiveSearchInteger(search.page)
+  const cursors = Array.isArray(search.cursors) && search.cursors.every((cursor) => typeof cursor === 'string')
+    ? search.cursors
+    : undefined
+  return {
+    ...(page === undefined ? {} : { page }),
+    ...(cursors === undefined ? {} : { cursors }),
+  }
 }
 
 export type PaginationSearch = {
@@ -109,10 +135,37 @@ export function previousPage<T extends PaginationSearch>(search: T): T & { page:
   }
 }
 
-export type Period = z.infer<typeof Period>
-export type Compare = z.infer<typeof Compare>
-export type DashboardMetric = z.infer<typeof Metric>
-export type DashboardSearch = z.infer<typeof dashboardSearch>
+export type Period = (typeof periodValues)[number]
+export type Compare = (typeof compareValues)[number]
+export type DashboardMetric = (typeof metricValues)[number]
+export type DashboardSearch = {
+  period: Period
+  from?: string
+  to?: string
+  compare: Compare
+  f: string[]
+  metric: DashboardMetric
+  live?: boolean
+  include_imported: boolean
+}
+
+export function parseDashboardSearch(value: unknown): DashboardSearch {
+  const search = searchRecord(value)
+  const from = optionalSearchString(search.from)
+  const to = optionalSearchString(search.to)
+  return {
+    period: searchEnum(search.period, periodValues, '30d'),
+    ...(from && validDate(from) ? { from } : {}),
+    ...(to && validDate(to) ? { to } : {}),
+    compare: searchEnum(search.compare, compareValues, 'off'),
+    f: Array.isArray(search.f) && search.f.every((filter) => typeof filter === 'string') ? search.f : [],
+    metric: searchEnum(search.metric, metricValues, 'visitors'),
+    ...(search.live === undefined ? {} : { live: searchBoolean(search.live) }),
+    include_imported: search.include_imported === undefined || searchBoolean(search.include_imported),
+  }
+}
+
+export const dashboardSearch = { parse: parseDashboardSearch }
 export type FilterOperator = (typeof filterOperatorValues)[number]
 
 export type Filter = {

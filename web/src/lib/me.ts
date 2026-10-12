@@ -1,0 +1,66 @@
+import { queryOptions, useQuery } from '@tanstack/react-query'
+
+import type { Role } from '@/components/Sidebar'
+import type { TrackingPolicy } from '@/features/sites/types'
+import { api } from '@/lib/api'
+import { en } from '@/messages/en'
+
+export type Site = {
+  tracking_policy?: TrackingPolicy
+  id: number
+  name: string
+  slug?: string
+  public_id?: string
+  timezone?: string
+  retention_days?: number
+  profiles_enabled?: boolean
+  icon_url?: string
+  allowed_hosts?: string[]
+  revenue_currency?: string
+  revenue_currency_state?: 'unconfigured' | 'configured' | 'conflict'
+  is_demo?: boolean
+  demo_ready?: boolean
+}
+
+export type Membership = {
+  org: { id: number; name: string; slug: string }
+  role: Role
+  site_ids?: number[] | null
+  capabilities?: string[]
+  billing_admin?: boolean
+  effective_capabilities?: string[]
+  sites: Site[]
+}
+
+export type Me = {
+  user: { id: number; name: string; email: string; totp_enabled?: boolean }
+  memberships: Membership[]
+  demo_prompt_dismissed?: boolean
+  version?: string
+}
+
+export class AuthenticationRequired extends Error {}
+
+function isMe(value: unknown): value is Me {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<Me>
+  return Boolean(candidate.user && Array.isArray(candidate.memberships))
+}
+
+export async function fetchMe(): Promise<Me> {
+  const { data, response } = await api.GET('/api/private/me', {})
+  if (response.status === 401) throw new AuthenticationRequired()
+  if (!response.ok || !isMe(data)) throw new Error(en.auth.genericError)
+  return data
+}
+
+export const meQueryOptions = queryOptions({
+  queryKey: ['me'],
+  queryFn: fetchMe,
+  staleTime: 30_000,
+  retry: (count, error) => !(error instanceof AuthenticationRequired) && count < 1,
+})
+
+export function useMe() {
+  return useQuery(meQueryOptions)
+}

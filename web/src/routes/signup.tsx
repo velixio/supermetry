@@ -10,13 +10,8 @@ import { resetAfterLogin } from '@/lib/session-lifecycle'
 import { signedInRedirect } from '@/lib/signed-in'
 import { applyPreferredTheme } from '@/lib/theme'
 
-import {
-  AuthScreen,
-  createAuthConfigApi,
-  postPrivate,
-  type LoginResult,
-  type SignupMode,
-} from './login'
+import { AuthScreen } from '@/features/auth/AuthScreen'
+import { createAuthConfigApi, postPrivate, type LoginResult, type SignupMode } from '@/features/auth/api'
 
 export type SignupInput = {
   email: string

@@ -1,6 +1,5 @@
 import { type FormEvent, useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -8,12 +7,16 @@ import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 import { signedInRedirect } from '@/lib/signed-in'
 
-import { AuthScreen, authResultMessage, postPrivate } from './login'
+import { AuthScreen } from '@/features/auth/AuthScreen'
+import { authResultMessage, postPrivate } from '@/features/auth/api'
 
-const setupSearch = z.object({ token: z.string().optional().catch(undefined) })
+const parseSetupSearch = (value: unknown): { token?: string } => {
+  const search = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return typeof search.token === 'string' ? { token: search.token } : {}
+}
 
 export const Route = createFileRoute('/setup')({
-  validateSearch: (search) => setupSearch.parse(search),
+  validateSearch: parseSetupSearch,
   beforeLoad: async ({ search }) => {
     const destination = await setupRouteDestination(search.token)
     if (destination) throw redirect({ href: destination, replace: true })
