@@ -65,7 +65,7 @@ export function WidgetSlot({ widget, index, total, preview, query, onAction }: W
     >
       <div className="dash-edit-slot flex flex-col gap-2 p-2" onKeyDown={onKeyDown}>
         <div aria-label={t.toolbar(name)} className="flex flex-wrap items-center gap-1" role="group">
-          <div className="flex min-w-0 flex-1 flex-col px-1">
+          <div className="flex min-w-0 basis-full flex-col px-1">
             <span className="truncate text-sm font-medium">{name}</span>
             <span className="text-xs text-muted-foreground">{t.position(index + 1, total)} · {t.width(widget.w)}</span>
           </div>

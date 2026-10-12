@@ -65,6 +65,10 @@ const sizes: Record<Kind, { w: number; h: number; minW: number }> = {
   web_vitals: { w: 6, h: 4, minW: 3 },
 }
 
+export function defaultSize(kind: Kind): { w: number; h: number } {
+  return { w: sizes[kind].w, h: sizes[kind].h }
+}
+
 export function minWidth(kind: Kind): number {
   return sizes[kind].minW
 }

@@ -12,7 +12,7 @@ import { en } from '@/messages/en'
 
 import type { DashboardWidget } from '../api'
 import {
-  allMetrics, defaultConfig, dimensions, kindRules, kinds, periods, trafficMetrics, validateDraft,
+  allMetrics, defaultConfig, defaultSize, dimensions, kindRules, kinds, periods, trafficMetrics, validateDraft,
   type Kind, type Metric,
 } from './model'
 import { humanize, issueText, widgetLabel } from './text'
@@ -65,7 +65,7 @@ export function WidgetDialog({ siteId, mode, widget, onSubmit, onClose }: Widget
 
   const changeKind = (kind: Kind) => {
     setErrors([])
-    setDraft({ ...draft, kind, config: defaultConfig(kind, funnels.data?.[0]?.id) })
+    setDraft({ ...draft, kind, ...defaultSize(kind), config: defaultConfig(kind, funnels.data?.[0]?.id) })
   }
 
   const submit = (event: FormEvent) => {

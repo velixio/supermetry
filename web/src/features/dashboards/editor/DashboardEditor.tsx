@@ -21,7 +21,7 @@ import { widgetQuery } from '../layout'
 import { DashboardSettings } from './DashboardSettings'
 import { conflictKind, problemMessages, useCreateDashboard, useDeleteDashboard, useDuplicateDashboard, useSaveDashboard, useSetDefaultDashboard, type Problem } from './editorApi'
 import {
-  isDirty, limits, makeWidget, normalizeLayout, reduceDraft, templateLayout, validateDraft,
+  isDirty, limits, makeWidget, newWidgetId, normalizeLayout, reduceDraft, templateLayout, validateDraft,
   type Draft, type TemplateKey,
 } from './model'
 import { issueText, widgetLabel } from './text'
@@ -450,9 +450,11 @@ function EditorBody({ siteId, orgId, anonymous, base, timezone, dashboards, refe
           onSubmit={(widget) => {
             setDialog(null)
             if (dialog.mode === 'add') {
-              dispatch({ type: 'add', widget })
-              focusRequest.current = { id: widget.id, action: 'options' }
-              setAnnouncement(t.added(widgetLabel(widget), widgets.length + 1))
+              // The kind may have changed in the dialog, so the id is chosen now.
+              const added = { ...widget, id: newWidgetId(draft.layout, widget.kind) }
+              dispatch({ type: 'add', widget: added })
+              focusRequest.current = { id: added.id, action: 'options' }
+              setAnnouncement(t.added(widgetLabel(added), widgets.length + 1))
             } else {
               dispatch({ type: 'update', id: widget.id, patch: widget })
               focusRequest.current = { id: widget.id, action: 'options' }
