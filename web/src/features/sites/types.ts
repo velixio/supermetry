@@ -46,7 +46,8 @@ export type ManagedSite = {
   timezone: string
   retention_days?: number
   allowed_hosts?: string[]
-  last_event_received_at?: string
+  install_status?: 'waiting' | 'receiving' | 'quiet'
+  last_seen_at?: string | null
   icon_url?: string
   tracker?: TrackerSettings
   tracker_url?: string

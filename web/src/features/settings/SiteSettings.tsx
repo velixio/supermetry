@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { refetchSiteIcon } from '@/features/sites/api'
 import { TrackingSnippet } from './TrackingSnippet'
+import { InstallStatusView, type InstallStatus } from '@/features/sites/InstallStatus'
 
 type CachedMe = {
   memberships: Array<{ sites: Array<{ id: number; icon_url?: string }> }>
@@ -114,20 +115,8 @@ export function SiteSettingsTabs({ org, site, current, showReplay = false, track
   )
 }
 
-export function installationStatusInterval(lastEventReceivedAt?: string): 5000 | false {
-  return lastEventReceivedAt ? false : 5_000
-}
-
-function relativeTime(value: string, now: Date): string {
-  const seconds = Math.round((new Date(value).getTime() - now.getTime()) / 1_000)
-  const absolute = Math.abs(seconds)
-  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'always' })
-  if (absolute < 60) return formatter.format(seconds, 'second')
-  const minutes = Math.round(seconds / 60)
-  if (Math.abs(minutes) < 60) return formatter.format(minutes, 'minute')
-  const hours = Math.round(minutes / 60)
-  if (Math.abs(hours) < 24) return formatter.format(hours, 'hour')
-  return formatter.format(Math.round(hours / 24), 'day')
+export function installationStatusInterval(): 30000 {
+  return 30_000
 }
 
 const featureSetup: { feature: string; needs: string; code?: string }[] = [
@@ -175,7 +164,7 @@ function FeatureSetup({ currency }: { currency?: string }) {
   )
 }
 
-export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceivedAt, revenueCurrency, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; lastEventReceivedAt?: string; revenueCurrency?: string; now?: Date }) {
+export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; installStatus?: InstallStatus; lastSeenAt?: string | null; revenueCurrency?: string; now?: Date }) {
   return (
     <div className="flex flex-col gap-6">
       <TrackingSnippet publicId={publicId} snippet={snippet} fullSnippet={fullSnippet} />
@@ -217,11 +206,7 @@ export function InstallGuide({ publicId, snippet, fullSnippet, lastEventReceived
         <p className="font-medium">Reduce ad-blocker losses</p>
         <p className="text-muted-foreground">Proxy the script through your own domain and forward the event endpoint from the same host.</p>
       </aside>
-      <p role="status" className="text-sm text-muted-foreground">
-        {lastEventReceivedAt
-          ? `✓ Last event ${relativeTime(lastEventReceivedAt, now)}`
-          : 'Waiting for first event…'}
-      </p>
+      <InstallStatusView status={installStatus} lastSeenAt={lastSeenAt} now={now} />
     </div>
   )
 }

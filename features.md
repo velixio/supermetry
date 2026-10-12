@@ -50,6 +50,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Server-side events API, with examples | ✓ | ✓ | ✓ | ✅ (`docs/api.md`) |
 | Bot filtering; IP, path and country exclusion | ✓ | ✓ | ✓ | ✅ |
 | Per-site tracker settings (served script) | ✓ | – | – | ✅ (outbound, downloads, forms, 404, hash routing, clicks, Web Vitals, heatmaps) |
+| Install status from accepted-event last seen | ✓ | ? | ? | ✅ (Waiting, Receiving within 24h, Quiet with last seen) |
 | Hash-based routing, form submissions | ✓ | ✓ | ✓ | ✅ (per-site setting) |
 | Do Not Track / GPC, visitor opt-out | ✓ (opt-out) | ✓ (DNT) | – | ✅ (respected by default; `supermetry.optOut()`) |
 | Consent mode, manual pageviews, `beforeSend` hook | – | ✓ | ✓ (consent) | ✅ |

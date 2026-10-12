@@ -16,9 +16,14 @@ import {
 import type { Role } from '@/components/Sidebar'
 import type { Me, Site } from '@/routes/app.$org'
 import { DeletedSitesSection } from '@/features/lifecycle/DeletedSitesSection'
+import { InstallStatusView } from '@/features/sites/InstallStatus'
 import { queryClient } from '@/lib/queryClient'
 
 export type SiteAction = 'edit' | 'installation' | 'delete'
+type SiteWithInstallStatus = Site & {
+  install_status?: 'waiting' | 'receiving' | 'quiet'
+  last_seen_at?: string | null
+}
 
 export function siteActions(role: Role): SiteAction[] {
   if (role === 'viewer') return ['installation']
@@ -38,7 +43,7 @@ export function SitesPage({
 }: {
   org: string
   role: Role
-  sites: Site[]
+  sites: SiteWithInstallStatus[]
   onDelete: (siteId: number) => Promise<void>
 }) {
   const [pendingDelete, setPendingDelete] = useState<Site>()
@@ -89,6 +94,7 @@ export function SitesPage({
                 <div className="min-w-0">
                   <p className="truncate font-medium">{site.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{site.public_id ?? site.id}</p>
+                  <InstallStatusView status={site.install_status} lastSeenAt={site.last_seen_at} />
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
