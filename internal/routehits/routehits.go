@@ -5,12 +5,19 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 )
 
 const Env = "SUPERMETRY_ROUTE_HITS"
 
 type testNameKey struct{}
 type recorderKey struct{}
+
+// state is shared by the outermost recorder and any nested ones for a request.
+// A nested recorder sees the pattern its own mux matched even when middleware
+// handed it a cloned request, and tells the outer recorder to skip the
+// catch-all mount pattern it would otherwise record.
+type state struct{ innerRecorded atomic.Bool }
 
 // WithTestName annotates a test request without reading or recording request
 // metadata. Callers that do not supply a name still record the matched route.
@@ -25,12 +32,23 @@ func Wrap(next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, nested := r.Context().Value(recorderKey{}).(struct{}); nested {
+		if st, nested := r.Context().Value(recorderKey{}).(*state); nested {
+			defer func() {
+				if r.Pattern != "" {
+					record(filename, r)
+					st.innerRecorded.Store(true)
+				}
+			}()
 			next.ServeHTTP(w, r)
 			return
 		}
-		r = r.WithContext(context.WithValue(r.Context(), recorderKey{}, struct{}{}))
-		defer record(filename, r)
+		st := &state{}
+		r = r.WithContext(context.WithValue(r.Context(), recorderKey{}, st))
+		defer func() {
+			if !st.innerRecorded.Load() {
+				record(filename, r)
+			}
+		}()
 		next.ServeHTTP(w, r)
 	})
 }

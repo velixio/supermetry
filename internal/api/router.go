@@ -137,7 +137,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	public.HandleFunc("GET "+publicPrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(publicPrefix+"/", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, false, trackingReads(deps.Config.Tracking.Mode, public)))
+	mux.Handle(publicPrefix+"/", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, false, trackingReads(deps.Config.Tracking.Mode, routehits.Wrap(public))))
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
@@ -155,7 +155,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("GET "+privatePrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress, deps.FailedProfileErasures, deps.DropStats, deps.Sites, now))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, private))))
+	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, routehits.Wrap(private)))))
 	registerPlatformRoutes(mux, deps.Platform, deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow)
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
