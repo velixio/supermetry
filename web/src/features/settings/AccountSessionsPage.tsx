@@ -13,7 +13,7 @@ import { countryName, normalizeCountryCode } from '@/lib/country'
 
 import { privateRequest, type ListResponse } from './privateApi'
 import { activeLocale } from '@/lib/i18n/intl'
-import { ui } from '@/messages/ui'
+import { uiAccount } from '@/messages/uiAccount'
 
 type AccountSession = {
   ID: string
@@ -34,7 +34,7 @@ function timestamp(value?: string): Date | undefined {
 
 function SessionTime({ value }: { value?: string }) {
   const date = timestamp(value)
-  if (!date) return <span className="text-muted-foreground">{ui.sessions.unknown}</span>
+  if (!date) return <span className="text-muted-foreground">{uiAccount.sessions.unknown}</span>
   const local = date.toLocaleString(activeLocale(), {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
@@ -46,7 +46,7 @@ function SessionTime({ value }: { value?: string }) {
 function SessionCountry({ code = '' }: { code?: string }) {
   const normalized = normalizeCountryCode(code)
   const name = countryName(code)
-  if (!normalized || normalized === 'ZZ' || name === 'Unknown') return <span className="text-muted-foreground">{ui.sessions.unknown}</span>
+  if (!normalized || normalized === 'ZZ' || name === 'Unknown') return <span className="text-muted-foreground">{uiAccount.sessions.unknown}</span>
   return <span className="flex items-center gap-2"><Flag code={normalized} /><span>{name} ({normalized})</span></span>
 }
 
@@ -80,57 +80,57 @@ export function AccountSessionsPage() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{ui.sessions.title}</h1>
-        <p className="text-sm text-muted-foreground">{ui.sessions.intro}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{uiAccount.sessions.title}</h1>
+        <p className="text-sm text-muted-foreground">{uiAccount.sessions.intro}</p>
       </header>
-      <section aria-label={ui.sessions.sectionLabel} className="min-w-0 rounded-xl border bg-card p-5 text-card-foreground">
+      <section aria-label={uiAccount.sessions.sectionLabel} className="min-w-0 rounded-xl border bg-card p-5 text-card-foreground">
         <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
-          <p className="text-sm text-muted-foreground">{ui.sessions.note}</p>
+          <p className="text-sm text-muted-foreground">{uiAccount.sessions.note}</p>
           <Button className="w-full shrink-0 sm:w-auto" variant="outline" disabled={!sessions.isSuccess || otherSessionCount === 0 || revokeOthers.isPending} onClick={() => setConfirmOthers(true)}>
-            {ui.sessions.signOutAll}
+            {uiAccount.sessions.signOutAll}
           </Button>
         </div>
         <AlertDialog open={confirmOthers} onOpenChange={open => { if (!revokeOthers.isPending) setConfirmOthers(open) }}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{ui.sessions.signOutAllTitle}</AlertDialogTitle>
-              <AlertDialogDescription>{ui.sessions.signOutBody(otherSessionCount)}</AlertDialogDescription>
-              {revokeOthers.isError && <p role="alert" className="text-sm text-destructive">{ui.sessions.signOutFailed}</p>}
+              <AlertDialogTitle>{uiAccount.sessions.signOutAllTitle}</AlertDialogTitle>
+              <AlertDialogDescription>{uiAccount.sessions.signOutBody(otherSessionCount)}</AlertDialogDescription>
+              {revokeOthers.isError && <p role="alert" className="text-sm text-destructive">{uiAccount.sessions.signOutFailed}</p>}
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={revokeOthers.isPending}>{ui.sessions.cancel}</AlertDialogCancel>
+              <AlertDialogCancel disabled={revokeOthers.isPending}>{uiAccount.sessions.cancel}</AlertDialogCancel>
               <AlertDialogAction variant="destructive" disabled={revokeOthers.isPending} onClick={(event) => { event.preventDefault(); revokeOthers.mutate() }}>
-                {revokeOthers.isPending ? ui.sessions.signingOut : ui.sessions.signOutOthers}
+                {revokeOthers.isPending ? uiAccount.sessions.signingOut : uiAccount.sessions.signOutOthers}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        {sessions.isPending && <p role="status">{ui.sessions.loading}</p>}
-        {sessions.isError && <div role="alert" className="flex flex-wrap items-center gap-3"><p>{ui.sessions.loadFailed}</p><Button variant="outline" size="sm" onClick={() => void sessions.refetch()}>{ui.sessions.tryAgain}</Button></div>}
-        {revoke.isError && <p role="alert" className="mb-4 text-sm text-destructive">{ui.sessions.revokeFailed}</p>}
-        {sessions.isSuccess && ordered.length === 0 && <p className="text-sm text-muted-foreground">{ui.sessions.none}</p>}
-        <ul className="divide-y" aria-label={ui.sessions.listLabel}>
+        {sessions.isPending && <p role="status">{uiAccount.sessions.loading}</p>}
+        {sessions.isError && <div role="alert" className="flex flex-wrap items-center gap-3"><p>{uiAccount.sessions.loadFailed}</p><Button variant="outline" size="sm" onClick={() => void sessions.refetch()}>{uiAccount.sessions.tryAgain}</Button></div>}
+        {revoke.isError && <p role="alert" className="mb-4 text-sm text-destructive">{uiAccount.sessions.revokeFailed}</p>}
+        {sessions.isSuccess && ordered.length === 0 && <p className="text-sm text-muted-foreground">{uiAccount.sessions.none}</p>}
+        <ul className="divide-y" aria-label={uiAccount.sessions.listLabel}>
           {ordered.map((session) => (
             <li key={session.ID} className="min-w-0 py-5 first:pt-0 last:pb-0">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
-                    <BrowserLabel value={session.Browser || ui.sessions.unknownBrowser} />
-                    {session.Current && <Badge variant="secondary">{ui.sessions.current}</Badge>}
+                    <BrowserLabel value={session.Browser || uiAccount.sessions.unknownBrowser} />
+                    {session.Current && <Badge variant="secondary">{uiAccount.sessions.current}</Badge>}
                   </div>
-                  {session.DeviceLabel?.trim() && session.DeviceLabel.trim().toLowerCase() !== (session.Browser?.trim() || ui.sessions.unknownBrowser).toLowerCase() && (
+                  {session.DeviceLabel?.trim() && session.DeviceLabel.trim().toLowerCase() !== (session.Browser?.trim() || uiAccount.sessions.unknownBrowser).toLowerCase() && (
                     <p className="mt-1 break-words text-sm text-muted-foreground">{session.DeviceLabel.trim()}</p>
                   )}
                 </div>
-                <Button size="sm" variant="outline" disabled={revoke.isPending || !session.ID} onClick={() => revoke.mutate(session.ID)} aria-label={session.Current ? ui.sessions.revokeCurrent : ui.sessions.revokeAria(session.Browser || ui.sessions.unknownBrowser.toLowerCase(), session.IPAddress ?? '')}>
-                  {revoke.isPending && revoke.variables === session.ID ? ui.sessions.revoking : ui.sessions.revoke}
+                <Button size="sm" variant="outline" disabled={revoke.isPending || !session.ID} onClick={() => revoke.mutate(session.ID)} aria-label={session.Current ? uiAccount.sessions.revokeCurrent : uiAccount.sessions.revokeAria(session.Browser || uiAccount.sessions.unknownBrowser.toLowerCase(), session.IPAddress ?? '')}>
+                  {revoke.isPending && revoke.variables === session.ID ? uiAccount.sessions.revoking : uiAccount.sessions.revoke}
                 </Button>
               </div>
               <dl className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-                <div className="min-w-0"><dt className="mb-1 text-xs text-muted-foreground">{ui.sessions.ip}</dt><dd className="break-all">{session.IPAddress || <span className="text-muted-foreground">{ui.sessions.unknown}</span>}</dd></div>
-                <div className="min-w-0"><dt className="mb-1 text-xs text-muted-foreground">{ui.sessions.country}</dt><dd><SessionCountry code={session.CountryCode} /></dd></div>
-                <div><dt className="mb-1 text-xs text-muted-foreground">{ui.sessions.created}</dt><dd><SessionTime value={session.CreatedAt} /></dd></div>
-                <div><dt className="mb-1 text-xs text-muted-foreground">{ui.sessions.lastActive}</dt><dd><SessionTime value={session.LastSeenAt} /></dd></div>
+                <div className="min-w-0"><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.ip}</dt><dd className="break-all">{session.IPAddress || <span className="text-muted-foreground">{uiAccount.sessions.unknown}</span>}</dd></div>
+                <div className="min-w-0"><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.country}</dt><dd><SessionCountry code={session.CountryCode} /></dd></div>
+                <div><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.created}</dt><dd><SessionTime value={session.CreatedAt} /></dd></div>
+                <div><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.lastActive}</dt><dd><SessionTime value={session.LastSeenAt} /></dd></div>
               </dl>
             </li>
           ))}

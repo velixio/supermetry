@@ -3,24 +3,37 @@ import { describe, expect, it } from 'vitest'
 import { compareCatalogue, type MessageTree } from '@/lib/i18n/catalogue'
 import { en } from '@/messages/en'
 import { dashEdit } from '@/messages/dashEdit'
+import { ui } from '@/messages/ui'
+import { uiAccount } from '@/messages/uiAccount'
 import de from './de'
 import deDashEdit from './de.dashEdit'
 import es from './es'
 import esDashEdit from './es.dashEdit'
+import deUi from './de.ui'
+import deUiAccount from './de.uiAccount'
+import esUi from './es.ui'
+import esUiAccount from './es.uiAccount'
 
 const english = en as unknown as MessageTree
 const englishDashEdit = dashEdit as unknown as MessageTree
+const englishUi = ui as unknown as MessageTree
+const englishUiAccount = uiAccount as unknown as MessageTree
 
 describe.each([
-  ['es', es, esDashEdit],
-  ['de', de, deDashEdit],
-] as const)('%s catalogue', (_code, main, editor) => {
+  ['es', es, esDashEdit, esUi, esUiAccount],
+  ['de', de, deDashEdit, deUi, deUiAccount],
+] as const)('%s catalogue', (_code, main, editor, uiTree, accountTree) => {
   it('has every English key, no extras, and matching placeholders and function arguments', () => {
     expect(compareCatalogue(english, main)).toEqual([])
   })
 
   it('covers the dashboard editor catalogue the same way', () => {
     expect(compareCatalogue(englishDashEdit, editor)).toEqual([])
+  })
+
+  it('covers the ui catalogue the same way', () => {
+    expect(compareCatalogue(englishUi, uiTree)).toEqual([])
+    expect(compareCatalogue(englishUiAccount, accountTree)).toEqual([])
   })
 
   it('translates rather than copying English for most strings', () => {
