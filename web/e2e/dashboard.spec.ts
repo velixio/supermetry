@@ -88,7 +88,8 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   await owner.login(page, dashboard)
   await page.goto(dashboard)
 
-  await page.getByLabel('Compare').selectOption('previous_period')
+  await page.getByRole('combobox', { name: 'Compare' }).click()
+  await page.getByRole('option', { name: 'Previous period' }).click()
   await expect.poll(() => new URL(page.url()).searchParams.get('compare')).toBe(
     'previous_period',
   )

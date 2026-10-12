@@ -9,10 +9,14 @@ import { DashboardExportMenu } from '../components/DashboardExportMenu'
 import { FilterBar } from '../components/FilterBar'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
+import { ResponsiveFilters } from '../components/ResponsiveFilters'
 import { Button } from '../components/ui/button'
+import { Checkbox } from '../components/ui/checkbox'
+import { Field, FieldLabel } from '../components/ui/field'
 import { Skeleton } from '../components/ui/skeleton'
 import { useShortcuts } from '../lib/shortcuts'
 import { countryName } from '../lib/country'
+import { fmt } from '../lib/format'
 import { type StatsQuery } from '../lib/stats'
 import {
   addFilter,
@@ -112,8 +116,13 @@ function DashboardStateRoute() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
-      <h1 className="sr-only">{en.navigation.dashboard}</h1>
+      <header className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold tracking-tight">{en.navigation.dashboard}</h1>
+        <p className="text-sm text-muted-foreground">{site.name}, {fmt.date(query.dateRange.from, timezone)} – {fmt.date(query.dateRange.to, timezone)}</p>
+      </header>
       <div className="flex flex-wrap items-start justify-between gap-3">
+        <DashboardExportMenu query={query} anonymous={anonymous} />
+        <ResponsiveFilters>
         {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
           <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
           {filters.map((filter, index) => <Button key={index} variant="outline" size="sm" onClick={() => updateSearch(removeFilter(search, index))} aria-label={`Remove ${filter.dimension} filter`}>{filter.dimension} {filter.operator} {filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')} ×</Button>)}
@@ -138,25 +147,17 @@ function DashboardStateRoute() {
           onAdd={onFilter}
           onRemove={(index) => updateSearch(removeFilter(search, index))}
         />}
-        <div className="flex flex-wrap items-center gap-2">
-          <DashboardExportMenu query={query} anonymous={anonymous} />
-          <DatePicker
+        <DatePicker
             search={search}
             labels={en.dashboard}
             onChange={updateSearch}
           />
-        </div>
+        <Field orientation="horizontal" className="min-h-11 sm:min-h-9">
+          <Checkbox id="dashboard-include-imported" checked={search.include_imported} onCheckedChange={(checked) => updateSearch({ ...search, include_imported: checked === true })} />
+          <FieldLabel htmlFor="dashboard-include-imported">{en.polish.includeImported}</FieldLabel>
+        </Field>
+        </ResponsiveFilters>
       </div>
-      <Button
-        className="self-start"
-        type="button"
-        size="sm"
-        variant="outline"
-        aria-pressed={search.include_imported}
-        onClick={() => updateSearch({ ...search, include_imported: !search.include_imported })}
-      >
-        Include imported data
-      </Button>
       <StatsStrip
         query={query}
         compare={search.compare}

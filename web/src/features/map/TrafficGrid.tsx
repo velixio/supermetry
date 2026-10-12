@@ -16,7 +16,7 @@ import {
   peakTrafficWindows,
   quietestWeekday,
   trafficCells,
-  weekdayShare,
+  weekpartShares,
   type TrafficCell,
   type TrafficMetric,
 } from './trafficGrid'
@@ -81,7 +81,7 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
   const maximum = cells.reduce((largest, cell) => Math.max(largest, cell.value), 0)
   const peak = peakTrafficCell(cells)
   const peaks = peakTrafficWindows(cells)
-  const weekdayPercent = weekdayShare(cells)
+  const weekparts = weekpartShares(cells)
   const quietest = quietestWeekday(cells)
   const [activeIndex, setActiveIndex] = useState(0)
   const [tooltipIndex, setTooltipIndex] = useState<number>()
@@ -178,7 +178,7 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
           </div>
         ) : (
           <>
-            {maximum === 0 ? <p className="text-sm text-muted-foreground" role="status">{en.map.noTraffic}</p> : null}
+            {maximum === 0 ? <div className="text-sm text-muted-foreground" role="status"><p>{en.map.noTraffic}</p><p>{en.polish.noTrafficNext}</p></div> : null}
             <div aria-describedby={summaryId} aria-label="Weekly traffic by weekday and hour" className="relative min-w-0" role="grid">
               <div ref={axisRef} className="grid grid-cols-[2.75rem_repeat(24,minmax(0,1fr))_3rem] gap-px pb-1" role="row">
                 <span className="sr-only" role="columnheader">Weekday</span>
@@ -270,11 +270,9 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
                   </li>
                 })}
               </ol> : <p className="mt-2 text-xs text-muted-foreground">No busy windows in this range.</p>}
-              <div className="mt-4 text-xs">
-                <p>Weekdays carry {weekdayPercent} percent of visits</p>
-                <span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
-                  <span className="block h-full rounded-full bg-accent" style={{ width: `${weekdayPercent}%` }} />
-                </span>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <div><p>Weekdays {weekparts.weekdays}%</p><span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-accent" style={{ width: `${weekparts.weekdays}%` }} /></span></div>
+                <div><p>Weekends {weekparts.weekends}%</p><span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-chart-2" style={{ width: `${weekparts.weekends}%` }} /></span></div>
               </div>
             </section>
             <table className="sr-only" aria-label="Weekly traffic data">

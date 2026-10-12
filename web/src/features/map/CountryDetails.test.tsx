@@ -53,4 +53,21 @@ describe('CountryDetails', () => {
       'data-open:animate-none',
     )
   })
+
+  it('hides empty detail sections while keeping populated sections', async () => {
+    useStats.mockReturnValue({ data: { rows: [], totals: { visitors: 8 }, meta: {} }, isPending: false, isError: false, refetch: vi.fn() })
+    useBreakdown.mockImplementation((request) => ({
+      data: { rows: request.dimensions[0] === 'page' ? [{ page: '/pricing', visitors: 8 }] : [] },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    }))
+
+    render(<CountryDetails country="IN" query={query} onClear={vi.fn()} onFilter={vi.fn()} />)
+
+    expect(await screen.findByRole('heading', { name: 'Top pages' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Regions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Cities' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Sources' })).not.toBeInTheDocument()
+  })
 })

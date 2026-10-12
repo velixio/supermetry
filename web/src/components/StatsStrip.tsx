@@ -140,21 +140,25 @@ export function StatsStrip({
       className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7"
     >
       {statMetrics.map((metric) => {
+        const primary = metric === 'visitors' || metric === 'pageviews'
         const value = current.data?.totals[metric] ?? 0
         const previous = comparison.data?.totals[metric] ?? 0
         const delta = compare === 'off' ? undefined : deltaValue(value, previous)
         return (
           <Button
             key={metric}
+            data-priority={primary ? 'primary' : 'secondary'}
             type="button"
             variant="outline"
-            className="h-auto min-w-0 flex-col items-start gap-1 px-3 py-3 text-left"
+            className={primary
+              ? 'col-span-1 h-auto min-w-0 flex-col items-start gap-1 px-4 py-4 text-left sm:col-span-2 xl:col-span-2'
+              : 'h-auto min-w-0 flex-col items-start gap-1 px-3 py-3 text-left'}
             onClick={() => onSelectMetric(metric)}
           >
             <span className="w-full truncate text-xs text-muted-foreground">
               {metricLabel(metric)}
             </span>
-            <span className="text-lg font-semibold tabular-nums">
+            <span className={primary ? 'text-2xl font-semibold tabular-nums' : 'text-lg font-semibold tabular-nums'}>
               {current.isLoading ? '—' : metricValue(metric, value)}
             </span>
             {compare === 'off' ? null : (

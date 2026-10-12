@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
+import { EmptyState } from '@/components/EmptyState'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
@@ -68,7 +69,7 @@ export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
         ) : countries.isError ? (
           <div className="min-h-80 p-4"><ErrorState detail={countries.error?.detail} onRetry={() => void countries.refetch()} /></div>
         ) : ranked.length === 0 ? (
-          <div className="flex min-h-80 items-center justify-center p-4" role="status"><p className="text-sm text-muted-foreground">No traffic in this range</p></div>
+          <div className="min-h-80" role="status"><EmptyState /></div>
         ) : (
           <div className="grid min-h-80 min-w-0 items-start gap-4 p-4 xl:grid-cols-[minmax(60%,1fr)_minmax(14rem,40%)]">
             <div className="min-w-0 lg:min-h-[260px]" data-map-column>

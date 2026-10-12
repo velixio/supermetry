@@ -37,6 +37,14 @@ describe('WorldMap', () => {
     expect(screen.getByRole('table', { name: 'Country visitors' })).toBeInTheDocument()
   })
 
+  it('crops Antarctica and expands the inhabited map into the viewport', () => {
+    const { container } = render(<WorldMap rows={[]} onSelect={vi.fn()} />)
+    const map = screen.getByRole('group', { name: 'World map' })
+
+    expect(container.querySelector('[data-country="AQ"]')).not.toBeInTheDocument()
+    expect(map).toHaveAttribute('viewBox', '0 0 1000 445')
+  })
+
   it('shows a formatted flag, country name, and visitor count in a portalled pointer-safe tooltip', () => {
     render(<WorldMap rows={[{ country: 'IN', visitors: 12_345 }]} onSelect={vi.fn()} />)
     const country = screen.getByRole('button', { name: 'India: 12.3K visitors' })
