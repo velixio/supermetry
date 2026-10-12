@@ -9,7 +9,7 @@ import { breakdownLabel } from '@/lib/breakdown-labels'
 import { metricLabel } from '@/lib/breakdown-metrics'
 import { countryLabel } from '@/lib/country'
 import { fmt } from '@/lib/format'
-import { inspectCrossDimensions, inspectFilter, type InspectTarget } from '@/lib/inspect'
+import { inspectAllowed, inspectCrossDimensions, inspectFilter, type InspectTarget } from '@/lib/inspect'
 import type { Filter } from '@/lib/search'
 import { useBreakdown, useStats, type StatsQuery } from '@/lib/stats'
 import { en } from '@/messages/en'
@@ -48,6 +48,8 @@ function sameFilter(left: StatsQuery['filters'][number], right: Filter): boolean
 }
 
 export function Inspector(props: InspectorProps) {
+  // Defence in depth: the route already filters, but a blocked target must never reach a query.
+  if (!inspectAllowed(props.target, props.anonymous)) return null
   if (props.target.dimension === 'weekday_hour') return <TrafficCellBody {...props} />
   const filter = inspectFilter(props.target)
   if (!filter) return null
@@ -145,7 +147,7 @@ function CrossBreakdown({ dimension, query }: { dimension: string; query: StatsQ
       <ol className="mt-2 flex flex-col gap-1">
         {rows.map((row, index) => (
           <li key={`${String(row[dimension] ?? '')}:${index}`} className="flex min-w-0 items-center justify-between gap-2 text-sm">
-            <span className="truncate text-muted-foreground">{breakdownLabel(dimension, String(row[dimension] ?? ''))}</span>
+            <span className="min-w-0 break-words text-muted-foreground">{breakdownLabel(dimension, String(row[dimension] ?? ''))}</span>
             <span className="tabular-nums">{fmt.number(Number(row.visitors ?? 0))}</span>
           </li>
         ))}

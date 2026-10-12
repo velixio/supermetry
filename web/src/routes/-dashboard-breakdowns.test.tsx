@@ -433,4 +433,59 @@ describe('dashboard breakdown route', () => {
     await waitFor(() => expect(leafSearch(invalid)).toMatchObject({ period: '7d' }))
     expect(leafSearch(invalid)?.inspect).toBeUndefined()
   })
+
+  const range = '/app/acme/example?period=custom&from=2026-09-28&to=2026-09-30'
+  const anonymousMe = { ...me, memberships: [{ ...me.memberships[0], sites: [{ ...me.memberships[0].sites[0], tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }] }] }
+
+  it('restores the inspector from the URL without touching filters and closes it with Esc', async () => {
+    const router = renderAt(`${range}&inspect=country%3AIN`)
+    const inspector = await screen.findByRole('dialog', { name: 'India' })
+    expect(inspector).toHaveAccessibleDescription('Country')
+    expect(await within(inspector).findByRole('region', { name: 'Metrics for this value' })).toBeVisible()
+    expect(post).toHaveBeenCalledWith('/api/private/query', expect.objectContaining({
+      body: expect.objectContaining({
+        metrics: ['visitors', 'visits', 'pageviews', 'views_per_visit', 'bounce_rate', 'visit_duration', 'engagement_time'],
+        filters: [{ dimension: 'country', operator: 'is', values: ['IN'] }],
+      }),
+    }))
+    expect(router.state.location.search.f ?? []).toEqual([])
+
+    fireEvent.keyDown(inspector, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull())
+    expect(router.state.location.search.inspect).toBeUndefined()
+    expect(router.state.location.href).not.toContain('inspect')
+    expect(router.state.location.search.period).toBe('custom')
+  })
+
+  it('closes the inspector on Back', async () => {
+    const router = renderAt(range, `${range}&inspect=country%3AIN`)
+    await screen.findByRole('dialog', { name: 'India' })
+    router.history.back()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull())
+  })
+
+  it('adds the inspected value as a filter and keeps the inspector open', async () => {
+    const router = renderAt(`${range}&inspect=country%3AIN`)
+    const inspector = await screen.findByRole('dialog', { name: 'India' })
+    fireEvent.click(await within(inspector).findByRole('button', { name: 'Add as filter' }))
+    await waitFor(() => expect(router.state.location.search.f).toEqual(['country:is:IN']))
+    expect(router.state.location.search.inspect).toBe('country:IN')
+    expect(await within(screen.getByRole('dialog', { name: 'India' })).findByText('This value is already a filter.')).toBeVisible()
+  })
+
+  it('opens only privacy-safe selections on an anonymous site', async () => {
+    get.mockResolvedValue({ data: anonymousMe, response: new Response(null, { status: 200 }) })
+    renderAt(`${range}&inspect=page%3A%252F`)
+    await screen.findByRole('region', { name: 'Verified pages' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(post.mock.calls.some(([, options]) => (options.body.filters ?? []).some((filter: { dimension: string }) => filter.dimension === 'page'))).toBe(false)
+    cleanup()
+
+    get.mockClear()
+    renderAt(`${range}&inspect=country%3AIN`)
+    expect(await screen.findByRole('dialog', { name: 'India' })).toBeVisible()
+    const scoped = () => get.mock.calls.filter(([path, options]) => path === '/api/private/stats/breakdown' && ((options?.params?.query?.filter ?? []) as string[]).includes('country:is:IN'))
+    await waitFor(() => expect(scoped().length).toBeGreaterThanOrEqual(2))
+    expect(new Set(scoped().flatMap(([, options]) => options.params.query.dimension as string[]))).toEqual(new Set(['channel', 'device']))
+  })
 })

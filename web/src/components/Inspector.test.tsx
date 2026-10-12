@@ -74,6 +74,14 @@ describe('Inspector', () => {
     expect(useBreakdown.mock.calls.map(([request]) => request.dimensions)).toEqual([['channel'], ['device']])
   })
 
+  it('renders nothing and sends no queries for a target an anonymous site may not inspect', () => {
+    const { container } = render(<Inspector anonymous query={query} target={{ dimension: 'page', values: ['/'] }} trafficMetric="visitors" onFilter={vi.fn()} />)
+
+    expect(container).toBeEmptyDOMElement()
+    expect(useStats).not.toHaveBeenCalled()
+    expect(useBreakdown).not.toHaveBeenCalled()
+  })
+
   it('scopes a city to its country and skips the country breakdown', () => {
     render(<Inspector anonymous={false} query={query} target={{ dimension: 'city', values: ['Springfield', 'US'] }} trafficMetric="visitors" onFilter={vi.fn()} />)
 

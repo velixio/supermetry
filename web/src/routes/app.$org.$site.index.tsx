@@ -1,6 +1,6 @@
 import { isAnonymousTracking, isAnonymousFilterAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
 import { createFileRoute } from '@tanstack/react-router'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 
 import { DashboardChart } from '../components/DashboardChart'
 import { DeferredContent } from '../components/DeferredContent'
@@ -27,7 +27,9 @@ import {
   resolveRange,
   type Filter,
 } from '../lib/search'
-import { parseInspectSearch, withoutInspect } from '../lib/inspect'
+import { activeInspectTarget, parseInspectSearch, serializeInspect, withoutInspect } from '../lib/inspect'
+import { DashboardPanels } from '@/components/DashboardPanels'
+import { Inspector, inspectorDimensionLabel, inspectorTitle } from '@/components/Inspector'
 import { en } from '../messages/en'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -88,6 +90,8 @@ function DashboardStateRoute() {
   }
   const dashboardId = parseDashKey(search.dash)
   const [edit, setEdit] = useState<EditState>(null)
+  // The control that opened the inspector; focus returns to it on close.
+  const inspectorOrigin = useRef<HTMLElement | null>(null)
   // Moving to another dashboard (switcher, link, back button) ends edit mode unless the editor itself moved there.
   useEffect(() => {
     setEdit((current) => (current && !(current.kind === 'edit' && current.id === dashboardId) ? null : current))
@@ -156,6 +160,12 @@ function DashboardStateRoute() {
     start.setUTCDate(start.getUTCDate() - Math.max(0, days - 1))
     updateSearch({ ...search, period: 'custom', from: start.toISOString().slice(0, 10), to: query.dateRange.to })
   }
+  const standardDashboard = edit === null && dashboardId === undefined
+  const inspectTarget = activeInspectTarget(search.inspect, { anonymous, standardDashboard })
+  const closeInspector = () => {
+    void navigate({ search: { ...search, inspect: undefined } })
+  }
+  const trafficMetric = search.metric === 'pageviews' ? 'pageviews' : 'visitors'
 
   return (
     <PageContainer>
@@ -264,34 +274,55 @@ function DashboardStateRoute() {
           />
         </Suspense>
       ) : (
-        <>
-        <StatsStrip
-          query={query}
-          compare={search.compare}
-          onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+        <DashboardPanels
+          returnFocusRef={inspectorOrigin}
+          inspector={inspectTarget ? {
+            key: serializeInspect(inspectTarget),
+            title: inspectorTitle(inspectTarget),
+            dimension: inspectorDimensionLabel(inspectTarget.dimension),
+            onClose: closeInspector,
+            body: (
+              <Inspector
+                key={serializeInspect(inspectTarget)}
+                anonymous={anonymous}
+                query={query}
+                target={inspectTarget}
+                trafficMetric={trafficMetric}
+                onFilter={onFilter}
+              />
+            ),
+          } : undefined}
+          main={
+            <>
+              <StatsStrip
+                query={query}
+                compare={search.compare}
+                onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+              />
+              <DashboardChart
+                anonymous={anonymous}
+                canEdit={membership?.role !== 'viewer'}
+                compare={search.compare}
+                metric={search.metric}
+                query={query}
+                siteId={site.id}
+              />
+              <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
+                <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
+                  <DashboardBelowFold
+                    allowedHosts={site.allowed_hosts}
+                    anonymous={anonymous}
+                    filters={filters}
+                    metric={search.metric}
+                    onFilter={onFilter}
+                    onShorten={shortenToRawRange}
+                    query={query}
+                  />
+                </Suspense>
+              </DeferredContent>
+            </>
+          }
         />
-        <DashboardChart
-          anonymous={anonymous}
-          canEdit={membership?.role !== 'viewer'}
-          compare={search.compare}
-          metric={search.metric}
-          query={query}
-          siteId={site.id}
-        />
-        <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
-          <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
-            <DashboardBelowFold
-              allowedHosts={site.allowed_hosts}
-              anonymous={anonymous}
-              filters={filters}
-              metric={search.metric}
-              onFilter={onFilter}
-              onShorten={shortenToRawRange}
-              query={query}
-            />
-          </Suspense>
-        </DeferredContent>
-        </>
       )}
       </div>
     </PageContainer>
