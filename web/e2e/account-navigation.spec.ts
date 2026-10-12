@@ -85,7 +85,7 @@ test('no-site and no-organization users can use account pages and log out', asyn
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'No organization access' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: "You don't belong to an organization" })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Account', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
