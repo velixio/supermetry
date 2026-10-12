@@ -105,7 +105,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Protected metrics endpoint | ✓ | ? | ? | ✅ (`SUPERMETRY_METRICS_TOKEN` or localhost only) |
 | Data retention / purge | ? | – | ? | ✅ (per site, partition drop) |
 | Automatic rollup backfill after upgrades | – | – | – | ✅ (progress on Data health) |
-| Docker image | ✓ | ✓ | ✓ | ✅ (`Dockerfile`, `deploy/docker-compose.yml`) |
+| Docker image | ✓ | ✓ | ✓ | ✅ (`deploy/Dockerfile`, `deploy/docker-compose.yml`) |
 | Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/supermetry.service`, `deploy/README.md`) |
 | Safe installer dry-run and compatibility checks | ? | ? | ? | ✅ (`supermetry install --dry-run`, PostgreSQL 14+) |
 | Backup and restore command | – | – | – | ✅ (`supermetry backup`, `supermetry restore`) |
