@@ -29,7 +29,8 @@ describe('Breadcrumbs', () => {
     expect(screen.getByRole('link', { name: 'Acme' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Docs' })).toBeInTheDocument()
     expect(screen.getByText('Funnels')).toHaveAttribute('aria-current', 'page')
-    // shadcn's BreadcrumbPage carries role=link + aria-disabled, so assert it is not an anchor.
+    // The current page is plain text with aria-current, never a link.
+    expect(screen.queryByRole('link', { name: 'Funnels' })).toBeNull()
     expect(screen.getByText('Funnels').closest('a')).toBeNull()
   })
 
@@ -37,6 +38,8 @@ describe('Breadcrumbs', () => {
     await at('/app/acme/docs/funnels/42')
     const items = screen.getByRole('navigation', { name: 'Breadcrumb' }).querySelectorAll('li[data-crumb]')
     expect([...items].map((li) => li.className.includes('hidden'))).toEqual([true, true, false, false])
+    const separators = screen.getByRole('navigation', { name: 'Breadcrumb' }).querySelectorAll('[data-slot="breadcrumb-separator"]')
+    expect([...separators].map((li) => li.className.includes('hidden'))).toEqual([true, true, false])
   })
 
   it('renders nothing outside /app', async () => {

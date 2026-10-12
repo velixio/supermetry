@@ -47,6 +47,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { matchesSite } from '@/lib/matchSite'
 import type { Me, Membership, Site } from '@/lib/me'
 import { en } from '@/messages/en'
 import { useCreateDemo } from '@/features/demo/useDemo'
@@ -129,9 +130,7 @@ export function navigationIsActive(
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export function matchesSite(site: Site, requested?: string): boolean {
-  return requested !== undefined && [site.slug, site.public_id, String(site.id)].includes(requested)
-}
+export { matchesSite }
 
 export function activeSite(membership: Membership, requested?: string): Site | undefined {
   return membership.sites.find((site) => matchesSite(site, requested)) ?? membership.sites[0]

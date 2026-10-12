@@ -2,6 +2,9 @@ import type { ComponentProps } from 'react'
 import { useCapability, AccessDenied } from '@/lib/authorization'
 import { useCallback } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
+
 import { ReplayPlayer } from './ReplayPlayer'
 import { getReplayCSS, getReplayData } from '@/lib/replay-api'
 
@@ -9,13 +12,10 @@ function ReplayPlayerPageContent({ siteId, sessionId }: { siteId: number; sessio
   const load = useCallback((signal: AbortSignal) => getReplayData(siteId, sessionId, signal), [siteId, sessionId])
   const fetchCSS = useCallback((hash: string) => getReplayCSS(siteId, hash), [siteId])
   return (
-    <div className="flex min-h-[calc(100dvh-10rem)] min-w-0 flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Session replay</h1>
-        <p className="text-sm text-muted-foreground">Session {sessionId}</p>
-      </header>
+    <PageContainer className="min-h-[calc(100dvh-10rem)]">
+      <PageHeader title="Session replay" description={`Session ${sessionId}`} />
       <ReplayPlayer load={load} fetchCSS={fetchCSS} />
-    </div>
+    </PageContainer>
   )
 }
 

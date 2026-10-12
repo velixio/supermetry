@@ -13,6 +13,8 @@ const OUTSIDE_SHELL = new Set<string>([
   // Onboarding is a centred card mounted by app.index inside AccountFrame, with its own <main>.
   'src/features/sites/Onboarding.tsx',
   'src/routes/app.index.tsx',
+  // Not-found screen for an unknown organisation: renders outside the shell with its own <main>.
+  'src/components/OrganizationLayout.tsx',
 ])
 
 // Files still to migrate. Each adoption task deletes its entries.
@@ -27,7 +29,8 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('page frame adoption', () => {
-  const withH1 = [...sourceFiles(join(root, 'src/routes')), ...sourceFiles(join(root, 'src/features'))]
+  const withH1 = [...sourceFiles(join(root, 'src/routes')), ...sourceFiles(join(root, 'src/features')), ...sourceFiles(join(root, 'src/components'))]
+    .filter((file) => relative(root, file) !== 'src/components/PageHeader.tsx')
     .filter((file) => readFileSync(file, 'utf8').includes('<h1'))
     .map((file) => relative(root, file))
 

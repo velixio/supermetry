@@ -24,7 +24,7 @@ export function PageHeader({
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? (
-        <div className="flex flex-wrap items-center gap-2" data-slot="page-header-actions">
+        <div className="flex flex-wrap items-center gap-2 empty:hidden" data-slot="page-header-actions">
           {actions}
         </div>
       ) : null}

@@ -29,7 +29,7 @@ export function Breadcrumbs({ membership }: { membership: Membership }) {
           const visibility = hiddenOnMobile ? 'hidden md:inline-flex' : ''
           return (
             <Fragment key={`${index}-${crumb.label}`}>
-              {index > 0 ? <BreadcrumbSeparator className={hiddenOnMobile ? 'hidden md:block' : ''} /> : null}
+              {index > 0 ? <BreadcrumbSeparator className={index - 1 < crumbs.length - 2 ? 'hidden md:block' : ''} /> : null}
               <BreadcrumbItem className={`${visibility} min-w-0`} data-crumb>
                 {last || !crumb.to ? (
                   <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>

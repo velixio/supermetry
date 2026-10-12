@@ -1,3 +1,4 @@
+import { matchesSite } from '@/lib/matchSite'
 import type { Membership } from '@/lib/me'
 import { ui } from '@/messages/ui'
 
@@ -33,7 +34,7 @@ export function buildCrumbs(pathname: string, membership: Membership): Crumb[] {
     return finish(crumbs)
   }
 
-  const site = membership.sites.find((item) => item.slug === second)
+  const site = membership.sites.find((item) => matchesSite(item, second))
   crumbs.push({ label: site?.name ?? second, to: '/app/$org/$site', params: { org, site: second } })
   pushTail(crumbs, after.length === 0 ? ['dashboard'] : after, '/app/$org/$site', { org, site: second })
   return finish(crumbs)

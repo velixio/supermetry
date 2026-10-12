@@ -140,6 +140,12 @@ describe('AppShell live visitor badge', () => {
     expect(within(nav).getByText('General')).toHaveAttribute('aria-current', 'page')
   })
 
+  it('names the site crumb from a public id in the URL', async () => {
+    renderShell('/app/acme/docs-public/settings/general')
+    const nav = await screen.findByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(nav).getByRole('link', { name: 'Docs' })).toBeInTheDocument()
+  })
+
   it('remembers a valid scoped site as the last visited site', async () => {
     renderShell('/app/acme/docs-public/settings/general')
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PATCH', '/api/private/me', {
@@ -230,9 +236,7 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByRole('link', { name: /12 live/ })).not.toBeInTheDocument()
     expect(useReplayAvailability).not.toHaveBeenCalled()
     for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals']) {
-      // The breadcrumb's current-page crumb has role=link (aria-disabled), so only look outside it.
-      const outsideCrumbs = screen.queryAllByRole('link', { name: label }).filter((link) => !link.closest('nav[aria-label="Breadcrumb"]'))
-      expect(outsideCrumbs).toHaveLength(0)
+      expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument()
     }
   })
 

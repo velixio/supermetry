@@ -7,7 +7,7 @@ import { buildCrumbs } from './routeCrumbs'
 const membership: Membership = {
   org: { id: 1, name: 'Acme', slug: 'acme' },
   role: 'owner',
-  sites: [{ id: 7, name: 'Docs', slug: 'docs' }],
+  sites: [{ id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public' }],
 }
 const empty: Membership = { ...membership, sites: [] }
 const labels = (path: string, m = membership) => buildCrumbs(path, m).map((c) => c.label)
@@ -39,6 +39,11 @@ describe('buildCrumbs', () => {
   it('account and admin have no org crumb', () => {
     expect(labels('/app/account/profile')).toEqual(['Account', 'Profile'])
     expect(labels('/app/admin/users')).toEqual(['Admin', 'Users'])
+  })
+  it('finds the site by public id or numeric id, keeping the alias from the URL', () => {
+    expect(labels('/app/acme/docs-public/events')).toEqual(['Acme', 'Docs', 'Events'])
+    expect(labels('/app/acme/7/events')).toEqual(['Acme', 'Docs', 'Events'])
+    expect(buildCrumbs('/app/acme/docs-public/events', membership)[1]).toMatchObject({ params: { org: 'acme', site: 'docs-public' } })
   })
   it('an org with no sites shows no site crumb', () => {
     expect(labels('/app/acme/sites', empty)).toEqual(['Acme', 'Sites'])
