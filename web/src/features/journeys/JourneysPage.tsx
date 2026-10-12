@@ -3,11 +3,14 @@ import { ErrorState } from '@/components/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Filter } from '@/lib/search'
 import { useStats } from '@/lib/stats'
+import { en } from '@/messages/en'
 
 import { useJourneyReport } from './api'
 import { JourneyControls } from './JourneyControls'
 import { JourneyFlow } from './JourneyFlow'
 import type { JourneyDirection } from './types'
+
+const t = en.journeyUi
 
 type JourneysPageProps = {
   siteId: number
@@ -45,8 +48,8 @@ export function JourneysPage({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">User journeys</h1>
-        <p className="text-sm text-muted-foreground">Follow the pages visitors viewed in sequence. Repeated consecutive pageviews are collapsed.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.description}</p>
       </header>
       <JourneyControls
         direction={direction}
@@ -58,7 +61,7 @@ export function JourneysPage({
       {report.isError ? (
         <ErrorState detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
-        <div aria-label="Loading journeys" className="flex flex-col gap-3 rounded-xl border p-4">
+        <div aria-label={t.loading} className="flex flex-col gap-3 rounded-xl border p-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-4/5" />
           <Skeleton className="h-16 w-3/5" />

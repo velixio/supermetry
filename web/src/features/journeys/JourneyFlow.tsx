@@ -1,11 +1,15 @@
 import { fmt } from '@/lib/format'
+import { en } from '@/messages/en'
 
 import type { JourneyLink, JourneyNode } from './types'
 
 type PositionedNode = JourneyNode & { x: number; y: number; height: number }
 
 const width = 960
-const height = 440
+const t = en.journeyUi
+const minNode = 40
+const gap = 12
+const pad = 24
 const nodeWidth = 150
 
 function nodeKey(step: number, path: string): string {
@@ -13,9 +17,26 @@ function nodeKey(step: number, path: string): string {
 }
 
 function displayPath(path: string): string {
-  if (path === 'exit') return 'Exit'
-  if (path === 'other') return 'Other'
+  if (path === 'exit') return t.exit
+  if (path === 'other') return t.other
   return path
+}
+
+function nodeHeights(nodes: JourneyNode[], maximum: number): number[] {
+  return nodes.map((node) => Math.max(minNode, (node.visitors / maximum) * 92))
+}
+
+function flowHeight(nodes: JourneyNode[]): number {
+  const maximum = Math.max(1, ...nodes.map((node) => node.visitors))
+  const steps = [...new Set(nodes.map((node) => node.step))]
+  const tallest = Math.max(
+    0,
+    ...steps.map((step) => {
+      const atStep = nodes.filter((node) => node.step === step)
+      return nodeHeights(atStep, maximum).reduce((sum, value) => sum + value, 0) + gap * Math.max(0, atStep.length - 1)
+    }),
+  )
+  return Math.max(200, tallest + pad * 2)
 }
 
 function positionedNodes(nodes: JourneyNode[]): PositionedNode[] {
@@ -23,22 +44,16 @@ function positionedNodes(nodes: JourneyNode[]): PositionedNode[] {
   const maximum = Math.max(1, ...nodes.map((node) => node.visitors))
   return steps.flatMap((step, stepIndex) => {
     const atStep = nodes.filter((node) => node.step === step)
-    const gap = 12
-    const available = height - 52 - gap * Math.max(0, atStep.length - 1)
-    const rawHeights = atStep.map((node) => Math.max(28, (node.visitors / maximum) * 92))
-    const scale = rawHeights.reduce((sum, value) => sum + value, 0) > available
-      ? available / rawHeights.reduce((sum, value) => sum + value, 0)
-      : 1
-    let y = 36
+    const heights = nodeHeights(atStep, maximum)
+    let y = pad
     return atStep.map((node, nodeIndex) => {
-      const nodeHeight = rawHeights[nodeIndex] * scale
       const positioned = {
         ...node,
         x: steps.length === 1 ? (width - nodeWidth) / 2 : 24 + stepIndex * ((width - nodeWidth - 48) / (steps.length - 1)),
         y,
-        height: nodeHeight,
+        height: heights[nodeIndex],
       }
-      y += nodeHeight + gap
+      y += heights[nodeIndex] + gap
       return positioned
     })
   })
@@ -47,12 +62,13 @@ function positionedNodes(nodes: JourneyNode[]): PositionedNode[] {
 export function JourneyFlow({ nodes, links }: { nodes: JourneyNode[]; links: JourneyLink[] }) {
   const positioned = positionedNodes(nodes)
   const byKey = new Map(positioned.map((node) => [nodeKey(node.step, node.path), node]))
+  const height = flowHeight(nodes)
   const maximumLink = Math.max(1, ...links.map((link) => link.visitors))
 
   return (
-    <section aria-label="Journey results" className="min-w-0 overflow-x-auto rounded-xl border bg-card p-4">
+    <section aria-label={t.results} className="min-w-0 overflow-x-auto rounded-xl border bg-card p-4">
       <svg
-        aria-label="User journey path flow"
+        aria-label={t.diagram}
         className="min-w-[44rem]"
         role="img"
         viewBox={`0 0 ${width} ${height}`}
@@ -76,25 +92,26 @@ export function JourneyFlow({ nodes, links }: { nodes: JourneyNode[]; links: Jou
         })}
         {positioned.map((node) => (
           <g key={nodeKey(node.step, node.path)}>
+            <title>{displayPath(node.path)}: {t.visitors(fmt.number(node.visitors))}</title>
             <rect
-              className={node.path.toLowerCase() === 'exit' ? 'fill-muted stroke-border' : 'fill-accent stroke-border'}
+              className={node.path.toLowerCase() === 'exit' ? 'fill-muted stroke-border' : 'fill-primary/10 stroke-primary/40'}
               height={node.height}
               rx="8"
               width={nodeWidth}
               x={node.x}
               y={node.y}
             />
-            <text className="fill-foreground text-[12px] font-medium" x={node.x + 10} y={node.y + 18}>
+            <text className="fill-foreground text-[12px] font-medium" x={node.x + 10} y={node.y + 17}>
               {displayPath(node.path).length > 18 ? `${displayPath(node.path).slice(0, 17)}…` : displayPath(node.path)}
             </text>
-            <text className="fill-muted-foreground text-[11px]" x={node.x + 10} y={node.y + 34}>
-              {fmt.number(node.visitors)} visitors
+            <text className="fill-muted-foreground text-[11px]" x={node.x + 10} y={node.y + 32}>
+              {t.visitors(fmt.number(node.visitors))}
             </text>
           </g>
         ))}
       </svg>
-      <table aria-label="Journey links" className="sr-only">
-        <thead><tr><th>Path</th><th>Visitors</th></tr></thead>
+      <table aria-label={t.links} className="sr-only">
+        <thead><tr><th>{t.path}</th><th>{t.visitorsHeading}</th></tr></thead>
         <tbody>
           {links.map((link, index) => (
             <tr key={`${link.from_step}:table:${link.from_path}:${link.to_path}:${index}`}>
