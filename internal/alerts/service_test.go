@@ -272,6 +272,24 @@ func TestServiceTestChannelUsesDecryptedConfigurationAndAudits(t *testing.T) {
 	}
 }
 
+func TestServiceTestChannelRateLimitsPerActorAndChannel(t *testing.T) {
+	service, _, principal, _, _ := newServiceTestWithDeliverer(t, &fakeDeliverer{})
+	created, err := service.CreateChannel(context.Background(), principal, ChannelInput{
+		Kind: ChannelEmail, Name: "Owners", Recipients: []string{"owner@example.test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for attempt := 0; attempt < 3; attempt++ {
+		if err := service.TestChannel(context.Background(), principal, created.ID); err != nil {
+			t.Fatalf("attempt %d: %v", attempt+1, err)
+		}
+	}
+	if err := service.TestChannel(context.Background(), principal, created.ID); !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("fourth attempt error=%v, want ErrRateLimited", err)
+	}
+}
+
 func TestServiceAlertMutationsAreScopedToPathSite(t *testing.T) {
 	service, pool, principal, siteID, _ := newServiceTest(t)
 	ctx := context.Background()
@@ -394,6 +412,96 @@ func TestServiceDeleteChannelRejectsChannelInUse(t *testing.T) {
 	}
 	if err := service.DeleteChannel(ctx, principal, channel.ID); err != nil {
 		t.Fatalf("DeleteChannel() after alert removal = %v", err)
+	}
+}
+
+func TestServiceRetryDeliveryTransitionsFailedToSucceeded(t *testing.T) {
+	deliverer := &fakeDeliverer{}
+	service, pool, principal, siteID, _ := newServiceTestWithDeliverer(t, deliverer)
+	ctx := context.Background()
+	created, err := service.CreateChannel(ctx, principal, ChannelInput{Kind: ChannelEmail, Name: "Owners", Recipients: []string{"owner@example.test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	channels, err := service.DeliveryChannels(ctx, []int64{created.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	notification := Notification{AlertID: 44, SiteID: siteID, Kind: AlertTrafficDrop, Value: 4, Threshold: 20, FiredAt: now}
+	if err := service.RecordDelivery(ctx, 44, channels[0], notification, 3, DeliveryFailed, "provider failed", now); err != nil {
+		t.Fatal(err)
+	}
+	var id int64
+	if err := pool.QueryRow(ctx, `select id from alert_delivery_log where alert_id=44`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	got, err := service.RetryDelivery(ctx, principal, siteID, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != DeliverySucceeded || got.Attempts != 4 || deliverer.calls != 1 {
+		t.Fatalf("retry = %+v, calls=%d", got, deliverer.calls)
+	}
+	if _, err := service.RetryDelivery(ctx, principal, siteID, id); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("second retry error=%v, want ErrInvalid", err)
+	}
+}
+
+func TestServicePurgeHistoryUsesOrganizationRetention(t *testing.T) {
+	service, pool, principal, siteID, _ := newServiceTest(t)
+	ctx := context.Background()
+	created, err := service.CreateChannel(ctx, principal, ChannelInput{Kind: ChannelEmail, Name: "Owners", Recipients: []string{"owner@example.test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	channels, err := service.DeliveryChannels(ctx, []int64{created.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	for index, age := range []time.Duration{8 * 24 * time.Hour, 6 * 24 * time.Hour} {
+		fired := now.Add(-age)
+		notification := Notification{AlertID: int64(50 + index), SiteID: siteID, Kind: AlertTrafficSpike, FiredAt: fired}
+		if err := service.RecordDelivery(ctx, notification.AlertID, channels[0], notification, 1, DeliverySucceeded, "", fired); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := pool.Exec(ctx, `update alert_delivery_log set created_at=$2 where alert_id=$1`, notification.AlertID, fired); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := service.SaveSettings(ctx, principal, 7); err != nil {
+		t.Fatal(err)
+	}
+	count, err := service.PurgeHistory(ctx, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("purged=%d, want 1", count)
+	}
+}
+
+func TestServiceTemplateOverrideAndReset(t *testing.T) {
+	service, _, principal, _, _ := newServiceTest(t)
+	ctx := context.Background()
+	input := TemplateInput{Subject: "Alert {{.alert_kind}}", Body: "Site {{.site_id}} reached {{.value}}"}
+	if _, err := service.SaveTemplate(ctx, principal, ChannelEmail, input); err != nil {
+		t.Fatal(err)
+	}
+	items, settings, err := service.ListTemplates(ctx, principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.HistoryRetentionDays != 30 || len(items) != 5 || items[0].IsDefault || items[0].Body != input.Body {
+		t.Fatalf("templates=%+v settings=%+v", items, settings)
+	}
+	reset, err := service.ResetTemplate(ctx, principal, ChannelEmail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reset.IsDefault || reset.Body == input.Body {
+		t.Fatalf("reset=%+v", reset)
 	}
 }
 

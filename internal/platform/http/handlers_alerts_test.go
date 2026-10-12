@@ -77,6 +77,28 @@ func (f *fakeAlertsService) DeleteAlert(context.Context, authz.Principal, int32,
 	return nil
 }
 
+func (f *fakeAlertsService) ListHistory(context.Context, authz.Principal, int32, alerts.HistoryFilter) ([]alerts.DeliveryRecord, error) {
+	return nil, f.err
+}
+func (f *fakeAlertsService) RetryDelivery(context.Context, authz.Principal, int32, int64) (alerts.DeliveryRecord, error) {
+	return alerts.DeliveryRecord{}, f.err
+}
+func (f *fakeAlertsService) ListTemplates(context.Context, authz.Principal) ([]alerts.MessageTemplate, alerts.NotificationSettings, error) {
+	return nil, alerts.NotificationSettings{HistoryRetentionDays: 30}, f.err
+}
+func (f *fakeAlertsService) SaveTemplate(_ context.Context, _ authz.Principal, kind alerts.ChannelKind, input alerts.TemplateInput) (alerts.MessageTemplate, error) {
+	return alerts.MessageTemplate{Kind: kind, Subject: input.Subject, Body: input.Body}, f.err
+}
+func (f *fakeAlertsService) ResetTemplate(_ context.Context, _ authz.Principal, kind alerts.ChannelKind) (alerts.MessageTemplate, error) {
+	return alerts.MessageTemplate{Kind: kind, IsDefault: true}, f.err
+}
+func (f *fakeAlertsService) PreviewTemplate(context.Context, authz.Principal, alerts.ChannelKind, alerts.TemplateInput) (alerts.RenderedMessage, error) {
+	return alerts.RenderedMessage{Body: "preview"}, f.err
+}
+func (f *fakeAlertsService) SaveSettings(_ context.Context, _ authz.Principal, days int) (alerts.NotificationSettings, error) {
+	return alerts.NotificationSettings{HistoryRetentionDays: days}, f.err
+}
+
 func TestAlertRoutesEnforceRoleBoundaries(t *testing.T) {
 	actors := actorAuthenticator{
 		"owner":  {UserID: 1, OrgID: 1, Role: authz.RoleOwner},

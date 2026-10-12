@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,13 @@ type AlertsService interface {
 	CreateAlert(context.Context, authz.Principal, int32, alerts.AlertInput) (alerts.Alert, error)
 	UpdateAlert(context.Context, authz.Principal, int32, int64, alerts.AlertInput) (alerts.Alert, error)
 	DeleteAlert(context.Context, authz.Principal, int32, int64) error
+	ListHistory(context.Context, authz.Principal, int32, alerts.HistoryFilter) ([]alerts.DeliveryRecord, error)
+	RetryDelivery(context.Context, authz.Principal, int32, int64) (alerts.DeliveryRecord, error)
+	ListTemplates(context.Context, authz.Principal) ([]alerts.MessageTemplate, alerts.NotificationSettings, error)
+	SaveTemplate(context.Context, authz.Principal, alerts.ChannelKind, alerts.TemplateInput) (alerts.MessageTemplate, error)
+	ResetTemplate(context.Context, authz.Principal, alerts.ChannelKind) (alerts.MessageTemplate, error)
+	PreviewTemplate(context.Context, authz.Principal, alerts.ChannelKind, alerts.TemplateInput) (alerts.RenderedMessage, error)
+	SaveSettings(context.Context, authz.Principal, int) (alerts.NotificationSettings, error)
 }
 
 type channelRequest struct {
@@ -286,6 +294,156 @@ func (h *handler) deleteAlert(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *handler) listNotificationHistory(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionAlertsManage, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	filter := alerts.HistoryFilter{Status: alerts.DeliveryStatus(r.URL.Query().Get("status")), ChannelKind: alerts.ChannelKind(r.URL.Query().Get("channel")), Limit: 50}
+	if raw := r.URL.Query().Get("alert_id"); raw != "" {
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || id <= 0 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "alert_id is invalid")
+			return
+		}
+		filter.AlertID = id
+	}
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		limit, err := strconv.Atoi(raw)
+		if err != nil || limit < 1 || limit > 100 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "limit must be between 1 and 100")
+			return
+		}
+		filter.Limit = limit
+	}
+	if filter.Status != "" && filter.Status != alerts.DeliveryPending && filter.Status != alerts.DeliverySucceeded && filter.Status != alerts.DeliveryFailed {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "status is invalid")
+		return
+	}
+	if filter.ChannelKind != "" && !validHistoryChannel(filter.ChannelKind) {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "channel is invalid")
+		return
+	}
+	items, err := h.deps.Alerts.ListHistory(r.Context(), principal, site.ID, filter)
+	if err != nil {
+		alertServiceError(w, err, "notification delivery")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+func validHistoryChannel(kind alerts.ChannelKind) bool {
+	switch kind {
+	case alerts.ChannelEmail, alerts.ChannelWebhook, alerts.ChannelSlack, alerts.ChannelDiscord, alerts.ChannelTelegram:
+		return true
+	default:
+		return false
+	}
+}
+
+func (h *handler) retryNotificationDelivery(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.sitePrincipal(w, r, authz.ActionAlertsManage, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("delivery"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "notification delivery not found")
+		return
+	}
+	item, err := h.deps.Alerts.RetryDelivery(r.Context(), principal, site.ID, id)
+	if err != nil {
+		alertServiceError(w, err, "notification delivery")
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *handler) listNotificationTemplates(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.orgManager(w, r, authz.ActionChannelsRead)
+	if !ok {
+		return
+	}
+	items, settings, err := h.deps.Alerts.ListTemplates(r.Context(), principal)
+	if err != nil {
+		alertServiceError(w, err, "notification template")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": items, "settings": settings, "variables": alerts.TemplateVariables})
+}
+
+func decodeTemplateInput(w http.ResponseWriter, r *http.Request) (alerts.TemplateInput, bool) {
+	var input alerts.TemplateInput
+	if !decodeJSON(w, r, &input) {
+		return alerts.TemplateInput{}, false
+	}
+	return input, true
+}
+
+func (h *handler) saveNotificationTemplate(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.orgManager(w, r, authz.ActionChannelsManage)
+	if !ok {
+		return
+	}
+	input, ok := decodeTemplateInput(w, r)
+	if !ok {
+		return
+	}
+	item, err := h.deps.Alerts.SaveTemplate(r.Context(), principal, alerts.ChannelKind(r.PathValue("kind")), input)
+	if err != nil {
+		alertServiceError(w, err, "notification template")
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *handler) resetNotificationTemplate(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.orgManager(w, r, authz.ActionChannelsManage)
+	if !ok {
+		return
+	}
+	item, err := h.deps.Alerts.ResetTemplate(r.Context(), principal, alerts.ChannelKind(r.PathValue("kind")))
+	if err != nil {
+		alertServiceError(w, err, "notification template")
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *handler) previewNotificationTemplate(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.orgManager(w, r, authz.ActionChannelsRead)
+	if !ok {
+		return
+	}
+	input, ok := decodeTemplateInput(w, r)
+	if !ok {
+		return
+	}
+	item, err := h.deps.Alerts.PreviewTemplate(r.Context(), principal, alerts.ChannelKind(r.PathValue("kind")), input)
+	if err != nil {
+		alertServiceError(w, err, "notification template")
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *handler) saveNotificationSettings(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.orgManager(w, r, authz.ActionChannelsManage)
+	if !ok {
+		return
+	}
+	var input alerts.NotificationSettings
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	settings, err := h.deps.Alerts.SaveSettings(r.Context(), principal, input.HistoryRetentionDays)
+	if err != nil {
+		alertServiceError(w, err, "notification settings")
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
+}
+
 func decodeAlertInput(w http.ResponseWriter, r *http.Request) (alerts.AlertInput, bool) {
 	var request alertRequest
 	if !decodeJSON(w, r, &request) {
@@ -334,6 +492,11 @@ func alertServiceError(w http.ResponseWriter, err error, resource string) {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, alerts.ErrInvalid):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
+	case errors.Is(err, alerts.ErrInvalidTemplate):
+		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
+	case errors.Is(err, alerts.ErrRateLimited):
+		w.Header().Set("Retry-After", "60")
+		writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", err.Error())
 	case errors.Is(err, alerts.ErrTestDelivery):
 		writeProblem(w, http.StatusBadGateway, "Bad gateway", alerts.ErrTestDelivery.Error())
 	default:

@@ -71,13 +71,16 @@ type AlertInput struct {
 
 type DeliveryChannel struct {
 	ID         int64
+	OrgID      int64
 	Kind       ChannelKind
+	Name       string
 	Enabled    bool
 	Recipients []string
 	URL        string
 	Secret     string
 	BotToken   string
 	ChatID     string
+	Template   TemplateInput
 }
 
 type Notification struct {
@@ -101,4 +104,41 @@ type DeliveryState struct {
 	ChannelIDs          []int64       `json:"channel_ids"`
 	DeliveredChannelIDs []int64       `json:"delivered_channel_ids"`
 	AttemptCounts       map[int64]int `json:"attempt_counts,omitempty"`
+}
+
+type DeliveryStatus string
+
+const (
+	DeliveryPending   DeliveryStatus = "pending"
+	DeliverySucceeded DeliveryStatus = "succeeded"
+	DeliveryFailed    DeliveryStatus = "failed"
+)
+
+type DeliveryRecord struct {
+	ID            int64          `json:"id"`
+	AlertID       int64          `json:"alert_id"`
+	SiteID        int32          `json:"site_id"`
+	ChannelID     int64          `json:"channel_id"`
+	ChannelKind   ChannelKind    `json:"channel_kind"`
+	ChannelName   string         `json:"channel_name"`
+	Status        DeliveryStatus `json:"status"`
+	Attempts      int            `json:"attempts"`
+	ErrorText     string         `json:"error_text,omitempty"`
+	Notification  Notification   `json:"-"`
+	FiredAt       time.Time      `json:"fired_at"`
+	LastAttemptAt *time.Time     `json:"last_attempt_at,omitempty"`
+	DeliveredAt   *time.Time     `json:"delivered_at,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+type HistoryFilter struct {
+	Status      DeliveryStatus
+	ChannelKind ChannelKind
+	AlertID     int64
+	Limit       int
+}
+
+type NotificationSettings struct {
+	HistoryRetentionDays int `json:"history_retention_days"`
 }

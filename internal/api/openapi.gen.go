@@ -67,6 +67,27 @@ func (e CurrentUserResponseMembershipsRole) Valid() bool {
 	}
 }
 
+// Defines values for DeliveryStatus.
+const (
+	DeliveryStatusFailed    DeliveryStatus = "failed"
+	DeliveryStatusPending   DeliveryStatus = "pending"
+	DeliveryStatusSucceeded DeliveryStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the DeliveryStatus enum.
+func (e DeliveryStatus) Valid() bool {
+	switch e {
+	case DeliveryStatusFailed:
+		return true
+	case DeliveryStatusPending:
+		return true
+	case DeliveryStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DemoErrorError.
 const (
 	DemoExists      DemoErrorError = "demo_exists"
@@ -478,6 +499,33 @@ func (e Metric) Valid() bool {
 	case Visitors:
 		return true
 	case Visits:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationChannelKind.
+const (
+	Discord  NotificationChannelKind = "discord"
+	Email    NotificationChannelKind = "email"
+	Slack    NotificationChannelKind = "slack"
+	Telegram NotificationChannelKind = "telegram"
+	Webhook  NotificationChannelKind = "webhook"
+)
+
+// Valid indicates whether the value is a known member of the NotificationChannelKind enum.
+func (e NotificationChannelKind) Valid() bool {
+	switch e {
+	case Discord:
+		return true
+	case Email:
+		return true
+	case Slack:
+		return true
+	case Telegram:
+		return true
+	case Webhook:
 		return true
 	default:
 		return false
@@ -1361,6 +1409,9 @@ type DeletionResult struct {
 	Scheduled bool       `json:"scheduled"`
 }
 
+// DeliveryStatus defines model for DeliveryStatus.
+type DeliveryStatus string
+
 // DemoError defines model for DemoError.
 type DemoError struct {
 	Error DemoErrorError `json:"error"`
@@ -1736,6 +1787,54 @@ type MCPResponse1 = interface{}
 // Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 type Metric string
 
+// NotificationChannelKind defines model for NotificationChannelKind.
+type NotificationChannelKind string
+
+// NotificationDelivery defines model for NotificationDelivery.
+type NotificationDelivery struct {
+	AlertId       int64                   `json:"alert_id"`
+	Attempts      int                     `json:"attempts"`
+	ChannelId     int64                   `json:"channel_id"`
+	ChannelKind   NotificationChannelKind `json:"channel_kind"`
+	ChannelName   string                  `json:"channel_name"`
+	CreatedAt     time.Time               `json:"created_at"`
+	DeliveredAt   *time.Time              `json:"delivered_at,omitempty"`
+	ErrorText     *string                 `json:"error_text,omitempty"`
+	FiredAt       time.Time               `json:"fired_at"`
+	Id            int64                   `json:"id"`
+	LastAttemptAt *time.Time              `json:"last_attempt_at,omitempty"`
+	SiteId        int32                   `json:"site_id"`
+	Status        DeliveryStatus          `json:"status"`
+	UpdatedAt     time.Time               `json:"updated_at"`
+}
+
+// NotificationSettings defines model for NotificationSettings.
+type NotificationSettings struct {
+	HistoryRetentionDays int `json:"history_retention_days"`
+}
+
+// NotificationTemplate defines model for NotificationTemplate.
+type NotificationTemplate struct {
+	Body      string                  `json:"body"`
+	IsDefault bool                    `json:"is_default"`
+	Kind      NotificationChannelKind `json:"kind"`
+	Subject   *string                 `json:"subject,omitempty"`
+	UpdatedAt *time.Time              `json:"updated_at,omitempty"`
+}
+
+// NotificationTemplateInput defines model for NotificationTemplateInput.
+type NotificationTemplateInput struct {
+	Body    string  `json:"body"`
+	Subject *string `json:"subject,omitempty"`
+}
+
+// NotificationTemplateList defines model for NotificationTemplateList.
+type NotificationTemplateList struct {
+	Data      []NotificationTemplate `json:"data"`
+	Settings  NotificationSettings   `json:"settings"`
+	Variables []string               `json:"variables"`
+}
+
 // OpenShareRequest defines model for OpenShareRequest.
 type OpenShareRequest struct {
 	Password *string `json:"password,omitempty"`
@@ -1981,6 +2080,12 @@ type RecentActivity struct {
 	Page        string    `json:"page"`
 	Source      string    `json:"source"`
 	Timestamp   time.Time `json:"timestamp"`
+}
+
+// RenderedNotification defines model for RenderedNotification.
+type RenderedNotification struct {
+	Body    string  `json:"body"`
+	Subject *string `json:"subject,omitempty"`
 }
 
 // ReplayList defines model for ReplayList.
@@ -2698,6 +2803,14 @@ type ListReplaysParams struct {
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// ListNotificationHistoryParams defines parameters for ListNotificationHistory.
+type ListNotificationHistoryParams struct {
+	Status  *DeliveryStatus          `form:"status,omitempty" json:"status,omitempty"`
+	Channel *NotificationChannelKind `form:"channel,omitempty" json:"channel,omitempty"`
+	AlertId *int64                   `form:"alert_id,omitempty" json:"alert_id,omitempty"`
+	Limit   *int                     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // PreflightEventParams defines parameters for PreflightEvent.
 type PreflightEventParams struct {
 	Origin                      *string                                         `json:"Origin,omitempty"`
@@ -2913,6 +3026,15 @@ type RenameOrganizationJSONRequestBody RenameOrganizationJSONBody
 
 // CreateDemoProjectJSONRequestBody defines body for CreateDemoProject for application/json ContentType.
 type CreateDemoProjectJSONRequestBody = CreateDemoRequest
+
+// SaveNotificationSettingsJSONRequestBody defines body for SaveNotificationSettings for application/json ContentType.
+type SaveNotificationSettingsJSONRequestBody = NotificationSettings
+
+// SaveNotificationTemplateJSONRequestBody defines body for SaveNotificationTemplate for application/json ContentType.
+type SaveNotificationTemplateJSONRequestBody = NotificationTemplateInput
+
+// PreviewNotificationTemplateJSONRequestBody defines body for PreviewNotificationTemplate for application/json ContentType.
+type PreviewNotificationTemplateJSONRequestBody = NotificationTemplateInput
 
 // OpenSharedLinkJSONRequestBody defines body for OpenSharedLink for application/json ContentType.
 type OpenSharedLinkJSONRequestBody = OpenShareRequest
@@ -3423,6 +3545,21 @@ type ServerInterface interface {
 	// CreateDemoProject Create and start seeding the organization's demo project
 	// (POST /api/private/orgs/{org}/demo)
 	CreateDemoProject(w http.ResponseWriter, r *http.Request, org int64)
+	// SaveNotificationSettings Set notification history retention
+	// (PUT /api/private/orgs/{org}/notification-settings)
+	SaveNotificationSettings(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// ListNotificationTemplates List notification templates and history settings
+	// (GET /api/private/orgs/{org}/notification-templates)
+	ListNotificationTemplates(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// ResetNotificationTemplate Reset a channel message template to its default
+	// (DELETE /api/private/orgs/{org}/notification-templates/{kind})
+	ResetNotificationTemplate(w http.ResponseWriter, r *http.Request, org OrgPathID, kind NotificationChannelKind)
+	// SaveNotificationTemplate Save a channel message template
+	// (PUT /api/private/orgs/{org}/notification-templates/{kind})
+	SaveNotificationTemplate(w http.ResponseWriter, r *http.Request, org OrgPathID, kind NotificationChannelKind)
+	// PreviewNotificationTemplate Validate and preview a template with sample alert data
+	// (POST /api/private/orgs/{org}/notification-templates/{kind}/preview)
+	PreviewNotificationTemplate(w http.ResponseWriter, r *http.Request, org OrgPathID, kind NotificationChannelKind)
 	// ListDeletedSites List restorable sites in an organization
 	// (GET /api/private/orgs/{org}/sites/deleted)
 	ListDeletedSites(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -3486,6 +3623,12 @@ type ServerInterface interface {
 	// HeartbeatDemoProject Keep watched demo traffic active
 	// (POST /api/private/sites/{site}/demo/heartbeat)
 	HeartbeatDemoProject(w http.ResponseWriter, r *http.Request, site int32)
+	// ListNotificationHistory List alert delivery history for a site
+	// (GET /api/private/sites/{site}/notification-history)
+	ListNotificationHistory(w http.ResponseWriter, r *http.Request, site int32, params ListNotificationHistoryParams)
+	// RetryNotificationDelivery Retry one failed alert delivery
+	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
+	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -3967,6 +4110,163 @@ func (siw *ServerInterfaceWrapper) CreateDemoProject(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateDemoProject(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveNotificationSettings operation middleware
+func (siw *ServerInterfaceWrapper) SaveNotificationSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveNotificationSettings(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNotificationTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListNotificationTemplates(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotificationTemplates(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetNotificationTemplate operation middleware
+func (siw *ServerInterfaceWrapper) ResetNotificationTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "kind" -------------
+	var kind NotificationChannelKind
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kind", r.PathValue("kind"), &kind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetNotificationTemplate(w, r, org, kind)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveNotificationTemplate operation middleware
+func (siw *ServerInterfaceWrapper) SaveNotificationTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "kind" -------------
+	var kind NotificationChannelKind
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kind", r.PathValue("kind"), &kind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveNotificationTemplate(w, r, org, kind)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewNotificationTemplate operation middleware
+func (siw *ServerInterfaceWrapper) PreviewNotificationTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "kind" -------------
+	var kind NotificationChannelKind
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kind", r.PathValue("kind"), &kind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewNotificationTemplate(w, r, org, kind)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4708,6 +5008,122 @@ func (siw *ServerInterfaceWrapper) HeartbeatDemoProject(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.HeartbeatDemoProject(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNotificationHistory operation middleware
+func (siw *ServerInterfaceWrapper) ListNotificationHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListNotificationHistoryParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "channel" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "channel", r.URL.Query(), &params.Channel, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "channel"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channel", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "alert_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "alert_id", r.URL.Query(), &params.AlertId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "alert_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "alert_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotificationHistory(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetryNotificationDelivery operation middleware
+func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "delivery" -------------
+	var delivery int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "delivery", r.PathValue("delivery"), &delivery, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delivery", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetryNotificationDelivery(w, r, site, delivery)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7046,6 +7462,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.ListApiKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.CreateApiKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}", wrapper.RevokeApiKey)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates/{kind}", wrapper.ResetNotificationTemplate)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates/{kind}", wrapper.SaveNotificationTemplate)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates/{kind}/preview", wrapper.PreviewNotificationTemplate)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/orgs/{org}/notification-settings", wrapper.SaveNotificationSettings)
 
 	return m
 }
