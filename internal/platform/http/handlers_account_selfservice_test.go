@@ -2,6 +2,7 @@ package platformhttp_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -104,6 +105,36 @@ func TestAccountSelfServiceHTTP(t *testing.T) {
 		got := fixture.request(t, http.MethodPost, "/api/private/me/password", `{"current_password":"pw-123456789","new_password":"new-password-1"}`, true)
 		if got.Code != http.StatusNoContent {
 			t.Fatalf("status=%d body=%s", got.Code, got.Body.String())
+		}
+	})
+
+	t.Run("preferences update and validation", func(t *testing.T) {
+		fixture := newAccountHTTPFixture(t, &mail.Fake{})
+		updated := fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"landing_page":"overview","sites_view":"table","last_site_id":null}}`, true)
+		if updated.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", updated.Code, updated.Body.String())
+		}
+		var updateBody struct {
+			Preferences store.UserPreferences `json:"preferences"`
+		}
+		if err := json.Unmarshal(updated.Body.Bytes(), &updateBody); err != nil {
+			t.Fatal(err)
+		}
+		if updateBody.Preferences.LandingPage != "overview" || updateBody.Preferences.SitesView != "table" || updateBody.Preferences.LastSiteID != nil {
+			t.Fatalf("preferences=%+v", updateBody.Preferences)
+		}
+		persisted, err := fixture.store.UserByID(context.Background(), fixture.userID)
+		if err != nil || persisted.Preferences != updateBody.Preferences {
+			t.Fatalf("persisted preferences=%+v err=%v", persisted.Preferences, err)
+		}
+		for _, body := range []string{
+			`{"preferences":{"landing_page":"invalid"}}`,
+			`{"preferences":{"sites_view":"invalid"}}`,
+			`{"preferences":{"last_site_id":999999}}`,
+		} {
+			if got := fixture.request(t, http.MethodPatch, "/api/private/me", body, true); got.Code != http.StatusBadRequest {
+				t.Fatalf("body=%s status=%d response=%s", body, got.Code, got.Body.String())
+			}
 		}
 	})
 }

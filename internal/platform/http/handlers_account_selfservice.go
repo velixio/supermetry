@@ -1,12 +1,14 @@
 package platformhttp
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 
 	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/store"
 )
 
 func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
@@ -15,17 +17,18 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Name string `json:"name"`
+		Name        *string `json:"name"`
+		Preferences *struct {
+			LandingPage *string         `json:"landing_page"`
+			SitesView   *string         `json:"sites_view"`
+			LastSiteID  json.RawMessage `json:"last_site_id"`
+		} `json:"preferences"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	if h.deps.Auth == nil || h.deps.Store == nil {
+	if h.deps.Store == nil {
 		unavailable(w, "authentication")
-		return
-	}
-	if err := h.deps.Auth.UpdateName(r.Context(), principal.UserID, request.Name); err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad request", "name is required")
 		return
 	}
 	user, err := h.deps.Store.UserByID(r.Context(), principal.UserID)
@@ -33,7 +36,80 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"name": user.Name, "email": user.Email})
+	var name *string
+	if request.Name != nil {
+		trimmed := strings.TrimSpace(*request.Name)
+		if trimmed == "" {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "name is required")
+			return
+		}
+		name = &trimmed
+	}
+	var preferences *store.UserPreferences
+	if request.Preferences != nil {
+		merged := user.Preferences
+		if request.Preferences.LandingPage != nil {
+			if *request.Preferences.LandingPage != "overview" && *request.Preferences.LandingPage != "last_site" {
+				writeProblem(w, http.StatusBadRequest, "Bad request", "landing_page must be overview or last_site")
+				return
+			}
+			merged.LandingPage = *request.Preferences.LandingPage
+		}
+		if request.Preferences.SitesView != nil {
+			if *request.Preferences.SitesView != "cards" && *request.Preferences.SitesView != "table" {
+				writeProblem(w, http.StatusBadRequest, "Bad request", "sites_view must be cards or table")
+				return
+			}
+			merged.SitesView = *request.Preferences.SitesView
+		}
+		if request.Preferences.LastSiteID != nil {
+			if string(request.Preferences.LastSiteID) == "null" {
+				merged.LastSiteID = nil
+			} else {
+				var siteID int32
+				if err := json.Unmarshal(request.Preferences.LastSiteID, &siteID); err != nil || siteID <= 0 || !h.userCanReadSite(r, principal.UserID, siteID) {
+					writeProblem(w, http.StatusBadRequest, "Bad request", "last_site_id must name a readable site")
+					return
+				}
+				merged.LastSiteID = &siteID
+			}
+		}
+		preferences = &merged
+	}
+	if name == nil && preferences == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "name or preferences is required")
+		return
+	}
+	if err := h.deps.Store.UpdateUserProfile(r.Context(), principal.UserID, name, preferences); err != nil {
+		serviceError(w, err)
+		return
+	}
+	user, err = h.deps.Store.UserByID(r.Context(), principal.UserID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"name": user.Name, "email": user.Email, "preferences": effectiveUserPreferences(user.Preferences, h.readableSiteCount(r, principal.UserID))})
+}
+
+func (h *handler) userCanReadSite(r *http.Request, userID int64, siteID int32) bool {
+	var allowed bool
+	err := h.deps.Store.Pool.QueryRow(r.Context(), `
+		select exists(
+		  select 1 from memberships m join orgs o on o.id=m.org_id and o.deleted_at is null
+		  join sites s on s.org_id=m.org_id and s.deleted_at is null
+		  where m.user_id=$1 and s.id=$2 and (m.site_ids is null or s.id=any(m.site_ids))
+		)`, userID, siteID).Scan(&allowed)
+	return err == nil && allowed
+}
+
+func (h *handler) readableSiteCount(r *http.Request, userID int64) int {
+	var count int
+	_ = h.deps.Store.Pool.QueryRow(r.Context(), `
+		select count(*) from memberships m join orgs o on o.id=m.org_id and o.deleted_at is null
+		join sites s on s.org_id=m.org_id and s.deleted_at is null
+		where m.user_id=$1 and (m.site_ids is null or s.id=any(m.site_ids))`, userID).Scan(&count)
+	return count
 }
 
 func (h *handler) startEmailChange(w http.ResponseWriter, r *http.Request) {
