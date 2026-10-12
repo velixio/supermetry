@@ -50,6 +50,7 @@ import {
 import type { Me, Membership, Site } from '@/lib/me'
 import { en } from '@/messages/en'
 import { useCreateDemo } from '@/features/demo/useDemo'
+import { ui } from '@/messages/ui'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
@@ -260,7 +261,7 @@ export function SupermetrySidebar({
                   >
                     <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} />
                     <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                    {item.is_demo ? <Badge variant="secondary">Demo</Badge> : null}
+                    {item.is_demo ? <Badge variant="secondary">{ui.sidebar.demo}</Badge> : null}
                   </Link>
                 </DropdownMenuItem>
               ))}

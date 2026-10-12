@@ -31,6 +31,7 @@ import { HeaderMenus } from './HeaderMenus'
 import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
+import { ui } from '@/messages/ui'
 
 function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number; org: string; site: string; detailsAvailable: boolean }) {
   const descriptionId = useId()
@@ -41,7 +42,7 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
     ? en.liveAccuracy.badgeDescription
       .replace('{count}', String(summary.data.active_visitors))
       .replace('{thirty}', String(summary.data.visitors_last_30m))
-    : 'Loading live visitors'
+    : ui.appShell.loadingLive
 
   const badge = (
     <LiveBadge

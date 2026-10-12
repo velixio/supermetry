@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { en } from '@/messages/en'
+import { ui } from '@/messages/ui'
 
 type EmptyStateProps = {
   trackingHref?: string
@@ -14,7 +15,7 @@ export function EmptyState({ trackingHref }: EmptyStateProps) {
       <p className="text-sm text-muted-foreground">{en.polish.emptyNext}</p>
       {trackingHref ? (
         <Button asChild size="sm" variant="outline">
-          <Link to={trackingHref}>Set up tracking</Link>
+          <Link to={trackingHref}>{ui.emptyState.setUpTracking}</Link>
         </Button>
       ) : null}
     </div>

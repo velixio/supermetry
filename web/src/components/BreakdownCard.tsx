@@ -13,6 +13,7 @@ import { DetailsDialog } from './DetailsDialog'
 import { EmptyState } from './EmptyState'
 import { ErrorState } from './ErrorState'
 import { Flag } from './Flag'
+import { ui } from '@/messages/ui'
 
 const FullReportDialog = lazy(() => import('./FullReportDialog').then((module) => ({ default: module.FullReportDialog })))
 
@@ -35,18 +36,18 @@ type BreakdownCardProps = {
   description?: string
 }
 
-const screenSizeLabels: Record<string, string> = {
-  mobile: 'Mobile (<768px)',
-  tablet: 'Tablet (768–1023px)',
-  laptop: 'Laptop (1024–1439px)',
-  desktop: 'Desktop (1440–1919px)',
-  large: 'Large (≥1920px)',
+function screenSizeLabel(value: string): string | undefined {
+  const labels: Record<string, string> = {
+    mobile: ui.breakdown.mobile, tablet: ui.breakdown.tablet, laptop: ui.breakdown.laptop,
+    desktop: ui.breakdown.desktop, large: ui.breakdown.large,
+  }
+  return labels[value]
 }
 
 function breakdownLabel(dimension: string, value: string): string {
-  if (value === '') return 'Unknown'
+  if (value === '') return ui.breakdown.unknown
   if (dimension === 'country') return countryLabel(value)
-  if (dimension === 'screen_size') return screenSizeLabels[value] ?? value
+  if (dimension === 'screen_size') return screenSizeLabel(value) ?? value
   return value
 }
 
@@ -92,7 +93,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <h2 className="shrink-0 truncate text-sm font-medium">{title}</h2>
           {tabs.length > 1 ? (
-            <div aria-label={`${title} breakdown`} className="flex min-w-0 items-center gap-1 overflow-x-auto" role="tablist">
+            <div aria-label={ui.breakdown.breakdownOf(title)} className="flex min-w-0 items-center gap-1 overflow-x-auto" role="tablist">
               {tabs.map((tab) => (
                 <Button
                   key={tab.key}
@@ -118,15 +119,15 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
       {result.isError ? (
         <ErrorState detail={result.error?.detail} onRetry={() => void result.refetch()} />
       ) : result.isPending || result.isLoading ? (
-        <div className="flex min-h-36 flex-col gap-3 p-4" aria-label={`Loading ${title}`}>
+        <div className="flex min-h-36 flex-col gap-3 p-4" aria-label={ui.breakdown.loading(title)}>
           <Skeleton className="h-7 w-full" />
           <Skeleton className="h-7 w-4/5" />
           <Skeleton className="h-7 w-3/5" />
         </div>
       ) : !verified ? (
-        <ErrorState detail="Verified page coverage could not be confirmed. Reload before viewing this breakdown." onRetry={() => void result.refetch()} />
+        <ErrorState detail={ui.breakdown.unverifiedCoverage} onRetry={() => void result.refetch()} />
       ) : rows.length === 0 || !activeTab ? (
-        verifiedPaths ? <p className="px-4 py-6 text-sm text-muted-foreground">No verified page data in this range. Older unverified records and imports are excluded.</p> : <EmptyState />
+        verifiedPaths ? <p className="px-4 py-6 text-sm text-muted-foreground">{ui.breakdown.noVerifiedData}</p> : <EmptyState />
       ) : displayedMetrics.length > 1 ? (
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">
@@ -152,7 +153,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                       ) : (
                         <>
                         <span className="sr-only" id={`${filterDescriptionId}-${index}`}>
-                          {`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, placeCountry)}`}
+                          {ui.breakdown.filterBy(activeTab.dimension, filterAccessibleLabel(activeTab.dimension, label, display, placeCountry))}
                         </span>
                         <button
                           aria-describedby={`${filterDescriptionId}-${index}`}
@@ -203,7 +204,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                 ) : (
                   <>
                   <span className="sr-only" id={`${filterDescriptionId}-${index}`}>
-                    {`Filter by ${activeTab.dimension} ${filterAccessibleLabel(activeTab.dimension, label, display, country)}`}
+                    {ui.breakdown.filterBy(activeTab.dimension, filterAccessibleLabel(activeTab.dimension, label, display, country))}
                   </span>
                   <button
                     aria-describedby={`${filterDescriptionId}-${index}`}
