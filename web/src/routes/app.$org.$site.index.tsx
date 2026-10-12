@@ -28,6 +28,8 @@ import {
   type Filter,
 } from '../lib/search'
 import { en } from '../messages/en'
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import type { Dashboard } from '../features/dashboards/api'
 import { dashKey, parseDashKey } from '../features/dashboards/layout'
 import type { TemplateKey } from '../features/dashboards/editor/model'
@@ -154,36 +156,39 @@ function DashboardStateRoute() {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
-      <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">{en.navigation.dashboard}</h1>
-          <p className="text-sm text-muted-foreground">{site.name}, {fmt.date(query.dateRange.from, timezone)} – {fmt.date(query.dateRange.to, timezone)}</p>
-          <Suspense fallback={null}>
-            <DashboardSwitcher
-              siteId={site.id}
-              value={search.dash}
-              onChange={(key, dashboard) => openDashboard(key, dashboard)}
-              onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
-            />
-          </Suspense>
-          {membership?.role !== 'viewer' ? (
+    <PageContainer>
+      <div className="contents" data-filter-count={filters.length}>
+      <PageHeader
+        title={en.navigation.dashboard}
+        description={`${fmt.date(query.dateRange.from, timezone)} – ${fmt.date(query.dateRange.to, timezone)}`}
+        actions={
+          <>
             <Suspense fallback={null}>
-              <DashboardManage
-                canWrite
-                currentId={dashboardId}
-                editing={edit !== null}
-                onEdit={(id) => setEdit({ kind: 'edit', id })}
-                onNew={(template) => setEdit({ kind: 'new', template })}
+              <DashboardSwitcher
+                siteId={site.id}
+                value={search.dash}
+                onChange={(key, dashboard) => openDashboard(key, dashboard)}
+                onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
               />
             </Suspense>
-          ) : null}
-        </div>
-        <Field orientation="horizontal" className="w-auto min-h-9 gap-2">
-          <Checkbox id="dashboard-include-imported" checked={search.include_imported} onCheckedChange={(checked) => updateSearch({ ...search, include_imported: checked === true })} />
-          <FieldLabel htmlFor="dashboard-include-imported" className="text-sm text-muted-foreground">{en.polish.includeImported}</FieldLabel>
-        </Field>
-      </header>
+            {membership?.role !== 'viewer' ? (
+              <Suspense fallback={null}>
+                <DashboardManage
+                  canWrite
+                  currentId={dashboardId}
+                  editing={edit !== null}
+                  onEdit={(id) => setEdit({ kind: 'edit', id })}
+                  onNew={(template) => setEdit({ kind: 'new', template })}
+                />
+              </Suspense>
+            ) : null}
+            <Field orientation="horizontal" className="w-auto min-h-9 gap-2">
+              <Checkbox id="dashboard-include-imported" checked={search.include_imported} onCheckedChange={(checked) => updateSearch({ ...search, include_imported: checked === true })} />
+              <FieldLabel htmlFor="dashboard-include-imported" className="text-sm text-muted-foreground">{en.polish.includeImported}</FieldLabel>
+            </Field>
+          </>
+        }
+      />
       {edit ? null : <div className="flex flex-wrap items-center justify-between gap-3">
         <DashboardExportMenu query={query} anonymous={anonymous} />
         <ResponsiveFilters>
@@ -284,6 +289,7 @@ function DashboardStateRoute() {
         </DeferredContent>
         </>
       )}
-    </div>
+      </div>
+    </PageContainer>
   )
 }
