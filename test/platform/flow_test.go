@@ -442,11 +442,18 @@ func (c *client) share(t *testing.T, siteID int32, password string) string {
 
 func (e *testEnv) shareSummary(t *testing.T, slug string) summary {
 	t.Helper()
+	// A share answers with its configuration (sections, date label, theme) around the stats.
 	var response struct {
-		Totals map[string]float64 `json:"totals"`
+		Data struct {
+			Totals map[string]float64 `json:"totals"`
+		} `json:"data"`
+		Sections []string `json:"sections"`
 	}
 	e.request(t, http.MethodGet, "/api/private/share/"+url.PathEscape(slug)+"/stats/summary?period=today", nil, nil, http.StatusOK, &response)
-	return summary{Pageviews: int64(response.Totals["pageviews"])}
+	if len(response.Sections) == 0 {
+		t.Fatal("share response has no sections")
+	}
+	return summary{Pageviews: int64(response.Data.Totals["pageviews"])}
 }
 
 func (c *client) auditCount(t *testing.T) int {
