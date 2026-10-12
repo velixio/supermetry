@@ -1,6 +1,7 @@
-import { useId, useState } from 'react'
+import { lazy, Suspense, useId, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { en } from '@/messages/en'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
 import { formatBreakdownMetric, metricLabel } from '@/lib/breakdown-metrics'
@@ -12,6 +13,8 @@ import { DetailsDialog } from './DetailsDialog'
 import { EmptyState } from './EmptyState'
 import { ErrorState } from './ErrorState'
 import { Flag } from './Flag'
+
+const FullReportDialog = lazy(() => import('./FullReportDialog').then((module) => ({ default: module.FullReportDialog })))
 
 export type BreakdownTab = {
   key: string
@@ -55,6 +58,8 @@ function filterAccessibleLabel(dimension: string, label: string, display: string
 
 export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true, allowFilter = true, verifiedPaths = false, description }: BreakdownCardProps) {
   const filterDescriptionId = useId()
+  const fullReportRef = useRef<HTMLButtonElement>(null)
+  const [fullReportOpen, setFullReportOpen] = useState(false)
   const [activeKey, setActiveKey] = useState(tabs[0]?.key ?? '')
   const activeTab = tabs.find((tab) => tab.key === activeKey) ?? tabs[0]
   const cardQuery: StatsQuery = {
@@ -105,6 +110,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {activeTab && !verifiedPaths ? <Button ref={fullReportRef} type="button" size="sm" variant="ghost" aria-haspopup="dialog" onClick={() => setFullReportOpen(true)}>{en.dashboard.viewFullReport}</Button> : null}
           {activeTab && !verifiedPaths ? <DetailsDialog dimension={activeTab.dimension} query={cardQuery} title={title} allowSearch={allowSearch} /> : null}
         </div>
       </header>
@@ -231,6 +237,11 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
           })}
         </ol>
       )}
+      {fullReportOpen && activeTab ? (
+        <Suspense fallback={null}>
+          <FullReportDialog dimension={activeTab.dimension} query={cardQuery} title={title} allowSearch={allowSearch} returnFocusRef={fullReportRef} onClose={() => setFullReportOpen(false)} />
+        </Suspense>
+      ) : null}
     </section>
   )
 }
