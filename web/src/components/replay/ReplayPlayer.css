@@ -1,0 +1,36 @@
+.replay-player > .rr-player {
+  float: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.replay-player iframe {
+  color-scheme: light;
+}
+
+.replay-player .rr-controller {
+  border-top: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+.replay-player .rr-timeline__time {
+  color: var(--foreground) !important;
+}
+
+.replay-player .rr-progress {
+  border-block-color: var(--background) !important;
+  background: var(--muted) !important;
+}
+
+.replay-player .rr-controller__btns button {
+  color: var(--foreground) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .replay-player .replayer-mouse {
+    transition: none;
+  }
+}

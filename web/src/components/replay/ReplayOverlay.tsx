@@ -105,7 +105,7 @@ function ReplayOverlayContent({
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-          <section aria-label="Replay player" className="min-w-0 flex-1 p-4 lg:overflow-auto">
+          <section aria-label="Replay player" className="flex h-[min(60dvh,32rem)] min-h-88 min-w-0 shrink-0 lg:h-auto lg:min-h-0 lg:flex-1 lg:overflow-hidden">
             {sessionId ? (
               <ReplayPlayer
                 key={sessionId}
@@ -117,7 +117,7 @@ function ReplayOverlayContent({
             ) : null}
           </section>
 
-          <aside aria-label={en.a11y2.replayDetails} className="flex w-full shrink-0 flex-col gap-6 border-t p-4 lg:w-80 lg:overflow-y-auto lg:border-t-0 lg:border-l">
+          <aside aria-label={en.a11y2.replayDetails} className="flex w-full shrink-0 flex-col gap-6 border-t p-4 lg:min-h-0 lg:w-80 lg:overflow-y-auto lg:border-t-0 lg:border-l">
             <section className="flex flex-col gap-3" aria-labelledby="replay-visitor-heading">
               <h2 className="font-medium" id="replay-visitor-heading">Visitor details</h2>
               <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
