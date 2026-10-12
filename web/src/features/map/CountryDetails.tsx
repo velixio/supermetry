@@ -120,12 +120,13 @@ function CountryDetailsBody({ country, query, onClear, onFilter }: CountryDetail
         ))}
       </div>
       <div className="grid gap-4 border-t p-4 sm:grid-cols-2 lg:grid-cols-4">
-        {detailDimensions.map(([dimension, title], index) => (
-          <section key={dimension} aria-label={title}>
+        {detailDimensions.map(([dimension, title], index) => {
+          const rows = breakdowns[index].data?.rows ?? []
+          if (rows.length === 0) return null
+          return <section key={dimension} aria-label={title}>
             <h3 className="text-sm font-medium">{title}</h3>
-            {(breakdowns[index].data?.rows.length ?? 0) > 0 ? (
-              <ol className="mt-2 flex flex-col gap-1">
-                {breakdowns[index].data?.rows.slice(0, 5).map((row, rowIndex) => (
+            <ol className="mt-2 flex flex-col gap-1">
+                {rows.slice(0, 5).map((row, rowIndex) => (
                   <li
                     key={`${String(row[dimension])}:${rowIndex}`}
                     className="flex min-w-0 items-center justify-between gap-2 text-sm"
@@ -135,11 +136,8 @@ function CountryDetailsBody({ country, query, onClear, onFilter }: CountryDetail
                   </li>
                 ))}
               </ol>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">{en.map.detailsEmpty}</p>
-            )}
           </section>
-        ))}
+        })}
       </div>
       <div className="flex flex-wrap gap-2 border-t p-4">
         <Button onClick={onFilter}>{en.map.filterDashboard}</Button>

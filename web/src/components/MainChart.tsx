@@ -143,6 +143,23 @@ function timeBucketLabel(value: string, interval: ChartInterval, timezone: strin
   }
 }
 
+export function axisBucketLabel(value: string, interval: ChartInterval, timezone: string): string {
+  if (interval === 'hour') {
+    const isSiteLocalBucket = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)
+    const instant = new Date(isSiteLocalBucket ? `${value}Z` : value)
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: isSiteLocalBucket ? 'UTC' : timezone,
+      hour: 'numeric',
+      minute: instant.getUTCMinutes() === 0 ? undefined : '2-digit',
+    }).format(instant)
+  }
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(`${value.slice(0, 10)}T12:00:00Z`))
+}
+
 function chronological(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
   return [...rows].sort((left, right) => timeValue(left).localeCompare(timeValue(right)))
 }
@@ -350,8 +367,8 @@ export function MainChart({
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="time" axisLine={false} tickLine={false} tickFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
-              <YAxis axisLine={false} tickLine={false} width={40} />
+              <XAxis dataKey="time" axisLine={false} tick={{ fontSize: 12 }} tickLine={false} interval="preserveStartEnd" minTickGap={32} tickFormatter={(value) => axisBucketLabel(String(value), resolvedInterval, timezone)} />
+              <YAxis axisLine={false} tick={{ fontSize: 12 }} tickLine={false} width={40} />
               <Tooltip labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
               <Area
                 dataKey="value"

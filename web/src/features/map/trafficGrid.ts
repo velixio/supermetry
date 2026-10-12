@@ -89,11 +89,12 @@ export function peakTrafficWindows(cells: TrafficCell[], limit = 3): TrafficCell
     .map(({ cell }) => cell)
 }
 
-export function weekdayShare(cells: TrafficCell[]): number {
+export function weekpartShares(cells: TrafficCell[]): { weekdays: number; weekends: number } {
   const total = cells.reduce((sum, cell) => sum + cell.value, 0)
-  if (total === 0) return 0
+  if (total === 0) return { weekdays: 0, weekends: 0 }
   const weekdays = cells.reduce((sum, cell) => sum + (cell.weekday >= 1 && cell.weekday <= 5 ? cell.value : 0), 0)
-  return Math.round((weekdays / total) * 100)
+  const weekdayShare = Math.round((weekdays / total) * 100)
+  return { weekdays: weekdayShare, weekends: 100 - weekdayShare }
 }
 
 export function quietestWeekday(cells: TrafficCell[]): { weekday: number; value: number } | undefined {

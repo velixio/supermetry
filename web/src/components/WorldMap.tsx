@@ -42,7 +42,7 @@ export function WorldMap({ rows, metric = 'visitors', selectedCountry, activeCou
   const valueByCountry = useMemo(() => new Map(data.map((row) => [row.country, row[metric]])), [data, metric])
   const maximum = data.reduce((largest, row) => Math.max(largest, row[metric]), 0)
   const total = data.reduce((sum, row) => sum + row[metric], 0)
-  const paths = useMemo(() => Object.entries(worldPaths).sort(([left], [right]) => {
+  const paths = useMemo(() => Object.entries(worldPaths).filter(([country]) => country !== 'AQ').sort(([left], [right]) => {
     if (left === selectedCountry) return 1
     if (right === selectedCountry) return -1
     const difference = (valueByCountry.get(right) ?? 0) - (valueByCountry.get(left) ?? 0)
@@ -63,7 +63,7 @@ export function WorldMap({ rows, metric = 'visitors', selectedCountry, activeCou
 
   return (
     <div className="flex w-full min-w-0 flex-col">
-      <svg aria-describedby={describedBy} aria-label={WORLD_MAP_LABEL} className="block aspect-2/1 w-full lg:min-h-[260px]" role="group" viewBox="0 0 1000 500">
+      <svg aria-describedby={describedBy} aria-label={WORLD_MAP_LABEL} className="block w-full lg:min-h-[260px]" role="group" viewBox="0 0 1000 445">
         {paths.map(([country, path]) => {
           const value = valueByCountry.get(country) ?? 0
           const step = rampStep(value, maximum)
