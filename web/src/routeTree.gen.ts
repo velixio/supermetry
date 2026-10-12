@@ -33,6 +33,7 @@ import { Route as AppAdminSettingsRouteImport } from './routes/app.admin.setting
 import { Route as AppAdminSitesRouteImport } from './routes/app.admin.sites'
 import { Route as AppAdminUsersRouteImport } from './routes/app.admin.users'
 import { Route as AppOrgSiteIndexRouteImport } from './routes/app.$org.$site.index'
+import { Route as AppOrgSiteCohortsRouteImport } from './routes/app.$org.$site.cohorts'
 import { Route as AppOrgSiteEventsRouteImport } from './routes/app.$org.$site.events'
 import { Route as AppOrgSiteGoalsRouteImport } from './routes/app.$org.$site.goals'
 import { Route as AppOrgSiteHeatmapsRouteImport } from './routes/app.$org.$site.heatmaps'
@@ -190,6 +191,11 @@ const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
 const AppOrgSiteIndexRoute = AppOrgSiteIndexRouteImport.update({
   id: '/$site/',
   path: '/$site/',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteCohortsRoute = AppOrgSiteCohortsRouteImport.update({
+  id: '/$site/cohorts',
+  path: '/$site/cohorts',
   getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgSiteEventsRoute = AppOrgSiteEventsRouteImport.update({
@@ -420,6 +426,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
@@ -482,6 +489,7 @@ export interface FileRoutesByTo {
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
@@ -547,6 +555,7 @@ export interface FileRoutesById {
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
@@ -613,6 +622,7 @@ export interface FileRouteTypes {
     | '/app/admin/settings'
     | '/app/admin/sites'
     | '/app/admin/users'
+    | '/app/$org/$site/cohorts'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
@@ -675,6 +685,7 @@ export interface FileRouteTypes {
     | '/app/admin/settings'
     | '/app/admin/sites'
     | '/app/admin/users'
+    | '/app/$org/$site/cohorts'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
@@ -739,6 +750,7 @@ export interface FileRouteTypes {
     | '/app/admin/settings'
     | '/app/admin/sites'
     | '/app/admin/users'
+    | '/app/$org/$site/cohorts'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
@@ -960,6 +972,13 @@ declare module '@tanstack/react-router' {
       path: '/$site'
       fullPath: '/app/$org/$site/'
       preLoaderRoute: typeof AppOrgSiteIndexRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/cohorts': {
+      id: '/app/$org/$site/cohorts'
+      path: '/$site/cohorts'
+      fullPath: '/app/$org/$site/cohorts'
+      preLoaderRoute: typeof AppOrgSiteCohortsRouteImport
       parentRoute: typeof AppOrgRoute
     }
     '/app/$org/$site/events': {
@@ -1292,6 +1311,7 @@ const AppOrgSiteSettingsRouteWithChildren =
 interface AppOrgRouteChildren {
   AppOrgHealthRoute: typeof AppOrgHealthRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRouteWithChildren
+  AppOrgSiteCohortsRoute: typeof AppOrgSiteCohortsRoute
   AppOrgSiteEventsRoute: typeof AppOrgSiteEventsRoute
   AppOrgSiteGoalsRoute: typeof AppOrgSiteGoalsRoute
   AppOrgSiteHeatmapsRoute: typeof AppOrgSiteHeatmapsRoute
@@ -1316,6 +1336,7 @@ interface AppOrgRouteChildren {
 const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgHealthRoute: AppOrgHealthRoute,
   AppOrgSettingsRoute: AppOrgSettingsRouteWithChildren,
+  AppOrgSiteCohortsRoute: AppOrgSiteCohortsRoute,
   AppOrgSiteEventsRoute: AppOrgSiteEventsRoute,
   AppOrgSiteGoalsRoute: AppOrgSiteGoalsRoute,
   AppOrgSiteHeatmapsRoute: AppOrgSiteHeatmapsRoute,

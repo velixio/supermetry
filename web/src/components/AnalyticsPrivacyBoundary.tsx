@@ -11,7 +11,7 @@ import type { Site } from '@/lib/me'
 const restrictedScreens = new Set([
   'events', 'sessions', 'profiles', 'journeys', 'retention', 'heatmaps',
   'replays', 'funnels', 'vitals', 'goals', 'realtime',
-  'revenue',
+  'revenue', 'cohorts',
 ])
 
 export function anonymousRouteRestricted(pathname: string): boolean {

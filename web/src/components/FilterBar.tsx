@@ -32,8 +32,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { CohortMenuItems, isCohortFilter, useCohortFilterName } from '@/features/cohorts/FilterBarCohorts'
 import { useDeleteSegment, useSaveSegment, useSegments } from '@/features/segments/api'
 import type { Segment } from '@/features/segments/types'
+import { useCapability } from '@/lib/authorization'
 import { serializeFilters, type Filter } from '@/lib/search'
 
 import { Flag } from './Flag'
@@ -82,6 +84,8 @@ export function FilterBar({
   onAdd,
 }: FilterBarProps) {
   const segments = useSegments(siteId)
+  const canReadProfiles = useCapability('profiles.read')
+  const cohortName = useCohortFilterName(siteId, filters)
   const saveSegment = useSaveSegment(siteId)
   const deleteSegment = useDeleteSegment(siteId)
   const [editorOpen, setEditorOpen] = useState(false)
@@ -190,6 +194,7 @@ export function FilterBar({
               </DropdownMenuGroup>
             </>
           ) : null}
+          {canReadProfiles ? <CohortMenuItems filters={filters} siteId={siteId} onApply={onApply} /> : null}
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem disabled={!canEdit || filters.length === 0} onSelect={() => openEditor()}>
@@ -202,7 +207,7 @@ export function FilterBar({
       {filters.map((filter, index) => (
         <Button
           key={`${filter.dimension}:${filter.operator}:${filter.values.join(',')}:${index}`}
-          aria-label={removeLabel(filter)}
+          aria-label={isCohortFilter(filter) ? `Remove cohort filter ${cohortName(filter)}` : removeLabel(filter)}
           type="button"
           variant="secondary"
           onClick={() => onRemove(index)}
@@ -212,7 +217,7 @@ export function FilterBar({
               {filter.values.map((code) => <Flag key={code} code={code} />)}
             </span>
           ) : null}
-          {filterLabel(filter)}
+          {isCohortFilter(filter) ? `Cohort: ${cohortName(filter)}` : filterLabel(filter)}
           <span aria-hidden="true" className="text-muted-foreground">×</span>
         </Button>
       ))}
