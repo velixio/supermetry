@@ -7,6 +7,7 @@ import type { Role } from '@/components/Sidebar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { refetchSiteIcon } from '@/features/sites/api'
+import { InstallRecipes, type VerifyResult } from './InstallRecipes'
 import { TrackingSnippet } from './TrackingSnippet'
 import { InstallStatusView, type InstallStatus } from '@/features/sites/InstallStatus'
 
@@ -165,38 +166,11 @@ function FeatureSetup({ currency }: { currency?: string }) {
   )
 }
 
-export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; installStatus?: InstallStatus; lastSeenAt?: string | null; revenueCurrency?: string; now?: Date }) {
+export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, verify, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; installStatus?: InstallStatus; lastSeenAt?: string | null; revenueCurrency?: string; verify?: () => Promise<VerifyResult | undefined>; now?: Date }) {
   return (
     <div className="flex flex-col gap-6">
       <TrackingSnippet publicId={publicId} snippet={snippet} fullSnippet={fullSnippet} />
-      <Tabs defaultValue="html">
-        <TabsList aria-label="Installation method" className="max-w-full overflow-x-auto">
-          <TabsTrigger value="html">Plain HTML</TabsTrigger>
-          <TabsTrigger value="react">Next.js / React</TabsTrigger>
-          <TabsTrigger value="cms">WordPress / other CMS</TabsTrigger>
-        </TabsList>
-        <TabsContent value="html">
-          <ol className="list-decimal space-y-2 pl-5 text-sm">
-            <li>Copy the tracking snippet above.</li>
-            <li>Paste it before the closing head tag on every page.</li>
-            <li>Publish your changes, then visit the site once.</li>
-          </ol>
-        </TabsContent>
-        <TabsContent value="react">
-          <ol className="list-decimal space-y-2 pl-5 text-sm">
-            <li>Add the snippet to your root layout or document head.</li>
-            <li>Keep the data-site value unchanged across client-side routes.</li>
-            <li>Deploy, then open a page in a new tab.</li>
-          </ol>
-        </TabsContent>
-        <TabsContent value="cms">
-          <ol className="list-decimal space-y-2 pl-5 text-sm">
-            <li>Open your theme's header injection or custom-code area.</li>
-            <li>Paste the snippet into the site-wide head section.</li>
-            <li>Save, clear caches, and visit the published site.</li>
-          </ol>
-        </TabsContent>
-      </Tabs>
+      <InstallRecipes publicId={publicId} snippet={snippet} verify={verify} />
       <FeatureSetup currency={revenueCurrency} />
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Track custom clicks</p>

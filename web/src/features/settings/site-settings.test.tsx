@@ -91,16 +91,10 @@ describe('site settings', () => {
     expect(setup).toHaveTextContent(/Site settings → Tracking/)
     expect(setup).toHaveTextContent(/Site settings → General/)
     expect(setup).toHaveTextContent(/supermetry\.optOut\(\)/)
-    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js / React' }), {
-      button: 0,
-      ctrlKey: false,
-    })
-    expect(screen.getByText(/root layout/i)).toBeVisible()
-    fireEvent.mouseDown(screen.getByRole('tab', { name: 'WordPress / other CMS' }), {
-      button: 0,
-      ctrlKey: false,
-    })
-    expect(screen.getByText(/header injection/i)).toBeVisible()
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js' }), { button: 0, ctrlKey: false })
+    expect(screen.getByText('app/layout.tsx')).toBeVisible()
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'WordPress' }), { button: 0, ctrlKey: false })
+    expect(screen.getByText(/functions\.php/i)).toBeVisible()
   })
 
   it.each([

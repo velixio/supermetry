@@ -403,6 +403,10 @@ export function InstallationPage({
           installStatus={status.data?.install_status}
           lastSeenAt={status.data?.last_seen_at}
           revenueCurrency={status.data?.revenue_currency}
+          verify={async () => {
+            const result = await status.refetch();
+            return { status: result.data?.install_status, lastSeenAt: result.data?.last_seen_at };
+          }}
         />}
       </Surface>
     </Page>
