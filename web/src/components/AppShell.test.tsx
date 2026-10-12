@@ -9,7 +9,7 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { useLiveSummary, useReplayAvailability, privateRequest } = vi.hoisted(() => ({ useLiveSummary: vi.fn(), useReplayAvailability: vi.fn(), privateRequest: vi.fn() }))
@@ -132,6 +132,14 @@ describe('AppShell live visitor badge', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs-public/realtime'))
   })
 
+  it('shows breadcrumbs in the header instead of a repeated site name', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const nav = await screen.findByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(nav).getByRole('link', { name: 'Acme' })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Docs' })).toBeInTheDocument()
+    expect(within(nav).getByText('General')).toHaveAttribute('aria-current', 'page')
+  })
+
   it('remembers a valid scoped site as the last visited site', async () => {
     renderShell('/app/acme/docs-public/settings/general')
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PATCH', '/api/private/me', {
@@ -222,7 +230,9 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByRole('link', { name: /12 live/ })).not.toBeInTheDocument()
     expect(useReplayAvailability).not.toHaveBeenCalled()
     for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals']) {
-      expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument()
+      // The breadcrumb's current-page crumb has role=link (aria-disabled), so only look outside it.
+      const outsideCrumbs = screen.queryAllByRole('link', { name: label }).filter((link) => !link.closest('nav[aria-label="Breadcrumb"]'))
+      expect(outsideCrumbs).toHaveLength(0)
     }
   })
 

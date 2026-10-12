@@ -19,16 +19,16 @@ import {
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { SiteIcon } from '@/components/SiteIcon'
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import { cn } from '@/lib/utils'
+import { Breadcrumbs } from './Breadcrumbs'
 import { ProjectTabs } from './ProjectTabs'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 import type { Me, Membership } from '@/lib/me'
 
-import { activeSite, matchesSite, SupermetrySidebar } from './Sidebar'
+import { matchesSite, SupermetrySidebar } from './Sidebar'
 import { HeaderMenus } from './HeaderMenus'
 import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
@@ -99,7 +99,6 @@ export function AppShell({
       }
     },
   })
-  const site = activeSite(membership, requestedSite)
   const scopedSite = membership.sites.find((item) => matchesSite(item, requestedSite))
   const recordedLastSite = useRef(me.preferences?.last_site_id)
 
@@ -134,12 +133,7 @@ export function AppShell({
           <header aria-label={en.a11y2.applicationHeader} className={cn('sticky z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4', membership.sites.length > 0 ? 'top-9' : 'top-0')}>
             <div className="flex min-w-0 items-center gap-2">
               <SidebarTrigger aria-label={en.navigation.collapse} />
-              {site ? (
-                <div className="flex min-w-0 items-center gap-2">
-                  <SiteIcon iconUrl={site.icon_url} name={site.name} size={24} />
-                  <span className="hidden truncate text-sm font-medium sm:inline">{site.name}</span>
-                </div>
-              ) : null}
+              <Breadcrumbs membership={membership} />
             </div>
             <div className="flex items-center gap-1">
               {scopedSite && requestedSite ? (
