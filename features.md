@@ -131,6 +131,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 20. ~~Richer realtime (live feed, per-minute chart, all breakdowns) and SVG country flags~~ ✅
 21. ~~Exact five-minute distinct live visitor counts with three-product accuracy observation~~ ✅
 22. ~~Replay triage: search, duration/event filters, saved recordings and responsive list layouts~~ ✅
+23. ~~Notification delivery history, retries, retention and editable channel templates~~ ✅
 
 ### Later
 
