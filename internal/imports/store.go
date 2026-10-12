@@ -26,6 +26,8 @@ const (
 	SourcePlausible Source = "plausible"
 	SourceUmami     Source = "umami"
 	SourceGA4       Source = "ga4"
+	SourceMixpanel  Source = "mixpanel"
+	SourceAmplitude Source = "amplitude"
 )
 
 type Status string

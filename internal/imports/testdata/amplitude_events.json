@@ -1,0 +1,8 @@
+{"event_type":"[Amplitude] Page Viewed","event_time":"2024-03-01 10:00:00.123456","user_id":"a","device_id":"d1","uuid":"u-1","$insert_id":"i-1","country":"United States","platform":"Web","os_name":"Chrome","device_family":"Windows","ip_address":"198.51.100.7","event_properties":{"[Amplitude] Page Path":"/","[Amplitude] Page URL":"https://x.test/?q=1","referring_domain":"news.example"}}
+{"event_type":"[Amplitude] Page Viewed","event_time":"2024-03-01 10:00:45.000000","user_id":"a","device_id":"d1","uuid":"u-2","$insert_id":"i-2","country":"United States","platform":"Web","os_name":"Chrome","device_family":"Windows","event_properties":{"[Amplitude] Page Path":"/pricing"}}
+{"event_type":"Button Clicked","event_time":"2024-03-01 10:01:00.000000","user_id":"a","device_id":"d1","uuid":"u-3","$insert_id":"i-3","platform":"Web"}
+{"event_type":"[Amplitude] Page Viewed","event_time":"2024-03-01 23:30:00.000000","device_id":"d2","uuid":"u-4","$insert_id":"i-4","country":"India","platform":"iOS","os_name":"ios","event_properties":{"[Amplitude] Page Path":"/"}}
+{"event_type":"[Amplitude] Page Viewed","event_time":"2024-03-01 10:00:00.123456","user_id":"a","device_id":"d1","uuid":"u-1","$insert_id":"i-1","event_properties":{"[Amplitude] Page Path":"/"}}
+{"event_type":"session_start","event_time":"2024-03-01 10:00:00.000000","user_id":"a","device_id":"d1","uuid":"u-6"}
+{"event_type":"Button Clicked","user_id":"a","device_id":"d1","uuid":"u-7"}
+{"event_type":"[Amplitude] Page Viewed","event_time":"2024-03-02 08:00:00.000000","user_id":"a","device_id":"d1","uuid":"u-8","$insert_id":"i-8","event_properties":{"[Amplitude] Page Path":"/docs"}}
