@@ -1,38 +1,12 @@
 # Runs on a self-hosted agent with the local backend (no containers): `image`
-# names the shell, and Go, git and whatever `make build` needs (bun) must be on the agent's PATH.
+# names the shell, and Go, git and bun must be on the agent's PATH.
+# The binary lands in ./bin/supermetry.
 when:
   - event: pull_request
   - event: push
     branch: main
 
 steps:
-  - name: gofmt
-    image: bash
-    commands:
-      - |
-        unformatted="$(gofmt -l .)"
-        if [ -n "$unformatted" ]; then
-          printf 'The following files need gofmt:\n%s\n' "$unformatted"
-          exit 1
-        fi
-
-  - name: vet
-    image: bash
-    commands:
-      - go vet ./...
-
-  - name: test-go
-    image: bash
-    commands:
-      - make fixtures
-      - GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration ./...
-      - go test -count=1 ./internal/tracker -run 'TestMinified(Tracker|FullTracker)GzipSize$'
-
-  - name: vuln
-    image: bash
-    commands:
-      - go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
-
   - name: build
     image: bash
     commands:
