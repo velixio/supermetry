@@ -35,6 +35,20 @@ func TestLoginLimiterRejectedClientDoesNotConsumeAccountBudget(t *testing.T) {
 	}
 }
 
+func TestLoginLimiterHarnessCapacity(t *testing.T) {
+	limiter := newLoginLimiter()
+	limiter.setLoginCapacity(50)
+	now := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	for attempt := 0; attempt < 50; attempt++ {
+		if !limiter.allow("owner@example.test", "worker", now) {
+			t.Fatalf("attempt %d rejected before configured capacity", attempt+1)
+		}
+	}
+	if limiter.allow("owner@example.test", "worker", now) {
+		t.Fatal("attempt beyond configured capacity was accepted")
+	}
+}
+
 func TestLoginLimiterPairCannotExhaustSharedAccountBudget(t *testing.T) {
 	limiter := newLoginLimiter()
 	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)

@@ -70,6 +70,32 @@ type country struct {
 	weight int64
 }
 
+type location struct {
+	region string
+	city   string
+}
+
+var countryLocations = map[string][]location{
+	"US": {{"California", "San Francisco"}, {"New York", "New York"}, {"Texas", "Austin"}, {"Washington", "Seattle"}},
+	"IN": {{"Karnataka", "Bengaluru"}, {"Maharashtra", "Mumbai"}, {"Delhi", "New Delhi"}},
+	"DE": {{"Berlin", "Berlin"}, {"Bavaria", "Munich"}},
+	"GB": {{"England", "London"}, {"Scotland", "Edinburgh"}},
+	"BR": {{"Sao Paulo", "Sao Paulo"}, {"Rio de Janeiro", "Rio de Janeiro"}},
+	"FR": {{"Ile-de-France", "Paris"}, {"Auvergne-Rhone-Alpes", "Lyon"}},
+	"CA": {{"Ontario", "Toronto"}, {"British Columbia", "Vancouver"}},
+	"JP": {{"Tokyo", "Tokyo"}, {"Osaka", "Osaka"}},
+	"AU": {{"New South Wales", "Sydney"}, {"Victoria", "Melbourne"}},
+	"NP": {{"Bagmati", "Kathmandu"}},
+}
+
+func countryLocation(code string, selector uint64) location {
+	locations := countryLocations[code]
+	if len(locations) == 0 {
+		return location{region: code + " Region", city: code + " City"}
+	}
+	return locations[selector%uint64(len(locations))]
+}
+
 var countries = []country{
 	{"US", 220}, {"IN", 120}, {"DE", 70}, {"GB", 60}, {"BR", 50}, {"FR", 40}, {"CA", 40}, {"JP", 30},
 	{"ES", 30}, {"IT", 30}, {"NL", 25}, {"AU", 25}, {"PL", 20}, {"MX", 20}, {"ID", 20}, {"TR", 15},

@@ -49,6 +49,7 @@ type loginLimiter struct {
 	resetClient        map[string]bucket
 	resetAccountClient map[accountClientKey]bucket
 	attempt            uint64
+	loginCapacity      float64
 }
 
 type accountClientKey struct {
@@ -221,6 +222,12 @@ func newLoginLimiter() *loginLimiter {
 	}
 }
 
+func (l *loginLimiter) setLoginCapacity(capacity int) {
+	if capacity > 0 {
+		l.loginCapacity = float64(capacity)
+	}
+}
+
 // allowReset enforces per-target and per-client limits. Buckets are in memory,
 // so limits are per process; multi-instance deployments need an upstream or
 // shared limiter for a global ceiling.
@@ -252,10 +259,14 @@ func (l *loginLimiter) allow(account, client string, now time.Time) bool {
 		pruneAccountClientBuckets(l.accountClient, now)
 	}
 
-	if client != "" && !take(l.client, client, 20, now) {
+	clientCapacity, pairCapacity, accountCapacity := float64(20), float64(accountClientCapacity), float64(accountCeilingPerMinute)
+	if l.loginCapacity > 0 {
+		clientCapacity, pairCapacity, accountCapacity = l.loginCapacity, l.loginCapacity, l.loginCapacity
+	}
+	if client != "" && !take(l.client, client, clientCapacity, now) {
 		return false
 	}
-	if client != "" && !takeAccountClient(l.accountClient, accountClientKey{account: account, client: client}, accountClientCapacity, now) {
+	if client != "" && !takeAccountClient(l.accountClient, accountClientKey{account: account, client: client}, pairCapacity, now) {
 		return false
 	}
 	// One client can spend only accountClientCapacity per minute, so a single
@@ -264,9 +275,12 @@ func (l *loginLimiter) allow(account, client string, now time.Time) bool {
 	// is high enough that it takes many distinct clients to reach it. Callers
 	// without a derived client key keep the strict cap.
 	if client == "" {
+		if l.loginCapacity > 0 {
+			return take(l.account, account, accountCapacity, now)
+		}
 		return take(l.account, account, 5, now)
 	}
-	return take(l.account, account, accountCeilingPerMinute, now)
+	return take(l.account, account, accountCapacity, now)
 }
 
 func pruneAccountClientBuckets(buckets map[accountClientKey]bucket, now time.Time) {
@@ -308,7 +322,11 @@ func (l *loginLimiter) allowClient(client string, now time.Time) bool {
 		pruneBuckets(l.account, now)
 		pruneBuckets(l.client, now)
 	}
-	return client == "" || take(l.client, client, 20, now)
+	capacity := float64(20)
+	if l.loginCapacity > 0 {
+		capacity = l.loginCapacity
+	}
+	return client == "" || take(l.client, client, capacity, now)
 }
 
 func pruneBuckets(buckets map[string]bucket, now time.Time) {

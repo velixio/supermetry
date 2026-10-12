@@ -7,7 +7,8 @@ import (
 
 // NDJSON formatting with append-only byte building. Field order is the
 // CONTRACT's: ts, site, host, path, ref, utm_source, utm_medium, utm_campaign,
-// name, props, ip, ua, screen_w, country, browser, os, device, vk, sk.
+// name, props, ip, ua, screen_w, country, region, city, browser, os, device,
+// revenue, vk, sk.
 
 const internalTail = `","utm_source":"","utm_medium":"","utm_campaign":"","name":"`
 
@@ -98,8 +99,25 @@ func (f *formatter) appendEvent(b []byte, u *unit, e *eventRec) []byte {
 	b = append(b, g.uaChunk[v.ua]...)
 	b = strconv.AppendInt(b, int64(v.screen), 10)
 	b = append(b, `,"country":"`...)
-	b = append(b, countries[v.country].code...)
+	country := countries[v.country].code
+	b = append(b, country...)
+	location := countryLocation(country, v.vk)
+	b = append(b, `","region":"`...)
+	b = append(b, location.region...)
+	b = append(b, `","city":"`...)
+	b = append(b, location.city...)
 	b = append(b, g.uaTail[v.ua]...)
+	b = append(b, `,"revenue":`...)
+	if e.name == evSignup {
+		plan := propCombos[e.name][e.props].plan
+		amount := []string{"19.00", "49.00", "199.00"}[plan]
+		b = append(b, `{"amount":"`...)
+		b = append(b, amount...)
+		b = append(b, `","currency":"USD"}`...)
+	} else {
+		b = append(b, "{}"...)
+	}
+	b = append(b, `,"vk":"`...)
 	b = appendHex16(b, v.vk)
 	b = append(b, `","sk":"`...)
 	b = appendHex16(b, g.sk(s, u.day, sess.visitor, sess.ord))

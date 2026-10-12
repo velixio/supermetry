@@ -11,7 +11,7 @@ func line(ts, path, ref, utm, name, props, ip, ua, country, sk string) string {
 	if props == "" {
 		props = "{}"
 	}
-	return fmt.Sprintf(`{"ts":%q,"site":1,"host":"site1.test","path":%q,"ref":%q,"utm_source":%q,"utm_medium":"","utm_campaign":"","name":%q,"props":%s,"ip":%q,"ua":%q,"screen_w":390,"country":%q,"browser":"Safari","os":"iOS","device":"mobile","vk":"v-%s","sk":%q}`+"\n",
+	return fmt.Sprintf(`{"ts":%q,"site":1,"host":"site1.test","path":%q,"ref":%q,"utm_source":%q,"utm_medium":"","utm_campaign":"","name":%q,"props":%s,"ip":%q,"ua":%q,"screen_w":390,"country":%q,"region":"Test Region","city":"Test City","browser":"Safari","os":"iOS","device":"mobile","revenue":{},"vk":"v-%s","sk":%q}`+"\n",
 		ts, path, ref, utm, name, props, ip, ua, country, ip, sk)
 }
 

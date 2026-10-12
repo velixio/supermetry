@@ -55,6 +55,13 @@ func WithAuditSecret(secret []byte) Option {
 	return func(a *Auth) { a.auditSecret = append([]byte(nil), secret...) }
 }
 
+// WithLoginAttemptCapacity overrides the in-memory login budget. It is
+// intended for isolated test harnesses; production callers should use the
+// security defaults.
+func WithLoginAttemptCapacity(capacity int) Option {
+	return func(a *Auth) { a.limits.setLoginCapacity(capacity) }
+}
+
 type Auth struct {
 	store            *store.Store
 	users            *users.Users

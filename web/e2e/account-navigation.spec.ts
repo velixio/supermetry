@@ -96,8 +96,9 @@ test('no-site and no-organization users can use account pages and log out', asyn
 })
 
 test('logout clears the current session across tabs and back navigation; next login has fresh identity', async ({ page, owner }) => {
+  const current = await member(page.request, owner, 'admin', 'current-account')
   const next = await member(page.request, owner, 'viewer', 'next-account', true)
-  await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}`)
+  await login(page, current.email)
   await page.getByRole('button', { name: 'Account', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
   await expect(page).toHaveURL('/app/account/profile')
@@ -119,7 +120,7 @@ test('logout clears the current session across tabs and back navigation; next lo
   await login(page, next.email)
   await page.getByRole('button', { name: 'Account', exact: true }).click()
   await expect(page.getByText(next.email, { exact: true }).last()).toBeVisible()
-  await expect(page.getByText(owner.email, { exact: true })).toHaveCount(0)
+  await expect(page.getByText(current.email, { exact: true })).toHaveCount(0)
   await other.close()
 })
 

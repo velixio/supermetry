@@ -75,6 +75,40 @@ func TestLoadReplaysNDJSON(t *testing.T) {
 	}
 }
 
+func TestLoadPreservesFixtureGeographyAndRevenue(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	sitesPath := filepath.Join(t.TempDir(), "sites.json")
+	if err := os.WriteFile(sitesPath, []byte(`[{"id":1,"public_id":"site1.test","timezone":"UTC","retention_days":365,"allowed_hosts":["site1.test"],"revenue_currency":"USD","revenue_currency_state":"configured"}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := sites.LoadFile(sitesPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := bytes.NewBufferString(`{"ts":"2026-09-01T00:00:00Z","site":1,"host":"site1.test","path":"/checkout","name":"purchase","props":{"plan":"pro"},"ip":"192.0.2.1","ua":"fixture-browser","country":"US","region":"California","city":"San Francisco","browser":"Fixture","os":"FixtureOS","device":"desktop","revenue":{"amount":"49.00","currency":"USD"}}` + "\n")
+	if _, err := loadEvents(ctx, pool, registry, input, privacy.Identified); err != nil {
+		t.Fatal(err)
+	}
+
+	var region, city string
+	var revenueMicros int64
+	var currency string
+	if err := pool.QueryRow(ctx, `select region.value,city.value,e.revenue_micros,e.revenue_currency
+from events e
+join dict region on region.kind=11 and region.id=e.region_id
+join dict city on city.kind=12 and city.id=e.city_id`).Scan(&region, &city, &revenueMicros, &currency); err != nil {
+		t.Fatal(err)
+	}
+	if region != "California" || city != "San Francisco" || revenueMicros != 49_000_000 || currency != "USD" {
+		t.Fatalf("loaded geography/revenue = %q/%q %d/%q", region, city, revenueMicros, currency)
+	}
+}
+
 func TestLoadPublicPathsRemainUnverified(t *testing.T) {
 	for _, mode := range []privacy.Mode{privacy.Anonymous, privacy.Identified} {
 		t.Run(mode.String(), func(t *testing.T) {

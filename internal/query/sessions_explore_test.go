@@ -107,9 +107,10 @@ func TestSessionsHasReplayFilter(t *testing.T) {
 	if err := db.Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
+	if err := db.EnsurePartitions(ctx, pool, day("2026-10-08"), day("2026-10-09")); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := pool.Exec(ctx, `
-		create table sessions_r30_202610 partition of sessions_r30 for values from ('2026-10-01') to ('2026-11-01');
-		create table replay_sessions_202610 partition of replay_sessions for values from ('2026-10-01') to ('2026-11-01');
 		insert into sessions(site_id,retention_class,session_id,visitor_id,start,last,local_day,pageviews)
 		values (1,30,301,1,'2026-10-08 08:00Z','2026-10-08 08:01Z','2026-10-08',1),
 		       (1,30,302,2,'2026-10-08 09:00Z','2026-10-08 09:01Z','2026-10-08',1);

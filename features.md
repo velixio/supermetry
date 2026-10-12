@@ -97,6 +97,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/supermetry.service`, `deploy/README.md`) |
 | Safe installer dry-run and compatibility checks | ? | ? | ? | ✅ (`supermetry install --dry-run`, PostgreSQL 14+) |
 | Backup and restore command | – | – | – | ✅ (`supermetry backup`, `supermetry restore`) |
+| Fast local, full CI, and API-session end-to-end test lanes | ? | ? | ? | ✅ |
 | License | AGPL-3.0 | MIT | AGPL-3.0 | ✅ (Apache-2.0, `LICENSE`) |
 
 ## Priority

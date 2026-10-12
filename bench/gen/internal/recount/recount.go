@@ -37,7 +37,7 @@ var Plans = []string{"free", "pro", "team"}
 
 // fieldOrder is the exact key order of a CONTRACT event line.
 var fieldOrder = []string{"ts", "site", "host", "path", "ref", "utm_source", "utm_medium", "utm_campaign",
-	"name", "props", "ip", "ua", "screen_w", "country", "browser", "os", "device", "vk", "sk"}
+	"name", "props", "ip", "ua", "screen_w", "country", "region", "city", "browser", "os", "device", "revenue", "vk", "sk"}
 
 // Site is one entry of sites.json.
 type Site struct {
@@ -108,9 +108,12 @@ type rawEvent struct {
 	UA          string            `json:"ua"`
 	ScreenW     int               `json:"screen_w"`
 	Country     string            `json:"country"`
+	Region      string            `json:"region"`
+	City        string            `json:"city"`
 	Browser     string            `json:"browser"`
 	OS          string            `json:"os"`
 	Device      string            `json:"device"`
+	Revenue     json.RawMessage   `json:"revenue"`
 	VK          string            `json:"vk"`
 	SK          string            `json:"sk"`
 }

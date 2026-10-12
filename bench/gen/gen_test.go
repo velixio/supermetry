@@ -92,6 +92,69 @@ func TestTruthEqualsIndependentRecount(t *testing.T) {
 	checkAgainstRecount(t, o, 100*3)
 }
 
+func TestTinyFixtureCoversDashboardDimensions(t *testing.T) {
+	o := tiny(t)
+	type fixtureEvent struct {
+		Country     string            `json:"country"`
+		Region      string            `json:"region"`
+		City        string            `json:"city"`
+		Ref         string            `json:"ref"`
+		UTMSource   string            `json:"utm_source"`
+		UTMMedium   string            `json:"utm_medium"`
+		UTMCampaign string            `json:"utm_campaign"`
+		Name        string            `json:"name"`
+		Props       map[string]string `json:"props"`
+		Revenue     *struct {
+			Amount   string `json:"amount"`
+			Currency string `json:"currency"`
+		} `json:"revenue"`
+	}
+
+	countries := make(map[string]struct{})
+	var regions, cities, referrers, campaigns, customProperties, revenue int
+	scanner := bufio.NewScanner(bytes.NewReader(o.events))
+	scanner.Buffer(make([]byte, 1<<20), 1<<20)
+	for scanner.Scan() {
+		var event fixtureEvent
+		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
+			t.Fatal(err)
+		}
+		countries[event.Country] = struct{}{}
+		if event.Region != "" {
+			regions++
+		}
+		if event.City != "" {
+			cities++
+		}
+		if event.Ref != "" {
+			referrers++
+		}
+		if event.UTMSource != "" && event.UTMMedium != "" && event.UTMCampaign != "" {
+			campaigns++
+		}
+		if event.Name != "pageview" && len(event.Props) > 0 {
+			customProperties++
+		}
+		if event.Revenue != nil && event.Revenue.Amount != "" && event.Revenue.Currency == "USD" {
+			revenue++
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(countries) < 40 {
+		t.Errorf("tiny fixture has %d countries, want at least 40", len(countries))
+	}
+	for name, count := range map[string]int{
+		"regions": regions, "cities": cities, "referrers": referrers, "campaigns": campaigns,
+		"custom events with properties": customProperties, "revenue events": revenue,
+	} {
+		if count == 0 {
+			t.Errorf("tiny fixture has no %s", name)
+		}
+	}
+}
+
 // TestTruthAcrossDSTChanges covers 23- and 25-hour local days: EU and US
 // fall-back (2025-10-26, 2025-11-02) and spring-forward (2026-03-08, 03-29),
 // plus Sydney/Auckland (2026-04-05).

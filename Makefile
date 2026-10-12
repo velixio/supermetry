@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -30,6 +30,28 @@ api-inventory:
 		export SUPERMETRY_ROUTE_HITS="$$hits"; \
 		$(TEST_ENV) go test ./... -skip '^TestBackupRestoreIntegration$$'; \
 		go run ./tools/apiinv -hits "$$hits" -out docs/api
+
+# Fast feedback excludes the two database-heavy packages and runs unit-focused
+# Go tests plus the complete browser-independent web suite.
+test-fast:
+	$(TEST_ENV) GOMAXPROCS=6 go test -short -p 3 -timeout 25m $$(go list ./... | grep -Ev '/internal/(query|ingest)$$')
+	cd web && bun install --frozen-lockfile && bun run test --run --maxWorkers=3
+
+test-e2e: build
+	cd bench/gen && go run . --tier tiny --seed 42 --out testdata/tiny.ndjson --sites testdata/tiny.sites.json --truth testdata/tiny.truth.json
+	cd web && bunx playwright test e2e/account-navigation.spec.ts e2e/authorization.spec.ts --reporter=list --workers=1
+	cd web && bunx playwright test e2e/not-found.spec.ts e2e/privacy-navigation.spec.ts --reporter=list --workers=1
+	cd web && bunx playwright test e2e/a11y-audit.spec.ts e2e/api-docs.spec.ts e2e/dashboard.spec.ts e2e/dashboard-where-when.spec.ts e2e/navigation.spec.ts e2e/privacy.spec.ts e2e/revenue.spec.ts e2e/sessions.spec.ts e2e/settings.spec.ts e2e/vitals.spec.ts --reporter=list --workers=1
+	cd web && bunx playwright test e2e/account-sessions.spec.ts e2e/accuracy-live.spec.ts e2e/notifications.spec.ts e2e/project-currency.spec.ts e2e/replay-fit.spec.ts e2e/share.spec.ts --reporter=list --workers=1
+
+test-all: fixtures
+	go vet ./...
+	$(TEST_ENV) GOMAXPROCS=6 go test -p 3 -timeout 25m ./...
+	cd web && bun install --frozen-lockfile
+	cd web && bun run typecheck
+	cd web && bun run test --run --maxWorkers=3
+	cd web && bun run build
+	$(MAKE) test-e2e
 
 lint:
 	go vet ./...
