@@ -55,6 +55,14 @@ func TestAccountSessionIndependentOfOrganization(t *testing.T) {
 				if len(body.Memberships) != count {
 					t.Fatalf("memberships=%d want=%d", len(body.Memberships), count)
 				}
+
+				overview := httptest.NewRequest(http.MethodGet, "/api/private/sites/overview", nil)
+				overview.AddCookie(&http.Cookie{Name: platformauth.CookieName, Value: "viewer-session"})
+				overview.Header.Set("X-Supermetry-Org", header)
+				overviewPrincipal, overviewOK := f.authenticator.Authenticate(overview)
+				if !overviewOK || overviewPrincipal.UserID != f.users["viewer"] || overviewPrincipal.OrgID != 0 {
+					t.Fatalf("overview account principal: %+v, %t", overviewPrincipal, overviewOK)
+				}
 			}
 			for _, path := range []string{"/api/private/orgs", "/api/private/me/sessions"} {
 				if w := f.request(http.MethodGet, path, "viewer", ""); w.Code != http.StatusOK {

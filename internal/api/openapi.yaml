@@ -53,15 +53,13 @@ paths:
     patch:
       operationId: updateCurrentUser
       security: [{ cookieAuth: [] }]
-      summary: Update the display name
+      summary: Update account preferences or the display name
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [name]
-              properties: { name: { type: string, minLength: 1 } }
+              $ref: '#/components/schemas/UpdateCurrentUserRequest'
       responses:
         '200': { description: Updated identity. }
         '403': { description: A valid CSRF cookie and header are required. }
@@ -234,6 +232,31 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/overview:
+    get:
+      operationId: getSitesOverview
+      security: [{ cookieAuth: [] }]
+      summary: List every site readable by the signed-in user with aggregate traffic
+      parameters:
+        - name: period
+          in: query
+          description: Aggregate window; accepted values are 24h, 7d, and 30d.
+          schema: { type: string, default: 24h }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 200 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: One page of readable sites. Traffic is derived from bounded aggregate tables.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SitesOverviewResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/sites/{site_id}:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -2336,7 +2359,7 @@ components:
           description: Existing public site identifier, present for demo_exists.
     CurrentUserResponse:
       type: object
-      required: [user, memberships, demo_prompt_dismissed, version]
+      required: [user, preferences, memberships, demo_prompt_dismissed, version]
       properties:
         user:
           type: object
@@ -2348,6 +2371,7 @@ components:
             totp_enabled: { type: boolean }
             created_at: { type: string, format: date-time }
             last_login_at: { type: string, format: date-time }
+        preferences: { $ref: '#/components/schemas/UserPreferences' }
         memberships:
           type: array
           items:
@@ -2380,6 +2404,80 @@ components:
         version:
           type: string
           description: Build version reported by the running binary; development builds report dev.
+    UserPreferences:
+      type: object
+      additionalProperties: false
+      required: [landing_page, sites_view]
+      properties:
+        landing_page: { type: string, enum: [overview, last_site] }
+        sites_view: { type: string, enum: [cards, table] }
+        last_site_id: { type: [integer, 'null'], format: int32 }
+    UpdateCurrentUserRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1 }
+        preferences:
+          type: object
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            landing_page: { type: string, enum: [overview, last_site] }
+            sites_view: { type: string, enum: [cards, table] }
+            last_site_id: { type: [integer, 'null'], format: int32 }
+    SitesOverviewResponse:
+      type: object
+      additionalProperties: false
+      required: [data, next_cursor]
+      properties:
+        data:
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/SitesOverviewItem' }
+        next_cursor: { type: [string, 'null'] }
+    SitesOverviewItem:
+      type: object
+      additionalProperties: false
+      required: [id, org_id, public_id, name, domain, timezone, organization, role, created_at, visitors, previous_visitors, change_percent, sparkline, live_visitors, last_event_at, install_status, tracking_snippet]
+      properties:
+        id: { type: integer, format: int32 }
+        org_id: { type: integer, format: int64 }
+        public_id: { type: string }
+        name: { type: string }
+        domain: { type: string }
+        timezone: { type: string }
+        icon_url: { type: string }
+        organization:
+          type: object
+          additionalProperties: false
+          required: [id, name, slug]
+          properties:
+            id: { type: integer, format: int64 }
+            name: { type: string }
+            slug: { type: string }
+        role:
+          type: string
+          description: Membership role for the site's organization (owner, admin, editor, or viewer).
+        created_at: { type: string, format: date-time }
+        visitors: { type: integer, format: int64 }
+        previous_visitors: { type: integer, format: int64 }
+        change_percent: { type: [number, 'null'], format: double }
+        sparkline:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [start, visitors]
+            properties:
+              start: { type: string, format: date-time }
+              visitors: { type: integer, format: int64 }
+        live_visitors: { type: integer }
+        last_event_at: { type: [string, 'null'], format: date-time }
+        install_status:
+          type: string
+          description: Tracking state (waiting, receiving, or quiet).
+        tracking_snippet: { type: string }
     ShareExpiryDays:
       type: integer
       enum: [7, 30, 90, 365]

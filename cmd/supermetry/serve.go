@@ -311,6 +311,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	siteService.SetClock(settings.clock.Now)
 	siteService.SetSiteLimit(cfg.MaxSitesPerOrg)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
+	overviewService := sitesvc.NewOverview(platformStore, sessions)
+	overviewService.SetClock(settings.clock.Now)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		Version:        version,
 		TrackingMode:   cfg.Tracking.Mode,
@@ -352,6 +354,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		AdminAPIKey:       cfg.AdminAPIKey,
 		ReplayRefresh:     refreshRegistry,
 		Demo:              demoService,
+		Overview:          overviewService,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {

@@ -129,6 +129,7 @@ type Deps struct {
 	AdminAPIKey   string
 	ReplayRefresh func() error
 	Demo          DemoService
+	Overview      *sitesvc.Overview
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -164,6 +165,8 @@ type handler struct {
 	iconDiscoveryWG sync.WaitGroup
 	iconRefetchMu   sync.Mutex
 	iconRefetched   map[int32]time.Time
+	overviewLimitMu sync.Mutex
+	overviewLimits  map[int64]overviewRateWindow
 }
 
 // New returns the platform route set. It owns platform authentication so the
@@ -183,6 +186,7 @@ func New(deps Deps) http.Handler {
 		deps:            deps,
 		iconDiscoveries: make(chan struct{}, 4),
 		iconRefetched:   make(map[int32]time.Time),
+		overviewLimits:  make(map[int64]overviewRateWindow),
 	}
 	mux := http.NewServeMux()
 	h.registerPrivate(mux)
@@ -193,6 +197,7 @@ func New(deps Deps) http.Handler {
 
 func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites", h.listSites)
+	mux.HandleFunc("GET /api/private/sites/overview", h.sitesOverview)
 	mux.HandleFunc("POST /api/private/sites", h.createSite)
 	mux.HandleFunc("GET /api/private/sites/{site}", h.getSite)
 	mux.HandleFunc("GET /api/private/sites/{site}/snippet", h.siteSnippet)
