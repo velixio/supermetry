@@ -42,6 +42,7 @@ for site in $(seq 1 100); do
   ../bin/supermetry close-days --site "$site" --from 2026-09-28 --to 2026-09-30 >/dev/null
 done
 ../bin/supermetry user create --email owner@supermetry.test --org Acme > "$SUPERMETRY_E2E_RESET_FILE"
+../bin/supermetry user make-admin --email owner@supermetry.test >/dev/null
 export SUPERMETRY_LISTEN="127.0.0.1:$SUPERMETRY_E2E_PORT"
 echo "$$" > "$SUPERMETRY_E2E_SERVER_PID_FILE"
 exec ../bin/supermetry serve
