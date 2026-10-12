@@ -126,6 +126,28 @@ const messages: MessageTree = {
       users: 'Usuarios',
     },
   },
+  inspector: {
+    inspectValue: (label: string) => `Inspeccionar ${label}`,
+    close: 'Cerrar inspector',
+    resize: 'Cambiar el ancho del inspector',
+    loading: 'Cargando inspector',
+    metrics: 'Métricas de este valor',
+    topBy: (dimension: string) => `${dimension}: top 5`,
+    addFilter: 'Añadir como filtro',
+    filterApplied: 'Este valor ya es un filtro.',
+    tooManyFilters: 'Quita un filtro para inspeccionar este valor: las consultas admiten como máximo 10 filtros.',
+    outOfRange: 'Fuera de rango',
+    outOfRangeDetail: 'El rango de fechas y los filtros actuales excluyen este valor. Cámbialos o cierra el inspector.',
+    cellHint: 'Selecciona una celda para inspeccionarla.',
+    trafficScope: 'En todos los días y horas coincidentes del rango seleccionado, en la zona horaria del sitio.',
+    dimensions: {
+      page: 'Página', entry: 'Página de entrada', exit: 'Página de salida', source: 'Fuente', channel: 'Canal',
+      utm_source: 'Fuente UTM', utm_medium: 'Medio UTM', utm_campaign: 'Campaña UTM', country: 'País',
+      region: 'Región', city: 'Ciudad', language: 'Idioma', hostname: 'Nombre de host', browser: 'Navegador',
+      browser_version: 'Versión del navegador', os: 'Sistema operativo', os_version: 'Versión del sistema operativo', device: 'Dispositivo',
+      screen_size: 'Tamaño de pantalla', goal: 'Objetivo', event: 'Evento', weekday_hour: 'Ritmo semanal',
+    },
+  },
 }
 
 export default messages

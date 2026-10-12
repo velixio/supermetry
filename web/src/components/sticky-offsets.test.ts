@@ -17,6 +17,7 @@ function sourceFiles(dir: string): string[] {
 const EXPECTED = [
   'src/components/AccountFrame.tsx: sticky top-0',
   'src/components/AppHeader.tsx: sticky top-0',
+  'src/components/DashboardPanels.tsx: sticky top-28',
   'src/components/FullReportDialog.tsx: sticky top-0',
   'src/features/settings/SettingsPages.tsx: lg:sticky lg:top-17',
   'src/routes/app.$org.$site.index.tsx: sticky top-11',

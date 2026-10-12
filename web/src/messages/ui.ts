@@ -96,6 +96,28 @@ export const ui = {
       users: 'Users',
     } as Record<string, string>,
   },
+  inspector: {
+    inspectValue: (label: string) => `Inspect ${label}`,
+    close: 'Close inspector',
+    resize: 'Resize inspector',
+    loading: 'Loading inspector',
+    metrics: 'Metrics for this value',
+    topBy: (dimension: string) => `${dimension}: top 5`,
+    addFilter: 'Add as filter',
+    filterApplied: 'This value is already a filter.',
+    tooManyFilters: 'Remove a filter to inspect this value: queries allow at most 10 filters.',
+    outOfRange: 'Out of range',
+    outOfRangeDetail: 'The current date range and filters exclude this value. Change them or close the inspector.',
+    cellHint: 'Select a cell to inspect it.',
+    trafficScope: 'Across all matching weekdays and hours in the selected range, in the site time zone.',
+    dimensions: {
+      page: 'Page', entry: 'Entry page', exit: 'Exit page', source: 'Source', channel: 'Channel',
+      utm_source: 'UTM source', utm_medium: 'UTM medium', utm_campaign: 'UTM campaign', country: 'Country',
+      region: 'Region', city: 'City', language: 'Language', hostname: 'Hostname', browser: 'Browser',
+      browser_version: 'Browser version', os: 'OS', os_version: 'OS version', device: 'Device',
+      screen_size: 'Screen size', goal: 'Goal', event: 'Event', weekday_hour: 'Weekly rhythm',
+    } as Record<string, string>,
+  },
 }
 
 registerCatalogue('ui', ui)
