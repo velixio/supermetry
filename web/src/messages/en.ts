@@ -785,6 +785,10 @@ export const en = {
     machineTranslated: '(machine-assisted)',
     note: 'Some text, such as chart labels from your data, is not translated yet.',
   },
+  // UI fixes: realtime empty state, chart axis.
+  uiFix: {
+    realtimeEmpty: 'No visitors in the last 30 minutes. New activity will appear here as it arrives.',
+  },
 } as const
 
 registerCatalogue('main', en)
