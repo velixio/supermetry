@@ -3,7 +3,7 @@
 Supermetry compared with Plausible, Umami and OpenPanel, feature by feature.
 ✓ has it · – lacks it · ? not verified yet (check `knowledge/` before relying on it).
 **Supermetry**: ✅ done · ⏳ in progress · ❌ not started · ⏸ deferred.
-Evidence for the other products: [findings.md](findings.md). Last updated 2026-10-08.
+Evidence for the other products: [findings.md](findings.md). Last updated 2026-10-12. Comparison cells marked `?` have not been checked against the other product yet.
 
 ## Analytics
 
@@ -38,6 +38,11 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Heatmaps | – | ✓ | – | ✅ (aggregated clicks + scroll map, opt-in) |
 | User profiles and `identify` | – | ✓ | ✓ | ✅ (opt-in per site) |
 | Saved cohorts and power users | – | ✓ | ? | ✅ (identified mode with profiles; condition builder, size and sample on demand, cohort as dashboard filter, top profiles by sessions or events) |
+| Revenue report: orders, average order value, revenue per visitor, repeat purchases, breakdowns and attribution | ✓ (paid) | ✓ | ? | ✅ (by country, region, source, campaign, page or product; first-click, last-click or event attribution with a 1 to 90 day lookback; customers table in identified mode; CSV) |
+| Search Console queries and pages | ✓ | ? | ? | ✅ (Google OAuth, sealed tokens, daily sync, disconnect deletes tokens and data; needs `SUPERMETRY_GSC_CLIENT_ID` and `SUPERMETRY_GSC_CLIENT_SECRET`) |
+| Custom dashboards | ? | ? | ? | ✅ (saved per-site layouts of nine widget kinds, switcher, editor with reorder and resize, per-dashboard period and filters, default dashboard) |
+| "View full report" dialog for breakdown cards | ? | ? | ? | ✅ (search, sort, keyboard operable; export to CSV or JSON with column choice) |
+| Short links and tracking pixels | ? | ✓ | ? | ✅ (`/l/{slug}`, `/px/{id}.gif`, default UTM tags, expiry, click limits, QR code, per-link stats) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
@@ -53,6 +58,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Server-side events API, with examples | ✓ | ✓ | ✓ | ✅ (`docs/api.md`) |
 | Bot filtering; IP, path and country exclusion | ✓ | ✓ | ✓ | ✅ |
 | Per-site tracker settings (served script) | ✓ | – | – | ✅ (outbound, downloads, forms, 404, hash routing, clicks, Web Vitals, heatmaps) |
+| Install recipes with copy buttons and a verify check | ? | ? | ? | ✅ (HTML, React, Next.js, Vue, Nuxt, SvelteKit, Astro, Remix, Angular, WordPress, Shopify, Tag Manager, curl, Node.js, Python, Go) |
 | Install status from accepted-event last seen | ✓ | ? | ? | ✅ (Waiting, Receiving within 24h, Quiet with last seen) |
 | Hash-based routing, form submissions | ✓ | ✓ | ✓ | ✅ (per-site setting) |
 | Do Not Track / GPC, visitor opt-out | ✓ (opt-out) | ✓ (DNT) | – | ✅ (respected by default; `supermetry.optOut()`) |
@@ -67,15 +73,18 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Teams / orgs with roles | ✓ | ✓ | ✓ | ✅ |
 | Per-site access | ✓ | ✓ | ? | ✅ |
 | Two-factor auth (TOTP) | ✓ | ✓ | ? | ✅ |
+| Instance admin console and a two-factor policy | ✓ (enterprise) | ? | ? | ✅ (users, organizations, sites, settings and security; policy for nobody, instance admins, owners and admins, or everyone with a grace period and audited exemptions) |
+| Interface languages | ? | ? | ? | ✅ (English, plus machine-assisted Spanish and German; pseudo-locale for layout tests; some text is not translated yet) |
 | Account self-service: edit name, change email or password, delete account | ✓ | ✓ | ✓ | ✅ |
 | Invite-only signup by default | ✓ (`DISABLE_REGISTRATION`) | – | – | ✅ (`SUPERMETRY_SIGNUP=open` to allow) |
 | Audit log | ? | – | – | ✅ |
 | Configurable public share links (sections, locked scope, date, theme, opt-in embeds) | ✓ | ✓ | ✓ | ✅ |
+| Notification history, retries and editable message templates | ? | – | ? | ✅ |
 | Email reports | ✓ | – | ? | ✅ |
 | Alerts: traffic spike or drop, goal hit | ✓ (email, traffic spike) | – | ✓ | ✅ |
 | Webhooks, Slack, Discord | – | – | ✓ | ✅ |
 | CSV export | ✓ | ✓ | ? | ✅ (every report, streamed) |
-| Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ✅ (GA4 CSV import with dry-run preview and undo) |
+| Full export; import from Plausible, Umami, GA4, Mixpanel, Amplitude | ✓ | partial | ✓ | ✅ (file imports with dry-run preview, per-day de-duplication and undo; identifiers and IPs are never stored) |
 | Stats API: summary | ✓ | ✓ | ✓ | ✅ |
 | Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ | ✅ |
 | API: sessions, raw events, properties, suggestions | – | ✓ | ✓ | ✅ |
@@ -133,6 +142,15 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 21. ~~Exact five-minute distinct live visitor counts with three-product accuracy observation~~ ✅
 22. ~~Replay triage: search, duration/event filters, saved recordings and responsive list layouts~~ ✅
 23. ~~Notification delivery history, retries, retention and editable channel templates~~ ✅
+24. ~~Revenue report with breakdowns, attribution and customers~~ ✅
+25. ~~Short links and tracking pixels~~ ✅
+26. ~~Cohorts and power users~~ ✅
+27. ~~Importers: GA4, Mixpanel, Amplitude~~ ✅
+28. ~~Google Search Console integration~~ ✅
+29. ~~Custom dashboards (viewer and editor)~~ ✅
+30. ~~Instance admin console and two-factor policy~~ ✅
+31. ~~Install recipes, full report dialog and exports~~ ✅
+32. ~~Interface languages (Spanish and German first translations)~~ ✅
 
 ### Later
 
@@ -145,11 +163,3 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
 
 Deferred: AI insights, mobile SDKs, SSO/OIDC.
-- Revenue depth backend: breakdowns by country, region, source, campaign, page and product, first and last click attribution with a lookback window, customers list and CSV export (`/api/private/sites/{site}/revenue/*`); UI follows.
-- Short links and tracking pixels: managed slugs with default UTM parameters, expiry and click limits, a non-blocking batched click counter (bots filtered, no raw IPs), per-link statistics in the site time zone, a local QR code and a 1x1 pixel with a campaign tag and snippet generator (`/l/{slug}`, `/px/{id}.gif`, UI under Manage).
-- Custom dashboards backend: saved per-site dashboards with a versioned widget layout (KPI strip, time series, breakdown, map, weekly rhythm, goals, funnel, retention, web vitals), strict size and schema limits, optimistic-concurrency updates, a per-site default and a built-in default layout (`/api/private/sites/{site}/dashboards`); UI follows.
-- Mixpanel and Amplitude event-export importers (JSON lines, CSV, gzip or ZIP): sessionised per visitor-day in the site time zone, insert-id de-duplication, row-numbered errors, dry-run preview, history and undo; identifiers and IPs are never stored.
-- Custom dashboards editor: edit mode for saved dashboards with add, remove, reorder (buttons and Alt+arrows) and resize, per-dashboard period, comparison and filters, rename, duplicate, delete with confirmation, default flag, templates, an unsaved-changes guard and 409 conflict handling; lazy-loaded, live preview.
-- Integrations framework and Search Console backend: provider interface, sealed OAuth credentials (state-bound, PKCE), scheduled bounded imports of queries and pages with idempotent daily replace, backfill, disconnect that deletes tokens and data, and a top queries/pages read endpoint (`/api/private/sites/{site}/integrations`, `/search-console/top`); UI follows.
-- Saved dashboard viewer: a switcher on the site dashboard (choice kept in the URL as `dash`, site default opens on its own) and a 12-column responsive layout renderer that reuses the existing cards for every widget kind, with per-widget period and filter overrides and per-widget loading, empty and error states; editing follows.
-- Integrations settings page (`/app/{org}/{site}/settings/integrations`): provider status (connected, reconnect needed, sync problem) with last sync and synced-through date, connect via Google OAuth, disconnect that states tokens and imported data are deleted, role-based controls, not-configured state, and a Search Console top queries and pages report with filter and sorting.
