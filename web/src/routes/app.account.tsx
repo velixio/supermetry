@@ -33,7 +33,7 @@ export function AccountSettingsNavigation() {
       {([
         ['/app/account/profile', 'Profile'], ['/app/account/security', 'Security'], ['/app/account/sessions', 'Sessions'],
       ] as const).map(([to, label]) => (
-        <Link key={to} to={to} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-accent" activeProps={{ className: 'bg-accent font-medium', 'aria-current': 'page' }}>{label}</Link>
+        <Link key={to} to={to} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-muted" activeProps={{ className: 'bg-muted font-medium', 'aria-current': 'page' }}>{label}</Link>
       ))}
     </nav>
   )

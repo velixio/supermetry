@@ -41,7 +41,7 @@ export function AdminOrganizationsPage() {
       {organizations.isPending ? <p role="status" className="text-sm text-muted-foreground">{en.admin.loading}</p> : null}
       {organizations.data && organizations.data.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.admin.empty}</p> : null}
       {organizations.data && organizations.data.data.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="relative overflow-x-auto rounded-lg border" tabIndex={0}>
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.organizations}</caption>
             <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">

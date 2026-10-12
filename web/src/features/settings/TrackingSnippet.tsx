@@ -97,7 +97,7 @@ export function TrackingSnippet({
           </p>
         </>
       )}
-      <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all">
+      <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all" tabIndex={0}>
         <code>{snippet}</code>
       </pre>
       <div className="flex items-center gap-3">

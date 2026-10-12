@@ -73,7 +73,7 @@ function PowerUsersContent({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="min-w-0 overflow-x-auto rounded-xl border bg-card">
+            <div className="min-w-0 overflow-x-auto rounded-xl border bg-card" tabIndex={0}>
               <Table aria-label={t.powerTitle}>
                 <TableHeader>
                   <TableRow>

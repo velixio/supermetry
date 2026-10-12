@@ -64,7 +64,7 @@ export function WorldMap({ rows, metric = 'visitors', selectedCountry, activeCou
 
   return (
     <div className="flex w-full min-w-0 flex-col">
-      <svg aria-describedby={describedBy} aria-label={WORLD_MAP_LABEL} className="block w-full lg:min-h-[260px]" role="group" viewBox="0 0 1000 445">
+      <svg aria-describedby={describedBy} aria-label={WORLD_MAP_LABEL} className="block w-full lg:min-h-[260px]" role="group" viewBox="0 12 1000 398">
         {paths.map(([country, path]) => {
           const value = valueByCountry.get(country) ?? 0
           const step = rampStep(value, maximum)

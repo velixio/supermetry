@@ -169,14 +169,14 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
         <p className="text-sm text-muted-foreground">A live view of the last 30 minutes. Updates every 5 seconds.</p>
       </header>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(14rem,0.7fr)_minmax(0,2fr)]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
         <Card className="overflow-hidden border-accent/30 bg-accent/[0.025]">
           <CardHeader className="sr-only">
             <CardTitle>Live visitors</CardTitle>
             <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
               <section className="flex flex-col gap-2" aria-labelledby="live-now-title">
                 <h2 className="flex items-center gap-2 text-sm font-medium" id="live-now-title">
                   <span className="relative flex size-2" aria-hidden="true">
@@ -207,7 +207,12 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
             <CardDescription>The pulse of the site, newest minute on the right.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-44 w-full" role="img" aria-label="Visitors during the last 30 minutes">
+            {chartPoints.every((point) => Number(point.visitors) === 0) ? (
+              <p className="flex h-44 w-full items-center justify-center rounded-md border border-dashed px-4 text-center text-sm text-muted-foreground" data-testid="realtime-empty">
+                {en.uiFix.realtimeEmpty}
+              </p>
+            ) : null}
+            <div className={chartPoints.every((point) => Number(point.visitors) === 0) ? 'sr-only' : 'h-44 w-full'} role="img" aria-label="Visitors during the last 30 minutes">
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={chartPoints} accessibilityLayer>
                   <XAxis dataKey="label" axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30} />
