@@ -257,4 +257,45 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByText(/live$/)).not.toBeInTheDocument()
     expect(useLiveSummary).not.toHaveBeenCalled()
   })
+
+  it('renders exactly one 44px sticky bar above the content and no project tabs', async () => {
+    const { container } = renderShell('/app/acme/docs/settings/general')
+    const header = await screen.findByRole('banner', { name: 'Application header' })
+    expect(header).toHaveClass('sticky', 'top-0', 'h-11')
+    expect(container.querySelectorAll('.sticky')).toHaveLength(1)
+    expect(screen.queryByRole('navigation', { name: 'Projects' })).not.toBeInTheDocument()
+  })
+
+  it('switches projects and organisations only from the sidebar header', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const sidebar = await screen.findByRole('complementary', { name: 'Application sidebar' })
+    expect(screen.queryAllByRole('link', { name: 'Other' })).toHaveLength(0)
+    expect(screen.queryByRole('link', { name: 'Add project' })).not.toBeInTheDocument()
+    fireEvent.pointerDown(within(sidebar).getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    const menu = await screen.findByRole('menu')
+    expect(within(menu).getByRole('menuitem', { name: /Other/ }).getAttribute('href')).toMatch(/^\/app\/acme\/other\?/)
+    expect(within(menu).getByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
+  })
+
+  it('pins the header to the top with no sites and keeps Add site in the switcher', async () => {
+    renderShell('/app/acme/settings/members', { ...membership, sites: [] })
+    const header = await screen.findByRole('banner', { name: 'Application header' })
+    expect(header).toHaveClass('top-0')
+    const settings = screen.getByRole('navigation', { name: 'Settings' })
+    expect(within(settings).getAllByRole('link').map((link) => link.textContent)).toEqual(['Organization settings'])
+    fireEvent.pointerDown(screen.getByRole('button', { name: /Site\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    expect(await screen.findByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
+  })
+
+  it('orders focus as skip link, sidebar, header, then main', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const skip = await screen.findByRole('link', { name: 'Skip to main content' })
+    const sidebar = screen.getByRole('complementary', { name: 'Application sidebar' })
+    const header = screen.getByRole('banner', { name: 'Application header' })
+    const main = screen.getByRole('main', { name: 'Main content' })
+    const follows = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(follows(skip, sidebar)).toBe(true)
+    expect(follows(sidebar, header)).toBe(true)
+    expect(follows(header, main)).toBe(true)
+  })
 })

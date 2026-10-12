@@ -1,14 +1,11 @@
 import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
 import { AuthorizationProvider } from '@/lib/authorization'
-import { useEffect, useId, useRef, useState } from 'react'
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Outlet, useRouterState } from '@tanstack/react-router'
 
-import { isAnonymousTracking } from '@/lib/tracking-policy'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
-import { LiveBadge } from '@/components/LiveBadge'
+import { AppHeader } from './AppHeader'
 import { GeolocationCredit } from '@/components/GeolocationCredit'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -16,13 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { useLiveSummary } from '@/features/realtime/useLiveSummary'
-import { cn } from '@/lib/utils'
-import { Breadcrumbs } from './Breadcrumbs'
-import { ProjectTabs } from './ProjectTabs'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
@@ -33,42 +26,6 @@ import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
 import { ui } from '@/messages/ui'
-
-function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number; org: string; site: string; detailsAvailable: boolean }) {
-  const descriptionId = useId()
-  const summary = useLiveSummary(siteId)
-  if (summary.isError) return null
-
-  const description = summary.data
-    ? en.liveAccuracy.badgeDescription
-      .replace('{count}', String(summary.data.active_visitors))
-      .replace('{thirty}', String(summary.data.visitors_last_30m))
-    : ui.appShell.loadingLive
-
-  const badge = (
-    <LiveBadge
-      count={summary.data?.active_visitors ?? 0}
-      disableLabel={description}
-      enableLabel={description}
-      enabled
-      label={summary.data ? (count) => `${count} live` : () => '— live'}
-      muted={summary.isPending}
-    />
-  )
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {detailsAvailable ? (
-          <Link aria-describedby={descriptionId} params={{ org, site }} to="/app/$org/$site/realtime">
-            {badge}
-          </Link>
-        ) : <span aria-describedby={descriptionId} tabIndex={0}>{badge}</span>}
-      </TooltipTrigger>
-      <TooltipContent>{description}</TooltipContent>
-      <span className="sr-only" id={descriptionId}>{description}</span>
-    </Tooltip>
-  )
-}
 
 function sidebarStartsOpen(): boolean {
   return !document.cookie
@@ -128,42 +85,14 @@ export function AppShell({
         </a>
         <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} />
         <SidebarInset>
-          {membership.sites.length > 0 ? <ProjectTabs membership={membership} activeSiteId={scopedSite?.id} /> : null}
-          <header aria-label={en.a11y2.applicationHeader} className={cn('sticky z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4', membership.sites.length > 0 ? 'top-9' : 'top-0')}>
-            <div className="flex min-w-0 items-center gap-2">
-              <SidebarTrigger aria-label={en.navigation.collapse} />
-              <Breadcrumbs membership={membership} />
-            </div>
-            <div className="flex items-center gap-1">
-              {scopedSite && requestedSite ? (
-                <div className="hidden sm:block"><SiteLiveBadge
-                  org={membership.org.slug}
-                  site={requestedSite}
-                  siteId={scopedSite.id}
-                  detailsAvailable={!isAnonymousTracking(scopedSite)}
-                /></div>
-              ) : null}
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="hidden sm:inline-flex"
-                aria-label={en.shortcuts.open}
-                onClick={() => setHelpOpen(true)}
-              >
-                <CircleHelpIcon />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                aria-label={theme === 'dark' ? en.theme.dark : en.theme.light}
-                onClick={toggle}
-              >
-                {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-              </Button>
-            </div>
-          </header>
+          <AppHeader
+            membership={membership}
+            site={scopedSite}
+            requestedSite={requestedSite}
+            theme={theme}
+            onToggleTheme={toggle}
+            onOpenHelp={() => setHelpOpen(true)}
+          />
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
             {scopedSite?.is_demo ? (
               <DemoBanner org={membership.org} site={scopedSite} />

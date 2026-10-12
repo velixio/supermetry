@@ -15,6 +15,8 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   })
   await page.setViewportSize({ width: 1440, height: 900 })
   await owner.login(page, dashboard)
+  await expect(page.getByRole('navigation', { name: 'Projects' })).toHaveCount(0)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
 
   let documentRequests = 0
   const countDocuments = (request: Request) => {
