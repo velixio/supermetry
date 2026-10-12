@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,9 +50,15 @@ type loadRecord struct {
 	UserAgent   string            `json:"ua"`
 	ScreenWidth int16             `json:"screen_w"`
 	Country     string            `json:"country"`
+	Region      string            `json:"region"`
+	City        string            `json:"city"`
 	Browser     string            `json:"browser"`
 	OS          string            `json:"os"`
 	Device      string            `json:"device"`
+	Revenue     struct {
+		Amount   json.RawMessage `json:"amount"`
+		Currency string          `json:"currency"`
+	} `json:"revenue"`
 }
 
 func loadCommand(ctx context.Context, in io.Reader, out io.Writer) error {
@@ -247,7 +254,8 @@ func (l *ndjsonLoader) loadChunk(ctx context.Context, records []loadRecord) erro
 			VisitorID: visitorID, PrevVisitorID: previousVisitorID, Kind: kind,
 			PathID: dimensions.paths[i], NameID: nameID, Source: dimensions.sources[i], UTMSource: dimensions.utmSources[i],
 			Medium: dimensions.mediums[i], Campaign: dimensions.campaigns[i],
-			Country: record.Country, Browser: dimensions.browsers[i], OS: dimensions.operatingSystems[i],
+			Country: record.Country, Region: dimensions.regions[i], City: dimensions.cities[i],
+			Browser: dimensions.browsers[i], OS: dimensions.operatingSystems[i],
 			Device: loadDevice(record.Device),
 		}
 		result := l.sessions.Touch(hit)
@@ -258,6 +266,14 @@ func (l *ndjsonLoader) loadChunk(ctx context.Context, records []loadRecord) erro
 		}
 		if kind == 1 {
 			event.Props = record.Props
+			if len(record.Revenue.Amount) != 0 {
+				micros, ok := parseLoadRevenue(record.Revenue.Amount)
+				if !ok || len(record.Revenue.Currency) != 3 {
+					return errors.New("invalid revenue")
+				}
+				event.RevenueMicros = micros
+				event.RevenueCurrency = strings.ToUpper(record.Revenue.Currency)
+			}
 		}
 		for !l.writer.Enqueue(event) {
 			select {
@@ -288,7 +304,7 @@ func (l *ndjsonLoader) ensurePartitions(ctx context.Context, first, last time.Ti
 }
 
 type loadDimensions struct {
-	paths, referrers, sources, utmSources, mediums, campaigns, names, browsers, operatingSystems []int32
+	paths, referrers, sources, utmSources, mediums, campaigns, names, regions, cities, browsers, operatingSystems []int32
 }
 
 func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (loadDimensions, error) {
@@ -323,6 +339,8 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 		{dict.Medium, mediums, nil},
 		{dict.Campaign, values(func(r loadRecord) string { return r.UTMCampaign }), nil},
 		{dict.EventName, values(func(r loadRecord) string { return r.Name }), nil},
+		{dict.Region, values(func(r loadRecord) string { return r.Region }), nil},
+		{dict.City, values(func(r loadRecord) string { return r.City }), nil},
 		{dict.Browser, values(func(r loadRecord) string { return r.Browser }), nil},
 		{dict.OS, values(func(r loadRecord) string { return r.OS }), nil},
 	}
@@ -334,8 +352,10 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 	lookups[4].to = &dimensions.mediums
 	lookups[5].to = &dimensions.campaigns
 	lookups[6].to = &dimensions.names
-	lookups[7].to = &dimensions.browsers
-	lookups[8].to = &dimensions.operatingSystems
+	lookups[7].to = &dimensions.regions
+	lookups[8].to = &dimensions.cities
+	lookups[9].to = &dimensions.browsers
+	lookups[10].to = &dimensions.operatingSystems
 	for _, lookup := range lookups {
 		ids, err := dimensionIDs(ctx, l.dictionary, lookup.kind, lookup.values)
 		if err != nil {
@@ -344,6 +364,39 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 		*lookup.to = ids
 	}
 	return dimensions, nil
+}
+
+func parseLoadRevenue(raw json.RawMessage) (int64, bool) {
+	var amount string
+	if err := json.Unmarshal(raw, &amount); err != nil {
+		amount = string(raw)
+	}
+	parts := strings.Split(amount, ".")
+	if len(parts) > 2 || parts[0] == "" || strings.HasPrefix(parts[0], "-") {
+		return 0, false
+	}
+	whole, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil || whole > 1_000_000_000_000 {
+		return 0, false
+	}
+	fraction := ""
+	if len(parts) == 2 {
+		fraction = parts[1]
+	}
+	if len(fraction) > 6 {
+		return 0, false
+	}
+	for len(fraction) < 6 {
+		fraction += "0"
+	}
+	fractionMicros := int64(0)
+	if fraction != "" {
+		fractionMicros, err = strconv.ParseInt(fraction, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+	}
+	return whole*1_000_000 + fractionMicros, true
 }
 
 func dimensionIDs(ctx context.Context, dictionary *dict.Dict, kind dict.Kind, values []string) ([]int32, error) {

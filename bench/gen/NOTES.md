@@ -27,7 +27,7 @@ The summary on stderr gives counts, rate, bytes and max RSS. The CLI sets a 1 Gi
 - `main.go`: the CLI (generate, `verify`).
 - `internal/synth/`: the generator. `model.go` holds every tunable and table; `generator.go` sites, identities, volume; `unit.go` the per-(site, day) simulation; `truth.go` the generator's own accounting; `format.go` the NDJSON; `run.go` the pipeline.
 - `internal/recount/`: an **independent** recount from the NDJSON alone (encoding/json, ip+ua visitors, 30-minute-timeout sessions). It imports nothing from `synth`. It also checks every stream invariant. `gen verify` uses it.
-- `testdata/`: `tiny.ndjson` (33K events, 16 MB), `tiny.truth.json`, `tiny.sites.json`, for other agents. `TestFixturesUpToDate` fails if they go stale.
+- `testdata/`: `tiny.ndjson` (33K events, 18 MB), `tiny.truth.json`, `tiny.sites.json`, for other agents. `TestFixturesUpToDate` fails if they go stale.
 
 ## Design
 
@@ -76,6 +76,8 @@ Memory is about 1.5 days of compact events plus in-flight buffers. Truth rows ar
 | Next-day return ≈ 30% | 30.0% of (site, ip, ua) |
 | Mobile / desktop / tablet | 55% / 42% / 3%; screen widths per device and iOS/other (mobile < 576, tablet 768–962, desktop ≥ 1280) |
 | Countries | 50 weighted (US 22%, IN 12%, DE 7%, GB 6%, BR 5%, …), plus 30% home country for sites with one (NY→US, Berlin→DE, Kolkata→IN, Kathmandu→NP, …) |
+| Regions and cities | Every visitor has a deterministic country-consistent location; high-volume countries have several real region/city pairs, including four US pairs |
+| Revenue | Signup custom events carry deterministic USD revenue by plan ($19, $49, or $199); other events carry an empty revenue object |
 | 20K distinct paths on the biggest site | vocabulary 20,000 (Zipf s = 1): 17.8K seen in one S day, 19,999 in a week; smallest site 267 (177/day) |
 | Funnel F | step2/step1 = 16%, step3/step2 = 26% (`/` → `/pricing` 22%; custom event after `/pricing` 30%, 75% of them signup) |
 | signup.plan | free 60%, pro 30%, team 10% |
@@ -114,6 +116,7 @@ Rows are ordered by (date, site). `date` is the site-local date.
 8. **Visitors** are per site-local day; there is no "new vs returning" in the truth. `vk` is person-stable across days, which is useful for Umami-style session rows.
 9. **Props**: the scorecard says "3 props each", the CONTRACT says "at most 3", so every custom event has exactly 3. Keys are sorted: signup {billing, method, plan}, download {file, position, type}, outbound {domain, position, url}.
 10. **IPs** are public-range but synthetic; a GeoIP lookup will **not** match `country`. Any HTTP-ingest test that relies on an incumbent's GeoIP should compare country breakdowns as INFO only.
+11. **Fixture regeneration (2026-10-12)** used the documented tiny command with seed 42 after adding `region`, `city`, and `revenue` fields. Existing truth and sites bytes remained unchanged because those additions extend the event stream without changing the established truth dimensions or counts; the independent recount still reports zero differences.
 
 ## Measured performance
 

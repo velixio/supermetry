@@ -115,7 +115,7 @@ type Generator struct {
 	// formatting chunks
 	channelChunk [][]byte
 	uaChunk      [][]byte
-	uaTail       [][]byte
+	uaTail       [][]byte // starts with browser after the formatter adds city
 	nameChunk    [][]byte
 }
 
@@ -211,7 +211,7 @@ func (g *Generator) buildTables() error {
 		g.uaOS = append(g.uaOS, indexOf(&g.oses, u.os))
 		g.uaDevice = append(g.uaDevice, indexOf(&g.devices, u.device))
 		g.uaChunk = append(g.uaChunk, []byte(`","ua":"`+u.ua+`","screen_w":`))
-		g.uaTail = append(g.uaTail, []byte(`","browser":"`+u.browser+`","os":"`+u.os+`","device":"`+u.device+`","vk":"`))
+		g.uaTail = append(g.uaTail, []byte(`","browser":"`+u.browser+`","os":"`+u.os+`","device":"`+u.device+`"`))
 	}
 	if len(channels) > 255 || len(userAgents) > 255 || len(countries) > 255 {
 		return fmt.Errorf("table too large for uint8 indexes")
