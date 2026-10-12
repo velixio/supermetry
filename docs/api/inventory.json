@@ -1,0 +1,1987 @@
+[
+  {
+    "method": "",
+    "pattern": "/",
+    "group": "/",
+    "handler": "func",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "",
+    "pattern": "/api/private/",
+    "group": "/api/private/",
+    "handler": "func",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/annotations/{annotation}",
+    "group": "/api/private/annotations",
+    "handler": "h.deleteAnnotation",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/annotations/{annotation}",
+    "group": "/api/private/annotations",
+    "handler": "h.updateAnnotation",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/auth/config",
+    "group": "/api/private/auth",
+    "handler": "h.authConfig",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/auth/email-change/confirm",
+    "group": "/api/private/auth",
+    "handler": "h.confirmEmailChange",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/auth/email-change/confirm",
+    "group": "/api/private/auth",
+    "handler": "h.confirmEmailChange",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/auth/login",
+    "group": "/api/private/auth",
+    "handler": "h.login",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/auth/logout",
+    "group": "/api/private/auth",
+    "handler": "h.logout",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/auth/password-reset",
+    "group": "/api/private/auth",
+    "handler": "h.startPasswordReset",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/auth/password-reset/confirm",
+    "group": "/api/private/auth",
+    "handler": "h.finishPasswordReset",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/auth/signup",
+    "group": "/api/private/auth",
+    "handler": "h.signup",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/erasures/{erasure}",
+    "group": "/api/private/erasures",
+    "handler": "h.getPrivateErasure",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/erasures/{erasure}/retry",
+    "group": "/api/private/erasures",
+    "handler": "h.retryErasure",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/funnels/query",
+    "group": "/api/private/funnels",
+    "handler": "h.funnelRequest",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/funnels/{funnel}",
+    "group": "/api/private/funnels",
+    "handler": "h.deleteFunnel",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/funnels/{funnel}",
+    "group": "/api/private/funnels",
+    "handler": "h.updateFunnel",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/goals/{goal}",
+    "group": "/api/private/goals",
+    "handler": "h.deleteGoal",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/goals/{goal}",
+    "group": "/api/private/goals",
+    "handler": "h.updateGoal",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/health",
+    "group": "/api/private/health",
+    "handler": "dataHealthHandler",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/heatmaps/query",
+    "group": "/api/private/heatmaps",
+    "handler": "h.heatmapRequest",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/imports/{import}",
+    "group": "/api/private/imports",
+    "handler": "h.deleteImport",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/instance/replay-storage",
+    "group": "/api/private/instance",
+    "handler": "h.getReplayStorage",
+    "auth": "instance-admin",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PUT",
+    "pattern": "/api/private/instance/replay-storage",
+    "group": "/api/private/instance",
+    "handler": "h.putReplayStorage",
+    "auth": "instance-admin",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/invitations/{token}/accept",
+    "group": "/api/private/invitations",
+    "handler": "h.acceptInvitation",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/journeys/query",
+    "group": "/api/private/journeys",
+    "handler": "h.journeyRequest",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/me",
+    "group": "/api/private/me",
+    "handler": "h.deleteAccount",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/me",
+    "group": "/api/private/me",
+    "handler": "h.me",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/me",
+    "group": "/api/private/me",
+    "handler": "h.updateMe",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/me/demo-prompt/dismiss",
+    "group": "/api/private/me",
+    "handler": "h.dismissDemoPrompt",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/me/email",
+    "group": "/api/private/me",
+    "handler": "h.startEmailChange",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/me/ip",
+    "group": "/api/private/me",
+    "handler": "h.currentIP",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/me/orgs/deleted",
+    "group": "/api/private/me",
+    "handler": "h.listDeletedOrgs",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/me/orgs/{org}/restore",
+    "group": "/api/private/me",
+    "handler": "h.restoreOrg",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/me/password",
+    "group": "/api/private/me",
+    "handler": "h.changePassword",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/me/sessions",
+    "group": "/api/private/me",
+    "handler": "h.revokeOtherSessions",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/me/sessions",
+    "group": "/api/private/me",
+    "handler": "h.listSessions",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/me/sessions/{session}",
+    "group": "/api/private/me",
+    "handler": "h.revokeSession",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/me/totp",
+    "group": "/api/private/me",
+    "handler": "h.disableTOTP",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/me/totp",
+    "group": "/api/private/me",
+    "handler": "h.confirmTOTP",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/me/totp",
+    "group": "/api/private/me",
+    "handler": "h.enrollTOTP",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/me/totp/recovery-codes",
+    "group": "/api/private/me",
+    "handler": "h.regenerateTOTPRecoveryCodes",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs",
+    "group": "/api/private/orgs",
+    "handler": "h.listOrgs",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/orgs",
+    "group": "/api/private/orgs",
+    "handler": "h.createOrg",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/orgs/{org}",
+    "group": "/api/private/orgs",
+    "handler": "h.deleteOrg",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}",
+    "group": "/api/private/orgs",
+    "handler": "h.getOrg",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/orgs/{org}",
+    "group": "/api/private/orgs",
+    "handler": "h.renameOrg",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}/api-keys",
+    "group": "/api/private/orgs",
+    "handler": "h.listAPIKeys",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/orgs/{org}/api-keys",
+    "group": "/api/private/orgs",
+    "handler": "h.createAPIKey",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/orgs/{org}/api-keys/{key}",
+    "group": "/api/private/orgs",
+    "handler": "h.revokeAPIKey",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}/audit",
+    "group": "/api/private/orgs",
+    "handler": "h.listAudit",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}/channels",
+    "group": "/api/private/orgs",
+    "handler": "h.listChannels",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/orgs/{org}/channels",
+    "group": "/api/private/orgs",
+    "handler": "h.createChannel",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/orgs/{org}/channels/{channel}",
+    "group": "/api/private/orgs",
+    "handler": "h.deleteChannel",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/orgs/{org}/channels/{channel}",
+    "group": "/api/private/orgs",
+    "handler": "h.updateChannel",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/orgs/{org}/channels/{channel}/test",
+    "group": "/api/private/orgs",
+    "handler": "h.testChannel",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/orgs/{org}/demo",
+    "group": "/api/private/orgs",
+    "handler": "h.createDemo",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}/invitations",
+    "group": "/api/private/orgs",
+    "handler": "h.listInvitations",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/orgs/{org}/invitations",
+    "group": "/api/private/orgs",
+    "handler": "h.createInvitation",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/orgs/{org}/invitations/{invitation}",
+    "group": "/api/private/orgs",
+    "handler": "h.revokeInvitation",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}/members",
+    "group": "/api/private/orgs",
+    "handler": "h.listMembers",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/orgs/{org}/members/{user}",
+    "group": "/api/private/orgs",
+    "handler": "h.deleteMember",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/orgs/{org}/members/{user}",
+    "group": "/api/private/orgs",
+    "handler": "h.updateMember",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}/sites/deleted",
+    "group": "/api/private/orgs",
+    "handler": "h.listDeletedSites",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/profiles/{profile}",
+    "group": "/api/private/profiles",
+    "handler": "h.deleteProfile",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/profiles/{profile}",
+    "group": "/api/private/profiles",
+    "handler": "h.getProfile",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/query",
+    "group": "/api/private/query",
+    "handler": "h.queryRequest",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/realtime",
+    "group": "/api/private/realtime",
+    "handler": "realtimeHandler",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/realtime/summary",
+    "group": "/api/private/realtime",
+    "handler": "realtimeSummaryHandler",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/retention/query",
+    "group": "/api/private/retention",
+    "handler": "h.retentionRequest",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/segments/{segment}",
+    "group": "/api/private/segments",
+    "handler": "h.deleteSegment",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/segments/{segment}",
+    "group": "/api/private/segments",
+    "handler": "h.updateSegment",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sessions/{session}",
+    "group": "/api/private/sessions",
+    "handler": "h.getSession",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/setup",
+    "group": "/api/private/setup",
+    "handler": "h.setup",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/setup/status",
+    "group": "/api/private/setup",
+    "handler": "h.setupStatus",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/share/{slug}/open",
+    "group": "/api/private/share",
+    "handler": "h.openShare",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/share/{slug}/query",
+    "group": "/api/private/share",
+    "handler": "h.shareQuery",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/share/{slug}/stats/summary",
+    "group": "/api/private/share",
+    "handler": "h.shareStats",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites",
+    "group": "/api/private/sites",
+    "handler": "h.listSites",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites",
+    "group": "/api/private/sites",
+    "handler": "h.createSite",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}",
+    "group": "/api/private/sites",
+    "handler": "h.deleteSite",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}",
+    "group": "/api/private/sites",
+    "handler": "h.getSite",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/sites/{site}",
+    "group": "/api/private/sites",
+    "handler": "h.updateSite",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/alerts",
+    "group": "/api/private/sites",
+    "handler": "h.listAlerts",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/alerts",
+    "group": "/api/private/sites",
+    "handler": "h.createAlert",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/alerts/{alert}",
+    "group": "/api/private/sites",
+    "handler": "h.deleteAlert",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/sites/{site}/alerts/{alert}",
+    "group": "/api/private/sites",
+    "handler": "h.updateAlert",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/annotations",
+    "group": "/api/private/sites",
+    "handler": "h.listAnnotations",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/annotations",
+    "group": "/api/private/sites",
+    "handler": "h.createAnnotation",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/demo/heartbeat",
+    "group": "/api/private/sites",
+    "handler": "h.demoHeartbeat",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/events",
+    "group": "/api/private/sites",
+    "handler": "h.events",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/export",
+    "group": "/api/private/sites",
+    "handler": "h.exportSite",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/funnels",
+    "group": "/api/private/sites",
+    "handler": "h.listFunnels",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/funnels",
+    "group": "/api/private/sites",
+    "handler": "h.createFunnel",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/goals",
+    "group": "/api/private/sites",
+    "handler": "h.listGoals",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/goals",
+    "group": "/api/private/sites",
+    "handler": "h.createGoal",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/icon/refetch",
+    "group": "/api/private/sites",
+    "handler": "h.refetchSiteIcon",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/imports",
+    "group": "/api/private/sites",
+    "handler": "h.listImports",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/imports",
+    "group": "/api/private/sites",
+    "handler": "h.createImport",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/profiles",
+    "group": "/api/private/sites",
+    "handler": "h.listProfiles",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/properties",
+    "group": "/api/private/sites",
+    "handler": "h.properties",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/properties/{key}/values",
+    "group": "/api/private/sites",
+    "handler": "h.propertyValues",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/purge-requests",
+    "group": "/api/private/sites",
+    "handler": "h.listDataPurges",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/purge-requests",
+    "group": "/api/private/sites",
+    "handler": "h.createDataPurge",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/replay-settings",
+    "group": "/api/private/sites",
+    "handler": "h.getReplaySettings",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PUT",
+    "pattern": "/api/private/sites/{site}/replay-settings",
+    "group": "/api/private/sites",
+    "handler": "h.putReplaySettings",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/replays",
+    "group": "/api/private/sites",
+    "handler": "h.listReplays",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/replays/{replay_path...}",
+    "group": "/api/private/sites",
+    "handler": "h.replayAsset",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/reports",
+    "group": "/api/private/sites",
+    "handler": "h.listReports",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/reports",
+    "group": "/api/private/sites",
+    "handler": "h.subscribeReport",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/reports/{report}",
+    "group": "/api/private/sites",
+    "handler": "h.deleteReport",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/restore",
+    "group": "/api/private/sites",
+    "handler": "h.restoreSite",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/segments",
+    "group": "/api/private/sites",
+    "handler": "h.listSegments",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/segments",
+    "group": "/api/private/sites",
+    "handler": "h.createSegment",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/sessions",
+    "group": "/api/private/sites",
+    "handler": "h.listSessions",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/shares",
+    "group": "/api/private/sites",
+    "handler": "h.listShares",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/shares",
+    "group": "/api/private/sites",
+    "handler": "h.createShare",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/shares/{share}",
+    "group": "/api/private/sites",
+    "handler": "h.revokeShare",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/sites/{site}/shares/{share}",
+    "group": "/api/private/sites",
+    "handler": "h.changeShareExpiry",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/snippet",
+    "group": "/api/private/sites",
+    "handler": "h.siteSnippet",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/suggestions",
+    "group": "/api/private/sites",
+    "handler": "h.suggestions",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/stats/breakdown",
+    "group": "/api/private/stats",
+    "handler": "h.statsBreakdown",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/stats/summary",
+    "group": "/api/private/stats",
+    "handler": "h.statsSummary",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/stats/timeseries",
+    "group": "/api/private/stats",
+    "handler": "h.statsTimeseries",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/vitals/query",
+    "group": "/api/private/vitals",
+    "handler": "h.vitalsRequest",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/openapi.json",
+    "group": "/api/public/openapi.json",
+    "handler": "serveOpenAPI",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "",
+    "pattern": "/api/public/v1/",
+    "group": "/api/public/v1",
+    "handler": "func",
+    "auth": "public-key",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/public/v1/annotations/{annotation}",
+    "group": "/api/public/v1",
+    "handler": "h.deleteAnnotation",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/public/v1/annotations/{annotation}",
+    "group": "/api/public/v1",
+    "handler": "h.updateAnnotation",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/api-keys",
+    "group": "/api/public/v1",
+    "handler": "h.listPublicAPIKeys",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/api-keys",
+    "group": "/api/public/v1",
+    "handler": "h.createPublicAPIKey",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/public/v1/api-keys/{key}",
+    "group": "/api/public/v1",
+    "handler": "h.revokePublicAPIKey",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/erasures/{erasure}",
+    "group": "/api/public/v1",
+    "handler": "h.getPublicErasure",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "OPTIONS",
+    "pattern": "/api/public/v1/events",
+    "group": "/api/public/v1",
+    "handler": "deps.Ingest",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/events",
+    "group": "/api/public/v1",
+    "handler": "deps.Ingest",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/funnels/query",
+    "group": "/api/public/v1",
+    "handler": "h.funnelRequest",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/public/v1/funnels/{funnel}",
+    "group": "/api/public/v1",
+    "handler": "h.deleteFunnel",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/public/v1/funnels/{funnel}",
+    "group": "/api/public/v1",
+    "handler": "h.updateFunnel",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/public/v1/goals/{goal}",
+    "group": "/api/public/v1",
+    "handler": "h.deleteGoal",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/public/v1/goals/{goal}",
+    "group": "/api/public/v1",
+    "handler": "h.updateGoal",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/heatmaps/query",
+    "group": "/api/public/v1",
+    "handler": "h.heatmapRequest",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/journeys/query",
+    "group": "/api/public/v1",
+    "handler": "h.journeyRequest",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/mcp",
+    "group": "/api/public/v1",
+    "handler": "NewMCPHandler",
+    "auth": "public-key",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/profiles/{profile}",
+    "group": "/api/public/v1",
+    "handler": "h.getProfile",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/query",
+    "group": "/api/public/v1",
+    "handler": "h.queryRequest",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/realtime",
+    "group": "/api/public/v1",
+    "handler": "realtimeHandler",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/realtime/summary",
+    "group": "/api/public/v1",
+    "handler": "realtimeSummaryHandler",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/retention/query",
+    "group": "/api/public/v1",
+    "handler": "h.retentionRequest",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/public/v1/segments/{segment}",
+    "group": "/api/public/v1",
+    "handler": "h.deleteSegment",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/public/v1/segments/{segment}",
+    "group": "/api/public/v1",
+    "handler": "h.updateSegment",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sessions/{session}",
+    "group": "/api/public/v1",
+    "handler": "h.getSession",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites",
+    "group": "/api/public/v1",
+    "handler": "h.listSites",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/sites",
+    "group": "/api/public/v1",
+    "handler": "h.createSite",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/public/v1/sites/{site}",
+    "group": "/api/public/v1",
+    "handler": "h.deleteSite",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}",
+    "group": "/api/public/v1",
+    "handler": "h.getSite",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/public/v1/sites/{site}",
+    "group": "/api/public/v1",
+    "handler": "h.updateSite",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/annotations",
+    "group": "/api/public/v1",
+    "handler": "h.listAnnotations",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/sites/{site}/annotations",
+    "group": "/api/public/v1",
+    "handler": "h.createAnnotation",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/events",
+    "group": "/api/public/v1",
+    "handler": "h.events",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/funnels",
+    "group": "/api/public/v1",
+    "handler": "h.listFunnels",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/sites/{site}/funnels",
+    "group": "/api/public/v1",
+    "handler": "h.createFunnel",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/goals",
+    "group": "/api/public/v1",
+    "handler": "h.listGoals",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/sites/{site}/goals",
+    "group": "/api/public/v1",
+    "handler": "h.createGoal",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/profiles",
+    "group": "/api/public/v1",
+    "handler": "h.listProfiles",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/properties",
+    "group": "/api/public/v1",
+    "handler": "h.properties",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/properties/{key}/values",
+    "group": "/api/public/v1",
+    "handler": "h.propertyValues",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/segments",
+    "group": "/api/public/v1",
+    "handler": "h.listSegments",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/sites/{site}/segments",
+    "group": "/api/public/v1",
+    "handler": "h.createSegment",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/sessions",
+    "group": "/api/public/v1",
+    "handler": "h.listSessions",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/sites/{site}/suggestions",
+    "group": "/api/public/v1",
+    "handler": "h.suggestions",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/stats/breakdown",
+    "group": "/api/public/v1",
+    "handler": "h.statsBreakdown",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/stats/summary",
+    "group": "/api/public/v1",
+    "handler": "h.publicStats",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/public/v1/stats/timeseries",
+    "group": "/api/public/v1",
+    "handler": "h.statsTimeseries",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/public/v1/vitals/query",
+    "group": "/api/public/v1",
+    "handler": "h.vitalsRequest",
+    "auth": "public-key",
+    "in_openapi": true,
+    "hit_by_tests": []
+  },
+  {
+    "method": "OPTIONS",
+    "pattern": "/api/replay/chunk",
+    "group": "/api/replay/chunk",
+    "handler": "deps.Replay",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/replay/chunk",
+    "group": "/api/replay/chunk",
+    "handler": "deps.Replay",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "OPTIONS",
+    "pattern": "/api/replay/css/{hash}",
+    "group": "/api/replay/css",
+    "handler": "deps.ReplayCSS",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PUT",
+    "pattern": "/api/replay/css/{hash}",
+    "group": "/api/replay/css",
+    "handler": "deps.ReplayCSS",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "OPTIONS",
+    "pattern": "/api/replay/start",
+    "group": "/api/replay/start",
+    "handler": "deps.Replay",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": []
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/replay/start",
+    "group": "/api/replay/start",
+    "handler": "deps.Replay",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/healthz",
+    "group": "/healthz",
+    "handler": "func",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/js/",
+    "group": "/js/",
+    "handler": "tracker.SiteHandlerWithPolicy",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/js/script.full.js",
+    "group": "/js/script.full.js",
+    "handler": "tracker.FullHandler",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/js/script.js",
+    "group": "/js/script.js",
+    "handler": "tracker.Handler",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/metrics",
+    "group": "/metrics",
+    "handler": "metricsHandler",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/readyz",
+    "group": "/readyz",
+    "handler": "func",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/replay.js",
+    "group": "/replay.js",
+    "handler": "func",
+    "auth": "none",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  }
+]
