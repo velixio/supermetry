@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"supermetry/internal/safehttp"
@@ -133,7 +134,7 @@ func (g *Google) Revoke(ctx context.Context, token string) error {
 }
 
 func (g *Google) Fetch(ctx context.Context, accessToken, property string, day time.Time, maxRows int) ([]Row, error) {
-	endpoint := g.opts.APIBase + "/sites/" + url.PathEscape(property) + "/searchAnalytics/query"
+	endpoint := g.opts.APIBase + "/sites/" + strings.ReplaceAll(url.PathEscape(property), ":", "%3A") + "/searchAnalytics/query"
 	date := day.UTC().Format(time.DateOnly)
 	var rows []Row
 	for start := 0; start < maxRows; start += googlePageRows {
