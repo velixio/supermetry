@@ -1,31 +1,20 @@
 package main
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	"log/slog"
 
 	"supermetry/internal/config"
-	"supermetry/internal/sites"
+	"supermetry/internal/privacy"
 )
 
-// validateTrackingStartup runs before any listener or collection writer starts.
-// Query durable configuration directly: a failed/stale registry refresh must not
-// silently classify an existing identified installation as a fresh installation.
-func validateTrackingStartup(ctx context.Context, pool *pgxpool.Pool, mode config.TrackingMode, compatibilitySites []sites.Site) error {
-	if err := mode.ValidateUpgrade(false); err != nil {
-		return err
-	}
+// logTrackingMode reports the instance's tracking mode at startup. Identified is the default, so
+// say so when it was not chosen, and how to get the strictest mode.
+func logTrackingMode(logger *slog.Logger, mode config.TrackingMode) {
 	if mode.Explicit {
-		return nil
+		logger.Info("tracking mode", "mode", mode.Mode.String(), "source", config.TrackingModeEnv)
+		return
 	}
-	var enabled bool
-	if err := pool.QueryRow(ctx, `select exists(select 1 from sites where deleted_at is null and settings->'profiles_enabled'='true'::jsonb)`).Scan(&enabled); err != nil {
-		return fmt.Errorf("inspect tracking upgrade configuration: %w", err)
+	if mode.Mode == privacy.Identified {
+		logger.Info("tracking mode is identified by default: page paths, referrers and campaigns are collected, with no cookies and no raw IP addresses; set "+config.TrackingModeEnv+"=anonymous for the strictest mode", "mode", "identified")
 	}
-	for _, site := range compatibilitySites {
-		enabled = enabled || site.ProfilesEnabled
-	}
-	return mode.ValidateUpgrade(enabled)
 }

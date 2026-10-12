@@ -8,16 +8,19 @@ when tracking mode changes. No production instance is changed by this branch.
 
 `SUPERMETRY_TRACKING_MODE` accepts exactly `anonymous` or `identified`. Unknown values,
 case variants, whitespace and an explicitly empty value fail startup validation.
-`config.LoadLookup` preserves absent versus explicitly anonymous; production
+`config.LoadLookup` preserves absent versus explicit; production
 commands use `os.LookupEnv`. The legacy value-only `config.Load` helper cannot
 distinguish absent from empty and is not the process startup boundary.
 
-Fresh installations default to anonymous, profiles off, replay off. At startup,
-the server checks durable active-site settings (and benchmark compatibility sites)
-before listening. If profiles are enabled and mode is unset, startup fails with
-instructions to explicitly choose `identified` to continue collecting identity,
-or `anonymous` for an intentional downgrade. An explicit choice never rewrites
-project configuration or purges existing rows.
+The default is `identified`: when the variable is unset the server collects real page
+paths, referrers and campaigns, and new projects are created with profiles on. Replay stays
+off, and nothing uses cookies or stores raw IP addresses. Set
+`SUPERMETRY_TRACKING_MODE=anonymous` for the strictest mode. The server logs the active mode
+at startup and says so when identified comes from the default.
+
+Upgrading an install that left the variable unset therefore moves it from anonymous to
+identified. Existing projects keep their own profiles setting; only new projects start with
+profiles on. An explicit choice never rewrites project configuration or purges existing rows.
 
 Mode is fixed for the process lifetime. To change mode: stop intake on every
 instance, drain/stop old writers and jobs, set the mode consistently, then restart
@@ -218,7 +221,7 @@ tombstone propagation still need design.
 
 ## Verification and rollout status
 
-Tests cover strict mode parsing, explicit upgrade choices, retained configuration,
+Tests cover strict mode parsing, the identified default, retained configuration,
 forged profile/property submissions, buffered downgrades/retries, mandatory privacy
 signals including heatmaps, both replay switches, stricter settings, stale tracker
 policies, consent withdrawal, restricted history, safe canonical breakdowns,
@@ -226,7 +229,7 @@ cache boundaries, MCP/reports/export and continued authorized deletion.
 
 Verification uses isolated synthetic PostgreSQL and real Go/Bun/Chromium tools.
 Existing tests that exercise identified features explicitly select identified
-fixtures; privacy tests exercise the anonymous zero value. Existing backpressure
+fixtures; privacy tests exercise the anonymous zero value, which parsing no longer returns by default. Existing backpressure
 20 ms timing and UTM closed-storage failures are reported separately if observed;
 their thresholds and assertions are unchanged. The user approved a specific
 core tracker gzip budget increase for required privacy/consent controls: 1004-byte

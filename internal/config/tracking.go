@@ -9,8 +9,9 @@ import (
 // TrackingModeEnv selects the instance identity collection and read policy.
 const TrackingModeEnv = "SUPERMETRY_TRACKING_MODE"
 
-// TrackingMode retains presence so rollout code can distinguish an unset value
-// from an explicit anonymous choice. The zero value is unset and anonymous.
+// TrackingMode retains presence so the server can tell an explicit choice from the default.
+// ParseTrackingMode returns identified, not explicit, when the variable is unset. The zero
+// value (anonymous, not explicit) is not produced by parsing; it only appears in struct literals.
 type TrackingMode struct {
 	Mode     privacy.Mode
 	Explicit bool
@@ -18,12 +19,12 @@ type TrackingMode struct {
 
 // ParseTrackingMode accepts the pair returned by os.LookupEnv, without reading
 // the process environment. An explicitly empty, misspelled or noncanonical value
-// is invalid. An absent value yields anonymous without implying a rollout
-// decision for existing installations. LoadLookup preserves the presence bit;
-// startup must call ValidateUpgrade before accepting requests.
+// is invalid. An absent value yields identified: Supermetry collects page paths,
+// referrers and campaigns by default, and an operator who wants the strictest mode
+// sets SUPERMETRY_TRACKING_MODE=anonymous. Explicit records whether the choice was made.
 func ParseTrackingMode(raw string, present bool) (TrackingMode, error) {
 	if !present {
-		return TrackingMode{}, nil
+		return TrackingMode{Mode: privacy.Identified}, nil
 	}
 	switch raw {
 	case "anonymous":
@@ -35,14 +36,10 @@ func ParseTrackingMode(raw string, present bool) (TrackingMode, error) {
 	}
 }
 
-// ValidateUpgrade requires an explicit choice when existing sites collect
-// profiles. Explicit anonymous is an intentional downgrade, not an erasure.
-func (m TrackingMode) ValidateUpgrade(hasProfileSites bool) error {
+// Validate rejects a mode that is neither anonymous nor identified.
+func (m TrackingMode) Validate() error {
 	if m.Mode != privacy.Anonymous && m.Mode != privacy.Identified {
 		return fmt.Errorf("%s must be anonymous or identified", TrackingModeEnv)
-	}
-	if !m.Explicit && (hasProfileSites || m.Mode == privacy.Identified) {
-		return fmt.Errorf("existing profile-enabled sites require explicit %s=identified to continue identity collection, or %s=anonymous to disable new identity collection and ordinary historical identity reads without deleting data", TrackingModeEnv, TrackingModeEnv)
 	}
 	return nil
 }
