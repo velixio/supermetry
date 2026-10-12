@@ -18,6 +18,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppOrgRouteImport } from './routes/app.$org'
 import { Route as AppAccountRouteImport } from './routes/app.account'
+import { Route as AppAdminRouteImport } from './routes/app.admin'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
@@ -26,6 +27,11 @@ import { Route as AppOrgSettingsRouteImport } from './routes/app.$org.settings'
 import { Route as AppAccountProfileRouteImport } from './routes/app.account.profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/app.account.security'
 import { Route as AppAccountSessionsRouteImport } from './routes/app.account.sessions'
+import { Route as AppAdminOrganizationsRouteImport } from './routes/app.admin.organizations'
+import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
+import { Route as AppAdminSettingsRouteImport } from './routes/app.admin.settings'
+import { Route as AppAdminSitesRouteImport } from './routes/app.admin.sites'
+import { Route as AppAdminUsersRouteImport } from './routes/app.admin.users'
 import { Route as AppOrgSiteIndexRouteImport } from './routes/app.$org.$site.index'
 import { Route as AppOrgSiteEventsRouteImport } from './routes/app.$org.$site.events'
 import { Route as AppOrgSiteGoalsRouteImport } from './routes/app.$org.$site.goals'
@@ -111,6 +117,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
   path: '/invite/$token',
@@ -150,6 +161,31 @@ const AppAccountSessionsRoute = AppAccountSessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
   getParentRoute: () => AppAccountRoute,
+} as any)
+const AppAdminOrganizationsRoute = AppAdminOrganizationsRouteImport.update({
+  id: '/organizations',
+  path: '/organizations',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSecurityRoute = AppAdminSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSitesRoute = AppAdminSitesRouteImport.update({
+  id: '/sites',
+  path: '/sites',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppOrgSiteIndexRoute = AppOrgSiteIndexRouteImport.update({
   id: '/$site/',
@@ -369,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
+  '/app/admin': typeof AppAdminRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
@@ -378,6 +415,11 @@ export interface FileRoutesByFullPath {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/organizations': typeof AppAdminOrganizationsRoute
+  '/app/admin/security': typeof AppAdminSecurityRoute
+  '/app/admin/settings': typeof AppAdminSettingsRoute
+  '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
@@ -426,6 +468,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
+  '/app/admin': typeof AppAdminRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
@@ -434,6 +477,11 @@ export interface FileRoutesByTo {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/organizations': typeof AppAdminOrganizationsRoute
+  '/app/admin/security': typeof AppAdminSecurityRoute
+  '/app/admin/settings': typeof AppAdminSettingsRoute
+  '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
@@ -484,6 +532,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
+  '/app/admin': typeof AppAdminRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
@@ -493,6 +542,11 @@ export interface FileRoutesById {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/organizations': typeof AppAdminOrganizationsRoute
+  '/app/admin/security': typeof AppAdminSecurityRoute
+  '/app/admin/settings': typeof AppAdminSettingsRoute
+  '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
@@ -544,6 +598,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/$org'
     | '/app/account'
+    | '/app/admin'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
@@ -553,6 +608,11 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/organizations'
+    | '/app/admin/security'
+    | '/app/admin/settings'
+    | '/app/admin/sites'
+    | '/app/admin/users'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
@@ -601,6 +661,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/$org'
     | '/app/account'
+    | '/app/admin'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
@@ -609,6 +670,11 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/organizations'
+    | '/app/admin/security'
+    | '/app/admin/settings'
+    | '/app/admin/sites'
+    | '/app/admin/users'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
@@ -658,6 +724,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/$org'
     | '/app/account'
+    | '/app/admin'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
@@ -667,6 +734,11 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/organizations'
+    | '/app/admin/security'
+    | '/app/admin/settings'
+    | '/app/admin/sites'
+    | '/app/admin/users'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
@@ -785,6 +857,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin': {
+      id: '/app/admin'
+      path: '/admin'
+      fullPath: '/app/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/invite/$token': {
       id: '/invite/$token'
       path: '/invite/$token'
@@ -840,6 +919,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/account/sessions'
       preLoaderRoute: typeof AppAccountSessionsRouteImport
       parentRoute: typeof AppAccountRoute
+    }
+    '/app/admin/organizations': {
+      id: '/app/admin/organizations'
+      path: '/organizations'
+      fullPath: '/app/admin/organizations'
+      preLoaderRoute: typeof AppAdminOrganizationsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/security': {
+      id: '/app/admin/security'
+      path: '/security'
+      fullPath: '/app/admin/security'
+      preLoaderRoute: typeof AppAdminSecurityRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/settings': {
+      id: '/app/admin/settings'
+      path: '/settings'
+      fullPath: '/app/admin/settings'
+      preLoaderRoute: typeof AppAdminSettingsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/sites': {
+      id: '/app/admin/sites'
+      path: '/sites'
+      fullPath: '/app/admin/sites'
+      preLoaderRoute: typeof AppAdminSitesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/users': {
+      id: '/app/admin/users'
+      path: '/users'
+      fullPath: '/app/admin/users'
+      preLoaderRoute: typeof AppAdminUsersRouteImport
+      parentRoute: typeof AppAdminRoute
     }
     '/app/$org/$site/': {
       id: '/app/$org/$site/'
@@ -1244,15 +1358,37 @@ const AppAccountRouteWithChildren = AppAccountRoute._addFileChildren(
   AppAccountRouteChildren,
 )
 
+interface AppAdminRouteChildren {
+  AppAdminOrganizationsRoute: typeof AppAdminOrganizationsRoute
+  AppAdminSecurityRoute: typeof AppAdminSecurityRoute
+  AppAdminSettingsRoute: typeof AppAdminSettingsRoute
+  AppAdminSitesRoute: typeof AppAdminSitesRoute
+  AppAdminUsersRoute: typeof AppAdminUsersRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminOrganizationsRoute: AppAdminOrganizationsRoute,
+  AppAdminSecurityRoute: AppAdminSecurityRoute,
+  AppAdminSettingsRoute: AppAdminSettingsRoute,
+  AppAdminSitesRoute: AppAdminSitesRoute,
+  AppAdminUsersRoute: AppAdminUsersRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
 interface AppRouteChildren {
   AppOrgRoute: typeof AppOrgRouteWithChildren
   AppAccountRoute: typeof AppAccountRouteWithChildren
+  AppAdminRoute: typeof AppAdminRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppOrgRoute: AppOrgRouteWithChildren,
   AppAccountRoute: AppAccountRouteWithChildren,
+  AppAdminRoute: AppAdminRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }
 

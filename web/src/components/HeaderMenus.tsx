@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { Building2Icon, LogOutIcon, SettingsIcon, UserRoundIcon } from 'lucide-react'
+import { en } from '@/messages/en'
+import { Building2Icon, LogOutIcon, SettingsIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -54,6 +55,7 @@ export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Mem
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem asChild><Link to="/app/account/profile"><UserRoundIcon aria-hidden="true" />Account settings</Link></DropdownMenuItem>
+            {me.user.instance_admin ? <DropdownMenuItem asChild><Link to="/app/admin/users"><ShieldCheckIcon aria-hidden="true" />{en.admin.link}</Link></DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={() => void requestLogout()}><LogOutIcon aria-hidden="true" />Log out</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
