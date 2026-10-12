@@ -80,6 +80,27 @@ Funnel steps are ordered within one site-local session. Page and custom-event va
 
 Raw data (sessions timelines, events, properties) comes from the raw-event store, so it covers the site's raw retention window. Older ranges return `400` with an explanation.
 
+## Revenue report
+
+Dashboard session endpoints (not part of the public API-key surface):
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/private/sites/{site}/revenue/report` | Orders, revenue, average order value, revenue per visitor and, in identified mode with profiles, unique customers and repeat-purchase rate, by `breakdown` = `country`, `region`, `source`, `campaign`, `page` or `product` |
+| GET | `/api/private/sites/{site}/revenue/customers` | Identified customers by revenue with search; needs `profiles:read` because external ids can be personal data |
+
+Parameters: `from`, `to` (site-local dates), `breakdown`, `attribution` (`event`, `first_click`, `last_click`), `lookback_days` (1 to 90, default 30), `limit`. Send `Accept: text/csv` to export, which needs the `data:export` scope.
+
+How the numbers are computed:
+
+- **Orders** are events with a positive revenue amount; refunds and negative amounts are not modelled. Money is never added across currencies: a period with orders in more than one currency, or in a currency other than the site currency, returns `409`.
+- **Event attribution** credits the source or campaign stored on the order. **First click** and **last click** look for earlier visits by the same person within `lookback_days` before the order. Visits without a source or campaign never take credit; an order with no qualifying visit is reported under the empty (direct) key. Ties on the same start time go to the lower session id. The window is inclusive at both ends.
+- **Cross-day links** exist only through customer profiles. Visitor ids are re-salted daily, so without a profile a visit can match an order only on the same day.
+- **Revenue per visitor** divides by daily visitors in the period (the same person on two days counts twice, as on the dashboard).
+- **Customers** and the repeat rate (customers with two or more orders in the group, as a percentage) appear only in identified mode with profiles enabled.
+- Orders come from retained raw events and sessions, so reports cover the site's retention window and are capped at 20,000 orders (`truncated`).
+- The order query uses the partial `(site_id, ts)` index on custom events and the customer-touch query uses the `(site_id, profile_id, ts)` profile index, with partition pruning by time.
+
 ## Manage sites and definitions
 
 | Resource | Endpoints | Scope for writes |

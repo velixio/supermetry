@@ -144,3 +144,4 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
 
 Deferred: AI insights, mobile SDKs, SSO/OIDC.
+- Revenue depth backend: breakdowns by country, region, source, campaign, page and product, first and last click attribution with a lookback window, customers list and CSV export (`/api/private/sites/{site}/revenue/*`); UI follows.
