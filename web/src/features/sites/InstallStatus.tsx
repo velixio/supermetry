@@ -1,11 +1,12 @@
 import { Badge } from '@/components/ui/badge'
+import { activeLocale } from '@/lib/i18n/intl'
 
 export type InstallStatus = 'waiting' | 'receiving' | 'quiet'
 
 function relativeTime(value: string, now: Date): string {
   const seconds = Math.round((new Date(value).getTime() - now.getTime()) / 1_000)
   const absolute = Math.abs(seconds)
-  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'always' })
+  const formatter = new Intl.RelativeTimeFormat(activeLocale(), { numeric: 'always' })
   if (absolute < 60) return formatter.format(seconds, 'second')
   const minutes = Math.round(seconds / 60)
   if (Math.abs(minutes) < 60) return formatter.format(minutes, 'minute')

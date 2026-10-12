@@ -28,6 +28,7 @@ import { deleteSite, listSitesOverview, type OverviewPeriod, type OverviewSite }
 import { InstallStatusView } from './InstallStatus'
 import type { SitesOverviewSort, SitesOverviewView } from './overviewSearch'
 import { privateRequest } from '@/features/settings/privateApi'
+import { activeLocale } from '@/lib/i18n/intl'
 
 export type { OverviewSite } from './api'
 export type { SitesOverviewSort, SitesOverviewView } from './overviewSearch'
@@ -42,7 +43,7 @@ function changeLabel(site: OverviewSite): string {
 
 function lastEvent(site: OverviewSite): string {
   if (!site.last_event_at) return 'No accepted events'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(site.last_event_at))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(site.last_event_at))
 }
 
 function Sparkline({ site }: { site: OverviewSite }) {

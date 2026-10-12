@@ -3,6 +3,7 @@ import { queryOptions, useQuery, useQueryClient, type QueryKey, type UseQueryOpt
 import { api } from './api'
 import type { components } from './api.gen'
 import { serializeFilters } from './search'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type DateRange = components['schemas']['DateRange']
 type Metric = components['schemas']['Metric']
@@ -78,14 +79,14 @@ function normalizedBody(query: StatsQuery): QueryBody {
 function localToday(timeZone: string): string {
   let formatter: Intl.DateTimeFormat
   try {
-    formatter = new Intl.DateTimeFormat('en-US', {
+    formatter = new Intl.DateTimeFormat(activeLocale(), {
       timeZone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     })
   } catch {
-    formatter = new Intl.DateTimeFormat('en-US', {
+    formatter = new Intl.DateTimeFormat(activeLocale(), {
       timeZone: 'UTC',
       year: 'numeric',
       month: '2-digit',

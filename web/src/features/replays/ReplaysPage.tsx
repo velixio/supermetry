@@ -23,6 +23,7 @@ import { en } from '@/messages/en'
 
 import { useReplays, useSetReplaySaved } from './api'
 import type { ReplayLayout } from './search'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type ReplayFilters = Pick<ReplayListQuery, 'q' | 'min_duration' | 'max_duration' | 'has_events' | 'saved'>
 type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
@@ -33,7 +34,7 @@ function formatDuration(seconds: number): string {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 function SavedButton({ replay, pending, onChange }: { replay: ReplayListItem; pending: boolean; onChange: (saved: boolean) => void }) {

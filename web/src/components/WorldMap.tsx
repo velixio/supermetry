@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
 
 import { Flag } from './Flag'
+import { activeLocale } from '@/lib/i18n/intl'
 
 const WORLD_MAP_LABEL = 'World map'
 const TABLE_LABEL = 'Country visitors'
@@ -30,8 +31,8 @@ type WorldMapProps = {
 }
 type CountryRow = { country: string; visitors: number; pageviews: number }
 
-const fullNumber = new Intl.NumberFormat('en-US')
-const percentage = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
+const fullNumber = new Intl.NumberFormat(activeLocale())
+const percentage = new Intl.NumberFormat(activeLocale(), { maximumFractionDigits: 1 })
 
 export function WorldMap({ rows, metric = 'visitors', selectedCountry, activeCountry, describedBy, showLegend = false, onClear, onActiveChange, onSelect }: WorldMapProps) {
   const [localActiveCode, setLocalActiveCode] = useState<string>()

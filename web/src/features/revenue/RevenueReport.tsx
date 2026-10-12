@@ -5,6 +5,7 @@ import type { Compare, Filter } from '@/lib/search'
 import { useStats, type StatsQuery } from '@/lib/stats'
 
 import { RevenueBreakdown } from './RevenueBreakdown'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type RevenueReportProps = {
   siteId: number
@@ -20,7 +21,7 @@ type RevenueReportProps = {
 type BreakdownDimension = 'source' | 'channel' | 'utm_campaign'
 
 function currencyFormatter(currency: string): Intl.NumberFormat {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(activeLocale(), {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,

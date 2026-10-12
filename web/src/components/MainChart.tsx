@@ -32,6 +32,7 @@ import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useTimeseries, type StatsQuery } from '../lib/stats'
 import { en } from '../messages/en'
+import { activeLocale } from '@/lib/i18n/intl'
 
 export { autoInterval, type ChartInterval } from '@/lib/chart'
 
@@ -123,7 +124,7 @@ function timeBucketLabel(value: string, interval: ChartInterval, timezone: strin
   const isSiteLocalBucket = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)
   const instant = new Date(isSiteLocalBucket ? `${value}Z` : value)
   try {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(activeLocale(), {
       timeZone: isSiteLocalBucket ? 'UTC' : timezone,
       year: 'numeric',
       month: 'short',
@@ -132,7 +133,7 @@ function timeBucketLabel(value: string, interval: ChartInterval, timezone: strin
       minute: '2-digit',
     }).format(instant)
   } catch {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(activeLocale(), {
       timeZone: 'UTC',
       year: 'numeric',
       month: 'short',
@@ -147,13 +148,13 @@ export function axisBucketLabel(value: string, interval: ChartInterval, timezone
   if (interval === 'hour') {
     const isSiteLocalBucket = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)
     const instant = new Date(isSiteLocalBucket ? `${value}Z` : value)
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(activeLocale(), {
       timeZone: isSiteLocalBucket ? 'UTC' : timezone,
       hour: 'numeric',
       minute: instant.getUTCMinutes() === 0 ? undefined : '2-digit',
     }).format(instant)
   }
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(activeLocale(), {
     timeZone: 'UTC',
     month: 'short',
     day: 'numeric',

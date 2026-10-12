@@ -17,9 +17,10 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { deleteOrganization, type DeletionResult, type SensitiveAction } from './api'
+import { activeLocale } from '@/lib/i18n/intl'
 
 function localDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium' }).format(new Date(value))
 }
 
 export function DeleteOrgDialog({

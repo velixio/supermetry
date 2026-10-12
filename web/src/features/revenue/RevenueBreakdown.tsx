@@ -20,6 +20,7 @@ import {
   type RevenueBreakdownKey,
   type RevenueReportParams,
 } from './revenueReportApi'
+import { activeLocale } from '@/lib/i18n/intl'
 
 const t = en.revenueReport
 
@@ -35,7 +36,7 @@ type Props = {
 const selectClass = 'min-h-11 w-full rounded-lg border border-input bg-background px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm'
 
 function money(currency: string): Intl.NumberFormat {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return new Intl.NumberFormat(activeLocale(), { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {

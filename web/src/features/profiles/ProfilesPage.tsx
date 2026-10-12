@@ -11,12 +11,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import { useProfiles } from './api'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
 
 function formatDate(value: string): string {
   if (!value) return '—'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium' }).format(new Date(value))
 }
 
 function ProfilesPageContent({

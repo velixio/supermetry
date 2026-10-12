@@ -26,11 +26,12 @@ import { PlayIcon } from 'lucide-react'
 import { useSession, useSessions } from './api'
 import { TimelineItem } from './TimelineItem'
 import type { SessionSummary } from './types'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 function formatDuration(milliseconds: number): string {

@@ -3,6 +3,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
+import { activeLocale } from '@/lib/i18n/intl'
 
 export function AdminPage({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -40,7 +41,7 @@ export function ErrorLine({ error }: { error: unknown }) {
 
 export function formatDate(value?: string | null) {
   if (!value) return en.admin.neverSignedIn
-  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(value).toLocaleString(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 export const tableClass = 'w-full min-w-[40rem] text-left text-sm'

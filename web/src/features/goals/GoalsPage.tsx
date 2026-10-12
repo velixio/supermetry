@@ -7,6 +7,7 @@ import { useStats, type StatsQuery } from '@/lib/stats'
 import { useGoals, useSaveGoal } from './api'
 import { GoalEditor } from './GoalEditor'
 import type { Goal } from './types'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type GoalsPageProps = {
   siteId: number
@@ -118,7 +119,7 @@ function RevenueCells({ goal, siteId, dateRange, currency, timezone }: { goal: G
     ],
     timezone,
   })
-  const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency })
+  const formatter = new Intl.NumberFormat(activeLocale(), { style: 'currency', currency })
   if (revenue.isPending || revenue.isFetching || revenue.isError || !Number.isFinite(revenue.data?.totals?.total_revenue) || !Number.isFinite(revenue.data?.totals?.average_revenue)) {
     return <MetricCell label="revenue" queries={[revenue]} value={undefined} format={formatter.format} colSpan={2} />
   }

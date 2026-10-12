@@ -67,6 +67,7 @@ import { TotpQr } from "./TotpQr";
 import { InstallGuide, SiteIconSettings, installationStatusInterval } from "./SiteSettings";
 import { ProfilesSettings } from "./ProfilesSettings";
 import type { Role } from "@/components/Sidebar";
+import { activeLocale } from '@/lib/i18n/intl'
 
 type Site = {
   id: number;
@@ -1118,7 +1119,7 @@ function relativeTime(value: string): string {
   return relativeTimeFormatter.format(Math.round(hours / 24), "day");
 }
 
-const relativeTimeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "always" });
+const relativeTimeFormatter = new Intl.RelativeTimeFormat(activeLocale(), { numeric: "always" });
 
 function ApiKeysManager({ orgId, orgSlug, sites }: { orgId: number; orgSlug: string; sites: ApiKeySite[] }) {
   const queryClient = useQueryClient();

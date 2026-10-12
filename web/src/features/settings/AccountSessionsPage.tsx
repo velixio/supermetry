@@ -12,6 +12,7 @@ import { BrowserLabel } from '@/components/visitor/BrowserLabel'
 import { countryName, normalizeCountryCode } from '@/lib/country'
 
 import { privateRequest, type ListResponse } from './privateApi'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type AccountSession = {
   ID: string
@@ -33,7 +34,7 @@ function timestamp(value?: string): Date | undefined {
 function SessionTime({ value }: { value?: string }) {
   const date = timestamp(value)
   if (!date) return <span className="text-muted-foreground">Unknown</span>
-  const local = date.toLocaleString(undefined, {
+  const local = date.toLocaleString(activeLocale(), {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
   })

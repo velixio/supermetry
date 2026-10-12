@@ -1,27 +1,30 @@
-const regularNumber = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 2,
-})
+import { activeLocale } from '@/lib/i18n/intl'
 
-const compactNumber = new Intl.NumberFormat('en-US', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-})
-
-const percentNumber = new Intl.NumberFormat('en-US', {
-  style: 'unit',
-  unit: 'percent',
-  unitDisplay: 'narrow',
-  maximumFractionDigits: 1,
-})
+// Formatters are cached per language so a locale change never reuses another one's.
+const cache = new Map<string, Intl.NumberFormat>()
+function numberFormat(kind: 'regular' | 'compact' | 'percent'): Intl.NumberFormat {
+  const key = `${activeLocale()}:${kind}`
+  let format = cache.get(key)
+  if (!format) {
+    const locale = activeLocale()
+    format = kind === 'regular'
+      ? new Intl.NumberFormat(locale, { maximumFractionDigits: 2 })
+      : kind === 'compact'
+        ? new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 })
+        : new Intl.NumberFormat(locale, { style: 'unit', unit: 'percent', unitDisplay: 'narrow', maximumFractionDigits: 1 })
+    cache.set(key, format)
+  }
+  return format
+}
 
 function number(value: number): string {
   return Math.abs(value) >= 10_000
-    ? compactNumber.format(value)
-    : regularNumber.format(value)
+    ? numberFormat('compact').format(value)
+    : numberFormat('regular').format(value)
 }
 
 function percent(value: number): string {
-  return percentNumber.format(value)
+  return numberFormat('percent').format(value)
 }
 
 function duration(value: number): string {
@@ -48,14 +51,14 @@ function date(value: string, timeZone: string): string {
     : new Date(value)
   const zone = /^\d{4}-\d{2}-\d{2}$/.test(value) ? 'UTC' : timeZone
   try {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(activeLocale(), {
       timeZone: zone,
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     }).format(instant)
   } catch {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(activeLocale(), {
       timeZone: 'UTC',
       year: 'numeric',
       month: 'short',

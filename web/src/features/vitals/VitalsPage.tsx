@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import type { Filter } from '@/lib/search'
 
 import { useVitals, type VitalMetric, type VitalMetricName, type VitalsDimension, type VitalsResponse } from './api'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type VitalsPageProps = {
   siteId: number
@@ -116,7 +117,7 @@ function BreakdownValue({ dimension, value }: { dimension: VitalsDimension; valu
 }
 
 function formatDay(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
+  return new Intl.DateTimeFormat(activeLocale(), { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`))
 }
 
 function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }) {

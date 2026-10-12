@@ -26,6 +26,7 @@ import {
 } from './conditions'
 import { PowerUsersPanel } from './PowerUsersPanel'
 import type { Cohort, CohortDefinition } from './types'
+import { activeLocale } from '@/lib/i18n/intl'
 
 const t = en.cohorts
 
@@ -42,7 +43,7 @@ type CohortsPageProps = {
 type Builder = { id?: number; draft: DraftCohort }
 
 function formatDate(value: string): string {
-  return value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
+  return value ? new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
 }
 
 function ResultPanel({ siteId, subject, title }: { siteId: number; subject: EvaluationSubject; title: string }) {

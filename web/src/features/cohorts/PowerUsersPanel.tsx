@@ -12,12 +12,13 @@ import { en } from '@/messages/en'
 
 import { usePowerUsers } from './api'
 import { thresholdChoices, type PowerMetric } from './types'
+import { activeLocale } from '@/lib/i18n/intl'
 
 const t = en.cohorts
 const selectClass = 'h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
 
 function formatDate(value: string): string {
-  return value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) : '—'
+  return value ? new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium' }).format(new Date(value)) : '—'
 }
 
 function PowerUsersContent({

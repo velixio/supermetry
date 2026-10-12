@@ -19,6 +19,7 @@ import type { Filter } from '@/lib/search'
 
 import { useEvents, useProperties, usePropertyValues } from './api'
 import type { EventExploreItem } from './types'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type EventRow = EventExploreItem & Partial<{ city: string; os: string }>
 type Paged<T> = T & Partial<{ total: number; total_capped: boolean }>
@@ -137,7 +138,7 @@ export function EventsPage({
             </TableRow></TableHeader>
             <TableBody>{(events.data.data as EventRow[]).map((event, index) => (
               <TableRow key={`${event.ts}:${event.name}:${event.page}:${index}`}>
-                <TableCell className="whitespace-nowrap">{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.ts))}</TableCell>
+                <TableCell className="whitespace-nowrap">{new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.ts))}</TableCell>
                 <TableCell>{event.kind}</TableCell><TableCell>{event.name}</TableCell><TableCell>{event.page || '—'}</TableCell>
                 {canReplay ? <TableCell>{org && site ? <ReplayLink hasReplay={event.has_replay} org={org} site={site} sessionId={event.session_id} onOpen={onReplayChange ? (id) => onReplayChange(id) : undefined} /> : null}</TableCell> : null}
                 <TableCell>{event.props ? Object.entries(event.props).map(([key, value]) => <span className="mr-2 whitespace-nowrap" key={key}>{key}: {value}</span>) : '—'}</TableCell>

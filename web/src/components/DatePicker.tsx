@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
 import { compareValues, periodValues, type Compare, type DashboardSearch, type Period } from '../lib/search'
+import { activeLocale, weekStart } from '@/lib/i18n/intl'
 
 export type DatePickerLabels = {
   period: string
@@ -34,16 +35,22 @@ function isoDay(value: Date): string {
 function rangeLabel(search: DashboardSearch, labels: DatePickerLabels): string {
   if (search.period !== 'custom') return labels.periods[search.period]
   if (!search.from) return labels.periods.custom
-  const format = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  const format = new Intl.DateTimeFormat(activeLocale(), { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
   const from = format.format(dateValue(search.from))
   const to = search.to ? format.format(dateValue(search.to)) : en.polish.selectEnd
   return `${from} – ${to}`
 }
 
+/** Short weekday names in the locale's own week order, starting on its first day. */
+function weekdayNames(): string[] {
+  const names = new Intl.DateTimeFormat(activeLocale(), { weekday: 'short', timeZone: 'UTC' })
+  return Array.from({ length: 7 }, (_, index) => names.format(new Date(Date.UTC(2024, 0, 7 + ((weekStart() + index) % 7)))))
+}
+
 function monthDays(month: Date): Date[] {
   const first = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1))
   const start = new Date(first)
-  start.setUTCDate(1 - first.getUTCDay())
+  start.setUTCDate(1 - ((first.getUTCDay() - weekStart() + 7) % 7))
   return Array.from({ length: 42 }, (_, index) => {
     const day = new Date(start)
     day.setUTCDate(start.getUTCDate() + index)
@@ -59,8 +66,8 @@ export function DatePicker({ search, labels, onChange }: DatePickerProps) {
   const days = useMemo(() => monthDays(month), [month])
   const selectedFrom = draftFrom ?? search.from
   const selectedTo = selectingEnd ? undefined : search.to
-  const monthName = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(month)
-  const fullDay = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  const monthName = new Intl.DateTimeFormat(activeLocale(), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(month)
+  const fullDay = new Intl.DateTimeFormat(activeLocale(), { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
   const selectDay = (day: Date) => {
     const value = isoDay(day)
@@ -100,7 +107,7 @@ export function DatePicker({ search, labels, onChange }: DatePickerProps) {
                 <Button aria-label={en.polish.nextMonth} className="size-11" size="icon" type="button" variant="ghost" onClick={() => setMonth(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)))}><ChevronRightIcon /></Button>
               </div>
               <div aria-label={monthName} className="grid grid-cols-7" role="grid">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((weekday) => <span key={weekday} className="py-1 text-center text-xs text-muted-foreground" role="columnheader">{weekday}</span>)}
+                {weekdayNames().map((weekday) => <span key={weekday} className="py-1 text-center text-xs text-muted-foreground" role="columnheader">{weekday}</span>)}
                 {days.map((day) => {
                   const value = isoDay(day)
                   const outside = day.getUTCMonth() !== month.getUTCMonth()

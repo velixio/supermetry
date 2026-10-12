@@ -1,3 +1,4 @@
+import { activeLocale } from '@/lib/i18n/intl'
 export const periodValues = [
   'today',
   'yesterday',
@@ -294,14 +295,14 @@ export function removeFilter(
 function siteDate(timeZone: string, now: Date): string {
   let formatter: Intl.DateTimeFormat
   try {
-    formatter = new Intl.DateTimeFormat('en-US', {
+    formatter = new Intl.DateTimeFormat(activeLocale(), {
       timeZone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     })
   } catch {
-    formatter = new Intl.DateTimeFormat('en-US', {
+    formatter = new Intl.DateTimeFormat(activeLocale(), {
       timeZone: 'UTC',
       year: 'numeric',
       month: '2-digit',

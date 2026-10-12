@@ -1,9 +1,10 @@
 import { Badge } from '@/components/ui/badge'
 
 import type { SessionTimelineItem } from './types'
+import { activeLocale } from '@/lib/i18n/intl'
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 export function TimelineItem({ item, onClick }: { item: SessionTimelineItem; onClick?: () => void }) {

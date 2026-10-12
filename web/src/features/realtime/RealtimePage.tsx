@@ -19,6 +19,7 @@ import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 
 import { useRealtimePage } from './useRealtimePage'
+import { activeLocale } from '@/lib/i18n/intl'
 
 type RealtimePageProps = {
   siteId: number
@@ -151,7 +152,7 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
   }
 
   const data = realtime.data
-  const formatter = new Intl.DateTimeFormat(undefined, {
+  const formatter = new Intl.DateTimeFormat(activeLocale(), {
     timeZone: timezone,
     hour: 'numeric',
     minute: '2-digit',

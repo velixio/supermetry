@@ -4,9 +4,10 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getDeletedOrganizations, restoreOrganization, type DeletedOrganization } from './api'
+import { activeLocale } from '@/lib/i18n/intl'
 
 function localDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium' }).format(new Date(value))
 }
 
 function restoreError(error: unknown): string {

@@ -23,6 +23,7 @@ import { getReplayCSS, getReplayData } from '@/lib/replay-api'
 import { en } from '@/messages/en'
 
 import { ReplayPlayer, type MountPlayer, type ReplayPlayerHandle } from './ReplayPlayer'
+import { activeLocale } from '@/lib/i18n/intl'
 
 export type ReplayOverlayRow = {
   sessionId: string
@@ -39,7 +40,7 @@ export type ReplayOverlayRow = {
 
 function formatDate(value?: string): string {
   if (!value) return 'Start time unavailable'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 function formatDuration(milliseconds?: number): string {
