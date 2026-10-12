@@ -58,6 +58,13 @@ describe('Inspector', () => {
     expect(metrics).toHaveTextContent('Bounce Rate')
   })
 
+  it('announces a pending cross-breakdown as a labelled status', () => {
+    useBreakdown.mockReturnValue({ data: undefined, error: null, isError: false, isPending: true, refetch })
+    render(<Inspector anonymous={false} query={query} target={india} trafficMetric="visitors" onFilter={vi.fn()} />)
+
+    expect(screen.getByRole('status', { name: 'Page: top 5' })).toBeInTheDocument()
+  })
+
   it('cross-breaks the value by the other supported dimensions, five rows each', () => {
     render(<Inspector anonymous={false} query={query} target={india} trafficMetric="visitors" onFilter={vi.fn()} />)
 

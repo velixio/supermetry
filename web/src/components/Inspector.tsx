@@ -138,7 +138,7 @@ function CrossBreakdown({ dimension, query }: { dimension: string; query: StatsQ
   const result = useBreakdown({ ...query, metrics: ['visitors'], dimensions: [dimension], limit: 5, compare: undefined })
   const title = ui.inspector.topBy(inspectorDimensionLabel(dimension))
   if (result.isError) return <ErrorState detail={result.error?.detail} onRetry={() => void result.refetch()} />
-  if (result.isPending) return <Skeleton aria-label={title} className="h-24 w-full" />
+  if (result.isPending) return <Skeleton aria-label={title} className="h-24 w-full" role="status" />
   const rows = result.data?.rows ?? []
   if (rows.length === 0) return null
   return (
