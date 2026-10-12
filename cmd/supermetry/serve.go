@@ -250,7 +250,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("initialize TOTP encryption: %w", err)
 	}
 	accounts := users.New(platformStore)
-	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL, platformauth.WithAuditSecret(cfg.SecretKey))
+	authOptions := []platformauth.Option{platformauth.WithAuditSecret(cfg.SecretKey)}
+	if raw := os.Getenv("SUPERMETRY_E2E_LOGIN_LIMIT"); raw != "" {
+		limit, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || limit < 1 {
+			return fmt.Errorf("SUPERMETRY_E2E_LOGIN_LIMIT must be a positive integer")
+		}
+		authOptions = append(authOptions, platformauth.WithLoginAttemptCapacity(limit))
+	}
+	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL, authOptions...)
 	orgService := orgs.New(platformStore, databaseRegistry)
 	keyService := keys.New(platformStore)
 	defer keyService.Close()

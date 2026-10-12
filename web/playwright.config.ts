@@ -1,26 +1,29 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from "@playwright/test";
 
 // Existing feature/auth fixtures deliberately exercise identified reads and replay.
 // Anonymous policy is verified separately with e2e/privacy.spec.ts.
-process.env.SUPERMETRY_TRACKING_MODE ??= 'identified'
-process.env.SUPERMETRY_REPLAY_ENABLED ??= 'true'
+process.env.SUPERMETRY_TRACKING_MODE ??= "identified";
+process.env.SUPERMETRY_REPLAY_ENABLED ??= "true";
 
-const port = Number(process.env.SUPERMETRY_E2E_PORT ?? '18089')
-const baseURL = `http://127.0.0.1:${port}`
-const schema = `supermetry_e2e_${process.pid}`
+const port = Number(process.env.SUPERMETRY_E2E_PORT);
+if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+  throw new Error("SUPERMETRY_E2E_PORT must be set to an isolated TCP port");
+}
+const baseURL = `http://127.0.0.1:${port}`;
+const schema = `supermetry_e2e_${process.pid}`;
 const testDSN =
   process.env.SUPERMETRY_TEST_DSN ??
-  'postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable'
-const schemaDSN = new URL(testDSN)
-schemaDSN.searchParams.set('options', `-csearch_path=${schema}`)
-const resetFile = `/tmp/${schema}-reset.txt`
-const sitesFile = `/tmp/${schema}-sites.json`
-const serverPIDFile = `/tmp/${schema}-server.pid`
-process.env.SUPERMETRY_TEST_DSN = testDSN
-process.env.SUPERMETRY_E2E_SCHEMA = schema
-process.env.SUPERMETRY_E2E_RESET_FILE = resetFile
-process.env.SUPERMETRY_E2E_SITES_FILE = sitesFile
-process.env.SUPERMETRY_E2E_SERVER_PID_FILE = serverPIDFile
+  "postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable";
+const schemaDSN = new URL(testDSN);
+schemaDSN.searchParams.set("options", `-csearch_path=${schema}`);
+const resetFile = `/tmp/${schema}-reset.txt`;
+const sitesFile = `/tmp/${schema}-sites.json`;
+const serverPIDFile = `/tmp/${schema}-server.pid`;
+process.env.SUPERMETRY_TEST_DSN = testDSN;
+process.env.SUPERMETRY_E2E_SCHEMA = schema;
+process.env.SUPERMETRY_E2E_RESET_FILE = resetFile;
+process.env.SUPERMETRY_E2E_SITES_FILE = sitesFile;
+process.env.SUPERMETRY_E2E_SERVER_PID_FILE = serverPIDFile;
 
 const serverCommand = String.raw`
 set -eu
@@ -42,37 +45,43 @@ done
 export SUPERMETRY_LISTEN="127.0.0.1:$SUPERMETRY_E2E_PORT"
 echo "$$" > "$SUPERMETRY_E2E_SERVER_PID_FILE"
 exec ../bin/supermetry serve
-`
+`;
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },
-  globalSetup: './e2e/fixtures.ts',
-  outputDir: './test-results',
-  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
+  globalSetup: "./e2e/fixtures.ts",
+  outputDir: "./test-results",
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL,
-    colorScheme: 'light',
-    reducedMotion: 'reduce',
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    colorScheme: "light",
+    reducedMotion: "reduce",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   projects: [
     {
-      name: 'chromium',
+      name: "chromium",
       use: {
-        ...devices['Desktop Chrome'],
-        ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } } : {}),
+        ...devices["Desktop Chrome"],
+        ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? {
+              launchOptions: {
+                executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+              },
+            }
+          : {}),
       },
     },
   ],
   webServer: {
     command: serverCommand,
-    cwd: '.',
+    cwd: ".",
     env: {
       SUPERMETRY_TRACKING_MODE: process.env.SUPERMETRY_TRACKING_MODE,
       SUPERMETRY_REPLAY_ENABLED: process.env.SUPERMETRY_REPLAY_ENABLED,
@@ -84,10 +93,11 @@ export default defineConfig({
       SUPERMETRY_E2E_RESET_FILE: resetFile,
       SUPERMETRY_E2E_SITES_FILE: sitesFile,
       SUPERMETRY_E2E_SERVER_PID_FILE: serverPIDFile,
-      SUPERMETRY_E2E_SECRET_KEY: Buffer.alloc(32, 'e').toString('base64'),
+      SUPERMETRY_E2E_SECRET_KEY: Buffer.alloc(32, "e").toString("base64"),
+      SUPERMETRY_E2E_LOGIN_LIMIT: "100",
     },
     url: `${baseURL}/readyz`,
     timeout: 300_000,
     reuseExistingServer: false,
   },
-})
+});
