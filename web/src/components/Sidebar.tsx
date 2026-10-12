@@ -54,25 +54,25 @@ import { useCreateDemo } from '@/features/demo/useDemo'
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
 const coreNavigation = [
-  { label: en.navigation.dashboard, suffix: '', icon: ChartNoAxesCombinedIcon, scope: 'site' },
-  { label: en.navigation.events, suffix: '/events', icon: CodeXmlIcon, scope: 'site' },
-  { label: en.navigation.sessions, suffix: '/sessions', icon: Rows3Icon, scope: 'site' },
-  { label: en.navigation.realtime, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
-  { label: en.navigation.journeys, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
-  { label: en.navigation.retention, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
-  { label: en.navigation.profiles, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
-  { label: en.navigation.cohorts, suffix: '/cohorts', icon: UsersRoundIcon, scope: 'site' },
-  { label: en.navigation.heatmaps, suffix: '/heatmaps', icon: MousePointer2Icon, scope: 'site' },
-  { label: en.navigation.vitals, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
-  { label: en.navigation.funnels, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
-  { label: en.navigation.goals, suffix: '/goals', icon: GoalIcon, scope: 'site' },
-  { label: en.navigation.revenue, suffix: '/revenue', icon: CircleDollarSignIcon, scope: 'site' },
+  { get label() { return en.navigation.dashboard }, suffix: '', icon: ChartNoAxesCombinedIcon, scope: 'site' },
+  { get label() { return en.navigation.events }, suffix: '/events', icon: CodeXmlIcon, scope: 'site' },
+  { get label() { return en.navigation.sessions }, suffix: '/sessions', icon: Rows3Icon, scope: 'site' },
+  { get label() { return en.navigation.realtime }, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
+  { get label() { return en.navigation.journeys }, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
+  { get label() { return en.navigation.retention }, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
+  { get label() { return en.navigation.profiles }, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
+  { get label() { return en.navigation.cohorts }, suffix: '/cohorts', icon: UsersRoundIcon, scope: 'site' },
+  { get label() { return en.navigation.heatmaps }, suffix: '/heatmaps', icon: MousePointer2Icon, scope: 'site' },
+  { get label() { return en.navigation.vitals }, suffix: '/vitals', icon: GaugeIcon, scope: 'site' },
+  { get label() { return en.navigation.funnels }, suffix: '/funnels', icon: FilterIcon, scope: 'site' },
+  { get label() { return en.navigation.goals }, suffix: '/goals', icon: GoalIcon, scope: 'site' },
+  { get label() { return en.navigation.revenue }, suffix: '/revenue', icon: CircleDollarSignIcon, scope: 'site' },
 ] as const
 
 const managementNavigation = [
-  { label: en.navigation.sites, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
-  { label: en.navigation.health, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
-  { label: en.linksUi.nav, suffix: '/links', icon: Link2Icon, scope: 'site' },
+  { get label() { return en.navigation.sites }, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
+  { get label() { return en.navigation.health }, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
+  { get label() { return en.linksUi.nav }, suffix: '/links', icon: Link2Icon, scope: 'site' },
 ] as const
 
 export type NavigationItem =
@@ -80,10 +80,10 @@ export type NavigationItem =
   | (typeof managementNavigation)[number]
 
 const navigationSections = [
-  { key: 'analyze', label: en.a11y2.sidebarSections.analyze, suffixes: ['', '/events', '/sessions', '/realtime'] },
-  { key: 'behaviour', label: en.a11y2.sidebarSections.behaviour, suffixes: ['/journeys', '/retention', '/profiles', '/cohorts', '/heatmaps', '/vitals'] },
-  { key: 'conversion', label: en.a11y2.sidebarSections.conversion, suffixes: ['/funnels', '/goals', '/revenue'] },
-  { key: 'manage', label: en.a11y2.sidebarSections.manage, suffixes: ['/sites', '/links', '/health'] },
+  { key: 'analyze', get label() { return en.a11y2.sidebarSections.analyze }, suffixes: ['', '/events', '/sessions', '/realtime'] },
+  { key: 'behaviour', get label() { return en.a11y2.sidebarSections.behaviour }, suffixes: ['/journeys', '/retention', '/profiles', '/cohorts', '/heatmaps', '/vitals'] },
+  { key: 'conversion', get label() { return en.a11y2.sidebarSections.conversion }, suffixes: ['/funnels', '/goals', '/revenue'] },
+  { key: 'manage', get label() { return en.a11y2.sidebarSections.manage }, suffixes: ['/sites', '/links', '/health'] },
 ] as const
 
 export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site): NavigationItem[] {
