@@ -144,6 +144,13 @@ function timeBucketLabel(value: string, interval: ChartInterval, timezone: strin
   }
 }
 
+/** Minimum pixel gap between x-axis labels; wider on narrow charts so labels thin out instead of touching. */
+export function xTickGap(width: number): number {
+  if (width > 0 && width < 480) return 72
+  if (width > 0 && width < 720) return 48
+  return 32
+}
+
 export function axisBucketLabel(value: string, interval: ChartInterval, timezone: string): string {
   if (interval === 'hour') {
     const isSiteLocalBucket = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)
@@ -271,6 +278,7 @@ export function MainChart({
   onDeleteAnnotation,
 }: MainChartProps) {
   const summaryId = useId()
+  const [chartWidth, setChartWidth] = useState(0)
   const [selectedInterval, setSelectedInterval] = useState<ChartInterval | undefined>(interval)
 
   useEffect(() => {
@@ -359,7 +367,7 @@ export function MainChart({
           onDelete={onDeleteAnnotation}
         />
         <div aria-describedby={summaryId} aria-label={label} className="size-full" role="img">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} onResize={(width) => setChartWidth(width)}>
             <AreaChart accessibilityLayer data={points}>
               <defs>
                 <linearGradient id="main-chart-fill" x1="0" y1="0" x2="0" y2="1">
@@ -368,7 +376,7 @@ export function MainChart({
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="time" axisLine={false} tick={{ fontSize: 12 }} tickLine={false} interval="preserveStartEnd" minTickGap={32} tickFormatter={(value) => axisBucketLabel(String(value), resolvedInterval, timezone)} />
+              <XAxis dataKey="time" axisLine={false} tick={{ fontSize: 12 }} tickLine={false} interval="preserveStartEnd" minTickGap={xTickGap(chartWidth)} tickFormatter={(value) => axisBucketLabel(String(value), resolvedInterval, timezone)} />
               <YAxis axisLine={false} tick={{ fontSize: 12 }} tickLine={false} width={40} />
               <Tooltip labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
               <Area

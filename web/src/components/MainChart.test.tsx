@@ -9,7 +9,7 @@ const { useStats, useTimeseries } = vi.hoisted(() => ({ useStats: vi.fn(), useTi
 
 vi.mock('../lib/stats', () => ({ useStats, useTimeseries }))
 
-import { autoInterval, axisBucketLabel, MainChart } from './MainChart'
+import { autoInterval, axisBucketLabel, MainChart, xTickGap } from './MainChart'
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
@@ -232,5 +232,14 @@ describe('MainChart', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Pricing changed' }))
     expect(onEditAnnotation).toHaveBeenCalledWith(expect.objectContaining({ id: 3 }))
     expect(onDeleteAnnotation).toHaveBeenCalledWith(expect.objectContaining({ id: 4 }))
+  })
+})
+
+describe('xTickGap', () => {
+  it('widens the minimum label gap as the chart narrows', () => {
+    expect(xTickGap(0)).toBe(32)
+    expect(xTickGap(350)).toBe(72)
+    expect(xTickGap(600)).toBe(48)
+    expect(xTickGap(1000)).toBe(32)
   })
 })
