@@ -76,6 +76,26 @@ export const ui = {
   },
   sidebar: { demo: 'Demo' },
   appShell: { loadingLive: 'Loading live visitors' },
+  crumbs: {
+    label: 'Breadcrumb',
+    detail: 'Detail',
+    account: 'Account',
+    admin: 'Admin',
+    segments: {
+      sites: 'Sites', health: 'Health', settings: 'Settings', dashboard: 'Dashboard',
+      events: 'Events', sessions: 'Sessions', realtime: 'Realtime', replays: 'Replays',
+      replay: 'Replay', journeys: 'Journeys', retention: 'Retention', profiles: 'Profiles',
+      cohorts: 'Cohorts', heatmaps: 'Heatmaps', vitals: 'Web vitals', funnels: 'Funnels',
+      goals: 'Goals', revenue: 'Revenue', links: 'Links', pixel: 'Pixel', general: 'General',
+      alerts: 'Alerts', installation: 'Installation', integrations: 'Integrations',
+      imports: 'Imports', reports: 'Reports', shares: 'Shares', tracking: 'Tracking',
+      members: 'Members', invites: 'Invites', audit: 'Audit log', api: 'API',
+      'api-keys': 'API keys', notifications: 'Notifications',
+      'notification-history': 'Notification history', 'replay-storage': 'Replay storage',
+      new: 'New', profile: 'Profile', security: 'Security', organizations: 'Organizations',
+      users: 'Users',
+    } as Record<string, string>,
+  },
 }
 
 registerCatalogue('ui', ui)
