@@ -107,7 +107,16 @@ export default async function globalSetup(config: FullConfig) {
 
   const createdShare = await api.post(`/api/private/sites/${siteId}/shares`, {
     headers: apiHeaders,
-    data: { password: '' },
+    data: {
+      password: '',
+      config: {
+        sections: ['kpis', 'chart', 'pages', 'sources', 'locations', 'devices', 'where', 'weekly_rhythm', 'goals'],
+        filters: [],
+        date: { mode: 'rolling', days: 30, max_days: 30 },
+        theme: 'system',
+        embed: { enabled: false, allowed_origins: [], confirm_wildcard: false },
+      },
+    },
   })
   const share = await responseJSON<Record<string, unknown>>(createdShare)
   const shareSlug = value<string>(share, 'slug', 'Slug')

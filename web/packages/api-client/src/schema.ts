@@ -328,6 +328,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/share/{slug}/stats/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        /** Get the server-scoped shared dashboard summary */
+        get: operations["getSharedDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/share/{slug}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Query one enabled shared dashboard section */
+        post: operations["querySharedDashboardSection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site_id}/replays": {
         parameters: {
             query?: never;
@@ -1364,6 +1402,7 @@ export interface components {
             /** Format: password */
             password?: string;
             expires_in_days?: components["schemas"]["ShareExpiryDays"] | null;
+            config?: components["schemas"]["ShareConfig"];
         };
         ChangeShareExpiryRequest: {
             expires_in_days?: components["schemas"]["ShareExpiryDays"] | null;
@@ -1386,6 +1425,47 @@ export interface components {
             /** Format: date-time */
             revoked_at?: string | null;
             password_protected: boolean;
+            config: components["schemas"]["ShareConfig"];
+        };
+        /** @enum {string} */
+        ShareSection: "kpis" | "chart" | "pages" | "sources" | "locations" | "devices" | "where" | "weekly_rhythm" | "goals";
+        /** @enum {string} */
+        ShareTheme: "light" | "dark" | "system";
+        ShareDateConfig: {
+            /** @enum {string} */
+            mode: "rolling" | "fixed";
+            days?: number;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            max_days: number;
+        };
+        ShareEmbedConfig: {
+            enabled: boolean;
+            allowed_origins?: string[];
+            /** @default false */
+            confirm_wildcard: boolean;
+        };
+        ShareConfig: {
+            sections: components["schemas"]["ShareSection"][];
+            filters?: components["schemas"]["Filter"][];
+            /** Format: int64 */
+            segment_id?: number;
+            date: components["schemas"]["ShareDateConfig"];
+            theme: components["schemas"]["ShareTheme"];
+            embed: components["schemas"]["ShareEmbedConfig"];
+        };
+        ShareSectionRequest: {
+            section: components["schemas"]["ShareSection"];
+        };
+        SharedDashboard: {
+            sections: components["schemas"]["ShareSection"][];
+            theme: components["schemas"]["ShareTheme"];
+            date_label: string;
+            transparent_background: boolean;
+            data: components["schemas"]["QueryResponse"];
+            read_only: boolean;
         };
         ShareList: {
             data: components["schemas"]["Share"][];
@@ -3262,6 +3342,61 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    getSharedDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Shared dashboard metadata and KPI data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedDashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    querySharedDashboardSection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareSectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-scoped section data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listReplays: {

@@ -411,7 +411,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if setupURL, ok := authService.SetupURL(ctx); ok {
 		fmt.Fprintln(os.Stdout, setupURL)
 	}
-	server := newHTTPServer(router, cfg)
+	server := newHTTPServer(router, cfg, shareService)
 
 	writerCtx, cancelWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
@@ -582,9 +582,9 @@ func warnLoopbackProxyRisk(logger *slog.Logger, addr net.Addr, trustedProxies []
 	logger.Warn("server listens on loopback without SUPERMETRY_TRUSTED_PROXIES; visitors behind a same-host proxy may all share one IP; configure SUPERMETRY_TRUSTED_PROXIES with the proxy address")
 }
 
-func newHTTPServer(handler http.Handler, cfg config.Config) *http.Server {
+func newHTTPServer(handler http.Handler, cfg config.Config, sharePolicies ...shareEmbedPolicyResolver) *http.Server {
 	return &http.Server{
-		Handler:           appSecurityHeaders(cfg, handler),
+		Handler:           appSecurityHeaders(cfg, handler, sharePolicies...),
 		ReadTimeout:       cfg.HTTPReadTimeout,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      cfg.HTTPWriteTimeout,
@@ -671,9 +671,20 @@ var securityPolicies = [securityRouteCount]securityPolicy{
 	},
 }
 
-func appSecurityHeaders(cfg config.Config, next http.Handler) http.Handler {
+type shareEmbedPolicyResolver interface {
+	EmbedPolicy(context.Context, string) (frameAncestors string, enabled bool)
+}
+
+func appSecurityHeaders(cfg config.Config, next http.Handler, sharePolicies ...shareEmbedPolicyResolver) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		policy := securityPolicies[classifySecurityRoute(cfg, r.URL.Path)]
+		if slug, ok := shareDocumentSlug(r.URL.Path); ok && len(sharePolicies) > 0 && sharePolicies[0] != nil {
+			if ancestors, enabled := sharePolicies[0].EmbedPolicy(r.Context(), slug); enabled {
+				policy.contentSecurityPolicy = strings.Replace(policy.contentSecurityPolicy, "frame-ancestors 'none'", "frame-ancestors "+ancestors, 1)
+				policy.frameOptions = ""
+				policy.resourcePolicy = "cross-origin"
+			}
+		}
 		setOptionalHeader(w.Header(), "Content-Security-Policy", policy.contentSecurityPolicy)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", policy.referrerPolicy)
@@ -687,6 +698,18 @@ func appSecurityHeaders(cfg config.Config, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func shareDocumentSlug(requestPath string) (string, bool) {
+	const prefix = "/share/"
+	if !strings.HasPrefix(requestPath, prefix) {
+		return "", false
+	}
+	slug := strings.TrimPrefix(requestPath, prefix)
+	if slug == "" || strings.Contains(slug, "/") {
+		return "", false
+	}
+	return slug, true
 }
 
 func setOptionalHeader(header http.Header, name, value string) {

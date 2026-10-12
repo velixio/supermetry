@@ -18,17 +18,21 @@ type SharedLink struct {
 	CreatedAt    time.Time
 	ExpiresAt    *time.Time
 	RevokedAt    *time.Time
+	Config       []byte
 }
 
 func CreateSharedLink(ctx context.Context, tx pgx.Tx, orgID int64, link SharedLink) (SharedLink, error) {
+	if len(link.Config) == 0 {
+		link.Config = []byte(`{}`)
+	}
 	err := tx.QueryRow(ctx, `
-		insert into shared_links (site_id, slug_hash, password_hash, created_by, expires_at)
-		select s.id, $3, $4, $5, $6
+		insert into shared_links (site_id, slug_hash, password_hash, created_by, expires_at, config)
+		select s.id, $3, $4, $5, $6, $7
 		from sites s
 		where s.id = $1 and s.org_id = $2 and s.deleted_at is null
-		returning id, created_at, expires_at`,
-		link.SiteID, orgID, link.SlugHash, link.PasswordHash, link.CreatedBy, link.ExpiresAt,
-	).Scan(&link.ID, &link.CreatedAt, &link.ExpiresAt)
+		returning id, created_at, expires_at, config`,
+		link.SiteID, orgID, link.SlugHash, link.PasswordHash, link.CreatedBy, link.ExpiresAt, link.Config,
+	).Scan(&link.ID, &link.CreatedAt, &link.ExpiresAt, &link.Config)
 	if err != nil {
 		return SharedLink{}, fmt.Errorf("insert shared link: %w", err)
 	}
@@ -40,13 +44,13 @@ func SharedLinkBySlugHash(ctx context.Context, data *Store, slugHash []byte) (Sh
 	var link SharedLink
 	err := data.Pool.QueryRow(ctx, `
 		select l.id, l.site_id, s.org_id, l.slug_hash, l.password_hash,
-		       l.created_by, l.created_at, l.expires_at, l.revoked_at
+		       l.created_by, l.created_at, l.expires_at, l.revoked_at, l.config
 		from shared_links l
 		join sites s on s.id = l.site_id
 		join orgs o on o.id = s.org_id
 		where l.slug_hash = $1 and s.deleted_at is null and o.deleted_at is null`, slugHash).Scan(
 		&link.ID, &link.SiteID, &link.OrgID, &link.SlugHash,
-		&link.PasswordHash, &link.CreatedBy, &link.CreatedAt, &link.ExpiresAt, &link.RevokedAt,
+		&link.PasswordHash, &link.CreatedBy, &link.CreatedAt, &link.ExpiresAt, &link.RevokedAt, &link.Config,
 	)
 	if err != nil {
 		return SharedLink{}, fmt.Errorf("query shared link: %w", err)
@@ -58,13 +62,13 @@ func SharedLinkByIDForUpdate(ctx context.Context, tx pgx.Tx, orgID, id int64) (S
 	var link SharedLink
 	err := tx.QueryRow(ctx, `
 		select l.id, l.site_id, s.org_id, l.slug_hash, l.password_hash,
-		       l.created_by, l.created_at, l.expires_at, l.revoked_at
+		       l.created_by, l.created_at, l.expires_at, l.revoked_at, l.config
 		from shared_links l
 		join sites s on s.id = l.site_id
 		where l.id = $1 and s.org_id = $2 and s.deleted_at is null
 		for update of l`, id, orgID).Scan(
 		&link.ID, &link.SiteID, &link.OrgID, &link.SlugHash,
-		&link.PasswordHash, &link.CreatedBy, &link.CreatedAt, &link.ExpiresAt, &link.RevokedAt,
+		&link.PasswordHash, &link.CreatedBy, &link.CreatedAt, &link.ExpiresAt, &link.RevokedAt, &link.Config,
 	)
 	if err != nil {
 		return SharedLink{}, fmt.Errorf("query shared link by ID: %w", err)

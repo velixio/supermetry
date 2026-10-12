@@ -219,6 +219,15 @@ export const en = {
     light: 'Use dark theme',
     dark: 'Use light theme',
   },
+  // Configurable share links (F02).
+  shares: {
+    preview: 'Share preview',
+    content: 'Visible sections',
+    scope: 'Locked audience and date',
+    appearance: 'Appearance',
+    access: 'Access and embedding',
+    wildcardWarning: 'Any website can frame this dashboard. Confirm only for data intended for unrestricted publishing.',
+  },
   shortcuts: {
     title: 'Keyboard shortcuts',
     description: 'Move around the dashboard without leaving the keyboard.',

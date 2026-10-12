@@ -214,6 +214,7 @@ func (h *handler) createShare(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Password      string          `json:"password,omitempty"`
 		ExpiresInDays json.RawMessage `json:"expires_in_days"`
+		Config        *shares.Config  `json:"config,omitempty"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -226,7 +227,11 @@ func (h *handler) createShare(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	slug, info, err := h.deps.Shares.CreateWithExpiry(r.Context(), principal, site.ID, request.Password, expiresInDays)
+	config := shares.LegacyConfig()
+	if request.Config != nil {
+		config = *request.Config
+	}
+	slug, info, err := h.deps.Shares.CreateConfigured(r.Context(), principal, site.ID, request.Password, expiresInDays, config)
 	if err != nil {
 		if writePasswordPolicyProblem(w, err) {
 			return
@@ -246,25 +251,32 @@ func (h *handler) listShares(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "share")
 		return
 	}
-	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,site_id,created_by,created_at,expires_at,revoked_at,password_hash is not null from shared_links where site_id=$1 order by id`, site.ID)
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `select id,site_id,created_by,created_at,expires_at,revoked_at,password_hash is not null,config from shared_links where site_id=$1 order by id`, site.ID)
 	if err != nil {
 		serviceError(w, err)
 		return
 	}
 	defer rows.Close()
 	type share struct {
-		ID                int64      `json:"id"`
-		SiteID            int32      `json:"site_id"`
-		CreatedBy         int64      `json:"created_by"`
-		CreatedAt         time.Time  `json:"created_at"`
-		ExpiresAt         *time.Time `json:"expires_at"`
-		RevokedAt         *time.Time `json:"revoked_at,omitempty"`
-		PasswordProtected bool       `json:"password_protected"`
+		ID                int64         `json:"id"`
+		SiteID            int32         `json:"site_id"`
+		CreatedBy         int64         `json:"created_by"`
+		CreatedAt         time.Time     `json:"created_at"`
+		ExpiresAt         *time.Time    `json:"expires_at"`
+		RevokedAt         *time.Time    `json:"revoked_at,omitempty"`
+		PasswordProtected bool          `json:"password_protected"`
+		Config            shares.Config `json:"config"`
 	}
 	items := make([]share, 0)
 	for rows.Next() {
 		var item share
-		if err := rows.Scan(&item.ID, &item.SiteID, &item.CreatedBy, &item.CreatedAt, &item.ExpiresAt, &item.RevokedAt, &item.PasswordProtected); err != nil {
+		var rawConfig []byte
+		if err := rows.Scan(&item.ID, &item.SiteID, &item.CreatedBy, &item.CreatedAt, &item.ExpiresAt, &item.RevokedAt, &item.PasswordProtected, &rawConfig); err != nil {
+			serviceError(w, err)
+			return
+		}
+		item.Config, err = shares.DecodeConfig(rawConfig)
+		if err != nil {
 			serviceError(w, err)
 			return
 		}

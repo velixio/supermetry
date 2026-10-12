@@ -23,6 +23,8 @@ function renderPage() {
 
 describe('share settings expiry', () => {
   beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+    Element.prototype.scrollIntoView = vi.fn()
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-10-10T12:00:00Z'))
     vi.mocked(privateRequest).mockImplementation(async (method) => {
@@ -42,6 +44,7 @@ describe('share settings expiry', () => {
     cleanup()
     vi.useRealTimers()
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('defaults new links to 90 days and submits the selected expiry', async () => {
@@ -54,9 +57,57 @@ describe('share settings expiry', () => {
       expect(privateRequest).toHaveBeenCalledWith(
         'POST',
         '/api/private/sites/10/shares',
-        { orgId: 2, body: { password: '', expires_in_days: 90 } },
+        { orgId: 2, body: expect.objectContaining({ password: '', expires_in_days: 90, config: expect.any(Object) }) },
       ),
     )
+  })
+
+  it('submits visible sections, locked scope, theme, date and confirmed embed policy', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { name: 'Share preview' })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sources' }))
+    fireEvent.change(screen.getByLabelText('Locked country'), { target: { value: 'IN' } })
+    fireEvent.click(screen.getByRole('combobox', { name: 'Theme' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Dark' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Allow embedding' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /allow embedding on any origin/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create link' }))
+
+    await waitFor(() => expect(privateRequest).toHaveBeenCalledWith(
+      'POST',
+      '/api/private/sites/10/shares',
+      { orgId: 2, body: expect.objectContaining({
+        config: expect.objectContaining({
+          sections: expect.not.arrayContaining(['sources']),
+          filters: [{ dimension: 'country', operator: 'is', values: ['IN'] }],
+          theme: 'dark',
+          embed: { enabled: true, allowed_origins: [], confirm_wildcard: true },
+        }),
+      }) },
+    ))
+    expect(await screen.findByRole('button', { name: 'Copy embed code' })).toBeVisible()
+  })
+
+  it('submits a saved segment as the locked scope', async () => {
+    vi.mocked(privateRequest).mockImplementation(async (method, path) => {
+      if (method === 'GET' && path.endsWith('/segments')) return [{ id: 17, name: 'Paid visitors' }] as never
+      if (method === 'GET') return { data: [] } as never
+      return { slug: 'shr_segment' } as never
+    })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Saved segment' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Paid visitors' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create link' }))
+
+    await waitFor(() => expect(privateRequest).toHaveBeenCalledWith(
+      'POST',
+      '/api/private/sites/10/shares',
+      { orgId: 2, body: expect.objectContaining({
+        config: expect.objectContaining({ segment_id: 17, filters: [] }),
+      }) },
+    ))
   })
 
   it('shows expired and dated expiry badges', async () => {

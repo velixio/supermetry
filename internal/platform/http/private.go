@@ -208,6 +208,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/private/orgs/{org}", h.renameOrg)
 	mux.HandleFunc("DELETE /api/private/orgs/{org}", h.deleteOrg)
 	mux.HandleFunc("GET /api/private/share/{slug}/stats/summary", h.shareStats)
+	mux.HandleFunc("POST /api/private/share/{slug}/query", h.shareQuery)
 	mux.HandleFunc("GET /api/private/sites/{site}/goals", h.listGoals)
 	mux.HandleFunc("POST /api/private/sites/{site}/goals", h.createGoal)
 	mux.HandleFunc("PATCH /api/private/goals/{goal}", h.updateGoal)
@@ -591,7 +592,7 @@ func csrfExempt(path string) bool {
 		return true
 	default:
 		return strings.HasPrefix(path, "/api/private/invitations/") && strings.HasSuffix(path, "/accept") ||
-			strings.HasPrefix(path, "/api/private/share/") && strings.HasSuffix(path, "/open")
+			strings.HasPrefix(path, "/api/private/share/") && (strings.HasSuffix(path, "/open") || strings.HasSuffix(path, "/query"))
 	}
 }
 

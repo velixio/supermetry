@@ -778,6 +778,24 @@ func (e SessionTimelineItemKind) Valid() bool {
 	}
 }
 
+// Defines values for ShareDateConfigMode.
+const (
+	Fixed   ShareDateConfigMode = "fixed"
+	Rolling ShareDateConfigMode = "rolling"
+)
+
+// Valid indicates whether the value is a known member of the ShareDateConfigMode enum.
+func (e ShareDateConfigMode) Valid() bool {
+	switch e {
+	case Fixed:
+		return true
+	case Rolling:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ShareExpiryDays.
 const (
 	ShareExpiryDaysN30  ShareExpiryDays = 30
@@ -796,6 +814,66 @@ func (e ShareExpiryDays) Valid() bool {
 	case ShareExpiryDaysN7:
 		return true
 	case ShareExpiryDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ShareSection.
+const (
+	Chart        ShareSection = "chart"
+	Devices      ShareSection = "devices"
+	Goals        ShareSection = "goals"
+	Kpis         ShareSection = "kpis"
+	Locations    ShareSection = "locations"
+	Pages        ShareSection = "pages"
+	Sources      ShareSection = "sources"
+	WeeklyRhythm ShareSection = "weekly_rhythm"
+	Where        ShareSection = "where"
+)
+
+// Valid indicates whether the value is a known member of the ShareSection enum.
+func (e ShareSection) Valid() bool {
+	switch e {
+	case Chart:
+		return true
+	case Devices:
+		return true
+	case Goals:
+		return true
+	case Kpis:
+		return true
+	case Locations:
+		return true
+	case Pages:
+		return true
+	case Sources:
+		return true
+	case WeeklyRhythm:
+		return true
+	case Where:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ShareTheme.
+const (
+	Dark   ShareTheme = "dark"
+	Light  ShareTheme = "light"
+	System ShareTheme = "system"
+)
+
+// Valid indicates whether the value is a known member of the ShareTheme enum.
+func (e ShareTheme) Valid() bool {
+	switch e {
+	case Dark:
+		return true
+	case Light:
+		return true
+	case System:
 		return true
 	default:
 		return false
@@ -1033,6 +1111,7 @@ type CreateDemoRequest struct {
 
 // CreateShareRequest defines model for CreateShareRequest.
 type CreateShareRequest struct {
+	Config        *ShareConfig     `json:"config,omitempty"`
 	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
 	Password      *string          `json:"password,omitempty"`
 }
@@ -1945,13 +2024,43 @@ type SessionTimelineItemKind string
 
 // Share defines model for Share.
 type Share struct {
-	CreatedAt         time.Time  `json:"created_at"`
-	CreatedBy         int64      `json:"created_by"`
-	ExpiresAt         *time.Time `json:"expires_at"`
-	Id                int64      `json:"id"`
-	PasswordProtected bool       `json:"password_protected"`
-	RevokedAt         *time.Time `json:"revoked_at,omitempty"`
-	SiteId            int32      `json:"site_id"`
+	Config            ShareConfig `json:"config"`
+	CreatedAt         time.Time   `json:"created_at"`
+	CreatedBy         int64       `json:"created_by"`
+	ExpiresAt         *time.Time  `json:"expires_at"`
+	Id                int64       `json:"id"`
+	PasswordProtected bool        `json:"password_protected"`
+	RevokedAt         *time.Time  `json:"revoked_at,omitempty"`
+	SiteId            int32       `json:"site_id"`
+}
+
+// ShareConfig defines model for ShareConfig.
+type ShareConfig struct {
+	Date      ShareDateConfig  `json:"date"`
+	Embed     ShareEmbedConfig `json:"embed"`
+	Filters   *[]Filter        `json:"filters,omitempty"`
+	Sections  []ShareSection   `json:"sections"`
+	SegmentId *int64           `json:"segment_id,omitempty"`
+	Theme     ShareTheme       `json:"theme"`
+}
+
+// ShareDateConfig defines model for ShareDateConfig.
+type ShareDateConfig struct {
+	Days    *int                `json:"days,omitempty"`
+	From    *openapi_types.Date `json:"from,omitempty"`
+	MaxDays int                 `json:"max_days"`
+	Mode    ShareDateConfigMode `json:"mode"`
+	To      *openapi_types.Date `json:"to,omitempty"`
+}
+
+// ShareDateConfigMode defines model for ShareDateConfig.Mode.
+type ShareDateConfigMode string
+
+// ShareEmbedConfig defines model for ShareEmbedConfig.
+type ShareEmbedConfig struct {
+	AllowedOrigins  *[]string `json:"allowed_origins,omitempty"`
+	ConfirmWildcard *bool     `json:"confirm_wildcard,omitempty"`
+	Enabled         bool      `json:"enabled"`
 }
 
 // ShareExpiryDays Days from the current time, or null for no expiry.
@@ -1960,6 +2069,27 @@ type ShareExpiryDays int
 // ShareList defines model for ShareList.
 type ShareList struct {
 	Data []Share `json:"data"`
+}
+
+// ShareSection defines model for ShareSection.
+type ShareSection string
+
+// ShareSectionRequest defines model for ShareSectionRequest.
+type ShareSectionRequest struct {
+	Section ShareSection `json:"section"`
+}
+
+// ShareTheme defines model for ShareTheme.
+type ShareTheme string
+
+// SharedDashboard defines model for SharedDashboard.
+type SharedDashboard struct {
+	Data                  QueryResponse  `json:"data"`
+	DateLabel             string         `json:"date_label"`
+	ReadOnly              bool           `json:"read_only"`
+	Sections              []ShareSection `json:"sections"`
+	Theme                 ShareTheme     `json:"theme"`
+	TransparentBackground bool           `json:"transparent_background"`
 }
 
 // Site defines model for Site.
@@ -2442,6 +2572,9 @@ type CreateDemoProjectJSONRequestBody = CreateDemoRequest
 // OpenSharedLinkJSONRequestBody defines body for OpenSharedLink for application/json ContentType.
 type OpenSharedLinkJSONRequestBody = OpenShareRequest
 
+// QuerySharedDashboardSectionJSONRequestBody defines body for QuerySharedDashboardSection for application/json ContentType.
+type QuerySharedDashboardSectionJSONRequestBody = ShareSectionRequest
+
 // UpdateReplaySettingsJSONRequestBody defines body for UpdateReplaySettings for application/json ContentType.
 type UpdateReplaySettingsJSONRequestBody = ReplaySiteSettingsInput
 
@@ -2635,6 +2768,12 @@ type ServerInterface interface {
 	// OpenSharedLink Unlock a password-protected shared dashboard
 	// (POST /api/private/share/{slug}/open)
 	OpenSharedLink(w http.ResponseWriter, r *http.Request, slug string)
+	// QuerySharedDashboardSection Query one enabled shared dashboard section
+	// (POST /api/private/share/{slug}/query)
+	QuerySharedDashboardSection(w http.ResponseWriter, r *http.Request, slug string)
+	// GetSharedDashboard Get the server-scoped shared dashboard summary
+	// (GET /api/private/share/{slug}/stats/summary)
+	GetSharedDashboard(w http.ResponseWriter, r *http.Request, slug string)
 	// DeletePrivateSite Schedule or immediately delete a site
 	// (DELETE /api/private/sites/{site_id})
 	DeletePrivateSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -3238,6 +3377,58 @@ func (siw *ServerInterfaceWrapper) OpenSharedLink(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OpenSharedLink(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QuerySharedDashboardSection operation middleware
+func (siw *ServerInterfaceWrapper) QuerySharedDashboardSection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QuerySharedDashboardSection(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSharedDashboard operation middleware
+func (siw *ServerInterfaceWrapper) GetSharedDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSharedDashboard(w, r, slug)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5775,6 +5966,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site_id}/shares/{share_id}", wrapper.RevokeSharedLink)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site_id}/shares/{share_id}", wrapper.ChangeSharedLinkExpiry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/share/{slug}/open", wrapper.OpenSharedLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/share/{slug}/stats/summary", wrapper.GetSharedDashboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/share/{slug}/query", wrapper.QuerySharedDashboardSection)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays", wrapper.ListReplays)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/{session_id}/data", wrapper.GetReplayData)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/css/{hash}", wrapper.GetReplayCSS)

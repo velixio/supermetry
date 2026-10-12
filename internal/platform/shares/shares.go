@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strconv"
@@ -56,30 +57,46 @@ type attemptLimiter struct {
 
 type ShareInfo struct {
 	ID                int64      `json:"id"`
+	OrgID             int64      `json:"-"`
 	SiteID            int32      `json:"site_id"`
 	CreatedBy         int64      `json:"created_by"`
 	CreatedAt         time.Time  `json:"created_at"`
 	ExpiresAt         *time.Time `json:"expires_at"`
 	RevokedAt         *time.Time `json:"revoked_at,omitempty"`
 	PasswordProtected bool       `json:"password_protected"`
+	Config            Config     `json:"config"`
 }
 
 type Shares struct {
 	store     *store.Store
 	now       func() time.Time
 	limiter   attemptLimiter
+	viewLimit attemptLimiter
 	secretMu  sync.RWMutex
 	cookieKey []byte
 }
 
 func New(data *store.Store, secrets ...[]byte) *Shares {
-	service := &Shares{store: data, now: time.Now, limiter: attemptLimiter{
-		targets: make(map[string]attemptBucket), clients: make(map[string]attemptBucket),
-	}}
+	service := &Shares{store: data, now: time.Now}
+	service.limiter = newAttemptLimiter()
+	service.viewLimit = newAttemptLimiter()
 	if len(secrets) > 0 {
 		service.SetCookieSecret(secrets[0])
 	}
 	return service
+}
+
+func newAttemptLimiter() attemptLimiter {
+	return attemptLimiter{targets: make(map[string]attemptBucket), clients: make(map[string]attemptBucket)}
+}
+
+// AllowView enforces a bounded, in-memory read budget without retaining a raw
+// client address or putting one in logs. The caller supplies the hashed client
+// key through WithClientKey.
+func (s *Shares) AllowView(ctx context.Context, slug string) bool {
+	client, _ := ctx.Value(clientKeyContextKey{}).(string)
+	target := base64.RawURLEncoding.EncodeToString(platformcrypto.HashToken(slug))
+	return s.viewLimit.allowLimits(target, client, s.now(), 120, 600)
 }
 
 // SetCookieSecret derives a purpose-specific signing key from
@@ -98,10 +115,18 @@ func (s *Shares) Create(ctx context.Context, principal authz.Principal, siteID i
 }
 
 func (s *Shares) CreateWithExpiry(ctx context.Context, principal authz.Principal, siteID int32, password string, expiresInDays *int) (slug string, info ShareInfo, err error) {
+	return s.CreateConfigured(ctx, principal, siteID, password, expiresInDays, LegacyConfig())
+}
+
+func (s *Shares) CreateConfigured(ctx context.Context, principal authz.Principal, siteID int32, password string, expiresInDays *int, config Config) (slug string, info ShareInfo, err error) {
 	if !authz.Can(principal, authz.ActionSharesManage, siteID) || principal.UserID == 0 {
 		return "", ShareInfo{}, ErrForbidden
 	}
 	expiresAt, err := expiryFromDays(s.now(), expiresInDays)
+	if err != nil {
+		return "", ShareInfo{}, err
+	}
+	config, err = NormalizeConfig(config)
 	if err != nil {
 		return "", ShareInfo{}, err
 	}
@@ -131,10 +156,29 @@ func (s *Shares) CreateWithExpiry(ctx context.Context, principal authz.Principal
 		if !authz.Can(current, authz.ActionSharesManage, siteID) {
 			return ErrForbidden
 		}
+		if config.SegmentID != nil {
+			var filters []byte
+			if err := tx.QueryRow(ctx, `select filters from segments where id=$1 and site_id=$2`, *config.SegmentID, siteID).Scan(&filters); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return ErrInvalid
+				}
+				return err
+			}
+			if err := json.Unmarshal(filters, &config.Filters); err != nil {
+				return err
+			}
+			// Snapshot the segment so later edits cannot silently widen an
+			// already-issued public link.
+			config.SegmentID = nil
+		}
+		encodedConfig, err := json.Marshal(config)
+		if err != nil {
+			return err
+		}
 		var createErr error
 		link, createErr = store.CreateSharedLink(ctx, tx, principal.OrgID, store.SharedLink{
 			SiteID: siteID, SlugHash: slugHash, PasswordHash: passwordHash,
-			CreatedBy: principal.UserID, ExpiresAt: expiresAt,
+			CreatedBy: principal.UserID, ExpiresAt: expiresAt, Config: encodedConfig,
 		})
 		if createErr != nil {
 			if errors.Is(createErr, pgx.ErrNoRows) {
@@ -143,7 +187,7 @@ func (s *Shares) CreateWithExpiry(ctx context.Context, principal authz.Principal
 			return createErr
 		}
 		return audit.Write(ctx, tx, principal, "share.created", "shared_link", link.ID, map[string]any{
-			"site_id": siteID, "password_protected": passwordHash != nil, "expires_at": expiresAt,
+			"site_id": siteID, "password_protected": passwordHash != nil, "expires_at": expiresAt, "config": config,
 		})
 	})
 	if err != nil {
@@ -198,6 +242,32 @@ func (s *Shares) Resolve(ctx context.Context, slug, cookieValue string) (authz.P
 		OrgID: link.OrgID, ShareID: link.ID, Role: authz.RoleShare,
 		SiteIDs: []int32{link.SiteID},
 	}, nil
+}
+
+func (s *Shares) ResolveShare(ctx context.Context, slug, cookieValue string) (ShareInfo, error) {
+	now := s.now()
+	link, err := s.lookup(ctx, slug)
+	if err != nil || unavailable(link, now) {
+		return ShareInfo{}, ErrNotFound
+	}
+	if link.PasswordHash != nil && !validCookie(slug, cookieValue, s.cookieSecret(), now) {
+		return ShareInfo{}, ErrPasswordRequired
+	}
+	return shareInfo(link), nil
+}
+
+// EmbedPolicy resolves framing policy without unlocking protected content.
+// Missing, revoked and expired links fail closed.
+func (s *Shares) EmbedPolicy(ctx context.Context, slug string) (string, bool) {
+	link, err := s.lookup(ctx, slug)
+	if err != nil || unavailable(link, s.now()) {
+		return "'none'", false
+	}
+	config, err := decodeConfig(link.Config)
+	if err != nil {
+		return "'none'", false
+	}
+	return FrameAncestors(config)
 }
 
 func (s *Shares) ChangeExpiry(ctx context.Context, principal authz.Principal, id int64, expiresInDays *int) error {
@@ -288,6 +358,10 @@ func (s *Shares) cookieSecret() []byte {
 }
 
 func (l *attemptLimiter) allow(target, client string, now time.Time) bool {
+	return l.allowLimits(target, client, now, 5, 20)
+}
+
+func (l *attemptLimiter) allowLimits(target, client string, now time.Time, clientLimit, targetLimit float64) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.attempt++
@@ -295,10 +369,10 @@ func (l *attemptLimiter) allow(target, client string, now time.Time) bool {
 		pruneAttempts(l.targets, now)
 		pruneAttempts(l.clients, now)
 	}
-	if client != "" && !takeAttempt(l.clients, client, 5, now) {
+	if client != "" && !takeAttempt(l.clients, client, clientLimit, now) {
 		return false
 	}
-	return takeAttempt(l.targets, target, 20, now)
+	return takeAttempt(l.targets, target, targetLimit, now)
 }
 
 func pruneAttempts(buckets map[string]attemptBucket, now time.Time) {
@@ -398,9 +472,27 @@ func unavailable(link store.SharedLink, now time.Time) bool {
 }
 
 func shareInfo(link store.SharedLink) ShareInfo {
+	config, err := decodeConfig(link.Config)
+	if err != nil {
+		config = LegacyConfig()
+	}
 	return ShareInfo{
-		ID: link.ID, SiteID: link.SiteID, CreatedBy: link.CreatedBy,
+		ID: link.ID, OrgID: link.OrgID, SiteID: link.SiteID, CreatedBy: link.CreatedBy,
 		CreatedAt: link.CreatedAt, ExpiresAt: link.ExpiresAt, RevokedAt: link.RevokedAt,
 		PasswordProtected: link.PasswordHash != nil,
+		Config:            config,
 	}
 }
+
+func decodeConfig(raw []byte) (Config, error) {
+	if len(raw) == 0 || string(raw) == "{}" {
+		return LegacyConfig(), nil
+	}
+	var config Config
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return Config{}, err
+	}
+	return NormalizeConfig(config)
+}
+
+func DecodeConfig(raw []byte) (Config, error) { return decodeConfig(raw) }

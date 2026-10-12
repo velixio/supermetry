@@ -66,7 +66,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Account self-service: edit name, change email or password, delete account | ✓ | ✓ | ✓ | ✅ |
 | Invite-only signup by default | ✓ (`DISABLE_REGISTRATION`) | – | – | ✅ (`SUPERMETRY_SIGNUP=open` to allow) |
 | Audit log | ? | – | – | ✅ |
-| Public share links | ✓ | ✓ | ✓ | ✅ |
+| Configurable public share links (sections, locked scope, date, theme, opt-in embeds) | ✓ | ✓ | ✓ | ✅ |
 | Email reports | ✓ | – | ? | ✅ |
 | Alerts: traffic spike or drop, goal hit | ✓ (email, traffic spike) | – | ✓ | ✅ |
 | Webhooks, Slack, Discord | – | – | ✓ | ✅ |

@@ -3,6 +3,7 @@ package shares
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/api"
 	"supermetry/internal/db"
 	"supermetry/internal/platform/authz"
 	platformcrypto "supermetry/internal/platform/crypto"
@@ -195,6 +197,114 @@ func TestShareExpiryLifecycle(t *testing.T) {
 }
 
 func intPointer(value int) *int { return &value }
+
+func TestNormalizeConfigDefaultsAndRejectsUnsafeEmbedding(t *testing.T) {
+	got, err := NormalizeConfig(Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(got.Sections) != "[kpis]" || got.Date.Mode != DateRolling || got.Date.Days != 7 || got.Theme != ThemeSystem || got.Embed.Enabled {
+		t.Fatalf("default config = %+v", got)
+	}
+
+	tests := []struct {
+		name   string
+		config Config
+	}{
+		{name: "unknown section", config: Config{Sections: []Section{"secrets"}}},
+		{name: "too many filters", config: Config{Filters: make([]api.Filter, 11)}},
+		{name: "insecure origin", config: Config{Embed: EmbedConfig{Enabled: true, AllowedOrigins: []string{"http://example.com"}}}},
+		{name: "origin has path", config: Config{Embed: EmbedConfig{Enabled: true, AllowedOrigins: []string{"https://example.com/path"}}}},
+		{name: "wildcard not confirmed", config: Config{Embed: EmbedConfig{Enabled: true}}},
+		{name: "fixed range backwards", config: Config{Date: DateConfig{Mode: DateFixed, From: "2026-10-10", To: "2026-10-01"}}},
+		{name: "rolling range over maximum", config: Config{Date: DateConfig{Mode: DateRolling, Days: 31, MaxDays: 30}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := NormalizeConfig(tt.config); !errors.Is(err, ErrInvalid) {
+				t.Fatalf("NormalizeConfig() error = %v, want ErrInvalid", err)
+			}
+		})
+	}
+}
+
+func TestShareViewRateLimitUsesHashedClientBudget(t *testing.T) {
+	service := &Shares{now: func() time.Time { return time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC) }, viewLimit: newAttemptLimiter()}
+	ctx := WithClientKey(context.Background(), "hashed-client")
+	for attempt := 0; attempt < 120; attempt++ {
+		if !service.AllowView(ctx, "shr_target") {
+			t.Fatalf("attempt %d denied before client budget", attempt+1)
+		}
+	}
+	if service.AllowView(ctx, "shr_target") {
+		t.Fatal("121st request was not rate limited")
+	}
+}
+
+func TestConfiguredSharePersistsLockedScopeAndEmbedPolicy(t *testing.T) {
+	service, principal, siteID, pool := newShares(t)
+	ctx := context.Background()
+	config := Config{
+		Sections: []Section{SectionKPIs, SectionChart, SectionPages},
+		Filters:  []api.Filter{{Dimension: "country", Operator: api.Is, Values: []string{"IN"}}},
+		Date:     DateConfig{Mode: DateFixed, From: "2026-10-01", To: "2026-10-07", MaxDays: 7},
+		Theme:    ThemeDark,
+		Embed:    EmbedConfig{Enabled: true, AllowedOrigins: []string{"https://reports.example"}},
+	}
+	slug, info, err := service.CreateConfigured(ctx, principal, siteID, "", intPointer(30), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Config.Theme != ThemeDark || len(info.Config.Filters) != 1 || !info.Config.Embed.Enabled {
+		t.Fatalf("created config = %+v", info.Config)
+	}
+	loaded, err := service.ResolveShare(ctx, slug, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Config.Date.From != "2026-10-01" || fmt.Sprint(loaded.Config.Sections) != "[kpis chart pages]" {
+		t.Fatalf("loaded config = %+v", loaded.Config)
+	}
+	var auditConfig Config
+	var raw []byte
+	if err := pool.QueryRow(ctx, `select metadata->'config' from audit_log where action='share.created' and target_id=$1`, info.ID).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &auditConfig); err != nil || auditConfig.Theme != ThemeDark {
+		t.Fatalf("audit config = %+v, error = %v", auditConfig, err)
+	}
+}
+
+func TestConfiguredShareSnapshotsSavedSegment(t *testing.T) {
+	service, principal, siteID, pool := newShares(t)
+	ctx := context.Background()
+	var segmentID int64
+	if err := pool.QueryRow(ctx, `
+		insert into segments(site_id,name,filters,created_by)
+		values ($1,'India visitors','[{"dimension":"country","operator":"is","values":["IN"]}]',$2)
+		returning id`, siteID, principal.UserID).Scan(&segmentID); err != nil {
+		t.Fatal(err)
+	}
+	slug, _, err := service.CreateConfigured(ctx, principal, siteID, "", nil, Config{
+		Sections:  []Section{SectionKPIs},
+		SegmentID: &segmentID,
+		Date:      DateConfig{Mode: DateRolling, Days: 30, MaxDays: 30},
+		Theme:     ThemeSystem,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update segments set filters='[{"dimension":"country","operator":"is","values":["US"]}]' where id=$1`, segmentID); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := service.ResolveShare(ctx, slug, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Config.SegmentID != nil || len(loaded.Config.Filters) != 1 || loaded.Config.Filters[0].Values[0] != "IN" {
+		t.Fatalf("snapshotted config = %+v", loaded.Config)
+	}
+}
 
 func TestCreateRejectsWeakSharePassword(t *testing.T) {
 	service, principal, siteID, _ := newShares(t)

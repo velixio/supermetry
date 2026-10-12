@@ -7,7 +7,7 @@ process.env.SUPERMETRY_REPLAY_ENABLED ??= 'true'
 
 const port = Number(process.env.SUPERMETRY_E2E_PORT ?? '18089')
 const baseURL = `http://127.0.0.1:${port}`
-const schema = `supermetry_e2e_${process.pid}`
+const schema = `supermetry_e2e_${port}`
 const testDSN =
   process.env.SUPERMETRY_TEST_DSN ??
   'postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable'
