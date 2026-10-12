@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { deleteSite } from '@/features/sites/api'
-import type { Membership, Site } from '@/routes/app.$org'
+import type { Membership, Site } from '@/lib/me'
 
 function storageKey(orgId: number, publicId: string): string {
   return `supermetry:demo-banner:${orgId}:${publicId}`

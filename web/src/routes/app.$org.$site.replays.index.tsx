@@ -1,23 +1,23 @@
 import { ReplayRecordingNotice } from '@/components/replay/ReplayRecordingNotice'
 import { hasCapability, AccessDenied } from '@/lib/authorization'
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { DatePicker } from '@/components/DatePicker'
 import { ReplaysPage } from '@/components/replay/ReplaysPage'
 import { useReplayAvailability } from '@/components/replay/api'
-import { currentCursor, dashboardSearch, firstPage, nextPage, paginationSearch, previousPage, resolveRange } from '@/lib/search'
+import { currentCursor, firstPage, nextPage, parseDashboardSearch, parsePaginationSearch, positiveSearchID, previousPage, resolveRange } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { useMe } from './app.$org'
 
-const replaySearch = dashboardSearch.extend({
-  ...paginationSearch,
-  replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
-})
+function parseReplaySearch(value: unknown) {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  const replay = positiveSearchID(raw.replay)
+  return { ...parseDashboardSearch(raw), ...parsePaginationSearch(raw), ...(replay ? { replay } : {}) }
+}
 
 export const Route = createFileRoute('/app/$org/$site/replays/')({
-  validateSearch: (search) => replaySearch.parse(search),
+  validateSearch: parseReplaySearch,
   component: ReplaysRoute,
 })
 

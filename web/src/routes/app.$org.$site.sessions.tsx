@@ -1,6 +1,5 @@
 import { hasCapability } from '@/lib/authorization'
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
@@ -8,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
 import { countryName } from '@/lib/country'
-import { currentCursor, dashboardSearch, firstPage, nextPage, paginationSearch, parseFilters, previousPage, removeFilter, replaceFilters, resolveRange } from '@/lib/search'
+import { currentCursor, firstPage, nextPage, parseDashboardSearch, parseFilters, parsePaginationSearch, positiveSearchID, previousPage, removeFilter, replaceFilters, resolveRange, searchBoolean } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { useMe } from './app.$org'
@@ -16,15 +15,17 @@ import { useMe } from './app.$org'
 // metric, include_imported, and live are deliberate compatibility no-ops here.
 // Shared navigation and old bookmarks may still send them; parsing them keeps
 // those links valid while Sessions only acts on the fields used below.
-const sessionsSearch = dashboardSearch.extend({
-  ...paginationSearch,
-  session: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
-  has_replay: z.boolean().optional().catch(false),
-  replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
-})
-
 export function parseSessionsSearch(search: unknown) {
-  return sessionsSearch.parse(search)
+  const raw = search && typeof search === 'object' ? search as Record<string, unknown> : {}
+  const session = positiveSearchID(raw.session)
+  const replay = positiveSearchID(raw.replay)
+  return {
+    ...parseDashboardSearch(raw),
+    ...parsePaginationSearch(raw),
+    ...(session ? { session } : {}),
+    ...(raw.has_replay === undefined ? {} : { has_replay: searchBoolean(raw.has_replay) }),
+    ...(replay ? { replay } : {}),
+  }
 }
 
 export const Route = createFileRoute('/app/$org/$site/sessions')({
