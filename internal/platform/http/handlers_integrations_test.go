@@ -8,9 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"supermetry/internal/db"
 	"supermetry/internal/integrations"
 	"supermetry/internal/platform/authz"
 	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/store"
+	"supermetry/internal/testpg"
 )
 
 type fakeIntegrationsService struct {
@@ -177,6 +180,16 @@ func TestIntegrationErrorsMapToProblems(t *testing.T) {
 }
 
 func TestIntegrationCallbackRedirectsToSiteSettings(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Callback','callback-org') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	const base = "/app/callback-org/siteaaaaaaaa/settings/integrations?integration=search-console&status="
 	for _, tt := range []struct {
 		name     string
 		err      error
@@ -184,18 +197,24 @@ func TestIntegrationCallbackRedirectsToSiteSettings(t *testing.T) {
 		status   int
 		location string
 	}{
-		{"connected", nil, 10, http.StatusSeeOther, "/sites/10/settings/integrations?integration=search-console&status=connected"},
-		{"denied", integrations.ErrDenied, 10, http.StatusSeeOther, "/sites/10/settings/integrations?integration=search-console&status=denied"},
-		{"exchange failed", http.ErrAbortHandler, 10, http.StatusSeeOther, "/sites/10/settings/integrations?integration=search-console&status=error"},
+		{"connected", nil, 10, http.StatusSeeOther, base + "connected"},
+		{"denied", integrations.ErrDenied, 10, http.StatusSeeOther, base + "denied"},
+		{"exchange failed", http.ErrAbortHandler, 10, http.StatusSeeOther, base + "error"},
 		{"bad state", integrations.ErrInvalidState, 0, http.StatusBadRequest, ""},
 		{"forbidden", integrations.ErrForbidden, 10, http.StatusForbidden, ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			service := &fakeIntegrationsService{err: tt.err, callback: tt.site}
+			handler := platformhttp.New(platformhttp.Deps{
+				Authenticator: actorAuthenticator{"owner": {UserID: 1, OrgID: orgID, Role: authz.RoleOwner}},
+				Sites:         siteRegistry{10: {ID: 10, OrgID: orgID, PublicID: "siteaaaaaaaa", TZ: time.UTC}},
+				Store:         &store.Store{Pool: pool},
+				Integrations:  service,
+			})
 			request := httptest.NewRequest(http.MethodGet, "/api/private/integrations/search-console/callback?code=c&state=s", nil)
 			request.Header.Set("X-Test-Actor", "owner")
 			response := httptest.NewRecorder()
-			integrationsHandler(service).ServeHTTP(response, request)
+			handler.ServeHTTP(response, request)
 			if response.Code != tt.status || response.Header().Get("Location") != tt.location {
 				t.Fatalf("status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
 			}

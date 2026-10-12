@@ -3,8 +3,8 @@ package platformhttp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -93,10 +93,29 @@ func (h *handler) integrationCallback(w http.ResponseWriter, r *http.Request) {
 		case err != nil:
 			status = "error"
 		}
-		http.Redirect(w, r, fmt.Sprintf("/sites/%d/settings/integrations?integration=%s&status=%s", siteID, provider, status), http.StatusSeeOther)
+		http.Redirect(w, r, h.integrationSettingsPath(r.Context(), principal.OrgID, siteID, provider, status), http.StatusSeeOther)
 		return
 	}
 	integrationError(w, err)
+}
+
+// integrationSettingsPath is the dashboard route that reports an OAuth result.
+// When the organization or site cannot be resolved it falls back to the
+// dashboard root so the browser never lands on a route that does not exist.
+func (h *handler) integrationSettingsPath(ctx context.Context, orgID int64, siteID int32, provider, status string) string {
+	query := url.Values{"integration": {provider}, "status": {status}}.Encode()
+	if h.deps.Store == nil || h.deps.Sites == nil {
+		return "/app?" + query
+	}
+	site, found := h.deps.Sites.Site(siteID)
+	if !found || site.PublicID == "" {
+		return "/app?" + query
+	}
+	var slug string
+	if err := h.deps.Store.Pool.QueryRow(ctx, `select slug from orgs where id=$1`, orgID).Scan(&slug); err != nil {
+		return "/app?" + query
+	}
+	return "/app/" + url.PathEscape(slug) + "/" + url.PathEscape(site.PublicID) + "/settings/integrations?" + query
 }
 
 func (h *handler) disconnectIntegration(w http.ResponseWriter, r *http.Request) {
