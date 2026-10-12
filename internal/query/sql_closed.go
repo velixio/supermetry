@@ -558,7 +558,7 @@ func splitPageFilters(filters []api.Filter) (page, other []api.Filter) {
 
 func splitSpecialFilters(filters []api.Filter) (special, other []api.Filter) {
 	for _, filter := range filters {
-		if filter.Dimension == "event" || filter.Dimension == "goal" || filter.Dimension == "goal_id" || filter.Dimension == "utm_content" || filter.Dimension == "utm_term" || strings.HasPrefix(filter.Dimension, "prop:") {
+		if filter.Dimension == "event" || filter.Dimension == "goal" || filter.Dimension == "goal_id" || filter.Dimension == "utm_content" || filter.Dimension == "utm_term" || filter.Dimension == "cohort" || strings.HasPrefix(filter.Dimension, "prop:") {
 			special = append(special, filter)
 		} else {
 			other = append(other, filter)
@@ -577,6 +577,12 @@ func closedSpecialConditions(builder *sqlBuilder, filters []api.Filter, part Par
 		switch {
 		case filter.Dimension == "goal_id":
 			condition, err := goalFilterCondition(builder, filter, tierClosed, definitions, part)
+			if err != nil {
+				return nil, err
+			}
+			conditions = append(conditions, condition)
+		case filter.Dimension == "cohort":
+			condition, err := cohortMembership(builder, filter, "s.profile_id")
 			if err != nil {
 				return nil, err
 			}

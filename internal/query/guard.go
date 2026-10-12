@@ -384,7 +384,7 @@ func knownDimension(dimension string) bool {
 }
 
 func knownFilterDimension(dimension string) bool {
-	return dimension == "goal_id" || dimension == "revenue_currency" || dimension == "utm_content" || dimension == "utm_term" || knownDimension(dimension)
+	return dimension == "goal_id" || dimension == "cohort" || dimension == "revenue_currency" || dimension == "utm_content" || dimension == "utm_term" || knownDimension(dimension)
 }
 
 func validCurrency(value string) bool {

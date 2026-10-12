@@ -225,6 +225,13 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	if e.now != nil {
 		now = e.now()
 	}
+	if hasCohortFilter(filtersFrom(req.Filters)) {
+		resolved, err := e.resolveCohortFilters(ctx, req.SiteId, filtersFrom(req.Filters))
+		if err != nil {
+			return api.QueryResponse{}, err
+		}
+		req.Filters = &resolved
+	}
 	normalized, problem := Normalize(req, site, now)
 	if problem != nil {
 		return api.QueryResponse{}, errors.New(problemDetail(problem))
@@ -508,6 +515,10 @@ func cacheEligible(req Normalized, site sites.Site, now time.Time, metadata clos
 		location = time.UTC
 	}
 	today := civilDate(now.In(location))
+	if hasCohortFilter(req.Filters) {
+		// Membership moves with the clock and with edits to the saved cohort.
+		return false
+	}
 	if !req.To.Before(today) || !partsExcludeHot(metadata.plan(req)) {
 		return false
 	}

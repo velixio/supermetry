@@ -59,6 +59,10 @@ func (e *Engine) Sessions(ctx context.Context, siteID int32, params api.ListSess
 	if err := ValidateFilters(filters); err != nil {
 		return api.SessionList{}, err
 	}
+	filters, err := e.resolveCohortFilters(ctx, siteID, filters)
+	if err != nil {
+		return api.SessionList{}, err
+	}
 	limit := defaultSessionLimit
 	if params.Limit != nil {
 		limit = int(*params.Limit)
