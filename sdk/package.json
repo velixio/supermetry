@@ -1,0 +1,20 @@
+{
+  "name": "@supermetry/sdk-workspace",
+  "private": true,
+  "workspaces": [
+    "js",
+    "react",
+    "nextjs",
+    "remix",
+    "vue",
+    "astro",
+    "node",
+    "express",
+    "react-native"
+  ],
+  "scripts": {
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter '*' test"
+  }
+}

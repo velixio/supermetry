@@ -1,17 +1,24 @@
 {
   "name": "@supermetry/tracker",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Typed browser wrapper for the Supermetry tracking script",
   "license": "Apache-2.0",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./proxy": {
+      "types": "./dist/proxy.d.ts",
+      "default": "./dist/proxy.js"
     }
   },
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
   "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

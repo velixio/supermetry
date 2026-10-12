@@ -1,0 +1,47 @@
+{
+    "name": "supermetry/laravel",
+    "description": "Server-side event tracking for Supermetry (self-hosted web analytics) with Laravel integration.",
+    "type": "library",
+    "version": "0.1.0",
+    "license": "Apache-2.0",
+    "keywords": ["analytics", "supermetry", "laravel", "tracking", "privacy"],
+    "require": {
+        "php": ">=8.1",
+        "guzzlehttp/guzzle": "^7.5",
+        "illuminate/contracts": "^10.0 || ^11.0 || ^12.0",
+        "illuminate/http": "^10.0 || ^11.0 || ^12.0",
+        "illuminate/support": "^10.0 || ^11.0 || ^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0 || ^9.0 || ^10.0",
+        "phpunit/phpunit": "^10.5 || ^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Supermetry\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Supermetry\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Supermetry\\Laravel\\SupermetryServiceProvider"
+            ],
+            "aliases": {
+                "Supermetry": "Supermetry\\Laravel\\Facades\\Supermetry"
+            }
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
