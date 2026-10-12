@@ -578,7 +578,19 @@ describe('dashboard breakdown route', () => {
     fireEvent.click(other as HTMLElement)
     await waitFor(() => expect(router.state.location.search.inspect).not.toBe('country:IN'))
     expect(router.state.location.search.inspect).toBeTruthy()
+    const otherName = (other as HTMLElement).getAttribute('aria-label')?.replace(/^Inspect /, '') as string
+    expect(await screen.findByRole('dialog', { name: otherName })).toBeVisible()
     expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull()
+
+    // Esc returns focus to the row that opened the inspector last, not the first one.
+    fireEvent.keyDown(screen.getByRole('dialog', { name: otherName }), { key: 'Escape' })
+    await waitFor(() => expect(router.state.location.search.inspect).toBeUndefined())
+    await waitFor(() => expect(screen.getAllByRole('button', { name: `Inspect ${otherName}` })[0]).toHaveFocus())
+    expect(inspect).not.toHaveFocus()
+    fireEvent.click(inspect)
+    await screen.findByRole('dialog', { name: 'India' })
+    fireEvent.click(screen.getAllByRole('button', { name: `Inspect ${otherName}`, hidden: true })[0])
+    await screen.findByRole('dialog', { name: otherName })
 
     router.history.back()
     await waitFor(() => expect(router.state.location.search.inspect).toBe('country:IN'))
@@ -613,6 +625,18 @@ describe('dashboard breakdown route', () => {
     await screen.findByRole('region', { name: 'Verified pages' })
     expect(await screen.findByRole('button', { name: 'Inspect India' })).toBeVisible()
     expect(screen.queryByRole('button', { name: /^Inspect \// })).toBeNull()
+
+    // Blocked tabs (Regions, Browser version, ...) never reach an anonymous card, the verified pages card
+    // offers no row control, and a value outside the canonical anonymous set (the fixture's browser
+    // 'Direct') is filterable-looking but not inspectable.
+    expect(within(screen.getByRole('region', { name: 'Verified pages' })).queryByRole('button', { name: /^Inspect / })).toBeNull()
+    const environment = screen.getByRole('region', { name: 'Environment' })
+    expect(within(environment).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Browser', 'OS', 'Device'])
+    expect(await within(environment).findByRole('button', { description: 'Filter by browser Direct' })).toBeVisible()
+    expect(within(environment).queryByRole('button', { name: /^Inspect / })).toBeNull()
+    expect(within(screen.getByRole('region', { name: 'Channels' })).getByRole('button', { name: 'Inspect Organic Search' })).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Location' })?.querySelector('[role="tab"]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Inspect India' })).toBeVisible()
   })
 
   it('opens the inspector from a Where country and from a Weekly rhythm cell', async () => {
