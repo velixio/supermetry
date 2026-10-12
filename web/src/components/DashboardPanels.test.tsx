@@ -1,15 +1,38 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRef, useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { DashboardPanels, type InspectorPanel } from './DashboardPanels'
 
+// Container width the stub reports on observe(); tests change it and call resizeContainer().
+let containerWidth = 1200
+const observers = new Set<ResizeObserverStub>()
+const disconnected = vi.fn()
+
 class ResizeObserverStub {
-  observe() {}
+  constructor(private callback: ResizeObserverCallback) {
+    observers.add(this)
+  }
+  observe() {
+    this.fire()
+  }
   unobserve() {}
-  disconnect() {}
+  disconnect() {
+    observers.delete(this)
+    disconnected()
+  }
+  fire() {
+    const size = [{ inlineSize: containerWidth, blockSize: 600 }]
+    const entry = { contentRect: { width: containerWidth, height: 600 }, borderBoxSize: size, contentBoxSize: size, devicePixelContentBoxSize: size }
+    this.callback([entry as unknown as ResizeObserverEntry], this as unknown as ResizeObserver)
+  }
+}
+
+function resizeContainer(width: number) {
+  containerWidth = width
+  act(() => observers.forEach((observer) => observer.fire()))
 }
 
 function viewport(width: number) {
@@ -21,6 +44,9 @@ function panel(overrides: Partial<InspectorPanel> = {}): InspectorPanel {
 }
 
 beforeEach(() => {
+  containerWidth = 1200
+  observers.clear()
+  disconnected.mockClear()
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
   vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
 })
@@ -114,6 +140,79 @@ describe('DashboardPanels', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(origin).toHaveFocus())
+    origin.remove()
+  })
+
+  // 40rem main + 1.25rem handle + 20rem minimum inspector = 61.25rem = 980px at the 16px root.
+  it.each([
+    [979, 'dialog'],
+    [980, 'complementary'],
+  ])('at a %ipx container picks the %s layout', async (width, role) => {
+    viewport(1440)
+    containerWidth = width
+    render(<DashboardPanels main={<p>Main</p>} inspector={panel()} returnFocusRef={createRef()} />)
+    expect(await screen.findByRole(role)).toBeInTheDocument()
+    expect(screen.queryByRole(role === 'dialog' ? 'complementary' : 'dialog')).toBeNull()
+  })
+
+  it('flips between side panel and sheet when the container resizes after mount', async () => {
+    viewport(1440)
+    render(<DashboardPanels main={<p>Main</p>} inspector={panel()} returnFocusRef={createRef()} />)
+    expect(screen.getByRole('complementary')).toBeInTheDocument()
+    resizeContainer(900)
+    expect(await screen.findByRole('dialog', { name: 'India' })).toBeInTheDocument()
+    expect(screen.queryByRole('complementary')).toBeNull()
+    resizeContainer(1100)
+    expect(await screen.findByRole('complementary')).toBeInTheDocument()
+  })
+
+  it('disconnects the container observer on unmount', () => {
+    viewport(1440)
+    const { unmount } = render(<DashboardPanels main={<p>Main</p>} returnFocusRef={createRef()} />)
+    // The panel library observes too; every observer, ours included, must be gone after unmount.
+    expect(observers.size).toBeGreaterThanOrEqual(1)
+    unmount()
+    expect(disconnected).toHaveBeenCalled()
+    expect(observers.size).toBe(0)
+  })
+
+  it.each([
+    [1279, 'dialog', 'right'],
+    [1280, 'complementary', undefined],
+    [767, 'dialog', 'bottom'],
+    [768, 'dialog', 'right'],
+  ])('at a %ipx viewport renders %s (%s)', async (width, role, side) => {
+    viewport(width)
+    render(<DashboardPanels main={<p>Main</p>} inspector={panel()} returnFocusRef={createRef()} />)
+    const element = await screen.findByRole(role)
+    if (side) expect(element).toHaveAttribute('data-side', side)
+  })
+
+  it('does not steal focus after the viewport narrows and widens again while open', async () => {
+    viewport(1440)
+    const matchMedia = window.matchMedia as unknown as ReturnType<typeof vi.fn>
+    const handlers: Array<() => void> = []
+    matchMedia.mockReturnValue({
+      matches: false,
+      addEventListener: (_: string, handler: () => void) => handlers.push(handler),
+      removeEventListener: vi.fn(),
+    })
+    const origin = document.createElement('button')
+    document.body.append(origin)
+    const returnFocusRef = { current: origin as HTMLElement | null }
+    const { rerender } = render(<DashboardPanels main={<p>Main</p>} inspector={panel()} returnFocusRef={returnFocusRef} />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'India' })).toHaveFocus())
+    viewport(1024)
+    act(() => handlers.forEach((handler) => handler()))
+    await screen.findByRole('dialog')
+    rerender(<DashboardPanels main={<p>Main</p>} returnFocusRef={returnFocusRef} />)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(origin).toHaveFocus())
+    origin.blur()
+    viewport(1440)
+    act(() => handlers.forEach((handler) => handler()))
+    // The side layout must not treat the earlier open state as still pending.
+    expect(origin).not.toHaveFocus()
     origin.remove()
   })
 })

@@ -27,9 +27,35 @@ type DashboardPanelsProps = {
   returnFocusRef: RefObject<HTMLElement | null>
 }
 
+// Spec 11: main keeps at least 40rem beside the inspector. The side layout needs
+// MAIN_MIN_REM + HANDLE_REM (handle plus its mx-2 gutters) + the inspector's minimum width
+// (a user-resized width is always >= that minimum), measured on the container, not the viewport.
+const MAIN_MIN_REM = 40
+const HANDLE_REM = 1.25
+const SIDE_LAYOUT_MIN_REM = MAIN_MIN_REM + HANDLE_REM + INSPECTOR_WIDTH.min
+
+/** Width in px of the observed element's content box; undefined until the first measurement. */
+function useContainerWidth(ref: RefObject<HTMLElement | null>): number | undefined {
+  const [width, setWidth] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    const element = ref.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1]
+      if (entry) setWidth(entry.contentRect.width)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref])
+  return width
+}
+
 export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPanelsProps) {
   const mobile = useIsMobile()
-  const wide = useMinWidth(SIDEBAR_EXPANDED_MIN_WIDTH) && !mobile
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const containerWidth = useContainerWidth(wrapperRef)
+  const containerFits = containerWidth === undefined || remFromPixels(containerWidth) >= SIDE_LAYOUT_MIN_REM
+  const wide = useMinWidth(SIDEBAR_EXPANDED_MIN_WIDTH) && !mobile && containerFits
   const headingId = useId()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [width] = useState(readInspectorWidth)
@@ -40,7 +66,10 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
   const key = inspector?.key
 
   useEffect(() => {
-    if (!wide) return
+    if (!wide) {
+      wasOpen.current = false
+      return
+    }
     if (key !== undefined) {
       wasOpen.current = true
       headingRef.current?.focus()
@@ -61,6 +90,7 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
 
   if (wide) {
     return (
+      <div ref={wrapperRef} className="min-w-0">
       <ResizablePanelGroup className="items-stretch" orientation="horizontal" style={{ height: 'auto', overflow: 'visible' }}>
         <ResizablePanel id="dashboard-main" minSize="40rem" style={{ overflow: 'visible', maxHeight: 'none' }}>
           <div className="flex min-w-0 flex-col gap-4">{main}</div>
@@ -101,12 +131,13 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
           </>
         ) : null}
       </ResizablePanelGroup>
+      </div>
     )
   }
 
   const shown = inspector ?? lastInspector.current
   return (
-    <>
+    <div ref={wrapperRef} className="min-w-0">
       <div className="flex min-w-0 flex-col gap-4">{main}</div>
       <Sheet open={inspector !== undefined} onOpenChange={(open) => { if (!open) inspector?.onClose() }}>
         <SheetContent
@@ -138,6 +169,6 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
           ) : null}
         </SheetContent>
       </Sheet>
-    </>
+    </div>
   )
 }
