@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -703,6 +704,9 @@ func serviceError(w http.ResponseWriter, err error) {
 		errors.Is(err, reports.ErrInvalidCadence), errors.Is(err, platformauth.ErrInvalid):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 	default:
+		// The response stays generic on purpose, so the cause must reach the server log or an
+		// operator has no way to tell why a request failed.
+		slog.Error("private API request failed", "error", err)
 		writeProblem(w, http.StatusInternalServerError, "Internal server error", "the request could not be completed")
 	}
 }
