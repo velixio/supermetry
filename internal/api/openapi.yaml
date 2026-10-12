@@ -2713,6 +2713,107 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/sites/{site}/integrations:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listSiteIntegrations
+      security: [{ cookieAuth: [] }]
+      summary: List the integration catalog of a site with each connection state
+      responses:
+        '200':
+          description: Configured providers; unconfigured providers are hidden
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties: { data: { type: array, items: { $ref: '#/components/schemas/IntegrationCatalogEntry' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/integrations/{provider}/connect:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: provider, in: path, required: true, schema: { type: string, maxLength: 32 } }
+    post:
+      operationId: connectSiteIntegration
+      security: [{ cookieAuth: [] }]
+      summary: Start the OAuth connection and return the provider authorization URL
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationConnectRequest' } } } }
+      responses:
+        '200':
+          description: Authorization URL to open in the browser
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationAuthorization' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: The provider is not configured on this instance. }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/sites/{site}/integrations/{provider}/backfill:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: provider, in: path, required: true, schema: { type: string, maxLength: 32 } }
+    post:
+      operationId: backfillSiteIntegration
+      security: [{ cookieAuth: [] }]
+      summary: Re-import the last days in bounded windows
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationBackfillRequest' } } } }
+      responses:
+        '202': { description: Backfill scheduled. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/sites/{site}/integrations/{provider}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: provider, in: path, required: true, schema: { type: string, maxLength: 32 } }
+    delete:
+      operationId: disconnectSiteIntegration
+      security: [{ cookieAuth: [] }]
+      summary: Disconnect, deleting stored tokens and all imported data
+      responses:
+        '204': { description: Disconnected and data deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/integrations/{provider}/callback:
+    parameters:
+      - { name: provider, in: path, required: true, schema: { type: string, maxLength: 32 } }
+    get:
+      operationId: integrationOAuthCallback
+      security: [{ cookieAuth: [] }]
+      summary: OAuth redirect target; consumes the state and redirects to the site settings
+      parameters:
+        - { name: code, in: query, schema: { type: string, maxLength: 2048 } }
+        - { name: state, in: query, required: true, schema: { type: string, maxLength: 128 } }
+        - { name: error, in: query, schema: { type: string, maxLength: 128 } }
+      responses:
+        '303': { description: Redirect to the site integrations settings with a status query value. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/sites/{site}/search-console/top:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getSearchConsoleTop
+      security: [{ cookieAuth: [] }]
+      summary: Top queries or pages from imported Search Console data
+      parameters:
+        - { name: dimension, in: query, required: true, schema: { type: string, enum: [query, page] } }
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 50 } }
+      responses:
+        '200': { description: Aggregated rows., content: { application/json: { schema: { $ref: '#/components/schemas/SearchConsoleTop' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
     bearerAuth:
@@ -2948,6 +3049,62 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    IntegrationConnection:
+      type: object
+      required: [id, provider, property, status, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        provider: { type: string }
+        property: { type: string }
+        status: { type: string, enum: [active, reauth] }
+        synced_through: { type: string, format: date }
+        last_sync_at: { type: string, format: date-time }
+        last_error: { type: string }
+        created_at: { type: string, format: date-time }
+    IntegrationCatalogEntry:
+      type: object
+      required: [provider, name, available]
+      properties:
+        provider: { type: string }
+        name: { type: string }
+        available: { type: boolean }
+        connection: { $ref: '#/components/schemas/IntegrationConnection' }
+    IntegrationConnectRequest:
+      type: object
+      additionalProperties: false
+      required: [property]
+      properties:
+        property: { type: string, minLength: 1, maxLength: 512 }
+        backfill_days: { type: integer, minimum: 1, maximum: 485, default: 28 }
+    IntegrationBackfillRequest:
+      type: object
+      additionalProperties: false
+      required: [days]
+      properties:
+        days: { type: integer, minimum: 1, maximum: 485 }
+    IntegrationAuthorization:
+      type: object
+      required: [authorization_url]
+      properties:
+        authorization_url: { type: string, format: uri }
+    SearchConsoleTopRow:
+      type: object
+      required: [key, clicks, impressions, ctr, position]
+      properties:
+        key: { type: string }
+        clicks: { type: integer, format: int64 }
+        impressions: { type: integer, format: int64 }
+        ctr: { type: number }
+        position: { type: number }
+    SearchConsoleTop:
+      type: object
+      required: [dimension, from, to, totals, rows]
+      properties:
+        dimension: { type: string, enum: [query, page] }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        totals: { $ref: '#/components/schemas/SearchConsoleTopRow' }
+        rows: { type: array, items: { $ref: '#/components/schemas/SearchConsoleTopRow' } }
     NotificationChannelKind:
       type: string
       enum: [email, webhook, slack, discord, telegram]

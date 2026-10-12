@@ -135,6 +135,9 @@ type Deps struct {
 	Demo          DemoService
 	Overview      *sitesvc.Overview
 	Admin         *admin.Service
+
+	// Integrations serves the third-party connection endpoints. Optional.
+	Integrations IntegrationsService
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -341,6 +344,12 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/orgs/{org}/notification-templates/{kind}", h.resetNotificationTemplate)
 	mux.HandleFunc("POST /api/private/orgs/{org}/notification-templates/{kind}/preview", h.previewNotificationTemplate)
 	mux.HandleFunc("PUT /api/private/orgs/{org}/notification-settings", h.saveNotificationSettings)
+	mux.HandleFunc("GET /api/private/sites/{site}/integrations", h.listIntegrations)
+	mux.HandleFunc("POST /api/private/sites/{site}/integrations/{provider}/connect", h.connectIntegration)
+	mux.HandleFunc("POST /api/private/sites/{site}/integrations/{provider}/backfill", h.backfillIntegration)
+	mux.HandleFunc("DELETE /api/private/sites/{site}/integrations/{provider}", h.disconnectIntegration)
+	mux.HandleFunc("GET /api/private/integrations/{provider}/callback", h.integrationCallback)
+	mux.HandleFunc("GET /api/private/sites/{site}/search-console/top", h.searchConsoleTop)
 	mux.HandleFunc("POST /api/private/invitations/{token}/accept", h.acceptInvitation)
 	mux.HandleFunc("POST /api/private/share/{slug}/open", h.openShare)
 }

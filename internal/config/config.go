@@ -89,6 +89,11 @@ type Config struct {
 	SMTP                 SMTP
 	AllowPrivateWebhooks bool
 	Replay               ReplayEnv
+
+	// SearchConsoleClientID and SearchConsoleClientSecret enable the Google
+	// Search Console integration; it stays hidden while either is empty.
+	SearchConsoleClientID     string
+	SearchConsoleClientSecret string
 }
 
 type ReplayEnv struct {
@@ -196,6 +201,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	if c.Signup != "invite" && c.Signup != "open" {
 		errs = append(errs, errors.New("SUPERMETRY_SIGNUP must be invite or open"))
 	}
+	c.SearchConsoleClientID = getenv("SUPERMETRY_GSC_CLIENT_ID")
+	c.SearchConsoleClientSecret = getenv("SUPERMETRY_GSC_CLIENT_SECRET")
 	if raw := getenv("SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS"); raw != "" {
 		value, err := strconv.ParseBool(raw)
 		if err != nil {

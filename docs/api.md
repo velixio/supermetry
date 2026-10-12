@@ -240,6 +240,25 @@ Widget kinds and their `config` (fields a kind does not list are rejected; unkno
 | `retention`, `web_vitals` | none |
 
 Widgets only name existing capabilities; a layout never carries SQL. Overlapping widgets are accepted and the client reflows them. Metrics, dimensions and filters are checked with the same rules as `/api/private/query`.
+## Integrations and Search Console
+
+Connect a site to Google Search Console and read the imported queries and pages. Dashboard session endpoints (not part of the public API-key surface); the feature is hidden until `SUPERMETRY_GSC_CLIENT_ID` and `SUPERMETRY_GSC_CLIENT_SECRET` are set, and the OAuth redirect URI to register is `<SUPERMETRY_BASE_URL>/api/private/integrations/search-console/callback`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/private/sites/{site}/integrations` | Catalog of configured providers with each connection (owner, admin, editor). Never returns tokens |
+| POST | `/api/private/sites/{site}/integrations/{provider}/connect` | Body `property` (for example `sc-domain:example.com`) and optional `backfill_days` (1 to 485, default 28). Returns `authorization_url` (owner or admin; audited; 10 per 10 minutes per user) |
+| GET | `/api/private/integrations/{provider}/callback` | OAuth redirect target; consumes the one-time `state` and answers `303` to `/sites/{site}/settings/integrations?integration=...&status=connected\|denied\|error` |
+| POST | `/api/private/sites/{site}/integrations/{provider}/backfill` | Body `days` (1 to 485); re-imports in bounded windows (owner or admin; audited; 5 per 10 minutes) |
+| DELETE | `/api/private/sites/{site}/integrations/{provider}` | Disconnect: deletes the stored tokens and every imported row, revokes the grant (owner or admin; audited) |
+| GET | `/api/private/sites/{site}/search-console/top` | `dimension` = `query` or `page`, `from`..`to` (at most 366 days), `limit` (1 to 500, default 50): clicks, impressions, CTR and impression-weighted position, plus totals (any site member except share links) |
+
+Rules worth knowing:
+
+- Tokens are sealed with the instance secret key and never logged or returned. The authorization `state` is random, bound to the user, organization and site, expires after 10 minutes and works once; PKCE (S256) is used.
+- A scheduled job imports due connections every 30 minutes, at most 7 days per connection per run, up to two days behind today (the provider lags). The last 3 days are re-fetched on every run, and a day is replaced as a whole, so reruns never duplicate and revised numbers win.
+- Failures back off (5 minutes doubling to 6 hours); a revoked grant parks the connection as `reauth` until the user reconnects.
+- Storage keeps the top 5,000 rows per day, 490 days and 3,000,000 rows per site (oldest days are dropped first). Search queries are never shown through public share links.
 
 ## Operations endpoints
 

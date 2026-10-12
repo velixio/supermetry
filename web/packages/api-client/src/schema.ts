@@ -1985,10 +1985,179 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** List the integration catalog of a site with each connection state */
+        get: operations["listSiteIntegrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/integrations/{provider}/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the OAuth connection and return the provider authorization URL */
+        post: operations["connectSiteIntegration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/integrations/{provider}/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-import the last days in bounded windows */
+        post: operations["backfillSiteIntegration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/integrations/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Disconnect, deleting stored tokens and all imported data */
+        delete: operations["disconnectSiteIntegration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/integrations/{provider}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        /** OAuth redirect target; consumes the state and redirects to the site settings */
+        get: operations["integrationOAuthCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/search-console/top": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Top queries or pages from imported Search Console data */
+        get: operations["getSearchConsoleTop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        IntegrationConnection: {
+            /** Format: int64 */
+            id: number;
+            provider: string;
+            property: string;
+            /** @enum {string} */
+            status: "active" | "reauth";
+            /** Format: date */
+            synced_through?: string;
+            /** Format: date-time */
+            last_sync_at?: string;
+            last_error?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        IntegrationCatalogEntry: {
+            provider: string;
+            name: string;
+            available: boolean;
+            connection?: components["schemas"]["IntegrationConnection"];
+        };
+        IntegrationConnectRequest: {
+            property: string;
+            /** @default 28 */
+            backfill_days: number;
+        };
+        IntegrationBackfillRequest: {
+            days: number;
+        };
+        IntegrationAuthorization: {
+            /** Format: uri */
+            authorization_url: string;
+        };
+        SearchConsoleTopRow: {
+            key: string;
+            /** Format: int64 */
+            clicks: number;
+            /** Format: int64 */
+            impressions: number;
+            ctr: number;
+            position: number;
+        };
+        SearchConsoleTop: {
+            /** @enum {string} */
+            dimension: "query" | "page";
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            totals: components["schemas"]["SearchConsoleTopRow"];
+            rows: components["schemas"]["SearchConsoleTopRow"][];
+        };
         /** @enum {string} */
         NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram";
         /** @enum {string} */
@@ -7622,6 +7791,184 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listSiteIntegrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Configured providers; unconfigured providers are hidden */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["IntegrationCatalogEntry"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    connectSiteIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationConnectRequest"];
+            };
+        };
+        responses: {
+            /** @description Authorization URL to open in the browser */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationAuthorization"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The provider is not configured on this instance. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    backfillSiteIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationBackfillRequest"];
+            };
+        };
+        responses: {
+            /** @description Backfill scheduled. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    disconnectSiteIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected and data deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    integrationOAuthCallback: {
+        parameters: {
+            query: {
+                code?: string;
+                state: string;
+                error?: string;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the site integrations settings with a status query value. */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getSearchConsoleTop: {
+        parameters: {
+            query: {
+                dimension: "query" | "page";
+                from: string;
+                to: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregated rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchConsoleTop"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }
