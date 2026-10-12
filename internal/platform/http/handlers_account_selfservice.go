@@ -22,6 +22,7 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 			LandingPage *string         `json:"landing_page"`
 			SitesView   *string         `json:"sites_view"`
 			LastSiteID  json.RawMessage `json:"last_site_id"`
+			Locale      *string         `json:"locale"`
 		} `json:"preferences"`
 	}
 	if !decodeJSON(w, r, &request) {
@@ -61,6 +62,13 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			merged.SitesView = *request.Preferences.SitesView
+		}
+		if request.Preferences.Locale != nil {
+			if !store.SupportedLocales[*request.Preferences.Locale] {
+				writeProblem(w, http.StatusBadRequest, "Bad request", "locale must be empty, en, es, de or en-XA")
+				return
+			}
+			merged.Locale = *request.Preferences.Locale
 		}
 		if request.Preferences.LastSiteID != nil {
 			if string(request.Preferences.LastSiteID) == "null" {

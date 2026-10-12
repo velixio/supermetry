@@ -35,7 +35,13 @@ type UserPreferences struct {
 	LandingPage string `json:"landing_page,omitempty"`
 	SitesView   string `json:"sites_view,omitempty"`
 	LastSiteID  *int32 `json:"last_site_id,omitempty"`
+	// Locale is the interface language; empty follows the browser.
+	Locale string `json:"locale,omitempty"`
 }
+
+// SupportedLocales lists the interface languages a user may choose. en-XA is a
+// pseudo-locale with longer strings, used to test layouts.
+var SupportedLocales = map[string]bool{"": true, "en": true, "es": true, "de": true, "en-XA": true}
 
 type DBTX interface {
 	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)

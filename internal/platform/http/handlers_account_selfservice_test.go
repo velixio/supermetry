@@ -108,6 +108,27 @@ func TestAccountSelfServiceHTTP(t *testing.T) {
 		}
 	})
 
+	t.Run("locale preference is stored, merged and cleared", func(t *testing.T) {
+		fixture := newAccountHTTPFixture(t, &mail.Fake{})
+		for _, locale := range []string{"es", "de", "en-XA", ""} {
+			got := fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"locale":"`+locale+`"}}`, true)
+			if got.Code != http.StatusOK {
+				t.Fatalf("locale %q status=%d body=%s", locale, got.Code, got.Body.String())
+			}
+			persisted, err := fixture.store.UserByID(context.Background(), fixture.userID)
+			if err != nil || persisted.Preferences.Locale != locale {
+				t.Fatalf("locale %q persisted as %+v err=%v", locale, persisted.Preferences, err)
+			}
+		}
+		// Changing another preference keeps the chosen language.
+		fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"locale":"de"}}`, true)
+		fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"sites_view":"table"}}`, true)
+		persisted, _ := fixture.store.UserByID(context.Background(), fixture.userID)
+		if persisted.Preferences.Locale != "de" || persisted.Preferences.SitesView != "table" {
+			t.Fatalf("preferences = %+v", persisted.Preferences)
+		}
+	})
+
 	t.Run("preferences update and validation", func(t *testing.T) {
 		fixture := newAccountHTTPFixture(t, &mail.Fake{})
 		updated := fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"landing_page":"overview","sites_view":"table","last_site_id":null}}`, true)
@@ -131,6 +152,8 @@ func TestAccountSelfServiceHTTP(t *testing.T) {
 			`{"preferences":{"landing_page":"invalid"}}`,
 			`{"preferences":{"sites_view":"invalid"}}`,
 			`{"preferences":{"last_site_id":999999}}`,
+			`{"preferences":{"locale":"fr"}}`,
+			`{"preferences":{"locale":"EN"}}`,
 		} {
 			if got := fixture.request(t, http.MethodPatch, "/api/private/me", body, true); got.Code != http.StatusBadRequest {
 				t.Fatalf("body=%s status=%d response=%s", body, got.Code, got.Body.String())

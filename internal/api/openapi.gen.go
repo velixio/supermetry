@@ -885,22 +885,22 @@ func (e ReplayStorageInputBackend) Valid() bool {
 
 // Defines values for ReplaySummaryDevice.
 const (
-	Desktop ReplaySummaryDevice = "desktop"
-	Empty   ReplaySummaryDevice = ""
-	Mobile  ReplaySummaryDevice = "mobile"
-	Tablet  ReplaySummaryDevice = "tablet"
+	ReplaySummaryDeviceDesktop ReplaySummaryDevice = "desktop"
+	ReplaySummaryDeviceEmpty   ReplaySummaryDevice = ""
+	ReplaySummaryDeviceMobile  ReplaySummaryDevice = "mobile"
+	ReplaySummaryDeviceTablet  ReplaySummaryDevice = "tablet"
 )
 
 // Valid indicates whether the value is a known member of the ReplaySummaryDevice enum.
 func (e ReplaySummaryDevice) Valid() bool {
 	switch e {
-	case Desktop:
+	case ReplaySummaryDeviceDesktop:
 		return true
-	case Empty:
+	case ReplaySummaryDeviceEmpty:
 		return true
-	case Mobile:
+	case ReplaySummaryDeviceMobile:
 		return true
-	case Tablet:
+	case ReplaySummaryDeviceTablet:
 		return true
 	default:
 		return false
@@ -1270,6 +1270,33 @@ func (e UpdateCurrentUserRequestPreferencesLandingPage) Valid() bool {
 	}
 }
 
+// Defines values for UpdateCurrentUserRequestPreferencesLocale.
+const (
+	UpdateCurrentUserRequestPreferencesLocaleDe    UpdateCurrentUserRequestPreferencesLocale = "de"
+	UpdateCurrentUserRequestPreferencesLocaleEmpty UpdateCurrentUserRequestPreferencesLocale = ""
+	UpdateCurrentUserRequestPreferencesLocaleEn    UpdateCurrentUserRequestPreferencesLocale = "en"
+	UpdateCurrentUserRequestPreferencesLocaleEnXA  UpdateCurrentUserRequestPreferencesLocale = "en-XA"
+	UpdateCurrentUserRequestPreferencesLocaleEs    UpdateCurrentUserRequestPreferencesLocale = "es"
+)
+
+// Valid indicates whether the value is a known member of the UpdateCurrentUserRequestPreferencesLocale enum.
+func (e UpdateCurrentUserRequestPreferencesLocale) Valid() bool {
+	switch e {
+	case UpdateCurrentUserRequestPreferencesLocaleDe:
+		return true
+	case UpdateCurrentUserRequestPreferencesLocaleEmpty:
+		return true
+	case UpdateCurrentUserRequestPreferencesLocaleEn:
+		return true
+	case UpdateCurrentUserRequestPreferencesLocaleEnXA:
+		return true
+	case UpdateCurrentUserRequestPreferencesLocaleEs:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateCurrentUserRequestPreferencesSitesView.
 const (
 	UpdateCurrentUserRequestPreferencesSitesViewCards UpdateCurrentUserRequestPreferencesSitesView = "cards"
@@ -1327,6 +1354,33 @@ func (e UserPreferencesLandingPage) Valid() bool {
 	case UserPreferencesLandingPageLastSite:
 		return true
 	case UserPreferencesLandingPageOverview:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserPreferencesLocale.
+const (
+	UserPreferencesLocaleDe    UserPreferencesLocale = "de"
+	UserPreferencesLocaleEmpty UserPreferencesLocale = ""
+	UserPreferencesLocaleEn    UserPreferencesLocale = "en"
+	UserPreferencesLocaleEnXA  UserPreferencesLocale = "en-XA"
+	UserPreferencesLocaleEs    UserPreferencesLocale = "es"
+)
+
+// Valid indicates whether the value is a known member of the UserPreferencesLocale enum.
+func (e UserPreferencesLocale) Valid() bool {
+	switch e {
+	case UserPreferencesLocaleDe:
+		return true
+	case UserPreferencesLocaleEmpty:
+		return true
+	case UserPreferencesLocaleEn:
+		return true
+	case UserPreferencesLocaleEnXA:
+		return true
+	case UserPreferencesLocaleEs:
 		return true
 	default:
 		return false
@@ -3207,12 +3261,18 @@ type UpdateCurrentUserRequest struct {
 	Preferences *struct {
 		LandingPage *UpdateCurrentUserRequestPreferencesLandingPage `json:"landing_page,omitempty"`
 		LastSiteId  *int32                                          `json:"last_site_id,omitempty"`
-		SitesView   *UpdateCurrentUserRequestPreferencesSitesView   `json:"sites_view,omitempty"`
+
+		// Locale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+		Locale    *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
+		SitesView *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
 	} `json:"preferences,omitempty"`
 }
 
 // UpdateCurrentUserRequestPreferencesLandingPage defines model for UpdateCurrentUserRequest.Preferences.LandingPage.
 type UpdateCurrentUserRequestPreferencesLandingPage string
+
+// UpdateCurrentUserRequestPreferencesLocale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+type UpdateCurrentUserRequestPreferencesLocale string
 
 // UpdateCurrentUserRequestPreferencesSitesView defines model for UpdateCurrentUserRequest.Preferences.SitesView.
 type UpdateCurrentUserRequestPreferencesSitesView string
@@ -3247,11 +3307,17 @@ type UpdateSiteRequestRetentionDays int
 type UserPreferences struct {
 	LandingPage UserPreferencesLandingPage `json:"landing_page"`
 	LastSiteId  *int32                     `json:"last_site_id,omitempty"`
-	SitesView   UserPreferencesSitesView   `json:"sites_view"`
+
+	// Locale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+	Locale    *UserPreferencesLocale   `json:"locale,omitempty"`
+	SitesView UserPreferencesSitesView `json:"sites_view"`
 }
 
 // UserPreferencesLandingPage defines model for UserPreferences.LandingPage.
 type UserPreferencesLandingPage string
+
+// UserPreferencesLocale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+type UserPreferencesLocale string
 
 // UserPreferencesSitesView defines model for UserPreferences.SitesView.
 type UserPreferencesSitesView string
