@@ -1714,6 +1714,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * List saved dashboards
+         * @description Saved dashboards of the site by name. When the site has none, `data` holds one built-in dashboard
+         *     (`builtin: true`, `id: 0`, `is_default: true`) that reproduces the standard dashboard in the layout model.
+         *     Any member of the site may read.
+         */
+        get: operations["listDashboards"];
+        put?: never;
+        /**
+         * Save a dashboard
+         * @description Owner, admin or editor. Audited. Up to 50 per site; names are unique per site, ignoring case.
+         */
+        post: operations["createDashboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/dashboards/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get the dashboard to open for the site
+         * @description The saved dashboard flagged as default, otherwise the built-in dashboard.
+         */
+        get: operations["getDefaultDashboard"];
+        put?: never;
+        post?: never;
+        /**
+         * Return the site to the built-in default dashboard
+         * @description Owner, admin or editor. Audited. Idempotent.
+         */
+        delete: operations["clearDefaultDashboard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/dashboards/{dashboard}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        /** Get one dashboard */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a dashboard
+         * @description Owner, admin or editor. Audited. Deleting the default returns the site to the built-in default.
+         */
+        delete: operations["deleteDashboard"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename or re-lay out a dashboard
+         * @description Owner, admin or editor. `version` must equal the stored version (optimistic concurrency); a mismatch is 409 and the
+         *     client reloads and merges. A successful update increments `version`.
+         */
+        patch: operations["updateDashboard"];
+        trace?: never;
+    };
+    "/api/private/dashboards/{dashboard}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate a dashboard
+         * @description Creates a copy named "<name> (copy)", numbered when that name is taken. The copy is never the default.
+         */
+        post: operations["duplicateDashboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/dashboards/{dashboard}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a dashboard the site default
+         * @description Owner, admin or editor. Audited. Replaces the previous default atomically; does not change `version`.
+         */
+        post: operations["setDefaultDashboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/power-users": {
         parameters: {
             query?: never;
@@ -2732,6 +2858,89 @@ export interface components {
             sample: components["schemas"]["CohortMember"][];
             /** @description True when a sample was requested but the caller lacks profiles:read. */
             sample_withheld: boolean;
+        };
+        /**
+         * @description Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
+         *     `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
+         *     (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+         */
+        DashboardWidgetConfig: {
+            metric?: components["schemas"]["Metric"];
+            metrics?: components["schemas"]["Metric"][];
+            /** @description A known query dimension, or prop:<key>. */
+            dimension?: string;
+            limit?: number;
+            /** Format: int64 */
+            funnel_id?: number;
+        };
+        /** @description A widget on a 12-column grid. Widgets may be placed in any order; clients reflow overlaps. */
+        DashboardWidget: {
+            /** @description Unique within the layout. */
+            id: string;
+            /** @enum {string} */
+            kind: "kpi_strip" | "time_series" | "breakdown" | "map" | "weekly_rhythm" | "goals" | "funnel" | "retention" | "web_vitals";
+            title?: string;
+            x: number;
+            y: number;
+            /** @description x + w must not exceed 12. */
+            w: number;
+            h: number;
+            config?: components["schemas"]["DashboardWidgetConfig"];
+            /**
+             * @description Overrides the dashboard period for this widget.
+             * @enum {string}
+             */
+            period?: "today" | "yesterday" | "7d" | "28d" | "30d" | "91d" | "6mo" | "12mo" | "month" | "last_month" | "year";
+            /** @description Added to the dashboard filters for this widget. */
+            filters?: components["schemas"]["Filter"][];
+        };
+        DashboardLayout: {
+            /** @enum {integer} */
+            schema_version: 1;
+            /**
+             * @description Default period (default 30d).
+             * @enum {string}
+             */
+            period?: "today" | "yesterday" | "7d" | "28d" | "30d" | "91d" | "6mo" | "12mo" | "month" | "last_month" | "year";
+            /** @enum {string} */
+            compare?: "off" | "previous_period" | "previous_year";
+            /** @description Applied to every widget. */
+            filters?: components["schemas"]["Filter"][];
+            widgets: components["schemas"]["DashboardWidget"][];
+        };
+        DashboardInput: {
+            name: string;
+            layout: components["schemas"]["DashboardLayout"];
+        };
+        DashboardUpdate: {
+            name: string;
+            layout: components["schemas"]["DashboardLayout"];
+            /** @description The version the client edited. */
+            version: number;
+        };
+        Dashboard: {
+            /**
+             * Format: int64
+             * @description 0 for the built-in dashboard.
+             */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            name: string;
+            layout: components["schemas"]["DashboardLayout"];
+            is_default: boolean;
+            /** @description True for the unsaved built-in dashboard */
+            builtin: boolean;
+            version: number;
+            /** Format: int64 */
+            created_by?: number | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DashboardList: {
+            data: components["schemas"]["Dashboard"][];
         };
         PowerUser: {
             /** Format: int64 */
@@ -6911,6 +7120,264 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Cohort"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDashboards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboards. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardInput"];
+            };
+        };
+        responses: {
+            /** @description Created dashboard (version 1, not the default). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The name is taken or the site reached its limit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDefaultDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The effective default dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    clearDefaultDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No saved dashboard is the default any more. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Stale version or the name is taken. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    duplicateDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The copy. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The site reached its limit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setDefaultDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dashboard: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard, now the default. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
                 };
             };
             401: components["responses"]["Unauthorized"];
