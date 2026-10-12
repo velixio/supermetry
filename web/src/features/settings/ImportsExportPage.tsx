@@ -1,8 +1,18 @@
 import { useCapability } from '@/lib/authorization'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { DownloadIcon, Trash2Icon, UploadIcon } from 'lucide-react'
+import { DownloadIcon, Undo2Icon, UploadIcon } from 'lucide-react'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -12,11 +22,16 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { fmt } from '@/lib/format'
+import { en } from '@/messages/en'
+
+import { Ga4Format, Ga4ImportPreview } from './Ga4ImportPreview'
 
 import {
   downloadSiteExport,
+  previewSiteImport,
   privateRequest,
   uploadSiteImport,
+  type ImportPreview,
   type ImportSource,
 } from './privateApi'
 
@@ -41,6 +56,12 @@ export function importPollInterval(imports: Array<{ status: string }>): 2_000 | 
   return imports.some(({ status }) => status === 'pending' || status === 'running')
     ? 2_000
     : false
+}
+
+const sourceLabels: Record<ImportSource, string> = {
+  plausible: 'Plausible',
+  umami: 'Umami',
+  ga4: 'GA4',
 }
 
 function titleCase(value: string): string {
@@ -77,6 +98,8 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
   const [source, setSource] = useState<ImportSource>('plausible')
   const [file, setFile] = useState<File>()
   const [progress, setProgress] = useState(0)
+  const [preview, setPreview] = useState<ImportPreview>()
+  const [undoTarget, setUndoTarget] = useState<SiteImport>()
   const imports = useQuery({
     queryKey: ['site-imports', siteId],
     queryFn: () =>
@@ -88,9 +111,27 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
   const upload = useMutation({
     mutationFn: () => {
       if (!file) throw new Error('Choose a file to import')
-      return uploadSiteImport<SiteImport>(siteId, orgId, source, file, setProgress)
+      return uploadSiteImport<SiteImport>(
+        siteId,
+        orgId,
+        source,
+        file,
+        setProgress,
+        undefined,
+        preview?.overlap.same_file != null,
+      )
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: ['site-imports', siteId] }),
+    onSuccess: () => {
+      setPreview(undefined)
+      return client.invalidateQueries({ queryKey: ['site-imports', siteId] })
+    },
+  })
+  const dryRun = useMutation({
+    mutationFn: () => {
+      if (!file) throw new Error('Choose a file to import')
+      return previewSiteImport(siteId, orgId, source, file)
+    },
+    onSuccess: setPreview,
   })
   const remove = useMutation({
     mutationFn: (id: number) =>
@@ -105,7 +146,14 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
   function submitImport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setProgress(0)
-    upload.mutate()
+    if (source === 'ga4') dryRun.mutate()
+    else upload.mutate()
+  }
+
+  function resetPreview() {
+    setPreview(undefined)
+    dryRun.reset()
+    upload.reset()
   }
 
   function submitExport(event: FormEvent<HTMLFormElement>) {
@@ -129,7 +177,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
 
       <Surface
         title="Import historical data"
-        description="Plausible ZIP exports and Umami website-event CSVs are supported. Imports never replace native data."
+        description="Plausible ZIP exports, Umami website-event CSVs and GA4 report CSVs are supported. Imports never replace native data."
       >
         <form className="flex flex-col gap-5" onSubmit={submitImport}>
           <FieldGroup>
@@ -139,11 +187,18 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
                 id="import-source"
                 className="h-9 rounded-lg border bg-background px-3 text-sm"
                 value={source}
-                onChange={(event) => setSource(event.target.value as ImportSource)}
+                onChange={(event) => {
+                  setSource(event.target.value as ImportSource)
+                  resetPreview()
+                }}
               >
                 <option value="plausible">Plausible</option>
                 <option value="umami">Umami</option>
+                <option value="ga4">{en.ga4Import.provider}</option>
               </select>
+              {source === 'ga4' ? (
+                <FieldDescription>{en.ga4Import.providerHelp}</FieldDescription>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="import-file">Import file</FieldLabel>
@@ -151,15 +206,41 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
                 id="import-file"
                 type="file"
                 accept={source === 'plausible' ? '.zip,application/zip' : '.csv,text/csv'}
-                onChange={(event) => setFile(event.target.files?.[0])}
+                onChange={(event) => {
+                  setFile(event.target.files?.[0])
+                  resetPreview()
+                }}
               />
               <FieldDescription>Maximum file size: 512 MB.</FieldDescription>
             </Field>
           </FieldGroup>
-          <Button className="self-start" disabled={!file || upload.isPending} type="submit">
-            <UploadIcon data-icon="inline-start" />
-            Upload import
-          </Button>
+          {source === 'ga4' ? <Ga4Format /> : null}
+          {preview ? (
+            <Ga4ImportPreview
+              preview={preview}
+              pending={upload.isPending}
+              onConfirm={() => {
+                setProgress(0)
+                upload.mutate()
+              }}
+              onCancel={resetPreview}
+            />
+          ) : (
+            <Button
+              className="self-start"
+              disabled={!file || upload.isPending || dryRun.isPending}
+              type="submit"
+            >
+              <UploadIcon data-icon="inline-start" />
+              {source === 'ga4' ? en.ga4Import.previewAction : 'Upload import'}
+            </Button>
+          )}
+          {dryRun.isPending ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              {en.ga4Import.previewing}
+            </p>
+          ) : null}
+          {dryRun.error ? <p role="alert" className="text-sm text-destructive">{dryRun.error.message}</p> : null}
           {upload.isPending || progress > 0 ? (
             <p role="status" className="text-sm text-muted-foreground">
               Uploading {progress}%
@@ -175,10 +256,11 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
             <table className="w-full text-left text-sm">
               <thead className="border-b text-muted-foreground">
                 <tr>
-                  <th className="py-2 font-medium">File</th>
-                  <th className="py-2 font-medium">Source</th>
-                  <th className="py-2 font-medium">Status</th>
-                  <th className="py-2 font-medium">Rows</th>
+                  <th className="py-2 pr-4 font-medium">File</th>
+                  <th className="hidden py-2 pr-4 font-medium sm:table-cell">Source</th>
+                  <th className="py-2 pr-4 font-medium">Status</th>
+                  <th className="hidden py-2 pr-4 font-medium sm:table-cell">Rows</th>
+                  <th className="hidden py-2 pr-4 font-medium sm:table-cell">Range</th>
                   <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
@@ -186,22 +268,32 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
                 {imports.data.map((item) => (
                   <tr key={item.id} className="border-b last:border-0">
                     <td className="py-3 pr-4">
-                      <p className="font-medium">{item.file_name}</p>
+                      <p className="break-all font-medium">{item.file_name}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums sm:hidden">
+                        {sourceLabels[item.source] ?? titleCase(item.source)}
+                        {item.date_from
+                          ? `, ${item.date_from.slice(0, 10)} – ${(item.date_to ?? item.date_from).slice(0, 10)}`
+                          : ''}
+                      </p>
                       {item.error ? <p className="text-xs text-destructive">{item.error}</p> : null}
                     </td>
-                    <td className="py-3 pr-4">{titleCase(item.source)}</td>
+                    <td className="hidden py-3 pr-4 sm:table-cell">{sourceLabels[item.source] ?? titleCase(item.source)}</td>
                     <td className="py-3 pr-4">{titleCase(item.status)}</td>
-                    <td className="py-3 pr-4 tabular-nums">{fmt.number(item.rows)}</td>
+                    <td className="hidden py-3 pr-4 tabular-nums sm:table-cell">{fmt.number(item.rows)}</td>
+                    <td className="hidden py-3 pr-4 tabular-nums sm:table-cell">
+                      {item.date_from ? `${item.date_from.slice(0, 10)} – ${(item.date_to ?? item.date_from).slice(0, 10)}` : '—'}
+                    </td>
                     <td className="py-3 text-right">
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        aria-label={`Delete ${item.file_name}`}
+                        className="min-h-11 min-w-11"
+                        aria-label={`Undo import ${item.file_name}`}
                         disabled={remove.isPending}
-                        onClick={() => remove.mutate(item.id)}
+                        onClick={() => setUndoTarget(item)}
                       >
-                        <Trash2Icon />
+                        <Undo2Icon data-icon="inline-start" />
+                        {en.ga4Import.undo}
                       </Button>
                     </td>
                   </tr>
@@ -211,6 +303,28 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
           </div>
         ) : null}
       </Surface>
+
+      <AlertDialog open={undoTarget !== undefined} onOpenChange={(open) => !open && setUndoTarget(undefined)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{en.ga4Import.undoTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {en.ga4Import.undoBody(undoTarget?.file_name ?? '')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{en.ga4Import.undoKeep}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (undoTarget) remove.mutate(undoTarget.id)
+                setUndoTarget(undefined)
+              }}
+            >
+              {en.ga4Import.undoConfirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {canExport ? <Surface title="Export site data" description="Download daily totals, dimensions, and custom events as CSV files in one ZIP.">
         <form className="flex flex-col gap-5" onSubmit={submitExport}>
