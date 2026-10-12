@@ -9,35 +9,12 @@ docs/brand
 .env
 .env.*
 **/.env
-bench/load/data/
-bench/rig/plausible/ce/.env
 
 # Generated benchmark data, binaries and large logs (regenerable)
-bench/**/data/
-bench/load/bin/
-bench/rig/bin/
-bench/proto/proto
-bench/gen/testdata/*.ndjson
-bench/results/final/artifacts/**/truth.json
-bench/results/codex-*.log
 **/__pycache__/
 *.pyc
-bench/rig/plausible/ce/
 .codex-runs/
-bench/results/final/.state/
-bench/results/final/artifacts/.archive/
-bench/**/*.log.gz
-bench/results/final/artifacts/**/api-key
-bench/results/final/artifacts/**/secrets.txt
-bench/results/final/artifacts/**/*.ndjson
-bench/results/final/artifacts/**/*.log
-bench/results/final/artifacts/**/schema.sql
-bench/results/final/artifacts/**/generator-truth.json
-bench/results/final/artifacts/**/*.jsonl
-bench/results/final/artifacts/**/*inspect*.json
 .worktrees/
-bench/load/bin
-bench/proto/data
 web/node_modules/
 web/dist/
 web/e2e/screenshots/
@@ -51,11 +28,8 @@ web/node_modules
 # JS wrapper dependencies
 sdk/js/node_modules/
 
-bench/results/tmp/
 
 # Local benchmark output and rig overrides (regenerable, machine-specific)
-bench/results/
-bench/rig/rig.local.conf
 
 # Generator fixture and benchmark harness copies under tools/ (regenerable, machine-specific)
 test/golden/testdata/*.ndjson
