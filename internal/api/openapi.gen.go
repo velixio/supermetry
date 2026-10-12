@@ -16,6 +16,117 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AdminMembershipRole.
+const (
+	AdminMembershipRoleAdmin  AdminMembershipRole = "admin"
+	AdminMembershipRoleEditor AdminMembershipRole = "editor"
+	AdminMembershipRoleOwner  AdminMembershipRole = "owner"
+	AdminMembershipRoleViewer AdminMembershipRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the AdminMembershipRole enum.
+func (e AdminMembershipRole) Valid() bool {
+	switch e {
+	case AdminMembershipRoleAdmin:
+		return true
+	case AdminMembershipRoleEditor:
+		return true
+	case AdminMembershipRoleOwner:
+		return true
+	case AdminMembershipRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminSettingsSignupMode.
+const (
+	AdminSettingsSignupModeInvite AdminSettingsSignupMode = "invite"
+	AdminSettingsSignupModeOpen   AdminSettingsSignupMode = "open"
+)
+
+// Valid indicates whether the value is a known member of the AdminSettingsSignupMode enum.
+func (e AdminSettingsSignupMode) Valid() bool {
+	switch e {
+	case AdminSettingsSignupModeInvite:
+		return true
+	case AdminSettingsSignupModeOpen:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminSettingsPatchSignupMode.
+const (
+	AdminSettingsPatchSignupModeInvite AdminSettingsPatchSignupMode = "invite"
+	AdminSettingsPatchSignupModeOpen   AdminSettingsPatchSignupMode = "open"
+)
+
+// Valid indicates whether the value is a known member of the AdminSettingsPatchSignupMode enum.
+func (e AdminSettingsPatchSignupMode) Valid() bool {
+	switch e {
+	case AdminSettingsPatchSignupModeInvite:
+		return true
+	case AdminSettingsPatchSignupModeOpen:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminSiteRetentionDays.
+const (
+	AdminSiteRetentionDaysN0   AdminSiteRetentionDays = 0
+	AdminSiteRetentionDaysN30  AdminSiteRetentionDays = 30
+	AdminSiteRetentionDaysN365 AdminSiteRetentionDays = 365
+	AdminSiteRetentionDaysN7   AdminSiteRetentionDays = 7
+	AdminSiteRetentionDaysN90  AdminSiteRetentionDays = 90
+)
+
+// Valid indicates whether the value is a known member of the AdminSiteRetentionDays enum.
+func (e AdminSiteRetentionDays) Valid() bool {
+	switch e {
+	case AdminSiteRetentionDaysN0:
+		return true
+	case AdminSiteRetentionDaysN30:
+		return true
+	case AdminSiteRetentionDaysN365:
+		return true
+	case AdminSiteRetentionDaysN7:
+		return true
+	case AdminSiteRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminTwoFactorPolicyScope.
+const (
+	Everyone       AdminTwoFactorPolicyScope = "everyone"
+	InstanceAdmins AdminTwoFactorPolicyScope = "instance_admins"
+	Off            AdminTwoFactorPolicyScope = "off"
+	OwnersAdmins   AdminTwoFactorPolicyScope = "owners_admins"
+)
+
+// Valid indicates whether the value is a known member of the AdminTwoFactorPolicyScope enum.
+func (e AdminTwoFactorPolicyScope) Valid() bool {
+	switch e {
+	case Everyone:
+		return true
+	case InstanceAdmins:
+		return true
+	case Off:
+		return true
+	case OwnersAdmins:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateSiteRequestRetentionDays.
 const (
 	CreateSiteRequestRetentionDaysN0   CreateSiteRequestRetentionDays = 0
@@ -45,22 +156,22 @@ func (e CreateSiteRequestRetentionDays) Valid() bool {
 
 // Defines values for CurrentUserResponseMembershipsRole.
 const (
-	Admin  CurrentUserResponseMembershipsRole = "admin"
-	Editor CurrentUserResponseMembershipsRole = "editor"
-	Owner  CurrentUserResponseMembershipsRole = "owner"
-	Viewer CurrentUserResponseMembershipsRole = "viewer"
+	CurrentUserResponseMembershipsRoleAdmin  CurrentUserResponseMembershipsRole = "admin"
+	CurrentUserResponseMembershipsRoleEditor CurrentUserResponseMembershipsRole = "editor"
+	CurrentUserResponseMembershipsRoleOwner  CurrentUserResponseMembershipsRole = "owner"
+	CurrentUserResponseMembershipsRoleViewer CurrentUserResponseMembershipsRole = "viewer"
 )
 
 // Valid indicates whether the value is a known member of the CurrentUserResponseMembershipsRole enum.
 func (e CurrentUserResponseMembershipsRole) Valid() bool {
 	switch e {
-	case Admin:
+	case CurrentUserResponseMembershipsRoleAdmin:
 		return true
-	case Editor:
+	case CurrentUserResponseMembershipsRoleEditor:
 		return true
-	case Owner:
+	case CurrentUserResponseMembershipsRoleOwner:
 		return true
-	case Viewer:
+	case CurrentUserResponseMembershipsRoleViewer:
 		return true
 	default:
 		return false
@@ -1265,6 +1376,138 @@ type APIKeyList struct {
 	Data []APIKey `json:"data"`
 }
 
+// AdminAuditEntry defines model for AdminAuditEntry.
+type AdminAuditEntry struct {
+	Action      string                 `json:"action"`
+	ActorUserId *int64                 `json:"actor_user_id,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	Id          int64                  `json:"id"`
+	Metadata    map[string]interface{} `json:"metadata"`
+	TargetId    int64                  `json:"target_id"`
+	TargetType  string                 `json:"target_type"`
+}
+
+// AdminAuditResponse defines model for AdminAuditResponse.
+type AdminAuditResponse struct {
+	Data []AdminAuditEntry `json:"data"`
+}
+
+// AdminMembership defines model for AdminMembership.
+type AdminMembership struct {
+	OrgId   int64               `json:"org_id"`
+	OrgName string              `json:"org_name"`
+	Role    AdminMembershipRole `json:"role"`
+}
+
+// AdminMembershipRole defines model for AdminMembership.Role.
+type AdminMembershipRole string
+
+// AdminOrganization defines model for AdminOrganization.
+type AdminOrganization struct {
+	Id          int64  `json:"id"`
+	MemberCount int64  `json:"member_count"`
+	Name        string `json:"name"`
+	SiteCount   int64  `json:"site_count"`
+	SiteLimit   int    `json:"site_limit"`
+	Slug        string `json:"slug"`
+}
+
+// AdminOrganizationDetail defines model for AdminOrganizationDetail.
+type AdminOrganizationDetail struct {
+	Id          int64       `json:"id"`
+	MemberCount int64       `json:"member_count"`
+	Members     []AdminUser `json:"members"`
+	Name        string      `json:"name"`
+	SiteCount   int64       `json:"site_count"`
+	SiteLimit   int         `json:"site_limit"`
+	Sites       []AdminSite `json:"sites"`
+	Slug        string      `json:"slug"`
+}
+
+// AdminOrganizationsResponse defines model for AdminOrganizationsResponse.
+type AdminOrganizationsResponse struct {
+	Data []AdminOrganization `json:"data"`
+}
+
+// AdminSettings defines model for AdminSettings.
+type AdminSettings struct {
+	ReplayVisible bool                    `json:"replay_visible"`
+	SignupMode    AdminSettingsSignupMode `json:"signup_mode"`
+}
+
+// AdminSettingsSignupMode defines model for AdminSettings.SignupMode.
+type AdminSettingsSignupMode string
+
+// AdminSettingsPatch defines model for AdminSettingsPatch.
+type AdminSettingsPatch struct {
+	ReplayVisible *bool                         `json:"replay_visible,omitempty"`
+	SignupMode    *AdminSettingsPatchSignupMode `json:"signup_mode,omitempty"`
+}
+
+// AdminSettingsPatchSignupMode defines model for AdminSettingsPatch.SignupMode.
+type AdminSettingsPatchSignupMode string
+
+// AdminSite defines model for AdminSite.
+type AdminSite struct {
+	Id            int32                  `json:"id"`
+	LastEventAt   *time.Time             `json:"last_event_at,omitempty"`
+	Name          string                 `json:"name"`
+	OrgId         int64                  `json:"org_id"`
+	Organization  string                 `json:"organization"`
+	Pageviews     int64                  `json:"pageviews"`
+	PublicId      string                 `json:"public_id"`
+	RetentionDays AdminSiteRetentionDays `json:"retention_days"`
+}
+
+// AdminSiteRetentionDays defines model for AdminSite.RetentionDays.
+type AdminSiteRetentionDays int
+
+// AdminSitesResponse defines model for AdminSitesResponse.
+type AdminSitesResponse struct {
+	Data []AdminSite `json:"data"`
+}
+
+// AdminTwoFactorExemption defines model for AdminTwoFactorExemption.
+type AdminTwoFactorExemption struct {
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Reason    string     `json:"reason"`
+}
+
+// AdminTwoFactorPolicy defines model for AdminTwoFactorPolicy.
+type AdminTwoFactorPolicy struct {
+	GraceDays int                       `json:"grace_days"`
+	Scope     AdminTwoFactorPolicyScope `json:"scope"`
+}
+
+// AdminTwoFactorPolicyScope defines model for AdminTwoFactorPolicy.Scope.
+type AdminTwoFactorPolicyScope string
+
+// AdminUser defines model for AdminUser.
+type AdminUser struct {
+	CreatedAt             time.Time           `json:"created_at"`
+	Disabled              bool                `json:"disabled"`
+	Email                 openapi_types.Email `json:"email"`
+	Id                    int64               `json:"id"`
+	InstanceAdmin         bool                `json:"instance_admin"`
+	LastLoginAt           *time.Time          `json:"last_login_at,omitempty"`
+	Memberships           []AdminMembership   `json:"memberships"`
+	Name                  string              `json:"name"`
+	PasswordResetRequired bool                `json:"password_reset_required"`
+	TotpEnabled           bool                `json:"totp_enabled"`
+}
+
+// AdminUserPatch defines model for AdminUserPatch.
+type AdminUserPatch struct {
+	Disabled              *bool `json:"disabled,omitempty"`
+	InstanceAdmin         *bool `json:"instance_admin,omitempty"`
+	PasswordResetRequired *bool `json:"password_reset_required,omitempty"`
+}
+
+// AdminUsersResponse defines model for AdminUsersResponse.
+type AdminUsersResponse struct {
+	Data []AdminUser `json:"data"`
+}
+
 // Annotation defines model for Annotation.
 type Annotation struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -1364,12 +1607,15 @@ type CurrentUserResponse struct {
 	} `json:"memberships"`
 	Preferences UserPreferences `json:"preferences"`
 	User        struct {
-		CreatedAt   time.Time           `json:"created_at"`
-		Email       openapi_types.Email `json:"email"`
-		Id          int64               `json:"id"`
-		LastLoginAt *time.Time          `json:"last_login_at,omitempty"`
-		Name        string              `json:"name"`
-		TotpEnabled bool                `json:"totp_enabled"`
+		CreatedAt              time.Time           `json:"created_at"`
+		Email                  openapi_types.Email `json:"email"`
+		Id                     int64               `json:"id"`
+		InstanceAdmin          bool                `json:"instance_admin"`
+		LastLoginAt            *time.Time          `json:"last_login_at,omitempty"`
+		Name                   string              `json:"name"`
+		TotpEnabled            bool                `json:"totp_enabled"`
+		TwoFactorGraceUntil    *time.Time          `json:"two_factor_grace_until,omitempty"`
+		TwoFactorSetupRequired bool                `json:"two_factor_setup_required"`
 	} `json:"user"`
 
 	// Version Build version reported by the running binary; development builds report dev.
@@ -2658,6 +2904,12 @@ type VitalsTrendPoint struct {
 	Ttfb VitalTrendMetric   `json:"ttfb"`
 }
 
+// AdminLimit defines model for AdminLimit.
+type AdminLimit = int
+
+// AdminUserID defines model for AdminUserID.
+type AdminUserID = int64
+
 // Compare defines model for Compare.
 type Compare = string
 
@@ -2732,6 +2984,29 @@ type ServiceUnavailable = Problem
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Problem
+
+// AdminListAuditParams defines parameters for AdminListAudit.
+type AdminListAuditParams struct {
+	Limit *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminListOrganizationsParams defines parameters for AdminListOrganizations.
+type AdminListOrganizationsParams struct {
+	Search *string     `form:"search,omitempty" json:"search,omitempty"`
+	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminListSitesParams defines parameters for AdminListSites.
+type AdminListSitesParams struct {
+	Search *string     `form:"search,omitempty" json:"search,omitempty"`
+	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminListUsersParams defines parameters for AdminListUsers.
+type AdminListUsersParams struct {
+	Search *string     `form:"search,omitempty" json:"search,omitempty"`
+	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
 
 // ConfirmCurrentUserEmailChangeLinkParams defines parameters for ConfirmCurrentUserEmailChangeLink.
 type ConfirmCurrentUserEmailChangeLinkParams struct {
@@ -2999,6 +3274,18 @@ type StatsTimeseriesParams struct {
 	IncludeImported *bool   `form:"include_imported,omitempty" json:"include_imported,omitempty"`
 	Interval        *string `form:"interval,omitempty" json:"interval,omitempty"`
 }
+
+// AdminSetTwoFactorExemptionJSONRequestBody defines body for AdminSetTwoFactorExemption for application/json ContentType.
+type AdminSetTwoFactorExemptionJSONRequestBody = AdminTwoFactorExemption
+
+// AdminUpdateTwoFactorPolicyJSONRequestBody defines body for AdminUpdateTwoFactorPolicy for application/json ContentType.
+type AdminUpdateTwoFactorPolicyJSONRequestBody = AdminTwoFactorPolicy
+
+// AdminUpdateSettingsJSONRequestBody defines body for AdminUpdateSettings for application/json ContentType.
+type AdminUpdateSettingsJSONRequestBody = AdminSettingsPatch
+
+// AdminUpdateUserJSONRequestBody defines body for AdminUpdateUser for application/json ContentType.
+type AdminUpdateUserJSONRequestBody = AdminUserPatch
 
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
 type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
@@ -3494,6 +3781,42 @@ func (t *MCPResponse_Id) UnmarshalJSON(b []byte) error {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// AdminListAudit List instance administration audit entries
+	// (GET /api/private/admin/audit)
+	AdminListAudit(w http.ResponseWriter, r *http.Request, params AdminListAuditParams)
+	// AdminListOrganizations List organizations with member, site and quota counts
+	// (GET /api/private/admin/organizations)
+	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
+	// AdminGetOrganization Get an organization with its members, sites and quota
+	// (GET /api/private/admin/organizations/{org})
+	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminDeleteTwoFactorExemption Remove a user's two-factor exemption
+	// (DELETE /api/private/admin/security/2fa-exemptions/{user})
+	AdminDeleteTwoFactorExemption(w http.ResponseWriter, r *http.Request, user AdminUserID)
+	// AdminSetTwoFactorExemption Grant or replace a user's two-factor exemption
+	// (PUT /api/private/admin/security/2fa-exemptions/{user})
+	AdminSetTwoFactorExemption(w http.ResponseWriter, r *http.Request, user AdminUserID)
+	// AdminGetTwoFactorPolicy Get the instance two-factor policy
+	// (GET /api/private/admin/security/2fa-policy)
+	AdminGetTwoFactorPolicy(w http.ResponseWriter, r *http.Request)
+	// AdminUpdateTwoFactorPolicy Replace the instance two-factor policy
+	// (PUT /api/private/admin/security/2fa-policy)
+	AdminUpdateTwoFactorPolicy(w http.ResponseWriter, r *http.Request)
+	// AdminGetSettings Get effective instance settings
+	// (GET /api/private/admin/settings)
+	AdminGetSettings(w http.ResponseWriter, r *http.Request)
+	// AdminUpdateSettings Change signup mode or replay-switch visibility
+	// (PATCH /api/private/admin/settings)
+	AdminUpdateSettings(w http.ResponseWriter, r *http.Request)
+	// AdminListSites List sites with usage, last event and retention
+	// (GET /api/private/admin/sites)
+	AdminListSites(w http.ResponseWriter, r *http.Request, params AdminListSitesParams)
+	// AdminListUsers List and search instance users
+	// (GET /api/private/admin/users)
+	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
+	// AdminUpdateUser Enable, disable, force password reset, promote or demote a user
+	// (PATCH /api/private/admin/users/{user})
+	AdminUpdateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
 	// ConfirmCurrentUserEmailChangeLink Confirm an email change from a link
 	// (GET /api/private/auth/email-change/confirm)
 	ConfirmCurrentUserEmailChangeLink(w http.ResponseWriter, r *http.Request, params ConfirmCurrentUserEmailChangeLinkParams)
@@ -3789,6 +4112,337 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// AdminListAudit operation middleware
+func (siw *ServerInterfaceWrapper) AdminListAudit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListAuditParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListAudit(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminListOrganizations operation middleware
+func (siw *ServerInterfaceWrapper) AdminListOrganizations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListOrganizationsParams
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "search", r.URL.Query(), &params.Search, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "search"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "search", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListOrganizations(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetOrganization operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteTwoFactorExemption operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteTwoFactorExemption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteTwoFactorExemption(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminSetTwoFactorExemption operation middleware
+func (siw *ServerInterfaceWrapper) AdminSetTwoFactorExemption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminSetTwoFactorExemption(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetTwoFactorPolicy operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetTwoFactorPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetTwoFactorPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateTwoFactorPolicy operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateTwoFactorPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateTwoFactorPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetSettings operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateSettings operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminListSites operation middleware
+func (siw *ServerInterfaceWrapper) AdminListSites(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListSitesParams
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "search", r.URL.Query(), &params.Search, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "search"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "search", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListSites(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminListUsers operation middleware
+func (siw *ServerInterfaceWrapper) AdminListUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListUsersParams
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "search", r.URL.Query(), &params.Search, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "search"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "search", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListUsers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateUser(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ConfirmCurrentUserEmailChangeLink operation middleware
 func (siw *ServerInterfaceWrapper) ConfirmCurrentUserEmailChangeLink(w http.ResponseWriter, r *http.Request) {
@@ -7374,6 +8028,18 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminListUsers)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminUpdateUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminGetOrganization)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/sites", wrapper.AdminListSites)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminGetSettings)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminUpdateSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/security/2fa-policy", wrapper.AdminGetTwoFactorPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/security/2fa-policy", wrapper.AdminUpdateTwoFactorPolicy)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminDeleteTwoFactorExemption)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminSetTwoFactorExemption)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/audit", wrapper.AdminListAudit)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/setup/status", wrapper.GetSetupStatus)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/me", wrapper.DeleteCurrentUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me", wrapper.GetCurrentUser)

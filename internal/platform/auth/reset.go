@@ -88,7 +88,7 @@ func (a *Auth) FinishReset(ctx context.Context, token, newPassword string) error
 		if userID != candidateUserID {
 			return ErrInvalid
 		}
-		if _, err := tx.Exec(ctx, `update users set password_hash=$2 where id=$1`, userID, passwordHash); err != nil {
+		if _, err := tx.Exec(ctx, `update users set password_hash=$2,password_reset_required=false where id=$1`, userID, passwordHash); err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `delete from user_sessions where user_id=$1`, userID)

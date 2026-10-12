@@ -282,6 +282,18 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		mux.Handle(pattern, public)
 	}
 	for _, pattern := range []string{
+		"GET " + privatePrefix + "/admin/users",
+		"PATCH " + privatePrefix + "/admin/users/{user}",
+		"GET " + privatePrefix + "/admin/organizations",
+		"GET " + privatePrefix + "/admin/organizations/{org}",
+		"GET " + privatePrefix + "/admin/sites",
+		"GET " + privatePrefix + "/admin/settings",
+		"PATCH " + privatePrefix + "/admin/settings",
+		"GET " + privatePrefix + "/admin/security/2fa-policy",
+		"PUT " + privatePrefix + "/admin/security/2fa-policy",
+		"PUT " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
+		"DELETE " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
+		"GET " + privatePrefix + "/admin/audit",
 		"GET " + privatePrefix + "/auth/config",
 		"POST " + privatePrefix + "/auth/login",
 		"POST " + privatePrefix + "/auth/signup",

@@ -120,6 +120,9 @@ func copySiteIDs(values []int32) []int32 {
 // accountRequest lists only routes whose authorization is scoped to the current
 // user. Organization resources must still resolve an explicit membership.
 func accountRequest(r *http.Request) bool {
+	if strings.HasPrefix(r.URL.Path, "/api/private/admin/") {
+		return true
+	}
 	switch r.Method + " " + r.URL.Path {
 	case "GET /api/private/me", "HEAD /api/private/me", "PATCH /api/private/me", "DELETE /api/private/me",
 		"GET /api/private/sites/overview", "HEAD /api/private/sites/overview",

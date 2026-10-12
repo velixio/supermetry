@@ -59,9 +59,10 @@ func (h *handler) authConfig(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	mode := "invite"
-	if h.deps.Signup == "open" {
-		mode = "open"
+	mode, err := h.effectiveSignupMode(r)
+	if err != nil {
+		serviceError(w, err)
+		return
 	}
 	homepageURL := h.deps.HomepageURL
 	if homepageURL == "" {
@@ -101,12 +102,17 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 	}
 	token, err := h.deps.Auth.Login(h.clientContext(r), request.Email, request.Password, request.TOTPCode, request.DeviceLabel)
 	if err != nil {
-		if errors.Is(err, platformauth.ErrRateLimited) {
+		switch {
+		case errors.Is(err, platformauth.ErrRateLimited):
 			w.Header().Set("Retry-After", "60")
 			writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
-			return
+		case errors.Is(err, platformauth.ErrTOTPRequired):
+			writeProblem(w, http.StatusUnauthorized, "TOTP required", "a verification code or recovery code is required")
+		case errors.Is(err, platformauth.ErrPasswordResetRequired):
+			writeProblem(w, http.StatusForbidden, "Password reset required", "reset the password before signing in")
+		default:
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "invalid email, password, or verification code")
 		}
-		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "invalid email, password, or verification code")
 		return
 	}
 	h.setAuthCookies(w, r, token, csrfToken)
@@ -114,7 +120,12 @@ func (h *handler) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) signup(w http.ResponseWriter, r *http.Request) {
-	if h.deps.Signup != "open" {
+	mode, err := h.effectiveSignupMode(r)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	if mode != "open" {
 		writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
 		return
 	}
@@ -153,6 +164,18 @@ func (h *handler) signup(w http.ResponseWriter, r *http.Request) {
 	}
 	h.setAuthCookies(w, r, token, csrfToken)
 	writeJSON(w, http.StatusCreated, map[string]bool{"authenticated": true})
+}
+
+func (h *handler) effectiveSignupMode(r *http.Request) (string, error) {
+	mode := "invite"
+	if h.deps.Signup == "open" {
+		mode = "open"
+	}
+	if h.deps.Admin == nil {
+		return mode, nil
+	}
+	settings, err := h.deps.Admin.EffectiveSettings(r.Context(), mode, h.deps.ReplayEnv.Enabled)
+	return settings.SignupMode, err
 }
 
 func (h *handler) clientContext(r *http.Request) context.Context {

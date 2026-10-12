@@ -21,6 +21,7 @@ import (
 	"supermetry/internal/api"
 	"supermetry/internal/config"
 	"supermetry/internal/imports"
+	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
@@ -73,6 +74,7 @@ type Deps struct {
 	TrackingMode privacy.Mode
 	// MaxOrgsPerUser caps the organizations a non-admin user may own. Zero means no cap.
 	MaxOrgsPerUser int
+	MaxSitesPerOrg int
 	BaseURL        string
 	HomepageURL    string
 	// GeoIPSource reports which geolocation provider is in use ("dbip" or "maxmind"), so the
@@ -130,6 +132,7 @@ type Deps struct {
 	ReplayRefresh func() error
 	Demo          DemoService
 	Overview      *sitesvc.Overview
+	Admin         *admin.Service
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -167,6 +170,8 @@ type handler struct {
 	iconRefetched   map[int32]time.Time
 	overviewLimitMu sync.Mutex
 	overviewLimits  map[int64]overviewRateWindow
+	adminLimitMu    sync.Mutex
+	adminLimits     map[int64]adminRateWindow
 }
 
 // New returns the platform route set. It owns platform authentication so the
@@ -187,6 +192,7 @@ func New(deps Deps) http.Handler {
 		iconDiscoveries: make(chan struct{}, 4),
 		iconRefetched:   make(map[int32]time.Time),
 		overviewLimits:  make(map[int64]overviewRateWindow),
+		adminLimits:     make(map[int64]adminRateWindow),
 	}
 	mux := http.NewServeMux()
 	h.registerPrivate(mux)
@@ -196,6 +202,18 @@ func New(deps Deps) http.Handler {
 }
 
 func (h *handler) registerPrivate(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/private/admin/users", h.adminListUsers)
+	mux.HandleFunc("PATCH /api/private/admin/users/{user}", h.adminUpdateUser)
+	mux.HandleFunc("GET /api/private/admin/organizations", h.adminListOrganizations)
+	mux.HandleFunc("GET /api/private/admin/organizations/{org}", h.adminGetOrganization)
+	mux.HandleFunc("GET /api/private/admin/sites", h.adminListSites)
+	mux.HandleFunc("GET /api/private/admin/settings", h.adminGetSettings)
+	mux.HandleFunc("PATCH /api/private/admin/settings", h.adminUpdateSettings)
+	mux.HandleFunc("GET /api/private/admin/security/2fa-policy", h.adminGetTwoFactorPolicy)
+	mux.HandleFunc("PUT /api/private/admin/security/2fa-policy", h.adminUpdateTwoFactorPolicy)
+	mux.HandleFunc("PUT /api/private/admin/security/2fa-exemptions/{user}", h.adminSetTwoFactorExemption)
+	mux.HandleFunc("DELETE /api/private/admin/security/2fa-exemptions/{user}", h.adminDeleteTwoFactorExemption)
+	mux.HandleFunc("GET /api/private/admin/audit", h.adminListAudit)
 	mux.HandleFunc("GET /api/private/sites", h.listSites)
 	mux.HandleFunc("GET /api/private/sites/overview", h.sitesOverview)
 	mux.HandleFunc("POST /api/private/sites", h.createSite)

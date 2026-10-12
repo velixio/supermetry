@@ -41,7 +41,27 @@ func (a *Auth) Session(ctx context.Context, cookieValue string) (Session, bool) 
 // SessionForRequest excludes known read/poll endpoints from activity updates.
 // Authentication, expiry and revocation checks still run on every request.
 func (a *Auth) SessionForRequest(r *http.Request, cookieValue string) (Session, bool) {
-	return a.session(r.Context(), cookieValue, sessionRequestIsActive(r))
+	session, ok := a.session(r.Context(), cookieValue, sessionRequestIsActive(r))
+	if !ok {
+		return Session{}, false
+	}
+	if a.policy != nil {
+		setupRequired, graceExpired, err := a.policy.RequiresTwoFactorSetup(r.Context(), session.UserID, a.clock.Now())
+		if err != nil {
+			return Session{}, false
+		}
+		if setupRequired && graceExpired && !twoFactorRecoveryRequest(r) {
+			return Session{}, false
+		}
+	}
+	return session, true
+}
+
+func twoFactorRecoveryRequest(r *http.Request) bool {
+	if r.URL.Path == "/api/private/me" || r.URL.Path == "/api/private/auth/logout" {
+		return true
+	}
+	return strings.HasPrefix(r.URL.Path, "/api/private/me/totp")
 }
 
 func sessionRequestIsActive(r *http.Request) bool {
@@ -74,6 +94,11 @@ func (a *Auth) session(ctx context.Context, cookieValue string, activity bool) (
 	}
 	now := a.clock.Now()
 	if !now.Before(record.ExpiresAt) || now.Sub(record.LastSeenAt) >= sessionIdleTimeout {
+		_ = a.store.DeleteSession(ctx, hash)
+		return Session{}, false
+	}
+	user, err := a.store.UserByID(ctx, record.UserID)
+	if err != nil || user.DisabledAt != nil || user.PasswordResetRequired {
 		_ = a.store.DeleteSession(ctx, hash)
 		return Session{}, false
 	}

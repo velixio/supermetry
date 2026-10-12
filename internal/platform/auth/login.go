@@ -24,11 +24,12 @@ import (
 )
 
 var (
-	ErrInvalid      = errors.New("invalid credentials")
-	ErrTOTPRequired = errors.New("TOTP code required")
-	ErrRateLimited  = errors.New("too many authentication attempts")
-	ErrSMTPRequired = errors.New("email change requires SMTP")
-	ErrLastOwner    = errors.New("account is the last owner of an organization")
+	ErrInvalid               = errors.New("invalid credentials")
+	ErrTOTPRequired          = errors.New("TOTP code required")
+	ErrPasswordResetRequired = errors.New("password reset required")
+	ErrRateLimited           = errors.New("too many authentication attempts")
+	ErrSMTPRequired          = errors.New("email change requires SMTP")
+	ErrLastOwner             = errors.New("account is the last owner of an organization")
 )
 
 const CookieName = "supermetry_session"
@@ -44,6 +45,10 @@ type realClock struct{}
 func (realClock) Now() time.Time { return time.Now() }
 
 type Option func(*Auth)
+
+type PolicySource interface {
+	RequiresTwoFactorSetup(context.Context, int64, time.Time) (setupRequired bool, graceExpired bool, err error)
+}
 
 func WithClock(clock Clock) Option {
 	return func(a *Auth) { a.clock = clock }
@@ -62,6 +67,10 @@ func WithLoginAttemptCapacity(capacity int) Option {
 	return func(a *Auth) { a.limits.setLoginCapacity(capacity) }
 }
 
+func WithPolicySource(policy PolicySource) Option {
+	return func(a *Auth) { a.policy = policy }
+}
+
 type Auth struct {
 	store            *store.Store
 	users            *users.Users
@@ -72,6 +81,7 @@ type Auth struct {
 	limits           *loginLimiter
 	totpLimits       *secondFactorLimiter
 	enrollmentLimits *secondFactorLimiter
+	policy           PolicySource
 
 	auditMu                sync.Mutex
 	auditWG                sync.WaitGroup
@@ -148,6 +158,17 @@ func (a *Auth) Login(ctx context.Context, email, password, totpCode, deviceLabel
 	if err != nil || !valid {
 		a.auditLoginFailure(user.ID, clientKey(ctx))
 		return "", ErrInvalid
+	}
+	if user.DisabledAt != nil {
+		return "", ErrInvalid
+	}
+	if user.PasswordResetRequired {
+		return "", ErrPasswordResetRequired
+	}
+	if a.policy != nil && !user.TOTPEnabled {
+		if _, _, err := a.policy.RequiresTwoFactorSetup(ctx, user.ID, now); err != nil {
+			return "", err
+		}
 	}
 	if user.TOTPEnabled {
 		if totpCode == "" {

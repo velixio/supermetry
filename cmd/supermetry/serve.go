@@ -40,6 +40,7 @@ import (
 	"supermetry/internal/imports"
 	"supermetry/internal/ingest"
 	"supermetry/internal/minutes"
+	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authn"
@@ -250,7 +251,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("initialize TOTP encryption: %w", err)
 	}
 	accounts := users.New(platformStore)
-	authOptions := []platformauth.Option{platformauth.WithAuditSecret(cfg.SecretKey)}
+	adminService := admin.New(platformStore)
+	authOptions := []platformauth.Option{platformauth.WithAuditSecret(cfg.SecretKey), platformauth.WithPolicySource(adminService)}
 	if raw := os.Getenv("SUPERMETRY_E2E_LOGIN_LIMIT"); raw != "" {
 		limit, parseErr := strconv.Atoi(raw)
 		if parseErr != nil || limit < 1 {
@@ -317,6 +319,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Version:        version,
 		TrackingMode:   cfg.Tracking.Mode,
 		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
+		MaxSitesPerOrg: cfg.MaxSitesPerOrg,
 		BaseURL:        cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
@@ -355,6 +358,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		ReplayRefresh:     refreshRegistry,
 		Demo:              demoService,
 		Overview:          overviewService,
+		Admin:             adminService,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {
