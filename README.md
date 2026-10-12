@@ -65,17 +65,17 @@ After you sign up, choose **Explore with demo data**. Supermetry creates a proje
 
 ## Privacy modes
 
-Supermetry starts in the strictest mode, so a default install collects as little as possible. You choose how much more to collect.
+Supermetry collects page paths, referrers and campaigns by default, and never uses cookies or stores raw IP addresses. For the strictest setup, switch the whole server to anonymous mode.
 
-| | `anonymous` (default) | `identified` | `identified` plus the project's profiles setting |
-|---|---|---|---|
-| Visitors, visits, pageviews and charts over time | yes | yes | yes |
-| Country, device, browser, operating system and channel | yes | yes | yes |
-| Page paths | replaced by a placeholder unless you list public paths | yes (query strings are always dropped) | yes |
-| Sessions and events explorers, imports | no | yes | yes |
-| Referrers, UTM campaigns, event properties, user profiles | no | no | yes |
+| | `anonymous` | `identified` (default) |
+|---|---|---|
+| Visitors, visits, pageviews and charts over time | yes | yes |
+| Country, device, browser, operating system and channel | yes | yes |
+| Page paths | replaced by a placeholder unless you list public paths | yes (query strings are always dropped) |
+| Sessions and events explorers, imports | no | yes |
+| Referrers, UTM campaigns, event properties, user profiles | no | yes, in projects with profiles on (the default for new projects) |
 
-Set `SUPERMETRY_TRACKING_MODE=identified` on the server for real page paths and the explorers, then turn on **profiles** in a project's settings to also keep referrers, campaigns and event properties. None of this uses cookies or stores raw IP addresses. Session replay and heatmaps are separate opt-ins. The built-in sample project is exempt from these limits, so you can see the reports before you choose. See [Tracking and privacy](docs/tracking-privacy.md) for exactly what each setting records.
+Set `SUPERMETRY_TRACKING_MODE=anonymous` on the server to choose the strictest mode, and turn **profiles** off in a project's settings to stop keeping referrers, campaigns and event properties for that project. Session replay and heatmaps are separate opt-ins. See [Tracking and privacy](docs/tracking-privacy.md) for exactly what each setting records.
 
 ## Requirements
 
