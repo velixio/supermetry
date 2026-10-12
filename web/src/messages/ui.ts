@@ -74,7 +74,7 @@ export const ui = {
     deleting: 'Deleting…',
     delete: 'Delete segment',
   },
-  sidebar: { demo: 'Demo' },
+  sidebar: { demo: 'Demo', chooseOrganization: 'Choose organization' },
   appShell: { loadingLive: 'Loading live visitors' },
   crumbs: {
     label: 'Breadcrumb',

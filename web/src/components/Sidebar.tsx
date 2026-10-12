@@ -226,6 +226,79 @@ function navigationLink(
   return unreachable
 }
 
+/** The brand link at the top of every sidebar. It leads to the sites overview. */
+export function SidebarBrandLink({ onClick }: { onClick: () => void }) {
+  return (
+    <Link aria-label="Supermetry home" className="mb-1 flex h-8 items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={onClick}>
+      <BrandLogo className="h-7 w-7" decorative mark />
+      <span className="truncate text-base font-semibold group-data-[collapsible=icon]:hidden">{en.navigation.brand}</span>
+    </Link>
+  )
+}
+
+/** The organisations part of the switcher: every membership, then "Add organization". */
+export function OrganizationMenuGroup({ me, onSelect }: { me: Me; onSelect: () => void }) {
+  return (
+    <>
+      <DropdownMenuLabel>{en.navigation.organizations}</DropdownMenuLabel>
+      <DropdownMenuGroup>
+        {me.memberships.map((item) => (
+          <DropdownMenuItem key={item.org.id} asChild>
+            {item.sites[0] ? (
+              <Link
+                to="/app/$org/$site"
+                params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
+                search={defaultSearch()}
+                onClick={onSelect}
+              >
+                {item.org.name}
+              </Link>
+            ) : (
+              <Link
+                to="/app/$org/settings"
+                params={{ org: item.org.slug }}
+                onClick={onSelect}
+              >
+                {item.org.name}
+              </Link>
+            )}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuItem asChild>
+          <Link to="/app/account/organizations/new" onClick={onSelect}>
+            <PlusIcon />
+            {en.navigation.addOrganization}
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </>
+  )
+}
+
+/** The account menu in the footer of both sidebars. */
+export function SidebarAccountFooter({ me }: { me: Me }) {
+  const { isMobile } = useSidebar()
+  return (
+    <SidebarFooter>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <AccountMenu
+            align="end"
+            me={me}
+            side={isMobile ? 'top' : 'right'}
+            trigger={
+              <SidebarMenuButton className="h-11" tooltip={ui.menus.account}>
+                <UserRoundIcon aria-hidden="true" />
+                <span>{ui.menus.account}</span>
+              </SidebarMenuButton>
+            }
+          />
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarFooter>
+  )
+}
+
 export function SupermetrySidebar({
   me,
   membership,
@@ -238,7 +311,7 @@ export function SupermetrySidebar({
   const site = activeSite(membership, requestedSite)
   const currentSite = site ? siteSlug(site) : ''
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const { setOpenMobile, isMobile } = useSidebar()
+  const { setOpenMobile } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
@@ -248,10 +321,7 @@ export function SupermetrySidebar({
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
       <SidebarHeader>
-        <Link aria-label="Supermetry home" className="mb-1 flex h-8 items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={closeMobile}>
-          <BrandLogo className="h-7 w-7" decorative mark />
-          <span className="truncate text-base font-semibold group-data-[collapsible=icon]:hidden">{en.navigation.brand}</span>
-        </Link>
+        <SidebarBrandLink onClick={closeMobile} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="h-auto py-1.5 group-data-[collapsible=icon]:p-1.5!" tooltip={`${membership.org.name} / ${site?.name ?? en.navigation.site}`}>
@@ -296,37 +366,7 @@ export function SupermetrySidebar({
               ) : null}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel>{en.navigation.organizations}</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              {me.memberships.map((item) => (
-                <DropdownMenuItem key={item.org.id} asChild>
-                  {item.sites[0] ? (
-                    <Link
-                      to="/app/$org/$site"
-                      params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
-                      search={defaultSearch()}
-                      onClick={closeMobile}
-                    >
-                      {item.org.name}
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/app/$org/settings"
-                      params={{ org: item.org.slug }}
-                      onClick={closeMobile}
-                    >
-                      {item.org.name}
-                    </Link>
-                  )}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuItem asChild>
-                <Link to="/app/account/organizations/new" onClick={closeMobile}>
-                  <PlusIcon />
-                  {en.navigation.addOrganization}
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+            <OrganizationMenuGroup me={me} onSelect={closeMobile} />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarHeader>
@@ -414,23 +454,7 @@ export function SupermetrySidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <AccountMenu
-              align="end"
-              me={me}
-              side={isMobile ? 'top' : 'right'}
-              trigger={
-                <SidebarMenuButton className="h-11" tooltip={ui.menus.account}>
-                  <UserRoundIcon aria-hidden="true" />
-                  <span>{ui.menus.account}</span>
-                </SidebarMenuButton>
-              }
-            />
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+      <SidebarAccountFooter me={me} />
     </Sidebar>
   )
 }

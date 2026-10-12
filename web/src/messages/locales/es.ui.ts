@@ -75,7 +75,7 @@ const messages: MessageTree = {
     deleting: 'Eliminando…',
     delete: 'Eliminar segmento',
   },
-  sidebar: { demo: 'Demo' },
+  sidebar: { demo: 'Demo', chooseOrganization: 'Elegir organización' },
   appShell: { loadingLive: 'Cargando visitantes en vivo' },
   crumbs: {
     label: 'Ruta de navegación',
