@@ -1586,6 +1586,87 @@ type ChangeShareExpiryRequest struct {
 	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
 }
 
+// Cohort defines model for Cohort.
+type Cohort struct {
+	CreatedAt  time.Time        `json:"created_at"`
+	CreatedBy  *int64           `json:"created_by,omitempty"`
+	Definition CohortDefinition `json:"definition"`
+	Id         int64            `json:"id"`
+	Name       string           `json:"name"`
+	SiteId     int32            `json:"site_id"`
+	UpdatedAt  time.Time        `json:"updated_at"`
+}
+
+// CohortCondition One test on a profile. `event`: performed the custom event `name` at least `min_count` times in the window. `page`: viewed `path`
+// (`operator` is or starts_with) at least `min_count` times. `event_property`: performed event `name` with property `key` equal to `value`
+// at least `min_count` times. `activity`: has at least `min_count` `metric` (sessions or events) in the window. `first_seen` and `last_seen`:
+// the profile's first or last activity is `within` or `before` the last `days` days. `negate` inverts the test.
+type CohortCondition struct {
+	Days     *int    `json:"days,omitempty"`
+	Key      *string `json:"key,omitempty"`
+	Metric   *string `json:"metric,omitempty"`
+	MinCount *int    `json:"min_count,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Negate   *bool   `json:"negate,omitempty"`
+	Operator *string `json:"operator,omitempty"`
+	Path     *string `json:"path,omitempty"`
+	Relation *string `json:"relation,omitempty"`
+	Type     string  `json:"type"`
+	Value    *string `json:"value,omitempty"`
+}
+
+// CohortDefinition defines model for CohortDefinition.
+type CohortDefinition struct {
+	Conditions []CohortCondition `json:"conditions"`
+	Match      string            `json:"match"`
+
+	// WindowDays Rolling window, in 24-hour days ending at evaluation time, applied to event, page, property and activity conditions.
+	WindowDays int `json:"window_days"`
+}
+
+// CohortEvaluateRequest Provide exactly one of cohort_id and definition.
+type CohortEvaluateRequest struct {
+	CohortId    *int64            `json:"cohort_id,omitempty"`
+	Definition  *CohortDefinition `json:"definition,omitempty"`
+	SampleLimit *int              `json:"sample_limit,omitempty"`
+}
+
+// CohortEvaluation defines model for CohortEvaluation.
+type CohortEvaluation struct {
+	Sample []CohortMember `json:"sample"`
+
+	// SampleWithheld True when a sample was requested but the caller lacks profiles:read.
+	SampleWithheld bool      `json:"sample_withheld"`
+	Size           int64     `json:"size"`
+	SizeCapped     bool      `json:"size_capped"`
+	WindowFrom     time.Time `json:"window_from"`
+	WindowTo       time.Time `json:"window_to"`
+}
+
+// CohortInput defines model for CohortInput.
+type CohortInput struct {
+	Definition CohortDefinition `json:"definition"`
+	Name       string           `json:"name"`
+}
+
+// CohortList defines model for CohortList.
+type CohortList struct {
+	Data []Cohort `json:"data"`
+}
+
+// CohortMember defines model for CohortMember.
+type CohortMember struct {
+	// Events Pageviews and custom events inside the window.
+	Events      int64     `json:"events"`
+	ExternalId  string    `json:"external_id"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+	Id          int64     `json:"id"`
+	LastSeenAt  time.Time `json:"last_seen_at"`
+
+	// Sessions Sessions inside the window.
+	Sessions int64 `json:"sessions"`
+}
+
 // ComparisonResult defines model for ComparisonResult.
 type ComparisonResult struct {
 	DateRange        DateRange                `json:"date_range"`
@@ -2157,6 +2238,25 @@ type Organization struct {
 
 // Period all is capped to the latest 366 days.
 type Period string
+
+// PowerUser defines model for PowerUser.
+type PowerUser struct {
+	Events      int64     `json:"events"`
+	ExternalId  string    `json:"external_id"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+	Id          int64     `json:"id"`
+	LastSeenAt  time.Time `json:"last_seen_at"`
+	Sessions    int64     `json:"sessions"`
+}
+
+// PowerUsers defines model for PowerUsers.
+type PowerUsers struct {
+	Data             []PowerUser `json:"data"`
+	Metric           string      `json:"metric"`
+	Min              int32       `json:"min"`
+	Qualifying       int64       `json:"qualifying"`
+	QualifyingCapped bool        `json:"qualifying_capped"`
+}
 
 // Problem defines model for Problem.
 type Problem struct {
@@ -3189,6 +3289,17 @@ type ListNotificationHistoryParams struct {
 	Limit   *int                     `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListPowerUsersParams defines parameters for ListPowerUsers.
+type ListPowerUsersParams struct {
+	From openapi_types.Date `form:"from" json:"from"`
+	To   openapi_types.Date `form:"to" json:"to"`
+
+	// Metric sessions or events.
+	Metric *string `form:"metric,omitempty" json:"metric,omitempty"`
+	Min    *int    `form:"min,omitempty" json:"min,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListRevenueCustomersParams defines parameters for ListRevenueCustomers.
 type ListRevenueCustomersParams struct {
 	From   openapi_types.Date `form:"from" json:"from"`
@@ -3417,6 +3528,9 @@ type AdminUpdateUserJSONRequestBody = AdminUserPatch
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
 type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
 
+// UpdateCohortJSONRequestBody defines body for UpdateCohort for application/json ContentType.
+type UpdateCohortJSONRequestBody = CohortInput
+
 // UpdateReplayStorageJSONRequestBody defines body for UpdateReplayStorage for application/json ContentType.
 type UpdateReplayStorageJSONRequestBody = ReplayStorageInput
 
@@ -3464,6 +3578,12 @@ type CreateSharedLinkJSONRequestBody = CreateShareRequest
 
 // ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
 type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
+
+// CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
+type CreateCohortJSONRequestBody = CohortInput
+
+// EvaluateCohortJSONRequestBody defines body for EvaluateCohort for application/json ContentType.
+type EvaluateCohortJSONRequestBody = CohortEvaluateRequest
 
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
@@ -3950,6 +4070,15 @@ type ServerInterface interface {
 	// ConfirmCurrentUserEmailChange Confirm an email change
 	// (POST /api/private/auth/email-change/confirm)
 	ConfirmCurrentUserEmailChange(w http.ResponseWriter, r *http.Request)
+	// DeleteCohort Delete a cohort
+	// (DELETE /api/private/cohorts/{cohort})
+	DeleteCohort(w http.ResponseWriter, r *http.Request, cohort int64)
+	// UpdateCohort Rename or redefine a cohort
+	// (PATCH /api/private/cohorts/{cohort})
+	UpdateCohort(w http.ResponseWriter, r *http.Request, cohort int64)
+	// DuplicateCohort Duplicate a cohort
+	// (POST /api/private/cohorts/{cohort}/duplicate)
+	DuplicateCohort(w http.ResponseWriter, r *http.Request, cohort int64)
 	// GetPrivateProfileErasure Get profile erasure status
 	// (GET /api/private/erasures/{erasure_id})
 	GetPrivateProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
@@ -4070,6 +4199,15 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// ListCohorts List saved cohorts
+	// (GET /api/private/sites/{site}/cohorts)
+	ListCohorts(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateCohort Save a cohort
+	// (POST /api/private/sites/{site}/cohorts)
+	CreateCohort(w http.ResponseWriter, r *http.Request, site int32)
+	// EvaluateCohort Evaluate a cohort definition
+	// (POST /api/private/sites/{site}/cohorts/evaluate)
+	EvaluateCohort(w http.ResponseWriter, r *http.Request, site int32)
 	// HeartbeatDemoProject Keep watched demo traffic active
 	// (POST /api/private/sites/{site}/demo/heartbeat)
 	HeartbeatDemoProject(w http.ResponseWriter, r *http.Request, site int32)
@@ -4079,6 +4217,9 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+	// ListPowerUsers Top profiles by sessions or events
+	// (GET /api/private/sites/{site}/power-users)
+	ListPowerUsers(w http.ResponseWriter, r *http.Request, site int32, params ListPowerUsersParams)
 	// ListRevenueCustomers Identified customers by revenue
 	// (GET /api/private/sites/{site}/revenue/customers)
 	ListRevenueCustomers(w http.ResponseWriter, r *http.Request, site int32, params ListRevenueCustomersParams)
@@ -4615,6 +4756,84 @@ func (siw *ServerInterfaceWrapper) ConfirmCurrentUserEmailChange(w http.Response
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfirmCurrentUserEmailChange(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteCohort operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCohort(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "cohort" -------------
+	var cohort int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "cohort", r.PathValue("cohort"), &cohort, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cohort", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCohort(w, r, cohort)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCohort operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCohort(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "cohort" -------------
+	var cohort int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "cohort", r.PathValue("cohort"), &cohort, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cohort", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCohort(w, r, cohort)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DuplicateCohort operation middleware
+func (siw *ServerInterfaceWrapper) DuplicateCohort(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "cohort" -------------
+	var cohort int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "cohort", r.PathValue("cohort"), &cohort, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cohort", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DuplicateCohort(w, r, cohort)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5778,6 +5997,84 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// ListCohorts operation middleware
+func (siw *ServerInterfaceWrapper) ListCohorts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCohorts(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateCohort operation middleware
+func (siw *ServerInterfaceWrapper) CreateCohort(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCohort(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EvaluateCohort operation middleware
+func (siw *ServerInterfaceWrapper) EvaluateCohort(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EvaluateCohort(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // HeartbeatDemoProject operation middleware
 func (siw *ServerInterfaceWrapper) HeartbeatDemoProject(w http.ResponseWriter, r *http.Request) {
 
@@ -5911,6 +6208,100 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetryNotificationDelivery(w, r, site, delivery)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPowerUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListPowerUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPowerUsersParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "metric" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "metric", r.URL.Query(), &params.Metric, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "metric"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "metric", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "min" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "min", r.URL.Query(), &params.Min, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "min"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "min", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPowerUsers(w, r, site, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8451,6 +8842,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}", wrapper.RevokeApiKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/report", wrapper.GetRevenueReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/customers", wrapper.ListRevenueCustomers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/cohorts", wrapper.ListCohorts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/cohorts", wrapper.CreateCohort)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/cohorts/evaluate", wrapper.EvaluateCohort)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/cohorts/{cohort}", wrapper.DeleteCohort)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/cohorts/{cohort}", wrapper.UpdateCohort)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/cohorts/{cohort}/duplicate", wrapper.DuplicateCohort)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/power-users", wrapper.ListPowerUsers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)

@@ -65,6 +65,7 @@ type Deps struct {
 	Query          queryService
 	SessionExplore sessionExploreService
 	Revenue        revenueService
+	Cohorts        cohortService
 	Heatmaps       heatmapService
 	Ingest         http.Handler
 	Replay         http.Handler
@@ -114,7 +115,7 @@ func NewRouter(deps Deps) http.Handler {
 	if deps.Config.Tracking.Mode != privacy.Identified && queries != nil {
 		queries = anonymousQueries{queryService: queries, paths: deps.Config.TrackingPaths}
 	}
-	h := &handlers{query: queries, sessions: deps.SessionExplore, revenue: deps.Revenue, heatmaps: deps.Heatmaps, now: deps.Now}
+	h := &handlers{query: queries, sessions: deps.SessionExplore, revenue: deps.Revenue, cohorts: deps.Cohorts, heatmaps: deps.Heatmaps, now: deps.Now}
 	explore, hasExplore := deps.Query.(exploreService)
 	mux := http.NewServeMux()
 
@@ -148,6 +149,8 @@ func NewRouter(deps Deps) http.Handler {
 	registerSessionExplore(private, privatePrefix, h)
 	private.HandleFunc("GET "+privatePrefix+"/sites/{site}/revenue/report", h.revenueReport)
 	private.HandleFunc("GET "+privatePrefix+"/sites/{site}/revenue/customers", h.revenueCustomers)
+	private.HandleFunc("POST "+privatePrefix+"/sites/{site}/cohorts/evaluate", h.evaluateCohort)
+	private.HandleFunc("GET "+privatePrefix+"/sites/{site}/power-users", h.listPowerUsers)
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
 	private.HandleFunc("POST "+privatePrefix+"/heatmaps/query", h.heatmapRequest)
 	private.HandleFunc("POST "+privatePrefix+"/vitals/query", h.vitalsRequest)
@@ -394,6 +397,11 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/sites/{site}/segments",
 		"PATCH " + privatePrefix + "/segments/{segment}",
 		"DELETE " + privatePrefix + "/segments/{segment}",
+		"GET " + privatePrefix + "/sites/{site}/cohorts",
+		"POST " + privatePrefix + "/sites/{site}/cohorts",
+		"PATCH " + privatePrefix + "/cohorts/{cohort}",
+		"DELETE " + privatePrefix + "/cohorts/{cohort}",
+		"POST " + privatePrefix + "/cohorts/{cohort}/duplicate",
 		"POST " + privatePrefix + "/sites/{site}/imports",
 		"GET " + privatePrefix + "/sites/{site}/imports",
 		"DELETE " + privatePrefix + "/imports/{import}",
