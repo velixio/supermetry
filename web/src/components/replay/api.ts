@@ -4,7 +4,6 @@ import {
   getReplayData,
   getReplaySettings,
   getReplayStorage,
-  listReplays,
   putReplaySettings,
   putReplayStorage,
   ReplayApiError,
@@ -14,7 +13,6 @@ import {
 
 export const replayKeys = {
   settings: (siteId: number) => ['replay', siteId, 'settings'] as const,
-  list: (siteId: number, from: string, to: string, cursor?: string) => ['replay', siteId, 'list', { from, to, cursor }] as const,
   data: (siteId: number, sessionId: string) => ['replay', siteId, 'data', sessionId] as const,
   storage: ['replay', 'storage'] as const,
 }
@@ -39,13 +37,6 @@ export function useSaveReplaySettings(siteId: number) {
   return useMutation({
     mutationFn: (settings: SiteSettings) => putReplaySettings(siteId, settings),
     onSuccess: (settings) => client.setQueryData(replayKeys.settings(siteId), settings),
-  })
-}
-
-export function useReplays(siteId: number, from: string, to: string, cursor?: string) {
-  return useQuery({
-    queryKey: replayKeys.list(siteId, from, to, cursor),
-    queryFn: ({ signal }) => listReplays(siteId, { from, to, cursor, limit: 50 }, signal),
   })
 }
 

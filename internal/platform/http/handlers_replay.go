@@ -13,31 +13,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 
-	"supermetry/internal/dict"
+	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/replay"
 	coresites "supermetry/internal/sites"
 )
-
-type replayListItem struct {
-	SessionID int64     `json:"session_id,string"` // string: JS numbers lose precision above 2^53
-	StartedAt time.Time `json:"started_at"`
-	DurationS int64     `json:"duration_s"`
-	Pages     int32     `json:"pages"`
-	Bytes     int64     `json:"bytes"`
-	Trigger   string    `json:"trigger"`
-	ProfileID *int64    `json:"profile_id"`
-	Browser   string    `json:"browser"`
-	OS        string    `json:"os"`
-	Device    string    `json:"device"`
-	Country   string    `json:"country"`
-	City      string    `json:"city"`
-	Actions   int64     `json:"actions"`
-}
 
 type replayCursor struct {
 	StartedAt time.Time `json:"started_at"`
@@ -68,98 +53,151 @@ func (h *handler) listReplays(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = parsed
 	}
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if utf8.RuneCountInString(query) > 200 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "q must be at most 200 characters")
+		return
+	}
+	minDuration, ok := replayDurationFilter(w, r, "min_duration")
+	if !ok {
+		return
+	}
+	maxDuration, ok := replayDurationFilter(w, r, "max_duration")
+	if !ok {
+		return
+	}
+	if minDuration != nil && maxDuration != nil && *minDuration > *maxDuration {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "min_duration must not exceed max_duration")
+		return
+	}
+	hasEvents, ok := replayBooleanFilter(w, r, "has_events")
+	if !ok {
+		return
+	}
+	saved, ok := replayBooleanFilter(w, r, "saved")
+	if !ok {
+		return
+	}
 	cursor, hasCursor, err := decodeReplayCursor(r.URL.Query().Get("cursor"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "cursor is invalid")
 		return
 	}
-	var count int
-	err = h.deps.Store.Pool.QueryRow(r.Context(), `select count(*) from (
-		select 1 from replay_sessions r
-		`+replayListWhereSQL(false)+`
-		limit $4
-	) t`, site.ID, from, to, listResultTotalCap+1).Scan(&count)
+	filter := replay.ListFilter{
+		SiteID: site.ID, UserID: principal.UserID, Retention: int16(site.Retention), From: from, To: to, Limit: limit,
+		Query: query, MinDuration: minDuration, MaxDuration: maxDuration, HasEvents: hasEvents, Saved: saved, TotalCap: listResultTotalCap,
+	}
+	if hasCursor {
+		filter.Cursor = &replay.ListCursor{StartedAt: cursor.StartedAt, SessionID: cursor.SessionID}
+	}
+	page, err := replay.List(r.Context(), h.deps.Store.Pool, filter)
 	if err != nil {
 		serviceError(w, err)
 		return
 	}
-	total, totalCapped := capListTotal(count)
-	rows, err := h.deps.Store.Pool.Query(r.Context(), `
-		select r.session_id,r.started_at,greatest(0,extract(epoch from (r.last_seen_at-r.started_at)))::bigint,
-		       r.pages,r.bytes,coalesce(r.trigger,''),r.profile_id,
-		       coalesce(browser.value,''),coalesce(os.value,''),
-		       case details.device when 0 then 'desktop' when 1 then 'mobile' when 2 then 'tablet' else '' end,
-		       coalesce(trim(details.country),''),coalesce(city.value,''),coalesce(details.actions,0)
-		from replay_sessions r
-		left join lateral (
-		  select candidate.country,candidate.city_id,candidate.device,candidate.browser_id,candidate.os_id,candidate.actions
-		  from (
-		    select s.country,s.city_id,s.device,s.browser_id,s.os_id,
-		           s.pageviews::bigint+s.custom::bigint as actions,0 as priority
-		    from sessions_closed s
-		    where s.site_id=r.site_id and s.session_id=r.session_id
-		      and s.day between r.day-1 and r.day+1
-		      and s.started_at>=r.started_at-interval '1 day' and s.started_at<r.started_at+interval '1 day'
-		      and exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.day and dc.status='done')
-		    union all
-		    select s.country,s.city_id,s.device,s.browser_id,s.os_id,
-		           s.pageviews::bigint+s.events::bigint as actions,1 as priority
-		    from sessions s
-		    where s.site_id=r.site_id and s.retention_class=$8 and s.session_id=r.session_id
-		      and s.start>=r.started_at-interval '1 day' and s.start<r.started_at+interval '1 day'
-		      and not exists (select 1 from day_close dc where dc.site_id=s.site_id and dc.day=s.local_day and dc.status='done')
-		  ) candidate
-		  order by candidate.priority
-		  limit 1
-		) details on true
-		left join dict browser on browser.kind=$9 and browser.id=details.browser_id
-		left join dict os on os.kind=$10 and os.id=details.os_id
-		left join dict city on city.kind=$11 and city.id=details.city_id
-		`+replayListWhereSQL(true)+`
-		order by r.started_at desc,r.session_id desc limit $7`, site.ID, from, to, hasCursor, cursor.StartedAt, cursor.SessionID, limit+1,
-		site.Retention, dict.Browser, dict.OS, dict.City)
-	if err != nil {
-		serviceError(w, err)
-		return
-	}
-	defer rows.Close()
-	items := make([]replayListItem, 0, limit+1)
-	for rows.Next() {
-		var item replayListItem
-		if err := rows.Scan(&item.SessionID, &item.StartedAt, &item.DurationS, &item.Pages, &item.Bytes, &item.Trigger, &item.ProfileID,
-			&item.Browser, &item.OS, &item.Device, &item.Country, &item.City, &item.Actions); err != nil {
-			serviceError(w, err)
-			return
-		}
+	for index := range page.Items {
 		if !authz.Can(principal, authz.ActionProfilesRead, site.ID) {
-			item.ProfileID = nil
+			page.Items[index].ProfileID = nil
 		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		serviceError(w, err)
-		return
 	}
 	var next *string
-	if len(items) > limit {
-		last := items[limit-1]
-		value := encodeReplayCursor(replayCursor{StartedAt: last.StartedAt, SessionID: last.SessionID})
+	if page.Next != nil {
+		value := encodeReplayCursor(replayCursor{StartedAt: page.Next.StartedAt, SessionID: page.Next.SessionID})
 		next = &value
-		items = items[:limit]
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"data": items, "next_cursor": next, "total": total, "total_capped": totalCapped,
+		"data": page.Items, "next_cursor": next, "total": page.Total, "total_capped": page.TotalCapped,
 	})
 }
 
-func replayListWhereSQL(includeCursor bool) string {
-	where := `where r.site_id=$1 and r.day between $2::date and $3::date
-		  and r.started_at>=$2::date-interval '1 day' and r.started_at<$3::date+interval '2 days'`
-	if includeCursor {
-		where += `
-		  and ($4::boolean=false or (r.started_at,r.session_id)<($5,$6))`
+func replayDurationFilter(w http.ResponseWriter, r *http.Request, name string) (*int64, bool) {
+	raw := r.URL.Query().Get(name)
+	if raw == "" {
+		return nil, true
 	}
-	return where
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value < 0 || value > 31_536_000 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", name+" must be a whole number from 0 to 31536000")
+		return nil, false
+	}
+	return &value, true
+}
+
+func replayBooleanFilter(w http.ResponseWriter, r *http.Request, name string) (*bool, bool) {
+	raw := r.URL.Query().Get(name)
+	if raw == "" {
+		return nil, true
+	}
+	if raw != "true" && raw != "false" {
+		writeProblem(w, http.StatusBadRequest, "Bad request", name+" must be true or false")
+		return nil, false
+	}
+	value := raw == "true"
+	return &value, true
+}
+
+var errReplayNotFound = errors.New("replay not found")
+
+func (h *handler) saveReplay(w http.ResponseWriter, r *http.Request) {
+	h.setReplaySaved(w, r, true)
+}
+
+func (h *handler) unsaveReplay(w http.ResponseWriter, r *http.Request) {
+	h.setReplaySaved(w, r, false)
+}
+
+func (h *handler) setReplaySaved(w http.ResponseWriter, r *http.Request, saved bool) {
+	principal, site, ok := h.replaySitePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.deps.Store == nil {
+		unavailable(w, "replay")
+		return
+	}
+	if principal.UserID == 0 {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "saved replays require a user account")
+		return
+	}
+	sessionID, err := strconv.ParseInt(r.PathValue("session"), 10, 64)
+	if err != nil || sessionID <= 0 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "session must be a positive integer")
+		return
+	}
+	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(r.Context(), `select exists(select 1 from replay_sessions where site_id=$1 and session_id=$2)`, site.ID, sessionID).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return errReplayNotFound
+		}
+		var changed bool
+		if saved {
+			result, execErr := tx.Exec(r.Context(), `insert into replay_saved(site_id,user_id,session_id) values ($1,$2,$3) on conflict do nothing`, site.ID, principal.UserID, sessionID)
+			err, changed = execErr, result.RowsAffected() != 0
+		} else {
+			result, execErr := tx.Exec(r.Context(), `delete from replay_saved where site_id=$1 and user_id=$2 and session_id=$3`, site.ID, principal.UserID, sessionID)
+			err, changed = execErr, result.RowsAffected() != 0
+		}
+		if err != nil || !changed {
+			return err
+		}
+		action := "replay.saved"
+		if !saved {
+			action = "replay.unsaved"
+		}
+		return audit.Write(r.Context(), tx, principal, action, "replay", sessionID, map[string]any{"site_id": site.ID})
+	})
+	if errors.Is(err, errReplayNotFound) {
+		writeProblem(w, http.StatusNotFound, "Not found", "replay not found")
+		return
+	}
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) replayAsset(w http.ResponseWriter, r *http.Request) {

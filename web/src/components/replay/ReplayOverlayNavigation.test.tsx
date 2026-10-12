@@ -17,13 +17,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { parseSearch, stringifySearch } from '@/router'
 
-const { useReplays, useSession, useSessions } = vi.hoisted(() => ({
+const { useReplays, useSetReplaySaved, useSession, useSessions } = vi.hoisted(() => ({
   useReplays: vi.fn(),
+  useSetReplaySaved: vi.fn(),
   useSession: vi.fn(),
   useSessions: vi.fn(),
 }))
 
-vi.mock('./api', () => ({ useReplays }))
+vi.mock('@/features/replays/api', () => ({ useReplays, useSetReplaySaved }))
 vi.mock('@/features/sessions/api', () => ({ useSession, useSessions }))
 vi.mock('./ReplayPlayer', () => ({ ReplayPlayer: () => <div>Replay canvas</div> }))
 
@@ -123,6 +124,7 @@ function renderRoute(component: () => ReactNode, initialEntries = ['/']) {
 describe('replay overlay URL navigation', () => {
   beforeEach(() => {
     useReplays.mockReturnValue({ data: { items: replayRows, next_cursor: null }, isPending: false, isError: false, isFetching: false })
+    useSetReplaySaved.mockReturnValue({ mutate: vi.fn(), isPending: false, isError: false })
     useSessions.mockReturnValue({ data: { data: sessionRows, next_cursor: null }, isPending: false, isError: false, isFetching: false })
     useSession.mockImplementation((_siteId: number, sessionId?: string) => ({
       data: sessionId ? { session: sessionRows.find((row) => row.id === sessionId) ?? sessionRows[0], timeline: [] } : undefined,

@@ -240,6 +240,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/erasures/{erasure}", h.getPrivateErasure)
 	mux.HandleFunc("POST /api/private/erasures/{erasure}/retry", h.retryErasure)
 	mux.HandleFunc("GET /api/private/sites/{site}/replays", h.listReplays)
+	mux.HandleFunc("PUT /api/private/sites/{site}/replays/{session}/saved", h.saveReplay)
+	mux.HandleFunc("DELETE /api/private/sites/{site}/replays/{session}/saved", h.unsaveReplay)
 	mux.HandleFunc("GET /api/private/sites/{site}/replays/{replay_path...}", h.replayAsset)
 	mux.HandleFunc("GET /api/private/sites/{site}/replay-settings", h.getReplaySettings)
 	mux.HandleFunc("PUT /api/private/sites/{site}/replay-settings", h.putReplaySettings)

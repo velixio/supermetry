@@ -124,6 +124,50 @@ where table_schema=current_schema() and table_name='sessions_closed' and column_
 	}
 }
 
+func TestReplaySavedMigrationIsUserScopedAndCleansUpWithReplay(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `create table replay_sessions_202610 partition of replay_sessions for values from ('2026-10-01') to ('2026-11-01')`); err != nil {
+		t.Fatal(err)
+	}
+	var userOne, userTwo, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('saved-one@example.test','One','hash') returning id`).Scan(&userOne); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('saved-two@example.test','Two','hash') returning id`).Scan(&userTwo); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Saved','saved') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class) values ($1,'savedscope01','Saved','UTC',30) returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,blob_key) values ($1,7,'2026-10-08 10:00Z','2026-10-08 10:00Z','2026-10-08','saved')`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into replay_saved(site_id,user_id,session_id) values ($1,$2,7),($1,$3,7)`, siteID, userOne, userTwo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into replay_saved(site_id,user_id,session_id) values ($1,$2,7)`, siteID, userOne); err == nil {
+		t.Fatal("replay_saved accepted a duplicate user marker")
+	}
+	if _, err := pool.Exec(ctx, `delete from replay_sessions where site_id=$1 and session_id=7`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	var markers int
+	if err := pool.QueryRow(ctx, `select count(*) from replay_saved where site_id=$1 and session_id=7`, siteID).Scan(&markers); err != nil {
+		t.Fatal(err)
+	}
+	if markers != 0 {
+		t.Fatalf("saved markers after replay deletion = %d, want 0", markers)
+	}
+}
+
 func TestRollupStateMigrationSchema(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()

@@ -405,6 +405,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site_id}/replays/{session_id}/saved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save a replay for the current user
+         * @description Requires replay.read. Repeated requests are idempotent; only state changes write audit entries.
+         */
+        put: operations["saveReplay"];
+        post?: never;
+        /**
+         * Remove the current user's saved replay marker
+         * @description Requires replay.read. Repeated requests are idempotent; only state changes write audit entries.
+         */
+        delete: operations["unsaveReplay"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site_id}/replays/{session_id}/data": {
         parameters: {
             query?: never;
@@ -2319,6 +2346,8 @@ export interface components {
             city: string;
             /** Format: int64 */
             actions: number;
+            /** @description Whether the current user saved this replay. */
+            saved: boolean;
         };
         ReplayList: {
             data: components["schemas"]["ReplaySummary"][];
@@ -3570,6 +3599,16 @@ export interface operations {
             query: {
                 from: string;
                 to: string;
+                /** @description Case-insensitive entry path */
+                q?: string;
+                /** @description Inclusive minimum replay duration in seconds. */
+                min_duration?: number;
+                /** @description Inclusive maximum replay duration in seconds. */
+                max_duration?: number;
+                /** @description Restrict to sessions with or without custom events. */
+                has_events?: boolean;
+                /** @description Restrict to replays saved or not saved by the current user. */
+                saved?: boolean;
                 limit?: components["parameters"]["Limit"];
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -3592,7 +3631,60 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    saveReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Replay saved. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    unsaveReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved marker removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
         };
     };
     getReplayData: {

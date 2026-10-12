@@ -15,6 +15,7 @@ import (
 
 	"supermetry/internal/config"
 	"supermetry/internal/db"
+	"supermetry/internal/dict"
 	"supermetry/internal/platform/authz"
 	platformhttp "supermetry/internal/platform/http"
 	"supermetry/internal/platform/store"
@@ -45,13 +46,14 @@ func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv, modes ...privacy
 	if _, err := pool.Exec(ctx, `create table replay_sessions_202610 partition of replay_sessions for values from ('2026-10-01') to ('2026-11-01')`); err != nil {
 		t.Fatal(err)
 	}
-	var ownerID, foreignID, orgID, foreignOrgID int64
+	var ownerID, secondID, foreignID, orgID, foreignOrgID int64
 	for _, statement := range []struct {
 		sql  string
 		args []any
 		dest any
 	}{
 		{`insert into users(email,name,password_hash) values ('replay-owner@example.test','Owner','hash') returning id`, nil, &ownerID},
+		{`insert into users(email,name,password_hash) values ('replay-second@example.test','Second','hash') returning id`, nil, &secondID},
 		{`insert into users(email,name,password_hash) values ('replay-foreign@example.test','Foreign','hash') returning id`, nil, &foreignID},
 		{`insert into orgs(name,slug) values ('Replay','replay') returning id`, nil, &orgID},
 		{`insert into orgs(name,slug) values ('Replay Foreign','replay-foreign') returning id`, nil, &foreignOrgID},
@@ -60,7 +62,7 @@ func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv, modes ...privacy
 			t.Fatal(err)
 		}
 	}
-	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner'),($3,$4,'owner')`, orgID, ownerID, foreignOrgID, foreignID); err != nil {
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner'),($1,$3,'viewer'),($4,$5,'owner')`, orgID, ownerID, secondID, foreignOrgID, foreignID); err != nil {
 		t.Fatal(err)
 	}
 	var siteID, foreignSite int32
@@ -86,6 +88,7 @@ func newReplayFixture(t *testing.T, replayEnv config.ReplayEnv, modes ...privacy
 			"viewer":       {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer},
 			"editor":       {UserID: ownerID, OrgID: orgID, Role: authz.RoleEditor},
 			"replay-only":  {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer, Capabilities: []string{"replay.read"}},
+			"second":       {UserID: secondID, OrgID: orgID, Role: authz.RoleViewer, Capabilities: []string{"replay.read"}},
 			"combined":     {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer, Capabilities: []string{"replay.read", "profiles.read"}},
 			"billing-only": {UserID: ownerID, OrgID: orgID, Role: authz.RoleViewer, SiteIDs: []int32{}, BillingAdmin: true},
 		},
@@ -155,7 +158,7 @@ func TestReplayListPaginates(t *testing.T) {
 	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
 	ctx := context.Background()
 	for index := 0; index < 3; index++ {
-		started := time.Date(2026, 10, 8, 10+index, 0, 0, 0, time.UTC)
+		started := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
 		_, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,bytes,pages,blob_key) values ($1,$2,$3,$3,'2026-10-08',100,2,$4)`,
 			f.siteID, 100+index, started, replay.SessionKey(f.siteID, started, int64(100+index)))
 		if err != nil {
@@ -201,6 +204,150 @@ values ($1,999,'2026-10-10 10:00Z','2026-10-10 10:00Z','2026-10-10',100,2,'outsi
 	}
 	if page.Total != 3 || page.TotalCapped {
 		t.Fatalf("second page total=%d capped=%t, want 3/false", page.Total, page.TotalCapped)
+	}
+}
+
+func TestReplayListFiltersHandComputedFixtures(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
+	ctx := context.Background()
+	if err := db.EnsurePartitions(ctx, f.pool.Pool, time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Pool.Exec(ctx, `insert into dict(kind,id,value) values
+  ($1,101,'/pricing'),($1,102,'/thank-you'),($1,103,'/home'),($1,104,'/contact'),
+  ($2,201,'Firefox'),($2,202,'Chrome'),($3,301,'Checkout completed')`,
+		dict.Path, dict.Browser, dict.EventName); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Pool.Exec(ctx, `insert into sessions
+  (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,country,browser_id,pageviews,events)
+values
+  ($1,30,301,1,'2026-10-08 10:00Z','2026-10-08 10:00:30Z','2026-10-08',101,102,'US',201,2,1),
+  ($1,30,302,2,'2026-10-08 10:00Z','2026-10-08 10:01:00Z','2026-10-08',103,104,'DE',202,1,0)`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Pool.Exec(ctx, `insert into events
+  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id)
+values ($1,30,'2026-10-08','2026-10-08 10:00:20Z',1,301,1,301)`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions
+  (site_id,session_id,started_at,last_seen_at,day,bytes,pages,trigger,blob_key)
+values
+  ($1,301,'2026-10-08 10:00Z','2026-10-08 10:00:30Z','2026-10-08',100,2,'manual','one'),
+  ($1,302,'2026-10-08 10:00Z','2026-10-08 10:01:00Z','2026-10-08',100,1,'pageview','two')`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{name: "duration bounds are inclusive", query: "min_duration=30&max_duration=60", want: []string{"302", "301"}},
+		{name: "entry path", query: "q=pricing", want: []string{"301"}},
+		{name: "exit path", query: "q=thank-you", want: []string{"301"}},
+		{name: "country ignores case", query: "q=us", want: []string{"301"}},
+		{name: "browser ignores case", query: "q=firefox", want: []string{"301"}},
+		{name: "event name ignores case", query: "q=checkout", want: []string{"301"}},
+		{name: "has events", query: "has_events=true", want: []string{"301"}},
+		{name: "has no events", query: "has_events=false", want: []string{"302"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-08&to=2026-10-08&%s", f.siteID, tt.query)
+			response := f.request(t, "replay-only", http.MethodGet, path, "")
+			if response.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+			var page struct {
+				Data []struct {
+					SessionID string `json:"session_id"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&page); err != nil {
+				t.Fatal(err)
+			}
+			got := make([]string, 0, len(page.Data))
+			for _, item := range page.Data {
+				got = append(got, item.SessionID)
+			}
+			if fmt.Sprint(got) != fmt.Sprint(tt.want) {
+				t.Fatalf("sessions=%v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReplaySavedMarkerIsIdempotentAuditedAndUserScoped(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
+	ctx := context.Background()
+	started := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
+	if _, err := f.pool.Pool.Exec(ctx, `insert into replay_sessions(site_id,session_id,started_at,last_seen_at,day,blob_key) values ($1,401,$2,$2,'2026-10-08','saved')`, f.siteID, started); err != nil {
+		t.Fatal(err)
+	}
+	path := fmt.Sprintf("/api/private/sites/%d/replays/401/saved", f.siteID)
+	for range 2 {
+		response := f.request(t, "replay-only", http.MethodPut, path, "")
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("save status=%d body=%s", response.Code, response.Body.String())
+		}
+	}
+
+	listPath := fmt.Sprintf("/api/private/sites/%d/replays?from=2026-10-08&to=2026-10-08&saved=true", f.siteID)
+	if response := f.request(t, "replay-only", http.MethodGet, listPath, ""); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"session_id":"401"`) || !strings.Contains(response.Body.String(), `"saved":true`) {
+		t.Fatalf("owner saved list status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response := f.request(t, "second", http.MethodGet, listPath, ""); response.Code != http.StatusOK || strings.Contains(response.Body.String(), `"session_id":"401"`) {
+		t.Fatalf("second user's saved list status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	var rows, audits int
+	if err := f.pool.Pool.QueryRow(ctx, `select count(*) from replay_saved where site_id=$1 and session_id=401`, f.siteID).Scan(&rows); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.Pool.QueryRow(ctx, `select count(*) from audit_log where action='replay.saved' and target_id=401`).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 1 || audits != 1 {
+		t.Fatalf("saved rows=%d audits=%d, want 1/1", rows, audits)
+	}
+
+	for range 2 {
+		response := f.request(t, "replay-only", http.MethodDelete, path, "")
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("unsave status=%d body=%s", response.Code, response.Body.String())
+		}
+	}
+	if err := f.pool.Pool.QueryRow(ctx, `select count(*) from audit_log where action='replay.unsaved' and target_id=401`).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 1 {
+		t.Fatalf("unsave audits=%d, want 1", audits)
+	}
+}
+
+func TestReplayTriageAuthorizationAndValidation(t *testing.T) {
+	f := newReplayFixture(t, config.ReplayEnv{Enabled: true})
+	base := fmt.Sprintf("/api/private/sites/%d/replays", f.siteID)
+	for _, request := range []struct {
+		name, actor, method, path string
+		want                      int
+	}{
+		{name: "viewer list", actor: "viewer", method: http.MethodGet, path: base + "?from=2026-10-08&to=2026-10-08", want: http.StatusForbidden},
+		{name: "viewer save", actor: "viewer", method: http.MethodPut, path: base + "/401/saved", want: http.StatusForbidden},
+		{name: "viewer unsave", actor: "viewer", method: http.MethodDelete, path: base + "/401/saved", want: http.StatusForbidden},
+		{name: "negative duration", actor: "replay-only", method: http.MethodGet, path: base + "?from=2026-10-08&to=2026-10-08&min_duration=-1", want: http.StatusBadRequest},
+		{name: "reversed duration", actor: "replay-only", method: http.MethodGet, path: base + "?from=2026-10-08&to=2026-10-08&min_duration=61&max_duration=60", want: http.StatusBadRequest},
+		{name: "invalid events", actor: "replay-only", method: http.MethodGet, path: base + "?from=2026-10-08&to=2026-10-08&has_events=yes", want: http.StatusBadRequest},
+		{name: "long search", actor: "replay-only", method: http.MethodGet, path: base + "?from=2026-10-08&to=2026-10-08&q=" + strings.Repeat("x", 201), want: http.StatusBadRequest},
+	} {
+		t.Run(request.name, func(t *testing.T) {
+			response := f.request(t, request.actor, request.method, request.path, "")
+			if response.Code != request.want {
+				t.Fatalf("status=%d body=%s, want %d", response.Code, response.Body.String(), request.want)
+			}
+		})
 	}
 }
 

@@ -2078,9 +2078,12 @@ type ReplaySummary struct {
 	Os        string              `json:"os"`
 	Pages     int32               `json:"pages"`
 	ProfileId *int64              `json:"profile_id,omitempty"`
-	SessionId string              `json:"session_id"`
-	StartedAt time.Time           `json:"started_at"`
-	Trigger   string              `json:"trigger"`
+
+	// Saved Whether the current user saved this replay.
+	Saved     bool      `json:"saved"`
+	SessionId string    `json:"session_id"`
+	StartedAt time.Time `json:"started_at"`
+	Trigger   string    `json:"trigger"`
 }
 
 // ReplaySummaryDevice defines model for ReplaySummary.Device.
@@ -2674,10 +2677,25 @@ type GetSitesOverviewParams struct {
 
 // ListReplaysParams defines parameters for ListReplays.
 type ListReplaysParams struct {
-	From   openapi_types.Date `form:"from" json:"from"`
-	To     openapi_types.Date `form:"to" json:"to"`
-	Limit  *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
-	Cursor *Cursor            `form:"cursor,omitempty" json:"cursor,omitempty"`
+	From openapi_types.Date `form:"from" json:"from"`
+	To   openapi_types.Date `form:"to" json:"to"`
+
+	// Q Case-insensitive entry path
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// MinDuration Inclusive minimum replay duration in seconds.
+	MinDuration *int64 `form:"min_duration,omitempty" json:"min_duration,omitempty"`
+
+	// MaxDuration Inclusive maximum replay duration in seconds.
+	MaxDuration *int64 `form:"max_duration,omitempty" json:"max_duration,omitempty"`
+
+	// HasEvents Restrict to sessions with or without custom events.
+	HasEvents *bool `form:"has_events,omitempty" json:"has_events,omitempty"`
+
+	// Saved Restrict to replays saved or not saved by the current user.
+	Saved  *bool   `form:"saved,omitempty" json:"saved,omitempty"`
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // PreflightEventParams defines parameters for PreflightEvent.
@@ -3444,6 +3462,12 @@ type ServerInterface interface {
 	// GetReplayData Download replay events
 	// (GET /api/private/sites/{site_id}/replays/{session_id}/data)
 	GetReplayData(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId string)
+	// UnsaveReplay Remove the current user's saved replay marker
+	// (DELETE /api/private/sites/{site_id}/replays/{session_id}/saved)
+	UnsaveReplay(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId string)
+	// SaveReplay Save a replay for the current user
+	// (PUT /api/private/sites/{site_id}/replays/{session_id}/saved)
+	SaveReplay(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId string)
 	// RestoreSite Restore a site during its deletion grace period
 	// (POST /api/private/sites/{site_id}/restore)
 	RestoreSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -4277,6 +4301,71 @@ func (siw *ServerInterfaceWrapper) ListReplays(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "min_duration" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "min_duration", r.URL.Query(), &params.MinDuration, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "min_duration"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "min_duration", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "max_duration" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "max_duration", r.URL.Query(), &params.MaxDuration, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "max_duration"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "max_duration", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "has_events" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "has_events", r.URL.Query(), &params.HasEvents, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "has_events"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "has_events", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "saved" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "saved", r.URL.Query(), &params.Saved, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "saved"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "saved", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "limit" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -4375,6 +4464,76 @@ func (siw *ServerInterfaceWrapper) GetReplayData(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetReplayData(w, r, siteId, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnsaveReplay operation middleware
+func (siw *ServerInterfaceWrapper) UnsaveReplay(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnsaveReplay(w, r, siteId, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveReplay operation middleware
+func (siw *ServerInterfaceWrapper) SaveReplay(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "session_id" -------------
+	var sessionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "session_id", r.PathValue("session_id"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "session_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveReplay(w, r, siteId, sessionId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6826,6 +6985,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/share/{slug}/stats/summary", wrapper.GetSharedDashboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/share/{slug}/query", wrapper.QuerySharedDashboardSection)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays", wrapper.ListReplays)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/{session_id}/saved", wrapper.UnsaveReplay)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/{session_id}/saved", wrapper.SaveReplay)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/{session_id}/data", wrapper.GetReplayData)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/css/{hash}", wrapper.GetReplayCSS)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replay-settings", wrapper.GetReplaySettings)

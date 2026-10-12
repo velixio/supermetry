@@ -245,6 +245,12 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 	mux.Handle("GET "+privatePrefix+"/setup/status", anonymousRateLimited(anonymousLimiter, trustedProxies, platform))
 	public := authenticateRateLimited(auth, registry, keyedLimiter, anonymousLimiter, trustedProxies, now, false, platform)
 	for _, pattern := range []string{
+		"PUT " + privatePrefix + "/sites/{site}/replays/{session}/saved",
+		"DELETE " + privatePrefix + "/sites/{site}/replays/{session}/saved",
+	} {
+		mux.Handle(pattern, anonymousRateLimited(anonymousLimiter, trustedProxies, platform))
+	}
+	for _, pattern := range []string{
 		"GET " + publicPrefix + "/api-keys",
 		"POST " + publicPrefix + "/api-keys",
 		"DELETE " + publicPrefix + "/api-keys/{key}",

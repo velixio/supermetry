@@ -6,7 +6,18 @@ export type SiteSettings = components['schemas']['ReplaySiteSettings']
 export type ReplayListItem = Omit<components['schemas']['ReplaySummary'], 'session_id'> & {
   session_id: string
 }
-export type ReplayList = { items: ReplayListItem[]; next_cursor?: string | null }
+export type ReplayList = Omit<components['schemas']['ReplayList'], 'data'> & { items: ReplayListItem[] }
+export type ReplayListQuery = {
+  from: string
+  to: string
+  q?: string
+  min_duration?: number
+  max_duration?: number
+  has_events?: boolean
+  saved?: boolean
+  cursor?: string
+  limit?: number
+}
 type GeneratedReplayStorageSettings = components['schemas']['ReplayStorageSettings']
 export type ReplayStorageSettings = Omit<GeneratedReplayStorageSettings, 'backend'> & {
   backend: Omit<GeneratedReplayStorageSettings['backend'], 'value'> & { value: 'disk' | 's3' }
@@ -65,13 +76,21 @@ export function replaySettingsBody(settings: SiteSettings) {
 
 export async function listReplays(
   siteId: number,
-  query: { from: string; to: string; cursor?: string; limit?: number },
+  query: ReplayListQuery,
   signal?: AbortSignal,
 ): Promise<ReplayList> {
   const data = requireData(await api.GET('/api/private/sites/{site_id}/replays', {
     params: { path: { site_id: siteId }, query }, signal,
   }))
   return { ...data, items: data.data.map((item) => ({ ...item, session_id: String(item.session_id) })) }
+}
+
+export async function setReplaySaved(siteId: number, sessionId: string, saved: boolean): Promise<void> {
+  const params = { path: { site_id: siteId, session_id: sessionId } }
+  const result = saved
+    ? await api.PUT('/api/private/sites/{site_id}/replays/{session_id}/saved', { params })
+    : await api.DELETE('/api/private/sites/{site_id}/replays/{session_id}/saved', { params })
+  if (!result.response.ok) throw resultError(result)
 }
 
 export async function getReplayStorage(signal?: AbortSignal): Promise<ReplayStorageSettings> {

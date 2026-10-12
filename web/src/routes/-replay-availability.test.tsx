@@ -13,7 +13,7 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 vi.mock('./app.$org', () => ({ useMe: me }))
 vi.mock('@/components/replay/api', () => ({ useReplayAvailability: availability }))
-vi.mock('@/components/replay/ReplaysPage', () => ({ ReplaysPage: () => <div>Historical replay list</div> }))
+vi.mock('@/features/replays/ReplaysPage', () => ({ ReplaysPage: () => <div>Historical replay list</div> }))
 vi.mock('@/components/replay/ReplayPlayerPage', () => ({ ReplayPlayerPage: () => <div>Historical replay player</div> }))
 vi.mock('@/components/DatePicker', () => ({ DatePicker: () => null }))
 import { Route as ListRoute } from './app.$org.$site.replays.index'
