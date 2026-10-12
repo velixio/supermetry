@@ -4,6 +4,162 @@
  */
 
 export interface paths {
+    "/api/private/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List and search instance users */
+        get: operations["adminListUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/users/{user}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Enable, disable, force password reset, promote or demote a user */
+        patch: operations["adminUpdateUser"];
+        trace?: never;
+    };
+    "/api/private/admin/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organizations with member, site and quota counts */
+        get: operations["adminListOrganizations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/organizations/{org}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an organization with its members, sites and quota */
+        get: operations["adminGetOrganization"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sites with usage, last event and retention */
+        get: operations["adminListSites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get effective instance settings */
+        get: operations["adminGetSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change signup mode or replay-switch visibility */
+        patch: operations["adminUpdateSettings"];
+        trace?: never;
+    };
+    "/api/private/admin/security/2fa-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the instance two-factor policy */
+        get: operations["adminGetTwoFactorPolicy"];
+        /** Replace the instance two-factor policy */
+        put: operations["adminUpdateTwoFactorPolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/security/2fa-exemptions/{user}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Grant or replace a user's two-factor exemption */
+        put: operations["adminSetTwoFactorExemption"];
+        post?: never;
+        /** Remove a user's two-factor exemption */
+        delete: operations["adminDeleteTwoFactorExemption"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List instance administration audit entries */
+        get: operations["adminListAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/setup/status": {
         parameters: {
             query?: never;
@@ -1380,6 +1536,111 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AdminMembership: {
+            /** Format: int64 */
+            org_id: number;
+            org_name: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "editor" | "viewer";
+        };
+        AdminUser: {
+            /** Format: int64 */
+            id: number;
+            /** Format: email */
+            email: string;
+            name: string;
+            instance_admin: boolean;
+            disabled: boolean;
+            password_reset_required: boolean;
+            totp_enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_login_at?: string;
+            memberships: components["schemas"]["AdminMembership"][];
+        };
+        AdminUsersResponse: {
+            data: components["schemas"]["AdminUser"][];
+        };
+        AdminUserPatch: {
+            disabled?: boolean;
+            password_reset_required?: boolean;
+            instance_admin?: boolean;
+        };
+        AdminOrganization: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            slug: string;
+            /** Format: int64 */
+            member_count: number;
+            /** Format: int64 */
+            site_count: number;
+            site_limit: number;
+        };
+        AdminOrganizationsResponse: {
+            data: components["schemas"]["AdminOrganization"][];
+        };
+        AdminSite: {
+            /** Format: int32 */
+            id: number;
+            /** Format: int64 */
+            org_id: number;
+            organization: string;
+            public_id: string;
+            name: string;
+            /** @enum {integer} */
+            retention_days: 0 | 7 | 30 | 90 | 365;
+            /** Format: int64 */
+            pageviews: number;
+            /** Format: date-time */
+            last_event_at?: string;
+        };
+        AdminSitesResponse: {
+            data: components["schemas"]["AdminSite"][];
+        };
+        AdminOrganizationDetail: components["schemas"]["AdminOrganization"] & {
+            members: components["schemas"]["AdminUser"][];
+            sites: components["schemas"]["AdminSite"][];
+        };
+        AdminSettings: {
+            /** @enum {string} */
+            signup_mode: "invite" | "open";
+            replay_visible: boolean;
+        };
+        AdminSettingsPatch: {
+            /** @enum {string} */
+            signup_mode?: "invite" | "open";
+            replay_visible?: boolean;
+        };
+        AdminTwoFactorPolicy: {
+            /** @enum {string} */
+            scope: "off" | "instance_admins" | "owners_admins" | "everyone";
+            grace_days: number;
+        };
+        AdminTwoFactorExemption: {
+            reason: string;
+            /** Format: date-time */
+            expires_at?: string;
+        };
+        AdminAuditEntry: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            actor_user_id?: number;
+            action: string;
+            target_type: string;
+            /** Format: int64 */
+            target_id: number;
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string;
+        };
+        AdminAuditResponse: {
+            data: components["schemas"]["AdminAuditEntry"][];
+        };
         Organization: {
             /** Format: int64 */
             id: number;
@@ -1441,6 +1702,10 @@ export interface components {
                 created_at: string;
                 /** Format: date-time */
                 last_login_at?: string;
+                instance_admin: boolean;
+                two_factor_setup_required: boolean;
+                /** Format: date-time */
+                two_factor_grace_until?: string;
             };
             preferences: components["schemas"]["UserPreferences"];
             memberships: {
@@ -2789,6 +3054,8 @@ export interface components {
         };
     };
     parameters: {
+        AdminLimit: number;
+        AdminUserID: number;
         SiteID: number;
         SitePathID: number;
         OrgPathID: number;
@@ -2829,6 +3096,320 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    adminListUsers: {
+        parameters: {
+            query?: {
+                search?: string;
+                limit?: components["parameters"]["AdminLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance users. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUsersResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUpdateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminListOrganizations: {
+        parameters: {
+            query?: {
+                search?: string;
+                limit?: components["parameters"]["AdminLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organizations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOrganizationsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization details. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOrganizationDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminListSites: {
+        parameters: {
+            query?: {
+                search?: string;
+                limit?: components["parameters"]["AdminLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSitesResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUpdateSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetTwoFactorPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Two-factor policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTwoFactorPolicy"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUpdateTwoFactorPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTwoFactorPolicy"];
+            };
+        };
+        responses: {
+            /** @description Updated two-factor policy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTwoFactorPolicy"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminSetTwoFactorExemption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTwoFactorExemption"];
+            };
+        };
+        responses: {
+            /** @description Exemption stored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminDeleteTwoFactorExemption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exemption removed or already absent. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminListAudit: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["AdminLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance audit entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     getSetupStatus: {
         parameters: {
             query?: never;
