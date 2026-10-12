@@ -1,0 +1,9 @@
+{"event":"$mp_web_page_view","properties":{"time":1709287200,"distinct_id":"u1","$insert_id":"a1","$current_url":"https://shop.test/","$browser":"Chrome","$os":"Windows","mp_country_code":"US","$referring_domain":"google.com","$ip":"203.0.113.9","$user_agent":"Mozilla/5.0 secret"}}
+{"event":"$mp_web_page_view","properties":{"time":1709287230,"distinct_id":"u1","$insert_id":"a2","$current_url":"https://shop.test/pricing?plan=pro#top","$browser":"Chrome","$os":"Windows","mp_country_code":"US"}}
+{"event":"Signup","properties":{"time":1709287260,"distinct_id":"u1","$insert_id":"a3"}}
+{"event":"$mp_web_page_view","properties":{"time":1709290800,"distinct_id":"u2","$insert_id":"a4","$current_url":"https://shop.test/","$browser":"Firefox","$os":"Linux","mp_country_code":"DE","$referring_domain":"$direct"}}
+{"event":"$mp_web_page_view","properties":{"time":1709287200,"distinct_id":"u1","$insert_id":"a1","$current_url":"https://shop.test/"}}
+{not json
+{"event":"Signup","properties":{"time":1709287260,"$insert_id":"a9"}}
+{"event":"$identify","properties":{"time":1709287300,"distinct_id":"u1","$insert_id":"a10"}}
+{"event":"$mp_web_page_view","properties":{"time":1709370000,"distinct_id":"u1","$insert_id":"a5","$current_url":"/docs"}}
