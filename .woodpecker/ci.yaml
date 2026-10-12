@@ -1,5 +1,5 @@
 # Runs on a self-hosted agent with the local backend (no containers): `image`
-# names the shell, and Go, bun and git must be on the agent's PATH.
+# names the shell, and Go, git and whatever `make build` needs (bun) must be on the agent's PATH.
 when:
   - event: pull_request
   - event: push
@@ -33,11 +33,7 @@ steps:
     commands:
       - go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
-  - name: web
+  - name: build
     image: bash
     commands:
-      - cd web
-      - bun install --frozen-lockfile
-      - bun run typecheck
-      - bun run test --run --maxWorkers=3
-      - bun run build
+      - make build
