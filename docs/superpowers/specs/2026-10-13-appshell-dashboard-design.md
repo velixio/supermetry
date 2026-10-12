@@ -197,5 +197,5 @@ Insert after step 6, as its own PRs:
 ### 11.7 Risks and open points
 
 - **Which dimensions support a cross-breakdown** depends on the query API; step 6a must list them from `internal/api/openapi.yaml` before building the body, and show only what exists.
-- **Chart point inspection** has no existing detail view; ship it last, or drop it if the per-day data would need a new query.
+- **Chart point inspection: dropped (2026-10-13).** `MainChart` fetches one metric per bucket from `/stats/timeseries`, and buckets may be hours, weeks or months. A point's own metrics would need a new per-bucket query, so the inspector opens from breakdown rows, Where countries and Weekly rhythm cells only. Weekly rhythm cells show only the cell value.
 - **Interaction with edit mode and custom dashboards**: the inspector is off while `DashboardEditor` is active.
