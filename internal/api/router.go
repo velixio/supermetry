@@ -142,7 +142,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	public.HandleFunc("GET "+publicPrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(publicPrefix+"/", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, false, trackingReads(deps.Config.Tracking.Mode, routehits.WrapFile(public, deps.Config.RouteHitsFile))))
+	mux.Handle(publicPrefix+"/", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, false, trackingReads(deps.Config.Tracking.Mode, routehits.WrapFile(public, routehits.File(deps.Config.RouteHitsFile)))))
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
@@ -164,7 +164,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("GET "+privatePrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress, deps.FailedProfileErasures, deps.DropStats, deps.Sites, now))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, routehits.WrapFile(private, deps.Config.RouteHitsFile)))))
+	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, routehits.WrapFile(private, routehits.File(deps.Config.RouteHitsFile))))))
 	registerPlatformRoutes(mux, deps.Platform, deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow)
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
@@ -235,7 +235,7 @@ func NewRouter(deps Deps) http.Handler {
 	})
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
-	return requestID(recoverProblems(routehits.WrapFile(mux, deps.Config.RouteHitsFile)))
+	return requestID(recoverProblems(routehits.WrapFile(mux, routehits.File(deps.Config.RouteHitsFile))))
 }
 
 func trackerCORS(next http.Handler) http.Handler {
