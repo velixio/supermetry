@@ -784,6 +784,16 @@ const messages: MessageTree = {
       fields: 'Pro Ereignis erforderlich: event_type, event_time und user_id oder device_id. Falls vorhanden verwendet: $insert_id oder uuid zur Deduplizierung, Seitenpfad oder URL, Referrer, Land, Region, Stadt, platform und os_name.',
     },
   },
+  // In-app API reference page.
+  apiDocs: {
+    title: 'API-Referenz',
+    description: 'Durchsuche den eingebetteten OpenAPI-Vertrag, kopiere typisierte Beispiele und teste Leseanfragen für eine Website.',
+    endpoints: 'Endpunkte',
+    grouped: 'Nach Funktion gruppiert',
+    searchLabel: 'Endpunkte durchsuchen',
+    searchPlaceholder: 'Nach Name, Pfad oder Methode suchen',
+    noMatches: 'Keine Endpunkte passen zur Suche.',
+  },
   // Interface language (localization core).
   language: {
     title: 'Sprache',

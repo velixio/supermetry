@@ -782,6 +782,16 @@ export const en = {
       fields: 'Needed per event: event_type, event_time and user_id or device_id. Used when present: $insert_id or uuid for de-duplication, the page path or URL, referrer, country, region, city, platform and os_name.',
     },
   },
+  // In-app API reference page.
+  apiDocs: {
+    title: 'API reference',
+    description: 'Browse the embedded OpenAPI contract, copy typed examples, and test read requests against a site.',
+    endpoints: 'Endpoints',
+    grouped: 'Grouped by capability',
+    searchLabel: 'Search endpoints',
+    searchPlaceholder: 'Search by name, path or method',
+    noMatches: 'No endpoints match your search.',
+  },
   // Interface language (localization core).
   language: {
     title: 'Language',
