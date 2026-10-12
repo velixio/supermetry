@@ -97,14 +97,16 @@ type Deps struct {
 	Mutations      MutationService
 	Store          *store.Store
 	Definitions    interface{ Invalidate() error }
-	Auth           *platformauth.Auth
-	Orgs           *orgs.Orgs
-	Keys           *keys.Keys
-	Invites        *invites.Invites
-	Shares         *shares.Shares
-	Reports        *reports.Reports
-	Alerts         AlertsService
-	Query          interface {
+	// LinkCache drops cached short-link resolutions after a change. Optional.
+	LinkCache interface{ Forget(slugs ...string) }
+	Auth      *platformauth.Auth
+	Orgs      *orgs.Orgs
+	Keys      *keys.Keys
+	Invites   *invites.Invites
+	Shares    *shares.Shares
+	Reports   *reports.Reports
+	Alerts    AlertsService
+	Query     interface {
 		Query(context.Context, api.QueryRequest) (api.QueryResponse, error)
 	}
 	Imports interface {
@@ -240,6 +242,14 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/annotations", h.createAnnotation)
 	mux.HandleFunc("PATCH /api/private/annotations/{annotation}", h.updateAnnotation)
 	mux.HandleFunc("DELETE /api/private/annotations/{annotation}", h.deleteAnnotation)
+	mux.HandleFunc("GET /api/private/sites/{site}/links", h.listLinks)
+	mux.HandleFunc("POST /api/private/sites/{site}/links", h.createLink)
+	mux.HandleFunc("GET /api/private/links/{link}", h.getLink)
+	mux.HandleFunc("PATCH /api/private/links/{link}", h.updateLink)
+	mux.HandleFunc("DELETE /api/private/links/{link}", h.deleteLink)
+	mux.HandleFunc("GET /api/private/links/{link}/stats", h.linkStats)
+	mux.HandleFunc("GET /api/private/sites/{site}/pixel", h.pixelSnippet)
+	mux.HandleFunc("GET /api/private/sites/{site}/pixel/stats", h.pixelStats)
 	mux.HandleFunc("GET /api/private/sites/{site}/funnels", h.listFunnels)
 	mux.HandleFunc("POST /api/private/sites/{site}/funnels", h.createFunnel)
 	mux.HandleFunc("PATCH /api/private/funnels/{funnel}", h.updateFunnel)

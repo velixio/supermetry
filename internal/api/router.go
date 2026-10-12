@@ -25,6 +25,7 @@ import (
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
 	"supermetry/internal/ingest"
+	"supermetry/internal/links"
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
 	"supermetry/internal/replay"
@@ -67,16 +68,18 @@ type Deps struct {
 	Revenue        revenueService
 	Heatmaps       heatmapService
 	Ingest         http.Handler
-	Replay         http.Handler
-	ReplayCSS      http.Handler
-	PublicAuth     Authenticator
-	PrivateAuth    Authenticator
-	Sites          sites.Registry // resolves site ownership for every site-scoped request
-	UI             http.Handler   // the embedded dashboard; serves every GET that no API route claims
-	RateLimiter    ingest.RateLimiter
-	Sessions       session.Store
-	MinuteSource   realtime.MinuteSource
-	Dictionary     dictionaryResolver
+	// Links serves the public short-link redirect and tracking pixel. Optional.
+	Links        *links.Handler
+	Replay       http.Handler
+	ReplayCSS    http.Handler
+	PublicAuth   Authenticator
+	PrivateAuth  Authenticator
+	Sites        sites.Registry // resolves site ownership for every site-scoped request
+	UI           http.Handler   // the embedded dashboard; serves every GET that no API route claims
+	RateLimiter  ingest.RateLimiter
+	Sessions     session.Store
+	MinuteSource realtime.MinuteSource
+	Dictionary   dictionaryResolver
 	// Platform serves the application routes implemented under
 	// internal/platform/http. Those handlers resolve the complete platform
 	// principal required by authz.Can and transactional audit records.
@@ -165,6 +168,10 @@ func NewRouter(deps Deps) http.Handler {
 		ingest := trackerCORS(deps.Ingest)
 		mux.Handle("POST "+deps.Config.EventPath, ingest)
 		mux.Handle("OPTIONS "+deps.Config.EventPath, ingest)
+	}
+	if deps.Links != nil {
+		mux.HandleFunc("GET /l/{slug}", deps.Links.ServeRedirect)
+		mux.HandleFunc("GET /px/{file}", deps.Links.ServePixel)
 	}
 	if deps.Config.Replay.Enabled && deps.Replay != nil {
 		mux.Handle("POST /api/replay/start", deps.Replay)
@@ -386,6 +393,14 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/sites/{site}/annotations",
 		"PATCH " + privatePrefix + "/annotations/{annotation}",
 		"DELETE " + privatePrefix + "/annotations/{annotation}",
+		"GET " + privatePrefix + "/sites/{site}/links",
+		"POST " + privatePrefix + "/sites/{site}/links",
+		"GET " + privatePrefix + "/links/{link}",
+		"PATCH " + privatePrefix + "/links/{link}",
+		"DELETE " + privatePrefix + "/links/{link}",
+		"GET " + privatePrefix + "/links/{link}/stats",
+		"GET " + privatePrefix + "/sites/{site}/pixel",
+		"GET " + privatePrefix + "/sites/{site}/pixel/stats",
 		"GET " + privatePrefix + "/sites/{site}/funnels",
 		"POST " + privatePrefix + "/sites/{site}/funnels",
 		"PATCH " + privatePrefix + "/funnels/{funnel}",

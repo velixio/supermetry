@@ -1432,6 +1432,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/l/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Redirect a managed short link
+         * @description Public endpoint. Answers 302 with the destination stored on the link, with the link's default UTM parameters appended when the destination does not already set them. The destination is never taken from the request, so the endpoint cannot be used as an open redirect. Bots and requests that send a Do Not Track or Global Privacy Control signal on a site that respects them are redirected but not counted. Disabled and unknown links answer 404; expired links and links past their click limit answer 410.
+         */
+        get: operations["followShortLink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/px/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Record a tracking pixel impression
+         * @description Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same 1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore, colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored.
+         */
+        get: operations["trackingPixel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -6195,6 +6235,67 @@ export interface operations {
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    followShortLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to the destination. */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link does not exist or is disabled. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The link has expired or reached its click limit. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    trackingPixel: {
+        parameters: {
+            query?: {
+                c?: string;
+            };
+            header?: never;
+            path: {
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A 1x1 transparent GIF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/gif": string;
+                };
+            };
         };
     };
     healthz: {

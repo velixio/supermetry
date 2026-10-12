@@ -39,6 +39,7 @@ import (
 	"supermetry/internal/heatmap"
 	"supermetry/internal/imports"
 	"supermetry/internal/ingest"
+	"supermetry/internal/links"
 	"supermetry/internal/minutes"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
@@ -315,7 +316,17 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
 	overviewService := sitesvc.NewOverview(platformStore, sessions)
 	overviewService.SetClock(settings.clock.Now)
+	linkRecorder := links.NewRecorder(pool, links.RecorderOptions{})
+	linkHandler := &links.Handler{
+		Lookup: func(ctx context.Context, slug string) (links.Link, error) {
+			return links.BySlug(ctx, pool, slug)
+		},
+		Recorder: linkRecorder, Sites: registry, Enricher: enricher,
+		Limiter: ingest.NewTokenBuckets(10, 60), MissLimiter: ingest.NewTokenBuckets(1, 20),
+		TrustedProxies: cfg.TrustedProxies, Now: settings.clock.Now,
+	}
 	platformHandler := platformhttp.New(platformhttp.Deps{
+		LinkCache:      linkHandler,
 		Version:        version,
 		TrackingMode:   cfg.Tracking.Mode,
 		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
@@ -405,7 +416,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
 		Config: cfg, Query: engine, SessionExplore: engine, Revenue: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
-		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler,
+		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler,
 		Now: settings.clock.Now, Ready: func() bool { return ready.Load() && postgresReady(pool) },
 		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {
 			progress, err := rollupBackfill.Progress(ctx)
@@ -434,6 +445,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	dropStatsCtx, cancelDropStats := context.WithCancel(context.Background())
 	dropStatsDone := make(chan error, 1)
 	go func() { dropStatsDone <- dropRecorder.Run(dropStatsCtx) }()
+	linkStatsCtx, cancelLinkStats := context.WithCancel(context.Background())
+	linkStatsDone := make(chan error, 1)
+	go func() { linkStatsDone <- linkRecorder.Run(linkStatsCtx) }()
 	replayIndexCtx, cancelReplayIndex := context.WithCancel(context.Background())
 	replayIndexDone := make(chan error, 1)
 	go func() { replayIndexDone <- replayIndex.Run(replayIndexCtx) }()
@@ -498,6 +512,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-dropStatsDone:
 		cause = err
 		dropStatsDone = nil
+	case err := <-linkStatsDone:
+		cause = err
+		linkStatsDone = nil
 	case err := <-replayIndexDone:
 		cause = err
 		replayIndexDone = nil
@@ -543,6 +560,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelDropStats()
 	if dropStatsDone != nil {
 		cause = errors.Join(cause, <-dropStatsDone)
+	}
+	cancelLinkStats()
+	if linkStatsDone != nil {
+		cause = errors.Join(cause, <-linkStatsDone)
 	}
 	cancelReplayIndex()
 	if replayIndexDone != nil {
