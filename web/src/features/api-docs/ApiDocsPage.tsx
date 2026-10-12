@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
+import { en } from "@/messages/en";
+
 import { ErrorState } from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +39,8 @@ import {
   type OpenAPIDocument,
   type ReferenceOperation,
 } from "./reference";
+
+const t = en.apiDocs;
 
 const openAPIQueryKey = ["openapi", "public"] as const;
 
@@ -76,21 +80,27 @@ function OperationNavigation({
   onSelect: (operation: ReferenceOperation) => void;
 }) {
   return (
-    <nav aria-label="API endpoints" className="flex flex-col gap-5">
+    <nav
+      aria-label="API endpoints"
+      className="flex max-h-[60vh] min-w-0 flex-col gap-5 overflow-y-auto overscroll-contain lg:max-h-[75vh]"
+    >
+      {groups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t.noMatches}</p>
+      ) : null}
       {groups.map((group) => (
         <section className="flex flex-col gap-2" key={group.name}>
           <h2 className="text-sm font-semibold">{group.name}</h2>
           <div className="flex flex-col gap-1">
             {group.operations.map((operation) => (
               <Button
-                className="h-auto justify-start px-2 py-1.5 text-left"
+                className="h-auto w-full min-w-0 justify-start gap-2 px-2 py-1.5 text-left whitespace-normal"
                 key={`${operation.method}-${operation.path}`}
                 aria-current={selected.id === operation.id ? "page" : undefined}
                 variant={selected.id === operation.id ? "secondary" : "ghost"}
                 onClick={() => onSelect(operation)}
               >
-                <code className="text-xs">{operation.method}</code>
-                <span className="truncate">{operation.summary}</span>
+                <code className="shrink-0 text-xs">{operation.method}</code>
+                <span className="min-w-0 break-words">{operation.summary}</span>
               </Button>
             ))}
           </div>
@@ -414,7 +424,29 @@ export function ApiDocsPage({
         (operation) =>
           preparePrivateRequest(operation, sites[0]?.id ?? 0, {}) !== null,
       ) ?? reference?.groups[0]?.operations[0];
-  const [selectedID, setSelectedID] = useState<string>();
+  const [selectedID, setSelectedID] = useState<string | undefined>(() =>
+    window.location.hash.startsWith("#op-")
+      ? decodeURIComponent(window.location.hash.slice(4))
+      : undefined,
+  );
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const visibleGroups = useMemo(
+    () =>
+      (reference?.groups ?? [])
+        .map((group) => ({
+          ...group,
+          operations: group.operations.filter(
+            (operation) =>
+              !needle ||
+              `${operation.method} ${operation.path} ${operation.summary} ${group.name}`
+                .toLowerCase()
+                .includes(needle),
+          ),
+        }))
+        .filter((group) => group.operations.length > 0),
+    [reference, needle],
+  );
   const selected =
     reference?.groups
       .flatMap((group) => group.operations)
@@ -444,25 +476,39 @@ export function ApiDocsPage({
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">API reference</h1>
+        <h1 className="text-2xl font-semibold">{t.title}</h1>
         <p className="text-sm text-muted-foreground">
-          Browse the embedded OpenAPI contract, copy typed examples, and test
-          read requests against a site.
+          {t.description}
         </p>
       </header>
       <Card className="min-h-[36rem] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-0">
-        <CardHeader className="border-b lg:border-r lg:border-b-0">
-          <CardTitle>Endpoints</CardTitle>
-          <CardDescription>Grouped by capability</CardDescription>
-          <div className="mt-3">
+        <CardHeader className="min-w-0 border-b lg:border-r lg:border-b-0">
+          <CardTitle>{t.endpoints}</CardTitle>
+          <CardDescription>{t.grouped}</CardDescription>
+          <Input
+            aria-label={t.searchLabel}
+            className="mt-3"
+            placeholder={t.searchPlaceholder}
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <div className="mt-3 min-w-0">
             <OperationNavigation
-              groups={reference.groups}
+              groups={visibleGroups}
               selected={selected}
-              onSelect={(operation) => setSelectedID(operation.id)}
+              onSelect={(operation) => {
+                setSelectedID(operation.id);
+                window.history.replaceState(
+                  null,
+                  "",
+                  `#op-${encodeURIComponent(operation.id)}`,
+                );
+              }}
             />
           </div>
         </CardHeader>
-        <CardContent className="py-1 lg:px-6">
+        <CardContent className="min-w-0 py-1 lg:px-6">
           <OperationReference
             operation={selected}
             orgId={orgId}
