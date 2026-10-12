@@ -20,15 +20,19 @@ export const manifest: Record<LocaleCode, LocaleInfo> = {
   es: {
     code: 'es', label: 'Spanish', nativeName: 'Español', reviewed: false,
     load: async () => {
-      const [main, dashEdit] = await Promise.all([import('@/messages/locales/es'), import('@/messages/locales/es.dashEdit')])
-      return { main: main.default, dashEdit: dashEdit.default }
+      const [main, dashEdit, ui, uiAccount] = await Promise.all([
+        import('@/messages/locales/es'), import('@/messages/locales/es.dashEdit'), import('@/messages/locales/es.ui'), import('@/messages/locales/es.uiAccount'),
+      ])
+      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default }
     },
   },
   de: {
     code: 'de', label: 'German', nativeName: 'Deutsch', reviewed: false,
     load: async () => {
-      const [main, dashEdit] = await Promise.all([import('@/messages/locales/de'), import('@/messages/locales/de.dashEdit')])
-      return { main: main.default, dashEdit: dashEdit.default }
+      const [main, dashEdit, ui, uiAccount] = await Promise.all([
+        import('@/messages/locales/de'), import('@/messages/locales/de.dashEdit'), import('@/messages/locales/de.ui'), import('@/messages/locales/de.uiAccount'),
+      ])
+      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default }
     },
   },
 }

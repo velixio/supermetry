@@ -80,6 +80,7 @@ Canonical notice are reproduced below and in [NOTICE](NOTICE).
 
 ## BSD-3-Clause dependencies
 
+- `github.com/klauspost/compress` v1.18.0 — Copyright (c) 2012 The Go Authors, Copyright (c) 2019 Klaus Post (used by the benchmark data generator only; it is not part of the released binary)
 - `golang.org/x/crypto` v0.57.0 — Copyright 2009 The Go Authors
 - `golang.org/x/net` v0.60.0 — Copyright 2009 The Go Authors
 - `golang.org/x/sync` v0.23.0

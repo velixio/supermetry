@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { ui } from '@/messages/ui'
 
 export function ListPager({
   page,
@@ -30,16 +31,16 @@ export function ListPager({
   const pages = total === undefined ? undefined : Math.ceil(total / pageSize)
   const pagesLabel = pages === undefined ? undefined : totalCapped ? `${pages}+` : pages.toLocaleString()
   const summary = empty
-    ? 'No results'
-    : `Showing ${first.toLocaleString()}–${last.toLocaleString()}${totalLabel === undefined ? '' : ` of ${totalLabel}`} · Page ${page.toLocaleString()}${pagesLabel === undefined ? '' : ` of ${pagesLabel}`}`
+    ? ui.pager.noResults
+    : `${ui.pager.showing(first.toLocaleString(), last.toLocaleString())}${totalLabel === undefined ? '' : ui.pager.ofTotal(totalLabel)}${ui.pager.page(page.toLocaleString())}${pagesLabel === undefined ? '' : ui.pager.ofPages(pagesLabel)}`
 
   return (
-    <nav aria-label="List pagination" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <nav aria-label={ui.pager.label} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p aria-live="polite" className="text-sm text-muted-foreground">{summary}</p>
       <div className="flex flex-wrap gap-2">
-        <Button disabled={empty || page <= 1 || fetching} type="button" variant="outline" onClick={onFirst}>First</Button>
-        <Button disabled={empty || page <= 1 || fetching} type="button" variant="outline" onClick={onPrevious}>Previous</Button>
-        <Button disabled={empty || !hasNext || fetching} type="button" variant="outline" onClick={onNext}>Next</Button>
+        <Button disabled={empty || page <= 1 || fetching} type="button" variant="outline" onClick={onFirst}>{ui.pager.first}</Button>
+        <Button disabled={empty || page <= 1 || fetching} type="button" variant="outline" onClick={onPrevious}>{ui.pager.previous}</Button>
+        <Button disabled={empty || !hasNext || fetching} type="button" variant="outline" onClick={onNext}>{ui.pager.next}</Button>
       </div>
     </nav>
   )
