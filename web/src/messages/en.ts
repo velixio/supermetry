@@ -298,4 +298,14 @@ export const en = {
     title: 'Sites',
     description: 'Traffic and installation health across every site you can access.',
   },
+
+  // F06 notification history and templates.
+  notify: {
+    historyTitle: 'Notification history',
+    historyDescription: 'Review every alert delivery and retry failures without exposing channel secrets.',
+    templatesTitle: 'Message templates',
+    templatesDescription: 'Shape the plain-text message sent by each channel.',
+    variables: 'Available variables',
+    preview: 'Sample preview',
+  },
 } as const

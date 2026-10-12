@@ -202,7 +202,7 @@ func TestWebhookUsesExactBodyAndSignature(t *testing.T) {
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload) != 5 || payload["alert"] != "traffic_spike" || payload["site"] != float64(9) || payload["value"] != float64(120) || payload["threshold"] != float64(100) || payload["fired_at"] != "2026-10-08T12:00:00Z" {
+	if len(payload) != 6 || payload["alert"] != "traffic_spike" || payload["site"] != float64(9) || payload["value"] != float64(120) || payload["threshold"] != float64(100) || payload["fired_at"] != "2026-10-08T12:00:00Z" || payload["message"] != notificationText(notification) {
 		t.Fatalf("payload = %s", body)
 	}
 	mac := hmac.New(sha256.New, []byte("secret"))

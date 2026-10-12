@@ -60,6 +60,7 @@ import { Route as AppOrgSiteSettingsGeneralRouteImport } from './routes/app.$org
 import { Route as AppOrgSiteSettingsGoalsRouteImport } from './routes/app.$org.$site.settings.goals'
 import { Route as AppOrgSiteSettingsImportsRouteImport } from './routes/app.$org.$site.settings.imports'
 import { Route as AppOrgSiteSettingsInstallationRouteImport } from './routes/app.$org.$site.settings.installation'
+import { Route as AppOrgSiteSettingsNotificationHistoryRouteImport } from './routes/app.$org.$site.settings.notification-history'
 import { Route as AppOrgSiteSettingsReplayRouteImport } from './routes/app.$org.$site.settings.replay'
 import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org.$site.settings.reports'
 import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.$site.settings.shares'
@@ -328,6 +329,12 @@ const AppOrgSiteSettingsInstallationRoute =
     path: '/installation',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteSettingsNotificationHistoryRoute =
+  AppOrgSiteSettingsNotificationHistoryRouteImport.update({
+    id: '/notification-history',
+    path: '/notification-history',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 const AppOrgSiteSettingsReplayRoute =
   AppOrgSiteSettingsReplayRouteImport.update({
     id: '/replay',
@@ -402,6 +409,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
@@ -457,6 +465,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
@@ -515,6 +524,7 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
@@ -574,6 +584,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/goals'
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
@@ -629,6 +640,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/goals'
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
@@ -686,6 +698,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/goals'
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
@@ -1066,6 +1079,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsInstallationRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
+    '/app/$org/$site/settings/notification-history': {
+      id: '/app/$org/$site/settings/notification-history'
+      path: '/notification-history'
+      fullPath: '/app/$org/$site/settings/notification-history'
+      preLoaderRoute: typeof AppOrgSiteSettingsNotificationHistoryRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/replay': {
       id: '/app/$org/$site/settings/replay'
       path: '/replay'
@@ -1130,6 +1150,7 @@ interface AppOrgSiteSettingsRouteChildren {
   AppOrgSiteSettingsGoalsRoute: typeof AppOrgSiteSettingsGoalsRoute
   AppOrgSiteSettingsImportsRoute: typeof AppOrgSiteSettingsImportsRoute
   AppOrgSiteSettingsInstallationRoute: typeof AppOrgSiteSettingsInstallationRoute
+  AppOrgSiteSettingsNotificationHistoryRoute: typeof AppOrgSiteSettingsNotificationHistoryRoute
   AppOrgSiteSettingsReplayRoute: typeof AppOrgSiteSettingsReplayRoute
   AppOrgSiteSettingsReportsRoute: typeof AppOrgSiteSettingsReportsRoute
   AppOrgSiteSettingsSharesRoute: typeof AppOrgSiteSettingsSharesRoute
@@ -1143,6 +1164,8 @@ const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
   AppOrgSiteSettingsGoalsRoute: AppOrgSiteSettingsGoalsRoute,
   AppOrgSiteSettingsImportsRoute: AppOrgSiteSettingsImportsRoute,
   AppOrgSiteSettingsInstallationRoute: AppOrgSiteSettingsInstallationRoute,
+  AppOrgSiteSettingsNotificationHistoryRoute:
+    AppOrgSiteSettingsNotificationHistoryRoute,
   AppOrgSiteSettingsReplayRoute: AppOrgSiteSettingsReplayRoute,
   AppOrgSiteSettingsReportsRoute: AppOrgSiteSettingsReportsRoute,
   AppOrgSiteSettingsSharesRoute: AppOrgSiteSettingsSharesRoute,

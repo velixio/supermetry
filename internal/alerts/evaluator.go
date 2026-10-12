@@ -26,6 +26,7 @@ type Repository interface {
 	DeliveryChannels(context.Context, []int64) ([]DeliveryChannel, error)
 	SaveDeliveryState(context.Context, int64, DeliveryState) error
 	MarkFired(context.Context, int64, time.Time) error
+	RecordDelivery(context.Context, int64, DeliveryChannel, Notification, int, DeliveryStatus, string, time.Time) error
 }
 
 type Deliverer interface {
@@ -156,6 +157,13 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 		return e.repository.MarkFired(ctx, alert.ID, now)
 	}
 	state := DeliveryState{Notification: notification, ChannelIDs: enabledChannelIDs}
+	for _, channel := range channels {
+		if channel.Enabled {
+			if err := e.repository.RecordDelivery(ctx, alert.ID, channel, notification, 0, DeliveryPending, "", now); err != nil {
+				return err
+			}
+		}
+	}
 	if err := e.repository.SaveDeliveryState(ctx, alert.ID, state); err != nil {
 		return err
 	}
@@ -185,6 +193,10 @@ func (e *Evaluator) deliver(ctx context.Context, alertID int64, state DeliverySt
 		}
 		channel, exists := channelsByID[channelID]
 		if !exists {
+			attempts := state.AttemptCounts[channelID]
+			if err := e.repository.RecordDelivery(ctx, alertID, DeliveryChannel{ID: channelID, Kind: ChannelWebhook, Name: "Deleted channel"}, state.Notification, attempts, DeliveryFailed, "delivery channel was deleted", e.now()); err != nil {
+				return errors.Join(deliveryErr, err)
+			}
 			if e.onFailure != nil {
 				e.onFailure(alertID, channelID, "", errors.New("delivery channel was deleted; dropping pending delivery"))
 			}
@@ -196,22 +208,35 @@ func (e *Evaluator) deliver(ctx context.Context, alertID int64, state DeliverySt
 			continue
 		}
 		if channel.Enabled {
+			state.AttemptCounts[channel.ID]++
 			if err := e.deliverer.Deliver(ctx, channel, state.Notification); err != nil {
-				state.AttemptCounts[channel.ID]++
 				reportedErr := err
+				status := DeliveryPending
 				if state.AttemptCounts[channel.ID] >= maxDeliveryAttempts {
 					reportedErr = fmt.Errorf("permanently failed after %d attempts: %w", state.AttemptCounts[channel.ID], err)
+					status = DeliveryFailed
 					state.DeliveredChannelIDs = append(state.DeliveredChannelIDs, channel.ID)
 					delivered[channel.ID] = true
 				}
+				scrubbedError := scrubDeliveryError(channel, reportedErr.Error())
 				if e.onFailure != nil {
-					e.onFailure(alertID, channel.ID, channel.Kind, reportedErr)
+					e.onFailure(alertID, channel.ID, channel.Kind, errors.New(scrubbedError))
+				}
+				if recordErr := e.repository.RecordDelivery(ctx, alertID, channel, state.Notification, state.AttemptCounts[channel.ID], status, scrubbedError, e.now()); recordErr != nil {
+					return errors.Join(deliveryErr, recordErr)
 				}
 				deliveryErr = errors.Join(deliveryErr, fmt.Errorf("deliver channel %d: %w", channel.ID, err))
 				if err := e.repository.SaveDeliveryState(ctx, alertID, state); err != nil {
 					return errors.Join(deliveryErr, err)
 				}
 				continue
+			}
+			if err := e.repository.RecordDelivery(ctx, alertID, channel, state.Notification, state.AttemptCounts[channel.ID], DeliverySucceeded, "", e.now()); err != nil {
+				return errors.Join(deliveryErr, err)
+			}
+		} else {
+			if err := e.repository.RecordDelivery(ctx, alertID, channel, state.Notification, state.AttemptCounts[channel.ID], DeliveryFailed, "delivery channel is disabled", e.now()); err != nil {
+				return errors.Join(deliveryErr, err)
 			}
 		}
 		state.DeliveredChannelIDs = append(state.DeliveredChannelIDs, channel.ID)

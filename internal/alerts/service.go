@@ -9,6 +9,7 @@ import (
 	"net/mail"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -26,6 +27,7 @@ var (
 	ErrTestDelivery = errors.New("test notification could not be delivered; verify the channel credentials and destination")
 	// ErrChannelInUse means alerts still reference the channel.
 	ErrChannelInUse = errors.New("notification channel is used by one or more alerts")
+	ErrRateLimited  = errors.New("notification test rate limit exceeded")
 )
 
 type Service struct {
@@ -33,10 +35,12 @@ type Service struct {
 	box       *platformcrypto.SecretBox
 	deliverer Deliverer
 	now       func() time.Time
+	testMu    sync.Mutex
+	testSends map[string][]time.Time
 }
 
 func New(data *store.Store, box *platformcrypto.SecretBox, deliverer Deliverer) *Service {
-	return &Service{store: data, box: box, deliverer: deliverer, now: time.Now}
+	return &Service{store: data, box: box, deliverer: deliverer, now: time.Now, testSends: make(map[string][]time.Time)}
 }
 
 type storedChannelConfig struct {
@@ -162,17 +166,42 @@ func (s *Service) TestChannel(ctx context.Context, principal authz.Principal, id
 	if s.deliverer == nil {
 		return errors.New("alert delivery is unavailable")
 	}
+	if !s.allowTestSend(principal.UserID, id) {
+		return ErrRateLimited
+	}
 	channel, err := s.deliveryChannel(ctx, id, principal.OrgID)
 	if err != nil {
 		return err
 	}
 	now := s.now()
 	if err := s.deliverer.Deliver(ctx, channel, Notification{Kind: AlertTrafficSpike, FiredAt: now}); err != nil {
+		_ = s.store.Tx(ctx, func(tx pgx.Tx) error {
+			return audit.Write(ctx, tx, principal, "notification_channel.tested", "notification_channel", id, map[string]any{"status": "failed"})
+		})
 		return fmt.Errorf("%w: %v", ErrTestDelivery, err)
 	}
 	return s.store.Tx(ctx, func(tx pgx.Tx) error {
-		return audit.Write(ctx, tx, principal, "notification_channel.tested", "notification_channel", id, nil)
+		return audit.Write(ctx, tx, principal, "notification_channel.tested", "notification_channel", id, map[string]any{"status": "succeeded"})
 	})
+}
+
+func (s *Service) allowTestSend(userID, channelID int64) bool {
+	now := s.now()
+	key := fmt.Sprintf("%d:%d", userID, channelID)
+	s.testMu.Lock()
+	defer s.testMu.Unlock()
+	window := s.testSends[key][:0]
+	for _, sent := range s.testSends[key] {
+		if now.Sub(sent) < time.Minute {
+			window = append(window, sent)
+		}
+	}
+	if len(window) >= 3 {
+		s.testSends[key] = window
+		return false
+	}
+	s.testSends[key] = append(window, now)
+	return true
 }
 
 func (s *Service) ListAlerts(ctx context.Context, principal authz.Principal, siteID int32) ([]Alert, error) {
@@ -322,7 +351,9 @@ func (s *Service) SaveDeliveryState(ctx context.Context, id int64, state Deliver
 }
 
 func (s *Service) DeliveryChannels(ctx context.Context, ids []int64) ([]DeliveryChannel, error) {
-	rows, err := s.store.Pool.Query(ctx, `select id,kind,enabled,config from notification_channels where id=any($1)`, ids)
+	rows, err := s.store.Pool.Query(ctx, `select nc.id,nc.org_id,nc.kind,nc.name,nc.enabled,nc.config,nt.subject_template,nt.body_template
+		from notification_channels nc left join notification_templates nt on nt.org_id=nc.org_id and nt.kind=nc.kind
+		where nc.id=any($1)`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("load delivery channels: %w", err)
 	}
@@ -457,14 +488,25 @@ func scanAlertWithDeliveryState(row rowScanner) (Alert, error) {
 }
 
 func (s *Service) deliveryChannel(ctx context.Context, id, orgID int64) (DeliveryChannel, error) {
-	return s.scanDeliveryChannel(s.store.Pool.QueryRow(ctx, `select id,kind,enabled,config from notification_channels where id=$1 and org_id=$2`, id, orgID))
+	return s.scanDeliveryChannel(s.store.Pool.QueryRow(ctx, `select nc.id,nc.org_id,nc.kind,nc.name,nc.enabled,nc.config,nt.subject_template,nt.body_template
+		from notification_channels nc left join notification_templates nt on nt.org_id=nc.org_id and nt.kind=nc.kind
+		where nc.id=$1 and nc.org_id=$2`, id, orgID))
 }
 
 func (s *Service) scanDeliveryChannel(row rowScanner) (DeliveryChannel, error) {
 	var channel DeliveryChannel
 	var encoded []byte
-	if err := row.Scan(&channel.ID, &channel.Kind, &channel.Enabled, &encoded); err != nil {
+	var subject, body *string
+	if err := row.Scan(&channel.ID, &channel.OrgID, &channel.Kind, &channel.Name, &channel.Enabled, &encoded, &subject, &body); err != nil {
 		return DeliveryChannel{}, err
+	}
+	channel.Template = DefaultTemplate(channel.Kind)
+	if body != nil {
+		channel.Template.Body = *body
+		channel.Template.Subject = ""
+		if subject != nil {
+			channel.Template.Subject = *subject
+		}
 	}
 	var config storedChannelConfig
 	if err := json.Unmarshal(encoded, &config); err != nil {

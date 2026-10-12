@@ -92,6 +92,7 @@ const settingsTabs = [
   ['shares', 'Shares', '/app/$org/$site/settings/shares'],
   ['reports', 'Reports', '/app/$org/$site/settings/reports'],
   ['alerts', 'Alerts', '/app/$org/$site/settings/alerts'],
+  ['notification-history', 'History', '/app/$org/$site/settings/notification-history'],
   ['imports', 'Imports & export', '/app/$org/$site/settings/imports'],
 ] as const
 

@@ -80,11 +80,15 @@ func NewWebhookClient(options WebhookOptions) *WebhookClient {
 }
 
 func (c *WebhookClient) Send(ctx context.Context, kind ChannelKind, rawURL, secret string, notification Notification) error {
+	return c.SendRendered(ctx, kind, rawURL, secret, notification, notificationText(notification))
+}
+
+func (c *WebhookClient) SendRendered(ctx context.Context, kind ChannelKind, rawURL, secret string, notification Notification, message string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil {
 		return errors.New("invalid webhook URL")
 	}
-	body, err := webhookBody(kind, notification)
+	body, err := webhookBodyRendered(kind, notification, message)
 	if err != nil {
 		return err
 	}
@@ -131,23 +135,28 @@ type webhookPayload struct {
 	Value     float64   `json:"value"`
 	Threshold float64   `json:"threshold"`
 	FiredAt   time.Time `json:"fired_at"`
+	Message   string    `json:"message"`
 }
 
 func webhookBody(kind ChannelKind, notification Notification) ([]byte, error) {
+	return webhookBodyRendered(kind, notification, notificationText(notification))
+}
+
+func webhookBodyRendered(kind ChannelKind, notification Notification, message string) ([]byte, error) {
 	switch kind {
 	case ChannelWebhook:
 		return json.Marshal(webhookPayload{
 			Alert: notification.Kind, Site: notification.SiteID, Value: notification.Value,
-			Threshold: notification.Threshold, FiredAt: notification.FiredAt,
+			Threshold: notification.Threshold, FiredAt: notification.FiredAt, Message: message,
 		})
 	case ChannelSlack:
 		return json.Marshal(struct {
 			Text string `json:"text"`
-		}{Text: notificationText(notification)})
+		}{Text: message})
 	case ChannelDiscord:
 		return json.Marshal(struct {
 			Content string `json:"content"`
-		}{Content: notificationText(notification)})
+		}{Content: message})
 	default:
 		return nil, fmt.Errorf("unsupported webhook channel %q", kind)
 	}

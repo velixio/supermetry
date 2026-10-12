@@ -127,6 +127,13 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 		{http.MethodPost, fmt.Sprintf("/api/private/orgs/%d/channels", org1), `{"kind":"email","name":"Ops","config":{"recipients":["ops@example.test"]}}`, allowed("owner", "admin")},
 		{http.MethodGet, fmt.Sprintf("/api/private/sites/%d/alerts", siteA), "", allowed("owner", "admin", "editor")},
 		{http.MethodPost, fmt.Sprintf("/api/private/sites/%d/alerts", siteA), `{"kind":"traffic_spike","threshold":2,"channel_ids":[1]}`, allowed("owner", "admin", "editor")},
+		{http.MethodGet, fmt.Sprintf("/api/private/sites/%d/notification-history", siteA), "", allowed("owner", "admin", "editor")},
+		{http.MethodPost, fmt.Sprintf("/api/private/sites/%d/notification-history/1/retry", siteA), "", allowed("owner", "admin", "editor")},
+		{http.MethodGet, fmt.Sprintf("/api/private/orgs/%d/notification-templates", org1), "", allowed("owner", "admin", "editor")},
+		{http.MethodPut, fmt.Sprintf("/api/private/orgs/%d/notification-templates/email", org1), `{"subject":"Alert","body":"Site {{.site_id}}"}`, allowed("owner", "admin")},
+		{http.MethodDelete, fmt.Sprintf("/api/private/orgs/%d/notification-templates/email", org1), "", allowed("owner", "admin")},
+		{http.MethodPost, fmt.Sprintf("/api/private/orgs/%d/notification-templates/email/preview", org1), `{"subject":"Alert","body":"Site {{.site_id}}"}`, allowed("owner", "admin", "editor")},
+		{http.MethodPut, fmt.Sprintf("/api/private/orgs/%d/notification-settings", org1), `{"history_retention_days":30}`, allowed("owner", "admin")},
 	}
 
 	actors := []string{"owner", "admin", "editor", "viewer", "key", "share", "anonymous"}

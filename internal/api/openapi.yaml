@@ -2101,6 +2101,109 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/private/sites/{site}/notification-history:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listNotificationHistory
+      summary: List alert delivery history for a site
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/DeliveryStatus' } }
+        - { name: channel, in: query, schema: { $ref: '#/components/schemas/NotificationChannelKind' } }
+        - { name: alert_id, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: Delivery history newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties: { data: { type: array, items: { $ref: '#/components/schemas/NotificationDelivery' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/sites/{site}/notification-history/{delivery}/retry:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: delivery, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    post:
+      operationId: retryNotificationDelivery
+      summary: Retry one failed alert delivery
+      responses:
+        '200':
+          description: Updated delivery
+          content: { application/json: { schema: { $ref: '#/components/schemas/NotificationDelivery' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/notification-templates:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+    get:
+      operationId: listNotificationTemplates
+      summary: List notification templates and history settings
+      responses:
+        '200':
+          description: Templates, documented variables, and settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationTemplateList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/orgs/{org}/notification-templates/{kind}:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+      - { name: kind, in: path, required: true, schema: { $ref: '#/components/schemas/NotificationChannelKind' } }
+    put:
+      operationId: saveNotificationTemplate
+      summary: Save a channel message template
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NotificationTemplateInput' } } }
+      responses:
+        '200': { description: Saved template, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationTemplate' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      operationId: resetNotificationTemplate
+      summary: Reset a channel message template to its default
+      responses:
+        '200': { description: Default template, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationTemplate' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/orgs/{org}/notification-templates/{kind}/preview:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+      - { name: kind, in: path, required: true, schema: { $ref: '#/components/schemas/NotificationChannelKind' } }
+    post:
+      operationId: previewNotificationTemplate
+      summary: Validate and preview a template with sample alert data
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NotificationTemplateInput' } } }
+      responses:
+        '200': { description: Rendered preview, content: { application/json: { schema: { $ref: '#/components/schemas/RenderedNotification' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/orgs/{org}/notification-settings:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+    put:
+      operationId: saveNotificationSettings
+      summary: Set notification history retention
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NotificationSettings' } } }
+      responses:
+        '200': { description: Saved settings, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 components:
   securitySchemes:
     bearerAuth:
@@ -2327,6 +2430,68 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    NotificationChannelKind:
+      type: string
+      enum: [email, webhook, slack, discord, telegram]
+    DeliveryStatus:
+      type: string
+      enum: [pending, succeeded, failed]
+    NotificationDelivery:
+      type: object
+      additionalProperties: false
+      required: [id, alert_id, site_id, channel_id, channel_kind, channel_name, status, attempts, fired_at, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        alert_id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        channel_id: { type: integer, format: int64 }
+        channel_kind: { $ref: '#/components/schemas/NotificationChannelKind' }
+        channel_name: { type: string }
+        status: { $ref: '#/components/schemas/DeliveryStatus' }
+        attempts: { type: integer, minimum: 0 }
+        error_text: { type: string, maxLength: 512 }
+        fired_at: { type: string, format: date-time }
+        last_attempt_at: { type: string, format: date-time }
+        delivered_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    NotificationTemplateInput:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        subject: { type: string, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 4096 }
+    NotificationTemplate:
+      allOf:
+        - $ref: '#/components/schemas/NotificationTemplateInput'
+        - type: object
+          required: [kind, is_default]
+          properties:
+            kind: { $ref: '#/components/schemas/NotificationChannelKind' }
+            is_default: { type: boolean }
+            updated_at: { type: string, format: date-time }
+    NotificationSettings:
+      type: object
+      additionalProperties: false
+      required: [history_retention_days]
+      properties:
+        history_retention_days: { type: integer, minimum: 1, maximum: 3650, default: 30 }
+    NotificationTemplateList:
+      type: object
+      additionalProperties: false
+      required: [data, settings, variables]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/NotificationTemplate' } }
+        settings: { $ref: '#/components/schemas/NotificationSettings' }
+        variables: { type: array, items: { type: string } }
+    RenderedNotification:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        subject: { type: string }
+        body: { type: string }
     Organization:
       type: object
       additionalProperties: false

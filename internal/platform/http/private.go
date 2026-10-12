@@ -292,6 +292,13 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/alerts", h.createAlert)
 	mux.HandleFunc("PATCH /api/private/sites/{site}/alerts/{alert}", h.updateAlert)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/alerts/{alert}", h.deleteAlert)
+	mux.HandleFunc("GET /api/private/sites/{site}/notification-history", h.listNotificationHistory)
+	mux.HandleFunc("POST /api/private/sites/{site}/notification-history/{delivery}/retry", h.retryNotificationDelivery)
+	mux.HandleFunc("GET /api/private/orgs/{org}/notification-templates", h.listNotificationTemplates)
+	mux.HandleFunc("PUT /api/private/orgs/{org}/notification-templates/{kind}", h.saveNotificationTemplate)
+	mux.HandleFunc("DELETE /api/private/orgs/{org}/notification-templates/{kind}", h.resetNotificationTemplate)
+	mux.HandleFunc("POST /api/private/orgs/{org}/notification-templates/{kind}/preview", h.previewNotificationTemplate)
+	mux.HandleFunc("PUT /api/private/orgs/{org}/notification-settings", h.saveNotificationSettings)
 	mux.HandleFunc("POST /api/private/invitations/{token}/accept", h.acceptInvitation)
 	mux.HandleFunc("POST /api/private/share/{slug}/open", h.openShare)
 }

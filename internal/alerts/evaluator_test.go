@@ -313,6 +313,12 @@ type fakeRepository struct {
 	alerts   []Alert
 	channels []DeliveryChannel
 	marked   []int64
+	records  []DeliveryRecord
+}
+
+func (f *fakeRepository) RecordDelivery(_ context.Context, alertID int64, channel DeliveryChannel, notification Notification, attempts int, status DeliveryStatus, errorText string, at time.Time) error {
+	f.records = append(f.records, DeliveryRecord{AlertID: alertID, SiteID: notification.SiteID, ChannelID: channel.ID, ChannelKind: channel.Kind, ChannelName: channel.Name, Status: status, Attempts: attempts, ErrorText: errorText, Notification: notification, FiredAt: notification.FiredAt, LastAttemptAt: &at})
+	return nil
 }
 
 func (f *fakeRepository) EnabledAlerts(context.Context) ([]Alert, error) {
