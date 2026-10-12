@@ -188,7 +188,7 @@ func New(deps Deps) http.Handler {
 	h.registerPrivate(mux)
 	h.registerAuth(mux)
 	h.registerPublic(mux)
-	return csrf(mux, deps.AdminAPIKey, deps.BaseURL)
+	return withRouteHitRecorder(csrf(mux, deps.AdminAPIKey, deps.BaseURL))
 }
 
 func (h *handler) registerPrivate(mux *http.ServeMux) {

@@ -1,0 +1,11 @@
+openapi: 3.1.0
+paths:
+  /api/example/v1/widgets:
+    post:
+      operationId: createWidget
+  /api/example/v1/widgets/{widget_id}:
+    get:
+      operationId: getWidget
+  /api/example/v1/orphans:
+    get:
+      operationId: orphanedOperation

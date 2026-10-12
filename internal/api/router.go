@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
 	"supermetry/internal/replay"
+	"supermetry/internal/routehits"
 	"supermetry/internal/session"
 	"supermetry/internal/sites"
 	"supermetry/internal/tracker"
@@ -221,7 +222,7 @@ func NewRouter(deps Deps) http.Handler {
 	})
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
-	return requestID(recoverProblems(mux))
+	return requestID(recoverProblems(routehits.Wrap(mux)))
 }
 
 func trackerCORS(next http.Handler) http.Handler {
