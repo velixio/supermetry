@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import {
   Outlet,
   RouterProvider,
@@ -30,12 +31,17 @@ const me: Me = {
   memberships: [membership],
 }
 
-function renderSidebar(initialEntry = '/app/acme/docs-public/realtime') {
+function renderSidebar(
+  initialEntry = '/app/acme/docs-public/realtime',
+  options: { membership?: Membership; me?: Me; defaultOpen?: boolean } = {},
+) {
+  const sidebarMembership = options.membership ?? membership
+  const sidebarMe = options.me ?? { ...me, memberships: [sidebarMembership] }
   const rootRoute = createRootRoute({
     component: () => (
       <TooltipProvider>
-        <SidebarProvider>
-          <SupermetrySidebar me={me} membership={membership} requestedSite="docs-public" />
+        <SidebarProvider defaultOpen={options.defaultOpen ?? true}>
+          <SupermetrySidebar me={sidebarMe} membership={sidebarMembership} requestedSite="docs-public" />
           <Outlet />
         </SidebarProvider>
       </TooltipProvider>
@@ -147,5 +153,39 @@ describe('SPA navigation', () => {
     )
     expect(document.querySelectorAll('[data-slot="skeleton"]')).not.toHaveLength(0)
   })
+
+  it.each([
+    ['owner', ['Site settings', 'Organization settings']],
+    ['admin', ['Site settings', 'Organization settings']],
+    ['editor', ['Site settings', 'Organization settings']],
+    ['viewer', ['Organization settings']],
+  ] as const)('lists settings for a %s in a group after Manage', async (role, labels) => {
+    renderSidebar('/app/acme/docs-public', { membership: { ...membership, role } })
+    const settings = await screen.findByRole('navigation', { name: 'Settings' })
+    expect(Array.from(settings.querySelectorAll('a')).map((link) => link.textContent?.trim())).toEqual(labels)
+    expect(within(settings).getByRole('link', { name: 'Organization settings' })).toHaveAttribute('href', '/app/acme/settings')
+    if (role !== 'viewer') {
+      expect(within(settings).getByRole('link', { name: 'Site settings' })).toHaveAttribute('href', '/app/acme/docs-public/settings/general')
+    }
+    const manage = screen.getByRole('navigation', { name: 'Manage' })
+    expect(manage.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    for (const link of settings.querySelectorAll('a')) expect(link).toHaveClass('h-11')
+  })
+
+  it('marks site settings as the current page on a settings route', async () => {
+    renderSidebar('/app/acme/docs-public/settings')
+    const settings = await screen.findByRole('navigation', { name: 'Settings' })
+    expect(within(settings).getByRole('link', { name: 'Site settings' })).toHaveAttribute('aria-current', 'page')
+    expect(within(settings).getByRole('link', { name: 'Organization settings' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('opens the account menu from the sidebar footer, with instance administration for admins', async () => {
+    renderSidebar('/app/acme/docs-public', { me: { ...me, user: { ...me.user, instance_admin: true } } })
+    const account = await screen.findByRole('button', { name: 'Account' })
+    expect(account.closest('[data-slot="sidebar-footer"]')).not.toBeNull()
+    fireEvent.keyDown(account, { key: 'ArrowDown' })
+    expect(await screen.findByRole('menuitem', { name: 'Account settings' })).toHaveAttribute('href', '/app/account/profile')
+    expect(screen.getByRole('menuitem', { name: 'Instance administration' })).toHaveAttribute('href', '/app/admin/users')
+    expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument()
+  })
 })
-import '@testing-library/jest-dom/vitest'

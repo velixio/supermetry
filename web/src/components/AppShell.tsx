@@ -29,7 +29,6 @@ import { en } from '@/messages/en'
 import type { Me, Membership } from '@/lib/me'
 
 import { matchesSite, SupermetrySidebar } from './Sidebar'
-import { HeaderMenus } from './HeaderMenus'
 import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
@@ -163,7 +162,6 @@ export function AppShell({
               >
                 {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
               </Button>
-              <HeaderMenus me={me} membership={membership} site={scopedSite} />
             </div>
           </header>
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>

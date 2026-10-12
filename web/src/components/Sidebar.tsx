@@ -3,6 +3,7 @@ import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 import { hasCapability, type Authorization } from '@/lib/authorization'
 import {
   ActivityIcon,
+  Building2Icon,
   ChartNoAxesCombinedIcon,
   CircleDollarSignIcon,
   CircleGaugeIcon,
@@ -16,6 +17,7 @@ import {
   PlusIcon,
   RouteIcon,
   Rows3Icon,
+  SettingsIcon,
   TablePropertiesIcon,
   UserRoundIcon,
   UsersRoundIcon,
@@ -38,6 +40,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -52,6 +55,7 @@ import type { Me, Membership, Site } from '@/lib/me'
 import { en } from '@/messages/en'
 import { useCreateDemo } from '@/features/demo/useDemo'
 import { ui } from '@/messages/ui'
+import { AccountMenu } from './HeaderMenus'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
@@ -130,6 +134,20 @@ export { matchesSite, siteSlug }
 
 export function activeSite(membership: Membership, requested?: string): Site | undefined {
   return membership.sites.find((site) => matchesSite(site, requested)) ?? membership.sites[0]
+}
+
+export type SettingsDestination = 'site' | 'org'
+
+/** Settings links at the bottom of the sidebar. Site settings need a site and a role above viewer. */
+export function settingsDestinations(role: Role, site: Site | undefined): SettingsDestination[] {
+  return site && role !== 'viewer' ? ['site', 'org'] : ['org']
+}
+
+export function settingsIsActive(destination: SettingsDestination, pathname: string, org: string, site?: Site): boolean {
+  const [, app, pathOrg, scope, section] = pathname.split('/')
+  if (app !== 'app' || pathOrg !== org) return false
+  if (destination === 'org') return scope === 'settings'
+  return site !== undefined && matchesSite(site, scope) && section === 'settings'
 }
 
 function navigationLink(
@@ -219,7 +237,7 @@ export function SupermetrySidebar({
   const site = activeSite(membership, requestedSite)
   const currentSite = site ? siteSlug(site) : ''
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const { setOpenMobile } = useSidebar()
+  const { setOpenMobile, isMobile } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
@@ -354,7 +372,64 @@ export function SupermetrySidebar({
             </SidebarGroup>
           )
         })}
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupLabel asChild><h2 id="sidebar-settings-heading">{ui.menus.settings}</h2></SidebarGroupLabel>
+          <SidebarGroupContent>
+            <nav aria-labelledby="sidebar-settings-heading">
+              <SidebarMenu>
+                {settingsDestinations(membership.role, site).map((destination) => {
+                  const active = settingsIsActive(destination, pathname, membership.org.slug, site)
+                  const label = destination === 'site' ? ui.menus.siteSettings : ui.menus.organizationSettings
+                  return (
+                    <SidebarMenuItem key={destination}>
+                      <SidebarMenuButton asChild className="h-11" isActive={active} tooltip={label}>
+                        {destination === 'site' && site ? (
+                          <Link
+                            aria-current={active ? 'page' : undefined}
+                            onClick={closeMobile}
+                            params={{ org: membership.org.slug, site: siteSlug(site) }}
+                            to="/app/$org/$site/settings/general"
+                          >
+                            <SettingsIcon />
+                            <span>{label}</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            aria-current={active ? 'page' : undefined}
+                            onClick={closeMobile}
+                            params={{ org: membership.org.slug }}
+                            to="/app/$org/settings"
+                          >
+                            <Building2Icon />
+                            <span>{label}</span>
+                          </Link>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </nav>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <AccountMenu
+              align="end"
+              me={me}
+              side={isMobile ? 'top' : 'right'}
+              trigger={
+                <SidebarMenuButton className="h-11" tooltip={ui.menus.account}>
+                  <UserRoundIcon aria-hidden="true" />
+                  <span>{ui.menus.account}</span>
+                </SidebarMenuButton>
+              }
+            />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   )
 }

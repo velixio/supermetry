@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Site } from '@/lib/me'
-import { visibleNavigation } from './Sidebar'
+import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
+import { settingsDestinations, settingsIsActive, visibleNavigation } from './Sidebar'
 
 describe('primary sidebar navigation', () => {
   it('keeps settings out of analytics navigation for every role and site state', () => {
@@ -24,4 +25,27 @@ describe('primary sidebar navigation', () => {
     expect(suffixes).not.toContain('/map')
   })
 
+  it('offers site settings to every role but viewers, and organisation settings to all', () => {
+    const site: Site = { id: 7, name: 'Docs', slug: 'docs' }
+    for (const role of ['owner', 'admin', 'editor'] as const) expect(settingsDestinations(role, site)).toEqual(['site', 'org'])
+    expect(settingsDestinations('viewer', site)).toEqual(['org'])
+    expect(settingsDestinations('owner', undefined)).toEqual(['org'])
+  })
+
+  it('marks the settings destination active for its own section, by any site alias', () => {
+    const site: Site = { id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public' }
+    expect(settingsIsActive('org', '/app/acme/settings/members', 'acme', site)).toBe(true)
+    expect(settingsIsActive('org', '/app/acme/docs/settings/general', 'acme', site)).toBe(false)
+    expect(settingsIsActive('org', '/app/other/settings', 'acme', site)).toBe(false)
+    for (const alias of ['docs', 'docs-public', '7']) {
+      expect(settingsIsActive('site', `/app/acme/${alias}/settings/general`, 'acme', site)).toBe(true)
+    }
+    expect(settingsIsActive('site', '/app/acme/docs', 'acme', site)).toBe(false)
+    expect(settingsIsActive('site', '/app/acme/settings', 'acme', site)).toBe(false)
+    expect(settingsIsActive('site', '/app/acme/docs/settings/general', 'acme', undefined)).toBe(false)
+  })
+
+  it('links site settings to a page that anonymous tracking does not block', () => {
+    expect(anonymousRouteRestricted('/app/acme/docs/settings/general')).toBe(false)
+  })
 })

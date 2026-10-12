@@ -180,8 +180,18 @@ describe('AppShell live visitor badge', () => {
     renderShell(`/app/acme/${alias}/settings/general`)
     expect(await screen.findByRole('link', { name: /12 live/ })).toHaveAttribute('href', `/app/acme/${alias}/realtime`)
     expect(useLiveSummary).toHaveBeenCalledWith(7)
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Settings' }), { key: 'ArrowDown' })
-    expect(await screen.findByRole('menuitem', { name: /Site settings\s*Docs/ })).toHaveAttribute('href', '/app/acme/docs/settings/general')
+    const settings = screen.getByRole('navigation', { name: 'Settings' })
+    expect(within(settings).getByRole('link', { name: 'Site settings' })).toHaveAttribute('href', '/app/acme/docs/settings/general')
+  })
+
+  it('keeps settings and account out of the header and offers them in the sidebar', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const header = await screen.findByRole('banner', { name: 'Application header' })
+    expect(within(header).queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(within(header).queryByRole('button', { name: 'Account' })).not.toBeInTheDocument()
+    const sidebar = screen.getByRole('complementary', { name: 'Application sidebar' })
+    expect(within(sidebar).getByRole('navigation', { name: 'Settings' })).toBeInTheDocument()
+    expect(within(sidebar).getByRole('button', { name: 'Account' })).toBeInTheDocument()
   })
 
   it('uses the same live label for one visitor', async () => {
