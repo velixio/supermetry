@@ -6,7 +6,9 @@ const screenshotDir = 'e2e/screenshots/polish'
 const range = '?period=custom&from=2026-09-28&to=2026-09-30'
 
 async function noHorizontalOverflow(page: import('@playwright/test').Page) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth))
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), { message: 'page must not scroll horizontally' })
+    .toBeLessThanOrEqual(0)
 }
 
 test('polished dashboard controls, hierarchy, redirect, and responsive layouts', async ({ page, owner }) => {
