@@ -38,6 +38,8 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -127,7 +129,25 @@ type Share = {
   password_protected: boolean;
   expires_at?: string | null;
   revoked_at?: string;
+  config?: ShareConfig;
 };
+type ShareSection = "kpis" | "chart" | "pages" | "sources" | "locations" | "devices" | "where" | "weekly_rhythm" | "goals";
+type ShareConfig = {
+  sections: ShareSection[];
+  filters: { dimension: string; operator: "is"; values: string[] }[];
+  segment_id?: number;
+  date: { mode: "rolling" | "fixed"; days?: number; from?: string; to?: string; max_days: number };
+  theme: "light" | "dark" | "system";
+  embed: { enabled: boolean; allowed_origins: string[]; confirm_wildcard: boolean };
+};
+type SavedSegment = { id: number; name: string };
+const shareSectionOptions: { value: ShareSection; label: string }[] = [
+  { value: "kpis", label: "KPIs" }, { value: "chart", label: "Chart" },
+  { value: "pages", label: "Pages" }, { value: "sources", label: "Sources" },
+  { value: "locations", label: "Locations" }, { value: "devices", label: "Devices" },
+  { value: "where", label: "Where" }, { value: "weekly_rhythm", label: "Weekly rhythm" },
+  { value: "goals", label: "Goals" },
+];
 type Report = { id: number; cadence: string; last_sent_at?: string };
 type AuditEntry = {
   id: number;
@@ -428,6 +448,20 @@ export function SharesPage({
   const queryClient = useQueryClient();
   const [createdLink, setCreatedLink] = useState("");
   const [expiresInDays, setExpiresInDays] = useState<number | null>(90);
+  const [sections, setSections] = useState<ShareSection[]>(
+    shareSectionOptions.map(({ value }) => value),
+  );
+  const [theme, setTheme] = useState<ShareConfig["theme"]>("system");
+  const [dateMode, setDateMode] = useState<"rolling" | "fixed">("rolling");
+  const [rollingDays, setRollingDays] = useState(30);
+  const [maxDays, setMaxDays] = useState(30);
+  const [fixedFrom, setFixedFrom] = useState("");
+  const [fixedTo, setFixedTo] = useState("");
+  const [country, setCountry] = useState("");
+  const [segmentId, setSegmentId] = useState<number | null>(null);
+  const [embedding, setEmbedding] = useState(false);
+  const [allowedOrigins, setAllowedOrigins] = useState("");
+  const [confirmWildcard, setConfirmWildcard] = useState(false);
   const key = ["shares", siteId];
   const shares = useQuery({
     queryKey: key,
@@ -438,12 +472,21 @@ export function SharesPage({
         { orgId },
       ),
   });
+  const segments = useQuery({
+    queryKey: ["segments", siteId, "share-composer"],
+    queryFn: () =>
+      privateRequest<SavedSegment[]>(
+        "GET",
+        `/api/private/sites/${siteId}/segments`,
+        { orgId },
+      ),
+  });
   const create = useMutation({
-    mutationFn: ({ password, expiresInDays }: { password: string; expiresInDays: number | null }) =>
+    mutationFn: ({ password, expiresInDays, config }: { password: string; expiresInDays: number | null; config: ShareConfig }) =>
       privateRequest<{ slug: string }>(
         "POST",
         `/api/private/sites/${siteId}/shares`,
-        { orgId, body: { password, expires_in_days: expiresInDays } },
+        { orgId, body: { password, expires_in_days: expiresInDays, config } },
       ),
     onSuccess: (data) => {
       setCreatedLink(`${window.location.origin}/share/${data.slug}`);
@@ -468,22 +511,127 @@ export function SharesPage({
       ),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
   });
+  const origins = allowedOrigins
+    .split(/[\n,]/)
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const canCreate = sections.length > 0 && (!embedding || origins.length > 0 || confirmWildcard);
   return (
     <Page
       title="Shared dashboards"
       description="Create revocable read-only links, with an optional password."
     >
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.75fr)]">
       <Surface>
         <form
           onSubmit={(event) => {
             event.preventDefault();
+            const date = dateMode === "rolling"
+              ? { mode: "rolling" as const, days: rollingDays, max_days: maxDays }
+              : { mode: "fixed" as const, from: fixedFrom, to: fixedTo, max_days: maxDays };
             create.mutate({
               password: String(new FormData(event.currentTarget).get("password") ?? ""),
               expiresInDays,
+              config: {
+                sections,
+                filters: segmentId === null && country.trim()
+                  ? [{ dimension: "country", operator: "is", values: [country.trim().toUpperCase()] }]
+                  : [],
+                ...(segmentId === null ? {} : { segment_id: segmentId }),
+                date,
+                theme,
+                embed: { enabled: embedding, allowed_origins: origins, confirm_wildcard: confirmWildcard },
+              },
             });
           }}
         >
 		  <FieldGroup>
+			<FieldSet>
+			  <FieldLegend>{en.shares.content}</FieldLegend>
+			  <FieldDescription>Choose exactly what visitors can query and see.</FieldDescription>
+			  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+				{shareSectionOptions.map((section) => (
+				  <label className="flex min-h-11 items-center gap-2 rounded-md border px-3 text-sm" key={section.value}>
+					<Checkbox
+					  checked={sections.includes(section.value)}
+					  onCheckedChange={(checked) => setSections((current) => checked
+						? [...current, section.value]
+						: current.filter((value) => value !== section.value))}
+					/>
+					{section.label}
+				  </label>
+				))}
+			  </div>
+			</FieldSet>
+			<div className="grid gap-4 sm:grid-cols-2">
+			  <Field>
+				<FieldLabel htmlFor="share-theme">Theme</FieldLabel>
+				<Select value={theme} onValueChange={(value) => setTheme(value as ShareConfig["theme"])}>
+				  <SelectTrigger id="share-theme" className="h-11"><SelectValue /></SelectTrigger>
+				  <SelectContent><SelectGroup>
+					<SelectItem value="system">System</SelectItem>
+					<SelectItem value="light">Light</SelectItem>
+					<SelectItem value="dark">Dark</SelectItem>
+				  </SelectGroup></SelectContent>
+				</Select>
+			  </Field>
+			  <Field>
+				<FieldLabel htmlFor="share-date-mode">Date range</FieldLabel>
+				<Select value={dateMode} onValueChange={(value) => setDateMode(value as "rolling" | "fixed")}>
+				  <SelectTrigger id="share-date-mode" className="h-11"><SelectValue /></SelectTrigger>
+				  <SelectContent><SelectGroup>
+					<SelectItem value="rolling">Rolling</SelectItem>
+					<SelectItem value="fixed">Fixed</SelectItem>
+				  </SelectGroup></SelectContent>
+				</Select>
+			  </Field>
+			</div>
+			{dateMode === "rolling" ? (
+			  <Field>
+				<FieldLabel htmlFor="share-days">Rolling days</FieldLabel>
+				<Input id="share-days" className="h-11" type="number" min={1} max={366} value={rollingDays} onChange={(event) => setRollingDays(Number(event.target.value))} />
+			  </Field>
+			) : (
+			  <div className="grid gap-4 sm:grid-cols-2">
+				<Field><FieldLabel htmlFor="share-from">From</FieldLabel><Input id="share-from" className="h-11" type="date" required value={fixedFrom} onChange={(event) => setFixedFrom(event.target.value)} /></Field>
+				<Field><FieldLabel htmlFor="share-to">To</FieldLabel><Input id="share-to" className="h-11" type="date" required value={fixedTo} onChange={(event) => setFixedTo(event.target.value)} /></Field>
+			  </div>
+			)}
+			<Field>
+			  <FieldLabel htmlFor="share-max-days">Maximum range (days)</FieldLabel>
+			  <Input id="share-max-days" className="h-11" type="number" min={1} max={366} value={maxDays} onChange={(event) => setMaxDays(Number(event.target.value))} />
+			  <FieldDescription>The server rejects any range wider than this limit.</FieldDescription>
+			</Field>
+			<Field>
+			  <FieldLabel htmlFor="share-country">Locked country</FieldLabel>
+			  <Input id="share-country" className="h-11" maxLength={2} disabled={segmentId !== null} placeholder="Optional, for example IN" value={country} onChange={(event) => setCountry(event.target.value)} />
+			  <FieldDescription>Visitors cannot remove or replace this filter.</FieldDescription>
+			</Field>
+			<Field>
+			  <FieldLabel htmlFor="share-segment">Saved segment</FieldLabel>
+			  <Select value={segmentId === null ? "none" : String(segmentId)} onValueChange={(value) => { setSegmentId(value === "none" ? null : Number(value)); if (value !== "none") setCountry(""); }}>
+				<SelectTrigger id="share-segment" className="h-11"><SelectValue /></SelectTrigger>
+				<SelectContent><SelectGroup>
+				  <SelectItem value="none">No saved segment</SelectItem>
+				  {(Array.isArray(segments.data) ? segments.data : []).map((segment) => <SelectItem value={String(segment.id)} key={segment.id}>{segment.name}</SelectItem>)}
+				</SelectGroup></SelectContent>
+			  </Select>
+			  <FieldDescription>The segment is snapshotted when the link is created.</FieldDescription>
+			</Field>
+			<Field className="rounded-lg border p-4">
+			  <div className="flex min-h-11 items-center justify-between gap-4">
+				<div><FieldLabel htmlFor="share-embed">Allow embedding</FieldLabel><FieldDescription>Opt in to framing this dashboard.</FieldDescription></div>
+				<Switch id="share-embed" aria-label="Allow embedding" checked={embedding} onCheckedChange={setEmbedding} />
+			  </div>
+			  {embedding ? (
+				<div className="mt-3 flex flex-col gap-3">
+				  <FieldLabel htmlFor="share-origins">Allowed origins</FieldLabel>
+				  <Textarea id="share-origins" placeholder="https://status.example.com" value={allowedOrigins} onChange={(event) => setAllowedOrigins(event.target.value)} />
+				  <label className="flex items-start gap-2 text-sm"><Checkbox checked={confirmWildcard} onCheckedChange={(checked) => setConfirmWildcard(checked === true)} />Allow embedding on any origin</label>
+				  {origins.length === 0 && confirmWildcard ? <Alert><AlertTitle>Public embedding</AlertTitle><AlertDescription>{en.shares.wildcardWarning}</AlertDescription></Alert> : null}
+				</div>
+			  ) : null}
+			</Field>
 			<Field>
 			  <FieldLabel htmlFor="share-password">Optional share password</FieldLabel>
 			  <Input id="share-password" name="password" type="password" minLength={6} placeholder="Optional password" />
@@ -509,7 +657,7 @@ export function SharesPage({
 			    </SelectContent>
 			  </Select>
 			</Field>
-			<Button type="submit" disabled={create.isPending}>Create link</Button>
+			<Button type="submit" disabled={create.isPending || !canCreate}>Create link</Button>
 			<Message error={create.error} />
 		  </FieldGroup>
         </form>
@@ -522,6 +670,14 @@ export function SharesPage({
             >
               Copy link
             </Button>
+            {embedding ? (
+              <Button
+                variant="outline"
+                onClick={() => void copyText(`<iframe src="${createdLink}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:640px;border:0" title="Shared analytics dashboard"></iframe>`)}
+              >
+                Copy embed code
+              </Button>
+            ) : null}
           </div>
         ) : null}
         <ul className="flex flex-col gap-2">
@@ -535,6 +691,7 @@ export function SharesPage({
                   Link {share.id}
                   {share.password_protected ? " · Password protected" : ""}
                 </span>
+                {share.config ? <Badge variant="outline">{share.config.sections.length} sections · {share.config.theme}</Badge> : null}
                 {share.expires_at ? (
                   new Date(share.expires_at).getTime() <= Date.now() ? (
                     <Badge variant="destructive">Expired</Badge>
@@ -569,6 +726,16 @@ export function SharesPage({
           ))}
         </ul>
       </Surface>
+      <aside className="h-fit rounded-xl border bg-muted/30 p-5 lg:sticky lg:top-6">
+        <h2 className="text-lg font-semibold">{en.shares.preview}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Read-only · {dateMode === "rolling" ? `Last ${rollingDays} days` : `${fixedFrom || "From"} to ${fixedTo || "To"}`}</p>
+        <div className="mt-4 flex flex-wrap gap-2"><Badge variant="secondary">{theme} theme</Badge>{country ? <Badge variant="secondary">Country: {country.toUpperCase()}</Badge> : null}{segmentId !== null ? <Badge variant="secondary">Saved segment</Badge> : null}{embedding ? <Badge variant="secondary">Embeddable</Badge> : null}</div>
+        <ul className="mt-5 grid gap-2">
+          {shareSectionOptions.filter(({ value }) => sections.includes(value)).map(({ value, label }) => <li className="rounded-md border bg-background px-3 py-2 text-sm" key={value}>{label}</li>)}
+        </ul>
+        {sections.length === 0 ? <p className="mt-4 text-sm text-destructive">Select at least one section.</p> : null}
+      </aside>
+      </div>
     </Page>
   );
 }

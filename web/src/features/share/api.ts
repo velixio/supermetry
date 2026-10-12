@@ -7,8 +7,22 @@ export type Problem = {
   detail?: string
 }
 
-export type ShareSummary = {
+export const shareSections = ['kpis', 'chart', 'pages', 'sources', 'locations', 'devices', 'where', 'weekly_rhythm', 'goals'] as const
+export type ShareSection = (typeof shareSections)[number]
+
+export type ShareQueryResult = {
   totals: Record<string, number>
+  columns: string[]
+  rows: Record<string, unknown>[]
+}
+
+export type ShareSummary = {
+  sections: ShareSection[]
+  theme: 'light' | 'dark' | 'system'
+  date_label: string
+  transparent_background: boolean
+  read_only: boolean
+  data: ShareQueryResult
 }
 
 export type CreateSiteInput = {
@@ -79,11 +93,19 @@ function sharePath(slug: string, suffix: string): string {
   return `/api/private/share/${encodeURIComponent(slug)}/${suffix}`
 }
 
-function isSummary(value: unknown): value is ShareSummary {
-  if (!isObject(value) || !isObject(value.totals)) return false
-  return Object.values(value.totals).every(
+function isQueryResult(value: unknown): value is ShareQueryResult {
+  if (!isObject(value) || !isObject(value.totals) || !Array.isArray(value.columns) || !Array.isArray(value.rows)) return false
+  return value.columns.every((column) => typeof column === 'string') && value.rows.every(isObject) && Object.values(value.totals).every(
     (item) => typeof item === 'number' && Number.isFinite(item),
   )
+}
+
+function isSummary(value: unknown): value is ShareSummary {
+  return isObject(value) && Array.isArray(value.sections) &&
+    value.sections.every((section) => typeof section === 'string' && (shareSections as readonly string[]).includes(section)) &&
+    (value.theme === 'light' || value.theme === 'dark' || value.theme === 'system') &&
+    typeof value.date_label === 'string' && typeof value.transparent_background === 'boolean' &&
+    typeof value.read_only === 'boolean' && isQueryResult(value.data)
 }
 
 function isCreatedSite(value: unknown): value is CreatedSite {
@@ -110,9 +132,7 @@ export function createShareApi(fetcher?: typeof globalThis.fetch) {
 
   return {
     async loadSummary(slug: string): Promise<ShareSummary> {
-      const result = await taskApi.GET(sharePath(slug, 'stats/summary'), {
-        params: { query: { period: '7d' } },
-      })
+      const result = await taskApi.GET(sharePath(slug, 'stats/summary'))
       if (result.error || !result.response.ok) {
         throw problemFrom(result.error, result.response)
       }
@@ -122,6 +142,17 @@ export function createShareApi(fetcher?: typeof globalThis.fetch) {
           'The shared dashboard returned an invalid response.',
           result.response.status,
         )
+      }
+      return result.data
+    },
+
+    async loadSection(slug: string, section: ShareSection): Promise<ShareQueryResult> {
+      const result = await taskApi.POST(sharePath(slug, 'query'), { body: { section } })
+      if (result.error || !result.response.ok) {
+        throw problemFrom(result.error, result.response)
+      }
+      if (!isQueryResult(result.data)) {
+        throw new ShareProblem('share-invalid-response', 'The shared section returned an invalid response.', result.response.status)
       }
       return result.data
     },
@@ -152,5 +183,6 @@ export function createShareApi(fetcher?: typeof globalThis.fetch) {
 const shareApi = createShareApi()
 
 export const loadShareSummary = shareApi.loadSummary
+export const loadShareSection = shareApi.loadSection
 export const openSharedDashboard = shareApi.open
 export const createFirstSite = shareApi.createSite
