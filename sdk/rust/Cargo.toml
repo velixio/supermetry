@@ -1,0 +1,20 @@
+[package]
+name = "supermetry"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Server-side SDK for Supermetry, self-hosted web analytics"
+readme = "README.md"
+keywords = ["analytics", "supermetry", "tracking", "events"]
+categories = ["web-programming", "api-bindings"]
+rust-version = "1.75"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }

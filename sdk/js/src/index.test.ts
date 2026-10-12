@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { init, type TrackerEvent } from "./index";
+import { getTracker, init, type TrackerEvent } from "./index";
 
 type Listener = () => void;
 
@@ -54,7 +54,11 @@ describe("init", () => {
     expect(() => {
       tracker.pageview();
       tracker.track("Signup", { plan: "pro" });
+      tracker.track("Purchase", { items: 2, gift: false }, { revenue: { amount: "49.90", currency: "EUR" } });
+      tracker.identify("user-1", { plan: "pro" });
       tracker.consent(true);
+      tracker.optIn();
+      tracker.optOut();
     }).not.toThrow();
   });
 
@@ -106,25 +110,39 @@ describe("init", () => {
     expect((window as unknown as { supermetry: { beforeSend: unknown } }).supermetry.beforeSend).toBe(beforeSend);
 
     tracker.pageview({ url: "https://example.com/pricing", props: { plan: "pro" } });
-    tracker.track("Signup", { plan: "pro" });
+    tracker.track("Signup", { plan: "pro", seats: 3, trial: true });
+    tracker.track("Purchase", undefined, { revenue: { amount: 49.9, currency: "USD" } });
+    tracker.identify("user-1", { plan: "pro" });
+    tracker.identify(null);
     tracker.consent(true);
+    tracker.optOut();
+    tracker.optIn();
 
     const calls: unknown[][] = [];
+    const record = (method: string) => (...args: unknown[]) => calls.push([method, ...args]);
     Object.assign((window as unknown as { supermetry: Record<string, unknown> }).supermetry, {
-      pageview: (...args: unknown[]) => calls.push(["pageview", ...args]),
-      track: (...args: unknown[]) => calls.push(["track", ...args]),
-      consent: (...args: unknown[]) => calls.push(["consent", ...args]),
+      pageview: record("pageview"),
+      track: record("track"),
+      identify: record("identify"),
+      consent: record("consent"),
+      optIn: record("optIn"),
+      optOut: record("optOut"),
     });
     script.dispatch("load");
 
     expect(calls).toEqual([
       ["pageview", { url: "https://example.com/pricing", props: { plan: "pro" } }],
-      ["track", "Signup", { plan: "pro" }],
+      ["track", "Signup", { plan: "pro", seats: 3, trial: true }, undefined],
+      ["track", "Purchase", undefined, { revenue: { amount: 49.9, currency: "USD" } }],
+      ["identify", "user-1", { plan: "pro" }],
+      ["identify", null],
       ["consent", true],
+      ["optOut"],
+      ["optIn"],
     ]);
 
     tracker.track("Purchase");
-    expect(calls.at(-1)).toEqual(["track", "Purchase", undefined]);
+    expect(calls.at(-1)).toEqual(["track", "Purchase", undefined, undefined]);
   });
 
   test("queues calls made before the tracker creates window.supermetry", () => {
@@ -140,7 +158,61 @@ describe("init", () => {
     };
     script.dispatch("load");
 
-    expect(calls).toEqual([["Queued", undefined]]);
+    expect(calls).toEqual([["Queued", undefined, undefined]]);
+  });
+
+  test("queues calls made before init and returns the shared tracker", () => {
+    const { script } = installBrowser();
+    getTracker().identify("user-1");
+
+    const tracker = init({ site: "site-id", src: "/script.js" });
+    expect(tracker).toBe(getTracker());
+
+    const calls: unknown[][] = [];
+    (window as unknown as { supermetry: unknown }).supermetry = {
+      track: () => {},
+      identify: (...args: unknown[]) => calls.push(args),
+    };
+    script.dispatch("load");
+
+    expect(calls).toEqual([["user-1"]]);
+  });
+
+  test("waits for the tracker API when the loaded script swaps in the full build", async () => {
+    const { script } = installBrowser();
+    const tracker = init({ site: "site-id", src: "/js/script.js" });
+    tracker.track("Late");
+    script.dispatch("load");
+
+    const calls: unknown[][] = [];
+    (window as unknown as { supermetry: unknown }).supermetry = {
+      track: (...args: unknown[]) => calls.push(args),
+    };
+    await Bun.sleep(80);
+
+    expect(calls).toEqual([["Late", undefined, undefined]]);
+  });
+
+  test("derives script and endpoint from host", () => {
+    const { script } = installBrowser();
+
+    init({ site: "site-id", host: "https://analytics.example.com/", manual: true });
+
+    expect(script.src).toBe("https://analytics.example.com/js/script.full.js");
+    expect(script.attributes.get("data-api")).toBe("https://analytics.example.com/api/public/v1/events");
+  });
+
+  test("uses first-party paths for an empty host", () => {
+    const { script } = installBrowser();
+
+    init({ site: "site-id", host: "", profiles: false });
+
+    expect(script.src).toBe("/js/script.js");
+    expect(Object.fromEntries(script.attributes)).toEqual({
+      "data-site": "site-id",
+      "data-api": "/api/public/v1/events",
+      "data-profiles": "false",
+    });
   });
 
   test("omits attributes for omitted options", () => {
