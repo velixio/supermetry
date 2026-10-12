@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
+import { apiProblem } from '@/lib/apiProblem'
 
 import type { ProfileResponse, ProfilesResponse } from './types'
 
@@ -21,8 +22,7 @@ async function profilesRequest<T>(
     signal,
   })
   if (!result.response.ok) {
-    const problem = result.error as { detail?: string } | undefined
-    throw new Error(problem?.detail ?? `Request failed (${result.response.status})`)
+    throw apiProblem(result.response, result.error)
   }
   return result.data as T
 }
