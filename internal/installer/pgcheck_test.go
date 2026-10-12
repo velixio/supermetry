@@ -3,10 +3,13 @@ package installer
 import (
 	"context"
 	"errors"
+	"net"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func TestCheckPostgresReasons(t *testing.T) {
@@ -71,6 +74,14 @@ func TestCheckPostgresReasons(t *testing.T) {
 	}
 }
 
+func TestClassifyCheckErrorExplainsDNSFailure(t *testing.T) {
+	t.Parallel()
+	err := classifyCheckError(&net.DNSError{Name: "db.invalid", IsNotFound: true})
+	if got := err.Error(); !strings.Contains(got, "does not resolve") || !strings.Contains(got, "--db-host") {
+		t.Fatalf("error = %q", got)
+	}
+}
+
 func TestCheckPostgresReturnsVersion(t *testing.T) {
 	dsn := os.Getenv("SUPERMETRY_TEST_DSN")
 	if dsn == "" {
@@ -82,5 +93,34 @@ func TestCheckPostgresReturnsVersion(t *testing.T) {
 	}
 	if version <= 0 {
 		t.Fatalf("version = %d, want positive server_version_num", version)
+	}
+}
+
+func TestCheckAdminExistsMatchesDatabase(t *testing.T) {
+	dsn := os.Getenv("SUPERMETRY_TEST_DSN")
+	if dsn == "" {
+		t.Skip("SUPERMETRY_TEST_DSN is not set")
+	}
+	db, err := pgx.Connect(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close(context.Background())
+	var want bool
+	var table *string
+	if err := db.QueryRow(context.Background(), "select to_regclass('public.users')::text").Scan(&table); err != nil {
+		t.Fatal(err)
+	}
+	if table != nil {
+		if err := db.QueryRow(context.Background(), "select exists(select 1 from users where is_admin limit 1)").Scan(&want); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := CheckAdminExists(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("CheckAdminExists() = %t, want %t", got, want)
 	}
 }

@@ -2,10 +2,23 @@ package installer
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"strings"
 	"testing"
 )
+
+type interruptReader struct{}
+
+func (interruptReader) Read([]byte) (int, error) { return 0, context.Canceled }
+
+func TestPrompterCtrlCStopsPrompt(t *testing.T) {
+	t.Parallel()
+	_, err := NewPrompter(interruptReader{}, &bytes.Buffer{}).Ask("Public URL", "", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Ask() error = %v, want context.Canceled", err)
+	}
+}
 
 func TestPrompterAskUsesEditableDefault(t *testing.T) {
 	t.Parallel()
