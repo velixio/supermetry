@@ -203,22 +203,26 @@ INSERT INTO memberships(org_id,user_id,role,site_ids) SELECT id,:member,'viewer'
 INSERT INTO profiles(site_id,external_id,first_seen_at,last_seen_at) VALUES (:site,'Acme-only-profile',now(),now());`,
     stdio: ['pipe', 'pipe', 'pipe'],
   })
-  const bootstrap = page.waitForResponse((response) =>
-    new URL(response.url()).pathname === '/api/private/me',
-  )
+  // The signed-out login page legitimately gets a 401 from /me before the form is submitted;
+  // what must hold is that every request after signing in succeeds without an organization header.
+  const meStatuses: number[] = []
+  page.on('response', (response) => {
+    if (new URL(response.url()).pathname === '/api/private/me') meStatuses.push(response.status())
+  })
   await login(page, email)
-  expect((await bootstrap).status(), 'multi-organization session must bootstrap without an organization header').toBe(200)
+  await expect.poll(() => meStatuses.at(-1), { message: 'multi-organization session must bootstrap without an organization header' }).toBe(200)
+  expect(meStatuses.filter((status) => status !== 200 && status !== 401)).toEqual([])
   await page.getByRole('link', { name: 'Profiles', exact: true }).click()
   await expect(page.getByText('Acme-only-profile', { exact: true })).toBeVisible()
   const reads = recordSensitiveReads(page)
-  await page.getByRole('button', { name: 'Acme', exact: true }).click()
+  await page.getByRole('button', { name: /Acme$/ }).click()
   await page.getByRole('menuitem', { name: 'Restricted organization', exact: true }).click()
   await expect(page).toHaveURL('/app/restricted-org/settings')
   await expect(page.getByText('Acme-only-profile', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Profiles', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Export CSV', exact: true })).toHaveCount(0)
   expect(reads).toEqual([])
-  await page.getByRole('button', { name: 'Restricted organization', exact: true }).click()
+  await page.getByRole('button', { name: /Restricted organization$/ }).click()
   await page.getByRole('menuitem', { name: 'Acme', exact: true }).click()
   await page.getByRole('link', { name: 'Profiles', exact: true }).click()
   await expect(page.getByText('Acme-only-profile', { exact: true })).toBeVisible()
