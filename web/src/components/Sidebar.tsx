@@ -45,7 +45,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import type { Me, Membership, Site } from '@/routes/app.$org'
+import type { Me, Membership, Site } from '@/lib/me'
 import { en } from '@/messages/en'
 import { useCreateDemo } from '@/features/demo/useDemo'
 

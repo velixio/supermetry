@@ -27,12 +27,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { Annotation } from '@/features/annotations/types'
+import { autoInterval, type ChartInterval } from '@/lib/chart'
 import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useTimeseries, type StatsQuery } from '../lib/stats'
 import { en } from '../messages/en'
 
-export type ChartInterval = 'hour' | 'day' | 'week' | 'month'
+export { autoInterval, type ChartInterval } from '@/lib/chart'
 
 type ChartMetric = StatsQuery['metrics'][number]
 
@@ -239,14 +240,6 @@ function AnnotationMarkers({
       </div>
     </TooltipProvider>
   )
-}
-
-export function autoInterval(from: string, to: string): ChartInterval {
-  const days = rangeDays(from, to)
-  if (days <= 2) return 'hour'
-  if (days <= 92) return 'day'
-  if (days <= 183) return 'week'
-  return 'month'
 }
 
 export function MainChart({

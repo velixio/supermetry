@@ -24,7 +24,7 @@ import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
-import type { Me, Membership } from '@/routes/app.$org'
+import type { Me, Membership } from '@/lib/me'
 
 import { activeSite, matchesSite, SupermetrySidebar } from './Sidebar'
 import { HeaderMenus } from './HeaderMenus'

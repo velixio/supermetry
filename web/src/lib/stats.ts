@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient, type QueryKey, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query'
+import { queryOptions, useQuery, useQueryClient, type QueryKey, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query'
 
 import { api } from './api'
 import type { components } from './api.gen'
@@ -160,6 +160,12 @@ export function useTimeseries(
   interval: TimeseriesInterval,
   enabled = true,
 ): UseQueryResult<QueryResponse, Problem> {
+  const options = timeseriesQueryOptions(query, interval)
+  const retry = useStatsRetry(options.queryKey)
+  return useQuery<QueryResponse, Problem>({ ...options, enabled, retry })
+}
+
+export function timeseriesQueryOptions(query: StatsQuery, interval: TimeseriesInterval) {
   const params = {
     site_id: query.siteId,
     period: 'custom' as const,
@@ -174,11 +180,9 @@ export function useTimeseries(
   }
   const current = includesToday(query)
   const queryKey = ['stats', query.siteId, 'timeseries', params, ...(query.trackingMode ? [query.trackingMode] : [])]
-  const retry = useStatsRetry(queryKey)
-  return useQuery<QueryResponse, Problem>({
+  return queryOptions<QueryResponse, Problem>({
     queryKey,
-    enabled,
-    retry,
+    retry: (failureCount, error) => !terminalAuthorizationError(error) && failureCount < 1,
     queryFn: async ({ signal }) => {
       const { data, error, response } = await timeseriesApi.GET(
         '/api/private/stats/timeseries',
