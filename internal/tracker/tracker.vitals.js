@@ -12,6 +12,8 @@
         last = entry.startTime;
         cls = Math.max(cls, sum);
         values.cls = "" + Math.round(cls * 1000);
+      } else if (observer.kind == 4) {
+        if (entry.name == "first-contentful-paint") values.fcp = "" + Math.round(entry.startTime);
       } else if (entry.interactionId) values.inp = "" + Math.max(values.inp || 0, Math.round(entry.duration));
     }
   }
@@ -37,7 +39,15 @@
     values = {};
     cls = first = last = sum = 0;
     sent = false;
-    if (!soft) observe("largest-contentful-paint", 1, true);
+    if (!soft) {
+      observe("largest-contentful-paint", 1, true);
+      observe("paint", 4, true);
+      try {
+        var navigation = performance.getEntriesByType("navigation")[0];
+        var ttfb = navigation && navigation.responseStart - navigation.startTime;
+        if (ttfb >= 0) values.ttfb = "" + Math.round(ttfb);
+      } catch (_) {}
+    }
     observe("layout-shift", 2, !soft);
     observe("event", 3, !soft);
   }
