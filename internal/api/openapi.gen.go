@@ -2207,8 +2207,10 @@ type VitalTrendMetric struct {
 // VitalsBreakdown defines model for VitalsBreakdown.
 type VitalsBreakdown struct {
 	Cls   VitalMetric `json:"cls"`
+	Fcp   VitalMetric `json:"fcp"`
 	Inp   VitalMetric `json:"inp"`
 	Lcp   VitalMetric `json:"lcp"`
+	Ttfb  VitalMetric `json:"ttfb"`
 	Value string      `json:"value"`
 }
 
@@ -2217,9 +2219,11 @@ type VitalsDimension string
 
 // VitalsMetrics defines model for VitalsMetrics.
 type VitalsMetrics struct {
-	Cls VitalMetric `json:"cls"`
-	Inp VitalMetric `json:"inp"`
-	Lcp VitalMetric `json:"lcp"`
+	Cls  VitalMetric `json:"cls"`
+	Fcp  VitalMetric `json:"fcp"`
+	Inp  VitalMetric `json:"inp"`
+	Lcp  VitalMetric `json:"lcp"`
+	Ttfb VitalMetric `json:"ttfb"`
 }
 
 // VitalsRequest defines model for VitalsRequest.
@@ -2243,8 +2247,10 @@ type VitalsResponse struct {
 type VitalsTrendPoint struct {
 	Cls  VitalTrendMetric   `json:"cls"`
 	Date openapi_types.Date `json:"date"`
+	Fcp  VitalTrendMetric   `json:"fcp"`
 	Inp  VitalTrendMetric   `json:"inp"`
 	Lcp  VitalTrendMetric   `json:"lcp"`
+	Ttfb VitalTrendMetric   `json:"ttfb"`
 }
 
 // Compare defines model for Compare.

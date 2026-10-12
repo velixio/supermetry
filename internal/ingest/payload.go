@@ -30,7 +30,7 @@ const (
 	maxTraitValueChars = 256
 )
 
-var webVitalCaps = map[string]uint64{"lcp": 60000, "cls": 10000, "inp": 60000}
+var webVitalCaps = map[string]uint64{"lcp": 60000, "cls": 10000, "inp": 60000, "fcp": 60000, "ttfb": 60000}
 
 var errInvalidHeatmap = errors.New("invalid heatmap payload")
 

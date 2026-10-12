@@ -653,7 +653,7 @@ paths:
     post:
       operationId: vitalsQuery
       summary: Query Web Vitals from raw events
-      description: Returns overall and breakdown p75/rating shares plus daily p50, p75, p95, and sample counts for LCP, CLS, and INP. Daily buckets use the site's timezone. The requested range must be inside the raw-data retention window, end no later than the current site-local day, and span at most 366 days.
+      description: Returns overall and breakdown p75/rating shares plus daily p50, p75, p95, and sample counts for LCP, CLS, INP, FCP, and TTFB. Daily buckets use the site's timezone. The requested range must be inside the raw-data retention window, end no later than the current site-local day, and span at most 366 days.
       requestBody:
         required: true
         content:
@@ -3123,7 +3123,7 @@ components:
     VitalsMetrics:
       type: object
       additionalProperties: false
-      required: [lcp, cls, inp]
+      required: [lcp, cls, inp, fcp, ttfb]
       properties:
         lcp:
           $ref: '#/components/schemas/VitalMetric'
@@ -3131,10 +3131,14 @@ components:
           $ref: '#/components/schemas/VitalMetric'
         inp:
           $ref: '#/components/schemas/VitalMetric'
+        fcp:
+          $ref: '#/components/schemas/VitalMetric'
+        ttfb:
+          $ref: '#/components/schemas/VitalMetric'
     VitalsBreakdown:
       type: object
       additionalProperties: false
-      required: [value, lcp, cls, inp]
+      required: [value, lcp, cls, inp, fcp, ttfb]
       properties:
         value:
           type: string
@@ -3143,6 +3147,10 @@ components:
         cls:
           $ref: '#/components/schemas/VitalMetric'
         inp:
+          $ref: '#/components/schemas/VitalMetric'
+        fcp:
+          $ref: '#/components/schemas/VitalMetric'
+        ttfb:
           $ref: '#/components/schemas/VitalMetric'
     VitalTrendMetric:
       type: object
@@ -3165,7 +3173,7 @@ components:
     VitalsTrendPoint:
       type: object
       additionalProperties: false
-      required: [date, lcp, cls, inp]
+      required: [date, lcp, cls, inp, fcp, ttfb]
       properties:
         date:
           type: string
@@ -3175,6 +3183,10 @@ components:
         cls:
           $ref: '#/components/schemas/VitalTrendMetric'
         inp:
+          $ref: '#/components/schemas/VitalTrendMetric'
+        fcp:
+          $ref: '#/components/schemas/VitalTrendMetric'
+        ttfb:
           $ref: '#/components/schemas/VitalTrendMetric'
     VitalsResponse:
       type: object
