@@ -118,6 +118,14 @@ export const ui = {
       screen_size: 'Screen size', goal: 'Goal', event: 'Event', weekday_hour: 'Weekly rhythm',
     } as Record<string, string>,
   },
+  palette: {
+    title: 'Command palette',
+    description: 'Go to a page, switch site or organization, or run an action.',
+    inputLabel: 'Search commands',
+    placeholder: 'Type a page, site or action…',
+    empty: 'No matching commands',
+    groups: { pages: 'Pages', sites: 'Sites', organizations: 'Organizations', actions: 'Actions' },
+  },
 }
 
 registerCatalogue('ui', ui)

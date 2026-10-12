@@ -148,6 +148,14 @@ const messages: MessageTree = {
       screen_size: 'Tamaño de pantalla', goal: 'Objetivo', event: 'Evento', weekday_hour: 'Ritmo semanal',
     },
   },
+  palette: {
+    title: 'Paleta de comandos',
+    description: 'Ve a una página, cambia de sitio u organización o ejecuta una acción.',
+    inputLabel: 'Buscar comandos',
+    placeholder: 'Escribe una página, un sitio o una acción…',
+    empty: 'No hay comandos coincidentes',
+    groups: { pages: 'Páginas', sites: 'Sitios', organizations: 'Organizaciones', actions: 'Acciones' },
+  },
 }
 
 export default messages

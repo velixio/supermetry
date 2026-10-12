@@ -148,6 +148,14 @@ const messages: MessageTree = {
       screen_size: 'Bildschirmgröße', goal: 'Ziel', event: 'Ereignis', weekday_hour: 'Wochenrhythmus',
     },
   },
+  palette: {
+    title: 'Befehlspalette',
+    description: 'Zu einer Seite gehen, Website oder Organisation wechseln oder eine Aktion ausführen.',
+    inputLabel: 'Befehle durchsuchen',
+    placeholder: 'Seite, Website oder Aktion eingeben…',
+    empty: 'Keine passenden Befehle',
+    groups: { pages: 'Seiten', sites: 'Websites', organizations: 'Organisationen', actions: 'Aktionen' },
+  },
 }
 
 export default messages
