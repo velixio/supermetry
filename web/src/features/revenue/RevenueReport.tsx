@@ -4,8 +4,11 @@ import { fmt } from '@/lib/format'
 import type { Compare, Filter } from '@/lib/search'
 import { useStats, type StatsQuery } from '@/lib/stats'
 
+import { RevenueBreakdown } from './RevenueBreakdown'
+
 type RevenueReportProps = {
   siteId: number
+  orgId?: number
   currency: string
   timezone: string
   dateRange: StatsQuery['dateRange']
@@ -164,5 +167,6 @@ export function RevenueReport(props: RevenueReportProps) {
       <Breakdown title="Channel" dimension="channel" query={channel} currency={props.currency} />
       <Breakdown title="Campaign" dimension="utm_campaign" query={campaign} currency={props.currency} />
     </div>
+    {props.orgId ? <RevenueBreakdown siteId={props.siteId} orgId={props.orgId} currency={props.currency} timezone={props.timezone} from={props.dateRange.from} to={props.dateRange.to} /> : null}
   </div>
 }
