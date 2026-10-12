@@ -47,7 +47,7 @@
 | `tools/bench/api/` | per-route benchmark runner, dataset loader, result JSON |
 | `docs/perf/api-baseline-YYYY-MM-DD.md` | committed baseline table (generated) |
 | `docs/perf/api-findings.md` | ranked slow routes with evidence, status per finding |
-| `scripts/api-bench.sh`, `Makefile` target `api-bench` | quick and full runs |
+| `scripts/api-bench.sh`, `Makefile` targets `bench`, `bench-full`, `bench-compare`, `api-inventory` | quick and full runs |
 
 ---
 
@@ -111,7 +111,7 @@ Extra rows from Review Focus: unbounded `limit`/range (2), +05:30 and +05:45 sit
 
 ### Task 4: Benchmark harness
 
-**Files:** Create `tools/bench/api/{main.go,dataset.go,report.go}`, `scripts/api-bench.sh`; Modify `Makefile` (target `api-bench`). Codex reads first: `tools/bench/CONTRACT.md`, `tools/bench/load/NOTES.md`, `tools/gen` usage, and extends `tools/bench/load/loadtest` where it already fits instead of duplicating it.
+**Files:** Create `tools/bench/api/{main.go,dataset.go,report.go}`, `scripts/api-bench.sh`; Modify `Makefile` (targets `bench`, `bench-full`, `bench-compare`, `api-inventory`; `make test` is unchanged and picks up the new tests). Codex reads first: `tools/bench/CONTRACT.md`, `tools/bench/load/NOTES.md`, `tools/gen` usage, and extends `tools/bench/load/loadtest` where it already fits instead of duplicating it.
 
 **Interfaces:**
 - Consumes: `docs/api/inventory.json` (route list), `internal/testapi` seeding style.
@@ -122,7 +122,7 @@ Extra rows from Review Focus: unbounded `limit`/range (2), +05:30 and +05:45 sit
 - [ ] **Step 3: Measure.** Per request set: 1 cold request (after cache reset), then warm steady-state at concurrency 1 and 8 (N configurable); record p50/p95/p99, bytes, status. **DB queries per request and DB time**: add a request-scoped pgx tracer (test/bench build only) that counts queries; this finds N+1 patterns directly.
 - [ ] **Step 4: Profiles.** `--pprof` flag writes CPU and alloc profiles for the run; `--explain` re-runs the worst N queries with `EXPLAIN (ANALYZE, BUFFERS)` into `docs/perf/explain/`.
 - [ ] **Step 5: Output.** Compact outputs only: JSON plus a Markdown table sorted by p95 (worst first). **Claude reads the top 20 rows, not raw logs.**
-- [ ] **Step 6:** `scripts/api-bench.sh quick` (tier S, under ~2 min) and `full`. Acceptance: `make api-bench-quick` runs twice with p95 spread under 20 % per route (stable enough to gate on); output committed as `docs/perf/api-baseline-<date>.md` (generated, no hand edits).
+- [ ] **Step 6:** `make bench` = `scripts/api-bench.sh quick` (tier S, under ~2 min) and `make bench-full` = `full`. Acceptance: `make bench` runs twice with p95 spread under 20 % per route (stable enough to gate on); output committed as `docs/perf/api-baseline-<date>.md` (generated, no hand edits).
 - [ ] **Step 7:** Commit by layer (dataset, runner, tracer, report, scripts).
 
 ### Task 5: Find the slowness (Claude analyses, Codex captures)
@@ -140,12 +140,12 @@ Candidate improvements to **test, not assume** (hypotheses until Task 5 shows ev
 Per finding:
 - [ ] **Step 1:** Failing regression test or benchmark threshold for the route (the budget from Task 5).
 - [ ] **Step 2:** Minimal fix. Any schema/index change = forward-only migration, numbered after the latest, with `EXPLAIN` before/after in the commit body.
-- [ ] **Step 3:** `go test -race` for the touched packages, golden tests unchanged (**metric values must not change**), `make api-bench-quick` shows the target route under budget and no other route regressed more than 10 %.
+- [ ] **Step 3:** `go test -race` for the touched packages, golden tests unchanged (**metric values must not change**), `make bench` shows the target route under budget and no other route regressed more than 10 %.
 - [ ] **Step 4:** Update the finding's status in `docs/perf/api-findings.md`; commit as `perf(<area>): <what>`.
 
 ### Task 7: Regression gate, site benchmark, report
 
-- [ ] **Step 1:** `scripts/api-bench.sh compare` fails if any route's p95 is more than 25 % above `docs/perf/api-baseline-*.md` (tolerance configurable). GitHub Actions stays manual (`workflow_dispatch`) until the user re-enables CI; wire a `workflow_dispatch` job only.
+- [ ] **Step 1:** `make bench-compare` (= `scripts/api-bench.sh compare`) fails if any route's p95 is more than 25 % above `docs/perf/api-baseline-*.md` (tolerance configurable). GitHub Actions stays manual (`workflow_dispatch`) until the user re-enables CI; wire a `workflow_dispatch` job only.
 - [ ] **Step 2:** `supermetry-site`: after site job 01 lands, add a small static-serving benchmark (requests/s and p99 for `/`, `/pricing`, a docs page, a 404; with and without `Accept-Encoding: br`) using the same runner via a tiny route list file.
 - [ ] **Step 3:** Write `docs/perf/api-report-<date>.md`: what was measured, before/after table, what was fixed, what remains; add dated entries to `progress.md` and durable decisions (budgets, gate tolerance) to `memory.md`.
 
