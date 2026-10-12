@@ -140,6 +140,7 @@ export const en = {
     },
   },
   dashboard: {
+    viewFullReport: 'View full report',
     period: 'Period',
     periods: {
       today: 'Today',
