@@ -258,6 +258,9 @@ export const en = {
     open: 'Show keyboard shortcuts',
     theme: 'D — Toggle dark mode',
     help: '? — Show this help',
+    sidebar: 'Ctrl/⌘ B — Collapse or expand the sidebar',
+    period: 'M — Show the last 30 days (dashboard)',
+    compare: 'C — Turn period comparison on or off (dashboard)',
   },
   a11y2: {
     skipToMain: 'Skip to main content',

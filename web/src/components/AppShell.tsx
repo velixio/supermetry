@@ -119,6 +119,9 @@ export function AppShell({
           <ul className="flex flex-col gap-2 text-sm">
             <li>{en.shortcuts.theme}</li>
             <li>{en.shortcuts.help}</li>
+            <li>{en.shortcuts.sidebar}</li>
+            <li>{en.shortcuts.period}</li>
+            <li>{en.shortcuts.compare}</li>
           </ul>
         </DialogContent>
       </Dialog>

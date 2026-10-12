@@ -319,4 +319,17 @@ describe('AppShell live visitor badge', () => {
     expect(follows(sidebar, header)).toBe(true)
     expect(follows(header, main)).toBe(true)
   })
+
+  it('lists every registered keyboard shortcut in the help dialog', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    fireEvent.click(await screen.findByRole('button', { name: 'Show keyboard shortcuts' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' })
+    expect(within(dialog).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'D — Toggle dark mode',
+      '? — Show this help',
+      'Ctrl/⌘ B — Collapse or expand the sidebar',
+      'M — Show the last 30 days (dashboard)',
+      'C — Turn period comparison on or off (dashboard)',
+    ])
+  })
 })

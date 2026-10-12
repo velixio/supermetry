@@ -260,6 +260,9 @@ const messages: MessageTree = {
     open: 'Tastenkürzel anzeigen',
     theme: 'D — Dunkelmodus umschalten',
     help: '? — Diese Hilfe anzeigen',
+    sidebar: 'Strg/⌘ B — Seitenleiste ein- oder ausklappen',
+    period: 'M — Letzte 30 Tage anzeigen (Dashboard)',
+    compare: 'C — Periodenvergleich ein- oder ausschalten (Dashboard)',
   },
   a11y2: {
     skipToMain: 'Zum Hauptinhalt springen',
