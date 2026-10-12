@@ -56,6 +56,9 @@ import { Route as AppOrgSitesNewRouteImport } from './routes/app.$org.sites.new'
 import { Route as AppAccountOrganizationsNewRouteImport } from './routes/app.account.organizations.new'
 import { Route as AppOrgSiteFunnelsIndexRouteImport } from './routes/app.$org.$site.funnels.index'
 import { Route as AppOrgSiteFunnelsIdRouteImport } from './routes/app.$org.$site.funnels.$id'
+import { Route as AppOrgSiteLinksIndexRouteImport } from './routes/app.$org.$site.links.index'
+import { Route as AppOrgSiteLinksIdRouteImport } from './routes/app.$org.$site.links.$id'
+import { Route as AppOrgSiteLinksPixelRouteImport } from './routes/app.$org.$site.links.pixel'
 import { Route as AppOrgSiteProfilesIndexRouteImport } from './routes/app.$org.$site.profiles.index'
 import { Route as AppOrgSiteProfilesIdRouteImport } from './routes/app.$org.$site.profiles.$id'
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
@@ -310,6 +313,21 @@ const AppOrgSiteFunnelsIdRoute = AppOrgSiteFunnelsIdRouteImport.update({
   path: '/$site/funnels/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteLinksIndexRoute = AppOrgSiteLinksIndexRouteImport.update({
+  id: '/$site/links/',
+  path: '/$site/links/',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteLinksIdRoute = AppOrgSiteLinksIdRouteImport.update({
+  id: '/$site/links/$id',
+  path: '/$site/links/$id',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteLinksPixelRoute = AppOrgSiteLinksPixelRouteImport.update({
+  id: '/$site/links/pixel',
+  path: '/$site/links/pixel',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgSiteProfilesIndexRoute = AppOrgSiteProfilesIndexRouteImport.update({
   id: '/$site/profiles/',
   path: '/$site/profiles/',
@@ -443,6 +461,8 @@ export interface FileRoutesByFullPath {
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
+  '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
@@ -457,6 +477,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
 }
@@ -505,6 +526,8 @@ export interface FileRoutesByTo {
   '/app/$org/settings': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
+  '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
@@ -519,6 +542,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/$site/funnels': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/links': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
 }
@@ -570,6 +594,8 @@ export interface FileRoutesById {
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
+  '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
@@ -584,6 +610,7 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
 }
@@ -636,6 +663,8 @@ export interface FileRouteTypes {
     | '/app/$org/settings/'
     | '/app/$org/sites/'
     | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/links/$id'
+    | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
@@ -650,6 +679,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/$site/funnels/'
+    | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
   fileRoutesByTo: FileRoutesByTo
@@ -698,6 +728,8 @@ export interface FileRouteTypes {
     | '/app/$org/settings'
     | '/app/$org/sites'
     | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/links/$id'
+    | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
@@ -712,6 +744,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/$site/funnels'
+    | '/app/$org/$site/links'
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
   id:
@@ -762,6 +795,8 @@ export interface FileRouteTypes {
     | '/app/$org/settings/'
     | '/app/$org/sites/'
     | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/links/$id'
+    | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
@@ -776,6 +811,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/$site/funnels/'
+    | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
   fileRoutesById: FileRoutesById
@@ -1123,6 +1159,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteFunnelsIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/links/': {
+      id: '/app/$org/$site/links/'
+      path: '/$site/links'
+      fullPath: '/app/$org/$site/links/'
+      preLoaderRoute: typeof AppOrgSiteLinksIndexRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/links/$id': {
+      id: '/app/$org/$site/links/$id'
+      path: '/$site/links/$id'
+      fullPath: '/app/$org/$site/links/$id'
+      preLoaderRoute: typeof AppOrgSiteLinksIdRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/links/pixel': {
+      id: '/app/$org/$site/links/pixel'
+      path: '/$site/links/pixel'
+      fullPath: '/app/$org/$site/links/pixel'
+      preLoaderRoute: typeof AppOrgSiteLinksPixelRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/profiles/': {
       id: '/app/$org/$site/profiles/'
       path: '/$site/profiles'
@@ -1306,9 +1363,12 @@ interface AppOrgRouteChildren {
   AppOrgSiteIndexRoute: typeof AppOrgSiteIndexRoute
   AppOrgSitesIndexRoute: typeof AppOrgSitesIndexRoute
   AppOrgSiteFunnelsIdRoute: typeof AppOrgSiteFunnelsIdRoute
+  AppOrgSiteLinksIdRoute: typeof AppOrgSiteLinksIdRoute
+  AppOrgSiteLinksPixelRoute: typeof AppOrgSiteLinksPixelRoute
   AppOrgSiteProfilesIdRoute: typeof AppOrgSiteProfilesIdRoute
   AppOrgSiteReplaysIdRoute: typeof AppOrgSiteReplaysIdRoute
   AppOrgSiteFunnelsIndexRoute: typeof AppOrgSiteFunnelsIndexRoute
+  AppOrgSiteLinksIndexRoute: typeof AppOrgSiteLinksIndexRoute
   AppOrgSiteProfilesIndexRoute: typeof AppOrgSiteProfilesIndexRoute
   AppOrgSiteReplaysIndexRoute: typeof AppOrgSiteReplaysIndexRoute
 }
@@ -1330,9 +1390,12 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteIndexRoute: AppOrgSiteIndexRoute,
   AppOrgSitesIndexRoute: AppOrgSitesIndexRoute,
   AppOrgSiteFunnelsIdRoute: AppOrgSiteFunnelsIdRoute,
+  AppOrgSiteLinksIdRoute: AppOrgSiteLinksIdRoute,
+  AppOrgSiteLinksPixelRoute: AppOrgSiteLinksPixelRoute,
   AppOrgSiteProfilesIdRoute: AppOrgSiteProfilesIdRoute,
   AppOrgSiteReplaysIdRoute: AppOrgSiteReplaysIdRoute,
   AppOrgSiteFunnelsIndexRoute: AppOrgSiteFunnelsIndexRoute,
+  AppOrgSiteLinksIndexRoute: AppOrgSiteLinksIndexRoute,
   AppOrgSiteProfilesIndexRoute: AppOrgSiteProfilesIndexRoute,
   AppOrgSiteReplaysIndexRoute: AppOrgSiteReplaysIndexRoute,
 }

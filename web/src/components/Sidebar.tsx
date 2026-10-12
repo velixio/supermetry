@@ -11,6 +11,7 @@ import {
   GoalIcon,
   Globe2Icon,
   GaugeIcon,
+  Link2Icon,
   MousePointer2Icon,
   PlusIcon,
   RouteIcon,
@@ -69,6 +70,7 @@ const coreNavigation = [
 const managementNavigation = [
   { label: en.navigation.sites, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
   { label: en.navigation.health, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
+  { label: en.linksUi.nav, suffix: '/links', icon: Link2Icon, scope: 'site' },
 ] as const
 
 export type NavigationItem =
@@ -79,11 +81,11 @@ const navigationSections = [
   { key: 'analyze', label: en.a11y2.sidebarSections.analyze, suffixes: ['', '/events', '/sessions', '/realtime'] },
   { key: 'behaviour', label: en.a11y2.sidebarSections.behaviour, suffixes: ['/journeys', '/retention', '/profiles', '/heatmaps', '/vitals'] },
   { key: 'conversion', label: en.a11y2.sidebarSections.conversion, suffixes: ['/funnels', '/goals', '/revenue'] },
-  { key: 'manage', label: en.a11y2.sidebarSections.manage, suffixes: ['/sites', '/health'] },
+  { key: 'manage', label: en.a11y2.sidebarSections.manage, suffixes: ['/sites', '/links', '/health'] },
 ] as const
 
 export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site): NavigationItem[] {
-  const items: NavigationItem[] = [...coreNavigation, managementNavigation[0]]
+  const items: NavigationItem[] = [...coreNavigation, managementNavigation[0], managementNavigation[2]]
   if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
   return items.filter((item) => (hasSite || item.scope === 'org') &&
     (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && (item.suffix !== '/profiles' || hasCapability(authorization, 'profiles.read')))
@@ -195,6 +197,8 @@ function navigationLink(
       return <Link to="/app/$org/$site/revenue" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
     case '/sites':
       return <Link to="/app/$org/sites" params={{ org }} {...props}>{content}</Link>
+    case '/links':
+      return <Link to="/app/$org/$site/links" params={{ org, site }} {...props}>{content}</Link>
     case '/health':
       return <Link to="/app/$org/health" params={{ org }} {...props}>{content}</Link>
   }
