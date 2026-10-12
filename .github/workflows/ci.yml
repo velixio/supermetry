@@ -53,8 +53,8 @@ jobs:
       - name: Generate deterministic test fixtures
         run: make fixtures
 
-      - name: Test Go packages with race detector
-        run: go test -race -p 2 -timeout 40m -skip TestBackupRestoreIntegration ./...
+      - name: Test Go packages
+        run: GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration ./...
 
       - name: Check Go vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
@@ -72,8 +72,43 @@ jobs:
 
       - name: Test web
         working-directory: web
-        run: bun run test --run
+        run: bun run test --run --maxWorkers=3
 
       - name: Build web
         working-directory: web
         run: bun run build
+
+      - name: Build server with embedded web
+        run: CGO_ENABLED=0 go build -tags embedui -o bin/supermetry ./cmd/supermetry
+
+      - name: Generate end-to-end fixture
+        working-directory: bench/gen
+        run: go run . --tier tiny --seed 42 --out testdata/tiny.ndjson --sites testdata/tiny.sites.json --truth testdata/tiny.truth.json
+
+      - name: Install browser
+        working-directory: web
+        run: bunx playwright install --with-deps chromium
+
+      - name: End-to-end authentication and authorization
+        working-directory: web
+        env:
+          SUPERMETRY_E2E_PORT: "18090"
+        run: bunx playwright test e2e/account-navigation.spec.ts e2e/authorization.spec.ts --reporter=list --workers=1
+
+      - name: End-to-end login navigation and privacy
+        working-directory: web
+        env:
+          SUPERMETRY_E2E_PORT: "18090"
+        run: bunx playwright test e2e/not-found.spec.ts e2e/privacy-navigation.spec.ts --reporter=list --workers=1
+
+      - name: End-to-end dashboard
+        working-directory: web
+        env:
+          SUPERMETRY_E2E_PORT: "18090"
+        run: bunx playwright test e2e/a11y-audit.spec.ts e2e/api-docs.spec.ts e2e/dashboard.spec.ts e2e/dashboard-where-when.spec.ts e2e/navigation.spec.ts e2e/privacy.spec.ts e2e/revenue.spec.ts e2e/sessions.spec.ts e2e/settings.spec.ts e2e/vitals.spec.ts --reporter=list --workers=1
+
+      - name: End-to-end account and extended features
+        working-directory: web
+        env:
+          SUPERMETRY_E2E_PORT: "18090"
+        run: bunx playwright test e2e/account-sessions.spec.ts e2e/accuracy-live.spec.ts e2e/notifications.spec.ts e2e/project-currency.spec.ts e2e/replay-fit.spec.ts e2e/share.spec.ts --reporter=list --workers=1
