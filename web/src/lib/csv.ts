@@ -1,7 +1,7 @@
 import { api } from '@/lib/api'
 import type { StatsQuery } from '@/lib/stats'
 
-function queryBody(query: StatsQuery) {
+export function queryBody(query: StatsQuery) {
   return {
     site_id: query.siteId,
     date_range: { ...query.dateRange },
