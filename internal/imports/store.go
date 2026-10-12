@@ -25,6 +25,7 @@ type Source string
 const (
 	SourcePlausible Source = "plausible"
 	SourceUmami     Source = "umami"
+	SourceGA4       Source = "ga4"
 )
 
 type Status string
@@ -309,6 +310,9 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 	var warning *string
 	if stats.BadRows > 0 {
 		value := fmt.Sprintf("%d invalid rows skipped", stats.BadRows)
+		if len(stats.Errors) > 0 {
+			value += fmt.Sprintf(" (first: row %d: %s)", stats.Errors[0].Row, stats.Errors[0].Message)
+		}
 		warning = &value
 	}
 	if _, err := tx.Exec(ctx, `

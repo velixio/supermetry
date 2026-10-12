@@ -1,0 +1,4 @@
+event_date,country,device_category,total_users,sessions
+20240229,US,desktop,7,9
+20240229,US,mobile,2,2
+20240301,DE,desktop,1,1

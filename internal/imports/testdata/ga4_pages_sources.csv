@@ -1,0 +1,7 @@
+Date,Page path and screen class,Session source / medium,Country,Device category,Active users,Sessions,Views,Bounce rate,Average session duration
+20240301,/,google / organic,United States,desktop,10,12,20,0.5,100
+20240301,/pricing,(direct) / (none),Germany,mobile,5,5,8,0.2,40
+20240301,/,google / organic,United States,desktop,10,12,20,0.5,100
+20240302,/,newsletter / email,(not set),mobile,3,4,6,0.25,20
+2024-0303,/x,google / organic,Germany,desktop,1,1,1,0,0
+20240302,/,google / organic,United States,desktop,abc,1,1,0,0
