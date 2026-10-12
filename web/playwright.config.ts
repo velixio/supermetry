@@ -96,6 +96,9 @@ export default defineConfig({
       SUPERMETRY_E2E_SERVER_PID_FILE: serverPIDFile,
       SUPERMETRY_E2E_SECRET_KEY: Buffer.alloc(32, "e").toString("base64"),
       SUPERMETRY_E2E_LOGIN_LIMIT: "100",
+      // Enables the Search Console provider; the Google side is mocked in the browser.
+      SUPERMETRY_GSC_CLIENT_ID: "e2e-client-id.apps.googleusercontent.test",
+      SUPERMETRY_GSC_CLIENT_SECRET: "e2e-client-secret",
     },
     url: `${baseURL}/readyz`,
     timeout: 300_000,
