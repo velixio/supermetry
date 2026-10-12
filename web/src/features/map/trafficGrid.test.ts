@@ -7,7 +7,7 @@ import {
   peakTrafficCell,
   quietestWeekday,
   trafficCells,
-  weekdayShare,
+  weekpartShares,
 } from './trafficGrid'
 import { rampStep } from './rampStep'
 
@@ -103,7 +103,7 @@ describe('weekly rhythm summaries', () => {
     expect(peakTrafficWindows(trafficCells([], 'visitors', 'en-GB'))).toEqual([])
   })
 
-  it('computes the hand-checked weekday share and handles an all-zero week', () => {
+  it('computes hand-checked weekday and weekend shares and handles an all-zero week', () => {
     const mixed = trafficCells([
       { weekday: 1, hour_of_day: 9, visitors: 40 },
       { weekday: 5, hour_of_day: 17, visitors: 20 },
@@ -111,7 +111,7 @@ describe('weekly rhythm summaries', () => {
       { weekday: 0, hour_of_day: 12, visitors: 10 },
     ], 'visitors', 'en-GB')
 
-    expect(weekdayShare(mixed)).toBe(60)
-    expect(weekdayShare(trafficCells([], 'visitors', 'en-GB'))).toBe(0)
+    expect(weekpartShares(mixed)).toEqual({ weekdays: 60, weekends: 40 })
+    expect(weekpartShares(trafficCells([], 'visitors', 'en-GB'))).toEqual({ weekdays: 0, weekends: 0 })
   })
 })

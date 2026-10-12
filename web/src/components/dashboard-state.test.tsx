@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { DatePicker, type DatePickerLabels } from './DatePicker'
 import { FilterBar } from './FilterBar'
@@ -35,6 +35,10 @@ const labels: DatePickerLabels = {
   },
 }
 
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn()
+})
+
 afterEach(cleanup)
 
 describe('DatePicker', () => {
@@ -47,12 +51,9 @@ describe('DatePicker', () => {
       />,
     )
 
-    const picker = screen.getByLabelText('Date range')
-    expect(
-      Array.from(picker.querySelectorAll('option'), (option) =>
-        option.textContent,
-      ),
-    ).toEqual([
+    fireEvent.click(screen.getByRole('button', { name: /date range/i }))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Preset' }))
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Today',
       'Yesterday',
       'Last 7 days',
@@ -78,6 +79,7 @@ describe('DatePicker', () => {
     )
 
     expect(screen.getByText('Compare')).toBeVisible()
+    fireEvent.click(screen.getByRole('combobox', { name: 'Compare' }))
     expect(screen.getByRole('option', { name: 'No comparison' })).toBeVisible()
     expect(screen.getByRole('option', { name: 'Previous period' })).toBeVisible()
     expect(screen.getByRole('option', { name: 'Previous year' })).toBeVisible()
@@ -90,13 +92,12 @@ describe('DatePicker', () => {
       <DatePicker search={search} labels={labels} onChange={onChange} />,
     )
 
-    fireEvent.change(screen.getByLabelText('Date range'), {
-      target: { value: '7d' },
-    })
+    fireEvent.click(screen.getByRole('button', { name: /date range/i }))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Preset' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Last 7 days' }))
     expect(onChange).toHaveBeenLastCalledWith({ ...search, period: '7d' })
-    fireEvent.change(screen.getByLabelText('Compare'), {
-      target: { value: 'previous_year' },
-    })
+    fireEvent.click(screen.getByRole('combobox', { name: 'Compare' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Previous year' }))
     expect(onChange).toHaveBeenLastCalledWith({
       ...search,
       compare: 'previous_year',
@@ -121,6 +122,7 @@ describe('DatePicker', () => {
     (period) => {
       const onChange = vi.fn()
       const search = dashboardSearch.parse({
+        period: period === '30d' ? '7d' : '30d',
         f: ['country:is:IN'],
         compare: 'previous_period',
       })
@@ -128,13 +130,31 @@ describe('DatePicker', () => {
         <DatePicker search={search} labels={labels} onChange={onChange} />,
       )
 
-      fireEvent.change(screen.getByLabelText('Date range'), {
-        target: { value: period },
-      })
+      fireEvent.click(screen.getByRole('button', { name: /date range/i }))
+      fireEvent.click(screen.getByRole('combobox', { name: 'Preset' }))
+      fireEvent.click(screen.getByRole('option', { name: labels.periods[period] }))
 
       expect(onChange).toHaveBeenCalledWith({ ...search, period })
     },
   )
+
+  it('selects a custom range from the calendar while preserving filters', () => {
+    const onChange = vi.fn()
+    const search = dashboardSearch.parse({
+      period: 'custom',
+      from: '2026-10-01',
+      to: '2026-10-07',
+      f: ['country:is:IN'],
+    })
+    render(<DatePicker search={search} labels={labels} onChange={onChange} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /date range/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Choose October 10, 2026' }))
+    expect(onChange).toHaveBeenLastCalledWith({ ...search, period: 'custom', from: '2026-10-10', to: undefined })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose October 12, 2026' }))
+    expect(onChange).toHaveBeenLastCalledWith({ ...search, period: 'custom', from: '2026-10-10', to: '2026-10-12' })
+  })
 })
 
 describe('FilterBar', () => {

@@ -9,7 +9,7 @@ const { useStats, useTimeseries } = vi.hoisted(() => ({ useStats: vi.fn(), useTi
 
 vi.mock('../lib/stats', () => ({ useStats, useTimeseries }))
 
-import { autoInterval, MainChart } from './MainChart'
+import { autoInterval, axisBucketLabel, MainChart } from './MainChart'
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
@@ -101,6 +101,11 @@ describe('MainChart', () => {
   it('picks hourly interval for today and daily for 30d', () => {
     expect(autoInterval('2026-10-07', '2026-10-07')).toBe('hour')
     expect(autoInterval('2026-09-08', '2026-10-07')).toBe('day')
+  })
+
+  it('uses compact date labels on chart axes', () => {
+    expect(axisBucketLabel('2026-10-01', 'day', 'UTC')).toBe('Oct 1')
+    expect(axisBucketLabel('2026-10-01T13:00:00', 'hour', 'UTC')).toBe('1 PM')
   })
 
   it('requests every chronological hourly bucket for today', () => {

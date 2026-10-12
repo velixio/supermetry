@@ -121,4 +121,13 @@ describe('StatsStrip', () => {
 
     expect(screen.getByText('Includes imported data')).toBeVisible()
   })
+
+  it('gives Visitors and Pageviews primary visual hierarchy', () => {
+    mockQuery({ visitors: 110, pageviews: 240, visits: 90 }, {})
+    render(<StatsStrip query={query} compare="off" onSelectMetric={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: /visitors/i })).toHaveAttribute('data-priority', 'primary')
+    expect(screen.getByRole('button', { name: /pageviews/i })).toHaveAttribute('data-priority', 'primary')
+    expect(screen.getByRole('button', { name: /visits/i })).toHaveAttribute('data-priority', 'secondary')
+  })
 })
