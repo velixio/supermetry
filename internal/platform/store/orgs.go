@@ -41,10 +41,10 @@ type orgRowsQuerier interface {
 }
 
 func CreateOrg(ctx context.Context, tx pgx.Tx, name string, ownerID int64) (int64, error) {
-	base := slugify(name)
+	base := OrganizationSlug(name)
 	for attempt := 0; attempt < 8; attempt++ {
 		slug := base
-		if attempt > 0 {
+		if attempt > 0 || IsReservedOrganizationSlug(slug) {
 			suffix, err := randomSlugSuffix()
 			if err != nil {
 				return 0, err
@@ -138,7 +138,8 @@ func DeletedOrgsForOwner(ctx context.Context, q orgRowsQuerier, userID int64, no
 	return deleted, nil
 }
 
-func slugify(name string) string {
+// OrganizationSlug converts a display name into the canonical URL segment.
+func OrganizationSlug(name string) string {
 	var slug strings.Builder
 	lastDash := false
 	for _, r := range strings.ToLower(strings.TrimSpace(name)) {
@@ -157,6 +158,17 @@ func slugify(name string) string {
 		return "org"
 	}
 	return value
+}
+
+// IsReservedOrganizationSlug reports whether the application router owns a
+// first path segment that organizations must never claim.
+func IsReservedOrganizationSlug(slug string) bool {
+	switch strings.ToLower(strings.TrimSpace(slug)) {
+	case "account", "admin", "api", "auth", "invite", "login", "logout", "password-reset", "reset", "setup", "share", "signup":
+		return true
+	default:
+		return false
+	}
 }
 
 func randomSlugSuffix() (string, error) {

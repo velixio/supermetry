@@ -5,11 +5,11 @@ import (
 	"errors"
 	"net/url"
 	"strings"
-	"unicode"
 
 	"github.com/jackc/pgx/v5"
 
 	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/store"
 )
 
 func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
@@ -59,10 +59,6 @@ func (a *Auth) CompleteSetup(ctx context.Context, token, email, name, password, 
 	if preliminaryCompleted || !equalTokenHash(preliminaryHash, token) {
 		return 0, 0, ErrInvalid
 	}
-	slug := orgSlug(orgName)
-	if slug == "" {
-		return 0, 0, ErrInvalid
-	}
 	passwordHash, err := platformcrypto.HashPassword(password)
 	if err != nil {
 		return 0, 0, err
@@ -97,15 +93,8 @@ func (a *Auth) CompleteSetup(ctx context.Context, token, email, name, password, 
 			normalizedEmail, name, passwordHash, a.clock.Now()).Scan(&userID); err != nil {
 			return err
 		}
-		if err := tx.QueryRow(ctx, `
-			insert into orgs(name,slug,created_at)
-			values ($1,$2,$3) returning id`,
-			orgName, slug, a.clock.Now()).Scan(&orgID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `
-			insert into memberships(org_id,user_id,role,created_at)
-			values ($1,$2,'owner',$3)`, orgID, userID, a.clock.Now()); err != nil {
+		orgID, err = store.CreateOrg(ctx, tx, orgName, userID)
+		if err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `
@@ -129,19 +118,4 @@ func equalTokenHash(stored []byte, plain string) bool {
 		different |= stored[i] ^ want[i]
 	}
 	return different == 0
-}
-
-func orgSlug(name string) string {
-	var slug strings.Builder
-	lastDash := false
-	for _, r := range strings.ToLower(name) {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			slug.WriteRune(r)
-			lastDash = false
-		} else if slug.Len() > 0 && !lastDash {
-			slug.WriteByte('-')
-			lastDash = true
-		}
-	}
-	return strings.Trim(slug.String(), "-")
 }

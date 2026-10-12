@@ -14,6 +14,148 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /api/private/admin/users:
+    get:
+      operationId: adminListUsers
+      security: [{ cookieAuth: [] }]
+      summary: List and search instance users
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { $ref: '#/components/parameters/AdminLimit' }
+      responses:
+        '200': { description: Instance users., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUsersResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/users/{user}:
+    patch:
+      operationId: adminUpdateUser
+      security: [{ cookieAuth: [] }]
+      summary: Enable, disable, force password reset, promote or demote a user
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminUserPatch' } } } }
+      responses:
+        '200': { description: Updated user., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUser' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/organizations:
+    get:
+      operationId: adminListOrganizations
+      security: [{ cookieAuth: [] }]
+      summary: List organizations with member, site and quota counts
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { $ref: '#/components/parameters/AdminLimit' }
+      responses:
+        '200': { description: Organizations., content: { application/json: { schema: { $ref: '#/components/schemas/AdminOrganizationsResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/organizations/{org}:
+    get:
+      operationId: adminGetOrganization
+      security: [{ cookieAuth: [] }]
+      summary: Get an organization with its members, sites and quota
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      responses:
+        '200': { description: Organization details., content: { application/json: { schema: { $ref: '#/components/schemas/AdminOrganizationDetail' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/sites:
+    get:
+      operationId: adminListSites
+      security: [{ cookieAuth: [] }]
+      summary: List sites with usage, last event and retention
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { $ref: '#/components/parameters/AdminLimit' }
+      responses:
+        '200': { description: Sites., content: { application/json: { schema: { $ref: '#/components/schemas/AdminSitesResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/settings:
+    get:
+      operationId: adminGetSettings
+      security: [{ cookieAuth: [] }]
+      summary: Get effective instance settings
+      responses:
+        '200': { description: Instance settings., content: { application/json: { schema: { $ref: '#/components/schemas/AdminSettings' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    patch:
+      operationId: adminUpdateSettings
+      security: [{ cookieAuth: [] }]
+      summary: Change signup mode or replay-switch visibility
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSettingsPatch' } } } }
+      responses:
+        '200': { description: Updated settings., content: { application/json: { schema: { $ref: '#/components/schemas/AdminSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/security/2fa-policy:
+    get:
+      operationId: adminGetTwoFactorPolicy
+      security: [{ cookieAuth: [] }]
+      summary: Get the instance two-factor policy
+      responses:
+        '200': { description: Two-factor policy., content: { application/json: { schema: { $ref: '#/components/schemas/AdminTwoFactorPolicy' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      operationId: adminUpdateTwoFactorPolicy
+      security: [{ cookieAuth: [] }]
+      summary: Replace the instance two-factor policy
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminTwoFactorPolicy' } } } }
+      responses:
+        '200': { description: Updated two-factor policy., content: { application/json: { schema: { $ref: '#/components/schemas/AdminTwoFactorPolicy' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/security/2fa-exemptions/{user}:
+    put:
+      operationId: adminSetTwoFactorExemption
+      security: [{ cookieAuth: [] }]
+      summary: Grant or replace a user's two-factor exemption
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminTwoFactorExemption' } } } }
+      responses:
+        '204': { description: Exemption stored. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: adminDeleteTwoFactorExemption
+      security: [{ cookieAuth: [] }]
+      summary: Remove a user's two-factor exemption
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      responses:
+        '204': { description: Exemption removed or already absent. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/audit:
+    get:
+      operationId: adminListAudit
+      security: [{ cookieAuth: [] }]
+      summary: List instance administration audit entries
+      parameters: [{ $ref: '#/components/parameters/AdminLimit' }]
+      responses:
+        '200': { description: Instance audit entries., content: { application/json: { schema: { $ref: '#/components/schemas/AdminAuditResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/setup/status:
     get:
       operationId: getSetupStatus
@@ -2116,6 +2258,15 @@ components:
       in: cookie
       name: supermetry_session
   parameters:
+    AdminLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    AdminUserID:
+      name: user
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
     SiteID:
       name: site_id
       in: query
@@ -2327,6 +2478,127 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    AdminMembership:
+      type: object
+      additionalProperties: false
+      required: [org_id, org_name, role]
+      properties:
+        org_id: { type: integer, format: int64 }
+        org_name: { type: string }
+        role: { type: string, enum: [owner, admin, editor, viewer] }
+    AdminUser:
+      type: object
+      additionalProperties: false
+      required: [id, email, name, instance_admin, disabled, password_reset_required, totp_enabled, created_at, memberships]
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string, format: email }
+        name: { type: string }
+        instance_admin: { type: boolean }
+        disabled: { type: boolean }
+        password_reset_required: { type: boolean }
+        totp_enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        last_login_at: { type: string, format: date-time }
+        memberships: { type: array, items: { $ref: '#/components/schemas/AdminMembership' } }
+    AdminUsersResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminUser' } } }
+    AdminUserPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        disabled: { type: boolean }
+        password_reset_required: { type: boolean }
+        instance_admin: { type: boolean }
+    AdminOrganization:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, member_count, site_count, site_limit]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        slug: { type: string }
+        member_count: { type: integer, format: int64, minimum: 0 }
+        site_count: { type: integer, format: int64, minimum: 0 }
+        site_limit: { type: integer, minimum: 0 }
+    AdminOrganizationsResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminOrganization' } } }
+    AdminSite:
+      type: object
+      additionalProperties: false
+      required: [id, org_id, organization, public_id, name, retention_days, pageviews]
+      properties:
+        id: { type: integer, format: int32 }
+        org_id: { type: integer, format: int64 }
+        organization: { type: string }
+        public_id: { type: string }
+        name: { type: string }
+        retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
+        pageviews: { type: integer, format: int64, minimum: 0 }
+        last_event_at: { type: string, format: date-time }
+    AdminSitesResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminSite' } } }
+    AdminOrganizationDetail:
+      allOf:
+        - { $ref: '#/components/schemas/AdminOrganization' }
+        - type: object
+          required: [members, sites]
+          properties:
+            members: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
+            sites: { type: array, items: { $ref: '#/components/schemas/AdminSite' } }
+    AdminSettings:
+      type: object
+      additionalProperties: false
+      required: [signup_mode, replay_visible]
+      properties:
+        signup_mode: { type: string, enum: [invite, open] }
+        replay_visible: { type: boolean }
+    AdminSettingsPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        signup_mode: { type: string, enum: [invite, open] }
+        replay_visible: { type: boolean }
+    AdminTwoFactorPolicy:
+      type: object
+      additionalProperties: false
+      required: [scope, grace_days]
+      properties:
+        scope: { type: string, enum: [off, instance_admins, owners_admins, everyone] }
+        grace_days: { type: integer, minimum: 0, maximum: 30 }
+    AdminTwoFactorExemption:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        expires_at: { type: string, format: date-time }
+    AdminAuditEntry:
+      type: object
+      additionalProperties: false
+      required: [id, action, target_type, target_id, metadata, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        actor_user_id: { type: integer, format: int64 }
+        action: { type: string }
+        target_type: { type: string }
+        target_id: { type: integer, format: int64 }
+        metadata: { type: object, additionalProperties: true }
+        created_at: { type: string, format: date-time }
+    AdminAuditResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminAuditEntry' } } }
     Organization:
       type: object
       additionalProperties: false
@@ -2397,7 +2669,7 @@ components:
       properties:
         user:
           type: object
-          required: [id, email, name, totp_enabled, created_at]
+          required: [id, email, name, totp_enabled, created_at, instance_admin, two_factor_setup_required]
           properties:
             id: { type: integer, format: int64 }
             email: { type: string, format: email }
@@ -2405,6 +2677,9 @@ components:
             totp_enabled: { type: boolean }
             created_at: { type: string, format: date-time }
             last_login_at: { type: string, format: date-time }
+            instance_admin: { type: boolean }
+            two_factor_setup_required: { type: boolean }
+            two_factor_grace_until: { type: string, format: date-time }
         preferences: { $ref: '#/components/schemas/UserPreferences' }
         memberships:
           type: array

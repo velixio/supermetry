@@ -94,14 +94,28 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		totalSites += len(sites)
 	}
 	preferences := effectiveUserPreferences(user.Preferences, totalSites)
+	var twoFactorSetupRequired bool
+	var twoFactorGraceUntil *time.Time
+	if h.deps.Admin != nil {
+		status, err := h.deps.Admin.TwoFactorStatus(r.Context(), user.ID, h.deps.Now())
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+		twoFactorSetupRequired = status.SetupRequired
+		twoFactorGraceUntil = status.GraceUntil
+	}
 	writeJSON(w, http.StatusOK, struct {
 		User struct {
-			ID          int64      `json:"id"`
-			Email       string     `json:"email"`
-			Name        string     `json:"name"`
-			TOTPEnabled bool       `json:"totp_enabled"`
-			CreatedAt   time.Time  `json:"created_at"`
-			LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+			ID                     int64      `json:"id"`
+			Email                  string     `json:"email"`
+			Name                   string     `json:"name"`
+			TOTPEnabled            bool       `json:"totp_enabled"`
+			CreatedAt              time.Time  `json:"created_at"`
+			LastLoginAt            *time.Time `json:"last_login_at,omitempty"`
+			InstanceAdmin          bool       `json:"instance_admin"`
+			TwoFactorSetupRequired bool       `json:"two_factor_setup_required"`
+			TwoFactorGraceUntil    *time.Time `json:"two_factor_grace_until,omitempty"`
 		} `json:"user"`
 		Preferences         store.UserPreferences `json:"preferences"`
 		Memberships         []membershipResponse  `json:"memberships"`
@@ -109,13 +123,16 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		Version             string                `json:"version"`
 	}{
 		User: struct {
-			ID          int64      `json:"id"`
-			Email       string     `json:"email"`
-			Name        string     `json:"name"`
-			TOTPEnabled bool       `json:"totp_enabled"`
-			CreatedAt   time.Time  `json:"created_at"`
-			LastLoginAt *time.Time `json:"last_login_at,omitempty"`
-		}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt},
+			ID                     int64      `json:"id"`
+			Email                  string     `json:"email"`
+			Name                   string     `json:"name"`
+			TOTPEnabled            bool       `json:"totp_enabled"`
+			CreatedAt              time.Time  `json:"created_at"`
+			LastLoginAt            *time.Time `json:"last_login_at,omitempty"`
+			InstanceAdmin          bool       `json:"instance_admin"`
+			TwoFactorSetupRequired bool       `json:"two_factor_setup_required"`
+			TwoFactorGraceUntil    *time.Time `json:"two_factor_grace_until,omitempty"`
+		}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt, user.IsAdmin, twoFactorSetupRequired, twoFactorGraceUntil},
 		Preferences:         preferences,
 		Memberships:         items,
 		DemoPromptDismissed: demoPromptDismissed,

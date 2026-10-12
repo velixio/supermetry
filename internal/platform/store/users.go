@@ -12,19 +12,23 @@ import (
 // User is the authentication data needed for a platform user. PasswordHash,
 // TOTPSecretEnc, and TOTPRecovery must never be logged or returned by APIs.
 type User struct {
-	ID                   int64
-	Email                string
-	Name                 string
-	PasswordHash         string
-	TOTPSecretEnc        []byte
-	TOTPEnabled          bool
-	TOTPRecovery         [][]byte
-	TOTPPendingSecretEnc []byte
-	TOTPPendingRecovery  [][]byte
-	TOTPLastStep         *int64
-	CreatedAt            time.Time
-	LastLoginAt          *time.Time
-	Preferences          UserPreferences
+	ID                      int64
+	Email                   string
+	Name                    string
+	PasswordHash            string
+	TOTPSecretEnc           []byte
+	TOTPEnabled             bool
+	TOTPRecovery            [][]byte
+	TOTPPendingSecretEnc    []byte
+	TOTPPendingRecovery     [][]byte
+	TOTPLastStep            *int64
+	CreatedAt               time.Time
+	LastLoginAt             *time.Time
+	IsAdmin                 bool
+	DisabledAt              *time.Time
+	PasswordResetRequired   bool
+	TwoFactorGraceStartedAt *time.Time
+	Preferences             UserPreferences
 }
 
 type UserPreferences struct {
@@ -51,7 +55,7 @@ func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
 	return scanUser(s.Pool.QueryRow(ctx, `
 		select id,email,name,password_hash,totp_secret_enc,totp_enabled,
 		       totp_recovery,totp_pending_secret_enc,totp_pending_recovery,
-			       totp_last_step,created_at,last_login_at,preferences
+		       totp_last_step,created_at,last_login_at,is_admin,disabled_at,password_reset_required,two_factor_grace_started_at,preferences
 		from users where lower(email)=lower($1) and deleted_at is null`, email))
 }
 
@@ -59,7 +63,7 @@ func (s *Store) UserByID(ctx context.Context, id int64) (User, error) {
 	return scanUser(s.Pool.QueryRow(ctx, `
 		select id,email,name,password_hash,totp_secret_enc,totp_enabled,
 		       totp_recovery,totp_pending_secret_enc,totp_pending_recovery,
-			       totp_last_step,created_at,last_login_at,preferences
+		       totp_last_step,created_at,last_login_at,is_admin,disabled_at,password_reset_required,two_factor_grace_started_at,preferences
 		from users where id=$1 and deleted_at is null`, id))
 }
 
@@ -79,6 +83,10 @@ func scanUser(row pgx.Row) (User, error) {
 		&user.TOTPLastStep,
 		&user.CreatedAt,
 		&user.LastLoginAt,
+		&user.IsAdmin,
+		&user.DisabledAt,
+		&user.PasswordResetRequired,
+		&user.TwoFactorGraceStartedAt,
 		&preferences,
 	)
 	if err == nil {
