@@ -65,7 +65,7 @@ describe('DashboardPanels', () => {
     render(<DashboardPanels main={<p>Main</p>} inspector={panel()} returnFocusRef={createRef()} />)
 
     const aside = screen.getByRole('complementary', { name: 'India' })
-    expect(aside).toHaveClass('sticky', 'top-28')
+    expect(aside).toHaveClass('sticky')
     expect(screen.getByText('Country')).toBeVisible()
     await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'India' })).toHaveFocus())
     expect(screen.getByRole('separator', { name: 'Resize inspector' })).toBeInTheDocument()
@@ -216,6 +216,14 @@ describe('DashboardPanels', () => {
     // The side layout must not treat the earlier open state as still pending.
     expect(origin).not.toHaveFocus()
     origin.remove()
+  })
+
+  it('sticks the inspector below the header and the measured filter row', () => {
+    viewport(1440)
+    render(<DashboardPanels main={<p>Main</p>} inspector={panel()} returnFocusRef={createRef()} />)
+    const aside = screen.getByRole('complementary')
+    expect(aside).toHaveClass('sticky', 'top-[calc(2.75rem+var(--dashboard-filter-h,3.75rem)+0.5rem)]')
+    expect(aside).toHaveClass('max-h-[calc(100dvh-2.75rem-var(--dashboard-filter-h,3.75rem)-1rem)]')
   })
 
   describe('stable tree', () => {

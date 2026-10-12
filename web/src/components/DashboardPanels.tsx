@@ -117,7 +117,7 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
             >
               <aside
                 aria-labelledby={headingId}
-                className="sticky top-28 flex max-h-[calc(100dvh-7.5rem)] min-w-0 flex-col overflow-y-auto rounded-xl border bg-card text-card-foreground"
+                className="sticky top-[calc(2.75rem+var(--dashboard-filter-h,3.75rem)+0.5rem)] flex max-h-[calc(100dvh-2.75rem-var(--dashboard-filter-h,3.75rem)-1rem)] min-w-0 flex-col overflow-y-auto rounded-xl border bg-card text-card-foreground"
                 onKeyDown={closeOnEscape}
               >
                 <header className="flex items-start justify-between gap-2 border-b p-4">

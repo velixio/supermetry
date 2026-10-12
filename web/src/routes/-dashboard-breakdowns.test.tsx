@@ -136,6 +136,27 @@ describe('dashboard breakdown route', () => {
     expect(within(row).queryByRole('button', { name: 'Export CSV' })).toBeNull()
   })
 
+  it('publishes the filter row height as --dashboard-filter-h so the sticky inspector clears a wrapped row', async () => {
+    class HeightObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) {
+        const size = [{ inlineSize: 800, blockSize: 120 }]
+        this.callback([{ target, contentRect: { width: 800, height: 104 }, borderBoxSize: size, contentBoxSize: size } as unknown as ResizeObserverEntry], this as unknown as ResizeObserver)
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', HeightObserver)
+    try {
+      renderDashboard()
+      const row = await screen.findByRole('group', { name: 'Filters' })
+      await waitFor(() => expect((row.parentElement as HTMLElement).style.getPropertyValue('--dashboard-filter-h')).toBe('120px'))
+    } finally {
+      cleanup()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('renders Where and Weekly rhythm with dashboard state and lazily filters from country details', async () => {
     const history = createMemoryHistory({ initialEntries: ['/app/acme/example?period=custom&from=2026-09-28&to=2026-09-30&metric=pageviews&compare=previous_year&include_imported=false'] })
     const router = createRouter({ routeTree, history, parseSearch, stringifySearch })

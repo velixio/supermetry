@@ -1,6 +1,6 @@
 import { isAnonymousTracking, isAnonymousFilterAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
 import { createFileRoute } from '@tanstack/react-router'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react'
 
 import { DashboardChart } from '../components/DashboardChart'
 import { DeferredContent } from '../components/DeferredContent'
@@ -92,6 +92,22 @@ function DashboardStateRoute() {
   const [edit, setEdit] = useState<EditState>(null)
   // The control that opened the inspector; focus returns to it on close.
   const inspectorOrigin = useRef<HTMLElement | null>(null)
+  // The sticky filter row wraps (notice, chips); the sticky inspector clears its real height via --dashboard-filter-h.
+  const [filterRow, setFilterRow] = useState<HTMLDivElement | null>(null)
+  const [filterRowHeight, setFilterRowHeight] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    if (!filterRow || typeof ResizeObserver === 'undefined') {
+      setFilterRowHeight(undefined)
+      return
+    }
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1]
+      const height = entry?.borderBoxSize?.[0]?.blockSize ?? (entry?.target as HTMLElement | undefined)?.offsetHeight
+      if (height) setFilterRowHeight(height)
+    })
+    observer.observe(filterRow)
+    return () => observer.disconnect()
+  }, [filterRow])
   // Moving to another dashboard (switcher, link, back button) ends edit mode unless the editor itself moved there.
   useEffect(() => {
     setEdit((current) => (current && !(current.kind === 'edit' && current.id === dashboardId) ? null : current))
@@ -185,7 +201,11 @@ function DashboardStateRoute() {
 
   return (
     <PageContainer>
-      <div className="contents" data-filter-count={filters.length}>
+      <div
+        className="contents"
+        data-filter-count={filters.length}
+        style={filterRowHeight === undefined ? undefined : ({ '--dashboard-filter-h': `${filterRowHeight}px` } as CSSProperties)}
+      >
       <PageHeader
         title={en.navigation.dashboard}
         description={`${fmt.date(query.dateRange.from, timezone)} – ${fmt.date(query.dateRange.to, timezone)}`}
@@ -215,7 +235,7 @@ function DashboardStateRoute() {
         }
       />
       {edit ? null : (
-        <div aria-label={en.polish.filters} className="sticky top-11 z-10 bg-background py-2" role="group">
+        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-11 z-10 bg-background py-2" role="group">
           <ResponsiveFilters className="justify-start">
             <DatePicker
               search={search}
