@@ -87,6 +87,9 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-29&to=2026-09-29`
   await owner.login(page, dashboard)
   await page.goto(dashboard)
+  const filterRow = page.getByRole('group', { name: 'Filters' })
+  await expect(filterRow.getByRole('checkbox', { name: 'Include imported data' })).toBeVisible()
+  await expect(filterRow.getByRole('combobox', { name: 'Compare' })).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Compare' }).click()
   await page.getByRole('option', { name: 'Previous period' }).click()

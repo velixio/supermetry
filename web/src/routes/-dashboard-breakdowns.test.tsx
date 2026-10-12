@@ -113,6 +113,22 @@ describe('dashboard breakdown route', () => {
     return router
   }
 
+  it('puts the date range, segments and include-imported in one sticky filter row and Export in the header actions', async () => {
+    renderDashboard()
+    const row = await screen.findByRole('group', { name: 'Filters' })
+    expect(row).toHaveClass('sticky', 'top-11', 'z-10', 'bg-background')
+    const date = within(row).getByRole('button', { name: /date range/i })
+    const segments = within(row).getByRole('button', { name: 'Segments' })
+    const imported = within(row).getByRole('checkbox', { name: 'Include imported data' })
+    expect(within(row).getByRole('combobox', { name: 'Compare' })).toBeVisible()
+    expect(date.compareDocumentPosition(segments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(segments.compareDocumentPosition(imported) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const actions = document.querySelector('[data-slot="page-header-actions"]') as HTMLElement
+    expect(within(actions).getByRole('button', { name: 'Export CSV' })).toBeVisible()
+    expect(within(actions).queryByRole('checkbox')).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Export CSV' })).toBeNull()
+  })
+
   it('renders Where and Weekly rhythm with dashboard state and lazily filters from country details', async () => {
     const history = createMemoryHistory({ initialEntries: ['/app/acme/example?period=custom&from=2026-09-28&to=2026-09-30&metric=pageviews&compare=previous_year&include_imported=false'] })
     const router = createRouter({ routeTree, history, parseSearch, stringifySearch })

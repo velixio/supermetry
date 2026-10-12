@@ -19,6 +19,7 @@ const EXPECTED = [
   'src/components/AppHeader.tsx: sticky top-0',
   'src/components/FullReportDialog.tsx: sticky top-0',
   'src/features/settings/SettingsPages.tsx: lg:sticky lg:top-17',
+  'src/routes/app.$org.$site.index.tsx: sticky top-11',
 ]
 
 it('lists every sticky top offset and keeps them clear of the 44px app header', () => {
