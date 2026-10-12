@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { isAnonymousTracking, trackingPolicyKnown } from '@/lib/tracking-policy'
-import type { Site } from '@/routes/app.$org'
+import type { Site } from '@/lib/me'
 
 // These screens issue detailed-history requests that anonymous instances deny.
 // Keep this at the outlet: returning a notice from inside a page is too late

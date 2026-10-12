@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-router', () => ({ Link: ({ children }: { children: ReactNode }) => <a>{children}</a> }))
 
-import type { Site } from '@/routes/app.$org'
+import type { Site } from '@/lib/me'
 import { AnalyticsPrivacyBoundary, anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 
 const anonymous: Site = { id: 1, name: 'Docs', profiles_enabled: true, tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] } }

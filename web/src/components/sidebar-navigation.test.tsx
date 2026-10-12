@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Site } from '@/routes/app.$org'
+import type { Site } from '@/lib/me'
 import { visibleNavigation } from './Sidebar'
 
 describe('primary sidebar navigation', () => {

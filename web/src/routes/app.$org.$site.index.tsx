@@ -1,20 +1,19 @@
-import { isAnonymousTracking, isAnonymousFilterAllowed, isAnonymousDimensionAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
+import { isAnonymousTracking, isAnonymousFilterAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
 import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
 
-import { BreakdownCard, type BreakdownTab } from '../components/BreakdownCard'
+import { DashboardChart } from '../components/DashboardChart'
+import { DeferredContent } from '../components/DeferredContent'
 import { DatePicker } from '../components/DatePicker'
 import { DashboardExportMenu } from '../components/DashboardExportMenu'
 import { FilterBar } from '../components/FilterBar'
-import { MainChart } from '../components/MainChart'
-import { AnnotationManager } from '../features/annotations/AnnotationManager'
-import { WeeklyRhythmCard } from '../features/map/WeeklyRhythmCard'
-import { WhereCard } from '../features/map/WhereCard'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
 import { Button } from '../components/ui/button'
+import { Skeleton } from '../components/ui/skeleton'
 import { useShortcuts } from '../lib/shortcuts'
 import { countryName } from '../lib/country'
-import type { StatsQuery } from '../lib/stats'
+import { type StatsQuery } from '../lib/stats'
 import {
   addFilter,
   dashboardSearch,
@@ -27,8 +26,17 @@ import {
 import { en } from '../messages/en'
 import { useMe } from './app.$org'
 
+const loadDashboardBelowFold = () => import('@/components/DashboardBelowFold')
+const DashboardBelowFold = (import.meta as ImportMeta & { env: { MODE: string } }).env.MODE === 'test'
+  ? (await loadDashboardBelowFold()).DashboardBelowFold
+  : lazy(() => loadDashboardBelowFold().then((module) => ({ default: module.DashboardBelowFold })))
+
 export const Route = createFileRoute('/app/$org/$site/')({
   validateSearch: (search) => dashboardSearch.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: ({ deps, params }) => {
+    void import('@/lib/dashboard-prefetch').then(({ prefetchDashboard }) => prefetchDashboard(params.org, params.site, deps))
+  },
   component: DashboardStateRoute,
 })
 
@@ -95,30 +103,6 @@ function DashboardStateRoute() {
   const onFilter = (filter: Filter) => {
     if (!anonymous || isAnonymousFilterAllowed(filter)) void navigate({ search: addFilter(search, filter) })
   }
-  const renderBreakdownCard = (card: BreakdownCardDefinition) => {
-    const page = anonymous && card.title === 'Pages'
-    const tabs = anonymous
-      ? page ? [{ key: 'verified', label: 'Verified', dimension: 'page', metric: 'visitors' as const, metrics: ['visitors', 'visits', 'pageviews'] as StatsQuery['metrics'] }]
-        : card.tabs.filter((tab) => isAnonymousDimensionAllowed(tab.dimension))
-      : visibleTabs(card.tabs, site.allowed_hosts)
-    if (tabs.length === 0 || (page && filters.length > 0)) {
-      return <section key={card.title} aria-label={page ? 'Verified pages' : card.title} className="rounded-xl border bg-card p-4" role="region">
-        <h2 className="text-sm font-medium">{page ? 'Verified pages' : card.title}</h2>
-        <p className="mt-3 text-sm text-muted-foreground">{page ? 'Verified page analytics require no filters. Remove active filters to view this partial dataset.' : 'Goals and event breakdowns are unavailable in anonymous mode because their labels may contain identifying data.'}</p>
-      </section>
-    }
-    return <BreakdownCard
-      key={card.title}
-      title={page ? 'Verified pages' : anonymous && card.title === 'Sources' ? 'Channels' : card.title}
-      tabs={tabs}
-      query={page ? { ...query, includeImported: false } : query}
-      onFilter={onFilter}
-      allowSearch={!anonymous}
-      allowFilter={!page}
-      verifiedPaths={page}
-      description={anonymous ? page ? 'Partial coverage: only verified page data under the current path policy. Historical unverified data and imports are excluded. Page filters and detailed searches are unavailable.' : 'Only canonical categories are available. Free-text labels, versions, and searches are restricted in anonymous mode.' : undefined}
-    />
-  }
   const shortenToRawRange = (days: number) => {
     const end = new Date(`${query.dateRange.to}T12:00:00Z`)
     const start = new Date(end)
@@ -182,101 +166,27 @@ function DashboardStateRoute() {
         query={query}
         href={`/app/${org}/${siteSlug}/settings/installation`}
       />
-      {anonymous ? <MainChart query={query} metric={search.metric} compare={search.compare} /> : <AnnotationManager
-        siteId={site.id}
-        dateRange={query.dateRange}
+      <DashboardChart
+        anonymous={anonymous}
         canEdit={membership?.role !== 'viewer'}
-      >
-        {({ annotations, onEdit, onDelete }) => (
-          <MainChart
-            query={query}
+        compare={search.compare}
+        metric={search.metric}
+        query={query}
+        siteId={site.id}
+      />
+      <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
+        <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
+          <DashboardBelowFold
+            allowedHosts={site.allowed_hosts}
+            anonymous={anonymous}
+            filters={filters}
             metric={search.metric}
-            compare={search.compare}
-            annotations={annotations}
-            canEditAnnotations={membership?.role !== 'viewer'}
-            onEditAnnotation={onEdit}
-            onDeleteAnnotation={onDelete}
+            onFilter={onFilter}
+            onShorten={shortenToRawRange}
+            query={query}
           />
-        )}
-      </AnnotationManager>}
-      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-        {breakdownCards.slice(0, 4).map(renderBreakdownCard)}
-      </div>
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:grid-rows-[auto_auto]" data-testid="where-when-band">
-        <div className="min-w-0 lg:col-start-1 lg:row-start-1" data-dashboard-band-item="where">
-          <WhereCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} />
-        </div>
-        <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1" data-dashboard-band-item="weekly-rhythm">
-          <WeeklyRhythmCard query={query} metric={search.metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={shortenToRawRange} />
-        </div>
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2" data-dashboard-band-item="goals-events">
-          {breakdownCards.slice(4).map(renderBreakdownCard)}
-        </div>
-      </div>
+        </Suspense>
+      </DeferredContent>
     </div>
   )
-}
-
-type BreakdownCardDefinition = { title: string; tabs: BreakdownTab[] }
-
-const breakdownCards: BreakdownCardDefinition[] = [
-  {
-    title: 'Pages',
-    tabs: [
-      {
-        key: 'top',
-        label: 'Top',
-        dimension: 'page',
-        metric: 'visitors',
-        metrics: ['visitors', 'pageviews', 'time_on_page', 'exit_rate'],
-      },
-      { key: 'entry', label: 'Entry', dimension: 'entry', metric: 'visitors' },
-      { key: 'exit', label: 'Exit', dimension: 'exit', metric: 'visitors' },
-    ],
-  },
-  {
-    title: 'Sources',
-    tabs: [
-      { key: 'source', label: 'Source', dimension: 'source', metric: 'visitors' },
-      { key: 'channel', label: 'Channels', dimension: 'channel', metric: 'visitors' },
-      { key: 'utm-source', label: 'UTM Source', dimension: 'utm_source', metric: 'visitors' },
-      { key: 'medium', label: 'Medium', dimension: 'utm_medium', metric: 'visitors' },
-      { key: 'campaign', label: 'Campaign', dimension: 'utm_campaign', metric: 'visitors' },
-    ],
-  },
-  {
-    title: 'Location',
-    tabs: [
-      { key: 'country', label: 'Countries', dimension: 'country', metric: 'visitors' },
-      { key: 'region', label: 'Regions', dimension: 'region', metric: 'visitors' },
-      { key: 'city', label: 'Cities', dimension: 'city', metric: 'visitors' },
-      { key: 'language', label: 'Language', dimension: 'language', metric: 'visitors' },
-      { key: 'hostname', label: 'Hostname', dimension: 'hostname', metric: 'visitors' },
-    ],
-  },
-  {
-    title: 'Environment',
-    tabs: [
-      { key: 'browser', label: 'Browser', dimension: 'browser', metric: 'visitors' },
-      { key: 'browser-version', label: 'Browser version', dimension: 'browser_version', metric: 'visitors' },
-      { key: 'os', label: 'OS', dimension: 'os', metric: 'visitors' },
-      { key: 'os-version', label: 'OS version', dimension: 'os_version', metric: 'visitors' },
-      { key: 'device', label: 'Device', dimension: 'device', metric: 'visitors' },
-      { key: 'screen-size', label: 'Screen size', dimension: 'screen_size', metric: 'visitors' },
-    ],
-  },
-  {
-    title: 'Goals & events',
-    tabs: [
-      { key: 'goals', label: 'Goals', dimension: 'goal', metric: 'conversions' },
-      { key: 'events', label: 'Events', dimension: 'event', metric: 'events' },
-    ],
-  },
-]
-
-function visibleTabs(tabs: BreakdownTab[], allowedHosts: string[] | undefined): BreakdownTab[] {
-  const showHostname =
-    (allowedHosts?.length ?? 0) > 1 ||
-    allowedHosts?.some((host) => host.startsWith('*.')) === true
-  return showHostname ? tabs : tabs.filter((tab) => tab.dimension !== 'hostname')
 }

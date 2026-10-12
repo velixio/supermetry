@@ -6,7 +6,8 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 
-import { AuthScreen, authResultMessage, postPrivate } from './login'
+import { AuthScreen } from '@/features/auth/AuthScreen'
+import { authResultMessage, postPrivate } from '@/features/auth/api'
 
 export const Route = createFileRoute('/reset/$token')({
   component: ResetPage,

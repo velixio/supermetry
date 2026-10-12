@@ -1,23 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
 import { JourneysPage } from '@/features/journeys/JourneysPage'
 import { countryName } from '@/lib/country'
-import { dashboardSearch, parseFilters, removeFilter, replaceFilters, resolveRange } from '@/lib/search'
+import { boundedSearchInteger, parseDashboardSearch, parseFilters, removeFilter, replaceFilters, resolveRange, searchEnum } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { useMe } from './app.$org'
 
-const journeysSearch = dashboardSearch.extend({
-  direction: z.enum(['start', 'end']).catch('start'),
-  path: z.string().catch(''),
-  steps: z.coerce.number().int().min(2).max(5).catch(3),
-})
+function parseJourneysSearch(value: unknown) {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return {
+    ...parseDashboardSearch(raw),
+    direction: searchEnum(raw.direction, ['start', 'end'] as const, 'start'),
+    path: typeof raw.path === 'string' ? raw.path : '',
+    steps: boundedSearchInteger(raw.steps, 2, 5, 3),
+  }
+}
 
 export const Route = createFileRoute('/app/$org/$site/journeys')({
-  validateSearch: (search) => journeysSearch.parse(search),
+  validateSearch: parseJourneysSearch,
   component: JourneysRoute,
 })
 

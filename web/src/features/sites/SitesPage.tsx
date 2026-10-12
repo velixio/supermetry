@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { Role } from '@/components/Sidebar'
-import type { Me, Site } from '@/routes/app.$org'
+import type { Me, Site } from '@/lib/me'
 import { DeletedSitesSection } from '@/features/lifecycle/DeletedSitesSection'
 import { queryClient } from '@/lib/queryClient'
 

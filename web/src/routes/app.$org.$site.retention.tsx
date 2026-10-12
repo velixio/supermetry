@@ -1,22 +1,25 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
 import { RetentionPage } from '@/features/retention/RetentionPage'
 import { countryName } from '@/lib/country'
-import { dashboardSearch, parseFilters, removeFilter, replaceFilters, resolveRange } from '@/lib/search'
+import { parseDashboardSearch, parseFilters, removeFilter, replaceFilters, resolveRange, searchEnum } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { useMe } from './app.$org'
 
-const retentionSearch = dashboardSearch.extend({
-  interval: z.enum(['day', 'week', 'month']).catch('day'),
-  identity: z.enum(['anonymous', 'profile']).catch('anonymous'),
-})
+function parseRetentionSearch(value: unknown) {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return {
+    ...parseDashboardSearch(raw),
+    interval: searchEnum(raw.interval, ['day', 'week', 'month'] as const, 'day'),
+    identity: searchEnum(raw.identity, ['anonymous', 'profile'] as const, 'anonymous'),
+  }
+}
 
 export const Route = createFileRoute('/app/$org/$site/retention')({
-  validateSearch: (search) => retentionSearch.parse(search),
+  validateSearch: parseRetentionSearch,
   component: RetentionRoute,
 })
 

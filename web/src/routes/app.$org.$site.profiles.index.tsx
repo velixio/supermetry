@@ -1,17 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { ProfilesPage } from '@/features/profiles/ProfilesPage'
 import { useSite } from '@/features/settings/routeContext'
-import { currentCursor, firstPage, nextPage, paginationSearch, previousPage } from '@/lib/search'
+import { currentCursor, firstPage, nextPage, parsePaginationSearch, previousPage } from '@/lib/search'
 
-const profilesSearch = z.object({
-  search: z.string().optional().catch(undefined),
-  ...paginationSearch,
-})
+function parseProfilesSearch(value: unknown) {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return {
+    ...parsePaginationSearch(raw),
+    ...(typeof raw.search === 'string' ? { search: raw.search } : {}),
+  }
+}
 
 export const Route = createFileRoute('/app/$org/$site/profiles/')({
-  validateSearch: (search) => profilesSearch.parse(search),
+  validateSearch: parseProfilesSearch,
   component: ProfilesRoute,
 })
 

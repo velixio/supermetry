@@ -11,13 +11,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   canCreateSites,
-  loginRedirect,
   navigationHref,
   organizationHref,
   visibleNavigation,
-} from './app.$org'
+} from '@/components/Sidebar'
 import { queryClient } from '@/lib/queryClient'
 import { routeTree } from '@/routeTree.gen'
+import { loginRedirect } from './app.$org'
 
 vi.mock('@/lib/session-lifecycle', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/session-lifecycle')>()

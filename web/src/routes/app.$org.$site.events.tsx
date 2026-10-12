@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
@@ -8,11 +7,12 @@ import { countryName } from '@/lib/country'
 import {
   addFilter,
   currentCursor,
-  dashboardSearch,
   firstPage,
   nextPage,
-  paginationSearch,
+  parseDashboardSearch,
+  parsePaginationSearch,
   parseFilters,
+  positiveSearchID,
   previousPage,
   removeFilter,
   replaceFilters,
@@ -22,15 +22,19 @@ import { en } from '@/messages/en'
 
 import { useMe } from './app.$org'
 
-const eventsSearch = dashboardSearch.extend({
-  name: z.string().catch(''),
-  property: z.string().catch(''),
-  ...paginationSearch,
-  replay: z.string().regex(/^[1-9][0-9]*$/).optional().catch(undefined),
-})
+function parseEventsSearch(value: unknown) {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return {
+    ...parseDashboardSearch(raw),
+    ...parsePaginationSearch(raw),
+    name: typeof raw.name === 'string' ? raw.name : '',
+    property: typeof raw.property === 'string' ? raw.property : '',
+    ...(positiveSearchID(raw.replay) ? { replay: positiveSearchID(raw.replay) } : {}),
+  }
+}
 
 export const Route = createFileRoute('/app/$org/$site/events')({
-  validateSearch: (search) => eventsSearch.parse(search),
+  validateSearch: parseEventsSearch,
   component: EventsRoute,
 })
 

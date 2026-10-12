@@ -7,7 +7,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { requestLogout } from '@/lib/session-lifecycle'
-import type { Me, Membership, Site } from '@/routes/app.$org'
+import type { Me, Membership, Site } from '@/lib/me'
 import { siteSlug } from './Sidebar'
 
 export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Membership; site?: Site }) {

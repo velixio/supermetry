@@ -1,17 +1,22 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 
 import { HeatmapsPage } from '@/features/heatmaps/HeatmapsPage'
 import type { HeatmapDevice } from '@/features/heatmaps/types'
-import { dashboardSearch, periodValues, resolveRange, type Period } from '@/lib/search'
+import { parseDashboardSearch, periodValues, resolveRange, searchEnum, type Period } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { useMe } from './app.$org'
 
-export const heatmapSearch = dashboardSearch.extend({
-  path: z.string().catch(''),
-  device: z.enum(['mobile', 'tablet', 'desktop']).catch('desktop'),
-})
+function parseHeatmapSearch(value: unknown) {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return {
+    ...parseDashboardSearch(raw),
+    path: typeof raw.path === 'string' ? raw.path : '',
+    device: searchEnum(raw.device, ['mobile', 'tablet', 'desktop'] as const, 'desktop'),
+  }
+}
+
+export const heatmapSearch = { parse: parseHeatmapSearch }
 
 export const Route = createFileRoute('/app/$org/$site/heatmaps')({
   validateSearch: (search) => heatmapSearch.parse(search),
