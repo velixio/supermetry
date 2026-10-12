@@ -262,4 +262,20 @@ export const en = {
     exclusions: 'Privacy signals, bots, and site exclusions are not counted.',
     badgeDescription: '{count} distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. {thirty} visitors in the last 30 minutes.',
   },
+
+  // F04 design polish.
+  polish: {
+    filters: 'Filters',
+    filtersDescription: 'Adjust the date range, comparison, and data filters.',
+    chooseRange: 'Choose date range',
+    chooseRangeDescription: 'Choose a preset or select a start and end date.',
+    preset: 'Preset',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    selectEnd: 'Select end',
+    includeImported: 'Include imported data',
+    emptyRange: 'No data for this date range.',
+    emptyNext: 'Try a wider date range or remove a filter.',
+    noTrafficNext: 'Choose a wider range or verify that tracking is installed.',
+  },
 } as const

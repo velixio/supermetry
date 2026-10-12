@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { DatePicker } from '@/components/DatePicker'
 import { FilterBar } from '@/components/FilterBar'
+import { ResponsiveFilters } from '@/components/ResponsiveFilters'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
@@ -49,7 +50,8 @@ function SessionsRoute() {
   const timezone = site.timezone || 'UTC'
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-hidden [contain:inline-size]">
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 justify-end">
+        <ResponsiveFilters>
         <FilterBar
           dropped={dropped}
           filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
@@ -66,11 +68,12 @@ function SessionsRoute() {
           search={search}
           onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
         />
-      </div>
-      {canReplay ? <Field orientation="horizontal">
+      {canReplay ? <Field className="min-h-11 sm:min-h-9" orientation="horizontal">
         <Checkbox id="sessions-has-replay" checked={search.has_replay ?? false} onCheckedChange={(checked) => void navigate({ search: firstPage({ ...search, has_replay: checked === true }) })} />
         <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
       </Field> : null}
+        </ResponsiveFilters>
+      </div>
       <SessionsPage
         cursor={currentCursor(search)}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
