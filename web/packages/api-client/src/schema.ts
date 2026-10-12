@@ -1532,6 +1532,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/revenue/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Revenue breakdown with attribution
+         * @description Orders, revenue, average order value, revenue per visitor and, in identified mode with profiles enabled, unique customers and repeat-purchase rate,
+         *     grouped by one breakdown. `first_click` and `last_click` credit the first or most recent source or campaign visit by the same person inside
+         *     `lookback_days` before the order; visits link across days only through customer profiles, because visitor ids are re-salted daily. Visits without
+         *     a source or campaign never take credit, and an order with no qualifying visit is reported under the empty key (direct). Orders in more than one
+         *     currency are refused. Computed from retained raw events and sessions, capped at 20,000 orders (`truncated`). Send `Accept: text/csv` to export,
+         *     which needs the `data:export` scope.
+         */
+        get: operations["getRevenueReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/revenue/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Identified customers by revenue
+         * @description Available only in identified mode with profiles enabled and gated by the `profiles:read` scope, because external ids can be personal data.
+         */
+        get: operations["listRevenueCustomers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/notification-history": {
         parameters: {
             query?: never;
@@ -1658,6 +1707,69 @@ export interface components {
         NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram";
         /** @enum {string} */
         DeliveryStatus: "pending" | "succeeded" | "failed";
+        RevenueReportRow: {
+            /** @description Group label; empty for direct or unknown. */
+            key: string;
+            /** Format: int64 */
+            orders: number;
+            /** Format: double */
+            revenue: number;
+            /** Format: double */
+            average_order_value: number;
+            /** Format: int64 */
+            unique_customers?: number;
+            /** Format: int64 */
+            repeat_customers?: number;
+            /**
+             * Format: double
+             * @description Percent of customers with two or more orders in the group.
+             */
+            repeat_rate?: number;
+        };
+        RevenueReport: {
+            /** @description Site revenue currency; empty when unconfigured. */
+            currency: string;
+            breakdown: string;
+            attribution: string;
+            lookback_days: number;
+            /** Format: int64 */
+            orders: number;
+            /** Format: double */
+            revenue: number;
+            /** Format: double */
+            average_order_value: number;
+            /**
+             * Format: int64
+             * @description Daily visitors in the period (ids are re-salted daily).
+             */
+            visitors: number;
+            /** Format: double */
+            revenue_per_visitor: number;
+            /** Format: int64 */
+            unique_customers?: number;
+            /** Format: int64 */
+            repeat_customers?: number;
+            /** Format: double */
+            repeat_rate?: number;
+            truncated: boolean;
+            rows: components["schemas"]["RevenueReportRow"][];
+        };
+        RevenueCustomer: {
+            /** Format: int64 */
+            profile_id: number;
+            external_id: string;
+            /** Format: int64 */
+            orders: number;
+            /** Format: double */
+            revenue: number;
+            /** Format: date-time */
+            first_order_at: string;
+            /** Format: date-time */
+            last_order_at: string;
+        };
+        RevenueCustomersResponse: {
+            data: components["schemas"]["RevenueCustomer"][];
+        };
         NotificationDelivery: {
             /** Format: int64 */
             id: number;
@@ -6217,6 +6329,80 @@ export interface operations {
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getRevenueReport: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                breakdown: "country" | "region" | "source" | "campaign" | "page" | "product";
+                attribution?: "event" | "first_click" | "last_click";
+                lookback_days?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revenue report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevenueReport"];
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Orders use more than one currency. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRevenueCustomers: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                search?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customers by revenue, largest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevenueCustomersResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listNotificationHistory: {

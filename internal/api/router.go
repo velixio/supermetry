@@ -64,6 +64,7 @@ type Deps struct {
 	Config         config.Config
 	Query          queryService
 	SessionExplore sessionExploreService
+	Revenue        revenueService
 	Heatmaps       heatmapService
 	Ingest         http.Handler
 	Replay         http.Handler
@@ -113,7 +114,7 @@ func NewRouter(deps Deps) http.Handler {
 	if deps.Config.Tracking.Mode != privacy.Identified && queries != nil {
 		queries = anonymousQueries{queryService: queries, paths: deps.Config.TrackingPaths}
 	}
-	h := &handlers{query: queries, sessions: deps.SessionExplore, heatmaps: deps.Heatmaps, now: deps.Now}
+	h := &handlers{query: queries, sessions: deps.SessionExplore, revenue: deps.Revenue, heatmaps: deps.Heatmaps, now: deps.Now}
 	explore, hasExplore := deps.Query.(exploreService)
 	mux := http.NewServeMux()
 
@@ -145,6 +146,8 @@ func NewRouter(deps Deps) http.Handler {
 		registerExplore(private, privatePrefix, explore)
 	}
 	registerSessionExplore(private, privatePrefix, h)
+	private.HandleFunc("GET "+privatePrefix+"/sites/{site}/revenue/report", h.revenueReport)
+	private.HandleFunc("GET "+privatePrefix+"/sites/{site}/revenue/customers", h.revenueCustomers)
 	private.HandleFunc("POST "+privatePrefix+"/query", h.queryRequest)
 	private.HandleFunc("POST "+privatePrefix+"/heatmaps/query", h.heatmapRequest)
 	private.HandleFunc("POST "+privatePrefix+"/vitals/query", h.vitalsRequest)

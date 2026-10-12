@@ -1324,6 +1324,57 @@ func (e VitalsDimension) Valid() bool {
 	}
 }
 
+// Defines values for GetRevenueReportParamsBreakdown.
+const (
+	GetRevenueReportParamsBreakdownCampaign GetRevenueReportParamsBreakdown = "campaign"
+	GetRevenueReportParamsBreakdownCountry  GetRevenueReportParamsBreakdown = "country"
+	GetRevenueReportParamsBreakdownPage     GetRevenueReportParamsBreakdown = "page"
+	GetRevenueReportParamsBreakdownProduct  GetRevenueReportParamsBreakdown = "product"
+	GetRevenueReportParamsBreakdownRegion   GetRevenueReportParamsBreakdown = "region"
+	GetRevenueReportParamsBreakdownSource   GetRevenueReportParamsBreakdown = "source"
+)
+
+// Valid indicates whether the value is a known member of the GetRevenueReportParamsBreakdown enum.
+func (e GetRevenueReportParamsBreakdown) Valid() bool {
+	switch e {
+	case GetRevenueReportParamsBreakdownCampaign:
+		return true
+	case GetRevenueReportParamsBreakdownCountry:
+		return true
+	case GetRevenueReportParamsBreakdownPage:
+		return true
+	case GetRevenueReportParamsBreakdownProduct:
+		return true
+	case GetRevenueReportParamsBreakdownRegion:
+		return true
+	case GetRevenueReportParamsBreakdownSource:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRevenueReportParamsAttribution.
+const (
+	GetRevenueReportParamsAttributionEvent      GetRevenueReportParamsAttribution = "event"
+	GetRevenueReportParamsAttributionFirstClick GetRevenueReportParamsAttribution = "first_click"
+	GetRevenueReportParamsAttributionLastClick  GetRevenueReportParamsAttribution = "last_click"
+)
+
+// Valid indicates whether the value is a known member of the GetRevenueReportParamsAttribution enum.
+func (e GetRevenueReportParamsAttribution) Valid() bool {
+	switch e {
+	case GetRevenueReportParamsAttributionEvent:
+		return true
+	case GetRevenueReportParamsAttributionFirstClick:
+		return true
+	case GetRevenueReportParamsAttributionLastClick:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PreflightEventParamsAccessControlRequestMethod.
 const (
 	POST PreflightEventParamsAccessControlRequestMethod = "POST"
@@ -2512,6 +2563,58 @@ type RetentionResponseIdentityWindow string
 // RetentionResponseRetentionMode Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
 type RetentionResponseRetentionMode string
 
+// RevenueCustomer defines model for RevenueCustomer.
+type RevenueCustomer struct {
+	ExternalId   string    `json:"external_id"`
+	FirstOrderAt time.Time `json:"first_order_at"`
+	LastOrderAt  time.Time `json:"last_order_at"`
+	Orders       int64     `json:"orders"`
+	ProfileId    int64     `json:"profile_id"`
+	Revenue      float64   `json:"revenue"`
+}
+
+// RevenueCustomersResponse defines model for RevenueCustomersResponse.
+type RevenueCustomersResponse struct {
+	Data []RevenueCustomer `json:"data"`
+}
+
+// RevenueReport defines model for RevenueReport.
+type RevenueReport struct {
+	Attribution       string  `json:"attribution"`
+	AverageOrderValue float64 `json:"average_order_value"`
+	Breakdown         string  `json:"breakdown"`
+
+	// Currency Site revenue currency; empty when unconfigured.
+	Currency          string             `json:"currency"`
+	LookbackDays      int                `json:"lookback_days"`
+	Orders            int64              `json:"orders"`
+	RepeatCustomers   *int64             `json:"repeat_customers,omitempty"`
+	RepeatRate        *float64           `json:"repeat_rate,omitempty"`
+	Revenue           float64            `json:"revenue"`
+	RevenuePerVisitor float64            `json:"revenue_per_visitor"`
+	Rows              []RevenueReportRow `json:"rows"`
+	Truncated         bool               `json:"truncated"`
+	UniqueCustomers   *int64             `json:"unique_customers,omitempty"`
+
+	// Visitors Daily visitors in the period (ids are re-salted daily).
+	Visitors int64 `json:"visitors"`
+}
+
+// RevenueReportRow defines model for RevenueReportRow.
+type RevenueReportRow struct {
+	AverageOrderValue float64 `json:"average_order_value"`
+
+	// Key Group label; empty for direct or unknown.
+	Key             string `json:"key"`
+	Orders          int64  `json:"orders"`
+	RepeatCustomers *int64 `json:"repeat_customers,omitempty"`
+
+	// RepeatRate Percent of customers with two or more orders in the group.
+	RepeatRate      *float64 `json:"repeat_rate,omitempty"`
+	Revenue         float64  `json:"revenue"`
+	UniqueCustomers *int64   `json:"unique_customers,omitempty"`
+}
+
 // SavedFunnel defines model for SavedFunnel.
 type SavedFunnel struct {
 	Id     int64        `json:"id"`
@@ -3085,6 +3188,30 @@ type ListNotificationHistoryParams struct {
 	AlertId *int64                   `form:"alert_id,omitempty" json:"alert_id,omitempty"`
 	Limit   *int                     `form:"limit,omitempty" json:"limit,omitempty"`
 }
+
+// ListRevenueCustomersParams defines parameters for ListRevenueCustomers.
+type ListRevenueCustomersParams struct {
+	From   openapi_types.Date `form:"from" json:"from"`
+	To     openapi_types.Date `form:"to" json:"to"`
+	Search *string            `form:"search,omitempty" json:"search,omitempty"`
+	Limit  *int               `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetRevenueReportParams defines parameters for GetRevenueReport.
+type GetRevenueReportParams struct {
+	From         openapi_types.Date                 `form:"from" json:"from"`
+	To           openapi_types.Date                 `form:"to" json:"to"`
+	Breakdown    GetRevenueReportParamsBreakdown    `form:"breakdown" json:"breakdown"`
+	Attribution  *GetRevenueReportParamsAttribution `form:"attribution,omitempty" json:"attribution,omitempty"`
+	LookbackDays *int                               `form:"lookback_days,omitempty" json:"lookback_days,omitempty"`
+	Limit        *int                               `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetRevenueReportParamsBreakdown defines parameters for GetRevenueReport.
+type GetRevenueReportParamsBreakdown string
+
+// GetRevenueReportParamsAttribution defines parameters for GetRevenueReport.
+type GetRevenueReportParamsAttribution string
 
 // PreflightEventParams defines parameters for PreflightEvent.
 type PreflightEventParams struct {
@@ -3952,6 +4079,12 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+	// ListRevenueCustomers Identified customers by revenue
+	// (GET /api/private/sites/{site}/revenue/customers)
+	ListRevenueCustomers(w http.ResponseWriter, r *http.Request, site int32, params ListRevenueCustomersParams)
+	// GetRevenueReport Revenue breakdown with attribution
+	// (GET /api/private/sites/{site}/revenue/report)
+	GetRevenueReport(w http.ResponseWriter, r *http.Request, site int32, params GetRevenueReportParams)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -5778,6 +5911,194 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetryNotificationDelivery(w, r, site, delivery)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRevenueCustomers operation middleware
+func (siw *ServerInterfaceWrapper) ListRevenueCustomers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRevenueCustomersParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "search", r.URL.Query(), &params.Search, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "search"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "search", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRevenueCustomers(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRevenueReport operation middleware
+func (siw *ServerInterfaceWrapper) GetRevenueReport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetRevenueReportParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "breakdown" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "breakdown", r.URL.Query(), &params.Breakdown, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "breakdown"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "breakdown", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "attribution" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "attribution", r.URL.Query(), &params.Attribution, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "attribution"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "attribution", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "lookback_days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lookback_days", r.URL.Query(), &params.LookbackDays, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "lookback_days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lookback_days", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRevenueReport(w, r, site, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8128,6 +8449,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.ListApiKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.CreateApiKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}", wrapper.RevokeApiKey)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/report", wrapper.GetRevenueReport)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/customers", wrapper.ListRevenueCustomers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)

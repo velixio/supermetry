@@ -2243,6 +2243,58 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /api/private/sites/{site}/revenue/report:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getRevenueReport
+      summary: Revenue breakdown with attribution
+      description: |
+        Orders, revenue, average order value, revenue per visitor and, in identified mode with profiles enabled, unique customers and repeat-purchase rate,
+        grouped by one breakdown. `first_click` and `last_click` credit the first or most recent source or campaign visit by the same person inside
+        `lookback_days` before the order; visits link across days only through customer profiles, because visitor ids are re-salted daily. Visits without
+        a source or campaign never take credit, and an order with no qualifying visit is reported under the empty key (direct). Orders in more than one
+        currency are refused. Computed from retained raw events and sessions, capped at 20,000 orders (`truncated`). Send `Accept: text/csv` to export,
+        which needs the `data:export` scope.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: breakdown, in: query, required: true, schema: { type: string, enum: [country, region, source, campaign, page, product] } }
+        - { name: attribution, in: query, schema: { type: string, enum: [event, first_click, last_click], default: event } }
+        - { name: lookback_days, in: query, schema: { type: integer, minimum: 1, maximum: 90, default: 30 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 50 } }
+      responses:
+        '200':
+          description: Revenue report.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/RevenueReport' } }
+            text/csv: { schema: { type: string } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Orders use more than one currency., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/revenue/customers:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listRevenueCustomers
+      summary: Identified customers by revenue
+      description: Available only in identified mode with profiles enabled and gated by the `profiles:read` scope, because external ids can be personal data.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+      responses:
+        '200':
+          description: Customers by revenue, largest first.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/RevenueCustomersResponse' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/notification-history:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -2587,6 +2639,53 @@ components:
     DeliveryStatus:
       type: string
       enum: [pending, succeeded, failed]
+    RevenueReportRow:
+      type: object
+      additionalProperties: false
+      required: [key, orders, revenue, average_order_value]
+      properties:
+        key: { type: string, description: Group label; empty for direct or unknown. }
+        orders: { type: integer, format: int64, minimum: 0 }
+        revenue: { type: number, format: double }
+        average_order_value: { type: number, format: double }
+        unique_customers: { type: integer, format: int64, minimum: 0 }
+        repeat_customers: { type: integer, format: int64, minimum: 0 }
+        repeat_rate: { type: number, format: double, description: Percent of customers with two or more orders in the group. }
+    RevenueReport:
+      type: object
+      additionalProperties: false
+      required: [currency, breakdown, attribution, lookback_days, orders, revenue, average_order_value, visitors, revenue_per_visitor, truncated, rows]
+      properties:
+        currency: { type: string, description: Site revenue currency; empty when unconfigured. }
+        breakdown: { type: string }
+        attribution: { type: string }
+        lookback_days: { type: integer }
+        orders: { type: integer, format: int64, minimum: 0 }
+        revenue: { type: number, format: double }
+        average_order_value: { type: number, format: double }
+        visitors: { type: integer, format: int64, minimum: 0, description: Daily visitors in the period (ids are re-salted daily). }
+        revenue_per_visitor: { type: number, format: double }
+        unique_customers: { type: integer, format: int64, minimum: 0 }
+        repeat_customers: { type: integer, format: int64, minimum: 0 }
+        repeat_rate: { type: number, format: double }
+        truncated: { type: boolean }
+        rows: { type: array, items: { $ref: '#/components/schemas/RevenueReportRow' } }
+    RevenueCustomer:
+      type: object
+      additionalProperties: false
+      required: [profile_id, external_id, orders, revenue, first_order_at, last_order_at]
+      properties:
+        profile_id: { type: integer, format: int64 }
+        external_id: { type: string }
+        orders: { type: integer, format: int64, minimum: 1 }
+        revenue: { type: number, format: double }
+        first_order_at: { type: string, format: date-time }
+        last_order_at: { type: string, format: date-time }
+    RevenueCustomersResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/RevenueCustomer' } } }
     NotificationDelivery:
       type: object
       additionalProperties: false

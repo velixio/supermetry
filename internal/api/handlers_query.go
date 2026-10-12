@@ -22,6 +22,7 @@ type queryService interface {
 type handlers struct {
 	query    queryService
 	sessions sessionExploreService
+	revenue  revenueService
 	heatmaps heatmapService
 	now      func() time.Time
 }
