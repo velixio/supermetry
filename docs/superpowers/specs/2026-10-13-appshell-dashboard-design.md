@@ -143,3 +143,59 @@ Branch `feat/appshell-frame`, one PR per step, with no push to main. Tests first
 - **Test churn**: `ProjectTabs` removal changes several tests and e2e specs.
 - **Unresolved: notifications.** There is an org notifications settings route, but no inbox. I will not add a bell without a real source.
 - **Unresolved: global search.** I propose it only as the command palette (step 8) and do not add a decorative search box earlier.
+
+## 11. Addendum: dashboard as main panel plus inspector (user choice, 2026-10-13)
+
+Chosen from three original layouts (main plus inspector, stacked resizable panes, three-pane workspace). The other two are rejected: stacked panes hide cards behind tabs and the three-pane workspace needs a wide screen. This section extends sections 5 and 6; where they conflict, this section wins.
+
+### 11.1 Behaviour
+
+- The dashboard body is a two-panel group inside `PageContainer`: **main** (stats strip, chart, card grid; scrolls on its own) and an **inspector** (closed by default).
+- The inspector opens when the user chooses **Inspect** on a row in a `BreakdownCard`, a country in the Where card, a cell in Weekly rhythm, or a point on the chart. Clicking a row still applies the filter as today; Inspect is a separate, labelled control (the "View full report" and details dialogs stay reachable from inside the inspector).
+- Content is what the current queries already return for that selection: the value's own metrics (the same metrics the card shows) for the active date range and filters, its top breakdown by the other dimensions where the API supports it, and the actions "Add as filter" and "Open full report". **No new metrics, no new endpoints** (web-only scope holds).
+- Closing: Esc, the close button, or selecting the same row again. Opening another row replaces the contents and keeps focus management consistent.
+- Width: default 24 rem, resizable 20-32 rem with a keyboard-operable handle, remembered per browser in `localStorage` (try/catch, renders without it). Main keeps a minimum of 40 rem; below that the inspector overlays as a sheet.
+
+### 11.2 State and URL
+
+The selection lives in the route search params as `inspect=<dimension>:<value>` (validated in the route's `validateSearch`, unknown dimensions dropped). This gives deep links, back/forward, and survival across date and filter changes. Changing a filter that excludes the value shows an "Out of range" empty state in the inspector rather than closing it.
+
+### 11.3 Responsive
+
+- **>=1280**: side-by-side panels.
+- **768-1279**: inspector overlays main as a right-hand `Sheet` (not a push layout); the sidebar is already on the icon rail.
+- **<768**: inspector is a bottom `Sheet`, full width, 85% height.
+
+### 11.4 Components and dependencies
+
+| Component | Action |
+|---|---|
+| `DashboardPanels` | New: owns the panel group, width persistence and the sheet fallback via `useIsMobile` and a width query. |
+| `Inspector` | New: header (dimension, value, close), body (metrics, breakdowns, actions), loading and error states reusing `Skeleton` and `ErrorState`. |
+| `BreakdownCard`, Where, Weekly rhythm, `MainChart` | Modify: add the Inspect control and expose `onInspect(dimension, value)`. |
+| `routes/app.$org.$site.index.tsx` | Modify: `inspect` search param, render `DashboardPanels`. |
+
+New dependency: shadcn `resizable` (`react-resizable-panels`). Decide at step 6 whether it fits the JS budget (256 KB gzip); if not, use a fixed-width inspector with no drag handle and drop the resize criterion below.
+
+### 11.5 Plan additions
+
+Insert after step 6, as its own PRs:
+
+- **6a. Inspector shell**: `DashboardPanels`, `Inspector`, `inspect` search param, close and focus behaviour, sheet fallbacks. Tests first: URL round trip, Esc closes, focus returns to the Inspect control, overlay below 1280.
+- **6b. Wire the sources**: add Inspect to `BreakdownCard`, then Where, Weekly rhythm and the chart, one PR each if the diff grows.
+
+### 11.6 Acceptance criteria (added)
+
+- Inspect opens the inspector from each of the four sources without changing the applied filters.
+- Reloading a URL with `inspect=` restores the same selection; back closes it.
+- Focus moves into the inspector on open and returns to the invoking control on close; the inspector is a labelled region (`aside` with a heading), and the single `main` landmark rule still holds.
+- Keyboard-only: open, resize (if enabled), close, with visible focus.
+- At 390 px there is no horizontal page scroll and the inspector is a bottom sheet.
+- Every number in the inspector comes from an existing API response; none is derived client-side except formatting.
+- Playwright `dashboard`, `a11y-audit` and `ui-qa` pass, plus a new `inspector` spec.
+
+### 11.7 Risks and open points
+
+- **Which dimensions support a cross-breakdown** depends on the query API; step 6a must list them from `internal/api/openapi.yaml` before building the body, and show only what exists.
+- **Chart point inspection** has no existing detail view; ship it last, or drop it if the per-day data would need a new query.
+- **Interaction with edit mode and custom dashboards**: the inspector is off while `DashboardEditor` is active.
