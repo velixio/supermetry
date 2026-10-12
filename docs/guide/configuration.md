@@ -65,6 +65,7 @@ To check the setup, set `SUPERMETRY_INGEST_DIAG=1` (below) and look at `peer_tru
 |---|---|---|---|
 | `SUPERMETRY_EVENT_PATH` | URL path the tracker posts events to. Must start with `/`. | `/api/public/v1/events` | `/a/e` |
 | `SUPERMETRY_TRACKER_PATH` | URL path the tracker script is served from. Must start with `/`. | `/js/script.js` | `/a/t.js` |
+| `SUPERMETRY_TRACKING_MODE` | `identified` collects real page paths, referrers and campaigns, and new projects start with profiles on. `anonymous` is the strictest mode. See [Tracking and privacy](../tracking-privacy.md). Changing it needs a restart. | `identified` | `anonymous` |
 
 Ad blockers match on well-known names such as `script.js` or `/events`. Changing both paths to neutral values avoids those filters. The tracking snippet shown in the dashboard is built from `SUPERMETRY_BASE_URL` plus these paths, so reinstall the snippet on your sites after changing them. Whether the old paths keep working after a change: see source (`internal/api/router.go`). If a proxy routes only specific paths to Supermetry, update it to match.
 
