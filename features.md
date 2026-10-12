@@ -31,7 +31,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Annotations on the chart | – | ✓ | – | ✅ |
 | Retention (cohort) report | – | ✓ | ✓ | ✅ (cross-day with profiles; same-day for anonymous) |
 | User journeys / path flow | ✓ (paid) | ✓ | ✓ | ✅ |
-| Web Vitals | – | ✓ | ? | ✅ (full script) |
+| Web Vitals | – | ✓ | ? | ✅ (full script: LCP, CLS, INP, FCP, TTFB) |
 | Session replay | – | ✓ | ✓ | ✅ (responsive contain-fit player and independent detail scrolling) |
 | Heatmaps | – | ✓ | – | ✅ (aggregated clicks + scroll map, opt-in) |
 | User profiles and `identify` | – | ✓ | ✓ | ✅ (opt-in per site) |

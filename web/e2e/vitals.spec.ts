@@ -5,6 +5,8 @@ const response = {
     lcp: { p75: 2800, samples: 20, good: 0.6, needs_improvement: 0.25, poor: 0.15 },
     cls: { p75: 80, samples: 18, good: 0.8, needs_improvement: 0.15, poor: 0.05 },
     inp: { p75: 550, samples: 12, good: 0.25, needs_improvement: 0.5, poor: 0.25 },
+    fcp: { p75: 1900, samples: 16, good: 0.5, needs_improvement: 0.3, poor: 0.2 },
+    ttfb: { p75: 1900, samples: 14, good: 0.4, needs_improvement: 0.3, poor: 0.3 },
   },
   breakdown: [
     {
@@ -12,12 +14,14 @@ const response = {
       lcp: { p75: 3100, samples: 10, good: 0.5, needs_improvement: 0.3, poor: 0.2 },
       cls: { p75: 120, samples: 9, good: 0.7, needs_improvement: 0.2, poor: 0.1 },
       inp: { p75: 220, samples: 7, good: 0.4, needs_improvement: 0.4, poor: 0.2 },
+      fcp: { p75: 1800, samples: 8, good: 0.6, needs_improvement: 0.3, poor: 0.1 },
+      ttfb: { p75: 900, samples: 6, good: 0.5, needs_improvement: 0.3, poor: 0.2 },
     },
   ],
   timeseries: [
-    { date: '2026-09-28', lcp: { p50: 2100, p75: 2700, p95: 3900, samples: 6 }, cls: { p50: 50, p75: 80, p95: 130, samples: 5 }, inp: { p50: 170, p75: 220, p95: 480, samples: 4 } },
-    { date: '2026-09-29', lcp: { p50: 2200, p75: 2900, p95: 4300, samples: 7 }, cls: { p50: 60, p75: 90, p95: 180, samples: 6 }, inp: { p50: 190, p75: 260, p95: 560, samples: 4 } },
-    { date: '2026-09-30', lcp: { p50: 1900, p75: 2400, p95: 3700, samples: 7 }, cls: { p50: 40, p75: 70, p95: 120, samples: 7 }, inp: { p50: 150, p75: 190, p95: 420, samples: 4 } },
+    { date: '2026-09-28', lcp: { p50: 2100, p75: 2700, p95: 3900, samples: 6 }, cls: { p50: 50, p75: 80, p95: 130, samples: 5 }, inp: { p50: 170, p75: 220, p95: 480, samples: 4 }, fcp: { p50: 1300, p75: 1800, p95: 2900, samples: 5 }, ttfb: { p50: 500, p75: 800, p95: 1700, samples: 5 } },
+    { date: '2026-09-29', lcp: { p50: 2200, p75: 2900, p95: 4300, samples: 7 }, cls: { p50: 60, p75: 90, p95: 180, samples: 6 }, inp: { p50: 190, p75: 260, p95: 560, samples: 4 }, fcp: { p50: 1400, p75: 1900, p95: 3200, samples: 6 }, ttfb: { p50: 600, p75: 900, p95: 1900, samples: 5 } },
+    { date: '2026-09-30', lcp: { p50: 1900, p75: 2400, p95: 3700, samples: 7 }, cls: { p50: 40, p75: 70, p95: 120, samples: 7 }, inp: { p50: 150, p75: 190, p95: 420, samples: 4 }, fcp: { p50: 1200, p75: 1600, p95: 2600, samples: 5 }, ttfb: { p50: 450, p75: 700, p95: 1500, samples: 4 } },
   ],
 }
 
@@ -44,6 +48,8 @@ test('Web Vitals diagnostic breakdowns work at desktop and mobile widths', async
   await trend.getByRole('tab', { name: 'CLS' }).click()
   await expect(trend.getByRole('img', { name: 'Cumulative Layout Shift daily percentiles' })).toBeVisible()
   await expect(trend.getByText('18 samples shown')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'First Contentful Paint' })).toContainText('1.9 s')
+  await expect(page.getByRole('region', { name: 'Time to First Byte' })).toContainText('Poor')
 
   const breakdown = page.getByRole('tablist', { name: 'Vitals breakdown' })
   for (const label of ['Page', 'Device', 'Country', 'Browser']) {
@@ -52,12 +58,22 @@ test('Web Vitals diagnostic breakdowns work at desktop and mobile widths', async
   await breakdown.getByRole('tab', { name: 'Country' }).click()
   await expect(page.getByRole('columnheader', { name: 'Country' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'United States' })).toBeVisible()
-  await page.screenshot({ path: 'e2e/screenshots/vitals-country-1440.png', fullPage: true })
+  await page.screenshot({ path: 'e2e/screenshots/vitals/1440-light.png', fullPage: true })
+
+  await page.evaluate(() => {
+    localStorage.setItem('theme', 'dark')
+    document.documentElement.classList.add('dark')
+    document.documentElement.style.colorScheme = 'dark'
+  })
+  await page.screenshot({ path: 'e2e/screenshots/vitals/1440-dark.png', fullPage: true })
+
+  await page.setViewportSize({ width: 1024, height: 900 })
+  await page.screenshot({ path: 'e2e/screenshots/vitals/1024-dark.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
   await breakdown.getByRole('tab', { name: 'Browser' }).click()
   await expect(page.getByRole('columnheader', { name: 'Browser' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'Chrome' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
-  await page.screenshot({ path: 'e2e/screenshots/vitals-browser-390.png', fullPage: true })
+  await page.screenshot({ path: 'e2e/screenshots/vitals/390-dark.png', fullPage: true })
 })

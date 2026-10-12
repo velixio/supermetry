@@ -34,6 +34,8 @@ const metrics: Array<{ key: VitalMetricName; name: string; short: string }> = [
   { key: 'lcp', name: 'Largest Contentful Paint', short: 'LCP' },
   { key: 'cls', name: 'Cumulative Layout Shift', short: 'CLS' },
   { key: 'inp', name: 'Interaction to Next Paint', short: 'INP' },
+  { key: 'fcp', name: 'First Contentful Paint', short: 'FCP' },
+  { key: 'ttfb', name: 'Time to First Byte', short: 'TTFB' },
 ]
 
 const breakdownDimensions: Array<{ value: VitalsDimension; label: string }> = [
@@ -43,9 +45,17 @@ const breakdownDimensions: Array<{ value: VitalsDimension; label: string }> = [
   { value: 'browser', label: 'Browser' },
 ]
 
+function thresholds(metric: VitalMetricName): [number, number] {
+  if (metric === 'lcp') return [2500, 4000]
+  if (metric === 'cls') return [100, 250]
+  if (metric === 'inp') return [200, 500]
+  if (metric === 'fcp') return [1800, 3000]
+  return [800, 1800]
+}
+
 function rating(metric: VitalMetricName, value?: number): 'Good' | 'Needs improvement' | 'Poor' | 'No data' {
   if (value === undefined) return 'No data'
-  const [good, poor] = metric === 'lcp' ? [2500, 4000] : metric === 'cls' ? [100, 250] : [200, 500]
+  const [good, poor] = thresholds(metric)
   if (value <= good) return 'Good'
   return value <= poor ? 'Needs improvement' : 'Poor'
 }
@@ -53,7 +63,7 @@ function rating(metric: VitalMetricName, value?: number): 'Good' | 'Needs improv
 function formatP75(metric: VitalMetricName, value?: number): string {
   if (value === undefined) return '—'
   if (metric === 'cls') return (value / 1000).toFixed(3)
-  if (metric === 'lcp' && value >= 1000) return `${(value / 1000).toFixed(1)} s`
+  if (value >= 1000) return `${(value / 1000).toFixed(1)} s`
   return `${Math.round(value)} ms`
 }
 
@@ -112,7 +122,7 @@ function formatDay(value: string): string {
 function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }) {
   const [metric, setMetric] = useState<VitalMetricName>('lcp')
   const definition = metrics.find((item) => item.key === metric) ?? metrics[0]
-  const [good, poor] = metric === 'lcp' ? [2500, 4000] : metric === 'cls' ? [100, 250] : [200, 500]
+  const [good, poor] = thresholds(metric)
   const points = timeseries.map((point) => ({ date: point.date, ...point[metric] }))
 
   return (
@@ -120,7 +130,7 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
       <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div><CardTitle>Daily trend</CardTitle><CardDescription>Site-timezone p50, p75, and p95 from retained raw samples.</CardDescription></div>
         <Tabs className="w-full sm:w-auto" value={metric} onValueChange={(value) => setMetric(value as VitalMetricName)}>
-          <TabsList aria-label="Vitals trend metric" className="grid w-full grid-cols-3 sm:w-auto">
+          <TabsList aria-label="Vitals trend metric" className="grid h-auto w-full grid-cols-3 sm:grid-cols-5 sm:w-auto">
             {metrics.map((item) => <TabsTrigger key={item.key} value={item.key}>{item.short}</TabsTrigger>)}
           </TabsList>
         </Tabs>
@@ -185,7 +195,7 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
         </Empty>
       ) : result.data ? (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {metrics.map((metric) => <MetricCard key={metric.key} metric={metric.key} name={metric.name} short={metric.short} value={result.data.overall[metric.key]} />)}
           </div>
           <TrendChart timeseries={result.data.timeseries} />

@@ -1,7 +1,7 @@
 import type { Page, Route } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-type EventPayload = { name?: string; url?: string }
+type EventPayload = { name?: string; url?: string; props?: Record<string, string> }
 
 async function openTracker(
   page: Page,
@@ -23,12 +23,27 @@ async function openTracker(
   await page.route('**/tracker-test*', async (route: Route) => {
     await route.fulfill({
       contentType: 'text/html',
-      body: `<!doctype html><title>Tracker test</title><script src="/tracker.js?e2e=${scriptVersion}" data-site="abc123def456" data-allow-localhost ${attributes}></script>`,
+      body: `<!doctype html><title>Tracker test</title><script src="/tracker.js?e2e=${scriptVersion}" data-site="abc123def456" data-allow-localhost ${attributes}></script><main>Tracker test content</main>`,
     })
   })
   await page.goto(`/tracker-test?case=${Date.now()}`)
   return events
 }
+
+test('full tracker emits FCP and TTFB once for the document load', async ({ page }) => {
+  const events = await openTracker(page)
+  await expect.poll(() => page.evaluate(() => performance.getEntriesByName('first-contentful-paint').length)).toBe(1)
+
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')))
+  await expect.poll(() => events.filter((event) => event.name === 'Web Vitals').length).toBe(1)
+  const props = events.find((event) => event.name === 'Web Vitals')?.props
+  expect(Number(props?.fcp)).toBeGreaterThan(0)
+  expect(Number(props?.ttfb)).toBeGreaterThanOrEqual(0)
+
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')))
+  await page.waitForTimeout(50)
+  expect(events.filter((event) => event.name === 'Web Vitals')).toHaveLength(1)
+})
 
 function pageviews(events: EventPayload[]): EventPayload[] {
   return events.filter((event) => event.name === 'pageview')
