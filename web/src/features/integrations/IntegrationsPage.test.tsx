@@ -142,6 +142,7 @@ describe('integrations page', () => {
     await screen.findByText('privacy analytics')
     const body = () => screen.getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell')[0].textContent)
     expect(body()).toEqual(['privacy analytics', 'analytics tool'])
+    expect(screen.getByRole('cell', { name: '10%' })).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: /Avg. position/ }))
     expect(body()).toEqual(['analytics tool', 'privacy analytics'])
     expect(screen.getByRole('columnheader', { name: /Avg. position/ })).toHaveAttribute('aria-sort', 'ascending')

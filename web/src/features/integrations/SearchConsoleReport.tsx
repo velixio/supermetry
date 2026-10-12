@@ -39,7 +39,7 @@ export function filterRows(rows: SearchConsoleRow[], text: string): SearchConsol
 const columns: Array<{ key: SortKey; label: string; format: (row: SearchConsoleRow) => string }> = [
   { key: 'clicks', label: t.clicks, format: (row) => fmt.number(row.clicks) },
   { key: 'impressions', label: t.impressions, format: (row) => fmt.number(row.impressions) },
-  { key: 'ctr', label: t.ctr, format: (row) => fmt.percent(row.ctr) },
+  { key: 'ctr', label: t.ctr, format: (row) => fmt.percent(row.ctr * 100) },
   { key: 'position', label: t.position, format: (row) => row.position.toFixed(1) },
 ]
 
