@@ -593,4 +593,20 @@ describe('dashboard breakdown route', () => {
     expect(await screen.findByRole('button', { name: 'Inspect India' })).toBeVisible()
     expect(screen.queryByRole('button', { name: /^Inspect \// })).toBeNull()
   })
+
+  it('opens the inspector from a Where country and from a Weekly rhythm cell', async () => {
+    const router = renderAt(range)
+    const where = await screen.findByRole('region', { name: 'Where' })
+    fireEvent.click(await within(where).findByRole('button', { name: 'Inspect India' }, { timeout: 5_000 }))
+    await waitFor(() => expect(router.state.location.search.inspect).toBe('country:IN'))
+    fireEvent.keyDown(await screen.findByRole('dialog', { name: 'India' }), { key: 'Escape' })
+    await waitFor(() => expect(router.state.location.search.inspect).toBeUndefined())
+
+    fireEvent.click(screen.getByRole('gridcell', { name: 'Monday 1 PM: 89 visitors' }))
+    await waitFor(() => expect(router.state.location.search.inspect).toBe('weekday_hour:1,13'))
+    const cell = await screen.findByRole('dialog', { name: 'Monday 1 PM' })
+    expect(await within(cell).findByText('89')).toBeVisible()
+    expect(within(cell).queryByRole('button', { name: 'Add as filter' })).toBeNull()
+    expect(router.state.location.search.f ?? []).toEqual([])
+  }, 15_000)
 })

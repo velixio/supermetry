@@ -6,12 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
 import { fmt } from '@/lib/format'
+import type { InspectControl } from '@/lib/inspect'
 import { useBreakdown, type StatsQuery } from '@/lib/stats'
 import type { Filter } from '@/lib/search'
 import { en } from '@/messages/en'
 
 import { CountryDetails } from './CountryDetails'
 import { CountryTable, type CountryMetricRow } from './CountryTable'
+
 import type { TrafficMetric } from './trafficGrid'
 
 const WorldMap = lazy(() => import('@/components/WorldMap').then((module) => ({ default: module.WorldMap })))
@@ -20,9 +22,10 @@ type WhereCardProps = {
   query: StatsQuery
   metric: TrafficMetric
   onFilter(filter: Filter): void
+  inspect?: InspectControl
 }
 
-export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
+export function WhereCard({ query, metric, onFilter, inspect }: WhereCardProps) {
   const [selectedCountry, setSelectedCountry] = useState<string>()
   const [activeCountry, setActiveCountry] = useState<string>()
   const countries = useBreakdown({ ...query, metrics: ['visitors', 'pageviews'], dimensions: ['country'], limit: 250 })
@@ -90,6 +93,7 @@ export function WhereCard({ query, metric, onFilter }: WhereCardProps) {
             <div className="min-w-0 self-start xl:min-w-56">
               <CountryTable
                 activeCountry={activeCountry}
+                inspect={inspect}
                 metric={metric}
                 onActiveChange={setActiveCountry}
                 onSelect={setSelectedCountry}

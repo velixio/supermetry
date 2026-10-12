@@ -58,10 +58,10 @@ export function DashboardBelowFold({
     </div>
     <div className="mt-4 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:grid-rows-[auto_auto]" data-testid="where-when-band">
       <div className="min-w-0 lg:col-start-1 lg:row-start-1" data-dashboard-band-item="where">
-        <WhereCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} />
+        <WhereCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} inspect={inspect} />
       </div>
       <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1" data-dashboard-band-item="weekly-rhythm">
-        <WeeklyRhythmCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={onShorten} />
+        <WeeklyRhythmCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={onShorten} inspect={inspect} />
       </div>
       <div className="min-w-0 lg:col-start-1 lg:row-start-2" data-dashboard-band-item="goals-events">
         {breakdownCards().slice(4).map(renderBreakdownCard)}
