@@ -414,3 +414,18 @@ export function resolveRange(
       return fallbackRange(today)
   }
 }
+
+export function stringifySearch(search: Record<string, unknown>): string {
+  const params = new URLSearchParams()
+  const append = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return
+    if (Array.isArray(value)) {
+      value.forEach((item) => append(key, item))
+      return
+    }
+    params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value))
+  }
+  Object.entries(search).forEach(([key, value]) => append(key, value))
+  const encoded = params.toString()
+  return encoded ? `?${encoded}` : ''
+}

@@ -56,7 +56,7 @@ import { en } from '@/messages/en'
 import { useCreateDemo } from '@/features/demo/useDemo'
 import { ui } from '@/messages/ui'
 import { AccountMenu } from './HeaderMenus'
-import { defaultSearch } from '@/lib/search'
+import { defaultSearch, stringifySearch } from '@/lib/search'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
@@ -125,6 +125,53 @@ export function navigationHref(
   return `${base}${item.suffix}`
 }
 
+/** Search params each sidebar link carries. The palette uses the same table, so both land on identical URLs. */
+const navigationSearches = {
+  '': () => defaultSearch(),
+  '/events': () => ({ ...defaultSearch(), name: '', property: '' }),
+  '/sessions': () => defaultSearch(),
+  '/journeys': () => ({ ...defaultSearch(), direction: 'start' as const, path: '', steps: 3 }),
+  '/retention': () => ({ ...defaultSearch(), interval: 'day' as const, identity: 'anonymous' as const }),
+  '/cohorts': () => defaultSearch(),
+  '/heatmaps': () => ({ ...defaultSearch(), path: '', device: 'desktop' as const }),
+  '/vitals': () => defaultSearch(),
+  '/revenue': () => defaultSearch(),
+} as const
+
+export function navigationSearch<S extends keyof typeof navigationSearches>(suffix: S): ReturnType<(typeof navigationSearches)[S]> {
+  return navigationSearches[suffix]() as ReturnType<(typeof navigationSearches)[S]>
+}
+
+const dashboardSearch = navigationSearches['']
+
+/** The full URL (path and query string) of a sidebar item, as the router renders its link. */
+export function navigationUrl(item: NavigationItem, org: string, site: string): string {
+  const search = item.suffix in navigationSearches ? navigationSearches[item.suffix as keyof typeof navigationSearches]() : undefined
+  return navigationHref(item, org, site) + (search ? stringifySearch(search) : '')
+}
+
+export function siteDashboardUrl(org: string, site: string): string {
+  return `/app/${org}/${site}${stringifySearch(dashboardSearch())}`
+}
+
+/** Where the organization list entries lead: the first site's dashboard with its search, else the organization settings. */
+export function organizationUrl(membership: Membership): string {
+  const site = membership.sites[0]
+  return site ? siteDashboardUrl(membership.org.slug, siteSlug(site)) : organizationSettingsHref(membership.org.slug)
+}
+
+export function replaysUrl(org: string, site: string): string {
+  return `/app/${org}/${site}/replays${stringifySearch(defaultSearch())}`
+}
+
+export function siteSettingsHref(org: string, site: string): string {
+  return `/app/${org}/${site}/settings/general`
+}
+
+export function organizationSettingsHref(org: string): string {
+  return `/app/${org}/settings`
+}
+
 export function navigationIsActive(
   item: NavigationItem,
   pathname: string,
@@ -180,7 +227,7 @@ function navigationLink(
         <Link
           to="/app/$org/$site"
           params={{ org, site }}
-          search={defaultSearch()}
+          search={navigationSearch('')}
           {...props}
         >
           {content}
@@ -189,25 +236,25 @@ function navigationLink(
     case '/funnels':
       return <Link to="/app/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
     case '/events':
-      return <Link to="/app/$org/$site/events" params={{ org, site }} search={{ ...defaultSearch(), name: '', property: '' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/events" params={{ org, site }} search={navigationSearch('/events')} {...props}>{content}</Link>
     case '/sessions':
-      return <Link to="/app/$org/$site/sessions" params={{ org, site }} search={defaultSearch()} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/sessions" params={{ org, site }} search={navigationSearch('/sessions')} {...props}>{content}</Link>
     case '/journeys':
-      return <Link to="/app/$org/$site/journeys" params={{ org, site }} search={{ ...defaultSearch(), direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/journeys" params={{ org, site }} search={navigationSearch('/journeys')} {...props}>{content}</Link>
     case '/retention':
-      return <Link to="/app/$org/$site/retention" params={{ org, site }} search={{ ...defaultSearch(), interval: 'day', identity: 'anonymous' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/retention" params={{ org, site }} search={navigationSearch('/retention')} {...props}>{content}</Link>
     case '/profiles':
       return <Link to="/app/$org/$site/profiles" params={{ org, site }} {...props}>{content}</Link>
     case '/cohorts':
-      return <Link to="/app/$org/$site/cohorts" params={{ org, site }} search={defaultSearch()} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/cohorts" params={{ org, site }} search={navigationSearch('/cohorts')} {...props}>{content}</Link>
     case '/heatmaps':
-      return <Link to="/app/$org/$site/heatmaps" params={{ org, site }} search={{ ...defaultSearch(), path: '', device: 'desktop' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/heatmaps" params={{ org, site }} search={navigationSearch('/heatmaps')} {...props}>{content}</Link>
     case '/vitals':
       return (
         <Link
           to="/app/$org/$site/vitals"
           params={{ org, site }}
-          search={defaultSearch()}
+          search={navigationSearch('/vitals')}
           {...props}
         >
           {content}
@@ -218,7 +265,7 @@ function navigationLink(
     case '/goals':
       return <Link to="/app/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
     case '/revenue':
-      return <Link to="/app/$org/$site/revenue" params={{ org, site }} search={defaultSearch()} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/revenue" params={{ org, site }} search={navigationSearch('/revenue')} {...props}>{content}</Link>
     case '/sites':
       return <Link to="/app/$org/sites" params={{ org }} {...props}>{content}</Link>
     case '/links':
@@ -253,7 +300,7 @@ export function OrganizationMenuGroup({ me, onSelect }: { me: Me; onSelect: () =
               <Link
                 to="/app/$org/$site"
                 params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
-                search={defaultSearch()}
+                search={dashboardSearch()}
                 onClick={onSelect}
               >
                 {item.org.name}
@@ -345,7 +392,7 @@ export function SupermetrySidebar({
                   <Link
                     to="/app/$org/$site"
                     params={{ org: membership.org.slug, site: siteSlug(item) }}
-                    search={defaultSearch()}
+                    search={dashboardSearch()}
                     onClick={closeMobile}
                   >
                     <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} />

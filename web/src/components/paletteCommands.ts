@@ -5,7 +5,18 @@ import { en } from '@/messages/en'
 import { ui } from '@/messages/ui'
 
 import { accountDestinations } from './AccountSidebar'
-import { activeSite, navigationHref, organizationHref, replaysAvailable, settingsDestinations, visibleNavigation } from './Sidebar'
+import {
+  activeSite,
+  navigationUrl,
+  organizationUrl,
+  organizationSettingsHref,
+  replaysAvailable,
+  replaysUrl,
+  settingsDestinations,
+  siteDashboardUrl,
+  siteSettingsHref,
+  visibleNavigation,
+} from './Sidebar'
 
 export const paletteGroups = ['pages', 'sites', 'organizations', 'actions'] as const
 export type PaletteGroup = (typeof paletteGroups)[number]
@@ -42,12 +53,12 @@ export function paletteCommands({
     const slug = site ? siteSlug(site) : ''
     const showReplays = replaysAvailable(membership, site)
     for (const item of visibleNavigation(membership.role, Boolean(site), membership, site)) {
-      page(item.suffix || '/', item.label, navigationHref(item, org, slug))
-      if (item.suffix === '/realtime' && showReplays) page('/replays', ui.crumbs.segments.replays, `/app/${org}/${slug}/replays`)
+      page(item.suffix || '/', item.label, navigationUrl(item, org, slug))
+      if (item.suffix === '/realtime' && showReplays) page('/replays', ui.crumbs.segments.replays, replaysUrl(org, slug))
     }
     for (const destination of settingsDestinations(membership.role, site)) {
-      if (destination === 'site' && site) page('site-settings', ui.menus.siteSettings, `/app/${org}/${slug}/settings/general`)
-      if (destination === 'org') page('org-settings', ui.menus.organizationSettings, `/app/${org}/settings`)
+      if (destination === 'site' && site) page('site-settings', ui.menus.siteSettings, siteSettingsHref(org, slug))
+      if (destination === 'org') page('org-settings', ui.menus.organizationSettings, organizationSettingsHref(org))
     }
     for (const other of membership.sites) {
       if (other.id === site?.id) continue
@@ -58,7 +69,7 @@ export function paletteCommands({
         detail: membership.org.name,
         keywords: [other.name, membership.org.name],
         kind: 'navigate',
-        href: `/app/${org}/${siteSlug(other)}`,
+        href: siteDashboardUrl(org, siteSlug(other)),
       })
     }
   }
@@ -70,7 +81,7 @@ export function paletteCommands({
 
   for (const other of me.memberships) {
     if (other.org.id === membership?.org.id) continue
-    commands.push({ id: `org:${other.org.id}`, group: 'organizations', label: other.org.name, keywords: [other.org.name], kind: 'navigate', href: organizationHref(other) })
+    commands.push({ id: `org:${other.org.id}`, group: 'organizations', label: other.org.name, keywords: [other.org.name], kind: 'navigate', href: organizationUrl(other) })
   }
 
   const actions: [PaletteAction, string][] = [

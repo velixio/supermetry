@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Me, Membership, Site } from '@/lib/me'
+import { defaultSearch, stringifySearch } from '@/lib/search'
 
 import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 import { paletteCommands, type PaletteCommand } from './paletteCommands'
@@ -11,6 +12,7 @@ const acme: Membership = { org: { id: 1, name: 'Acme', slug: 'acme' }, role: 'ow
 const other: Membership = { org: { id: 2, name: 'Other', slug: 'other' }, role: 'viewer', sites: [] }
 const me: Me = { user: { id: 1, name: 'Owner', email: 'owner@example.test' }, memberships: [acme, other] }
 
+const base = stringifySearch(defaultSearch())
 const run = (input: Partial<Parameters<typeof paletteCommands>[0]> = {}) =>
   paletteCommands({ me, membership: acme, requestedSite: 'docs', theme: 'light', ...input })
 const labels = (commands: PaletteCommand[], group: PaletteCommand['group']) =>
@@ -28,9 +30,9 @@ describe('paletteCommands', () => {
       'Heatmaps', 'Web Vitals', 'Funnels', 'Goals', 'Revenue', 'Sites', 'Links and pixels', 'Data health',
       'Site settings', 'Organization settings', 'Account settings',
     ])
-    expect(hrefOf(commands, 'Dashboard')).toBe('/app/acme/docs')
-    expect(hrefOf(commands, 'Events')).toBe('/app/acme/docs/events')
-    expect(hrefOf(commands, 'Replays')).toBe('/app/acme/docs/replays')
+    expect(hrefOf(commands, 'Dashboard')).toBe(`/app/acme/docs${base}`)
+    expect(hrefOf(commands, 'Events')).toBe(`/app/acme/docs/events${base}&name=&property=`)
+    expect(hrefOf(commands, 'Replays')).toBe(`/app/acme/docs/replays${base}`)
     expect(hrefOf(commands, 'Links and pixels')).toBe('/app/acme/docs/links')
     expect(hrefOf(commands, 'Sites')).toBe('/app/acme/sites')
     expect(hrefOf(commands, 'Data health')).toBe('/app/acme/health')
@@ -61,7 +63,7 @@ describe('paletteCommands', () => {
   it('switches to the other sites of this organization and to other organizations', () => {
     const commands = run()
     expect(commands.filter((command) => command.group === 'sites')).toEqual([
-      { id: 'site:8', group: 'sites', label: 'Shop', detail: 'Acme', keywords: ['Shop', 'Acme'], kind: 'navigate', href: '/app/acme/shop' },
+      { id: 'site:8', group: 'sites', label: 'Shop', detail: 'Acme', keywords: ['Shop', 'Acme'], kind: 'navigate', href: `/app/acme/shop${base}` },
     ])
     expect(commands.filter((command) => command.group === 'organizations')).toEqual([
       { id: 'org:2', group: 'organizations', label: 'Other', keywords: ['Other'], kind: 'navigate', href: '/app/other/settings' },
@@ -71,14 +73,14 @@ describe('paletteCommands', () => {
   it.each(['docs', 'docs-public', '7'])('recognises the current site by the %s alias and links its canonical slug', (alias) => {
     const commands = run({ requestedSite: alias })
     expect(labels(commands, 'sites')).toEqual(['Shop'])
-    expect(hrefOf(commands, 'Events')).toBe('/app/acme/docs/events')
+    expect(hrefOf(commands, 'Events')).toBe(`/app/acme/docs/events${base}&name=&property=`)
   })
 
   it('offers account pages and every organization outside an organization', () => {
     const commands = run({ membership: undefined, requestedSite: undefined })
     expect(labels(commands, 'pages')).toEqual(['Account settings'])
     expect(labels(commands, 'sites')).toEqual([])
-    expect(commands.filter((command) => command.group === 'organizations').map((command) => command.kind === 'navigate' && command.href)).toEqual(['/app/acme/docs', '/app/other/settings'])
+    expect(commands.filter((command) => command.group === 'organizations').map((command) => command.kind === 'navigate' && command.href)).toEqual([`/app/acme/docs${base}`, '/app/other/settings'])
     const admin = run({ me: { ...me, user: { ...me.user, instance_admin: true } }, membership: undefined })
     expect(labels(admin, 'pages')).toEqual(['Account settings', 'Instance administration'])
     expect(hrefOf(admin, 'Instance administration')).toBe('/app/admin/users')
