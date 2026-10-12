@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -30,6 +30,16 @@ api-inventory:
 		export SUPERMETRY_ROUTE_HITS="$$hits"; \
 		$(TEST_ENV) go test ./... -skip '^TestBackupRestoreIntegration$$'; \
 		go run ./tools/apiinv -hits "$$hits" -out docs/api
+
+bench:
+	scripts/api-bench.sh quick
+
+bench-full:
+	scripts/api-bench.sh full
+
+bench-compare:
+	@test -n "$(BENCH_BASELINE)" || { echo "set BENCH_BASELINE to a result.json file" >&2; exit 2; }
+	scripts/api-bench.sh compare "$(BENCH_BASELINE)" --tolerance "$(or $(BENCH_TOLERANCE),0.25)"
 
 # Fast feedback excludes the two database-heavy packages and runs unit-focused
 # Go tests plus the complete browser-independent web suite.

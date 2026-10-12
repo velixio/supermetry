@@ -1,0 +1,73 @@
+defaults:
+  params:
+    period: 7d
+    site_id: 1
+routes:
+  - name: summary-30d
+    method: GET
+    route: /api/public/v1/stats/summary
+    params: {period: 30d}
+  - name: summary-90d
+    method: GET
+    route: /api/public/v1/stats/summary
+    params: {period: 90d}
+  - name: summary-one-filter
+    method: GET
+    route: /api/public/v1/stats/summary
+    params: {period: 30d, filter: "country:is:US"}
+  - name: summary-three-filters
+    method: GET
+    route: /api/public/v1/stats/summary
+    params: {period: 30d, filter: "country:is:US,page:is:/,device:is:mobile"}
+  - name: breakdown-page
+    method: GET
+    route: /api/public/v1/stats/breakdown
+    params: {period: 30d, dimension: page, limit: 50}
+  - name: breakdown-country
+    method: GET
+    route: /api/public/v1/stats/breakdown
+    params: {period: 30d, dimension: country, limit: 50}
+  - name: breakdown-source
+    method: GET
+    route: /api/public/v1/stats/breakdown
+    params: {period: 30d, dimension: source, limit: 50}
+  - name: breakdown-browser
+    method: GET
+    route: /api/public/v1/stats/breakdown
+    params: {period: 30d, dimension: browser, limit: 50}
+  - name: timezone-half-hour
+    method: GET
+    route: /api/public/v1/stats/timeseries
+    params: {period: 30d, timezone: Asia/Kolkata}
+  - name: oversized-limit
+    method: GET
+    route: /api/public/v1/stats/breakdown
+    params: {period: 30d, dimension: page, limit: 1000000}
+  - name: ten-year-range
+    method: GET
+    route: /api/public/v1/stats/summary
+    params: {period: custom, date_from: "2016-09-01", date_to: "2026-09-30"}
+  - name: typed-query
+    method: POST
+    route: /api/public/v1/query
+    body:
+      site_id: 1
+      period: 30d
+      metrics: [visitors, visits, pageviews]
+      dimensions: [page]
+  - name: funnel
+    method: POST
+    route: /api/public/v1/funnels/query
+    body:
+      site_id: 1
+      date_range: {from: "2026-09-01", to: "2026-09-30"}
+      steps:
+        - {type: page, match: exact, value: "/"}
+        - {type: page, match: exact, value: "/pricing"}
+        - {type: event, match: exact, value: signup}
+  - name: vitals
+    method: POST
+    route: /api/public/v1/vitals/query
+    body:
+      site_id: 1
+      date_range: {from: "2026-09-15", to: "2026-09-30"}
