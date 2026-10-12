@@ -35,7 +35,6 @@ export function SitesOverviewLanding({ me }: { me: Me }) {
       onPeriodChange={(period) => void navigate({ search: { ...search, period } })}
       onSortChange={(sort) => void navigate({ search: { ...search, sort } })}
     />
-
   )
 }
 

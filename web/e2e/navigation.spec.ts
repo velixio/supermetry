@@ -78,6 +78,31 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   expect(documentRequests).toBe(0)
 })
 
+test('keeps the same shell mounted between a site and the account pages', async ({ page, owner }) => {
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await owner.login(page, dashboard)
+  const shell = page.locator('[data-slot="sidebar-wrapper"]')
+  await shell.evaluate((element) => {
+    ;(element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken = 'persistent'
+  })
+  let documentRequests = 0
+  page.on('request', (request) => {
+    if (request.resourceType() === 'document') documentRequests += 1
+  })
+  await page.getByRole('button', { name: 'Account', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
+  await expect(page).toHaveURL('/app/account/profile')
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  await expect(page.getByRole('main')).toHaveCount(1)
+  const token = () => shell.evaluate((element) => (element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken)
+  expect(await token()).toBe('persistent')
+  await page.goBack()
+  await expect(page).toHaveURL((url) => url.pathname === dashboard)
+  expect(await token()).toBe('persistent')
+  expect(documentRequests).toBe(0)
+})
+
 test('serves an authenticated nested route as a direct URL', async ({ page, owner }) => {
   const settings = `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`
   await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}`)

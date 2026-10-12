@@ -127,6 +127,11 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   await waitForSettings(page)
   reports.push(await audit(page, 'settings'))
 
+  await page.goto('/app/account/profile')
+  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
+  await expect(page.getByRole('main')).toHaveCount(1)
+  reports.push(await audit(page, 'account'))
+
   saveAxeReport(reports)
 })
 

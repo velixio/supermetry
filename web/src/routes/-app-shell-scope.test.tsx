@@ -104,4 +104,18 @@ describe('one shell for every /app route', () => {
     expect(within(header).queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Acme' })).toHaveAttribute('href', '/app/acme/docs-public')
   })
+
+  it('renders the no-organization screen inside the shell', async () => {
+    renderRoute('/app', { ...me, memberships: [] })
+    expect(await screen.findByRole('heading', { level: 1, name: "You don't belong to an organization" })).toBeVisible()
+    const { sidebar } = await expectShell()
+    expect(screen.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app/account/organizations/new')
+    expect(within(sidebar).getByRole('navigation', { name: 'Account' })).toBeInTheDocument()
+  })
+
+  it('renders first-site onboarding inside the shell', async () => {
+    renderRoute('/app', { ...me, memberships: [{ ...acme, sites: [] }] })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Create your first site' })).toBeVisible()
+    await expectShell()
+  })
 })

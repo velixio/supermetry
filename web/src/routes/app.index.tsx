@@ -1,6 +1,8 @@
 import { lazy, Suspense, useCallback } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { en } from '@/messages/en'
 import { NoOrgScreen } from '@/features/lifecycle/NoOrgScreen'
 import { parseSitesOverviewSearch } from '@/features/sites/overviewSearch'
@@ -28,13 +30,8 @@ export function IndexPage() {
   if (me.isError) {
     return <OnboardingError detail="Your account could not be loaded." />
   }
-  if (!me.data) {
-    return (
-      <main className="grid min-h-dvh place-items-center px-6">
-        <p className="text-sm text-muted-foreground">{en.loadingDashboard}</p>
-      </main>
-    )
-  }
+  // AppLayout waits for me.data; a failed background refetch keeps it, so isError can be set with data.
+  if (!me.data) return null
 
   const membership = me.data.memberships[0]
   const allSites = me.data.memberships.flatMap((item) => item.sites.map((site) => ({ membership: item, site })))
@@ -50,11 +47,9 @@ export function IndexPage() {
 }
 function OnboardingError({ detail }: { detail: string }) {
   return (
-    <main className="grid min-h-dvh place-items-center px-6">
-      <div className="flex max-w-sm flex-col gap-2 border-l-2 border-destructive pl-5">
-        <h1 className="text-2xl font-semibold tracking-tight">{en.appName}</h1>
-        <p role="alert" className="text-sm text-muted-foreground">{detail}</p>
-      </div>
-    </main>
+    <PageContainer width="narrow">
+      <PageHeader title={en.appName} />
+      <p role="alert" className="text-sm text-muted-foreground">{detail}</p>
+    </PageContainer>
   )
 }

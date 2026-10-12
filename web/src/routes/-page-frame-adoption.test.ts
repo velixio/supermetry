@@ -4,15 +4,11 @@ import { describe, expect, it } from 'vitest'
 
 const root = join(__dirname, '..', '..') // web/
 
-// Files that render outside AppShell (sign-in, no-org screen, public share):
+// Files that render outside AppShell (sign-in and the public share page):
 // they own their layout and keep a hand-rolled h1.
 const OUTSIDE_SHELL = new Set<string>([
   'src/features/auth/AuthScreen.tsx',
-  'src/features/lifecycle/NoOrgScreen.tsx',
   'src/features/share/SharedDashboard.tsx',
-  // Onboarding is a centred card mounted by app.index inside the shell, with its own <main>.
-  'src/features/sites/Onboarding.tsx',
-  'src/routes/app.index.tsx',
 ])
 
 // Files still to migrate. Each adoption task deletes its entries.
