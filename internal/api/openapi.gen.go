@@ -43,6 +43,48 @@ func (e CreateSiteRequestRetentionDays) Valid() bool {
 	}
 }
 
+// Defines values for CurrentUserResponseMembershipsRole.
+const (
+	Admin  CurrentUserResponseMembershipsRole = "admin"
+	Editor CurrentUserResponseMembershipsRole = "editor"
+	Owner  CurrentUserResponseMembershipsRole = "owner"
+	Viewer CurrentUserResponseMembershipsRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the CurrentUserResponseMembershipsRole enum.
+func (e CurrentUserResponseMembershipsRole) Valid() bool {
+	switch e {
+	case Admin:
+		return true
+	case Editor:
+		return true
+	case Owner:
+		return true
+	case Viewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DemoErrorError.
+const (
+	DemoExists      DemoErrorError = "demo_exists"
+	InvalidTimezone DemoErrorError = "invalid_timezone"
+)
+
+// Valid indicates whether the value is a known member of the DemoErrorError enum.
+func (e DemoErrorError) Valid() bool {
+	switch e {
+	case DemoExists:
+		return true
+	case InvalidTimezone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureAcceptedStatus.
 const (
 	ErasureAcceptedStatusDone     ErasureAcceptedStatus = "done"
@@ -331,6 +373,24 @@ func (e HeatmapDevice) Valid() bool {
 	case HeatmapDeviceMobile:
 		return true
 	case HeatmapDeviceTablet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LifecycleErrorError.
+const (
+	InvalidName   LifecycleErrorError = "invalid_name"
+	NotRestorable LifecycleErrorError = "not_restorable"
+)
+
+// Valid indicates whether the value is a known member of the LifecycleErrorError enum.
+func (e LifecycleErrorError) Valid() bool {
+	switch e {
+	case InvalidName:
+		return true
+	case NotRestorable:
 		return true
 	default:
 		return false
@@ -718,6 +778,24 @@ func (e SessionTimelineItemKind) Valid() bool {
 	}
 }
 
+// Defines values for ShareDateConfigMode.
+const (
+	Fixed   ShareDateConfigMode = "fixed"
+	Rolling ShareDateConfigMode = "rolling"
+)
+
+// Valid indicates whether the value is a known member of the ShareDateConfigMode enum.
+func (e ShareDateConfigMode) Valid() bool {
+	switch e {
+	case Fixed:
+		return true
+	case Rolling:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ShareExpiryDays.
 const (
 	ShareExpiryDaysN30  ShareExpiryDays = 30
@@ -742,6 +820,66 @@ func (e ShareExpiryDays) Valid() bool {
 	}
 }
 
+// Defines values for ShareSection.
+const (
+	Chart        ShareSection = "chart"
+	Devices      ShareSection = "devices"
+	Goals        ShareSection = "goals"
+	Kpis         ShareSection = "kpis"
+	Locations    ShareSection = "locations"
+	Pages        ShareSection = "pages"
+	Sources      ShareSection = "sources"
+	WeeklyRhythm ShareSection = "weekly_rhythm"
+	Where        ShareSection = "where"
+)
+
+// Valid indicates whether the value is a known member of the ShareSection enum.
+func (e ShareSection) Valid() bool {
+	switch e {
+	case Chart:
+		return true
+	case Devices:
+		return true
+	case Goals:
+		return true
+	case Kpis:
+		return true
+	case Locations:
+		return true
+	case Pages:
+		return true
+	case Sources:
+		return true
+	case WeeklyRhythm:
+		return true
+	case Where:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ShareTheme.
+const (
+	Dark   ShareTheme = "dark"
+	Light  ShareTheme = "light"
+	System ShareTheme = "system"
+)
+
+// Valid indicates whether the value is a known member of the ShareTheme enum.
+func (e ShareTheme) Valid() bool {
+	switch e {
+	case Dark:
+		return true
+	case Light:
+		return true
+	case System:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SiteRevenueCurrencyState.
 const (
 	SiteRevenueCurrencyConfigured   SiteRevenueCurrencyState = "configured"
@@ -757,6 +895,96 @@ func (e SiteRevenueCurrencyState) Valid() bool {
 	case SiteRevenueCurrencyConflict:
 		return true
 	case SiteRevenueCurrencyUnconfigured:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StatsBreakdownDimension.
+const (
+	StatsBreakdownDimensionBrowser        StatsBreakdownDimension = "browser"
+	StatsBreakdownDimensionBrowserVersion StatsBreakdownDimension = "browser_version"
+	StatsBreakdownDimensionChannel        StatsBreakdownDimension = "channel"
+	StatsBreakdownDimensionCity           StatsBreakdownDimension = "city"
+	StatsBreakdownDimensionCountry        StatsBreakdownDimension = "country"
+	StatsBreakdownDimensionDevice         StatsBreakdownDimension = "device"
+	StatsBreakdownDimensionEntry          StatsBreakdownDimension = "entry"
+	StatsBreakdownDimensionEvent          StatsBreakdownDimension = "event"
+	StatsBreakdownDimensionExit           StatsBreakdownDimension = "exit"
+	StatsBreakdownDimensionGoal           StatsBreakdownDimension = "goal"
+	StatsBreakdownDimensionHostname       StatsBreakdownDimension = "hostname"
+	StatsBreakdownDimensionHour           StatsBreakdownDimension = "hour"
+	StatsBreakdownDimensionHourOfDay      StatsBreakdownDimension = "hour_of_day"
+	StatsBreakdownDimensionLanguage       StatsBreakdownDimension = "language"
+	StatsBreakdownDimensionOs             StatsBreakdownDimension = "os"
+	StatsBreakdownDimensionOsVersion      StatsBreakdownDimension = "os_version"
+	StatsBreakdownDimensionPage           StatsBreakdownDimension = "page"
+	StatsBreakdownDimensionPath           StatsBreakdownDimension = "path"
+	StatsBreakdownDimensionRegion         StatsBreakdownDimension = "region"
+	StatsBreakdownDimensionScreenSize     StatsBreakdownDimension = "screen_size"
+	StatsBreakdownDimensionSource         StatsBreakdownDimension = "source"
+	StatsBreakdownDimensionTime           StatsBreakdownDimension = "time"
+	StatsBreakdownDimensionUtmCampaign    StatsBreakdownDimension = "utm_campaign"
+	StatsBreakdownDimensionUtmMedium      StatsBreakdownDimension = "utm_medium"
+	StatsBreakdownDimensionUtmSource      StatsBreakdownDimension = "utm_source"
+	StatsBreakdownDimensionWeekday        StatsBreakdownDimension = "weekday"
+)
+
+// Valid indicates whether the value is a known member of the StatsBreakdownDimension enum.
+func (e StatsBreakdownDimension) Valid() bool {
+	switch e {
+	case StatsBreakdownDimensionBrowser:
+		return true
+	case StatsBreakdownDimensionBrowserVersion:
+		return true
+	case StatsBreakdownDimensionChannel:
+		return true
+	case StatsBreakdownDimensionCity:
+		return true
+	case StatsBreakdownDimensionCountry:
+		return true
+	case StatsBreakdownDimensionDevice:
+		return true
+	case StatsBreakdownDimensionEntry:
+		return true
+	case StatsBreakdownDimensionEvent:
+		return true
+	case StatsBreakdownDimensionExit:
+		return true
+	case StatsBreakdownDimensionGoal:
+		return true
+	case StatsBreakdownDimensionHostname:
+		return true
+	case StatsBreakdownDimensionHour:
+		return true
+	case StatsBreakdownDimensionHourOfDay:
+		return true
+	case StatsBreakdownDimensionLanguage:
+		return true
+	case StatsBreakdownDimensionOs:
+		return true
+	case StatsBreakdownDimensionOsVersion:
+		return true
+	case StatsBreakdownDimensionPage:
+		return true
+	case StatsBreakdownDimensionPath:
+		return true
+	case StatsBreakdownDimensionRegion:
+		return true
+	case StatsBreakdownDimensionScreenSize:
+		return true
+	case StatsBreakdownDimensionSource:
+		return true
+	case StatsBreakdownDimensionTime:
+		return true
+	case StatsBreakdownDimensionUtmCampaign:
+		return true
+	case StatsBreakdownDimensionUtmMedium:
+		return true
+	case StatsBreakdownDimensionUtmSource:
+		return true
+	case StatsBreakdownDimensionWeekday:
 		return true
 	default:
 		return false
@@ -876,8 +1104,14 @@ type CreateAPIKeyRequest struct {
 	SiteIds   *[]int32   `json:"site_ids,omitempty"`
 }
 
+// CreateDemoRequest defines model for CreateDemoRequest.
+type CreateDemoRequest struct {
+	Timezone string `json:"timezone"`
+}
+
 // CreateShareRequest defines model for CreateShareRequest.
 type CreateShareRequest struct {
+	Config        *ShareConfig     `json:"config,omitempty"`
 	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
 	Password      *string          `json:"password,omitempty"`
 }
@@ -908,11 +1142,78 @@ type CreatedShare struct {
 	Slug  string `json:"slug"`
 }
 
+// CurrentUserResponse defines model for CurrentUserResponse.
+type CurrentUserResponse struct {
+	DemoPromptDismissed bool `json:"demo_prompt_dismissed"`
+	Memberships         []struct {
+		BillingAdmin          bool     `json:"billing_admin"`
+		Capabilities          []string `json:"capabilities"`
+		EffectiveCapabilities []string `json:"effective_capabilities"`
+		Org                   struct {
+			Id   int64  `json:"id"`
+			Name string `json:"name"`
+			Slug string `json:"slug"`
+		} `json:"org"`
+		Role    CurrentUserResponseMembershipsRole `json:"role"`
+		SiteIds *[]int32                           `json:"site_ids"`
+		Sites   []Site                             `json:"sites"`
+	} `json:"memberships"`
+	User struct {
+		CreatedAt   time.Time           `json:"created_at"`
+		Email       openapi_types.Email `json:"email"`
+		Id          int64               `json:"id"`
+		LastLoginAt *time.Time          `json:"last_login_at,omitempty"`
+		Name        string              `json:"name"`
+		TotpEnabled bool                `json:"totp_enabled"`
+	} `json:"user"`
+
+	// Version Build version reported by the running binary; development builds report dev.
+	Version string `json:"version"`
+}
+
+// CurrentUserResponseMembershipsRole defines model for CurrentUserResponse.Memberships.Role.
+type CurrentUserResponseMembershipsRole string
+
 // DateRange defines model for DateRange.
 type DateRange struct {
 	From openapi_types.Date `json:"from"`
 	To   openapi_types.Date `json:"to"`
 }
+
+// DeletedOrganization defines model for DeletedOrganization.
+type DeletedOrganization struct {
+	DeletedAt time.Time `json:"deleted_at"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	PurgeAt   time.Time `json:"purge_at"`
+	Sites     []string  `json:"sites"`
+	Slug      string    `json:"slug"`
+}
+
+// DeletedSite defines model for DeletedSite.
+type DeletedSite struct {
+	DeletedAt time.Time `json:"deleted_at"`
+	Id        int32     `json:"id"`
+	Name      string    `json:"name"`
+	PurgeAt   time.Time `json:"purge_at"`
+}
+
+// DeletionResult defines model for DeletionResult.
+type DeletionResult struct {
+	PurgeAt   *time.Time `json:"purge_at"`
+	Scheduled bool       `json:"scheduled"`
+}
+
+// DemoError defines model for DemoError.
+type DemoError struct {
+	Error DemoErrorError `json:"error"`
+
+	// SiteId Existing public site identifier, present for demo_exists.
+	SiteId *string `json:"site_id,omitempty"`
+}
+
+// DemoErrorError defines model for DemoError.Error.
+type DemoErrorError string
 
 // ErasureAccepted defines model for ErasureAccepted.
 type ErasureAccepted struct {
@@ -1204,6 +1505,14 @@ type JourneyResponse struct {
 	Nodes []JourneyNode `json:"nodes"`
 }
 
+// LifecycleError defines model for LifecycleError.
+type LifecycleError struct {
+	Error LifecycleErrorError `json:"error"`
+}
+
+// LifecycleErrorError defines model for LifecycleError.Error.
+type LifecycleErrorError string
+
 // Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 type Metric string
 
@@ -1220,6 +1529,15 @@ type OrderBy struct {
 
 // OrderByDirection defines model for OrderBy.Direction.
 type OrderByDirection string
+
+// Organization defines model for Organization.
+type Organization struct {
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	Id        int64      `json:"id"`
+	Name      string     `json:"name"`
+	PurgeAt   *time.Time `json:"purge_at,omitempty"`
+	Slug      string     `json:"slug"`
+}
 
 // Period all is capped to the latest 366 days.
 type Period string
@@ -1345,7 +1663,7 @@ type QueryRequest struct {
 	Cursor    *string              `json:"cursor,omitempty"`
 	DateRange *DateRange           `json:"date_range,omitempty"`
 
-	// Dimensions Dimensions to group by. browser_version, os_version, screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop, desktop, and large, while stored value 0 is returned as an empty string for Unknown.
+	// Dimensions Dimensions to group by. weekday (Sunday=0 through Saturday=6) and hour_of_day (0 through 23) use the site's time zone, read retained raw data, and require a range inside the site's raw-retention window; visitors and pageviews are available for the 7-by-24 Traffic grid. browser_version, os_version, screen_size, language, and hostname are supported; screen_size values are mobile, tablet, laptop, desktop, and large, while stored value 0 is returned as an empty string for Unknown.
 	Dimensions      *[]string  `json:"dimensions,omitempty"`
 	Filters         *[]Filter  `json:"filters,omitempty"`
 	IncludeImported *bool      `json:"include_imported,omitempty"`
@@ -1705,13 +2023,43 @@ type SessionTimelineItemKind string
 
 // Share defines model for Share.
 type Share struct {
-	CreatedAt         time.Time  `json:"created_at"`
-	CreatedBy         int64      `json:"created_by"`
-	ExpiresAt         *time.Time `json:"expires_at"`
-	Id                int64      `json:"id"`
-	PasswordProtected bool       `json:"password_protected"`
-	RevokedAt         *time.Time `json:"revoked_at,omitempty"`
-	SiteId            int32      `json:"site_id"`
+	Config            ShareConfig `json:"config"`
+	CreatedAt         time.Time   `json:"created_at"`
+	CreatedBy         int64       `json:"created_by"`
+	ExpiresAt         *time.Time  `json:"expires_at"`
+	Id                int64       `json:"id"`
+	PasswordProtected bool        `json:"password_protected"`
+	RevokedAt         *time.Time  `json:"revoked_at,omitempty"`
+	SiteId            int32       `json:"site_id"`
+}
+
+// ShareConfig defines model for ShareConfig.
+type ShareConfig struct {
+	Date      ShareDateConfig  `json:"date"`
+	Embed     ShareEmbedConfig `json:"embed"`
+	Filters   *[]Filter        `json:"filters,omitempty"`
+	Sections  []ShareSection   `json:"sections"`
+	SegmentId *int64           `json:"segment_id,omitempty"`
+	Theme     ShareTheme       `json:"theme"`
+}
+
+// ShareDateConfig defines model for ShareDateConfig.
+type ShareDateConfig struct {
+	Days    *int                `json:"days,omitempty"`
+	From    *openapi_types.Date `json:"from,omitempty"`
+	MaxDays int                 `json:"max_days"`
+	Mode    ShareDateConfigMode `json:"mode"`
+	To      *openapi_types.Date `json:"to,omitempty"`
+}
+
+// ShareDateConfigMode defines model for ShareDateConfig.Mode.
+type ShareDateConfigMode string
+
+// ShareEmbedConfig defines model for ShareEmbedConfig.
+type ShareEmbedConfig struct {
+	AllowedOrigins  *[]string `json:"allowed_origins,omitempty"`
+	ConfirmWildcard *bool     `json:"confirm_wildcard,omitempty"`
+	Enabled         bool      `json:"enabled"`
 }
 
 // ShareExpiryDays Days from the current time, or null for no expiry.
@@ -1722,20 +2070,48 @@ type ShareList struct {
 	Data []Share `json:"data"`
 }
 
+// ShareSection defines model for ShareSection.
+type ShareSection string
+
+// ShareSectionRequest defines model for ShareSectionRequest.
+type ShareSectionRequest struct {
+	Section ShareSection `json:"section"`
+}
+
+// ShareTheme defines model for ShareTheme.
+type ShareTheme string
+
+// SharedDashboard defines model for SharedDashboard.
+type SharedDashboard struct {
+	Data                  QueryResponse  `json:"data"`
+	DateLabel             string         `json:"date_label"`
+	ReadOnly              bool           `json:"read_only"`
+	Sections              []ShareSection `json:"sections"`
+	Theme                 ShareTheme     `json:"theme"`
+	TransparentBackground bool           `json:"transparent_background"`
+}
+
 // Site defines model for Site.
 type Site struct {
 	AllowedHosts []string `json:"allowed_hosts"`
 
 	// BlockedReferrers Site-specific referrer domains to classify as spam; subdomains also match.
-	BlockedReferrers []string `json:"blocked_referrers"`
-	ExcludeIps       []string `json:"exclude_ips"`
-	ExcludePaths     []string `json:"exclude_paths"`
-	HeatmapsEnabled  bool     `json:"heatmaps_enabled"`
-	Id               int32    `json:"id"`
-	Name             string   `json:"name"`
-	OrgId            int64    `json:"org_id"`
-	ProfilesEnabled  bool     `json:"profiles_enabled"`
-	PublicId         string   `json:"public_id"`
+	BlockedReferrers []string   `json:"blocked_referrers"`
+	DeletedAt        *time.Time `json:"deleted_at,omitempty"`
+
+	// DemoExpiresAt Expiry time for a demo project; returned only by private endpoints.
+	DemoExpiresAt   *time.Time `json:"demo_expires_at,omitempty"`
+	DemoReady       bool       `json:"demo_ready"`
+	ExcludeIps      []string   `json:"exclude_ips"`
+	ExcludePaths    []string   `json:"exclude_paths"`
+	HeatmapsEnabled bool       `json:"heatmaps_enabled"`
+	Id              int32      `json:"id"`
+	IsDemo          bool       `json:"is_demo"`
+	Name            string     `json:"name"`
+	OrgId           int64      `json:"org_id"`
+	ProfilesEnabled bool       `json:"profiles_enabled"`
+	PublicId        string     `json:"public_id"`
+	PurgeAt         *time.Time `json:"purge_at,omitempty"`
 
 	// RespectPrivacySignals When true, event ingestion drops requests carrying Sec-GPC 1 or DNT 1.
 	RespectPrivacySignals bool                     `json:"respect_privacy_signals"`
@@ -1756,6 +2132,9 @@ type SiteList struct {
 	Data       []Site  `json:"data"`
 	NextCursor *string `json:"next_cursor,omitempty"`
 }
+
+// StatsBreakdownDimension defines model for StatsBreakdownDimension.
+type StatsBreakdownDimension string
 
 // Suggestion defines model for Suggestion.
 type Suggestion struct {
@@ -1900,6 +2279,9 @@ type Limit = int
 // Metrics defines model for Metrics.
 type Metrics = string
 
+// OrgPathID defines model for OrgPathID.
+type OrgPathID = int64
+
 // SiteID defines model for SiteID.
 type SiteID = int32
 
@@ -1970,6 +2352,17 @@ type StartCurrentUserEmailChangeJSONBody struct {
 type ChangeCurrentUserPasswordJSONBody struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
+}
+
+// DeleteOrganizationJSONBody defines parameters for DeleteOrganization.
+type DeleteOrganizationJSONBody struct {
+	Password string  `json:"password"`
+	TotpCode *string `json:"totp_code,omitempty"`
+}
+
+// RenameOrganizationJSONBody defines parameters for RenameOrganization.
+type RenameOrganizationJSONBody struct {
+	Name string `json:"name"`
 }
 
 // ListReplaysParams defines parameters for ListReplays.
@@ -2094,8 +2487,8 @@ type StatsBreakdownParams struct {
 	Compare *Compare `form:"compare,omitempty" json:"compare,omitempty"`
 	Format  *Format  `form:"format,omitempty" json:"format,omitempty"`
 
-	// Dimension Analytics dimension to group by, including browser_version, os_version, screen_size, language, and hostname. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other.
-	Dimension string `form:"dimension" json:"dimension"`
+	// Dimension Analytics dimensions to group by. Supply dimensions as repeated parameters, comma-separated values, or a mixture of both; order is preserved. For example, dimension=weekday&dimension=hour_of_day and dimension=weekday,hour_of_day are equivalent for the Traffic grid. Traffic buckets use the site's time zone unless timezone is explicitly supplied; weekday is 0 for Sunday through 6 for Saturday, and hour_of_day is 0 through 23. Traffic grid requests read retained raw data and must fit inside the site's named raw-retention window. The Traffic grid supports distinct visitors and summed pageviews, and missing cells are omitted. screen_size returns mobile, tablet, laptop, desktop, or large; stored value 0 returns an empty string for Unknown. Channel is derived from source and medium and returns Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other.
+	Dimension []StatsBreakdownDimension `form:"dimension" json:"dimension"`
 
 	// Limit 1-1000, or all for a CSV export capped at 100,000 rows. CSV requires stats:read and data:export.
 	Limit  *StatsLimit `form:"limit,omitempty" json:"limit,omitempty"`
@@ -2166,8 +2559,20 @@ type StartCurrentUserEmailChangeJSONRequestBody StartCurrentUserEmailChangeJSONB
 // ChangeCurrentUserPasswordJSONRequestBody defines body for ChangeCurrentUserPassword for application/json ContentType.
 type ChangeCurrentUserPasswordJSONRequestBody ChangeCurrentUserPasswordJSONBody
 
+// DeleteOrganizationJSONRequestBody defines body for DeleteOrganization for application/json ContentType.
+type DeleteOrganizationJSONRequestBody DeleteOrganizationJSONBody
+
+// RenameOrganizationJSONRequestBody defines body for RenameOrganization for application/json ContentType.
+type RenameOrganizationJSONRequestBody RenameOrganizationJSONBody
+
+// CreateDemoProjectJSONRequestBody defines body for CreateDemoProject for application/json ContentType.
+type CreateDemoProjectJSONRequestBody = CreateDemoRequest
+
 // OpenSharedLinkJSONRequestBody defines body for OpenSharedLink for application/json ContentType.
 type OpenSharedLinkJSONRequestBody = OpenShareRequest
+
+// QuerySharedDashboardSectionJSONRequestBody defines body for QuerySharedDashboardSection for application/json ContentType.
+type QuerySharedDashboardSectionJSONRequestBody = ShareSectionRequest
 
 // UpdateReplaySettingsJSONRequestBody defines body for UpdateReplaySettings for application/json ContentType.
 type UpdateReplaySettingsJSONRequestBody = ReplaySiteSettingsInput
@@ -2326,18 +2731,51 @@ type ServerInterface interface {
 	// UpdateCurrentUser Update the display name
 	// (PATCH /api/private/me)
 	UpdateCurrentUser(w http.ResponseWriter, r *http.Request)
+	// DismissDemoPrompt Permanently dismiss the demo-project onboarding prompt
+	// (POST /api/private/me/demo-prompt/dismiss)
+	DismissDemoPrompt(w http.ResponseWriter, r *http.Request)
 	// StartCurrentUserEmailChange Send an email-change confirmation
 	// (POST /api/private/me/email)
 	StartCurrentUserEmailChange(w http.ResponseWriter, r *http.Request)
+	// ListDeletedOrganizations List restorable organizations owned by the signed-in user
+	// (GET /api/private/me/orgs/deleted)
+	ListDeletedOrganizations(w http.ResponseWriter, r *http.Request)
+	// RestoreOrganization Restore an owned organization during its deletion grace period
+	// (POST /api/private/me/orgs/{org}/restore)
+	RestoreOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// ChangeCurrentUserPassword Change the signed-in user's password
 	// (POST /api/private/me/password)
 	ChangeCurrentUserPassword(w http.ResponseWriter, r *http.Request)
+	// DeleteOrganization Schedule or immediately delete an organization
+	// (DELETE /api/private/orgs/{org})
+	DeleteOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// RenameOrganization Rename an organization without changing its slug
+	// (PATCH /api/private/orgs/{org})
+	RenameOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// CreateDemoProject Create and start seeding the organization's demo project
+	// (POST /api/private/orgs/{org}/demo)
+	CreateDemoProject(w http.ResponseWriter, r *http.Request, org int64)
+	// ListDeletedSites List restorable sites in an organization
+	// (GET /api/private/orgs/{org}/sites/deleted)
+	ListDeletedSites(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// RequestProfileErasure Queue durable profile erasure
 	// (DELETE /api/private/profiles/{profile_id})
 	RequestProfileErasure(w http.ResponseWriter, r *http.Request, profileId int64)
+	// GetSetupStatus Check whether first-run setup is available
+	// (GET /api/private/setup/status)
+	GetSetupStatus(w http.ResponseWriter, r *http.Request)
 	// OpenSharedLink Unlock a password-protected shared dashboard
 	// (POST /api/private/share/{slug}/open)
 	OpenSharedLink(w http.ResponseWriter, r *http.Request, slug string)
+	// QuerySharedDashboardSection Query one enabled shared dashboard section
+	// (POST /api/private/share/{slug}/query)
+	QuerySharedDashboardSection(w http.ResponseWriter, r *http.Request, slug string)
+	// GetSharedDashboard Get the server-scoped shared dashboard summary
+	// (GET /api/private/share/{slug}/stats/summary)
+	GetSharedDashboard(w http.ResponseWriter, r *http.Request, slug string)
+	// DeletePrivateSite Schedule or immediately delete a site
+	// (DELETE /api/private/sites/{site_id})
+	DeletePrivateSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// GetReplaySettings Get site replay settings
 	// (GET /api/private/sites/{site_id}/replay-settings)
 	GetReplaySettings(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -2353,6 +2791,9 @@ type ServerInterface interface {
 	// GetReplayData Download replay events
 	// (GET /api/private/sites/{site_id}/replays/{session_id}/data)
 	GetReplayData(w http.ResponseWriter, r *http.Request, siteId SitePathID, sessionId string)
+	// RestoreSite Restore a site during its deletion grace period
+	// (POST /api/private/sites/{site_id}/restore)
+	RestoreSite(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// ListSharedLinks List shared dashboard links
 	// (GET /api/private/sites/{site_id}/shares)
 	ListSharedLinks(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -2365,6 +2806,9 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// HeartbeatDemoProject Keep watched demo traffic active
+	// (POST /api/private/sites/{site}/demo/heartbeat)
+	HeartbeatDemoProject(w http.ResponseWriter, r *http.Request, site int32)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -2689,6 +3133,20 @@ func (siw *ServerInterfaceWrapper) UpdateCurrentUser(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// DismissDemoPrompt operation middleware
+func (siw *ServerInterfaceWrapper) DismissDemoPrompt(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissDemoPrompt(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StartCurrentUserEmailChange operation middleware
 func (siw *ServerInterfaceWrapper) StartCurrentUserEmailChange(w http.ResponseWriter, r *http.Request) {
 
@@ -2703,11 +3161,155 @@ func (siw *ServerInterfaceWrapper) StartCurrentUserEmailChange(w http.ResponseWr
 	handler.ServeHTTP(w, r)
 }
 
+// ListDeletedOrganizations operation middleware
+func (siw *ServerInterfaceWrapper) ListDeletedOrganizations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDeletedOrganizations(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreOrganization operation middleware
+func (siw *ServerInterfaceWrapper) RestoreOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ChangeCurrentUserPassword operation middleware
 func (siw *ServerInterfaceWrapper) ChangeCurrentUserPassword(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeCurrentUserPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteOrganization operation middleware
+func (siw *ServerInterfaceWrapper) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenameOrganization operation middleware
+func (siw *ServerInterfaceWrapper) RenameOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenameOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDemoProject operation middleware
+func (siw *ServerInterfaceWrapper) CreateDemoProject(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDemoProject(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDeletedSites operation middleware
+func (siw *ServerInterfaceWrapper) ListDeletedSites(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDeletedSites(w, r, org)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2743,6 +3345,20 @@ func (siw *ServerInterfaceWrapper) RequestProfileErasure(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// GetSetupStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSetupStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // OpenSharedLink operation middleware
 func (siw *ServerInterfaceWrapper) OpenSharedLink(w http.ResponseWriter, r *http.Request) {
 
@@ -2760,6 +3376,84 @@ func (siw *ServerInterfaceWrapper) OpenSharedLink(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OpenSharedLink(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QuerySharedDashboardSection operation middleware
+func (siw *ServerInterfaceWrapper) QuerySharedDashboardSection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QuerySharedDashboardSection(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSharedDashboard operation middleware
+func (siw *ServerInterfaceWrapper) GetSharedDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSharedDashboard(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePrivateSite operation middleware
+func (siw *ServerInterfaceWrapper) DeletePrivateSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePrivateSite(w, r, siteId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2972,6 +3666,32 @@ func (siw *ServerInterfaceWrapper) GetReplayData(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// RestoreSite operation middleware
+func (siw *ServerInterfaceWrapper) RestoreSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreSite(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSharedLinks operation middleware
 func (siw *ServerInterfaceWrapper) ListSharedLinks(w http.ResponseWriter, r *http.Request) {
 
@@ -3085,6 +3805,32 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeSharedLinkExpiry(w, r, siteId, shareId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// HeartbeatDemoProject operation middleware
+func (siw *ServerInterfaceWrapper) HeartbeatDemoProject(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.HeartbeatDemoProject(w, r, site)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4672,7 +5418,7 @@ func (siw *ServerInterfaceWrapper) StatsBreakdown(w http.ResponseWriter, r *http
 
 	// ------------- Required query parameter "dimension" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "dimension", r.URL.Query(), &params.Dimension, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "dimension", r.URL.Query(), &params.Dimension, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
@@ -5196,9 +5942,20 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/setup/status", wrapper.GetSetupStatus)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/me", wrapper.DeleteCurrentUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me", wrapper.GetCurrentUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/me", wrapper.UpdateCurrentUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/demo-prompt/dismiss", wrapper.DismissDemoPrompt)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me/orgs/deleted", wrapper.ListDeletedOrganizations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/orgs/{org}/restore", wrapper.RestoreOrganization)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/demo", wrapper.CreateDemoProject)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}", wrapper.DeleteOrganization)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/orgs/{org}", wrapper.RenameOrganization)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/sites/deleted", wrapper.ListDeletedSites)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site_id}", wrapper.DeletePrivateSite)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site_id}/restore", wrapper.RestoreSite)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/demo/heartbeat", wrapper.HeartbeatDemoProject)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/email", wrapper.StartCurrentUserEmailChange)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChangeLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/auth/email-change/confirm", wrapper.ConfirmCurrentUserEmailChange)
@@ -5208,6 +5965,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site_id}/shares/{share_id}", wrapper.RevokeSharedLink)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site_id}/shares/{share_id}", wrapper.ChangeSharedLinkExpiry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/share/{slug}/open", wrapper.OpenSharedLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/share/{slug}/stats/summary", wrapper.GetSharedDashboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/share/{slug}/query", wrapper.QuerySharedDashboardSection)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays", wrapper.ListReplays)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/{session_id}/data", wrapper.GetReplayData)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site_id}/replays/css/{hash}", wrapper.GetReplayCSS)

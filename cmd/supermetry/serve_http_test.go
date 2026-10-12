@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
@@ -278,6 +279,48 @@ func TestSecurityHeadersByRouteClass(t *testing.T) {
 				if got := response.Header().Get(name); got != tt.want[name] {
 					t.Errorf("%s = %q, want %q", name, got, tt.want[name])
 				}
+			}
+		})
+	}
+}
+
+type sharePolicyStub map[string]string
+
+func (s sharePolicyStub) EmbedPolicy(_ context.Context, slug string) (string, bool) {
+	policy, ok := s[slug]
+	return policy, ok
+}
+
+func TestShareEmbedSecurityHeadersAreScopedPerLink(t *testing.T) {
+	handler := appSecurityHeaders(config.Config{}, http.NotFoundHandler(), sharePolicyStub{
+		"allowed":  "https://portal.example https://reports.example",
+		"wildcard": "*",
+	})
+	tests := []struct {
+		name     string
+		path     string
+		ancestor string
+		xfo      string
+		corp     string
+	}{
+		{name: "default remains denied", path: "/share/legacy", ancestor: "'none'", xfo: "DENY", corp: "same-origin"},
+		{name: "allowlist can frame", path: "/share/allowed", ancestor: "https://portal.example https://reports.example", corp: "cross-origin"},
+		{name: "confirmed wildcard can frame", path: "/share/wildcard", ancestor: "*", corp: "cross-origin"},
+		{name: "API path is never treated as document", path: "/api/private/share/allowed/stats/summary", ancestor: "'none'", xfo: "DENY", corp: "same-origin"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, tt.path, nil))
+			csp := response.Header().Get("Content-Security-Policy")
+			if !strings.Contains(csp, "frame-ancestors "+tt.ancestor) {
+				t.Fatalf("CSP = %q, want frame-ancestors %s", csp, tt.ancestor)
+			}
+			if got := response.Header().Get("X-Frame-Options"); got != tt.xfo {
+				t.Errorf("X-Frame-Options = %q, want %q", got, tt.xfo)
+			}
+			if got := response.Header().Get("Cross-Origin-Resource-Policy"); got != tt.corp {
+				t.Errorf("Cross-Origin-Resource-Policy = %q, want %q", got, tt.corp)
 			}
 		})
 	}
