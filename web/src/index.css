@@ -47,81 +47,113 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Supermetry brand theme: violet / blue / teal, matching the marketing site. */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    --background: oklch(0.985 0.005 285);
+    --foreground: oklch(0.18 0.03 285);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.18 0.03 285);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.5 0 0);
-    --accent: oklch(0.511 0.262 276.966);
-    --accent-foreground: oklch(0.985 0 0);
+    --popover-foreground: oklch(0.18 0.03 285);
+    --primary: oklch(0.51 0.25 281);
+    --primary-foreground: oklch(0.99 0.005 285);
+    --secondary: oklch(0.955 0.015 285);
+    --secondary-foreground: oklch(0.27 0.06 285);
+    --muted: oklch(0.965 0.01 285);
+    --muted-foreground: oklch(0.5 0.03 285);
+    --accent: oklch(0.51 0.25 281);
+    --accent-foreground: oklch(0.99 0.005 285);
     --destructive: oklch(0.505 0.213 27.518);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.511 0.262 276.966);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --border: oklch(0.9 0.015 285);
+    --input: oklch(0.9 0.015 285);
+    --ring: oklch(0.6 0.2 281);
+    --chart-1: oklch(0.51 0.25 281);
+    --chart-2: oklch(0.57 0.2 255);
+    --chart-3: oklch(0.62 0.14 175);
+    --chart-4: oklch(0.72 0.14 200);
+    --chart-5: oklch(0.65 0.2 330);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.975 0.008 285);
+    --sidebar-foreground: oklch(0.18 0.03 285);
+    --sidebar-primary: oklch(0.51 0.25 281);
+    --sidebar-primary-foreground: oklch(0.99 0.005 285);
+    --sidebar-accent: oklch(0.94 0.025 285);
+    --sidebar-accent-foreground: oklch(0.3 0.12 281);
+    --sidebar-border: oklch(0.9 0.015 285);
+    --sidebar-ring: oklch(0.6 0.2 281);
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.585 0.233 277.117);
-    --accent-foreground: oklch(0.985 0 0);
+    --background: oklch(0.14 0.012 285);
+    --foreground: oklch(0.975 0.008 285);
+    --card: oklch(0.18 0.016 285);
+    --card-foreground: oklch(0.975 0.008 285);
+    --popover: oklch(0.19 0.018 285);
+    --popover-foreground: oklch(0.975 0.008 285);
+    --primary: oklch(0.66 0.21 283);
+    --primary-foreground: oklch(0.14 0.02 285);
+    --secondary: oklch(0.24 0.025 285);
+    --secondary-foreground: oklch(0.975 0.008 285);
+    --muted: oklch(0.23 0.02 285);
+    --muted-foreground: oklch(0.72 0.03 285);
+    --accent: oklch(0.66 0.21 283);
+    --accent-foreground: oklch(0.14 0.02 285);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.585 0.233 277.117);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --input: oklch(1 0 0 / 14%);
+    --ring: oklch(0.7 0.17 283);
+    --chart-1: oklch(0.7 0.19 285);
+    --chart-2: oklch(0.7 0.16 250);
+    --chart-3: oklch(0.78 0.14 175);
+    --chart-4: oklch(0.82 0.11 205);
+    --chart-5: oklch(0.74 0.18 330);
+    --sidebar: oklch(0.165 0.014 285);
+    --sidebar-foreground: oklch(0.975 0.008 285);
+    --sidebar-primary: oklch(0.66 0.21 283);
+    --sidebar-primary-foreground: oklch(0.14 0.02 285);
+    --sidebar-accent: oklch(0.25 0.04 285);
+    --sidebar-accent-foreground: oklch(0.94 0.04 285);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --sidebar-ring: oklch(0.7 0.17 283);
 }
 
 @layer base {
+  /* Native selects share the look of the shadcn Input. */
+  select:not([multiple]) {
+    appearance: none;
+    height: 2rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--input);
+    background-color: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a8aa0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    padding: 0 1.75rem 0 0.625rem;
+    font-size: 0.875rem;
+    color: inherit;
+  }
+  select:not([multiple]):focus-visible {
+    border-color: var(--ring);
+    outline: 3px solid color-mix(in oklab, var(--ring) 50%, transparent);
+    outline-offset: 0;
+  }
+  select option { background-color: var(--popover); color: var(--popover-foreground); }
   * {
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(60rem 28rem at 85% -8rem, color-mix(in oklab, var(--primary) 9%, transparent), transparent 70%),
+      radial-gradient(44rem 24rem at -5% 105%, color-mix(in oklab, var(--chart-3) 7%, transparent), transparent 70%);
+    background-attachment: fixed;
+    }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 28%, transparent);
+    }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
     }
   html {
     @apply font-sans;

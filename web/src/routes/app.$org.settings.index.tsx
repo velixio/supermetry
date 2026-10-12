@@ -24,8 +24,9 @@ function OrganizationOverview() {
           Your organization access
         </p>
       </header>
-      <p className="text-sm">
-        Role: <span className="capitalize">{membership.role}</span>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border bg-card px-4 py-3 text-sm">
+      <p>
+        Role: <span className="font-medium capitalize">{membership.role}</span>
       </p>
       {!membership.sites.length ? (
         <p className="text-sm text-muted-foreground">
@@ -33,13 +34,14 @@ function OrganizationOverview() {
           sites to your membership.
         </p>
       ) : (
-        <Link className="text-sm underline" to="/app/$org/sites" params={{ org }}>
+        <Link className="text-primary underline-offset-4 hover:underline" to="/app/$org/sites" params={{ org }}>
           View your sites
         </Link>
       )}
-      <Link className="text-sm underline" to="/app/account/profile">
+      <Link className="text-primary underline-offset-4 hover:underline" to="/app/account/profile">
         Account settings
       </Link>
+      </div>
       <OrgNameForm
         orgId={membership.org.id}
         name={membership.org.name}

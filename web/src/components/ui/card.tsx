@@ -23,7 +23,7 @@ function CardContent({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<'footer'>) {
-  return <footer className={cn('flex items-center px-4', className)} {...props} />
+  return <footer className={cn('flex items-center px-4 [form>&]:mt-4', className)} {...props} />
 }
 
 export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }

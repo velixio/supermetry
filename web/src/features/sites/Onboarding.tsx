@@ -28,8 +28,8 @@ export function Onboarding({ me, createSite, navigate }: {
   if (existingSite || !canCreateSites(membership.role)) return <main className="grid min-h-dvh place-items-center px-6"><p className="text-sm text-muted-foreground">{en.loadingDashboard}</p></main>
 
   return (
-    <main className="grid min-h-dvh place-items-center px-6 py-10">
-      <section className="flex w-full max-w-md flex-col gap-5 border-l-2 border-accent pl-5">
+    <main className="grid min-h-[calc(100dvh-3.5rem)] place-items-center px-6 py-10">
+      <section className="flex w-full max-w-md flex-col gap-5 rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
         {me.demo_prompt_dismissed === false ? <DemoChoice org={{ id: membership.org.id, slug: membership.org.slug }} onDismissed={() => navigate(`/app/${membership.org.slug}/sites`)} /> : null}
         <div className="flex flex-col gap-1"><h1 className="text-2xl font-semibold tracking-tight">Create your first site</h1><p className="text-sm text-muted-foreground">Add the website where Supermetry should collect analytics.</p></div>
         <SiteForm
