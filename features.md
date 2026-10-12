@@ -145,3 +145,4 @@ Full gap analysis against every reference repo: [competitor-profiles/_summary.md
 
 Deferred: AI insights, mobile SDKs, SSO/OIDC.
 - Revenue depth backend: breakdowns by country, region, source, campaign, page and product, first and last click attribution with a lookback window, customers list and CSV export (`/api/private/sites/{site}/revenue/*`); UI follows.
+- Short links and tracking pixels: managed slugs with default UTM parameters, expiry and click limits, a non-blocking batched click counter (bots filtered, no raw IPs), per-link statistics in the site time zone, a local QR code and a 1x1 pixel with a campaign tag and snippet generator (`/l/{slug}`, `/px/{id}.gif`, UI under Manage).
