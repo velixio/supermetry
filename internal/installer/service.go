@@ -4,11 +4,32 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"fmt"
 	"os"
+	"strings"
 )
 
 //go:embed templates/supermetry.service
 var serviceUnit []byte
+
+func backupCaddy(ctx context.Context, runner Runner) error {
+	if runner == nil {
+		return errors.New("Caddy backup needs a command runner")
+	}
+	if output, err := runner.Run(ctx, "cp", "/etc/caddy/Caddyfile", "/etc/caddy/Caddyfile.supermetry.bak"); err != nil {
+		return fmt.Errorf("back up /etc/caddy/Caddyfile: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+func backupCaddyIfPresent(ctx context.Context, sys System) error {
+	if _, err := sys.Stat("/etc/caddy/Caddyfile"); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect /etc/caddy/Caddyfile: %w", err)
+	}
+	return backupCaddy(ctx, sys.Runner)
+}
 
 // Runner executes external commands.
 type Runner interface {

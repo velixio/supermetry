@@ -4,12 +4,67 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 )
 
 type serviceRunner struct {
 	calls []string
+}
+
+func TestConfigureProxyCaddyBacksUpValidatesAndReloads(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{}
+	if err := backupCaddy(context.Background(), runner); err != nil {
+		t.Fatal(err)
+	}
+	err := configureProxy(context.Background(), "caddy", "analytics.example.com", true, NewPrompter(strings.NewReader(""), &strings.Builder{}), func(string) (string, error) { return "/usr/bin/caddy", nil }, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.supermetry.bak",
+		"caddy validate --config /etc/caddy/Caddyfile",
+		"systemctl reload caddy",
+	}
+	if strings.Join(runner.calls, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("calls = %v, want %v", runner.calls, want)
+	}
+}
+
+func TestBackupCaddyIfPresentSkipsMissingFile(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{}
+	sys := System{Runner: runner, Stat: func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }}
+	if err := backupCaddyIfPresent(context.Background(), sys); err != nil {
+		t.Fatal(err)
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("calls = %v, want none", runner.calls)
+	}
+}
+
+func TestConfigureProxyNginxReportsTestOutput(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{outputs: map[string][]byte{"nginx -t": []byte("duplicate listen 443")}, errors: map[string]error{"nginx -t": errors.New("exit 1")}}
+	err := configureProxy(context.Background(), "nginx", "analytics.example.com", true, NewPrompter(strings.NewReader(""), &strings.Builder{}), func(string) (string, error) { return "/usr/bin/nginx", nil }, runner)
+	if err == nil || !strings.Contains(err.Error(), "nginx configuration test failed") || !strings.Contains(err.Error(), "duplicate listen 443") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestConfigureProxyOffersCertbot(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{}
+	var output strings.Builder
+	err := configureProxy(context.Background(), "nginx", "analytics.example.com", false, NewPrompter(strings.NewReader("y\n"), &output), func(file string) (string, error) { return "/usr/bin/" + file, nil }, runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "Configure HTTPS with certbot") || !slices.Contains(runner.calls, "certbot --nginx -d analytics.example.com") {
+		t.Fatalf("output=%q calls=%v", output.String(), runner.calls)
+	}
 }
 
 func (r *serviceRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {

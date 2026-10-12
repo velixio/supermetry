@@ -1,6 +1,14 @@
 package installer
 
-import "testing"
+import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestRenderCompose(t *testing.T) {
 	t.Parallel()
@@ -54,5 +62,56 @@ volumes:
 				t.Fatalf("RenderCompose() mismatch\n--- got ---\n%s--- want ---\n%s", got, want)
 			}
 		})
+	}
+}
+
+func TestExtractSourceArchive(t *testing.T) {
+	t.Parallel()
+	var archive bytes.Buffer
+	gz := gzip.NewWriter(&archive)
+	tw := tar.NewWriter(gz)
+	content := []byte("FROM scratch\n")
+	if err := tw.WriteHeader(&tar.Header{Name: "supermetry-v1.2.3/Dockerfile", Mode: 0o644, Size: int64(len(content)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := extractSourceArchive(bytes.NewReader(archive.Bytes()), dir); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "Dockerfile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(content) {
+		t.Fatalf("Dockerfile = %q", got)
+	}
+}
+
+func TestExtractSourceArchiveRejectsTraversal(t *testing.T) {
+	t.Parallel()
+	var archive bytes.Buffer
+	gz := gzip.NewWriter(&archive)
+	tw := tar.NewWriter(gz)
+	content := []byte("unsafe")
+	if err := tw.WriteHeader(&tar.Header{Name: "root/../../outside", Mode: 0o644, Size: int64(len(content)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	tw.Close()
+	gz.Close()
+	err := extractSourceArchive(bytes.NewReader(archive.Bytes()), t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "unsafe source archive path") {
+		t.Fatalf("error = %v", err)
 	}
 }

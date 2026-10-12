@@ -120,6 +120,33 @@ func main() {
 func installCommand(ctx context.Context, args []string, in io.Reader, out io.Writer) error {
 	flags := flag.NewFlagSet("supermetry install", flag.ContinueOnError)
 	flags.SetOutput(out)
+	flags.Usage = func() {
+		fmt.Fprintln(out, `Usage: supermetry install [flags]
+
+Flags:
+  --mode docker|binary        installation mode
+  --base-url URL              public HTTP(S) URL
+  --database-url URL          complete PostgreSQL connection URL
+  --db-host HOST              PostgreSQL host
+  --db-port PORT              PostgreSQL port (default 5432)
+  --db-user USER              PostgreSQL user (default supermetry)
+  --db-password PASSWORD      PostgreSQL password
+  --db-name NAME              PostgreSQL database (default supermetry)
+  --db-sslmode MODE           disable, require, verify-ca, or verify-full
+  --listen HOST:PORT          listen address (default 127.0.0.1:8787)
+  --proxy nginx|caddy|none    reverse proxy (default none)
+  --image download|build      Docker image source (default download)
+  --dir PATH                  installation directory
+  --yes                       run without interactive confirmation
+  --dry-run                   print the complete plan without changing anything
+  --version VERSION           release version
+  --apply PATH                apply a prepared privileged plan (internal)
+
+Examples:
+  supermetry install --mode binary --base-url https://analytics.example.com
+  supermetry install --mode docker --base-url https://analytics.example.com --dir /opt/supermetry --yes
+  supermetry install --dry-run --mode docker --base-url https://analytics.example.com`)
+	}
 	var opts installer.Options
 	flags.StringVar(&opts.Mode, "mode", "", "installation mode: docker or binary")
 	flags.StringVar(&opts.BaseURL, "base-url", "", "public http(s) URL")
@@ -135,6 +162,7 @@ func installCommand(ctx context.Context, args []string, in io.Reader, out io.Wri
 	flags.StringVar(&opts.Image, "image", "", "Docker image source: download or build (default download)")
 	flags.StringVar(&opts.Dir, "dir", "", "installation directory")
 	flags.BoolVar(&opts.Yes, "yes", false, "run without interactive confirmation")
+	flags.BoolVar(&opts.DryRun, "dry-run", false, "print the complete plan without changing anything")
 	flags.StringVar(&opts.Version, "version", version, "release version")
 	flags.StringVar(&opts.Apply, "apply", "", "apply a prepared privileged installation plan")
 	if err := flags.Parse(args); err != nil {

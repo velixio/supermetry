@@ -8,6 +8,7 @@ die() {
 
 version=${SUPERMETRY_VERSION:-latest}
 yes=0
+dry_run=0
 expect_version=0
 
 for arg in "$@"; do
@@ -20,6 +21,9 @@ for arg in "$@"; do
         --yes)
             yes=1
             ;;
+        --dry-run)
+            dry_run=1
+            ;;
         --version)
             expect_version=1
             ;;
@@ -30,7 +34,7 @@ for arg in "$@"; do
 done
 [ "$expect_version" -eq 0 ] || die "--version requires a value"
 
-if [ ! -t 0 ] && ! (: </dev/tty) 2>/dev/null && [ "$yes" -ne 1 ]; then
+if [ ! -t 0 ] && ! (: </dev/tty) 2>/dev/null && [ "$yes" -ne 1 ] && [ "$dry_run" -ne 1 ]; then
     die "no terminal for questions; pass --yes with the settings as flags (see supermetry install --help)"
 fi
 

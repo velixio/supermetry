@@ -45,6 +45,30 @@ func CheckPostgres(ctx context.Context, conn string) (int, error) {
 	return version, nil
 }
 
+// CheckAdminExists reports whether an already-migrated installation has a user.
+// A database without the users table is a fresh installation, not an error.
+func CheckAdminExists(ctx context.Context, conn string) (bool, error) {
+	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	db, err := pgx.Connect(checkCtx, conn)
+	if err != nil {
+		return false, classifyCheckError(err)
+	}
+	defer db.Close(context.Background())
+	var table *string
+	if err := db.QueryRow(checkCtx, "select to_regclass('public.users')::text").Scan(&table); err != nil {
+		return false, classifyCheckError(err)
+	}
+	if table == nil {
+		return false, nil
+	}
+	var exists bool
+	if err := db.QueryRow(checkCtx, "select exists(select 1 from users where is_admin limit 1)").Scan(&exists); err != nil {
+		return false, classifyCheckError(err)
+	}
+	return exists, nil
+}
+
 func classifyCheckError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
@@ -60,7 +84,7 @@ func classifyCheckError(err error) error {
 
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
-		return &CheckError{Reason: fmt.Sprintf("DNS name not found: %s", dnsErr.Name), Field: "host", Err: err}
+		return &CheckError{Reason: fmt.Sprintf("database DNS name %q does not resolve; check --db-host or --database-url", dnsErr.Name), Field: "host", Err: err}
 	}
 	if errors.Is(err, syscall.ECONNREFUSED) {
 		return &CheckError{Reason: "connection refused by PostgreSQL host", Field: "host", Err: err}

@@ -95,6 +95,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Automatic rollup backfill after upgrades | – | – | – | ✅ (progress on Data health) |
 | Docker image | ✓ | ✓ | ✓ | ✅ (`Dockerfile`, `deploy/docker-compose.yml`) |
 | Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/supermetry.service`, `deploy/README.md`) |
+| Safe installer dry-run and compatibility checks | ? | ? | ? | ✅ (`supermetry install --dry-run`, PostgreSQL 14+) |
 | Backup and restore command | – | – | – | ✅ (`supermetry backup`, `supermetry restore`) |
 | License | AGPL-3.0 | MIT | AGPL-3.0 | ✅ (Apache-2.0, `LICENSE`) |
 
