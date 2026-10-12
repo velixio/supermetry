@@ -37,7 +37,9 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
   if (summary.isError) return null
 
   const description = summary.data
-    ? `${summary.data.active_visitors} active now, ${summary.data.visitors_last_30m} in the last 30 minutes`
+    ? en.liveAccuracy.badgeDescription
+      .replace('{count}', String(summary.data.active_visitors))
+      .replace('{thirty}', String(summary.data.visitors_last_30m))
     : 'Loading live visitors'
 
   const badge = (

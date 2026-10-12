@@ -246,4 +246,11 @@ export const en = {
     selectedRange: 'for the selected range',
     replayDetails: 'Replay details',
   },
+
+  // accuracy-live
+  liveAccuracy: {
+    definition: 'Distinct visitors with an accepted pageview or custom event in the last 5 minutes.',
+    exclusions: 'Privacy signals, bots, and site exclusions are not counted.',
+    badgeDescription: '{count} distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. {thirty} visitors in the last 30 minutes.',
+  },
 } as const

@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { countryName } from '@/lib/country'
 import { fmt } from '@/lib/format'
+import { en } from '@/messages/en'
 
 import { useRealtimePage } from './useRealtimePage'
 
@@ -183,7 +184,7 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
                   </span>
                   Live now
                 </h2>
-                <p className="text-sm text-muted-foreground">Active in the last 5 minutes</p>
+                <p className="max-w-sm text-sm text-muted-foreground">{en.liveAccuracy.definition}</p>
                 <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.active_visitors)}</output>
               </section>
               <section className="flex flex-col gap-2" aria-labelledby="last-thirty-title">
@@ -195,6 +196,7 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
             <p className="text-sm text-muted-foreground">
               {fmt.number(data.pageviews_last_30m)} pageviews in the last 30 minutes
             </p>
+            <p className="text-sm text-muted-foreground">{en.liveAccuracy.exclusions}</p>
           </CardContent>
         </Card>
 
