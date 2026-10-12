@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab
+.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab api-inventory
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -18,6 +18,12 @@ fixtures:
 
 test: fixtures
 	$(TEST_ENV) go test -race ./...
+
+api-inventory:
+	@set -e; hits=$$(mktemp); trap 'rm -f "$$hits"' EXIT; \
+		export SUPERMETRY_ROUTE_HITS="$$hits"; \
+		$(TEST_ENV) go test ./... -skip '^TestBackupRestoreIntegration$$'; \
+		go run ./tools/apiinv -hits "$$hits" -out docs/api
 
 lint:
 	go vet ./...
