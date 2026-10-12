@@ -115,8 +115,11 @@ func runBenchmark(ctx context.Context, options runOptions) error {
 		return err
 	}
 	defer pool.Close()
-	userID, orgID, _, err := seedPlatform(ctx, pool, sitesPath, tier.Sites)
+	userID, orgID, siteList, err := seedPlatform(ctx, pool, sitesPath, tier.Sites)
 	if err != nil {
+		return err
+	}
+	if err := closeDatasetDays(ctx, pool, siteList, benchmarkNow); err != nil {
 		return err
 	}
 	environment, err := newBenchmarkEnv(ctx, pool, userID, orgID)

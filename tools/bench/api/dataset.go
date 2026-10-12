@@ -84,6 +84,10 @@ type disabledMail struct{}
 func (disabledMail) Send(context.Context, mail.Message) error { return nil }
 func (disabledMail) Enabled() bool                            { return false }
 
+// benchmarkNow is the fixed clock of every benchmark run, so closed and open
+// days are the same on every run.
+var benchmarkNow = time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+
 type fixedClock time.Time
 
 func (c fixedClock) Now() time.Time { return time.Time(c) }
@@ -249,7 +253,7 @@ func loadDataset(ctx context.Context, dsn, sitesPath, eventsPath, serverBin stri
 }
 
 func newBenchmarkEnv(ctx context.Context, pool *pgxpool.Pool, userID, orgID int64) (*benchmarkEnv, error) {
-	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	now := benchmarkNow
 	data := &store.Store{Pool: pool}
 	registry := sitesvc.NewRegistry(data, 0)
 	keyService := keys.New(data)
