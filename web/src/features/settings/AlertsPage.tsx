@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -32,14 +34,12 @@ export function AlertsPage({ orgId, siteId }: { orgId: number; siteId: number })
   const [editing, setEditing] = useState<AlertRule | null | undefined>(undefined)
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Alerts</h1>
-          <p className="text-sm text-muted-foreground">Notify your team when traffic changes or a goal reaches its threshold.</p>
-        </div>
-        <Button onClick={() => setEditing(null)}>Create alert</Button>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader
+        title="Alerts"
+        description="Notify your team when traffic changes or a goal reaches its threshold."
+        actions={<Button onClick={() => setEditing(null)}>Create alert</Button>}
+      />
       {alerts.error || channels.error || remove.error ? (
         <p role="alert" className="text-sm text-destructive">
           {alerts.error?.message ?? channels.error?.message ?? remove.error?.message}
@@ -72,7 +72,7 @@ export function AlertsPage({ orgId, siteId }: { orgId: number; siteId: number })
           setEditing(undefined)
         }}
       />
-    </div>
+    </PageContainer>
   )
 }
 
