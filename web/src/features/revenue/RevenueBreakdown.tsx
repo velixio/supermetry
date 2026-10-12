@@ -69,7 +69,7 @@ function Customers({ siteId, orgId, currency, timezone, from, to }: Props) {
   else if (status === 400 || status === 404 || status === 409) body = <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">{t.customersUnavailable}</p>
   else if (query.isError) body = <ErrorState detail={query.error.message} onRetry={() => void query.refetch()} />
   else if (query.data.length === 0) body = <p className="text-sm text-muted-foreground" role="status">{t.customersEmpty}</p>
-  else body = <div className="overflow-x-auto">
+  else body = <div className="overflow-x-auto" tabIndex={0}>
     <table className="w-full min-w-96 text-sm">
       <caption className="sr-only">{t.customersTitle}</caption>
       <thead><tr className="border-b text-left text-muted-foreground">
@@ -150,7 +150,7 @@ export function RevenueBreakdown(props: Props) {
     </div>
     {rows.length === 0 ? <p className="text-sm text-muted-foreground" role="status">{t.empty}</p> : <figure className="space-y-2">
       <figcaption className="text-xs text-muted-foreground">{top ? t.summary(rows.length, t.breakdowns[breakdown], `${label(top.key)} (${formatter.format(top.revenue)})`) : ''}</figcaption>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0}>
         <table className="w-full min-w-96 text-sm">
           <caption className="sr-only">{`${t.title}: ${t.breakdowns[breakdown]}`}</caption>
           <thead><tr className="border-b text-left text-muted-foreground">

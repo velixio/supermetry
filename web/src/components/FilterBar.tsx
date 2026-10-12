@@ -40,6 +40,7 @@ import { serializeFilters, type Filter } from '@/lib/search'
 
 import { Flag } from './Flag'
 import { AddFilterPicker } from './AddFilterPicker'
+import { ui } from '@/messages/ui'
 
 type FilterBarProps = {
   siteId: number
@@ -111,7 +112,7 @@ export function FilterBar({
     const trimmedName = name.trim()
     const nameLength = Array.from(trimmedName).length
     if (nameLength < 1 || nameLength > 80) {
-      setError('Name must be between 1 and 80 characters.')
+      setError(ui.segments.nameLength)
       return
     }
     try {
@@ -121,7 +122,7 @@ export function FilterBar({
       })
       setEditorOpen(false)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not save the segment.')
+      setError(caught instanceof Error ? caught.message : ui.segments.saveFailed)
     }
   }
 
@@ -158,15 +159,15 @@ export function FilterBar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-56">
-          <DropdownMenuLabel>Saved segments</DropdownMenuLabel>
+          <DropdownMenuLabel>{ui.segments.saved}</DropdownMenuLabel>
           <DropdownMenuGroup>
             {segments.data?.map((segment) => (
               <DropdownMenuItem key={segment.id} onSelect={() => onApply(segment.filters)}>
                 {segment.name}
               </DropdownMenuItem>
             ))}
-            {segments.isPending ? <DropdownMenuItem disabled>Loading…</DropdownMenuItem> : null}
-            {segments.data?.length === 0 ? <DropdownMenuItem disabled>No saved segments</DropdownMenuItem> : null}
+            {segments.isPending ? <DropdownMenuItem disabled>{ui.segments.loading}</DropdownMenuItem> : null}
+            {segments.data?.length === 0 ? <DropdownMenuItem disabled>{ui.segments.none}</DropdownMenuItem> : null}
             {segments.isError ? (
               <DropdownMenuItem disabled>{segments.error.message}</DropdownMenuItem>
             ) : null}
@@ -225,14 +226,14 @@ export function FilterBar({
         <DialogContent>
           <form className="contents" onSubmit={submit}>
             <DialogHeader>
-              <DialogTitle>{editing ? 'Rename segment' : 'Save segment'}</DialogTitle>
+              <DialogTitle>{editing ? ui.segments.rename : ui.segments.save}</DialogTitle>
               <DialogDescription>
-                {editing ? 'Choose a new name for this saved segment.' : 'Save the current dashboard filters for this site.'}
+                {editing ? ui.segments.renameNote : ui.segments.saveNote}
               </DialogDescription>
             </DialogHeader>
             <FieldGroup>
               <Field data-invalid={Boolean(error || saveSegment.error)}>
-                <FieldLabel htmlFor="segment-name">Segment name</FieldLabel>
+                <FieldLabel htmlFor="segment-name">{ui.segments.name}</FieldLabel>
                 <Input
                   id="segment-name"
                   aria-invalid={Boolean(error || saveSegment.error)}
@@ -246,9 +247,9 @@ export function FilterBar({
               </Field>
             </FieldGroup>
             <DialogFooter>
-              <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+              <DialogClose asChild><Button type="button" variant="outline">{ui.segments.cancel}</Button></DialogClose>
               <Button disabled={saveSegment.isPending} type="submit">
-                {saveSegment.isPending ? 'Saving…' : editing ? 'Rename segment' : 'Save segment'}
+                {saveSegment.isPending ? ui.segments.saving : editing ? ui.segments.rename : ui.segments.save}
               </Button>
             </DialogFooter>
           </form>
@@ -257,12 +258,12 @@ export function FilterBar({
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(undefined)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete segment?</AlertDialogTitle>
-            <AlertDialogDescription>Delete “{deleting?.name}”? This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>{ui.segments.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{ui.segments.deleteBody(deleting?.name ?? '')}</AlertDialogDescription>
           </AlertDialogHeader>
           {deleteSegment.isError ? <p role="alert">{deleteSegment.error.message}</p> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{ui.segments.cancel}</AlertDialogCancel>
             <AlertDialogAction
               disabled={deleteSegment.isPending}
               variant="destructive"
@@ -271,7 +272,7 @@ export function FilterBar({
                 void confirmDelete()
               }}
             >
-              {deleteSegment.isPending ? 'Deleting…' : 'Delete segment'}
+              {deleteSegment.isPending ? ui.segments.deleting : ui.segments.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
