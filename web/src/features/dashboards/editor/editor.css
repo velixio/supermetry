@@ -1,0 +1,21 @@
+/* Editor tokens: a dashed frame and a quiet bar derived from the app theme, so edit mode reads as a different state. */
+.dash-edit {
+  --dash-edit-frame: color-mix(in oklch, var(--primary) 30%, var(--border));
+  --dash-edit-bar: color-mix(in oklch, var(--muted) 65%, var(--background));
+  --dash-edit-chip: color-mix(in oklch, var(--primary) 8%, var(--card));
+}
+
+.dark .dash-edit {
+  --dash-edit-frame: color-mix(in oklch, var(--primary) 50%, var(--border));
+  --dash-edit-bar: color-mix(in oklch, var(--muted) 55%, var(--background));
+}
+
+.dash-edit-slot {
+  border: 1px dashed var(--dash-edit-frame);
+  border-radius: var(--radius-xl);
+  background: var(--dash-edit-chip);
+}
+
+.dash-edit-bar {
+  background: var(--dash-edit-bar);
+}

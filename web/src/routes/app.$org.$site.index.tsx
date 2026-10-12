@@ -1,6 +1,6 @@
 import { isAnonymousTracking, isAnonymousFilterAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
 import { createFileRoute } from '@tanstack/react-router'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 import { DashboardChart } from '../components/DashboardChart'
 import { DeferredContent } from '../components/DeferredContent'
@@ -29,7 +29,8 @@ import {
 } from '../lib/search'
 import { en } from '../messages/en'
 import type { Dashboard } from '../features/dashboards/api'
-import { parseDashKey } from '../features/dashboards/layout'
+import { dashKey, parseDashKey } from '../features/dashboards/layout'
+import type { TemplateKey } from '../features/dashboards/editor/model'
 import { useMe } from './app.$org'
 
 const loadDashboardBelowFold = () => import('@/components/DashboardBelowFold')
@@ -46,6 +47,17 @@ const DashboardViewer = isTest
 const DashboardSwitcher = isTest
   ? (await loadDashboardSwitcher()).DashboardSwitcher
   : lazy(() => loadDashboardSwitcher().then((module) => ({ default: module.DashboardSwitcher })))
+
+const loadDashboardEditor = () => import('@/features/dashboards/editor/DashboardEditor')
+const loadDashboardManage = () => import('@/features/dashboards/DashboardManage')
+const DashboardEditor = isTest
+  ? (await loadDashboardEditor()).DashboardEditor
+  : lazy(() => loadDashboardEditor().then((module) => ({ default: module.DashboardEditor })))
+const DashboardManage = isTest
+  ? (await loadDashboardManage()).DashboardManage
+  : lazy(() => loadDashboardManage().then((module) => ({ default: module.DashboardManage })))
+
+type EditState = { kind: 'edit'; id: number } | { kind: 'new'; template: TemplateKey } | null
 
 export const Route = createFileRoute('/app/$org/$site/')({
   validateSearch: (search) => dashboardSearch.parse(search),
@@ -70,6 +82,12 @@ function DashboardStateRoute() {
   const updateSearch = (next: typeof search) => {
     void navigate({ search: next })
   }
+  const dashboardId = parseDashKey(search.dash)
+  const [edit, setEdit] = useState<EditState>(null)
+  // Moving to another dashboard (switcher, link, back button) ends edit mode unless the editor itself moved there.
+  useEffect(() => {
+    setEdit((current) => (current && !(current.kind === 'edit' && current.id === dashboardId) ? null : current))
+  }, [dashboardId])
 
   useShortcuts({
     m: () => updateSearch({ ...search, period: '30d', from: undefined, to: undefined }),
@@ -116,7 +134,6 @@ function DashboardStateRoute() {
     live: search.live,
     includeImported: search.include_imported,
   }
-  const dashboardId = parseDashKey(search.dash)
   const openDashboard = (key: string, dashboard?: Dashboard, replace = false) => {
     // A saved dashboard's own period and comparison are the starting point; the standard one keeps yours.
     void navigate({
@@ -149,8 +166,19 @@ function DashboardStateRoute() {
             onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
           />
         </Suspense>
+        {membership?.role !== 'viewer' ? (
+          <Suspense fallback={null}>
+            <DashboardManage
+              canWrite
+              currentId={dashboardId}
+              editing={edit !== null}
+              onEdit={(id) => setEdit({ kind: 'edit', id })}
+              onNew={(template) => setEdit({ kind: 'new', template })}
+            />
+          </Suspense>
+        ) : null}
       </header>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {edit ? null : <div className="flex flex-wrap items-start justify-between gap-3">
         <DashboardExportMenu query={query} anonymous={anonymous} />
         <ResponsiveFilters>
         {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -187,12 +215,27 @@ function DashboardStateRoute() {
           <FieldLabel htmlFor="dashboard-include-imported">{en.polish.includeImported}</FieldLabel>
         </Field>
         </ResponsiveFilters>
-      </div>
+      </div>}
       <DashboardNoDataBanner
         query={query}
         href={`/app/${org}/${siteSlug}/settings/installation`}
       />
-      {dashboardId !== undefined ? (
+      {edit ? (
+        <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
+          <DashboardEditor
+            anonymous={anonymous}
+            base={query}
+            canWrite={membership?.role !== 'viewer'}
+            mode={edit}
+            orgId={membership?.org.id}
+            siteId={site.id}
+            timezone={timezone}
+            onDeleted={() => { setEdit(null); openDashboard('builtin') }}
+            onExit={() => setEdit(null)}
+            onOpen={(dashboard) => { setEdit({ kind: 'edit', id: dashboard.id }); openDashboard(dashKey(dashboard.id), dashboard) }}
+          />
+        </Suspense>
+      ) : dashboardId !== undefined ? (
         <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
           <DashboardViewer
             anonymous={anonymous}
