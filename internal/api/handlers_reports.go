@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const maxJourneyPathBytes = 2048
+
 func (h *handlers) journeyRequest(w http.ResponseWriter, r *http.Request) {
 	if h.query == nil {
 		writeProblem(w, internalProblem())
@@ -51,6 +53,9 @@ func validateJourneyRequest(request JourneyRequest) *Problem {
 	}
 	if request.EndPath != nil && strings.TrimSpace(*request.EndPath) == "" {
 		return problemPointer(badRequest("end_path must not be empty"))
+	}
+	if (request.StartPath != nil && len(*request.StartPath) > maxJourneyPathBytes) || (request.EndPath != nil && len(*request.EndPath) > maxJourneyPathBytes) {
+		return problemPointer(badRequest("start_path and end_path must be at most 2048 bytes"))
 	}
 	if request.StartPath != nil && request.EndPath != nil {
 		return problemPointer(badRequest("provide either start_path or end_path, not both"))
