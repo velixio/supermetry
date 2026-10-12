@@ -119,6 +119,19 @@ assert_arch amd64 amd64
 assert_arch aarch64 arm64
 assert_arch arm64 arm64
 
+: >"$test_root/download.log"
+TEST_UNAME_S=Linux \
+TEST_UNAME_M=amd64 \
+TEST_EXPECTED_ARCH=amd64 \
+TEST_DOWNLOAD_LOG=$test_root/download.log \
+TEST_RUN_LOG=$test_root/run.log \
+SUPERMETRY_VERSION=1.2.3 \
+SUPERMETRY_RELEASE_URL=https://releases.example.test \
+PATH=$stub_dir:/usr/bin:/bin \
+    sh "$repo_root/deploy/install.sh" --dry-run --mode docker --base-url https://analytics.example.test </dev/null
+[ "$(cat "$test_root/run.log")" = "install --dry-run --mode docker --base-url https://analytics.example.test" ] ||
+    fail "downloaded binary did not receive dry-run arguments"
+
 set +e
 unsupported_output=$(run_installer Linux riscv64 unsupported 2>&1)
 unsupported_status=$?
