@@ -178,7 +178,7 @@ function DetailsContent({ dimension, query, title, allowSearch = true }: Details
       ) : table.getRowModel().rows.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="min-w-0 overflow-x-auto rounded-lg border">
+        <div className="min-w-0 overflow-x-auto rounded-lg border" tabIndex={0}>
           <table aria-label={`${title ?? dimension} details`} className="w-full table-fixed text-sm">
             <thead className="bg-muted/50 text-left">
               {table.getHeaderGroups().map((headerGroup) => (

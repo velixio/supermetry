@@ -156,7 +156,7 @@ function FeatureSetup({ currency }: { currency?: string }) {
             <span className="font-medium">{item.feature}</span>
             <span className="text-muted-foreground">{item.needs}</span>
             {item.code ? (
-              <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs select-all">
+              <pre className="overflow-x-auto rounded-md bg-muted p-2 text-xs select-all" tabIndex={0}>
                 <code>{item.feature === 'Revenue' && currency ? item.code.replace("'USD'", `'${currency}'`) : item.code}</code>
               </pre>
             ) : null}
@@ -176,7 +176,7 @@ export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, la
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Track custom clicks</p>
         <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all"><code>{'<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>'}</code></pre>
+        <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all" tabIndex={0}><code>{'<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>'}</code></pre>
       </aside>
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Reduce ad-blocker losses</p>

@@ -71,7 +71,7 @@ function ResultPanel({ siteId, subject, title }: { siteId: number; subject: Eval
         ) : evaluation.data.sample.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.sampleEmpty}</p>
         ) : (
-          <div className="min-w-0 overflow-x-auto rounded-lg border">
+          <div className="min-w-0 overflow-x-auto rounded-lg border" tabIndex={0}>
             <Table aria-label={t.sampleTitle}>
               <TableHeader>
                 <TableRow>
@@ -213,7 +213,7 @@ function CohortsTab({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="min-w-0 overflow-x-auto rounded-xl border bg-card">
+        <div className="min-w-0 overflow-x-auto rounded-xl border bg-card" tabIndex={0}>
           <Table aria-label={t.title}>
             <TableHeader>
               <TableRow>

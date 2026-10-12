@@ -79,7 +79,7 @@ function Trend({ query, currency }: { query: ReturnType<typeof useStats>; curren
         </div>)}
       </div>
       {comparisonRows.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">Solid bars show the selected range; muted bars show the comparison range.</p> : null}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0}>
         <table className="sr-only" aria-label="Revenue over time">
           <thead><tr><th scope="col">Date</th><th scope="col">Revenue</th>{comparisonRows.length > 0 ? <th scope="col">Comparison revenue</th> : null}</tr></thead>
           <tbody>{rows.map((row, index) => <tr key={String(row.time)}><th scope="row">{fmt.date(String(row.time), 'UTC')}</th><td>{formatter.format(numeric(row.total_revenue))}</td>{comparisonRows.length > 0 ? <td>{formatter.format(numeric(comparisonRows[index]?.total_revenue))}</td> : null}</tr>)}</tbody>
@@ -108,7 +108,7 @@ function Breakdown({
     </CardHeader>
     {query.isError ? <ErrorState detail={query.error?.detail} onRetry={() => void query.refetch()} /> : <CardContent className="space-y-3">
       {limited ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground" role="status">Available attributed revenue only. Some legacy closed events have no event-time attribution and are excluded from this breakdown.</p> : null}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0}>
         <table className="w-full min-w-72 text-sm">
           <thead><tr className="border-b text-left text-muted-foreground"><th className="pb-2 font-medium" scope="col">{title}</th><th className="pb-2 text-right font-medium" scope="col">Revenue</th><th className="pb-2 text-right font-medium" scope="col">Average</th></tr></thead>
           <tbody>{(query.data?.rows ?? []).map((row, index) => {
