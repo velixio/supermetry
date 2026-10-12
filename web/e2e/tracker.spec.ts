@@ -58,7 +58,6 @@ test('load, pushState, replaceState, back and forward each track one pageview', 
   await page.evaluate((urls) => {
     document.body.innerHTML = `<main style="font: 16px system-ui; max-width: 720px; margin: auto; padding: 48px"><h1>Tracker navigation verified</h1><p>Load, pushState, replaceState, back, and forward each emitted exactly one pageview.</p><ol>${urls.map((url) => `<li>${url}</li>`).join('')}</ol></main>`
   }, pageviews(events).map((event) => event.url))
-  await page.screenshot({ path: '../.codex-runs/tracker-navigation.png', fullPage: true })
 })
 
 test('hash changes follow the site hash-routing setting', async ({ page }) => {
@@ -135,5 +134,4 @@ test('opt-out stores only the documented key and suppresses sending', async ({ p
     document.body.innerHTML = '<main style="font: 16px system-ui; max-width: 720px; margin: auto; padding: 48px"><h1>Tracker privacy verified</h1><p>Opt-out suppressed subsequent events and stored only <code>supermetry_ignore=1</code>.</p></main>'
     window.scrollTo(0, 0)
   })
-  await page.screenshot({ path: '../.codex-runs/tracker-privacy.png', fullPage: true })
 })
