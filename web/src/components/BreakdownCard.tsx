@@ -197,7 +197,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
               <li key={`${label}:${index}`} className="min-w-0">
                 {label === '' || !allowFilter || placeWithoutCountry ? (
                   <div className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-foreground">
-                    <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
+                    <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" style={{ width }} />
                     <span className="relative min-w-0 truncate text-sm text-foreground" title={display}>{display}</span>
                     <span className="relative text-sm tabular-nums">{fmt.number(value)}</span>
                   </div>
@@ -220,7 +220,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                       })
                     }
                   >
-                    <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
+                    <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" style={{ width }} />
                     <span className="relative flex min-w-0 items-center gap-2 text-sm">
                       {activeTab.dimension === 'country' || activeTab.dimension === 'region' || activeTab.dimension === 'city'
                         ? <Flag code={country} />

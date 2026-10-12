@@ -155,30 +155,36 @@ function DashboardStateRoute() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">{en.navigation.dashboard}</h1>
-        <p className="text-sm text-muted-foreground">{site.name}, {fmt.date(query.dateRange.from, timezone)} – {fmt.date(query.dateRange.to, timezone)}</p>
-        <Suspense fallback={null}>
-          <DashboardSwitcher
-            siteId={site.id}
-            value={search.dash}
-            onChange={(key, dashboard) => openDashboard(key, dashboard)}
-            onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
-          />
-        </Suspense>
-        {membership?.role !== 'viewer' ? (
+      <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold tracking-tight">{en.navigation.dashboard}</h1>
+          <p className="text-sm text-muted-foreground">{site.name}, {fmt.date(query.dateRange.from, timezone)} – {fmt.date(query.dateRange.to, timezone)}</p>
           <Suspense fallback={null}>
-            <DashboardManage
-              canWrite
-              currentId={dashboardId}
-              editing={edit !== null}
-              onEdit={(id) => setEdit({ kind: 'edit', id })}
-              onNew={(template) => setEdit({ kind: 'new', template })}
+            <DashboardSwitcher
+              siteId={site.id}
+              value={search.dash}
+              onChange={(key, dashboard) => openDashboard(key, dashboard)}
+              onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
             />
           </Suspense>
-        ) : null}
+          {membership?.role !== 'viewer' ? (
+            <Suspense fallback={null}>
+              <DashboardManage
+                canWrite
+                currentId={dashboardId}
+                editing={edit !== null}
+                onEdit={(id) => setEdit({ kind: 'edit', id })}
+                onNew={(template) => setEdit({ kind: 'new', template })}
+              />
+            </Suspense>
+          ) : null}
+        </div>
+        <Field orientation="horizontal" className="w-auto min-h-9 gap-2">
+          <Checkbox id="dashboard-include-imported" checked={search.include_imported} onCheckedChange={(checked) => updateSearch({ ...search, include_imported: checked === true })} />
+          <FieldLabel htmlFor="dashboard-include-imported" className="text-sm text-muted-foreground">{en.polish.includeImported}</FieldLabel>
+        </Field>
       </header>
-      {edit ? null : <div className="flex flex-wrap items-start justify-between gap-3">
+      {edit ? null : <div className="flex flex-wrap items-center justify-between gap-3">
         <DashboardExportMenu query={query} anonymous={anonymous} />
         <ResponsiveFilters>
         {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -210,10 +216,6 @@ function DashboardStateRoute() {
             labels={en.dashboard}
             onChange={updateSearch}
           />
-        <Field orientation="horizontal" className="min-h-11 sm:min-h-9">
-          <Checkbox id="dashboard-include-imported" checked={search.include_imported} onCheckedChange={(checked) => updateSearch({ ...search, include_imported: checked === true })} />
-          <FieldLabel htmlFor="dashboard-include-imported">{en.polish.includeImported}</FieldLabel>
-        </Field>
         </ResponsiveFilters>
       </div>}
       <DashboardNoDataBanner

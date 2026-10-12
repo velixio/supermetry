@@ -36,7 +36,7 @@ function RankedList({ items, empty = 'No activity yet.' }: { items: RankedItem[]
     <ol className="flex flex-col gap-1">
       {items.slice(0, 10).map((item, index) => (
         <li className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md px-2 py-1.5 text-sm" key={`${item.label}:${index}`}>
-          <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-sm bg-accent/10" style={{ width: `${Math.max(2, (item.value / maximum) * 100)}%` }} />
+          <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" style={{ width: `${Math.max(2, (item.value / maximum) * 100)}%` }} />
           <span className="relative flex min-w-0 items-center gap-2 truncate" title={item.label}>
             {item.countryCode ? <Flag code={item.countryCode} /> : null}
             <span className="truncate">{item.label}</span>
@@ -170,7 +170,7 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
       </header>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
-        <Card className="overflow-hidden border-accent/30 bg-accent/[0.025]">
+        <Card className="overflow-hidden border-primary/30 bg-primary/[0.03]">
           <CardHeader className="sr-only">
             <CardTitle>Live visitors</CardTitle>
             <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>
@@ -180,8 +180,8 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
               <section className="flex flex-col gap-2" aria-labelledby="live-now-title">
                 <h2 className="flex items-center gap-2 text-sm font-medium" id="live-now-title">
                   <span className="relative flex size-2" aria-hidden="true">
-                    <span className="absolute inline-flex size-full rounded-full bg-accent opacity-50 motion-safe:animate-ping" />
-                    <span className="relative inline-flex size-2 rounded-full bg-accent" />
+                    <span className="absolute inline-flex size-full rounded-full bg-primary opacity-50 motion-safe:animate-ping" />
+                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
                   </span>
                   Live now
                 </h2>

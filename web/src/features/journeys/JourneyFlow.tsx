@@ -77,7 +77,7 @@ export function JourneyFlow({ nodes, links }: { nodes: JourneyNode[]; links: Jou
         {positioned.map((node) => (
           <g key={nodeKey(node.step, node.path)}>
             <rect
-              className={node.path.toLowerCase() === 'exit' ? 'fill-muted stroke-border' : 'fill-accent stroke-border'}
+              className={node.path.toLowerCase() === 'exit' ? 'fill-muted stroke-border' : 'fill-primary/15 stroke-primary/40'}
               height={node.height}
               rx="8"
               width={nodeWidth}

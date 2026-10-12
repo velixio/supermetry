@@ -339,7 +339,7 @@ export function MainChart({
       aria-busy={current.isLoading || previousYearResult.isLoading}
       aria-label={label}
       data-interval={resolvedInterval}
-      className="rounded-lg border bg-card p-4 text-card-foreground"
+      className="rounded-xl border bg-card p-5 text-card-foreground shadow-xs"
     >
       <div className="mb-3 flex justify-end">
         <Select value={resolvedInterval} onValueChange={(value) => setSelectedInterval(value as ChartInterval)}>
@@ -375,15 +375,30 @@ export function MainChart({
                   <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="time" axisLine={false} tick={{ fontSize: 12 }} tickLine={false} interval="preserveStartEnd" minTickGap={xTickGap(chartWidth)} tickFormatter={(value) => axisBucketLabel(String(value), resolvedInterval, timezone)} />
-              <YAxis axisLine={false} tick={{ fontSize: 12 }} tickLine={false} width={40} />
-              <Tooltip labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)} />
+              <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
+              <XAxis dataKey="time" axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} tickLine={false} tickMargin={8} interval="preserveStartEnd" minTickGap={xTickGap(chartWidth)} tickFormatter={(value) => axisBucketLabel(String(value), resolvedInterval, timezone)} />
+              <YAxis axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} tickLine={false} tickMargin={8} width={44} />
+              <Tooltip
+                cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                contentStyle={{
+                  background: 'var(--popover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                  color: 'var(--popover-foreground)',
+                  fontSize: 12,
+                  boxShadow: '0 8px 24px -12px rgb(0 0 0 / 0.4)',
+                }}
+                labelStyle={{ color: 'var(--muted-foreground)', marginBottom: 2 }}
+                itemStyle={{ color: 'var(--popover-foreground)' }}
+                labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)}
+              />
               <Area
+                type="monotone"
                 dataKey="value"
                 fill="url(#main-chart-fill)"
                 stroke="var(--chart-1)"
                 strokeWidth={2}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--card)' }}
               />
               {compare === 'off' ? null : (
                 <Area

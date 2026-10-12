@@ -56,17 +56,17 @@ export function SetupForm({ token }: { token: string }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    setMessage(
-      await authResultMessage(() =>
-        postPrivate('/api/private/setup', {
-          token,
-          email: String(form.get('email') ?? ''),
-          name: String(form.get('name') ?? ''),
-          password: String(form.get('password') ?? ''),
-          org_name: String(form.get('org_name') ?? ''),
-        }),
-      ),
+    const result = await authResultMessage(() =>
+      postPrivate('/api/private/setup', {
+        token,
+        email: String(form.get('email') ?? ''),
+        name: String(form.get('name') ?? ''),
+        password: String(form.get('password') ?? ''),
+        org_name: String(form.get('org_name') ?? ''),
+      }),
     )
+    setMessage(result)
+    if (result === en.auth.success) window.location.assign('/login')
   }
 
   return (
@@ -90,7 +90,7 @@ export function SetupForm({ token }: { token: string }) {
 			<Input id="password" name="password" type="password" minLength={6} required />
 			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
-          {message ? <FieldError>{message}</FieldError> : null}
+          {message ? message === en.auth.success ? <p role="status" className="text-sm text-muted-foreground">{message}</p> : <FieldError>{message}</FieldError> : null}
           <Button type="submit">{en.auth.completeSetup}</Button>
         </FieldGroup>
       </form>

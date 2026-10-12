@@ -21,6 +21,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SiteIcon } from '@/components/SiteIcon'
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
+import { cn } from '@/lib/utils'
+import { ProjectTabs } from './ProjectTabs'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
@@ -128,7 +130,8 @@ export function AppShell({
         </a>
         <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} />
         <SidebarInset>
-          <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4">
+          {membership.sites.length > 0 ? <ProjectTabs membership={membership} activeSiteId={scopedSite?.id} /> : null}
+          <header aria-label={en.a11y2.applicationHeader} className={cn('sticky z-20 flex h-14 items-center justify-between gap-2 border-b bg-background px-4', membership.sites.length > 0 ? 'top-9' : 'top-0')}>
             <div className="flex min-w-0 items-center gap-2">
               <SidebarTrigger aria-label={en.navigation.collapse} />
               {site ? (
