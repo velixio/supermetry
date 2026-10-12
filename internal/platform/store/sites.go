@@ -131,8 +131,8 @@ type DeletedSite struct {
 
 func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 	err := tx.QueryRow(ctx, `
-		insert into sites (org_id, public_id, name, allowed_hosts, timezone, retention_class, revenue_currency, revenue_currency_state)
-		values ($1, $2, $3, $4, $5, $6, $7, 'configured')
+		insert into sites (org_id, public_id, name, allowed_hosts, timezone, retention_class, revenue_currency, revenue_currency_state, settings)
+		values ($1, $2, $3, $4, $5, $6, $7, 'configured', '{"profiles_enabled": true}'::jsonb)
 		on conflict (public_id) do nothing
 		returning id, created_at`,
 		site.OrgID, site.PublicID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass, site.RevenueCurrency,

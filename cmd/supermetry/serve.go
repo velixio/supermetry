@@ -121,9 +121,10 @@ func withListen(value func(network, address string) (net.Listener, error)) serve
 }
 
 func serve(ctx context.Context, cfg config.Config, options ...serveOption) error {
-	if err := cfg.Tracking.ValidateUpgrade(false); err != nil {
+	if err := cfg.Tracking.Validate(); err != nil {
 		return err
 	}
+	logTrackingMode(slog.Default(), cfg.Tracking)
 	warnPublicSignup(ctx, slog.Default(), cfg.Signup)
 	settings := serveOptions{clock: wallClock{}, geoUpdate: geoupdate.Update, listen: net.Listen}
 	for _, option := range options {
@@ -195,9 +196,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		registry = compatibility
 		refreshRegistry = compatibility.Refresh
 		slog.Warn("using SUPERMETRY_SITES_FILE benchmark compatibility because no platform user exists")
-	}
-	if err := validateTrackingStartup(ctx, pool, cfg.Tracking, registry.All()); err != nil {
-		return err
 	}
 	dictionary := dict.New(pool)
 	if err := dictionary.Load(ctx); err != nil {

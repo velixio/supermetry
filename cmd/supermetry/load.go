@@ -81,9 +81,6 @@ func loadCommand(ctx context.Context, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := validateTrackingStartup(ctx, pool, cfg.Tracking, registry.All()); err != nil {
-		return err
-	}
 	stats, err := loadEventsWithPolicy(ctx, pool, registry, in, cfg.QueueSize, cfg.FlushEvery, cfg.SessionFlush, cfg.Tracking.Mode, cfg.TrackingPaths)
 	if err != nil {
 		return err
