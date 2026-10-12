@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures'
 
-for (const width of [1024, 390]) {
+for (const width of [1440, 1024, 390]) {
   test(`API reference lists every public operation without overflow at ${width}px`, async ({ page, owner }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
@@ -27,6 +27,11 @@ for (const width of [1024, 390]) {
     expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.innerWidth)
     expect(metrics.scrollHeight).toBeLessThan(6000)
 
+    // The endpoint column must stay compact: its title, description and search box sit together
+    // instead of being spread over the height of the detail pane.
+    const title = await page.getByText('Endpoints', { exact: true }).first().boundingBox()
+    const searchBox = await page.getByRole('searchbox', { name: 'Search endpoints' }).boundingBox()
+    expect(searchBox!.y - title!.y).toBeLessThan(200)
     await page.getByRole('searchbox', { name: 'Search endpoints' }).fill('journey')
     await expect(buttons).toHaveCount(1)
     await buttons.first().click()

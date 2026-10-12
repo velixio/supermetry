@@ -482,7 +482,7 @@ export function ApiDocsPage({
         </p>
       </header>
       <Card className="min-h-[36rem] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-0">
-        <CardHeader className="min-w-0 border-b lg:border-r lg:border-b-0">
+        <CardHeader className="min-w-0 content-start border-b lg:border-r lg:border-b-0">
           <CardTitle>{t.endpoints}</CardTitle>
           <CardDescription>{t.grouped}</CardDescription>
           <Input
