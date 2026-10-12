@@ -45,7 +45,7 @@ Supermetry is an open-source, self-hosted web analytics platform and a privacy-f
 - **Privacy by design.** No cookies, no fingerprinting, and no raw IP addresses stored. Visitors are counted with a random daily salt that is deleted after about 48 hours. The tracker honours Do Not Track and Global Privacy Control.
 - **Light on your servers and your pages.** The tracking script is about 1.2 KB gzipped. In a 4-hour test the server ingested 200 events per second, 2.88 million events in all, with no loss, no errors and a worst-case p99 latency of 23 ms, using under 190 MiB of memory ([details](tools/bench/soak/README.md)).
 - **Numbers you can check.** In a controlled side-by-side run, Supermetry and Plausible Community Edition received identical traffic from real browsers. Visitors, visits, pageviews, bounce rate, pages, sources, campaigns, devices, browsers, operating systems and custom events all matched, in both products and against hand-computed truth ([details](tools/bench/accuracy/ab/README.md)).
-- **Open.** Apache-2.0 licensed, with a REST API, an MCP endpoint and imports from Plausible and Umami, so you can leave without losing your data.
+- **Open.** Apache-2.0 licensed, with a REST API, an MCP endpoint, CSV export and imports from Google Analytics 4, Plausible, Umami, Mixpanel and Amplitude, so you can move in or out without losing your data.
 
 ## Quick start
 
@@ -97,7 +97,7 @@ Then open `<your URL>/app` (`http://localhost:8787/app` for Docker) and create y
 **Teams and integrations**
 - Organizations and projects, roles, two-factor sign-in, shareable links and API keys.
 - Alerts with email, webhook, Slack, Discord and Telegram delivery, and scheduled email reports.
-- A REST API and an MCP endpoint, CSV export, and imports from Plausible and Umami.
+- A REST API and an MCP endpoint, CSV export, and imports from Google Analytics 4, Plausible, Umami, Mixpanel and Amplitude.
 
 **Operations**
 - PostgreSQL only, with time partitions that are dropped for retention instead of bulk deletes.
@@ -145,8 +145,8 @@ That depends on the laws that apply to you and on what else your site runs, so a
 **How is it different from Plausible or Umami?**
 Self-hosted Plausible needs ClickHouse next to PostgreSQL and leaves out funnels, journeys and revenue goals. Umami runs on Node.js. Supermetry is a single Go binary on PostgreSQL alone, with every feature in the open-source release. See the [comparison table](#supermetry-vs-plausible-umami-and-google-analytics).
 
-**Can I move my existing data in?**
-Yes. Import from Plausible or Umami in the project settings, then export to CSV whenever you like.
+**Can I import my data from Google Analytics, Plausible or Umami?**
+Yes. In the project settings, import a Google Analytics 4 report export or data from Plausible, Umami, Mixpanel or Amplitude. Overlapping days are never counted twice, and you can export to CSV whenever you like.
 
 **What does it need to run?**
 A small server and PostgreSQL. In the 4-hour test above, a single process used under 190 MiB of memory at a sustained 200 events per second.
