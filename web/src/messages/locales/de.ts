@@ -791,6 +791,28 @@ const messages: MessageTree = {
   uiFix: {
     realtimeEmpty: 'Keine Besucher in den letzten 30 Minuten. Neue Aktivität erscheint hier, sobald sie eintrifft.',
   },
+  // Journeys page.
+  journeyUi: {
+    title: 'Nutzerpfade',
+    description: 'Verfolge die Seiten, die Besucher nacheinander angesehen haben. Wiederholte aufeinanderfolgende Seitenaufrufe werden zusammengefasst.',
+    direction: 'Pfadrichtung',
+    startingAt: 'Beginnend bei',
+    endingAt: 'Endend bei',
+    startPage: 'Startseite',
+    endPage: 'Endseite',
+    anyPage: 'Beliebige Seite',
+    steps: 'Schritte',
+    apply: 'Anwenden',
+    results: 'Pfadergebnisse',
+    diagram: 'Pfadfluss der Nutzerpfade',
+    links: 'Pfadverbindungen',
+    path: 'Pfad',
+    visitorsHeading: 'Besucher',
+    loading: 'Pfade werden geladen',
+    exit: 'Ausstieg',
+    other: 'Andere',
+    visitors: (count: string) => `${count} Besucher`,
+  },
 }
 
 export default messages
