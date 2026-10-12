@@ -1,3 +1,5 @@
+import { registerCatalogue } from '@/lib/i18n'
+
 // Strings of the saved dashboard editor. They live apart from en.ts so the initial bundle does not carry them.
 export const dashEdit = {
   edit: 'Edit dashboard',
@@ -156,3 +158,5 @@ export const dashEdit = {
     limit: (name: string) => `${name}: rows must be a whole number from 1 to 50.`,
   },
 } as const
+
+registerCatalogue('dashEdit', dashEdit)

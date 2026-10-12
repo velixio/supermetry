@@ -1,3 +1,5 @@
+import { registerCatalogue } from '@/lib/i18n'
+
 export const en = {
   appName: 'Supermetry',
   loadingDashboard: 'Loading dashboard…',
@@ -773,4 +775,15 @@ export const en = {
       fields: 'Needed per event: event_type, event_time and user_id or device_id. Used when present: $insert_id or uuid for de-duplication, the page path or URL, referrer, country, region, city, platform and os_name.',
     },
   },
+  // Interface language (localization core).
+  language: {
+    title: 'Language',
+    description: 'Choose the language of menus, labels and messages. Dates, numbers and the first day of the week follow it.',
+    label: 'Interface language',
+    browserDefault: 'Browser default',
+    machineTranslated: '(machine-assisted)',
+    note: 'Some text, such as chart labels from your data, is not translated yet.',
+  },
 } as const
+
+registerCatalogue('main', en)
