@@ -44,6 +44,7 @@ export type UserPreferences = {
   landing_page: 'overview' | 'last_site'
   sites_view: 'cards' | 'table'
   last_site_id?: number | null
+  locale?: '' | 'en' | 'es' | 'de' | 'en-XA'
 }
 
 export class AuthenticationRequired extends Error {}
