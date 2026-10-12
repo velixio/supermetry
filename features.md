@@ -95,6 +95,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Docker image | ✓ | ✓ | ✓ | ✅ (`Dockerfile`, `deploy/docker-compose.yml`) |
 | Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/supermetry.service`, `deploy/README.md`) |
 | Backup and restore command | – | – | – | ✅ (`supermetry backup`, `supermetry restore`) |
+| Fast local, full CI, and API-session end-to-end test lanes | ? | ? | ? | ✅ |
 | License | AGPL-3.0 | MIT | AGPL-3.0 | ✅ (Apache-2.0, `LICENSE`) |
 
 ## Priority
