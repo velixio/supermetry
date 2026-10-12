@@ -474,6 +474,9 @@ func (w *Writer) copyEvents(ctx context.Context, events []Event) error {
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"events"}, eventColumns, &eventSource{events: events}); err != nil {
 			return err
 		}
+		if err := upsertSiteLastEvents(ctx, tx, events); err != nil {
+			return err
+		}
 		if len(lateDays) != 0 {
 			siteIDs := make([]int32, len(lateDays))
 			days := make([]time.Time, len(lateDays))
@@ -494,6 +497,36 @@ on conflict (site_id, day) do nothing`, siteIDs, days); err != nil {
 		}
 		return nil
 	})
+}
+
+func upsertSiteLastEvents(ctx context.Context, tx pgx.Tx, events []Event) error {
+	latest := make(map[int32]time.Time)
+	for i := range events {
+		event := &events[i]
+		if previous, ok := latest[event.SiteID]; !ok || event.TS.After(previous) {
+			latest[event.SiteID] = event.TS
+		}
+	}
+	if len(latest) == 0 {
+		return nil
+	}
+	siteIDs := make([]int64, 0, len(latest))
+	timestamps := make([]time.Time, 0, len(latest))
+	for siteID, at := range latest {
+		siteIDs = append(siteIDs, int64(siteID))
+		timestamps = append(timestamps, at)
+	}
+	_, err := tx.Exec(ctx, `
+insert into site_last_event(site_id,last_event_at)
+select accepted.site_id,accepted.last_event_at
+from unnest($1::bigint[],$2::timestamptz[]) as accepted(site_id,last_event_at)
+join sites on sites.id=accepted.site_id
+on conflict (site_id) do update set
+last_event_at=greatest(site_last_event.last_event_at,excluded.last_event_at)`, siteIDs, timestamps)
+	if err != nil {
+		return fmt.Errorf("upsert site last events: %w", err)
+	}
+	return nil
 }
 
 func (w *Writer) olderLocalDays(events []Event, now time.Time) []siteDay {
