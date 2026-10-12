@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
 
 import {
+  hourLabel,
   marginTotals,
   orderedWeekdays,
   peakTrafficCell,
@@ -34,15 +35,6 @@ type TrafficGridProps = {
 }
 
 const stepClasses = ['bg-muted/35', 'bg-accent/20', 'bg-accent/40', 'bg-accent/60', 'bg-accent/80', 'bg-accent'] as const
-
-function hourLabel(hour: number, locale?: string): string {
-  const probe = new Intl.DateTimeFormat(locale, { hour: 'numeric', timeZone: 'UTC' })
-  const options = probe.resolvedOptions()
-  return new Intl.DateTimeFormat(locale, options.hour12
-    ? { hour: 'numeric', timeZone: 'UTC' }
-    : { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }
-  ).format(new Date(Date.UTC(2020, 0, 1, hour)))
-}
 
 function timezoneLabel(timezone: string, locale?: string): string {
   try {

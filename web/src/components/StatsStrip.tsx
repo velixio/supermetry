@@ -5,7 +5,7 @@ import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useStats, type StatsQuery } from '../lib/stats'
 
-const statMetrics = [
+export const statMetrics = [
   'visitors',
   'visits',
   'pageviews',
@@ -75,7 +75,7 @@ function metricLabel(metric: StatMetric): string {
     .join(' ')
 }
 
-function metricValue(metric: StatMetric, value: number): string {
+export function metricValue(metric: StatMetric, value: number): string {
   if (metric === 'engagement_time' && value <= 0) return '—'
   if (metric === 'bounce_rate') return fmt.percent(value)
   if (metric === 'visit_duration' || metric === 'engagement_time') {

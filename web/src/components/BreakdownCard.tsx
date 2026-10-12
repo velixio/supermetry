@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { en } from '@/messages/en'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
+import { breakdownLabel } from '@/lib/breakdown-labels'
 import { formatBreakdownMetric, metricLabel } from '@/lib/breakdown-metrics'
 import { fmt } from '@/lib/format'
 import type { Filter } from '@/lib/search'
@@ -34,21 +35,6 @@ type BreakdownCardProps = {
   allowFilter?: boolean
   verifiedPaths?: boolean
   description?: string
-}
-
-function screenSizeLabel(value: string): string | undefined {
-  const labels: Record<string, string> = {
-    mobile: ui.breakdown.mobile, tablet: ui.breakdown.tablet, laptop: ui.breakdown.laptop,
-    desktop: ui.breakdown.desktop, large: ui.breakdown.large,
-  }
-  return labels[value]
-}
-
-function breakdownLabel(dimension: string, value: string): string {
-  if (value === '') return ui.breakdown.unknown
-  if (dimension === 'country') return countryLabel(value)
-  if (dimension === 'screen_size') return screenSizeLabel(value) ?? value
-  return value
 }
 
 function filterAccessibleLabel(dimension: string, label: string, display: string, country: string): string {
