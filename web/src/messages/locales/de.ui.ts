@@ -150,6 +150,7 @@ const messages: MessageTree = {
   },
   palette: {
     open: 'Befehlspalette öffnen',
+    loadFailed: 'Die Befehlspalette konnte nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
     keyHint: 'Strg K',
     keyHintApple: '⌘K',
     title: 'Befehlspalette',

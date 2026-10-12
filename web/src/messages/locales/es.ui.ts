@@ -150,6 +150,7 @@ const messages: MessageTree = {
   },
   palette: {
     open: 'Abrir la paleta de comandos',
+    loadFailed: 'No se pudo cargar la paleta de comandos. Compruebe su conexión e inténtelo de nuevo.',
     keyHint: 'Ctrl K',
     keyHintApple: '⌘K',
     title: 'Paleta de comandos',

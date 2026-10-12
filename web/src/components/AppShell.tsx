@@ -1,6 +1,7 @@
 import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
 import { AuthorizationProvider } from '@/lib/authorization'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 
 import { AccountSidebar } from './AccountSidebar'
@@ -29,11 +30,13 @@ import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
 import { requestLogout } from '@/lib/session-lifecycle'
 import { paletteCommands, type PaletteCommand } from './paletteCommands'
-
-// cmdk and the palette load on first open, so they stay out of the initial JS budget.
-const CommandPalette = lazy(() => import('./CommandPalette').then((module) => ({ default: module.CommandPalette })))
 import { ui } from '@/messages/ui'
 import { sidebarStartsOpen } from './sidebarState'
+import { loadPalette } from './paletteLoader'
+import { PaletteBoundary } from './PaletteBoundary'
+
+// cmdk and the palette load on first open, so they stay out of the initial JS budget.
+const lazyPalette = () => lazy(loadPalette)
 
 export function AppShell({
   me,
@@ -46,6 +49,9 @@ export function AppShell({
   const [helpOpen, setHelpOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [paletteLoaded, setPaletteLoaded] = useState(false)
+  // React.lazy memoises a rejected import, so a failed load gets a fresh lazy component and boundary.
+  const [Palette, setPalette] = useState(lazyPalette)
+  const [paletteAttempt, setPaletteAttempt] = useState(0)
   const paletteTrigger = useRef<HTMLButtonElement>(null)
   const router = useRouter()
   const [sidebarOpen] = useState(() => sidebarStartsOpen(document.cookie, window.innerWidth))
@@ -87,6 +93,7 @@ export function AppShell({
     d: toggle,
     '?': () => setHelpOpen(true),
     'mod+k': () => {
+      if (helpOpen) return
       setPaletteLoaded(true)
       setPaletteOpen((open) => !open)
     },
@@ -168,8 +175,17 @@ export function AppShell({
         </DialogContent>
       </Dialog>
       {paletteLoaded ? (
+        <PaletteBoundary
+          key={paletteAttempt}
+          onError={() => {
+            setPaletteOpen(false)
+            setPalette(lazyPalette)
+            setPaletteAttempt((attempt) => attempt + 1)
+            toast.error(ui.palette.loadFailed)
+          }}
+        >
         <Suspense fallback={null}>
-          <CommandPalette
+          <Palette
             open={paletteOpen}
             onOpenChange={setPaletteOpen}
             commands={paletteOpen ? paletteCommands({ me, membership, requestedSite, theme }) : []}
@@ -177,6 +193,7 @@ export function AppShell({
             fallbackFocus={() => paletteTrigger.current}
           />
         </Suspense>
+        </PaletteBoundary>
       ) : null}
       <Toaster />
     </TooltipProvider>

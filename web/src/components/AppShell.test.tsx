@@ -12,7 +12,8 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useLiveSummary, useReplayAvailability, privateRequest, shortcuts, toggleTheme, requestLogout } = vi.hoisted(() => ({
+const { loadPalette, useLiveSummary, useReplayAvailability, privateRequest, shortcuts, toggleTheme, requestLogout } = vi.hoisted(() => ({
+  loadPalette: vi.fn(),
   useLiveSummary: vi.fn(),
   useReplayAvailability: vi.fn(),
   privateRequest: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('@/lib/shortcuts', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/shortcuts')>(),
   useShortcuts: (map: Record<string, () => void>) => { shortcuts.current = map },
 }))
+vi.mock('./paletteLoader', () => ({ loadPalette }))
 vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: toggleTheme }) }))
 vi.mock('@/lib/session-lifecycle', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/session-lifecycle')>(),
@@ -127,6 +129,8 @@ function renderAppShell(initialEntry: string, shellMe: Me = me) {
 describe('AppShell live visitor badge', () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = () => undefined
+    loadPalette.mockReset()
+    loadPalette.mockImplementation(async () => (await vi.importActual<typeof import('./paletteLoader')>('./paletteLoader')).loadPalette())
     window.scrollTo = () => undefined
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
@@ -493,8 +497,44 @@ describe('AppShell live visitor badge', () => {
 
   it('loads the palette code only when it is first opened', async () => {
     renderShell('/app/acme/docs/settings/general')
-    await screen.findByRole('banner', { name: 'Application header' })
+    const header = await screen.findByRole('banner', { name: 'Application header' })
+    fireEvent.keyDown(document, { key: 'x' })
+    expect(loadPalette).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
     expect(document.querySelector('[cmdk-root]')).toBeNull()
+    fireEvent.click(within(header).getByRole('button', { name: 'Open command palette' }))
+    expect(await screen.findByRole('dialog', { name: 'Command palette' })).toBeVisible()
+    expect(loadPalette).toHaveBeenCalledOnce()
   })
+
+  it('keeps the shell usable when the palette code fails to load, and retries on the next open', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      loadPalette.mockRejectedValueOnce(new Error('Failed to fetch dynamically imported module'))
+      renderShell('/app/acme/docs/settings/general')
+      const header = await screen.findByRole('banner', { name: 'Application header' })
+      const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+      fireEvent.click(trigger)
+      expect(await screen.findByText('The command palette could not be loaded. Check your connection and try again.')).toBeVisible()
+      expect(screen.getByRole('banner', { name: 'Application header' })).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
+
+      fireEvent.click(trigger)
+      expect(await screen.findByRole('dialog', { name: 'Command palette' })).toBeVisible()
+      expect(loadPalette).toHaveBeenCalledTimes(2)
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it('ignores Ctrl/⌘ K while the shortcut help dialog is open', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    await screen.findByRole('banner', { name: 'Application header' })
+    act(() => shortcuts.current['?']())
+    expect(await screen.findByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+    act(() => shortcuts.current['mod+k']())
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
+    expect(loadPalette).not.toHaveBeenCalled()
+  })
+
 })

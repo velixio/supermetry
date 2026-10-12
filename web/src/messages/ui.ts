@@ -120,6 +120,7 @@ export const ui = {
   },
   palette: {
     open: 'Open command palette',
+    loadFailed: 'The command palette could not be loaded. Check your connection and try again.',
     keyHint: 'Ctrl K',
     keyHintApple: '⌘K',
     title: 'Command palette',
