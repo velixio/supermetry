@@ -23,6 +23,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Region and city | ✓ | ✓ | ✓ | ✅ (Location breakdowns plus the dashboard Where card) |
 | Weekday × local-hour traffic grid | ✓ | ✓ | ? | ✅ (site-timezone visitors and pageviews within raw retention) |
 | Dashboard geography and weekly rhythm cards | ✓ | ✓ | ? | ✅ (linked map/list, country details, locale-aware 168-cell rhythm) |
+| Responsive polished dashboard controls and hierarchy | ? | ? | ? | ✅ (styled range picker, mobile filter sheet, accessible empty states) |
 | Custom events and props | ✓ | ✓ | ✓ | ✅ |
 | Goals | ✓ | ✓ | ? | ✅ |
 | Funnels | ✓ (not in CE) | ✓ | ✓ | ✅ |
