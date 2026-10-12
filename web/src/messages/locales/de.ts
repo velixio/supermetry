@@ -144,6 +144,7 @@ const messages: MessageTree = {
     },
   },
   dashboard: {
+    viewFullReport: 'Vollständigen Bericht anzeigen',
     period: 'Zeitraum',
     periods: {
       today: 'Heute',
