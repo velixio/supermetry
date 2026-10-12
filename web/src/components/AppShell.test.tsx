@@ -89,6 +89,27 @@ function setWidth(width: number) {
   Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width })
 }
 
+// The shell outside an organization: the /app route renders AppShell without a membership.
+function renderAppShell(initialEntry: string, shellMe: Me = me) {
+  const root = createRootRoute({ component: Outlet })
+  const app = createRoute({ getParentRoute: () => root, path: 'app', component: () => <AppShell me={shellMe} /> })
+  const account = createRoute({ getParentRoute: () => app, path: 'account', component: Outlet })
+  const profile = createRoute({ getParentRoute: () => account, path: 'profile', component: () => <h1>Profile</h1> })
+  const admin = createRoute({ getParentRoute: () => app, path: 'admin', component: Outlet })
+  const users = createRoute({ getParentRoute: () => admin, path: 'users', component: () => <h1>Users</h1> })
+  const router = createRouter({
+    routeTree: root.addChildren([app.addChildren([account.addChildren([profile]), admin.addChildren([users])])]),
+    history: createMemoryHistory({ initialEntries: [initialEntry] }),
+  })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const view = render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
+  return { router, ...view }
+}
+
 describe('AppShell live visitor badge', () => {
   beforeEach(() => {
     window.scrollTo = () => undefined
@@ -340,5 +361,36 @@ describe('AppShell live visitor badge', () => {
       'M — Show the last 30 days (dashboard)',
       'C — Turn period comparison on or off (dashboard)',
     ])
+  })
+
+  it('renders account pages in the same shell with account links and no site switcher', async () => {
+    const { container } = renderAppShell('/app/account/profile')
+    const header = await screen.findByRole('banner', { name: 'Application header' })
+    expect(header).toHaveClass('sticky', 'top-0', 'h-11')
+    expect(container.querySelectorAll('main')).toHaveLength(1)
+    expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('id', 'main-content')
+    expect(screen.getByRole('heading', { name: 'Profile' })).toBeVisible()
+    const crumbs = within(header).getByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(crumbs).getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/app/account')
+    expect(within(crumbs).getByText('Profile')).toHaveAttribute('aria-current', 'page')
+    const sidebar = screen.getByRole('complementary', { name: 'Application sidebar' })
+    const account = within(sidebar).getByRole('navigation', { name: 'Account' })
+    expect(within(account).getByRole('link', { name: 'Account settings' })).toHaveAttribute('aria-current', 'page')
+    expect(within(account).queryByRole('link', { name: 'Instance administration' })).toBeNull()
+    expect(within(sidebar).queryByRole('navigation', { name: 'Settings' })).toBeNull()
+    expect(within(sidebar).queryByRole('button', { name: /Site/ })).toBeNull()
+    expect(useLiveSummary).not.toHaveBeenCalled()
+    expect(privateRequest).not.toHaveBeenCalled()
+  })
+
+  it('keeps the skip link first and focus order intact outside an organization', async () => {
+    const { container } = renderAppShell('/app/admin/users', { ...me, user: { ...me.user, instance_admin: true } })
+    const skip = await screen.findByRole('link', { name: 'Skip to main content' })
+    expect(container.querySelector('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])')).toBe(skip)
+    const sidebar = screen.getByRole('complementary', { name: 'Application sidebar' })
+    const follows = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(follows(skip, sidebar)).toBe(true)
+    expect(follows(sidebar, screen.getByRole('banner', { name: 'Application header' }))).toBe(true)
+    expect(within(sidebar).getByRole('link', { name: 'Instance administration' })).toHaveAttribute('aria-current', 'page')
   })
 })

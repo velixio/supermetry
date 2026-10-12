@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { en } from '@/messages/en'
-import { AccountFrame } from '@/components/AccountFrame'
 import { NoOrgScreen } from '@/features/lifecycle/NoOrgScreen'
 import { parseSitesOverviewSearch } from '@/features/sites/overviewSearch'
 import { useMe } from './app.$org'
@@ -39,20 +38,14 @@ export function IndexPage() {
 
   const membership = me.data.memberships[0]
   const allSites = me.data.memberships.flatMap((item) => item.sites.map((site) => ({ membership: item, site })))
-  if (!membership) {
-    return (
-      <AccountFrame me={me.data}>
-        <NoOrgScreen navigate={navigate} />
-      </AccountFrame>
-    )
-  }
+  if (!membership) return <NoOrgScreen navigate={navigate} />
   if (allSites.length > 0) {
     return (
       <Suspense fallback={<div className="h-72 animate-pulse rounded-xl bg-muted" aria-label="Loading sites" role="status" />}><SitesOverviewLanding me={me.data} /></Suspense>
     )
   }
   return (
-    <AccountFrame me={me.data}><Suspense fallback={<p className="text-sm text-muted-foreground">{en.loadingDashboard}</p>}><Onboarding me={me.data} navigate={navigate} /></Suspense></AccountFrame>
+    <Suspense fallback={<p className="text-sm text-muted-foreground" role="status">{en.loadingDashboard}</p>}><Onboarding me={me.data} navigate={navigate} /></Suspense>
   )
 }
 function OnboardingError({ detail }: { detail: string }) {

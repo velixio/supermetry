@@ -10,11 +10,9 @@ const OUTSIDE_SHELL = new Set<string>([
   'src/features/auth/AuthScreen.tsx',
   'src/features/lifecycle/NoOrgScreen.tsx',
   'src/features/share/SharedDashboard.tsx',
-  // Onboarding is a centred card mounted by app.index inside AccountFrame, with its own <main>.
+  // Onboarding is a centred card mounted by app.index inside the shell, with its own <main>.
   'src/features/sites/Onboarding.tsx',
   'src/routes/app.index.tsx',
-  // Not-found screen for an unknown organisation: renders outside the shell with its own <main>.
-  'src/components/OrganizationLayout.tsx',
 ])
 
 // Files still to migrate. Each adoption task deletes its entries.

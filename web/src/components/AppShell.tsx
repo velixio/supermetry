@@ -3,9 +3,11 @@ import { AuthorizationProvider } from '@/lib/authorization'
 import { useEffect, useRef, useState } from 'react'
 import { Outlet, useRouterState } from '@tanstack/react-router'
 
+import { AccountSidebar } from './AccountSidebar'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
 import { AppHeader } from './AppHeader'
 import { GeolocationCredit } from '@/components/GeolocationCredit'
+import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
 import {
   Dialog,
   DialogContent,
@@ -33,7 +35,7 @@ export function AppShell({
   membership,
 }: {
   me: Me
-  membership: Membership
+  membership?: Membership
 }) {
   const { theme, toggle } = useTheme()
   const [helpOpen, setHelpOpen] = useState(false)
@@ -50,7 +52,7 @@ export function AppShell({
       }
     },
   })
-  const scopedSite = membership.sites.find((item) => matchesSite(item, requestedSite))
+  const scopedSite = membership?.sites.find((item) => matchesSite(item, requestedSite))
   const recordedLastSite = useRef(me.preferences?.last_site_id)
 
   useEffect(() => {
@@ -78,7 +80,11 @@ export function AppShell({
         >
           {en.a11y2.skipToMain}
         </a>
-        <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} />
+        {membership ? (
+          <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} />
+        ) : (
+          <AccountSidebar me={me} />
+        )}
         <SidebarInset>
           <AppHeader
             membership={membership}
@@ -89,24 +95,31 @@ export function AppShell({
             onOpenHelp={() => setHelpOpen(true)}
           />
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
-            {scopedSite?.is_demo ? (
-              <DemoBanner org={membership.org} site={scopedSite} />
-            ) : (
-              <RemoveDemoBanner currentSite={scopedSite} membership={membership} />
-            )}
+            {membership ? (
+              scopedSite?.is_demo ? (
+                <DemoBanner org={membership.org} site={scopedSite} />
+              ) : (
+                <RemoveDemoBanner currentSite={scopedSite} membership={membership} />
+              )
+            ) : null}
             <AuthorizationCacheBoundary scope={authorizationScope(me.user.id, membership)}>
               <div
                 key={pathname}
                 className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-150"
               >
-                <AnalyticsPrivacyBoundary site={scopedSite} org={membership.org.slug} requestedSite={requestedSite} pathname={pathname} renderedPathnames={renderedPathnames}>
+                {membership ? (
+                  <AnalyticsPrivacyBoundary site={scopedSite} org={membership.org.slug} requestedSite={requestedSite} pathname={pathname} renderedPathnames={renderedPathnames}>
+                    <Outlet />
+                  </AnalyticsPrivacyBoundary>
+                ) : (
                   <Outlet />
-                </AnalyticsPrivacyBoundary>
+                )}
               </div>
             </AuthorizationCacheBoundary>
           </main>
-          <footer className="px-4 pb-4 text-center text-xs text-muted-foreground md:px-6">
+          <footer className="flex flex-wrap items-center justify-center gap-x-3 px-4 pb-4 text-center text-xs text-muted-foreground md:px-6">
             <GeolocationCredit />
+            <PoweredBySupermetry className="hover:text-foreground" />
           </footer>
         </SidebarInset>
       </SidebarProvider>

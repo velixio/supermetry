@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { en } from '@/messages/en'
-import { Building2Icon, LogOutIcon, SettingsIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react'
+import { LogOutIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -9,13 +9,12 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { requestLogout } from '@/lib/session-lifecycle'
-import { siteSlug } from '@/lib/matchSite'
-import type { Me, Membership, Site } from '@/lib/me'
+import type { Me } from '@/lib/me'
 import { ui } from '@/messages/ui'
 
 /**
  * Identity, build version, account settings, instance administration and log out.
- * The trigger is replaceable so the sidebar footer opens the same menu.
+ * The sidebar footer opens it with its own trigger.
  */
 export function AccountMenu({
   me,
@@ -47,41 +46,5 @@ export function AccountMenu({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
-
-export function HeaderMenus({ me, membership, site }: { me: Me; membership?: Membership; site?: Site }) {
-  const organizations = membership ? [membership] : me.memberships
-  return (
-    <div className="flex shrink-0 items-center gap-1">
-      {organizations.length > 0 ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm"><SettingsIcon aria-hidden="true" />{ui.menus.settings}</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]" aria-label={ui.menus.settingsMenu}>
-            <DropdownMenuGroup>
-              {organizations.map((item) => (
-                <DropdownMenuItem asChild key={item.org.id}>
-                  <Link to="/app/$org/settings" params={{ org: item.org.slug }}>
-                    <Building2Icon aria-hidden="true" />
-                    <span className="min-w-0"><span className="block">{ui.menus.organizationSettings}</span><span className="block truncate text-xs text-muted-foreground">{item.org.name}</span></span>
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-              {membership && site && membership.role !== 'viewer' ? (
-                <DropdownMenuItem asChild>
-                  <Link to="/app/$org/$site/settings/general" params={{ org: membership.org.slug, site: siteSlug(site) }}>
-                    <SettingsIcon aria-hidden="true" />
-                    <span className="min-w-0"><span className="block">{ui.menus.siteSettings}</span><span className="block truncate text-xs text-muted-foreground">{site.name}</span></span>
-                  </Link>
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : null}
-      <AccountMenu me={me} />
-    </div>
   )
 }

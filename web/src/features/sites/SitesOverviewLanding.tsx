@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { getRouteApi, useRouter } from '@tanstack/react-router'
 
-import { AccountFrame } from '@/components/AccountFrame'
 import { canCreateSites } from '@/components/Sidebar'
 import { en } from '@/messages/en'
 import type { Me } from '@/routes/app.$org'
@@ -20,24 +19,23 @@ export function SitesOverviewLanding({ me }: { me: Me }) {
     if (target) router.history.replace(target)
   }, [router, target])
 
-  if (target) return <main className="grid min-h-dvh place-items-center px-6"><p className="text-sm text-muted-foreground">{en.loadingDashboard}</p></main>
+  if (target) return <p className="text-sm text-muted-foreground" role="status">{en.loadingDashboard}</p>
 
   return (
-    <AccountFrame me={me}>
-      <SitesOverview
-        canAdd={me.memberships.some((item) => canCreateSites(item.role))}
-        orgs={me.memberships.map((item) => ({ ...item.org, canCreate: canCreateSites(item.role) }))}
-        org={search.org ?? ''}
-        period={search.period ?? '24h'}
-        query={search.q ?? ''}
-        sort={search.sort ?? 'visitors'}
-        view={me.preferences?.sites_view ?? 'cards'}
-        onSearchChange={(q) => void navigate({ search: { ...search, q } })}
-        onOrgChange={(org) => void navigate({ search: { ...search, org } })}
-        onPeriodChange={(period) => void navigate({ search: { ...search, period } })}
-        onSortChange={(sort) => void navigate({ search: { ...search, sort } })}
-      />
-    </AccountFrame>
+    <SitesOverview
+      canAdd={me.memberships.some((item) => canCreateSites(item.role))}
+      orgs={me.memberships.map((item) => ({ ...item.org, canCreate: canCreateSites(item.role) }))}
+      org={search.org ?? ''}
+      period={search.period ?? '24h'}
+      query={search.q ?? ''}
+      sort={search.sort ?? 'visitors'}
+      view={me.preferences?.sites_view ?? 'cards'}
+      onSearchChange={(q) => void navigate({ search: { ...search, q } })}
+      onOrgChange={(org) => void navigate({ search: { ...search, org } })}
+      onPeriodChange={(period) => void navigate({ search: { ...search, period } })}
+      onSortChange={(sort) => void navigate({ search: { ...search, sort } })}
+    />
+
   )
 }
 
