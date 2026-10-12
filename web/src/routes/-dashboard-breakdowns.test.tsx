@@ -113,6 +113,13 @@ describe('dashboard breakdown route', () => {
     return router
   }
 
+  function renderAt(...urls: string[]) {
+    const history = createMemoryHistory({ initialEntries: urls, initialIndex: urls.length - 1 })
+    const router = createRouter({ routeTree, history, parseSearch, stringifySearch })
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><RouterProvider router={router} /></QueryClientProvider>)
+    return router
+  }
+
   it('puts the date range, segments and include-imported in one sticky filter row and Export in the header actions', async () => {
     renderDashboard()
     const row = await screen.findByRole('group', { name: 'Filters' })
@@ -415,5 +422,15 @@ describe('dashboard breakdown route', () => {
     }
 
     expect(post).toHaveBeenCalledTimes(exports.length)
+  })
+
+  it('validates the inspect selection in the dashboard search and drops an unknown one', async () => {
+    const leafSearch = (router: ReturnType<typeof renderAt>) => router.state.matches.at(-1)?.search as Record<string, unknown> | undefined
+    const valid = renderAt('/app/acme/example?period=7d&inspect=country%3AIN')
+    await waitFor(() => expect(leafSearch(valid)).toMatchObject({ period: '7d', inspect: 'country:IN' }))
+    cleanup()
+    const invalid = renderAt('/app/acme/example?period=7d&inspect=nope%3A1')
+    await waitFor(() => expect(leafSearch(invalid)).toMatchObject({ period: '7d' }))
+    expect(leafSearch(invalid)?.inspect).toBeUndefined()
   })
 })

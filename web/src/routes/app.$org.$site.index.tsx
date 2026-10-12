@@ -27,6 +27,7 @@ import {
   resolveRange,
   type Filter,
 } from '../lib/search'
+import { parseInspectSearch, withoutInspect } from '../lib/inspect'
 import { en } from '../messages/en'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -62,8 +63,9 @@ const DashboardManage = isTest
 type EditState = { kind: 'edit'; id: number } | { kind: 'new'; template: TemplateKey } | null
 
 export const Route = createFileRoute('/app/$org/$site/')({
-  validateSearch: (search) => dashboardSearch.parse(search),
-  loaderDeps: ({ search }) => search,
+  validateSearch: (search) => ({ ...dashboardSearch.parse(search), ...parseInspectSearch(search) }),
+  // Opening or closing the inspector must not re-run the dashboard prefetch.
+  loaderDeps: ({ search }) => withoutInspect(search),
   loader: ({ deps, params }) => {
     void import('@/lib/dashboard-prefetch').then(({ prefetchDashboard }) => prefetchDashboard(params.org, params.site, deps))
   },
