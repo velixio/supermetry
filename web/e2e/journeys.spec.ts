@@ -49,6 +49,12 @@ test('journeys page renders the API flow without errors across viewports and the
     const sorted = [...column].sort((a, b) => a.y - b.y)
     for (let i = 1; i < sorted.length; i += 1) expect(sorted[i].y).toBeGreaterThanOrEqual(sorted[i - 1].y + sorted[i - 1].h)
   }
+  // Height contract: tallest column of node heights plus gaps plus padding (min 200), as drawn in viewBox units.
+  const maxVisitors = Math.max(1, ...api.nodes.map((node) => node.visitors))
+  const expectedHeight = Math.max(200, 48 + Math.max(...[...new Set(api.nodes.map((node) => node.step))].map((step) => {
+    const column = api.nodes.filter((node) => node.step === step)
+    return column.reduce((sum, node) => sum + Math.max(40, (node.visitors / maxVisitors) * 92), 0) + 12 * (column.length - 1)
+  })))
   const box = await diagram.boundingBox()
   expect(box!.width).toBeGreaterThan(0)
   await expect(diagram.locator('title').first()).toContainText('visitors')
@@ -65,6 +71,8 @@ test('journeys page renders the API flow without errors across viewports and the
   await expect(diagram).toBeVisible()
   await page.getByLabel('Start page').fill('')
   await page.getByRole('button', { name: 'Apply' }).click()
+  await page.getByLabel('Steps').selectOption('3')
+  await expect(diagram.locator('rect')).toHaveCount(api.nodes.length)
 
   await page.getByRole('button', { name: 'Use dark theme' }).click()
   await page.screenshot({ path: `${shots}/1440-dark.png`, fullPage: true })
@@ -72,6 +80,22 @@ test('journeys page renders the API flow without errors across viewports and the
 
   for (const width of [1024, 390]) {
     await page.setViewportSize({ width, height: 900 })
+    const probe = await page.evaluate(() => {
+      const tall = [...document.querySelectorAll('body *')]
+        .map((el) => ({ tag: el.tagName, cls: String(el.className).slice(0, 60), top: el.getBoundingClientRect().top + scrollY, h: el.getBoundingClientRect().height, bottom: el.getBoundingClientRect().bottom + scrollY }))
+        .sort((a, b) => b.bottom - a.bottom).slice(0, 4)
+      return { scrollHeight: document.documentElement.scrollHeight, tall }
+    })
+    const cardBottom = await page.getByRole('region', { name: 'Journey results' }).evaluate((el) => el.getBoundingClientRect().bottom + scrollY)
+    expect(probe.scrollHeight - cardBottom, `blank space below the card at ${width}: ${JSON.stringify(probe.tall[0])}`).toBeLessThan(300)
+    const svgHeight = await diagram.evaluate((el) => el.getBoundingClientRect().height / (el.getBoundingClientRect().width / 960))
+    expect(Math.abs(svgHeight - expectedHeight)).toBeLessThan(1)
+    if (width === 390) {
+      const fontPx = await diagram.locator('text').first().evaluate((el) => (el as SVGGraphicsElement).getBoundingClientRect().height)
+      expect(fontPx).toBeGreaterThanOrEqual(10)
+      await expect(page.getByText('Scroll sideways to see all steps.')).toBeVisible()
+    }
+    console.log(width, probe.scrollHeight)
     await page.screenshot({ path: `${shots}/${width}.png`, fullPage: true })
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     expect(overflow, `horizontal page overflow at ${width}`).toBeLessThanOrEqual(0)

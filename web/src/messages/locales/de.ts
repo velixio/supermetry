@@ -809,6 +809,7 @@ const messages: MessageTree = {
     path: 'Pfad',
     visitorsHeading: 'Besucher',
     loading: 'Pfade werden geladen',
+    scrollHint: 'Seitlich scrollen, um alle Schritte zu sehen.',
     exit: 'Ausstieg',
     other: 'Andere',
     visitors: (count: string) => `${count} Besucher`,

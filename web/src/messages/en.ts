@@ -807,6 +807,7 @@ export const en = {
     path: 'Path',
     visitorsHeading: 'Visitors',
     loading: 'Loading journeys',
+    scrollHint: 'Scroll sideways to see all steps.',
     exit: 'Exit',
     other: 'Other',
     visitors: (count: string) => `${count} visitors`,

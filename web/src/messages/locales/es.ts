@@ -809,6 +809,7 @@ const messages: MessageTree = {
     path: 'Ruta',
     visitorsHeading: 'Visitantes',
     loading: 'Cargando recorridos',
+    scrollHint: 'Desplázate hacia los lados para ver todos los pasos.',
     exit: 'Salida',
     other: 'Otros',
     visitors: (count: string) => `${count} visitantes`,
