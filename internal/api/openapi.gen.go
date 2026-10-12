@@ -511,6 +511,24 @@ func (e HeatmapDevice) Valid() bool {
 	}
 }
 
+// Defines values for IntegrationConnectionStatus.
+const (
+	Active IntegrationConnectionStatus = "active"
+	Reauth IntegrationConnectionStatus = "reauth"
+)
+
+// Valid indicates whether the value is a known member of the IntegrationConnectionStatus enum.
+func (e IntegrationConnectionStatus) Valid() bool {
+	switch e {
+	case Active:
+		return true
+	case Reauth:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LifecycleErrorError.
 const (
 	InvalidName   LifecycleErrorError = "invalid_name"
@@ -949,6 +967,24 @@ func (e RetentionResponseRetentionMode) Valid() bool {
 	}
 }
 
+// Defines values for SearchConsoleTopDimension.
+const (
+	SearchConsoleTopDimensionPage  SearchConsoleTopDimension = "page"
+	SearchConsoleTopDimensionQuery SearchConsoleTopDimension = "query"
+)
+
+// Valid indicates whether the value is a known member of the SearchConsoleTopDimension enum.
+func (e SearchConsoleTopDimension) Valid() bool {
+	switch e {
+	case SearchConsoleTopDimensionPage:
+		return true
+	case SearchConsoleTopDimensionQuery:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionTimelineItemKind.
 const (
 	SessionEvent    SessionTimelineItemKind = "event"
@@ -1369,6 +1405,24 @@ func (e GetRevenueReportParamsAttribution) Valid() bool {
 	case GetRevenueReportParamsAttributionFirstClick:
 		return true
 	case GetRevenueReportParamsAttributionLastClick:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetSearchConsoleTopParamsDimension.
+const (
+	GetSearchConsoleTopParamsDimensionPage  GetSearchConsoleTopParamsDimension = "page"
+	GetSearchConsoleTopParamsDimensionQuery GetSearchConsoleTopParamsDimension = "query"
+)
+
+// Valid indicates whether the value is a known member of the GetSearchConsoleTopParamsDimension enum.
+func (e GetSearchConsoleTopParamsDimension) Valid() bool {
+	switch e {
+	case GetSearchConsoleTopParamsDimensionPage:
+		return true
+	case GetSearchConsoleTopParamsDimensionQuery:
 		return true
 	default:
 		return false
@@ -2057,6 +2111,45 @@ type HeatmapTotals struct {
 	PageviewsSampled int64 `json:"pageviews_sampled"`
 }
 
+// IntegrationAuthorization defines model for IntegrationAuthorization.
+type IntegrationAuthorization struct {
+	AuthorizationUrl string `json:"authorization_url"`
+}
+
+// IntegrationBackfillRequest defines model for IntegrationBackfillRequest.
+type IntegrationBackfillRequest struct {
+	Days int `json:"days"`
+}
+
+// IntegrationCatalogEntry defines model for IntegrationCatalogEntry.
+type IntegrationCatalogEntry struct {
+	Available  bool                   `json:"available"`
+	Connection *IntegrationConnection `json:"connection,omitempty"`
+	Name       string                 `json:"name"`
+	Provider   string                 `json:"provider"`
+}
+
+// IntegrationConnectRequest defines model for IntegrationConnectRequest.
+type IntegrationConnectRequest struct {
+	BackfillDays *int   `json:"backfill_days,omitempty"`
+	Property     string `json:"property"`
+}
+
+// IntegrationConnection defines model for IntegrationConnection.
+type IntegrationConnection struct {
+	CreatedAt     time.Time                   `json:"created_at"`
+	Id            int64                       `json:"id"`
+	LastError     *string                     `json:"last_error,omitempty"`
+	LastSyncAt    *time.Time                  `json:"last_sync_at,omitempty"`
+	Property      string                      `json:"property"`
+	Provider      string                      `json:"provider"`
+	Status        IntegrationConnectionStatus `json:"status"`
+	SyncedThrough *openapi_types.Date         `json:"synced_through,omitempty"`
+}
+
+// IntegrationConnectionStatus defines model for IntegrationConnection.Status.
+type IntegrationConnectionStatus string
+
 // JourneyLink defines model for JourneyLink.
 type JourneyLink struct {
 	FromPath string `json:"from_path"`
@@ -2735,6 +2828,27 @@ type ScrollBand struct {
 	Share float64 `json:"share"`
 }
 
+// SearchConsoleTop defines model for SearchConsoleTop.
+type SearchConsoleTop struct {
+	Dimension SearchConsoleTopDimension `json:"dimension"`
+	From      openapi_types.Date        `json:"from"`
+	Rows      []SearchConsoleTopRow     `json:"rows"`
+	To        openapi_types.Date        `json:"to"`
+	Totals    SearchConsoleTopRow       `json:"totals"`
+}
+
+// SearchConsoleTopDimension defines model for SearchConsoleTop.Dimension.
+type SearchConsoleTopDimension string
+
+// SearchConsoleTopRow defines model for SearchConsoleTopRow.
+type SearchConsoleTopRow struct {
+	Clicks      int64   `json:"clicks"`
+	Ctr         float32 `json:"ctr"`
+	Impressions int64   `json:"impressions"`
+	Key         string  `json:"key"`
+	Position    float32 `json:"position"`
+}
+
 // Segment defines model for Segment.
 type Segment struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -3221,6 +3335,13 @@ type ConfirmCurrentUserEmailChangeJSONBody struct {
 	Token string `json:"token"`
 }
 
+// IntegrationOAuthCallbackParams defines parameters for IntegrationOAuthCallback.
+type IntegrationOAuthCallbackParams struct {
+	Code  *string `form:"code,omitempty" json:"code,omitempty"`
+	State string  `form:"state" json:"state"`
+	Error *string `form:"error,omitempty" json:"error,omitempty"`
+}
+
 // DeleteCurrentUserJSONBody defines parameters for DeleteCurrentUser.
 type DeleteCurrentUserJSONBody struct {
 	Password string  `json:"password"`
@@ -3323,6 +3444,17 @@ type GetRevenueReportParamsBreakdown string
 
 // GetRevenueReportParamsAttribution defines parameters for GetRevenueReport.
 type GetRevenueReportParamsAttribution string
+
+// GetSearchConsoleTopParams defines parameters for GetSearchConsoleTop.
+type GetSearchConsoleTopParams struct {
+	Dimension GetSearchConsoleTopParamsDimension `form:"dimension" json:"dimension"`
+	From      openapi_types.Date                 `form:"from" json:"from"`
+	To        openapi_types.Date                 `form:"to" json:"to"`
+	Limit     *int                               `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetSearchConsoleTopParamsDimension defines parameters for GetSearchConsoleTop.
+type GetSearchConsoleTopParamsDimension string
 
 // PreflightEventParams defines parameters for PreflightEvent.
 type PreflightEventParams struct {
@@ -3589,6 +3721,12 @@ type CreateCohortJSONRequestBody = CohortInput
 
 // EvaluateCohortJSONRequestBody defines body for EvaluateCohort for application/json ContentType.
 type EvaluateCohortJSONRequestBody = CohortEvaluateRequest
+
+// BackfillSiteIntegrationJSONRequestBody defines body for BackfillSiteIntegration for application/json ContentType.
+type BackfillSiteIntegrationJSONRequestBody = IntegrationBackfillRequest
+
+// ConnectSiteIntegrationJSONRequestBody defines body for ConnectSiteIntegration for application/json ContentType.
+type ConnectSiteIntegrationJSONRequestBody = IntegrationConnectRequest
 
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
@@ -4096,6 +4234,9 @@ type ServerInterface interface {
 	// UpdateReplayStorage Replace instance replay storage settings
 	// (PUT /api/private/instance/replay-storage)
 	UpdateReplayStorage(w http.ResponseWriter, r *http.Request)
+	// IntegrationOAuthCallback OAuth redirect target; consumes the state and redirects to the site settings
+	// (GET /api/private/integrations/{provider}/callback)
+	IntegrationOAuthCallback(w http.ResponseWriter, r *http.Request, provider string, params IntegrationOAuthCallbackParams)
 	// DeleteCurrentUser Delete the signed-in account
 	// (DELETE /api/private/me)
 	DeleteCurrentUser(w http.ResponseWriter, r *http.Request)
@@ -4216,6 +4357,18 @@ type ServerInterface interface {
 	// HeartbeatDemoProject Keep watched demo traffic active
 	// (POST /api/private/sites/{site}/demo/heartbeat)
 	HeartbeatDemoProject(w http.ResponseWriter, r *http.Request, site int32)
+	// ListSiteIntegrations List the integration catalog of a site with each connection state
+	// (GET /api/private/sites/{site}/integrations)
+	ListSiteIntegrations(w http.ResponseWriter, r *http.Request, site int32)
+	// DisconnectSiteIntegration Disconnect, deleting stored tokens and all imported data
+	// (DELETE /api/private/sites/{site}/integrations/{provider})
+	DisconnectSiteIntegration(w http.ResponseWriter, r *http.Request, site int32, provider string)
+	// BackfillSiteIntegration Re-import the last days in bounded windows
+	// (POST /api/private/sites/{site}/integrations/{provider}/backfill)
+	BackfillSiteIntegration(w http.ResponseWriter, r *http.Request, site int32, provider string)
+	// ConnectSiteIntegration Start the OAuth connection and return the provider authorization URL
+	// (POST /api/private/sites/{site}/integrations/{provider}/connect)
+	ConnectSiteIntegration(w http.ResponseWriter, r *http.Request, site int32, provider string)
 	// ListNotificationHistory List alert delivery history for a site
 	// (GET /api/private/sites/{site}/notification-history)
 	ListNotificationHistory(w http.ResponseWriter, r *http.Request, site int32, params ListNotificationHistoryParams)
@@ -4231,6 +4384,9 @@ type ServerInterface interface {
 	// GetRevenueReport Revenue breakdown with attribution
 	// (GET /api/private/sites/{site}/revenue/report)
 	GetRevenueReport(w http.ResponseWriter, r *http.Request, site int32, params GetRevenueReportParams)
+	// GetSearchConsoleTop Top queries or pages from imported Search Console data
+	// (GET /api/private/sites/{site}/search-console/top)
+	GetSearchConsoleTop(w http.ResponseWriter, r *http.Request, site int32, params GetSearchConsoleTopParams)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -4925,6 +5081,74 @@ func (siw *ServerInterfaceWrapper) UpdateReplayStorage(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateReplayStorage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IntegrationOAuthCallback operation middleware
+func (siw *ServerInterfaceWrapper) IntegrationOAuthCallback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "provider" -------------
+	var provider string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "provider", r.PathValue("provider"), &provider, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "provider", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params IntegrationOAuthCallbackParams
+
+	// ------------- Optional query parameter "code" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "code", r.URL.Query(), &params.Code, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "code"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "error" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "error", r.URL.Query(), &params.Error, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "error"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "error", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IntegrationOAuthCallback(w, r, provider, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6112,6 +6336,137 @@ func (siw *ServerInterfaceWrapper) HeartbeatDemoProject(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ListSiteIntegrations operation middleware
+func (siw *ServerInterfaceWrapper) ListSiteIntegrations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSiteIntegrations(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisconnectSiteIntegration operation middleware
+func (siw *ServerInterfaceWrapper) DisconnectSiteIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "provider" -------------
+	var provider string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "provider", r.PathValue("provider"), &provider, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "provider", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisconnectSiteIntegration(w, r, site, provider)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BackfillSiteIntegration operation middleware
+func (siw *ServerInterfaceWrapper) BackfillSiteIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "provider" -------------
+	var provider string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "provider", r.PathValue("provider"), &provider, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "provider", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BackfillSiteIntegration(w, r, site, provider)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConnectSiteIntegration operation middleware
+func (siw *ServerInterfaceWrapper) ConnectSiteIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "provider" -------------
+	var provider string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "provider", r.PathValue("provider"), &provider, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "provider", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConnectSiteIntegration(w, r, site, provider)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListNotificationHistory operation middleware
 func (siw *ServerInterfaceWrapper) ListNotificationHistory(w http.ResponseWriter, r *http.Request) {
 
@@ -6501,6 +6856,87 @@ func (siw *ServerInterfaceWrapper) GetRevenueReport(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetRevenueReport(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSearchConsoleTop operation middleware
+func (siw *ServerInterfaceWrapper) GetSearchConsoleTop(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSearchConsoleTopParams
+
+	// ------------- Required query parameter "dimension" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "dimension", r.URL.Query(), &params.Dimension, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "dimension"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dimension", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSearchConsoleTop(w, r, site, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8937,6 +9373,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates/{kind}", wrapper.SaveNotificationTemplate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates/{kind}/preview", wrapper.PreviewNotificationTemplate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/orgs/{org}/notification-settings", wrapper.SaveNotificationSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/integrations", wrapper.ListSiteIntegrations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/integrations/{provider}/connect", wrapper.ConnectSiteIntegration)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/integrations/{provider}/backfill", wrapper.BackfillSiteIntegration)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/integrations/{provider}", wrapper.DisconnectSiteIntegration)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/integrations/{provider}/callback", wrapper.IntegrationOAuthCallback)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/search-console/top", wrapper.GetSearchConsoleTop)
 
 	return m
 }

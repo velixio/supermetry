@@ -39,6 +39,7 @@ import (
 	"supermetry/internal/heatmap"
 	"supermetry/internal/imports"
 	"supermetry/internal/ingest"
+	"supermetry/internal/integrations"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
 	"supermetry/internal/platform/admin"
@@ -285,6 +286,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			health.AlertDeliveryFailures.Add(1)
 			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
 		})
+	integrationBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/integrations/v1")
+	if err != nil {
+		return fmt.Errorf("initialize integration encryption: %w", err)
+	}
+	integrationService := integrations.New(platformStore, integrationBox, cfg.BaseURL, integrations.NewGoogle(integrations.GoogleOptions{
+		ClientID: cfg.SearchConsoleClientID, ClientSecret: cfg.SearchConsoleClientSecret,
+	}))
 	demoService := demo.New(demo.Deps{
 		Pool: pool, Registry: databaseRegistry, Dict: dictionary,
 		Authz: func(_ context.Context, principal authz.Principal, orgID int64) error {
@@ -353,6 +361,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Shares:            shareService,
 		Reports:           reportService,
 		Alerts:            alertService,
+		Integrations:      integrationService,
 		Query:             engine,
 		Imports:           importStore,
 		ImportQueue:       importManager,
@@ -460,7 +469,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock, engine.InvalidateSite)
-	jobs = append(jobs, alertService.RetentionJob())
+	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)
