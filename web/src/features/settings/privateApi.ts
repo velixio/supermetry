@@ -1,7 +1,7 @@
 import { registerPrivateTask } from "@/lib/session-lifecycle";
 import { api } from "@/lib/api";
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type ApiResult = { data?: unknown; error?: unknown; response: Response };
 type LooseClient = Record<
   Method,

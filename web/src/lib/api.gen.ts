@@ -1376,10 +1376,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/notification-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** List alert delivery history for a site */
+        get: operations["listNotificationHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/notification-history/{delivery}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                delivery: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry one failed alert delivery */
+        post: operations["retryNotificationDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/notification-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        /** List notification templates and history settings */
+        get: operations["listNotificationTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/notification-templates/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                kind: components["schemas"]["NotificationChannelKind"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Save a channel message template */
+        put: operations["saveNotificationTemplate"];
+        post?: never;
+        /** Reset a channel message template to its default */
+        delete: operations["resetNotificationTemplate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/notification-templates/{kind}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                kind: components["schemas"]["NotificationChannelKind"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate and preview a template with sample alert data */
+        post: operations["previewNotificationTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/notification-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Set notification history retention */
+        put: operations["saveNotificationSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram";
+        /** @enum {string} */
+        DeliveryStatus: "pending" | "succeeded" | "failed";
+        NotificationDelivery: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            alert_id: number;
+            /** Format: int32 */
+            site_id: number;
+            /** Format: int64 */
+            channel_id: number;
+            channel_kind: components["schemas"]["NotificationChannelKind"];
+            channel_name: string;
+            status: components["schemas"]["DeliveryStatus"];
+            attempts: number;
+            error_text?: string;
+            /** Format: date-time */
+            fired_at: string;
+            /** Format: date-time */
+            last_attempt_at?: string;
+            /** Format: date-time */
+            delivered_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        NotificationTemplateInput: {
+            subject?: string;
+            body: string;
+        };
+        NotificationTemplate: components["schemas"]["NotificationTemplateInput"] & {
+            kind: components["schemas"]["NotificationChannelKind"];
+            is_default: boolean;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        NotificationSettings: {
+            /** @default 30 */
+            history_retention_days: number;
+        };
+        NotificationTemplateList: {
+            data: components["schemas"]["NotificationTemplate"][];
+            settings: components["schemas"]["NotificationSettings"];
+            variables: string[];
+        };
+        RenderedNotification: {
+            subject?: string;
+            body: string;
+        };
         Organization: {
             /** Format: int64 */
             id: number;
@@ -5466,6 +5636,203 @@ export interface operations {
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listNotificationHistory: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["DeliveryStatus"];
+                channel?: components["schemas"]["NotificationChannelKind"];
+                alert_id?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Delivery history newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["NotificationDelivery"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    retryNotificationDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                delivery: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated delivery */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDelivery"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listNotificationTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Templates, documented variables, and settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTemplateList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    saveNotificationTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                kind: components["schemas"]["NotificationChannelKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description Saved template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTemplate"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    resetNotificationTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                kind: components["schemas"]["NotificationChannelKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Default template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTemplate"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    previewNotificationTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                kind: components["schemas"]["NotificationChannelKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description Rendered preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderedNotification"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    saveNotificationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

@@ -11,6 +11,7 @@ import {
   type ChannelInput, type ChannelKind, type NotificationChannel,
   useChannels, useDeleteChannel, useSaveChannel, useTestChannel,
 } from './notificationApi'
+import { NotificationTemplates } from './NotificationTemplates'
 
 const blank: ChannelInput = { kind: 'email', name: '', enabled: true, config: { recipients: [] } }
 
@@ -77,6 +78,7 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
           setEditing(undefined)
         }}
       />
+      <NotificationTemplates orgId={orgId} canManage={canManage} />
     </div>
   )
 }
