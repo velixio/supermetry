@@ -96,6 +96,8 @@ Windows PowerShell:
 irm https://github.com/velixio/supermetry/releases/latest/download/install.ps1 | iex
 ```
 
+To see what the installer would do first, add `--dry-run`, for example `curl -fsSL https://github.com/velixio/supermetry/releases/latest/download/install.sh | sh -s -- --dry-run`.
+
 Open `<your URL>/app` and create your admin account. See [deploy/README.md](deploy/README.md) for unattended installs, manual deployment, service management, upgrades, backups and reverse proxies, and [docs/guide/configuration.md](docs/guide/configuration.md) for every setting.
 
 Then add the tracking script to your site. Copy the exact snippet from **Settings, Installation** in the dashboard. It looks like this:
