@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import type { Me, Membership } from '@/routes/app.$org'
+import type { Me, Membership } from '@/lib/me'
 
 import { SupermetrySidebar } from './Sidebar'
 import { RoutePending } from './RoutePending'

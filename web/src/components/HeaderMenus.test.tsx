@@ -6,7 +6,7 @@ import type { AnchorHTMLAttributes } from 'react'
 import { HeaderMenus } from './HeaderMenus'
 import { AccountFrame } from './AccountFrame'
 import { requestLogout } from '@/lib/session-lifecycle'
-import type { Me, Membership, Site } from '@/routes/app.$org'
+import type { Me, Membership, Site } from '@/lib/me'
 
 vi.mock('@/lib/session-lifecycle', () => ({ requestLogout: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn() }) }))

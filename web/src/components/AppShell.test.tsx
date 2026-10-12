@@ -21,7 +21,7 @@ vi.mock('@/components/replay/api', () => ({
 vi.mock('@/lib/shortcuts', () => ({ useShortcuts: () => undefined }))
 vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn() }) }))
 
-import type { Me, Membership } from '@/routes/app.$org'
+import type { Me, Membership } from '@/lib/me'
 
 import { AppShell } from './AppShell'
 

@@ -8,7 +8,7 @@ const { deleteSite } = vi.hoisted(() => ({ deleteSite: vi.fn() }))
 vi.mock('@/features/sites/api', () => ({ deleteSite }))
 
 import { InstallationPage } from '@/features/settings/SettingsPages'
-import type { Membership } from '@/routes/app.$org'
+import type { Membership } from '@/lib/me'
 import { RemoveDemoBanner } from './RemoveDemoBanner'
 
 const membership: Membership = {

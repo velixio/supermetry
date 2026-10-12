@@ -23,7 +23,7 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SupermetrySidebar } from '@/components/Sidebar'
 import { Onboarding } from '@/routes/app.index'
-import type { Me, Membership } from '@/routes/app.$org'
+import type { Me, Membership } from '@/lib/me'
 
 const organization = { id: 1, name: 'Acme', slug: 'acme' }
 
