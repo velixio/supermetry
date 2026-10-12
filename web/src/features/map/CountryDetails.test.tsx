@@ -47,11 +47,7 @@ describe('CountryDetails', () => {
       expect(request.filters).toEqual([{ dimension: 'country', operator: 'is', values: ['IN'] }])
       expect(request.limit).toBe(5)
     }
-    expect(await screen.findByRole('dialog')).toHaveClass(
-      'bg-popover',
-      'pb-[max(1rem,env(safe-area-inset-bottom))]',
-      'data-open:animate-none',
-    )
+    expect(await screen.findByRole('dialog')).toHaveClass('bg-popover', 'data-open:animate-none')
   })
 
   it('hides empty detail sections while keeping populated sections', async () => {
@@ -66,6 +62,11 @@ describe('CountryDetails', () => {
     render(<CountryDetails country="IN" query={query} onClear={vi.fn()} onFilter={vi.fn()} />)
 
     expect(await screen.findByRole('heading', { name: 'Top pages' })).toBeVisible()
+    expect(await screen.findByTestId('country-actions')).toHaveClass(
+      'sticky',
+      'bg-popover',
+      'pb-[max(1rem,env(safe-area-inset-bottom))]',
+    )
     expect(screen.queryByRole('heading', { name: 'Regions' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Cities' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Sources' })).not.toBeInTheDocument()

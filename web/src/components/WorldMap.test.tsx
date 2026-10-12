@@ -42,7 +42,7 @@ describe('WorldMap', () => {
     const map = screen.getByRole('group', { name: 'World map' })
 
     expect(container.querySelector('[data-country="AQ"]')).not.toBeInTheDocument()
-    expect(map).toHaveAttribute('viewBox', '0 0 1000 445')
+    expect(map).toHaveAttribute('viewBox', '0 12 1000 398')
   })
 
   it('shows a formatted flag, country name, and visitor count in a portalled pointer-safe tooltip', () => {

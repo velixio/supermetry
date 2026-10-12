@@ -22,7 +22,7 @@ const detailDimensions = [
   ['source', en.map.sources],
 ] as const
 
-function CountryDetailsBody({ country, query, onClear, onFilter }: CountryDetailsProps) {
+function CountryDetailsBody({ country, query, onClear, onFilter, sticky = false }: CountryDetailsProps & { sticky?: boolean }) {
   const countryFilter = {
     dimension: 'country',
     operator: 'is' as const,
@@ -139,7 +139,14 @@ function CountryDetailsBody({ country, query, onClear, onFilter }: CountryDetail
           </section>
         })}
       </div>
-      <div className="flex flex-wrap gap-2 border-t p-4">
+      <div
+        className={
+          sticky
+            ? 'sticky bottom-0 flex flex-wrap gap-2 border-t bg-popover px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
+            : 'flex flex-wrap gap-2 border-t p-4'
+        }
+        data-testid="country-actions"
+      >
         <Button onClick={onFilter}>{en.map.filterDashboard}</Button>
         <Button variant="ghost" onClick={onClear}>
           {en.map.clearSelection}
@@ -166,14 +173,14 @@ export function CountryDetails(props: CountryDetailsProps) {
         }}
       >
         <SheetContent
-          className="max-h-[88dvh] overflow-y-auto bg-popover pb-[max(1rem,env(safe-area-inset-bottom))] data-open:animate-none data-closed:animate-none"
+          className="max-h-[88dvh] overflow-y-auto bg-popover pb-0 data-open:animate-none data-closed:animate-none"
           side="bottom"
         >
           <SheetHeader>
             <SheetTitle>{title}</SheetTitle>
             <SheetDescription>{en.map.details}</SheetDescription>
           </SheetHeader>
-          <CountryDetailsBody {...props} />
+          <CountryDetailsBody {...props} sticky />
         </SheetContent>
       </Sheet>
     )

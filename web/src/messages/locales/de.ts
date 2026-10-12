@@ -787,6 +787,10 @@ const messages: MessageTree = {
     machineTranslated: '(maschinell unterstützt)',
     note: 'Einige Texte, etwa Diagrammbeschriftungen aus Ihren Daten, sind noch nicht übersetzt.',
   },
+  // UI fixes: realtime empty state, chart axis.
+  uiFix: {
+    realtimeEmpty: 'Keine Besucher in den letzten 30 Minuten. Neue Aktivität erscheint hier, sobald sie eintrifft.',
+  },
 }
 
 export default messages
