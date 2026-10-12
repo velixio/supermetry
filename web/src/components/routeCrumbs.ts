@@ -44,12 +44,14 @@ function pushTail(crumbs: Crumb[], segments: string[], base: string, params?: Re
   let previousKnown: string | undefined
   for (const [index, segment] of segments.entries()) {
     const known = labelOf(segment)
-    const to = [base, ...segments.slice(0, index + 1)].join('/')
+    let to = [base, ...segments.slice(0, index + 1)].join('/')
+    // The site settings layout has no index route; its first tab is the landing page.
+    if (segment === 'settings' && base === '/app/$org/$site') to += '/general'
     if (known) {
       crumbs.push({ label: known, to, ...(params && { params }) })
       previousKnown = segment
     } else if (previousKnown && previousKnown !== 'settings') {
-      crumbs.push({ label: ui.crumbs.detail, to, ...(params && { params }) })
+      crumbs.push({ label: ui.crumbs.detail })
     } else {
       crumbs.push({ label: segment, to, ...(params && { params }) })
     }

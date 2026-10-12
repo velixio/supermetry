@@ -56,6 +56,23 @@ describe('buildCrumbs', () => {
     expect(crumbs[0]).toMatchObject({ to: '/app/$org/sites', params: { org: 'acme' } })
     expect(crumbs[1]).toMatchObject({ to: '/app/$org/$site', params: { org: 'acme', site: 'docs' } })
   })
+  it('links tail crumbs to routes that render', () => {
+    const site = { org: 'acme', site: 'docs' }
+    expect(buildCrumbs('/app/acme/docs/settings/general', membership)[2]).toEqual({
+      label: 'Settings', to: '/app/$org/$site/settings/general', params: site,
+    })
+    expect(buildCrumbs('/app/acme/docs/funnels/42', membership)[2]).toEqual({
+      label: 'Funnels', to: '/app/$org/$site/funnels', params: site,
+    })
+    expect(buildCrumbs('/app/acme/settings/members', membership)[1]).toEqual({
+      label: 'Settings', to: '/app/$org/settings', params: { org: 'acme' },
+    })
+    expect(buildCrumbs('/app/account/profile', membership)[0]).toEqual({ label: 'Account', to: '/app/account' })
+    expect(buildCrumbs('/app/admin/users', membership)[0]).toEqual({ label: 'Admin', to: '/app/admin' })
+  })
+  it('the final Detail crumb carries no link', () => {
+    expect(buildCrumbs('/app/acme/docs/funnels/42', membership).at(-1)).toEqual({ label: 'Detail' })
+  })
   it('ignores a trailing slash', () => {
     expect(labels('/app/acme/docs/funnels/')).toEqual(['Acme', 'Docs', 'Funnels'])
   })
