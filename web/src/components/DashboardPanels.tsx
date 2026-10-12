@@ -1,5 +1,5 @@
 import { XIcon } from 'lucide-react'
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
@@ -37,6 +37,11 @@ const SIDE_LAYOUT_MIN_REM = MAIN_MIN_REM + HANDLE_REM + INSPECTOR_WIDTH.min
 /** Width in px of the observed element's content box; undefined until the first measurement. */
 function useContainerWidth(ref: RefObject<HTMLElement | null>): number | undefined {
   const [width, setWidth] = useState<number | undefined>(undefined)
+  // Measure before the first paint so the first frame already uses the right layout.
+  useLayoutEffect(() => {
+    const measured = ref.current?.getBoundingClientRect().width
+    if (measured) setWidth(measured)
+  }, [ref])
   useEffect(() => {
     const element = ref.current
     if (!element || typeof ResizeObserver === 'undefined') return
@@ -88,14 +93,15 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
     inspector?.onClose()
   }
 
-  if (wide) {
-    return (
-      <div ref={wrapperRef} className="min-w-0">
+  const shown = inspector ?? lastInspector.current
+  // `main` stays at one tree position so a layout change never remounts it.
+  return (
+    <div ref={wrapperRef} className="min-w-0">
       <ResizablePanelGroup className="items-stretch" orientation="horizontal" style={{ height: 'auto', overflow: 'visible' }}>
-        <ResizablePanel id="dashboard-main" minSize="40rem" style={{ overflow: 'visible', maxHeight: 'none' }}>
+        <ResizablePanel id="dashboard-main" minSize={wide ? `${MAIN_MIN_REM}rem` : undefined} style={{ overflow: 'visible', maxHeight: 'none' }}>
           <div className="flex min-w-0 flex-col gap-4">{main}</div>
         </ResizablePanel>
-        {inspector ? (
+        {wide && inspector ? (
           <>
             <ResizableHandle withHandle aria-label={ui.inspector.resize} className="mx-2" />
             <ResizablePanel
@@ -131,44 +137,38 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
           </>
         ) : null}
       </ResizablePanelGroup>
-      </div>
-    )
-  }
-
-  const shown = inspector ?? lastInspector.current
-  return (
-    <div ref={wrapperRef} className="min-w-0">
-      <div className="flex min-w-0 flex-col gap-4">{main}</div>
-      <Sheet open={inspector !== undefined} onOpenChange={(open) => { if (!open) inspector?.onClose() }}>
-        <SheetContent
-          className={mobile
-            ? 'gap-0 overflow-y-auto p-0 data-[side=bottom]:h-[85dvh]'
-            : 'gap-0 overflow-y-auto p-0 data-[side=right]:w-[min(24rem,100vw)]'}
-          showCloseButton={false}
-          side={mobile ? 'bottom' : 'right'}
-          onCloseAutoFocus={(event) => {
-            const origin = returnFocusRef.current
-            if (!origin?.isConnected) return
-            event.preventDefault()
-            origin.focus()
-          }}
-        >
-          {shown ? (
-            <>
-              <SheetHeader className="flex-row items-start justify-between gap-2 border-b">
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <SheetDescription className="text-xs">{shown.dimension}</SheetDescription>
-                  <SheetTitle className="break-words">{shown.title}</SheetTitle>
-                </div>
-                <Button aria-label={ui.inspector.close} size="icon-sm" type="button" variant="ghost" onClick={shown.onClose}>
-                  <XIcon />
-                </Button>
-              </SheetHeader>
-              {shown.body}
-            </>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+      {wide ? null : (
+        <Sheet open={inspector !== undefined} onOpenChange={(open) => { if (!open) inspector?.onClose() }}>
+          <SheetContent
+            className={mobile
+              ? 'gap-0 overflow-y-auto p-0 data-[side=bottom]:h-[85dvh]'
+              : 'gap-0 overflow-y-auto p-0 data-[side=right]:w-[min(24rem,100vw)]'}
+            showCloseButton={false}
+            side={mobile ? 'bottom' : 'right'}
+            onCloseAutoFocus={(event) => {
+              const origin = returnFocusRef.current
+              if (!origin?.isConnected) return
+              event.preventDefault()
+              origin.focus()
+            }}
+          >
+            {shown ? (
+              <>
+                <SheetHeader className="flex-row items-start justify-between gap-2 border-b">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <SheetDescription className="text-xs">{shown.dimension}</SheetDescription>
+                    <SheetTitle className="break-words">{shown.title}</SheetTitle>
+                  </div>
+                  <Button aria-label={ui.inspector.close} size="icon-sm" type="button" variant="ghost" onClick={shown.onClose}>
+                    <XIcon />
+                  </Button>
+                </SheetHeader>
+                {shown.body}
+              </>
+            ) : null}
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { DashboardPanels, type InspectorPanel } from './DashboardPanels'
 
 // Container width the stub reports on observe(); tests change it and call resizeContainer().
 let containerWidth = 1200
+let observerFires = true
 const observers = new Set<ResizeObserverStub>()
 const disconnected = vi.fn()
 
@@ -16,7 +17,7 @@ class ResizeObserverStub {
     observers.add(this)
   }
   observe() {
-    this.fire()
+    if (observerFires) this.fire()
   }
   unobserve() {}
   disconnect() {
@@ -45,6 +46,7 @@ function panel(overrides: Partial<InspectorPanel> = {}): InspectorPanel {
 
 beforeEach(() => {
   containerWidth = 1200
+  observerFires = true
   observers.clear()
   disconnected.mockClear()
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
@@ -214,5 +216,58 @@ describe('DashboardPanels', () => {
     // The side layout must not treat the earlier open state as still pending.
     expect(origin).not.toHaveFocus()
     origin.remove()
+  })
+
+  describe('stable tree', () => {
+    const mounts = vi.fn()
+    function Probe() {
+      useEffect(() => mounts(), [])
+      return <p>Main</p>
+    }
+    beforeEach(() => mounts.mockClear())
+
+    it('never remounts main when the container crosses the threshold, open or closed', async () => {
+      viewport(1440)
+      const props = { main: <Probe />, returnFocusRef: createRef<HTMLElement>() }
+      const { rerender } = render(<DashboardPanels {...props} />)
+      resizeContainer(900)
+      resizeContainer(1100)
+      rerender(<DashboardPanels {...props} inspector={panel()} />)
+      resizeContainer(900)
+      await screen.findByRole('dialog')
+      resizeContainer(1100)
+      await screen.findByRole('complementary')
+      expect(mounts).toHaveBeenCalledTimes(1)
+    })
+
+    it('never remounts main when the viewport crosses 1280 and back', async () => {
+      viewport(1440)
+      const matchMedia = window.matchMedia as unknown as ReturnType<typeof vi.fn>
+      const handlers: Array<() => void> = []
+      matchMedia.mockReturnValue({
+        matches: false,
+        addEventListener: (_: string, handler: () => void) => handlers.push(handler),
+        removeEventListener: vi.fn(),
+      })
+      render(<DashboardPanels main={<Probe />} inspector={panel()} returnFocusRef={createRef()} />)
+      viewport(1024)
+      act(() => handlers.forEach((handler) => handler()))
+      await screen.findByRole('dialog')
+      viewport(1440)
+      act(() => handlers.forEach((handler) => handler()))
+      await screen.findByRole('complementary')
+      expect(mounts).toHaveBeenCalledTimes(1)
+    })
+
+    it('uses the synchronous pre-paint measurement for the first layout', async () => {
+      viewport(1440)
+      observerFires = false
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 900 } as DOMRect)
+      render(<DashboardPanels main={<Probe />} inspector={panel()} returnFocusRef={createRef()} />)
+      expect(screen.queryByRole('complementary')).toBeNull()
+      expect(await screen.findByRole('dialog')).toBeInTheDocument()
+      expect(mounts).toHaveBeenCalledTimes(1)
+      vi.restoreAllMocks()
+    })
   })
 })
