@@ -397,6 +397,36 @@ func (e LifecycleErrorError) Valid() bool {
 	}
 }
 
+// Defines values for MCPRequestJsonrpc.
+const (
+	MCPRequestJsonrpcN20 MCPRequestJsonrpc = "2.0"
+)
+
+// Valid indicates whether the value is a known member of the MCPRequestJsonrpc enum.
+func (e MCPRequestJsonrpc) Valid() bool {
+	switch e {
+	case MCPRequestJsonrpcN20:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MCPResponseJsonrpc.
+const (
+	MCPResponseJsonrpcN20 MCPResponseJsonrpc = "2.0"
+)
+
+// Valid indicates whether the value is a known member of the MCPResponseJsonrpc enum.
+func (e MCPResponseJsonrpc) Valid() bool {
+	switch e {
+	case MCPResponseJsonrpcN20:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Metric.
 const (
 	AverageRevenue Metric = "average_revenue"
@@ -1063,6 +1093,39 @@ func (e VitalsDimension) Valid() bool {
 	}
 }
 
+// Defines values for PreflightEventParamsAccessControlRequestMethod.
+const (
+	POST PreflightEventParamsAccessControlRequestMethod = "POST"
+)
+
+// Valid indicates whether the value is a known member of the PreflightEventParamsAccessControlRequestMethod enum.
+func (e PreflightEventParamsAccessControlRequestMethod) Valid() bool {
+	switch e {
+	case POST:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for McpParamsMCPProtocolVersion.
+const (
+	N20250326 McpParamsMCPProtocolVersion = "2025-03-26"
+	N20250618 McpParamsMCPProtocolVersion = "2025-06-18"
+)
+
+// Valid indicates whether the value is a known member of the McpParamsMCPProtocolVersion enum.
+func (e McpParamsMCPProtocolVersion) Valid() bool {
+	switch e {
+	case N20250326:
+		return true
+	case N20250618:
+		return true
+	default:
+		return false
+	}
+}
+
 // APIKey defines model for APIKey.
 type APIKey struct {
 	CreatedAt  time.Time  `json:"created_at"`
@@ -1533,6 +1596,69 @@ type LifecycleError struct {
 
 // LifecycleErrorError defines model for LifecycleError.Error.
 type LifecycleErrorError string
+
+// MCPError defines model for MCPError.
+type MCPError struct {
+	Code    int         `json:"code"`
+	Data    interface{} `json:"data,omitempty"`
+	Message string      `json:"message"`
+}
+
+// MCPMessage defines model for MCPMessage.
+type MCPMessage struct {
+	union json.RawMessage
+}
+
+// MCPRequest defines model for MCPRequest.
+type MCPRequest struct {
+	Id      *MCPRequest_Id    `json:"id,omitempty"`
+	Jsonrpc MCPRequestJsonrpc `json:"jsonrpc"`
+	Method  string            `json:"method"`
+	Params  interface{}       `json:"params,omitempty"`
+}
+
+// MCPRequestId0 defines model for MCPRequest.Id.0.
+type MCPRequestId0 = string
+
+// MCPRequestId1 defines model for MCPRequest.Id.1.
+type MCPRequestId1 = int
+
+// MCPRequest_Id defines model for MCPRequest.Id.
+type MCPRequest_Id struct {
+	union json.RawMessage
+}
+
+// MCPRequestJsonrpc defines model for MCPRequest.Jsonrpc.
+type MCPRequestJsonrpc string
+
+// MCPResponse defines model for MCPResponse.
+type MCPResponse struct {
+	Error   *MCPError          `json:"error,omitempty"`
+	Id      *MCPResponse_Id    `json:"id"`
+	Jsonrpc MCPResponseJsonrpc `json:"jsonrpc"`
+	Result  interface{}        `json:"result,omitempty"`
+	union   json.RawMessage
+}
+
+// MCPResponseId0 defines model for MCPResponse.Id.0.
+type MCPResponseId0 = string
+
+// MCPResponseId1 defines model for MCPResponse.Id.1.
+type MCPResponseId1 = int
+
+// MCPResponse_Id defines model for MCPResponse.Id.
+type MCPResponse_Id struct {
+	union json.RawMessage
+}
+
+// MCPResponseJsonrpc defines model for MCPResponse.Jsonrpc.
+type MCPResponseJsonrpc string
+
+// MCPResponse0 defines model for MCPResponse.0.
+type MCPResponse0 = interface{}
+
+// MCPResponse1 defines model for MCPResponse.1.
+type MCPResponse1 = interface{}
 
 // Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 type Metric string
@@ -2410,6 +2536,27 @@ type ListReplaysParams struct {
 	Cursor *Cursor            `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// PreflightEventParams defines parameters for PreflightEvent.
+type PreflightEventParams struct {
+	Origin                      *string                                         `json:"Origin,omitempty"`
+	AccessControlRequestMethod  *PreflightEventParamsAccessControlRequestMethod `json:"Access-Control-Request-Method,omitempty"`
+	AccessControlRequestHeaders *string                                         `json:"Access-Control-Request-Headers,omitempty"`
+}
+
+// PreflightEventParamsAccessControlRequestMethod defines parameters for PreflightEvent.
+type PreflightEventParamsAccessControlRequestMethod string
+
+// McpParams defines parameters for Mcp.
+type McpParams struct {
+	MCPProtocolVersion *McpParamsMCPProtocolVersion `json:"MCP-Protocol-Version,omitempty"`
+
+	// Origin When present, the origin host must match the request host.
+	Origin *string `json:"Origin,omitempty"`
+}
+
+// McpParamsMCPProtocolVersion defines parameters for Mcp.
+type McpParamsMCPProtocolVersion string
+
 // GetProfileParams defines parameters for GetProfile.
 type GetProfileParams struct {
 	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
@@ -2647,6 +2794,9 @@ type HeatmapQueryJSONRequestBody = HeatmapRequest
 // JourneyQueryJSONRequestBody defines body for JourneyQuery for application/json ContentType.
 type JourneyQueryJSONRequestBody = JourneyRequest
 
+// McpJSONRequestBody defines body for Mcp for application/json ContentType.
+type McpJSONRequestBody = MCPMessage
+
 // QueryJSONRequestBody defines body for Query for application/json ContentType.
 type QueryJSONRequestBody = QueryRequest
 
@@ -2735,6 +2885,325 @@ func (t EventPayload_Revenue_Amount) MarshalJSON() ([]byte, error) {
 }
 
 func (t *EventPayload_Revenue_Amount) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsMCPRequest returns the union data inside the MCPMessage as a MCPRequest
+func (t MCPMessage) AsMCPRequest() (MCPRequest, error) {
+	var body MCPRequest
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPRequest overwrites any union data inside the MCPMessage as the provided MCPRequest
+func (t *MCPMessage) FromMCPRequest(v MCPRequest) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPRequest performs a merge with any union data inside the MCPMessage, using the provided MCPRequest
+func (t *MCPMessage) MergeMCPRequest(v MCPRequest) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMCPResponse returns the union data inside the MCPMessage as a MCPResponse
+func (t MCPMessage) AsMCPResponse() (MCPResponse, error) {
+	var body MCPResponse
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPResponse overwrites any union data inside the MCPMessage as the provided MCPResponse
+func (t *MCPMessage) FromMCPResponse(v MCPResponse) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPResponse performs a merge with any union data inside the MCPMessage, using the provided MCPResponse
+func (t *MCPMessage) MergeMCPResponse(v MCPResponse) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t MCPMessage) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *MCPMessage) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsMCPRequestId0 returns the union data inside the MCPRequest_Id as a MCPRequestId0
+func (t MCPRequest_Id) AsMCPRequestId0() (MCPRequestId0, error) {
+	var body MCPRequestId0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPRequestId0 overwrites any union data inside the MCPRequest_Id as the provided MCPRequestId0
+func (t *MCPRequest_Id) FromMCPRequestId0(v MCPRequestId0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPRequestId0 performs a merge with any union data inside the MCPRequest_Id, using the provided MCPRequestId0
+func (t *MCPRequest_Id) MergeMCPRequestId0(v MCPRequestId0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMCPRequestId1 returns the union data inside the MCPRequest_Id as a MCPRequestId1
+func (t MCPRequest_Id) AsMCPRequestId1() (MCPRequestId1, error) {
+	var body MCPRequestId1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPRequestId1 overwrites any union data inside the MCPRequest_Id as the provided MCPRequestId1
+func (t *MCPRequest_Id) FromMCPRequestId1(v MCPRequestId1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPRequestId1 performs a merge with any union data inside the MCPRequest_Id, using the provided MCPRequestId1
+func (t *MCPRequest_Id) MergeMCPRequestId1(v MCPRequestId1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t MCPRequest_Id) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *MCPRequest_Id) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsMCPResponse0 returns the union data inside the MCPResponse as a MCPResponse0
+func (t MCPResponse) AsMCPResponse0() (MCPResponse0, error) {
+	var body MCPResponse0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPResponse0 overwrites any union data inside the MCPResponse as the provided MCPResponse0
+func (t *MCPResponse) FromMCPResponse0(v MCPResponse0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPResponse0 performs a merge with any union data inside the MCPResponse, using the provided MCPResponse0
+func (t *MCPResponse) MergeMCPResponse0(v MCPResponse0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMCPResponse1 returns the union data inside the MCPResponse as a MCPResponse1
+func (t MCPResponse) AsMCPResponse1() (MCPResponse1, error) {
+	var body MCPResponse1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPResponse1 overwrites any union data inside the MCPResponse as the provided MCPResponse1
+func (t *MCPResponse) FromMCPResponse1(v MCPResponse1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPResponse1 performs a merge with any union data inside the MCPResponse, using the provided MCPResponse1
+func (t *MCPResponse) MergeMCPResponse1(v MCPResponse1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t MCPResponse) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if t.Error != nil {
+		object["error"], err = json.Marshal(t.Error)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'error': %w", err)
+		}
+	}
+
+	object["id"], err = json.Marshal(t.Id)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'id': %w", err)
+	}
+
+	object["jsonrpc"], err = json.Marshal(t.Jsonrpc)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'jsonrpc': %w", err)
+	}
+
+	object["result"], err = json.Marshal(t.Result)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'result': %w", err)
+	}
+
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *MCPResponse) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["error"]; found {
+		err = json.Unmarshal(raw, &t.Error)
+		if err != nil {
+			return fmt.Errorf("error reading 'error': %w", err)
+		}
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &t.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+	}
+
+	if raw, found := object["jsonrpc"]; found {
+		err = json.Unmarshal(raw, &t.Jsonrpc)
+		if err != nil {
+			return fmt.Errorf("error reading 'jsonrpc': %w", err)
+		}
+	}
+
+	if raw, found := object["result"]; found {
+		err = json.Unmarshal(raw, &t.Result)
+		if err != nil {
+			return fmt.Errorf("error reading 'result': %w", err)
+		}
+	}
+
+	return err
+}
+
+// AsMCPResponseId0 returns the union data inside the MCPResponse_Id as a MCPResponseId0
+func (t MCPResponse_Id) AsMCPResponseId0() (MCPResponseId0, error) {
+	var body MCPResponseId0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPResponseId0 overwrites any union data inside the MCPResponse_Id as the provided MCPResponseId0
+func (t *MCPResponse_Id) FromMCPResponseId0(v MCPResponseId0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPResponseId0 performs a merge with any union data inside the MCPResponse_Id, using the provided MCPResponseId0
+func (t *MCPResponse_Id) MergeMCPResponseId0(v MCPResponseId0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMCPResponseId1 returns the union data inside the MCPResponse_Id as a MCPResponseId1
+func (t MCPResponse_Id) AsMCPResponseId1() (MCPResponseId1, error) {
+	var body MCPResponseId1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMCPResponseId1 overwrites any union data inside the MCPResponse_Id as the provided MCPResponseId1
+func (t *MCPResponse_Id) FromMCPResponseId1(v MCPResponseId1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMCPResponseId1 performs a merge with any union data inside the MCPResponse_Id, using the provided MCPResponseId1
+func (t *MCPResponse_Id) MergeMCPResponseId1(v MCPResponseId1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t MCPResponse_Id) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *MCPResponse_Id) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
@@ -2864,6 +3333,9 @@ type ServerInterface interface {
 	// GetProfileErasure Get profile erasure status
 	// (GET /api/public/v1/erasures/{erasure_id})
 	GetProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
+	// PreflightEvent Negotiate cross-origin event submission
+	// (OPTIONS /api/public/v1/events)
+	PreflightEvent(w http.ResponseWriter, r *http.Request, params PreflightEventParams)
 	// SubmitEvent Submit an analytics event
 	// (POST /api/public/v1/events)
 	SubmitEvent(w http.ResponseWriter, r *http.Request)
@@ -2888,6 +3360,9 @@ type ServerInterface interface {
 	// JourneyQuery Run a page journey query
 	// (POST /api/public/v1/journeys/query)
 	JourneyQuery(w http.ResponseWriter, r *http.Request)
+	// Mcp Call the Model Context Protocol endpoint
+	// (POST /api/public/v1/mcp)
+	Mcp(w http.ResponseWriter, r *http.Request, params McpParams)
 	// GetProfile Get an identified profile and its raw event timeline
 	// (GET /api/public/v1/profiles/{profile_id})
 	GetProfile(w http.ResponseWriter, r *http.Request, profileId int64, params GetProfileParams)
@@ -4009,6 +4484,85 @@ func (siw *ServerInterfaceWrapper) GetProfileErasure(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// PreflightEvent operation middleware
+func (siw *ServerInterfaceWrapper) PreflightEvent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PreflightEventParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Origin" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Origin")]; found {
+		var Origin string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Origin", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Origin", valueList[0], &Origin, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uri"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Origin", Err: err})
+			return
+		}
+
+		params.Origin = &Origin
+
+	}
+
+	// ------------- Optional header parameter "Access-Control-Request-Method" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Access-Control-Request-Method")]; found {
+		var AccessControlRequestMethod PreflightEventParamsAccessControlRequestMethod
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Access-Control-Request-Method", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Access-Control-Request-Method", valueList[0], &AccessControlRequestMethod, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Access-Control-Request-Method", Err: err})
+			return
+		}
+
+		params.AccessControlRequestMethod = &AccessControlRequestMethod
+
+	}
+
+	// ------------- Optional header parameter "Access-Control-Request-Headers" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Access-Control-Request-Headers")]; found {
+		var AccessControlRequestHeaders string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Access-Control-Request-Headers", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Access-Control-Request-Headers", valueList[0], &AccessControlRequestHeaders, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Access-Control-Request-Headers", Err: err})
+			return
+		}
+
+		params.AccessControlRequestHeaders = &AccessControlRequestHeaders
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreflightEvent(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SubmitEvent operation middleware
 func (siw *ServerInterfaceWrapper) SubmitEvent(w http.ResponseWriter, r *http.Request) {
 
@@ -4160,6 +4714,66 @@ func (siw *ServerInterfaceWrapper) JourneyQuery(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.JourneyQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Mcp operation middleware
+func (siw *ServerInterfaceWrapper) Mcp(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params McpParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "MCP-Protocol-Version" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("MCP-Protocol-Version")]; found {
+		var MCPProtocolVersion McpParamsMCPProtocolVersion
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "MCP-Protocol-Version", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "MCP-Protocol-Version", valueList[0], &MCPProtocolVersion, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "MCP-Protocol-Version", Err: err})
+			return
+		}
+
+		params.MCPProtocolVersion = &MCPProtocolVersion
+
+	}
+
+	// ------------- Optional header parameter "Origin" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Origin")]; found {
+		var Origin string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Origin", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Origin", valueList[0], &Origin, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uri"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Origin", Err: err})
+			return
+		}
+
+		params.Origin = &Origin
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Mcp(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6011,7 +6625,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site_id}/replay-settings", wrapper.UpdateReplaySettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/instance/replay-storage", wrapper.GetReplayStorage)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/instance/replay-storage", wrapper.UpdateReplayStorage)
+	m.HandleFunc(http.MethodOptions+" "+options.BaseURL+"/api/public/v1/events", wrapper.PreflightEvent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/events", wrapper.SubmitEvent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/mcp", wrapper.Mcp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/query", wrapper.Query)
