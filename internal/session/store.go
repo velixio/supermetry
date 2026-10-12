@@ -81,6 +81,13 @@ type ActivityRecorder interface {
 	RecordActivity(Activity)
 }
 
+// AcceptedActivityStore counts distinct visitors from accepted pageviews and
+// custom events at exact timestamps. The upper bound excludes future events
+// caused by clock skew while the lower bound is inclusive.
+type AcceptedActivityStore interface {
+	ActiveVisitorsSince(siteID int32, since, until time.Time) int
+}
+
 // RichRealtimeStore exposes the complete process-local realtime snapshot
 // without expanding Store.
 type RichRealtimeStore interface {

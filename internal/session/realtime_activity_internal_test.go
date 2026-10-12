@@ -88,3 +88,45 @@ func TestOutOfOrderActivityDoesNotWipeNewerMinute(t *testing.T) {
 		t.Fatalf("current minute wiped: pageviews=%d visitors=%d", snapshot.Pageviews, snapshot.VisitorsPerMinute[realtimeMinutes-1].Visitors)
 	}
 }
+
+func TestActiveVisitorsSinceUsesExactEdgesAndDistinctVisitors(t *testing.T) {
+	now := time.Date(2026, 10, 12, 12, 0, 1, 0, time.UTC)
+	memory := NewMemory(2, nil)
+	activities := []Activity{
+		{SiteID: 1, Timestamp: now.Add(-4*time.Minute - 59*time.Second), VisitorID: 1, Kind: 0},
+		{SiteID: 1, Timestamp: now.Add(-2 * time.Minute), VisitorID: 1, Kind: 0},
+		{SiteID: 1, Timestamp: now.Add(-time.Minute), VisitorID: 1, Kind: 1},
+		{SiteID: 1, Timestamp: now.Add(-5 * time.Minute), VisitorID: 2, Kind: 0},
+		{SiteID: 1, Timestamp: now.Add(-5*time.Minute - time.Second), VisitorID: 3, Kind: 0},
+		{SiteID: 2, Timestamp: now, VisitorID: 4, Kind: 0},
+		{SiteID: 1, Timestamp: now.Add(time.Second), VisitorID: 5, Kind: 0},
+	}
+	for _, activity := range activities {
+		memory.RecordActivity(activity)
+	}
+
+	if got := memory.ActiveVisitorsSince(1, now.Add(-5*time.Minute), now); got != 2 {
+		t.Fatalf("ActiveVisitorsSince=%d, want 2", got)
+	}
+}
+
+func TestActiveVisitorsSinceCountsOnlyAcceptedActivityKinds(t *testing.T) {
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	memory := NewMemory(1, nil)
+	memory.RecordActivity(Activity{SiteID: 1, Timestamp: now, VisitorID: 1, Kind: 2})
+
+	if got := memory.ActiveVisitorsSince(1, now.Add(-5*time.Minute), now); got != 0 {
+		t.Fatalf("ActiveVisitorsSince=%d, want 0 for engagement activity", got)
+	}
+}
+
+func TestActiveVisitorsSinceFutureHitDoesNotHideValidHit(t *testing.T) {
+	memory := NewMemory(1, nil)
+	now := time.Date(2026, 10, 12, 12, 0, 30, 0, time.UTC)
+	memory.RecordActivity(Activity{SiteID: 1, VisitorID: 7, Timestamp: now.Add(-10 * time.Second)})
+	memory.RecordActivity(Activity{SiteID: 1, VisitorID: 7, Timestamp: now.Add(10 * time.Second)})
+
+	if got := memory.ActiveVisitorsSince(1, now.Add(-5*time.Minute), now); got != 1 {
+		t.Fatalf("ActiveVisitorsSince=%d, want 1", got)
+	}
+}

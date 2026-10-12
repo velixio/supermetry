@@ -37,9 +37,14 @@ type siteActivity struct {
 
 type minuteActivity struct {
 	minute    int64
-	visitors  map[int64]struct{}
+	visitors  map[int64]visitorActivity
 	pageviews int
 	events    map[int32]int
+}
+
+type visitorActivity struct {
+	firstNS int64
+	lastNS  int64
 }
 
 type locationKey struct {
@@ -94,8 +99,9 @@ func (a *activityIndex) prune(cutoffNS int64) {
 	}
 }
 
-// RecordActivity records only pageviews and custom events. VisitorID is used
-// solely in the per-minute de-duplication set and is never copied to the feed.
+// RecordActivity records only pageviews and custom events. VisitorID stays in
+// the bounded minute ring for exact-window de-duplication and is never copied
+// to the feed.
 func (m *Memory) RecordActivity(activity Activity) {
 	if activity.Kind != 0 && activity.Kind != 1 {
 		return
@@ -123,12 +129,20 @@ func (m *Memory) RecordActivity(activity Activity) {
 	}
 	bucket := &site.minutes[index]
 	if bucket.minute < minute {
-		*bucket = minuteActivity{minute: minute, visitors: make(map[int64]struct{})}
+		*bucket = minuteActivity{minute: minute, visitors: make(map[int64]visitorActivity)}
 	}
 	// A hit older than the slot's minute (clock skew, delayed delivery) must
 	// not wipe newer data; it still reaches the feed below.
 	if bucket.minute == minute {
-		bucket.visitors[activity.VisitorID] = struct{}{}
+		timestamp := activity.Timestamp.UnixNano()
+		span, exists := bucket.visitors[activity.VisitorID]
+		if !exists || timestamp < span.firstNS {
+			span.firstNS = timestamp
+		}
+		if !exists || timestamp > span.lastNS {
+			span.lastNS = timestamp
+		}
+		bucket.visitors[activity.VisitorID] = span
 		if activity.Kind == 0 {
 			bucket.pageviews++
 		} else {
@@ -148,6 +162,43 @@ func (m *Memory) RecordActivity(activity Activity) {
 		site.length++
 	}
 	site.mu.Unlock()
+}
+
+// ActiveVisitorsSince returns distinct visitors with an accepted pageview or
+// custom event in the exact inclusive interval [since, until].
+func (m *Memory) ActiveVisitorsSince(siteID int32, since, until time.Time) int {
+	if until.Before(since) {
+		return 0
+	}
+	site := m.activity.site(siteID, false)
+	if site == nil {
+		return 0
+	}
+	sinceNS, untilNS := since.UnixNano(), until.UnixNano()
+	fromMinute := since.UTC().Truncate(time.Minute).Unix()
+	toMinute := until.UTC().Truncate(time.Minute).Unix()
+	visitors := make(map[int64]struct{})
+	site.mu.Lock()
+	for index := range site.minutes {
+		bucket := &site.minutes[index]
+		if bucket.minute < fromMinute || bucket.minute > toMinute {
+			continue
+		}
+		for visitorID, span := range bucket.visitors {
+			// The five-minute live window has distinct boundary buckets. Keep
+			// both ends of each visitor's minute span so a future-skewed hit
+			// cannot hide an earlier valid hit in the same minute.
+			if bucket.minute == fromMinute && span.lastNS < sinceNS {
+				continue
+			}
+			if bucket.minute == toMinute && span.firstNS > untilNS {
+				continue
+			}
+			visitors[visitorID] = struct{}{}
+		}
+	}
+	site.mu.Unlock()
+	return len(visitors)
 }
 
 // RealtimeSnapshot returns a bounded, process-local view of the last thirty
