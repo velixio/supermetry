@@ -1,0 +1,104 @@
+# Undocumented routes outside /api/public/v1.
+# Format: METHOD /pattern  # reason
+
+DELETE /api/private/annotations/{annotation}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/annotations/{annotation}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/auth/config  # Dashboard or account flow; session/private UI contract.
+POST /api/private/auth/login  # Dashboard or account flow; session/private UI contract.
+POST /api/private/auth/logout  # Dashboard or account flow; session/private UI contract.
+POST /api/private/auth/password-reset  # Dashboard or account flow; session/private UI contract.
+POST /api/private/auth/password-reset/confirm  # Dashboard or account flow; session/private UI contract.
+POST /api/private/auth/signup  # Dashboard or account flow; session/private UI contract.
+POST /api/private/funnels/query  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/funnels/{funnel}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/funnels/{funnel}  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/goals/{goal}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/goals/{goal}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/health  # Dashboard or account flow; session/private UI contract.
+POST /api/private/heatmaps/query  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/imports/{import}  # Dashboard or account flow; session/private UI contract.
+POST /api/private/invitations/{token}/accept  # Dashboard or account flow; session/private UI contract.
+POST /api/private/journeys/query  # Dashboard or account flow; session/private UI contract.
+GET /api/private/me/ip  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/me/sessions  # Dashboard or account flow; session/private UI contract.
+GET /api/private/me/sessions  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/me/sessions/{session}  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/me/totp  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/me/totp  # Dashboard or account flow; session/private UI contract.
+POST /api/private/me/totp  # Dashboard or account flow; session/private UI contract.
+POST /api/private/me/totp/recovery-codes  # Dashboard or account flow; session/private UI contract.
+GET /api/private/orgs  # Dashboard or account flow; session/private UI contract.
+POST /api/private/orgs  # Dashboard or account flow; session/private UI contract.
+GET /api/private/orgs/{org}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/orgs/{org}/api-keys  # Dashboard or account flow; session/private UI contract.
+POST /api/private/orgs/{org}/api-keys  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/orgs/{org}/api-keys/{key}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/orgs/{org}/audit  # Dashboard or account flow; session/private UI contract.
+GET /api/private/orgs/{org}/channels  # Dashboard or account flow; session/private UI contract.
+POST /api/private/orgs/{org}/channels  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/orgs/{org}/channels/{channel}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/orgs/{org}/channels/{channel}  # Dashboard or account flow; session/private UI contract.
+POST /api/private/orgs/{org}/channels/{channel}/test  # Dashboard or account flow; session/private UI contract.
+GET /api/private/orgs/{org}/invitations  # Dashboard or account flow; session/private UI contract.
+POST /api/private/orgs/{org}/invitations  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/orgs/{org}/invitations/{invitation}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/orgs/{org}/members  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/orgs/{org}/members/{user}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/orgs/{org}/members/{user}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/profiles/{profile}  # Dashboard or account flow; session/private UI contract.
+POST /api/private/query  # Dashboard or account flow; session/private UI contract.
+GET /api/private/realtime  # Dashboard or account flow; session/private UI contract.
+GET /api/private/realtime/summary  # Dashboard or account flow; session/private UI contract.
+POST /api/private/retention/query  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/segments/{segment}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/segments/{segment}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sessions/{session}  # Dashboard or account flow; session/private UI contract.
+POST /api/private/setup  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/sites/{site}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/alerts  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/alerts  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/sites/{site}/alerts/{alert}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/sites/{site}/alerts/{alert}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/annotations  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/annotations  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/events  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/export  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/funnels  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/funnels  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/goals  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/goals  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/icon/refetch  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/profiles  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/properties  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/properties/{key}/values  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/purge-requests  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/purge-requests  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/reports  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/reports  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/sites/{site}/reports/{report}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/segments  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/segments  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/sessions  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/snippet  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/suggestions  # Dashboard or account flow; session/private UI contract.
+GET /api/private/stats/breakdown  # Dashboard or account flow; session/private UI contract.
+GET /api/private/stats/summary  # Dashboard or account flow; session/private UI contract.
+GET /api/private/stats/timeseries  # Dashboard or account flow; session/private UI contract.
+POST /api/private/vitals/query  # Dashboard or account flow; session/private UI contract.
+GET /api/public/openapi.json  # Serves the contract document itself.
+OPTIONS /api/replay/chunk  # Replay ingestion transport; not a query API operation.
+POST /api/replay/chunk  # Replay ingestion transport; not a query API operation.
+OPTIONS /api/replay/css/{hash}  # Replay ingestion transport; not a query API operation.
+PUT /api/replay/css/{hash}  # Replay ingestion transport; not a query API operation.
+OPTIONS /api/replay/start  # Replay ingestion transport; not a query API operation.
+POST /api/replay/start  # Replay ingestion transport; not a query API operation.
+GET /js/  # Browser tracker asset; not a JSON API operation.
+GET /js/script.full.js  # Browser tracker asset; not a JSON API operation.
+GET /js/script.js  # Browser tracker asset; not a JSON API operation.
+GET /replay.js  # Browser tracker asset; not a JSON API operation.
+

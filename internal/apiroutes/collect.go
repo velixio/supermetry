@@ -1,4 +1,4 @@
-package main
+package apiroutes
 
 import (
 	"fmt"
@@ -36,7 +36,22 @@ type collector struct {
 	active    map[string]bool
 }
 
-func collectRoutes(dir string) ([]Route, []string, error) {
+// Collect finds route registrations in the supplied Go package directories.
+func Collect(dirs ...string) ([]Route, []string, error) {
+	var routes []Route
+	var unknown []string
+	for _, dir := range dirs {
+		found, unresolved, err := collectDirectory(dir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("collect %s: %w", dir, err)
+		}
+		routes = append(routes, found...)
+		unknown = append(unknown, unresolved...)
+	}
+	return Deduplicate(routes), uniqueStrings(unknown), nil
+}
+
+func collectDirectory(dir string) ([]Route, []string, error) {
 	fset := token.NewFileSet()
 	packages, err := parser.ParseDir(fset, dir, func(info os.FileInfo) bool {
 		name := info.Name()
@@ -413,6 +428,34 @@ func mergeRoute(existing, candidate Route) Route {
 		merged.Handler = candidate.Handler
 	}
 	return merged
+}
+
+// Deduplicate merges registrations with the same method and pattern.
+func Deduplicate(routes []Route) []Route {
+	byPattern := make(map[string]Route)
+	for _, route := range routes {
+		key := route.Method + "\x00" + route.Pattern
+		byPattern[key] = mergeRoute(byPattern[key], route)
+	}
+	result := make([]Route, 0, len(byPattern))
+	for _, route := range byPattern {
+		result = append(result, route)
+	}
+	sortRoutes(result)
+	return result
+}
+
+func uniqueStrings(values []string) []string {
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	result := make([]string, 0, len(set))
+	for value := range set {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func sortedFunctionNames(functions map[string]function) []string {
