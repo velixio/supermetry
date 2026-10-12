@@ -10,6 +10,8 @@ const commands: PaletteCommand[] = [
   { id: 'page:/events', group: 'pages', label: 'Events', keywords: ['Events'], kind: 'navigate', href: '/app/acme/docs/events' },
   { id: 'page:/funnels', group: 'pages', label: 'Funnels', keywords: ['Funnels'], kind: 'navigate', href: '/app/acme/docs/funnels' },
   { id: 'site:8', group: 'sites', label: 'Shop', detail: 'Acme', keywords: ['Shop', 'Acme'], kind: 'navigate', href: '/app/acme/shop' },
+  { id: 'org:3', group: 'organizations', label: 'Acme', keywords: ['Acme'], kind: 'navigate', href: '/app/acme' },
+  { id: 'site:9', group: 'sites', label: 'Acme', keywords: ['Acme'], kind: 'navigate', href: '/app/acme/acme' },
   { id: 'action:theme', group: 'actions', label: 'Use dark theme', keywords: ['Use dark theme'], kind: 'action', action: 'theme' },
 ]
 
@@ -31,6 +33,7 @@ function Harness({ onRun }: { onRun: (command: PaletteCommand) => void }) {
   )
 }
 
+const originalScrollIntoView = Element.prototype.scrollIntoView
 beforeEach(() => {
   Element.prototype.scrollIntoView = () => undefined
   vi.stubGlobal('ResizeObserver', class {
@@ -42,6 +45,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  Element.prototype.scrollIntoView = originalScrollIntoView
 })
 
 async function open(onRun = vi.fn()) {
@@ -61,7 +65,7 @@ describe('CommandPalette', () => {
     expect(within(dialog).getByRole('group', { name: 'Pages' })).toBeInTheDocument()
     expect(within(dialog).getByRole('group', { name: 'Sites' })).toBeInTheDocument()
     expect(within(dialog).getByRole('group', { name: 'Actions' })).toBeInTheDocument()
-    expect(within(dialog).queryByRole('group', { name: 'Organizations' })).toBeNull()
+    expect(within(dialog).getByRole('group', { name: 'Organizations' })).toBeInTheDocument()
     expect(within(dialog).getByRole('option', { name: /Shop/ })).toHaveTextContent('Acme')
   })
 
@@ -89,5 +93,42 @@ describe('CommandPalette', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument())
     await waitFor(() => expect(trigger).toHaveFocus())
     expect(onRun).not.toHaveBeenCalled()
+  })
+
+  it.each(['page', 'site', 'org', 'action', '8', ':', '/'])('does not match the internal id text "%s"', async (query) => {
+    const { dialog, input } = await open()
+    fireEvent.change(input, { target: { value: query } })
+    expect(await within(dialog).findByText('No matching commands')).toBeVisible()
+  })
+
+  it('matches visible label substrings, case and diacritics insensitively', async () => {
+    const { dialog, input } = await open()
+    fireEvent.change(input, { target: { value: 'DARK' } })
+    await waitFor(() => expect(within(dialog).getAllByRole('option').map((option) => option.textContent)).toEqual(['Use dark theme']))
+    fireEvent.change(input, { target: { value: 'ünnels' } })
+    await waitFor(() => expect(within(dialog).getAllByRole('option').map((option) => option.textContent)).toEqual(['Funnels']))
+  })
+
+  it('keeps a site and an organization with the same name as two items, each running its own command', async () => {
+    const { dialog, input, onRun } = await open()
+    fireEvent.change(input, { target: { value: 'acme' } })
+    await waitFor(() => expect(within(dialog).getAllByRole('option', { name: /Acme/ })).toHaveLength(3))
+    const orgItem = within(within(dialog).getByRole('group', { name: 'Organizations' })).getByRole('option')
+    fireEvent.click(orgItem)
+    expect(onRun).toHaveBeenLastCalledWith(commands[3])
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('runs a clicked site command', async () => {
+    const { dialog, onRun } = await open()
+    fireEvent.click(within(dialog).getByRole('option', { name: /Shop/ }))
+    expect(onRun).toHaveBeenCalledWith(commands[2])
+  })
+
+  it('does not steal focus back to the invoker when a command ran', async () => {
+    const { trigger, dialog } = await open()
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Events' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(trigger).not.toHaveFocus()
   })
 })
