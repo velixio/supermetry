@@ -2336,7 +2336,7 @@ export interface components {
         RealtimeResponse: {
             /**
              * Format: int64
-             * @description Unique visitors active in the last 5 minutes ("live now").
+             * @description Distinct visitors with an accepted pageview or custom event in the exact inclusive interval from five minutes ago through the response instant ("live now"). Events rejected by privacy signals, bot filtering, origin checks, or site exclusions are not counted; imported events are not included.
              */
             active_visitors: number;
             /**
@@ -2366,7 +2366,10 @@ export interface components {
          *     }
          */
         RealtimeSummary: {
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Distinct visitors with an accepted pageview or custom event in the exact inclusive interval from five minutes ago through the response instant. Rejected and imported events are not included.
+             */
             active_visitors: number;
             /** Format: int64 */
             visitors_last_30m: number;

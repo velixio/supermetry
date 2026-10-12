@@ -3720,7 +3720,7 @@ components:
       required: [active_visitors, visitors_last_30m, top_pages, top_sources, visitors_per_minute, pageviews_last_30m, top_entry_pages, countries, regions, cities, devices, browsers, operating_systems, events, recent_activity]
       properties:
         active_visitors:
-          description: Unique visitors active in the last 5 minutes ("live now").
+          description: Distinct visitors with an accepted pageview or custom event in the exact inclusive interval from five minutes ago through the response instant ("live now"). Events rejected by privacy signals, bot filtering, origin checks, or site exclusions are not counted; imported events are not included.
           type: integer
           format: int64
         visitors_last_30m:
@@ -3788,6 +3788,7 @@ components:
       required: [active_visitors, visitors_last_30m]
       properties:
         active_visitors:
+          description: Distinct visitors with an accepted pageview or custom event in the exact inclusive interval from five minutes ago through the response instant. Rejected and imported events are not included.
           type: integer
           format: int64
           minimum: 0
