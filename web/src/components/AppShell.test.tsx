@@ -298,6 +298,15 @@ describe('AppShell live visitor badge', () => {
     expect(within(menu).getByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
   })
 
+  it.each(['viewer', 'editor'] as const)('hides Add site from the switcher for a %s', async (role) => {
+    renderShell('/app/acme/docs/settings/general', { ...membership, role })
+    const sidebar = await screen.findByRole('complementary', { name: 'Application sidebar' })
+    fireEvent.pointerDown(within(sidebar).getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    const menu = await screen.findByRole('menu')
+    expect(within(menu).getByRole('menuitem', { name: /Other/ })).toBeInTheDocument()
+    expect(within(menu).queryByRole('menuitem', { name: /Add site/ })).toBeNull()
+  })
+
   it('pins the header to the top with no sites and keeps Add site in the switcher', async () => {
     renderShell('/app/acme/settings/members', { ...membership, sites: [] })
     const header = await screen.findByRole('banner', { name: 'Application header' })

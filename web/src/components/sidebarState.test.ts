@@ -18,7 +18,8 @@ describe('sidebarStartsOpen', () => {
     ['theme=dark; sidebar_state=true', 800, true],
     ['sidebar_state=garbage', 1440, true],
     ['sidebar_state=garbage', 1024, false],
-    ['other_sidebar_state=false', 1440, true],
+    ['other_sidebar_state=true', 1024, false],
+    ['other_sidebar_state=false; sidebar_state=true', 1024, true],
   ])('cookie %j at %ipx starts open=%s', (cookie, width, open) => {
     expect(sidebarStartsOpen(cookie, width)).toBe(open)
   })
