@@ -27,7 +27,7 @@ import {
   resolveRange,
   type Filter,
 } from '../lib/search'
-import { activeInspectTarget, parseInspectSearch, serializeInspect, withoutInspect } from '../lib/inspect'
+import { activeInspectTarget, nextInspect, parseInspectSearch, serializeInspect, withoutInspect, type InspectTarget } from '../lib/inspect'
 import { DashboardPanels } from '@/components/DashboardPanels'
 import { Inspector, inspectorDimensionLabel, inspectorTitle } from '@/components/Inspector'
 import { en } from '../messages/en'
@@ -161,10 +161,19 @@ function DashboardStateRoute() {
     updateSearch({ ...search, period: 'custom', from: start.toISOString().slice(0, 10), to: query.dateRange.to })
   }
   const standardDashboard = edit === null && dashboardId === undefined
+  // An ignored or blocked `inspect` value intentionally stays in the URL and reappears on the standard dashboard.
   const inspectTarget = activeInspectTarget(search.inspect, { anonymous, standardDashboard })
+  // History policy: opening or switching pushes, so Back closes the inspector; closing replaces, so Back never reopens it.
   const closeInspector = () => {
-    void navigate({ search: { ...search, inspect: undefined } })
+    void navigate({ search: { ...search, inspect: undefined }, replace: true })
   }
+  // Same value again toggles it closed. Used by the Inspect controls.
+  const openInspector = (target: InspectTarget) => {
+    const next = nextInspect(inspectTarget, target)
+    if (next === undefined) closeInspector()
+    else void navigate({ search: { ...search, inspect: next } })
+  }
+  void openInspector
   const trafficMetric = search.metric === 'pageviews' ? 'pageviews' : 'visitors'
 
   return (

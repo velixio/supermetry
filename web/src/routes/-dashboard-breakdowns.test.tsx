@@ -457,11 +457,52 @@ describe('dashboard breakdown route', () => {
     expect(router.state.location.search.period).toBe('custom')
   })
 
-  it('closes the inspector on Back', async () => {
-    const router = renderAt(range, `${range}&inspect=country%3AIN`)
+  it('pushes when the inspector opens so Back closes it, and replaces when it closes so Back never reopens it', async () => {
+    const router = renderAt(range)
+    await screen.findByRole('group', { name: 'Filters' })
+    const start = router.history.length
+
+    // Opening pushes one entry (what the Inspect controls do; they arrive with the sources).
+    await router.navigate({ to: '/app/$org/$site', params: { org: 'acme', site: 'example' }, search: { ...router.state.location.search, inspect: 'country:IN' } as never })
+    const inspector = await screen.findByRole('dialog', { name: 'India' })
+    expect(router.history.length).toBe(start + 1)
+
+    fireEvent.keyDown(inspector, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull())
+    expect(router.history.length).toBe(start + 1)
+    expect(router.state.location.href).not.toContain('inspect')
+
+    router.history.back()
+    await waitFor(() => expect(router.state.location.href).not.toContain('inspect'))
+    expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull()
+  })
+
+  it('closes the inspector on Back from the opened state', async () => {
+    const router = renderAt(range)
+    await screen.findByRole('group', { name: 'Filters' })
+    await router.navigate({ to: '/app/$org/$site', params: { org: 'acme', site: 'example' }, search: { ...router.state.location.search, inspect: 'country:IN' } as never })
     await screen.findByRole('dialog', { name: 'India' })
     router.history.back()
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull())
+    expect(router.state.location.href).not.toContain('inspect')
+  })
+
+  it('ignores the inspect param on a saved dashboard', async () => {
+    renderAt(`${range}&dash=5&inspect=country%3AIN`)
+    await waitFor(() => expect(get).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull()
+    expect(post.mock.calls.some(([, options]) => (options.body.filters ?? []).some((filter: { dimension: string }) => filter.dimension === 'country'))).toBe(false)
+  })
+
+  it('ignores the inspect param in edit mode', async () => {
+    const router = renderAt(range)
+    fireEvent.click(await screen.findByRole('button', { name: 'New dashboard' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start editing' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'New dashboard' })).toBeNull())
+    await router.navigate({ to: '/app/$org/$site', params: { org: 'acme', site: 'example' }, search: { ...router.state.location.search, inspect: 'country:IN' } as never })
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull()
   })
 
   it('adds the inspected value as a filter and keeps the inspector open', async () => {
