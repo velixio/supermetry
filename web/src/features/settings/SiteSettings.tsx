@@ -86,6 +86,7 @@ export function SiteIconSettings({
 const settingsTabs = [
   ['general', 'General', '/app/$org/$site/settings/general'],
   ['installation', 'Installation', '/app/$org/$site/settings/installation'],
+  ['integrations', 'Integrations', '/app/$org/$site/settings/integrations'],
   ['tracking', 'Tracking', '/app/$org/$site/settings/tracking'],
   ['replay', 'Replay', '/app/$org/$site/settings/replay'],
   ['goals', 'Goals', '/app/$org/$site/settings/goals'],

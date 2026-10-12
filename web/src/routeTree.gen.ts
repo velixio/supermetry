@@ -70,6 +70,7 @@ import { Route as AppOrgSiteSettingsGeneralRouteImport } from './routes/app.$org
 import { Route as AppOrgSiteSettingsGoalsRouteImport } from './routes/app.$org.$site.settings.goals'
 import { Route as AppOrgSiteSettingsImportsRouteImport } from './routes/app.$org.$site.settings.imports'
 import { Route as AppOrgSiteSettingsInstallationRouteImport } from './routes/app.$org.$site.settings.installation'
+import { Route as AppOrgSiteSettingsIntegrationsRouteImport } from './routes/app.$org.$site.settings.integrations'
 import { Route as AppOrgSiteSettingsNotificationHistoryRouteImport } from './routes/app.$org.$site.settings.notification-history'
 import { Route as AppOrgSiteSettingsReplayRouteImport } from './routes/app.$org.$site.settings.replay'
 import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org.$site.settings.reports'
@@ -389,6 +390,12 @@ const AppOrgSiteSettingsInstallationRoute =
     path: '/installation',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteSettingsIntegrationsRoute =
+  AppOrgSiteSettingsIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 const AppOrgSiteSettingsNotificationHistoryRoute =
   AppOrgSiteSettingsNotificationHistoryRouteImport.update({
     id: '/notification-history',
@@ -478,6 +485,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/integrations': typeof AppOrgSiteSettingsIntegrationsRoute
   '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
@@ -544,6 +552,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/integrations': typeof AppOrgSiteSettingsIntegrationsRoute
   '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
@@ -613,6 +622,7 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
+  '/app/$org/$site/settings/integrations': typeof AppOrgSiteSettingsIntegrationsRoute
   '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
@@ -683,6 +693,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/goals'
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/integrations'
     | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
@@ -749,6 +760,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/goals'
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/integrations'
     | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
@@ -817,6 +829,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/goals'
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
+    | '/app/$org/$site/settings/integrations'
     | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
@@ -1269,6 +1282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsInstallationRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
+    '/app/$org/$site/settings/integrations': {
+      id: '/app/$org/$site/settings/integrations'
+      path: '/integrations'
+      fullPath: '/app/$org/$site/settings/integrations'
+      preLoaderRoute: typeof AppOrgSiteSettingsIntegrationsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/notification-history': {
       id: '/app/$org/$site/settings/notification-history'
       path: '/notification-history'
@@ -1340,6 +1360,7 @@ interface AppOrgSiteSettingsRouteChildren {
   AppOrgSiteSettingsGoalsRoute: typeof AppOrgSiteSettingsGoalsRoute
   AppOrgSiteSettingsImportsRoute: typeof AppOrgSiteSettingsImportsRoute
   AppOrgSiteSettingsInstallationRoute: typeof AppOrgSiteSettingsInstallationRoute
+  AppOrgSiteSettingsIntegrationsRoute: typeof AppOrgSiteSettingsIntegrationsRoute
   AppOrgSiteSettingsNotificationHistoryRoute: typeof AppOrgSiteSettingsNotificationHistoryRoute
   AppOrgSiteSettingsReplayRoute: typeof AppOrgSiteSettingsReplayRoute
   AppOrgSiteSettingsReportsRoute: typeof AppOrgSiteSettingsReportsRoute
@@ -1354,6 +1375,7 @@ const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
   AppOrgSiteSettingsGoalsRoute: AppOrgSiteSettingsGoalsRoute,
   AppOrgSiteSettingsImportsRoute: AppOrgSiteSettingsImportsRoute,
   AppOrgSiteSettingsInstallationRoute: AppOrgSiteSettingsInstallationRoute,
+  AppOrgSiteSettingsIntegrationsRoute: AppOrgSiteSettingsIntegrationsRoute,
   AppOrgSiteSettingsNotificationHistoryRoute:
     AppOrgSiteSettingsNotificationHistoryRoute,
   AppOrgSiteSettingsReplayRoute: AppOrgSiteSettingsReplayRoute,
