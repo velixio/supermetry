@@ -54,7 +54,7 @@ export function regenerateTOTPRecoveryCodes(body: TOTPReauthentication): Promise
   return privateRequest("POST", "/api/private/me/totp/recovery-codes", { body });
 }
 
-export type ImportSource = "plausible" | "umami" | "ga4";
+export type ImportSource = "plausible" | "umami" | "ga4" | "mixpanel" | "amplitude";
 
 function cookie(name: string): string | undefined {
   const prefix = `${encodeURIComponent(name)}=`;

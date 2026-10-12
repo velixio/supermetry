@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input'
 import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 
+import { EventExportFormat, eventExportAccept, isEventExportSource } from './EventExportFormat'
 import { Ga4Format, Ga4ImportPreview } from './Ga4ImportPreview'
 
 import {
@@ -62,6 +63,14 @@ const sourceLabels: Record<ImportSource, string> = {
   plausible: 'Plausible',
   umami: 'Umami',
   ga4: 'GA4',
+  mixpanel: 'Mixpanel',
+  amplitude: 'Amplitude',
+}
+
+// Plausible and Umami upload straight away; the other providers show a dry run
+// first.
+function previewsFirst(source: ImportSource): boolean {
+  return source !== 'plausible' && source !== 'umami'
 }
 
 function titleCase(value: string): string {
@@ -146,7 +155,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
   function submitImport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setProgress(0)
-    if (source === 'ga4') dryRun.mutate()
+    if (previewsFirst(source)) dryRun.mutate()
     else upload.mutate()
   }
 
@@ -177,7 +186,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
 
       <Surface
         title="Import historical data"
-        description="Plausible ZIP exports, Umami website-event CSVs and GA4 report CSVs are supported. Imports never replace native data."
+        description="Plausible ZIP exports, Umami website-event CSVs, GA4 report CSVs and Mixpanel or Amplitude event exports are supported. Imports never replace native data."
       >
         <form className="flex flex-col gap-5" onSubmit={submitImport}>
           <FieldGroup>
@@ -195,9 +204,14 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
                 <option value="plausible">Plausible</option>
                 <option value="umami">Umami</option>
                 <option value="ga4">{en.ga4Import.provider}</option>
+                <option value="mixpanel">{en.eventExportImport.mixpanelProvider}</option>
+                <option value="amplitude">{en.eventExportImport.amplitudeProvider}</option>
               </select>
               {source === 'ga4' ? (
                 <FieldDescription>{en.ga4Import.providerHelp}</FieldDescription>
+              ) : null}
+              {isEventExportSource(source) ? (
+                <FieldDescription>{en.eventExportImport.providerHelp}</FieldDescription>
               ) : null}
             </Field>
             <Field>
@@ -205,7 +219,13 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
               <Input
                 id="import-file"
                 type="file"
-                accept={source === 'plausible' ? '.zip,application/zip' : '.csv,text/csv'}
+                accept={
+                  isEventExportSource(source)
+                    ? eventExportAccept[source]
+                    : source === 'plausible'
+                      ? '.zip,application/zip'
+                      : '.csv,text/csv'
+                }
                 onChange={(event) => {
                   setFile(event.target.files?.[0])
                   resetPreview()
@@ -215,6 +235,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
             </Field>
           </FieldGroup>
           {source === 'ga4' ? <Ga4Format /> : null}
+          {isEventExportSource(source) ? <EventExportFormat source={source} /> : null}
           {preview ? (
             <Ga4ImportPreview
               preview={preview}
@@ -232,7 +253,7 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
               type="submit"
             >
               <UploadIcon data-icon="inline-start" />
-              {source === 'ga4' ? en.ga4Import.previewAction : 'Upload import'}
+              {previewsFirst(source) ? en.ga4Import.previewAction : 'Upload import'}
             </Button>
           )}
           {dryRun.isPending ? (

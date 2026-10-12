@@ -175,6 +175,10 @@ func ProcessFileInLocation(ctx context.Context, source Source, path string, loca
 		return ParseUmamiInLocation(contextReader{ctx, file}, location)
 	case SourceGA4:
 		return parseGA4File(ctx, path)
+	case SourceMixpanel:
+		return parseEventFile(ctx, path, location, providerMixpanel)
+	case SourceAmplitude:
+		return parseEventFile(ctx, path, location, providerAmplitude)
 	default:
 		return newAggregate(), ParseStats{}, fmt.Errorf("unsupported import source %q", source)
 	}

@@ -118,7 +118,7 @@ func TestImportPreviewRejectsBadInput(t *testing.T) {
 		name, source, body string
 		want               int
 	}{
-		{"unknown source", "mixpanel", previewCSV, http.StatusBadRequest},
+		{"unknown source", "segment", previewCSV, http.StatusBadRequest},
 		{"no date column", "ga4", "Country,Sessions\nUS,1\n", http.StatusUnprocessableEntity},
 	}
 	for _, tt := range tests {

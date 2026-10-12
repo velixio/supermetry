@@ -755,4 +755,22 @@ export const en = {
     tableCaption: (name: string, from: string, to: string) => `${name} from ${from} to ${to}`,
     rowsShown: (shown: number, total: number) => `Showing ${shown} of ${total} rows`,
   },
+  // Mixpanel and Amplitude event-export importers.
+  eventExportImport: {
+    mixpanelProvider: 'Mixpanel (event export)',
+    amplitudeProvider: 'Amplitude (event export)',
+    providerHelp: 'Upload a raw event export. Nothing is imported until you confirm the preview.',
+    formatTitle: 'What the file needs',
+    formatTime: 'Event times are read as UTC and counted on the site’s local day.',
+    formatPrivacy: 'IP addresses, user agents, user ids and device ids are never stored; they only group events while the file is read. Page URLs keep their path only.',
+    formatSessions: 'Each visitor counts as one visit per day. A visit with exactly one page view is a bounce.',
+    mixpanel: {
+      file: 'JSON lines (one event per line) or CSV from the Mixpanel raw export, optionally gzipped or zipped.',
+      fields: 'Needed per event: event, time and distinct_id. Used when present: $insert_id for de-duplication, $current_url, $referring_domain, $browser, $os, mp_country_code, $region and $city.',
+    },
+    amplitude: {
+      file: 'JSON lines from the Amplitude export: a .json file, a .gz file or the ZIP of hourly .json.gz files.',
+      fields: 'Needed per event: event_type, event_time and user_id or device_id. Used when present: $insert_id or uuid for de-duplication, the page path or URL, referrer, country, region, city, platform and os_name.',
+    },
+  },
 } as const

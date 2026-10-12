@@ -1,0 +1,5 @@
+event,time,distinct_id,$insert_id,$current_url,$browser,$os,mp_country_code,$referring_domain
+Page View,1709287200,c1,k1,https://shop.test/a,Safari,macOS,GB,bing.com
+Page View,1709287320,c1,k2,https://shop.test/b,Safari,macOS,GB,bing.com
+Page View,not-a-time,c2,k3,https://shop.test/a,Safari,macOS,GB,
+Download,1709290800,c2,k4,,,,,

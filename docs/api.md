@@ -263,7 +263,7 @@ Rules worth knowing:
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/api/private/sites/{site}/imports` | Multipart `source` (`plausible`, `umami` or `ga4`) and `file`; `?replace=true` replaces an earlier import of the identical file. Answers `202`; the import runs in the background. |
+| POST | `/api/private/sites/{site}/imports` | Multipart `source` (`plausible`, `umami`, `ga4`, `mixpanel` or `amplitude`) and `file`; `?replace=true` replaces an earlier import of the identical file. Answers `202`; the import runs in the background. |
 | POST | `/api/private/sites/{site}/imports/preview` | Same upload, dry run: parses with the import limits and stores nothing. Returns `rows`, `bad_rows`, `duplicate_rows`, up to 20 `errors` (`row`, `message`), `days`, `date_from`, `date_to`, `totals`, per-dimension `dimensions` counts and `overlap` (`imported_days`, `live_days`, `same_file`). |
 | GET | `/api/private/sites/{site}/imports` | History, newest first. |
 | DELETE | `/api/private/imports/{import}` | Undo: removes the imported batch. |
@@ -274,6 +274,15 @@ GA4 input is a CSV from the Data API, a GA4 report export (lines starting with `
 - Exact duplicate rows in one file are ignored and counted. Invalid rows are skipped with their line number. Limits: 512 MB per upload, 3,000,000 rows, 2,000,000 distinct day and value keys.
 - Overlap: per day, the newest completed import wins and live data always wins, so re-importing an overlapping range never double counts. Undo restores the previous source for those days.
 - Imported rows stay separate from live data and follow the existing `include_imported` query option.
+
+Mixpanel and Amplitude input is a raw event export, one event per row, uploaded as a plain `.json`, `.jsonl`, `.ndjson` or `.csv` file, a `.gz`, or a ZIP of such files (Amplitude exports a ZIP of hourly `.json.gz` files). CSV needs a header naming the event fields. JSON arrays are rejected: export JSON lines instead.
+
+- Mixpanel needs `event`, `time` (Unix seconds or milliseconds, or an ISO timestamp) and `distinct_id` (JSON lines nest these under `properties`). Amplitude needs `event_type`, `event_time` and `user_id` or `device_id`. Optional: `$insert_id` (Amplitude: `$insert_id`, else `uuid`), page path or URL, referrer, country, region, city, browser and OS (Amplitude: `platform` and `os_name`).
+- Times without an offset are read as UTC and each event is counted on the site's local day. Sub-second precision is dropped.
+- Events are grouped per visitor and day into one visit; a visit with exactly one page view is a bounce, and its duration is last minus first event time. Page-view events (`$mp_web_page_view`, `Page View`, `[Amplitude] Page Viewed` and common variants) fill the page, entry, exit and daily totals; all other events become custom events. Identity and session bookkeeping events (`$identify`, `$create_alias`, `session_start`, `session_end`) are ignored.
+- Duplicates (same event name, time, user and insert id) are counted once and reported as duplicate rows, across all files in a ZIP. Invalid rows are skipped with their line number; inside a ZIP the message names the file.
+- Privacy: IP addresses, user agents, user ids, device ids and distinct ids are never stored (ids are hashed in memory to group events while the file is read). URLs are reduced to their path, dropping host, query and fragment. Only a 2-letter country code is kept.
+- Limits: the 512 MB upload limit applies, with 5,000,000 event rows, 2,000,000 visitor-days, 1 MiB per line, 1,000 ZIP entries, 2 GiB per file and 8 GiB in total after decompression (gzip bombs are cut off while reading). Overlap, history and undo behave as for GA4.
 
 ## Operations endpoints
 
