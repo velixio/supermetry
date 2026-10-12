@@ -16,7 +16,7 @@ func TestParseTrackingMode(t *testing.T) {
 		mode      privacy.Mode
 		wantErr   bool
 	}{
-		{"unset", "", false, privacy.Anonymous, false},
+		{"unset defaults to identified", "", false, privacy.Identified, false},
 		{"explicit anonymous", "anonymous", true, privacy.Anonymous, false},
 		{"explicit identified", "identified", true, privacy.Identified, false},
 		{"explicit empty", "", true, privacy.Anonymous, true},
@@ -24,7 +24,7 @@ func TestParseTrackingMode(t *testing.T) {
 		{"case mismatch", "Identified", true, privacy.Anonymous, true},
 		{"leading whitespace", " anonymous", true, privacy.Anonymous, true},
 		{"trailing whitespace", "identified\n", true, privacy.Anonymous, true},
-		{"absent ignores value", "identified", false, privacy.Anonymous, false},
+		{"absent ignores value", "anonymous", false, privacy.Identified, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -71,22 +71,35 @@ func TestLoadLookupTrackingMode(t *testing.T) {
 	}
 }
 
-func TestValidateTrackingUpgrade(t *testing.T) {
+func TestUnsetTrackingModeIsIdentifiedButNotExplicit(t *testing.T) {
+	t.Parallel()
+	got, err := config.ParseTrackingMode("", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Mode != privacy.Identified || got.Explicit {
+		t.Fatalf("unset = %+v, want identified and not explicit", got)
+	}
+	explicit, err := config.ParseTrackingMode("anonymous", true)
+	if err != nil || explicit.Mode != privacy.Anonymous || !explicit.Explicit {
+		t.Fatalf("explicit anonymous = %+v, %v", explicit, err)
+	}
+}
+
+func TestValidateTrackingMode(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
-		name              string
-		mode              config.TrackingMode
-		profiles, wantErr bool
+		name    string
+		mode    config.TrackingMode
+		wantErr bool
 	}{
-		{"fresh", config.TrackingMode{}, false, false},
-		{"legacy profiles require choice", config.TrackingMode{}, true, true},
-		{"explicit keep profiles", config.TrackingMode{Mode: privacy.Identified, Explicit: true}, true, false},
-		{"explicit downgrade", config.TrackingMode{Mode: privacy.Anonymous, Explicit: true}, true, false},
-		{"invalid", config.TrackingMode{Mode: privacy.Mode(255), Explicit: true}, false, true},
-		{"implicit identified forbidden", config.TrackingMode{Mode: privacy.Identified}, false, true},
+		{"default identified", config.TrackingMode{Mode: privacy.Identified}, false},
+		{"explicit identified", config.TrackingMode{Mode: privacy.Identified, Explicit: true}, false},
+		{"explicit anonymous", config.TrackingMode{Mode: privacy.Anonymous, Explicit: true}, false},
+		{"invalid", config.TrackingMode{Mode: privacy.Mode(255), Explicit: true}, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.mode.ValidateUpgrade(tt.profiles)
+			err := tt.mode.Validate()
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("error=%v", err)
 			}
