@@ -1,6 +1,7 @@
 import { BreakdownCard, type BreakdownTab } from '@/components/BreakdownCard'
 import { WeeklyRhythmCard } from '@/features/map/WeeklyRhythmCard'
 import { WhereCard } from '@/features/map/WhereCard'
+import type { InspectControl } from '@/lib/inspect'
 import { isAnonymousDimensionAllowed } from '@/lib/tracking-policy'
 import type { DashboardMetric, Filter } from '@/lib/search'
 import type { StatsQuery } from '@/lib/stats'
@@ -10,6 +11,7 @@ export function DashboardBelowFold({
   allowedHosts,
   anonymous,
   filters,
+  inspect,
   metric,
   onFilter,
   onShorten,
@@ -18,6 +20,7 @@ export function DashboardBelowFold({
   allowedHosts?: string[]
   anonymous: boolean
   filters: Filter[]
+  inspect?: InspectControl
   metric: DashboardMetric
   onFilter: (filter: Filter) => void
   onShorten: (days: number) => void
@@ -41,6 +44,7 @@ export function DashboardBelowFold({
       tabs={tabs}
       query={page ? { ...query, includeImported: false } : query}
       onFilter={onFilter}
+      inspect={inspect}
       allowSearch={!anonymous}
       allowFilter={!page}
       verifiedPaths={page}

@@ -27,7 +27,7 @@ import {
   resolveRange,
   type Filter,
 } from '../lib/search'
-import { activeInspectTarget, nextInspect, parseInspectSearch, serializeInspect, withoutInspect, type InspectTarget } from '../lib/inspect'
+import { activeInspectTarget, inspectAllowed, nextInspect, parseInspectSearch, serializeInspect, withoutInspect, type InspectControl, type InspectTarget } from '../lib/inspect'
 import { DashboardPanels } from '@/components/DashboardPanels'
 import { Inspector, inspectorDimensionLabel, inspectorTitle } from '@/components/Inspector'
 import { en } from '../messages/en'
@@ -173,8 +173,15 @@ function DashboardStateRoute() {
     if (next === undefined) closeInspector()
     else void navigate({ search: { ...search, inspect: next } })
   }
-  void openInspector
   const trafficMetric = search.metric === 'pageviews' ? 'pageviews' : 'visitors'
+  const inspectControl: InspectControl | undefined = standardDashboard ? {
+    selected: inspectTarget,
+    can: (target) => inspectAllowed(target, anonymous),
+    open: (target, origin) => {
+      inspectorOrigin.current = origin
+      openInspector(target)
+    },
+  } : undefined
 
   return (
     <PageContainer>
@@ -322,6 +329,7 @@ function DashboardStateRoute() {
                     allowedHosts={site.allowed_hosts}
                     anonymous={anonymous}
                     filters={filters}
+                    inspect={inspectControl}
                     metric={search.metric}
                     onFilter={onFilter}
                     onShorten={shortenToRawRange}

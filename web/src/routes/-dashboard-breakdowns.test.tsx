@@ -529,4 +529,68 @@ describe('dashboard breakdown route', () => {
     await waitFor(() => expect(scoped().length).toBeGreaterThanOrEqual(2))
     expect(new Set(scoped().flatMap(([, options]) => options.params.query.dimension as string[]))).toEqual(new Set(['channel', 'device']))
   })
+
+  it('opens the inspector from real Inspect controls without filtering, toggles, switches, and returns focus', async () => {
+    const router = renderAt(range)
+    const start = router.history.length
+    const location = await screen.findByRole('region', { name: 'Location' })
+    const inspect = await within(location).findByRole('button', { name: 'Inspect India' })
+    expect(inspect).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(inspect)
+    await waitFor(() => expect(router.state.location.search.inspect).toBe('country:IN'))
+    expect(router.state.location.search.f ?? []).toEqual([])
+    expect(router.history.length).toBe(start + 1)
+    expect(await screen.findByRole('dialog', { name: 'India' })).toBeVisible()
+    expect(within(location).getByRole('button', { name: 'Inspect India', hidden: true })).toHaveAttribute('aria-pressed', 'true')
+
+    // Same row again closes by replace: no extra history entry.
+    fireEvent.click(within(location).getByRole('button', { name: 'Inspect India', hidden: true }))
+    await waitFor(() => expect(router.state.location.search.inspect).toBeUndefined())
+    expect(router.history.length).toBe(start + 1)
+    await waitFor(() => expect(inspect).toHaveFocus())
+
+    // Another row replaces the content.
+    fireEvent.click(inspect)
+    await screen.findByRole('dialog', { name: 'India' })
+    const other = (await screen.findAllByRole('button', { name: /^Inspect /, hidden: true })).find((button) => button.getAttribute('aria-label') !== 'Inspect India')
+    expect(other).toBeDefined()
+    fireEvent.click(other as HTMLElement)
+    await waitFor(() => expect(router.state.location.search.inspect).not.toBe('country:IN'))
+    expect(router.state.location.search.inspect).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull()
+
+    router.history.back()
+    await waitFor(() => expect(router.state.location.search.inspect).toBe('country:IN'))
+    router.history.back()
+    await waitFor(() => expect(router.state.location.search.inspect).toBeUndefined())
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(router.state.location.search.f ?? []).toEqual([])
+  })
+
+  it('returns focus to the Inspect button when the inspector closes with Esc', async () => {
+    const router = renderAt(range)
+    const location = await screen.findByRole('region', { name: 'Location' })
+    const inspect = await within(location).findByRole('button', { name: 'Inspect India' })
+    fireEvent.click(inspect)
+    const inspector = await screen.findByRole('dialog', { name: 'India' })
+    fireEvent.keyDown(inspector, { key: 'Escape' })
+    await waitFor(() => expect(router.state.location.search.inspect).toBeUndefined())
+    await waitFor(() => expect(inspect).toHaveFocus())
+  })
+
+  it('keeps the row filter control working beside Inspect', async () => {
+    const router = renderAt(range)
+    const location = await screen.findByRole('region', { name: 'Location' })
+    fireEvent.click(await within(location).findByRole('button', { description: 'Filter by country India' }))
+    await waitFor(() => expect(router.state.location.search.f).toEqual(['country:is:IN']))
+    expect(router.state.location.search.inspect).toBeUndefined()
+  })
+
+  it('offers Inspect on an anonymous site only for allowed dimensions', async () => {
+    get.mockResolvedValue({ data: anonymousMe, response: new Response(null, { status: 200 }) })
+    renderAt(range)
+    await screen.findByRole('region', { name: 'Verified pages' })
+    expect(await screen.findByRole('button', { name: 'Inspect India' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^Inspect \// })).toBeNull()
+  })
 })

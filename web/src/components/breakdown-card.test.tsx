@@ -401,4 +401,53 @@ describe('BreakdownCard', () => {
       }),
     )
   })
+
+  it('offers a separate Inspect control that does not apply the filter', () => {
+    useStats.mockReturnValue(result({ data: data('country', 'IN', 5) }))
+    const onFilter = vi.fn()
+    const open = vi.fn()
+    render(<BreakdownCard title="Countries" tabs={tabs('country')} query={baseQuery} onFilter={onFilter} inspect={{ can: () => true, open }} />)
+
+    const inspect = screen.getByRole('button', { name: 'Inspect India' })
+    expect(inspect).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(inspect)
+    expect(open).toHaveBeenCalledWith({ dimension: 'country', values: ['IN'] }, inspect)
+    expect(onFilter).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'India5' })).toHaveAccessibleDescription('Filter by country India')
+  })
+
+  it('marks the inspected place and scopes it to its country', () => {
+    useStats.mockReturnValue(result({
+      data: { ...data('region', 'California', 5), columns: ['country', 'region', 'visitors'], rows: [{ country: 'US', region: 'California', visitors: 5 }] },
+    }))
+    render(<BreakdownCard title="Regions" tabs={tabs('region')} query={baseQuery} onFilter={vi.fn()} inspect={{ selected: { dimension: 'region', values: ['California', 'US'] }, can: () => true, open: vi.fn() }} />)
+
+    expect(screen.getByRole('button', { name: 'Inspect California, United States' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('offers Inspect in the page metrics table', () => {
+    useStats.mockReturnValue(result({
+      data: { columns: ['page', 'visitors', 'pageviews', 'time_on_page', 'exit_rate'], rows: [{ page: '/pricing', visitors: 5, pageviews: 9, time_on_page: 30, exit_rate: 20 }], totals: { visitors: 5 }, meta: { sources_used: ['daily'], cached: false } },
+    }))
+    const open = vi.fn()
+    render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} inspect={{ can: () => true, open }} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect /pricing' }))
+    expect(open).toHaveBeenCalledWith({ dimension: 'page', values: ['/pricing'] }, expect.any(HTMLElement))
+  })
+
+  it('offers no Inspect where a row has no filter action or the policy blocks it', () => {
+    useStats.mockReturnValue(result({ data: data('browser', 'Firefox', 5) }))
+    const { unmount } = render(<BreakdownCard title="Browsers" tabs={tabs('browser')} query={baseQuery} onFilter={vi.fn()} inspect={{ can: () => false, open: vi.fn() }} />)
+    expect(screen.queryByRole('button', { name: /^Inspect/ })).toBeNull()
+    unmount()
+
+    render(<BreakdownCard title="Browsers" tabs={tabs('browser')} query={baseQuery} onFilter={vi.fn()} allowFilter={false} inspect={{ can: () => true, open: vi.fn() }} />)
+    expect(screen.queryByRole('button', { name: /^Inspect/ })).toBeNull()
+    cleanup()
+
+    useStats.mockReturnValue(result({ data: data('browser_version', '', 5) }))
+    render(<BreakdownCard title="Versions" tabs={tabs('browser_version')} query={baseQuery} onFilter={vi.fn()} inspect={{ can: () => true, open: vi.fn() }} />)
+    expect(screen.queryByRole('button', { name: /^Inspect/ })).toBeNull()
+  })
 })
