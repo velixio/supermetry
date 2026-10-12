@@ -5,11 +5,11 @@
   </picture>
 </p>
 
-<h1 align="center">Supermetry: self-hosted, privacy-friendly web analytics</h1>
+<h1 align="center">Supermetry: open-source, self-hosted web and product analytics</h1>
 
 <p align="center">
-  An open-source, cookie-free alternative to Google Analytics that you run yourself.<br>
-  One Go binary and PostgreSQL. No ClickHouse, no Kafka, no Node in production.
+  Cookie-free visitor stats, funnels, revenue, heatmaps and session replay, on your own server.<br>
+  One Go binary and PostgreSQL. Nothing else to run.
 </p>
 
 <p align="center">
@@ -19,76 +19,49 @@
 </p>
 
 <p align="center">
+  <a href="#quick-start"><b>Quick start</b></a> ·
+  <a href="#who-it-is-for">Who it is for</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#track-events-and-revenue">Events and revenue</a> ·
+  <a href="#faq">FAQ</a>
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dashboard-dark.png">
     <img src="docs/assets/dashboard-light.png" alt="Supermetry web analytics dashboard showing visitors, pageviews, bounce rate, a traffic chart, top pages and traffic sources for a sample website" width="900">
   </picture>
-  <br>
-  <sub>The Supermetry dashboard, showing the built-in sample project.</sub>
 </p>
 
 > **Status: pre-release.** Expect breaking changes until `v0.1.0`.
 
-## Why Supermetry
+## Why we built it
 
-- **Simple to run.** One Go binary and a PostgreSQL database. Redis is not needed. Installers for Linux, macOS and Windows, plus backup and restore commands.
-- **Privacy by design.** No cookies, no fingerprinting, and no raw IP addresses stored. Visitors are counted with a random daily salt that is deleted after about 48 hours. The tracker honours Do Not Track and Global Privacy Control.
-- **Light on your servers and your pages.** The tracking script is about 1.2 KB gzipped. In a 4-hour test the server ingested 200 events per second, 2.88 million events in all, with no loss, no errors and a worst-case p99 latency of 23 ms, using under 190 MiB of memory ([details](tools/bench/soak/README.md)).
-- **Numbers you can check.** In a controlled side-by-side run, Supermetry and Plausible Community Edition received identical traffic from real browsers. Visitors, visits, pageviews, bounce rate, pages, sources, campaigns, devices, browsers, operating systems and custom events all matched, in both products and against hand-computed truth ([details](tools/bench/accuracy/ab/README.md)).
-- **More than pageviews.** Goals, funnels, revenue, retention, user journeys, Web Vitals, heatmaps and session replay, all in the open-source release.
-- **Open.** Apache-2.0 licensed, with a REST API, an MCP endpoint and imports from Plausible and Umami, so you can leave without losing your data.
+Website analytics usually means picking one of three compromises:
 
-## Features
+1. **Google Analytics**: free and powerful, but your visitors' data goes to Google and it sets cookies.
+2. **A lightweight privacy tool**: simple and cookie-free, but the self-hosted edition often stops at pageviews and sources.
+3. **A full product analytics stack**: funnels, retention and session replay, but you operate ClickHouse, Kafka or Redis to get them.
 
-**Analytics**
-- Visitors, visits, pageviews, bounce rate, visit duration and time on page, with a realtime view and comparison with the previous period or year.
-- Breakdowns by page, entry and exit page, source, channel, UTM parameters, country, region, city, language, browser, operating system and device. Filters on any dimension, and saved segments.
-- Custom events and properties, goals, funnels, revenue, retention cohorts, user journeys and annotations on the chart.
+Supermetry is the fourth option: an open-source, self-hosted analytics platform that covers web and product analytics, keeps every number in your own PostgreSQL database, and runs as a single Go binary.
 
-**Product analytics**
-- Web Vitals (LCP, CLS, INP, FCP, TTFB), heatmaps with click and scroll maps, and session replay, each opt-in per project.
-- A sessions explorer, an events explorer and user profiles with `identify` (opt-in per project).
+## Who it is for
 
-**Teams and integrations**
-- Organizations and projects, roles, two-factor sign-in, shareable links and API keys.
-- Alerts with email, webhook, Slack, Discord and Telegram delivery, and scheduled email reports.
-- A REST API and an MCP endpoint, CSV export, and imports from Plausible and Umami.
-
-**Operations**
-- PostgreSQL only, with time partitions that are dropped for retention instead of bulk deletes.
-- Backup and restore commands, a protected metrics endpoint and a data health page.
-- Country lookups from a bundled [DB-IP](https://db-ip.com) database, with optional region and city detail from [MaxMind GeoLite](https://www.maxmind.com).
-
-## Try it with sample data
-
-After you sign up, choose **Explore with demo data**. Supermetry creates a project with 90 days of realistic sample traffic and keeps it moving while you look around, so you can explore every report before you install the tracker. It deletes itself after 24 hours, and you can remove it earlier.
-
-## Privacy modes
-
-Supermetry collects page paths, referrers and campaigns by default, and never uses cookies or stores raw IP addresses. For the strictest setup, switch the whole server to anonymous mode.
-
-| | `anonymous` | `identified` (default) |
-|---|---|---|
-| Visitors, visits, pageviews and charts over time | yes | yes |
-| Country, device, browser, operating system and channel | yes | yes |
-| Page paths | replaced by a placeholder unless you list public paths | yes (query strings are always dropped) |
-| Sessions and events explorers, imports | no | yes |
-| Referrers, UTM campaigns, event properties, user profiles | no | yes, in projects with profiles on (the default for new projects) |
-
-Set `SUPERMETRY_TRACKING_MODE=anonymous` on the server to choose the strictest mode, and turn **profiles** off in a project's settings to stop keeping referrers, campaigns and event properties for that project. Session replay and heatmaps are separate opt-ins. See [Tracking and privacy](docs/tracking-privacy.md) for exactly what each setting records.
-
-## Requirements
-
-- PostgreSQL (18 is what CI runs).
-- Redis is not needed. A single instance runs without it.
+- **Websites, blogs and documentation sites** that want accurate visitor numbers with as little consent as possible: no cookies, no raw IPs and no cross-site tracking.
+- **SaaS and product teams** that need goals, funnels, retention cohorts, user journeys, revenue and session replay without sending user data to a third party.
+- **Agencies and hosting providers** that look after many sites: organizations, projects, roles, shareable links, alerts and scheduled email reports.
+- **Self-hosters** who want something that fits on a small server next to the PostgreSQL they already run.
 
 ## Quick start
 
-Linux and macOS:
+You need PostgreSQL (CI runs 18). Redis is not needed. On Linux and macOS:
 
 ```sh
 curl -fsSL https://github.com/velixio/supermetry/releases/latest/download/install.sh | sh
 ```
+
+<details>
+<summary>Windows, Docker Compose and dry run</summary>
 
 Windows PowerShell:
 
@@ -96,75 +69,122 @@ Windows PowerShell:
 irm https://github.com/velixio/supermetry/releases/latest/download/install.ps1 | iex
 ```
 
-To see what the installer would do first, add `--dry-run`, for example `curl -fsSL https://github.com/velixio/supermetry/releases/latest/download/install.sh | sh -s -- --dry-run`.
+Docker Compose, with a bundled PostgreSQL:
 
-Open `<your URL>/app` and create your admin account. See [deploy/README.md](deploy/README.md) for unattended installs, manual deployment, service management, upgrades, backups and reverse proxies, and [docs/guide/configuration.md](docs/guide/configuration.md) for every setting.
+```sh
+git clone https://github.com/velixio/supermetry.git && cd supermetry
+cp .env.example .env    # set SUPERMETRY_SECRET_KEY and POSTGRES_PASSWORD
+docker compose -f deploy/docker-compose.yml --profile bundled-db up -d --build
+```
 
-Then add the tracking script to your site. Copy the exact snippet from **Settings, Installation** in the dashboard. It looks like this:
+To see what the installer would do first, add `-s -- --dry-run` after `sh`.
+
+</details>
+
+Open `<your URL>/app`, create your admin account, and add the snippet from **Settings, Installation** to your site:
 
 ```html
 <script defer src="https://analytics.example.com/js/YOUR_SITE_ID.js"></script>
 ```
 
+Not ready to touch your site yet? Choose **Explore with demo data** after signing up. You get a project with 90 days of realistic, live sample traffic that deletes itself after 24 hours.
+
+More: [deployment guide](deploy/README.md) (unattended installs, upgrades, backups, reverse proxies) and [every setting](docs/guide/configuration.md).
+
+## How it works
+
+```mermaid
+flowchart LR
+  T["Tracking script on your site<br/>about 1.2 KB, no cookies"] -- "HTTPS" --> I
+  subgraph S["Supermetry: one Go binary"]
+    I["Ingest<br/>bounded in-memory buffer"] --> W["Batch writer"]
+    D["Dashboard, REST API, MCP"]
+  end
+  W -- "COPY in batches" --> P[("PostgreSQL<br/>time-partitioned tables")]
+  P --> D
+```
+
+- **Ingest never waits on the database.** Events go into a bounded in-memory buffer and are written to PostgreSQL in batches. When the buffer is full, the server answers 503 with `Retry-After` and counts the drop, instead of growing without limit.
+- **Visitors without cookies.** A visitor ID is derived from the IP address and user agent with a random salt that changes daily and is deleted after about 48 hours. The IP address itself is never stored.
+- **Finished days are compacted** into rollups in each site's own time zone, so long date ranges do not rescan raw events.
+- **Retention drops whole time partitions** instead of running bulk deletes.
+
+## Track events and revenue
+
+Pageviews are automatic. Mark up a button to count clicks as an event, with properties:
+
+```html
+<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>
+```
+
+Or call the tracker from JavaScript, optionally with revenue:
+
+```js
+supermetry.track("Purchase", { plan: "pro" }, { revenue: { amount: 29, currency: "USD" } });
+```
+
+In projects with profiles on, `supermetry.identify("user-123", { plan: "pro" })` links events to a user profile. A typed TypeScript wrapper lives in [sdk/js](sdk/js/README.md).
+
+## Features
+
+| Area | What you get |
+|---|---|
+| Web analytics | Visitors, visits, pageviews, bounce rate, visit duration, time on page, realtime, comparison with the previous period or year |
+| Breakdowns | Page, entry and exit page, source, channel, UTM, country, region, city, language, browser, operating system, device; filters on any dimension; saved segments |
+| Product analytics | Custom events and properties, goals, funnels, revenue, retention cohorts, user journeys, annotations |
+| Experience | Web Vitals (LCP, CLS, INP, FCP, TTFB), click and scroll heatmaps, session replay, each opt-in per project |
+| Explore | Sessions explorer, events explorer, user profiles with `identify` |
+| Teams | Organizations, projects, roles, two-factor sign-in, shareable links, API keys |
+| Alerts and reports | Email, webhook, Slack, Discord and Telegram alerts; scheduled email reports |
+| Data in and out | REST API, MCP endpoint, CSV export; imports from Google Analytics 4, Plausible, Umami, Mixpanel and Amplitude |
+| Operations | Backup and restore commands, a protected metrics endpoint, a data health page, country lookups from a bundled [DB-IP](https://db-ip.com) database with optional [MaxMind GeoLite](https://www.maxmind.com) detail |
+
+## Tested, with the method published
+
+- **Load:** in a 4-hour soak test the server ingested 200 events per second, 2.88 million events in all, with no loss, no errors and a worst-case p99 latency of 23 ms, using under 190 MiB of memory. [Method and results](tools/bench/soak/README.md).
+- **Accuracy:** Supermetry and Plausible Community Edition received identical traffic from real browsers. Visitors, visits, pageviews, bounce rate, pages, sources, campaigns, devices, browsers, operating systems and custom events all matched, in both products and against hand-computed truth. [Method and results](tools/bench/accuracy/ab/README.md).
+
+## Supermetry vs Plausible, Umami and Google Analytics
+
+| | Supermetry | Plausible CE (self-hosted) | Umami | Google Analytics |
+|---|---|---|---|---|
+| Self-hosted | Yes | Yes | Yes | No |
+| License | Apache-2.0 | AGPL-3.0 | MIT | Proprietary |
+| What you run | One Go binary + PostgreSQL | Elixir app + PostgreSQL + ClickHouse | Node.js app + PostgreSQL | Nothing; Google hosts it |
+| Cookies | None | None | None | Yes |
+| Funnels, journeys and revenue | Yes | No (Plausible Cloud only) | Yes | Yes |
+| Session replay and heatmaps | Yes | No | Yes | No |
+
+<sub>Checked against the Plausible Community Edition and Umami 3.4 source code in October 2026. Corrections are welcome in an issue.</sub>
+
+## Privacy
+
+Supermetry never uses cookies or stores raw IP addresses. By default (`identified` mode) it keeps page paths, referrers and campaigns. `SUPERMETRY_TRACKING_MODE=anonymous` is the strictest mode: page paths are replaced by a placeholder unless you list them as public, and referrers, campaigns, event properties, user profiles and the explorers are off. Session replay and heatmaps are separate opt-ins, and the tracker honours Do Not Track and Global Privacy Control. [Tracking and privacy](docs/tracking-privacy.md) lists exactly what each setting records.
+
 ## FAQ
 
-**Is Supermetry a Google Analytics alternative?**
-Yes. It measures visitors, pageviews, sources, goals and conversions without cookies, and the data stays in your own PostgreSQL database.
+**Is Supermetry a free Google Analytics alternative?**
+Yes. It is open source under Apache-2.0 and you host it yourself. It measures visitors, pageviews, sources, goals and conversions without cookies, and the data stays in your own PostgreSQL database.
 
-**Does it use cookies or store IP addresses?**
-It sets no cookies. IP addresses are used to look up the country (and city, if you add MaxMind data) and to derive a daily-salted visitor ID, and are not stored. See [Tracking and privacy](docs/tracking-privacy.md).
+**Is Supermetry GDPR compliant? Do I need a cookie banner?**
+That depends on the laws that apply to you and on what else your site runs, so ask your own counsel. Supermetry is designed to need as little consent as possible: no cookies, no raw IPs and no cross-site tracking.
 
-**Do I need a cookie banner?**
-That depends on the laws that apply to you and on what else your site runs, so ask your own counsel. Supermetry is designed to need as little consent as possible: no cookies, no raw IPs and no cross-site tracking, and it honours Do Not Track and Global Privacy Control.
+**Can I import my data from Google Analytics, Plausible or Umami?**
+Yes. In the project settings, import a Google Analytics 4 report export or data from Plausible, Umami, Mixpanel or Amplitude. You can preview an import before it runs and undo it afterwards, and overlapping days are never counted twice.
 
 **How is it different from Plausible or Umami?**
-Plausible's self-hosted edition needs ClickHouse next to PostgreSQL, and Umami runs on Node.js. Supermetry is a single Go binary and PostgreSQL only, and it includes funnels, revenue, retention, session replay and heatmaps in the open-source release.
+Self-hosted Plausible needs ClickHouse next to PostgreSQL and leaves out funnels, journeys and revenue goals. Umami runs on Node.js. Supermetry is a single Go binary on PostgreSQL alone, with every feature in the open-source release.
 
-**Can I move my existing data in?**
-Yes. Import from Plausible or Umami in the project settings, then export to CSV whenever you like.
-
-**What does it need to run?**
-A small server and PostgreSQL. In the 4-hour test above, a single process used under 190 MiB of memory at a sustained 200 events per second.
+**How big a server do I need?**
+A small one. In the 4-hour test above, a single process used under 190 MiB of memory at a sustained 200 events per second.
 
 ## Documentation
 
-- [Configuration](docs/guide/configuration.md)
-- [Tracking and privacy](docs/tracking-privacy.md)
-- [API](docs/api.md) and [API authentication](docs/api-auth.md)
-- [Authorization](docs/authorization.md)
-- [Notifications](docs/guide/notifications.md)
+[Deployment](deploy/README.md) · [Configuration](docs/guide/configuration.md) · [Tracking and privacy](docs/tracking-privacy.md) · [API](docs/api.md) · [API authentication](docs/api-auth.md) · [Authorization](docs/authorization.md) · [Notifications](docs/guide/notifications.md) · [JavaScript SDK](sdk/js/README.md)
 
-## Build from source
+## Contributing
 
-You need Go and [Bun](https://bun.sh).
-
-```sh
-make build                       # builds the dashboard, then the binary in bin/
-export SUPERMETRY_DATABASE_URL=postgres://user:pass@127.0.0.1:5432/supermetry
-export SUPERMETRY_SECRET_KEY=$(openssl rand -base64 32)
-export SUPERMETRY_BASE_URL=http://localhost:8787
-./bin/supermetry
-```
-
-Migrations run at startup. `bin/supermetry --help` lists the other commands (`backup`, `restore`, `migrate`, `close-days`, `geoip`).
-
-## Development
-
-You need Go, [Bun](https://bun.sh) and Docker. No database settings are needed: unless `.env` sets
-`SUPERMETRY_DATABASE_URL` (or `SUPERMETRY_TEST_DSN` for tests), `make` starts PostgreSQL in Docker on
-port 5433 and uses it. `make dev-db-down` stops it; its data is kept.
-
-```sh
-make dev     # build and run the server
-make test    # Go tests
-make lint    # go vet and gofmt
-```
-
-Dashboard code is in `web/` and uses Bun (`bun install --frozen-lockfile`, `bun run test`).
-
-## Contributing and security
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+Build from source with Go and [Bun](https://bun.sh) using `make build`. `make dev` runs a development server and starts PostgreSQL in Docker for you; `make test` runs the Go tests. [CONTRIBUTING.md](CONTRIBUTING.md) has the details, and [SECURITY.md](SECURITY.md) explains how to report a vulnerability privately.
 
 ## License
 
