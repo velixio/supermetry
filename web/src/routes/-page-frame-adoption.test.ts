@@ -10,22 +10,16 @@ const OUTSIDE_SHELL = new Set<string>([
   'src/features/auth/AuthScreen.tsx',
   'src/features/lifecycle/NoOrgScreen.tsx',
   'src/features/share/SharedDashboard.tsx',
+  // Onboarding is a centred card mounted by app.index inside AccountFrame, with its own <main>.
+  'src/features/sites/Onboarding.tsx',
   'src/routes/app.index.tsx',
 ])
 
 // Files still to migrate. Each adoption task deletes its entries.
 const PENDING = new Set<string>([
   'src/features/admin/AdminCommon.tsx',
-  'src/features/api-docs/ApiDocsPage.tsx',
-  'src/features/health/HealthPage.tsx',
   'src/features/settings/AccountProfilePage.tsx',
   'src/features/settings/AccountSessionsPage.tsx',
-  'src/features/settings/NotificationsPage.tsx',
-  'src/features/sites/Onboarding.tsx',
-  'src/features/sites/SitesOverview.tsx',
-  'src/features/sites/SitesPage.tsx',
-  'src/routes/app.$org.settings.index.tsx',
-  'src/routes/app.$org.sites.new.tsx',
   'src/routes/app.account.organizations.new.tsx',
   'src/routes/app.account.security.tsx',
 ])

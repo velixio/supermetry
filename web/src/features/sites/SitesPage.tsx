@@ -1,6 +1,8 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { GlobeIcon, Trash2Icon } from 'lucide-react'
+import { Trash2Icon } from 'lucide-react'
 
 import { SiteIcon } from '@/components/SiteIcon'
 import { Button } from '@/components/ui/button'
@@ -59,31 +61,24 @@ export function SitesPage({
 
   if (sites.length === 0) {
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <section className="flex min-h-[45vh] max-w-xl flex-col items-start justify-center gap-3">
-          <GlobeIcon className="size-8 text-muted-foreground" aria-hidden="true" />
-          <h1 className="text-2xl font-semibold tracking-tight">No sites yet</h1>
-          <p className="text-sm text-muted-foreground">Add a site when you are ready to start collecting analytics.</p>
-          {role === 'owner' || role === 'admin' ? (
-            <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add your first site</Link></Button>
-          ) : null}
-        </section>
+      <PageContainer>
+        <PageHeader
+          title="No sites yet"
+          description="Add a site when you are ready to start collecting analytics."
+          actions={role === 'owner' || role === 'admin' ? <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add your first site</Link></Button> : undefined}
+        />
         {deletedSites}
-      </div>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Sites</h1>
-          <p className="text-sm text-muted-foreground">Manage the sites you can access in this organization.</p>
-        </div>
-        {role === 'owner' || role === 'admin' ? (
-          <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add site</Link></Button>
-        ) : null}
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="Sites"
+        description="Manage the sites you can access in this organization."
+        actions={role === 'owner' || role === 'admin' ? <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add site</Link></Button> : undefined}
+      />
       <ul className="flex flex-col overflow-hidden rounded-xl border bg-card">
         {sites.map((site) => {
           const slug = siteSlug(site)
@@ -142,6 +137,6 @@ export function SitesPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   )
 }
