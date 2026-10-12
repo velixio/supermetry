@@ -17,9 +17,21 @@ export type LocaleInfo = {
 export const manifest: Record<LocaleCode, LocaleInfo> = {
   en: { code: 'en', label: 'English', nativeName: 'English', reviewed: true, load: async () => ({}) },
   'en-XA': { code: 'en-XA', label: 'Pseudo-locale (longer text)', nativeName: 'Ƥśéüđö', reviewed: false, pseudo: true, load: async () => ({}) },
-  es: { code: 'es', label: 'Spanish', nativeName: 'Español', reviewed: false, load: async () => ({}) },
-  de: { code: 'de', label: 'German', nativeName: 'Deutsch', reviewed: false, load: async () => ({}) },
+  es: {
+    code: 'es', label: 'Spanish', nativeName: 'Español', reviewed: false,
+    load: async () => {
+      const [main, dashEdit] = await Promise.all([import('@/messages/locales/es'), import('@/messages/locales/es.dashEdit')])
+      return { main: main.default, dashEdit: dashEdit.default }
+    },
+  },
+  de: {
+    code: 'de', label: 'German', nativeName: 'Deutsch', reviewed: false,
+    load: async () => {
+      const [main, dashEdit] = await Promise.all([import('@/messages/locales/de'), import('@/messages/locales/de.dashEdit')])
+      return { main: main.default, dashEdit: dashEdit.default }
+    },
+  },
 }
 
 /** Languages offered in the picker; the pseudo-locale is for testing only. */
-export const pickerLocales: LocaleCode[] = ['en']
+export const pickerLocales: LocaleCode[] = ['en', 'es', 'de']
