@@ -111,8 +111,8 @@ func saveImportMultipart(r *http.Request, tempDir string, max int64) (upload imp
 	if upload.Path == "" {
 		return upload, errors.New("import file is required")
 	}
-	if upload.Source != "plausible" && upload.Source != "umami" {
-		return upload, errors.New("source must be plausible or umami")
+	if upload.Source != "plausible" && upload.Source != "umami" && upload.Source != "ga4" {
+		return upload, errors.New("source must be plausible, umami or ga4")
 	}
 	return upload, nil
 }
