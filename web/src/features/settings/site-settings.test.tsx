@@ -67,16 +67,18 @@ describe('site settings', () => {
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
   })
 
-  it('shows install guides, proxy advice, and a relative live status', () => {
+  it('shows install guides, proxy advice, and a receiving status', () => {
     render(
       <InstallGuide
         publicId="site-public"
-        lastEventReceivedAt="2026-10-07T09:59:40Z"
+        installStatus="receiving"
+        lastSeenAt="2026-10-07T09:59:40Z"
         now={new Date('2026-10-07T10:00:00Z')}
       />,
     )
 
-    expect(screen.getByText('✓ Last event 20 seconds ago')).toBeVisible()
+    expect(screen.getByText('Receiving')).toBeVisible()
+    expect(screen.getByText('Last event 20 seconds ago')).toBeVisible()
     expect(screen.getByText(/proxy the script through your own domain/i)).toBeVisible()
     expect(screen.getByText('Track custom clicks')).toBeVisible()
     expect(screen.getByText(/data-supermetry-event="Signup"/)).toBeVisible()
@@ -101,9 +103,18 @@ describe('site settings', () => {
     expect(screen.getByText(/header injection/i)).toBeVisible()
   })
 
-  it('polls every five seconds until the first event', () => {
-    expect(installationStatusInterval(undefined)).toBe(5_000)
-    expect(installationStatusInterval('2026-10-07T10:00:00Z')).toBe(false)
+  it.each([
+    ['waiting', undefined, 'Waiting', 'Waiting for the first accepted event.'],
+    ['receiving', '2026-10-07T09:59:40Z', 'Receiving', 'Last event 20 seconds ago'],
+    ['quiet', '2026-10-06T09:00:00Z', 'Quiet', 'Last event 1 day ago'],
+  ] as const)('shows the %s install state', (installStatus, lastSeenAt, label, detail) => {
+    render(<InstallGuide publicId="site-public" installStatus={installStatus} lastSeenAt={lastSeenAt} now={new Date('2026-10-07T10:00:00Z')} />)
+    expect(screen.getByText(label)).toBeVisible()
+    expect(screen.getByText(detail)).toBeVisible()
+  })
+
+  it('polls status no more than once every thirty seconds', () => {
+    expect(installationStatusInterval()).toBe(30_000)
   })
 
   it('updates the icon cache and confirms a successful refetch', async () => {

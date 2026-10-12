@@ -86,4 +86,20 @@ describe('SitesPage', () => {
       '/app/acme/sites/new',
     )
   })
+
+  it.each([
+    ['waiting', undefined, 'Waiting'],
+    ['receiving', '2026-10-12T09:00:00Z', 'Receiving'],
+    ['quiet', '2026-10-10T09:00:00Z', 'Quiet'],
+  ] as const)('shows %s tracker status', async (installStatus, lastSeenAt, label) => {
+    renderSites(
+      <SitesPage
+        org="acme"
+        role="viewer"
+        sites={[{ ...site, install_status: installStatus, last_seen_at: lastSeenAt }]}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(await screen.findByText(label)).toBeVisible()
+  })
 })

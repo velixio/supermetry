@@ -153,6 +153,88 @@ func TestSiteExclusionAPI(t *testing.T) {
 	}
 }
 
+func TestSiteResponseDerivesInstallStatusFromLastAcceptedEvent(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, now.Add(-26*time.Hour), now.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('status-owner@example.test','Owner','hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Status','status') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	registry := sitesvc.NewRegistry(data, 0)
+	t.Cleanup(registry.Close)
+	service := sitesvc.New(data, registry)
+	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
+	site, err := service.Create(ctx, principal, "Status", []string{"status.example.test"}, "Asia/Kathmandu", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := platformhttp.New(platformhttp.Deps{
+		Now: nowFunc(now), Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
+		Mutations: platformhttp.Services{Sites: service}, Store: data,
+	})
+
+	assertStatus := func(wantStatus string, wantLastSeen *time.Time) {
+		t.Helper()
+		request := authenticatedRequest(http.MethodGet, fmt.Sprintf("/api/private/sites/%d", site.ID), "")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("GET status=%d body=%s", response.Code, response.Body.String())
+		}
+		var body struct {
+			InstallStatus string     `json:"install_status"`
+			LastSeenAt    *time.Time `json:"last_seen_at"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body.InstallStatus != wantStatus {
+			t.Fatalf("install_status=%q, want %q; body=%s", body.InstallStatus, wantStatus, response.Body.String())
+		}
+		if wantLastSeen == nil && body.LastSeenAt != nil {
+			t.Fatalf("last_seen_at=%v, want null", body.LastSeenAt)
+		}
+		if wantLastSeen != nil && (body.LastSeenAt == nil || !body.LastSeenAt.Equal(*wantLastSeen)) {
+			t.Fatalf("last_seen_at=%v, want %v", body.LastSeenAt, wantLastSeen)
+		}
+	}
+
+	assertStatus("waiting", nil)
+	lastSeen := now.Add(-time.Hour)
+	if _, err := pool.Exec(ctx, `insert into events(site_id,retention_class,local_day,ts,visitor_id,session_id,kind) values ($1,30,$2::timestamptz::date,$2::timestamptz,1,1,0)`, site.ID, lastSeen); err != nil {
+		t.Fatal(err)
+	}
+	assertStatus("receiving", &lastSeen)
+	var backfilled time.Time
+	if err := pool.QueryRow(ctx, `select last_event_at from site_last_event where site_id=$1`, site.ID).Scan(&backfilled); err != nil {
+		t.Fatal(err)
+	}
+	if !backfilled.Equal(lastSeen) {
+		t.Fatalf("backfilled last event=%s, want %s", backfilled, lastSeen)
+	}
+	quiet := now.Add(-25 * time.Hour)
+	if _, err := pool.Exec(ctx, `update site_last_event set last_event_at=$2 where site_id=$1`, site.ID, quiet); err != nil {
+		t.Fatal(err)
+	}
+	assertStatus("quiet", &quiet)
+}
+
+func nowFunc(now time.Time) func() time.Time { return func() time.Time { return now } }
+
 func TestPublicSiteResponseOmitsDemoState(t *testing.T) {
 	principal := authz.Principal{KeyID: 1, OrgID: 1, Role: authz.RoleKey, Scopes: []string{"stats:read"}}
 	handler := platformhttp.New(platformhttp.Deps{
