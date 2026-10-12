@@ -50,7 +50,10 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
   )
 }
 
-/** The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, live badge, help and theme. */
+/**
+ * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, live badge, help and theme.
+ * Outside an organization (no membership) there is no site, so no live badge.
+ */
 export function AppHeader({
   membership,
   site,
@@ -59,7 +62,7 @@ export function AppHeader({
   onToggleTheme,
   onOpenHelp,
 }: {
-  membership: Membership
+  membership?: Membership
   site?: Site
   requestedSite?: string
   theme: Theme
@@ -73,7 +76,7 @@ export function AppHeader({
         <Breadcrumbs membership={membership} />
       </div>
       <div className="flex items-center gap-1">
-        {site && requestedSite ? (
+        {membership && site && requestedSite ? (
           <div className="hidden sm:block">
             <SiteLiveBadge
               detailsAvailable={!isAnonymousTracking(site)}

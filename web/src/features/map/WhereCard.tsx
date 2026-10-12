@@ -13,7 +13,6 @@ import { en } from '@/messages/en'
 
 import { CountryDetails } from './CountryDetails'
 import { CountryTable, type CountryMetricRow } from './CountryTable'
-
 import type { TrafficMetric } from './trafficGrid'
 
 const WorldMap = lazy(() => import('@/components/WorldMap').then((module) => ({ default: module.WorldMap })))

@@ -81,4 +81,11 @@ describe('buildCrumbs', () => {
   it('ignores a trailing slash', () => {
     expect(labels('/app/acme/docs/funnels/')).toEqual(['Acme', 'Docs', 'Funnels'])
   })
+  it('without a membership keeps account and admin crumbs and shows none for an organization path', () => {
+    expect(buildCrumbs('/app/account/security').map((c) => c.label)).toEqual(['Account', 'Security'])
+    expect(buildCrumbs('/app/admin/sites').map((c) => c.label)).toEqual(['Admin', 'Sites'])
+    expect(buildCrumbs('/app/missing')).toEqual([])
+    expect(buildCrumbs('/app/missing/docs/events')).toEqual([])
+    expect(buildCrumbs('/app')).toEqual([])
+  })
 })

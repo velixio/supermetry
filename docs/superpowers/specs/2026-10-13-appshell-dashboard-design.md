@@ -182,7 +182,7 @@ New dependency: shadcn `resizable` (`react-resizable-panels`). Decide at step 6 
 Insert after step 6, as its own PRs:
 
 - **6a. Inspector shell**: `DashboardPanels`, `Inspector`, `inspect` search param, close and focus behaviour, sheet fallbacks. Tests first: URL round trip, Esc closes, focus returns to the Inspect control, overlay below 1280.
-- **6b. Wire the sources**: add Inspect to `BreakdownCard`, then Where, Weekly rhythm and the chart, one PR each if the diff grows.
+- **6b. Wire the sources**: add Inspect to `BreakdownCard`, then Where and Weekly rhythm, one PR each if the diff grows (chart points were dropped, see 11.7).
 
 ### 11.6 Acceptance criteria (added)
 
