@@ -16,11 +16,15 @@ const statMetrics = [
 ] as const satisfies readonly StatsQuery['metrics'][number][]
 
 export type StatMetric = (typeof statMetrics)[number]
+export const isStatMetric = (value: string): value is StatMetric => (statMetrics as readonly string[]).includes(value)
 
 type StatsStripProps = {
   query: StatsQuery
   compare: Compare
-  onSelectMetric: (metric: StatMetric) => void
+  /** Without a handler the tiles are plain read-only figures. */
+  onSelectMetric?: (metric: StatMetric) => void
+  /** Show only these tiles; the underlying query is unchanged so the cache is shared. */
+  metrics?: readonly StatMetric[]
 }
 
 function dateAtUTC(value: string): Date {
@@ -109,6 +113,7 @@ export function StatsStrip({
   query,
   compare,
   onSelectMetric,
+  metrics: shownMetrics,
 }: StatsStripProps) {
   const currentQuery: StatsQuery = {
     ...query,
@@ -139,22 +144,16 @@ export function StatsStrip({
       aria-busy={current.isLoading || comparison.isLoading}
       className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7"
     >
-      {statMetrics.map((metric) => {
+      {statMetrics.filter((metric) => !shownMetrics || shownMetrics.includes(metric)).map((metric) => {
         const primary = metric === 'visitors' || metric === 'pageviews'
         const value = current.data?.totals[metric] ?? 0
         const previous = comparison.data?.totals[metric] ?? 0
         const delta = compare === 'off' ? undefined : deltaValue(value, previous)
-        return (
-          <Button
-            key={metric}
-            data-priority={primary ? 'primary' : 'secondary'}
-            type="button"
-            variant="outline"
-            className={primary
-              ? 'col-span-1 h-auto min-w-0 flex-col items-start gap-1 px-4 py-4 text-left sm:col-span-2 xl:col-span-2'
-              : 'h-auto min-w-0 flex-col items-start gap-1 px-3 py-3 text-left'}
-            onClick={() => onSelectMetric(metric)}
-          >
+        const className = primary
+          ? 'col-span-1 h-auto min-w-0 flex-col items-start gap-1 px-4 py-4 text-left sm:col-span-2 xl:col-span-2'
+          : 'h-auto min-w-0 flex-col items-start gap-1 px-3 py-3 text-left'
+        const content = (
+          <>
             <span className="w-full truncate text-xs text-muted-foreground">
               {metricLabel(metric)}
             </span>
@@ -164,6 +163,29 @@ export function StatsStrip({
             {compare === 'off' ? null : (
               <Delta metric={metric} value={delta} />
             )}
+          </>
+        )
+        if (!onSelectMetric) {
+          return (
+            <div
+              key={metric}
+              data-priority={primary ? 'primary' : 'secondary'}
+              className={`${className} flex rounded-md border bg-background shadow-xs`}
+            >
+              {content}
+            </div>
+          )
+        }
+        return (
+          <Button
+            key={metric}
+            data-priority={primary ? 'primary' : 'secondary'}
+            type="button"
+            variant="outline"
+            className={className}
+            onClick={() => onSelectMetric(metric)}
+          >
+            {content}
           </Button>
         )
       })}

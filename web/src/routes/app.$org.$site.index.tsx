@@ -28,12 +28,24 @@ import {
   type Filter,
 } from '../lib/search'
 import { en } from '../messages/en'
+import type { Dashboard } from '../features/dashboards/api'
+import { parseDashKey } from '../features/dashboards/layout'
 import { useMe } from './app.$org'
 
 const loadDashboardBelowFold = () => import('@/components/DashboardBelowFold')
 const DashboardBelowFold = (import.meta as ImportMeta & { env: { MODE: string } }).env.MODE === 'test'
   ? (await loadDashboardBelowFold()).DashboardBelowFold
   : lazy(() => loadDashboardBelowFold().then((module) => ({ default: module.DashboardBelowFold })))
+
+const loadDashboardViewer = () => import('@/features/dashboards/DashboardViewer')
+const loadDashboardSwitcher = () => import('@/features/dashboards/DashboardSwitcher')
+const isTest = (import.meta as ImportMeta & { env: { MODE: string } }).env.MODE === 'test'
+const DashboardViewer = isTest
+  ? (await loadDashboardViewer()).DashboardViewer
+  : lazy(() => loadDashboardViewer().then((module) => ({ default: module.DashboardViewer })))
+const DashboardSwitcher = isTest
+  ? (await loadDashboardSwitcher()).DashboardSwitcher
+  : lazy(() => loadDashboardSwitcher().then((module) => ({ default: module.DashboardSwitcher })))
 
 export const Route = createFileRoute('/app/$org/$site/')({
   validateSearch: (search) => dashboardSearch.parse(search),
@@ -104,6 +116,16 @@ function DashboardStateRoute() {
     live: search.live,
     includeImported: search.include_imported,
   }
+  const dashboardId = parseDashKey(search.dash)
+  const openDashboard = (key: string, dashboard?: Dashboard, replace = false) => {
+    // A saved dashboard's own period and comparison are the starting point; the standard one keeps yours.
+    void navigate({
+      search: dashboard
+        ? { ...search, dash: key, period: dashboard.layout.period ?? '30d', from: undefined, to: undefined, compare: dashboard.layout.compare ?? 'off' }
+        : { ...search, dash: key },
+      replace,
+    })
+  }
   const onFilter = (filter: Filter) => {
     if (!anonymous || isAnonymousFilterAllowed(filter)) void navigate({ search: addFilter(search, filter) })
   }
@@ -119,6 +141,14 @@ function DashboardStateRoute() {
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold tracking-tight">{en.navigation.dashboard}</h1>
         <p className="text-sm text-muted-foreground">{site.name}, {fmt.date(query.dateRange.from, timezone)} – {fmt.date(query.dateRange.to, timezone)}</p>
+        <Suspense fallback={null}>
+          <DashboardSwitcher
+            siteId={site.id}
+            value={search.dash}
+            onChange={(key, dashboard) => openDashboard(key, dashboard)}
+            onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
+          />
+        </Suspense>
       </header>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <DashboardExportMenu query={query} anonymous={anonymous} />
@@ -158,36 +188,57 @@ function DashboardStateRoute() {
         </Field>
         </ResponsiveFilters>
       </div>
-      <StatsStrip
-        query={query}
-        compare={search.compare}
-        onSelectMetric={(metric) => updateSearch({ ...search, metric })}
-      />
       <DashboardNoDataBanner
         query={query}
         href={`/app/${org}/${siteSlug}/settings/installation`}
       />
-      <DashboardChart
-        anonymous={anonymous}
-        canEdit={membership?.role !== 'viewer'}
-        compare={search.compare}
-        metric={search.metric}
-        query={query}
-        siteId={site.id}
-      />
-      <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
-        <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
-          <DashboardBelowFold
-            allowedHosts={site.allowed_hosts}
+      {dashboardId !== undefined ? (
+        <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
+          <DashboardViewer
             anonymous={anonymous}
-            filters={filters}
-            metric={search.metric}
+            base={query}
+            compare={search.compare}
+            dashboardId={dashboardId}
+            from={search.from}
+            period={search.period}
+            timezone={timezone}
+            to={search.to}
+            urlFilters={filters}
             onFilter={onFilter}
+            onOpenStandard={() => openDashboard('builtin')}
             onShorten={shortenToRawRange}
-            query={query}
           />
         </Suspense>
-      </DeferredContent>
+      ) : (
+        <>
+        <StatsStrip
+          query={query}
+          compare={search.compare}
+          onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+        />
+        <DashboardChart
+          anonymous={anonymous}
+          canEdit={membership?.role !== 'viewer'}
+          compare={search.compare}
+          metric={search.metric}
+          query={query}
+          siteId={site.id}
+        />
+        <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
+          <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
+            <DashboardBelowFold
+              allowedHosts={site.allowed_hosts}
+              anonymous={anonymous}
+              filters={filters}
+              metric={search.metric}
+              onFilter={onFilter}
+              onShorten={shortenToRawRange}
+              query={query}
+            />
+          </Suspense>
+        </DeferredContent>
+        </>
+      )}
     </div>
   )
 }
