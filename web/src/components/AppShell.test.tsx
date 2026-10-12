@@ -12,7 +12,7 @@ import {
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useLiveSummary, useReplayAvailability } = vi.hoisted(() => ({ useLiveSummary: vi.fn(), useReplayAvailability: vi.fn() }))
+const { useLiveSummary, useReplayAvailability, privateRequest } = vi.hoisted(() => ({ useLiveSummary: vi.fn(), useReplayAvailability: vi.fn(), privateRequest: vi.fn() }))
 
 vi.mock('@/features/realtime/useLiveSummary', () => ({ useLiveSummary }))
 vi.mock('@/components/replay/api', () => ({
@@ -20,6 +20,7 @@ vi.mock('@/components/replay/api', () => ({
 }))
 vi.mock('@/lib/shortcuts', () => ({ useShortcuts: () => undefined }))
 vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn() }) }))
+vi.mock('@/features/settings/privateApi', () => ({ privateRequest }))
 
 import type { Me, Membership } from '@/lib/me'
 
@@ -106,6 +107,7 @@ describe('AppShell live visitor badge', () => {
       isPending: false,
       isError: false,
     })
+    privateRequest.mockResolvedValue({})
   })
 
   afterEach(() => {
@@ -128,6 +130,13 @@ describe('AppShell live visitor badge', () => {
 
     fireEvent.click(badge)
     await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs-public/realtime'))
+  })
+
+  it('remembers a valid scoped site as the last visited site', async () => {
+    renderShell('/app/acme/docs-public/settings/general')
+    await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PATCH', '/api/private/me', {
+      body: { preferences: { last_site_id: 7 } },
+    }))
   })
 
   it('owns one labelled main landmark after a first-focusable skip link', async () => {

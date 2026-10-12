@@ -4,6 +4,38 @@ import { api } from '@/lib/api'
 import type { ManagedSite, SiteInput, SiteUpdate } from './types'
 import type { DeletionResult } from '@/features/lifecycle/api'
 
+export type OverviewPeriod = '24h' | '7d' | '30d'
+
+export type OverviewSite = {
+  id: number
+  org_id: number
+  public_id: string
+  name: string
+  domain: string
+  timezone: string
+  icon_url?: string
+  organization: { id: number; name: string; slug: string }
+  role: 'owner' | 'admin' | 'editor' | 'viewer'
+  created_at: string
+  visitors: number
+  previous_visitors: number
+  change_percent: number | null
+  sparkline: Array<{ start: string; visitors: number }>
+  live_visitors: number
+  last_event_at: string | null
+  install_status: 'waiting' | 'receiving' | 'quiet'
+  tracking_snippet: string
+}
+
+export type SitesOverviewResponse = {
+  data: OverviewSite[]
+  next_cursor?: string | null
+}
+
+export function listSitesOverview(period: OverviewPeriod): Promise<SitesOverviewResponse> {
+  return privateRequest('GET', `/api/private/sites/overview?period=${period}&limit=200`)
+}
+
 export function createSite(input: SiteInput, orgId: number): Promise<ManagedSite> {
   return privateRequest<ManagedSite>('POST', '/api/private/sites', {
     orgId,

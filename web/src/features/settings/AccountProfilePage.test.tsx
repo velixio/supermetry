@@ -12,13 +12,18 @@ describe('account profile self-service', () => {
     const onDeleted = vi.fn()
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <AccountProfilePage name="Owner" email="owner@example.test" totpEnabled request={request} onDeleted={onDeleted} />
+        <AccountProfilePage name="Owner" email="owner@example.test" totpEnabled preferences={{ landing_page: 'overview', sites_view: 'cards' }} request={request} onDeleted={onDeleted} />
       </QueryClientProvider>,
     )
 
     fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Updated' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('PATCH', '/api/private/me', { name: 'Updated' }))
+
+    fireEvent.change(screen.getByLabelText('After sign in'), { target: { value: 'last_site' } })
+    await waitFor(() => expect(request).toHaveBeenCalledWith('PATCH', '/api/private/me', {
+      preferences: { landing_page: 'last_site' },
+    }))
 
     fireEvent.change(screen.getByLabelText('New email'), { target: { value: 'new@example.test' } })
     fireEvent.change(screen.getByLabelText('Email change password'), { target: { value: 'pw-123456789' } })

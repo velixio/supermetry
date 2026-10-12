@@ -1,6 +1,6 @@
 import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
 import { AuthorizationProvider } from '@/lib/authorization'
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
 
@@ -30,6 +30,7 @@ import { activeSite, matchesSite, SupermetrySidebar } from './Sidebar'
 import { HeaderMenus } from './HeaderMenus'
 import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
+import { privateRequest } from '@/features/settings/privateApi'
 
 function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number; org: string; site: string; detailsAvailable: boolean }) {
   const descriptionId = useId()
@@ -97,6 +98,13 @@ export function AppShell({
   })
   const site = activeSite(membership, requestedSite)
   const scopedSite = membership.sites.find((item) => matchesSite(item, requestedSite))
+  const recordedLastSite = useRef(me.preferences?.last_site_id)
+
+  useEffect(() => {
+    if (!scopedSite || recordedLastSite.current === scopedSite.id) return
+    recordedLastSite.current = scopedSite.id
+    void privateRequest('PATCH', '/api/private/me', { body: { preferences: { last_site_id: scopedSite.id } } }).catch(() => undefined)
+  }, [scopedSite])
 
   useShortcuts({
     d: toggle,
