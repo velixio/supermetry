@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -78,11 +80,8 @@ export function AccountSessionsPage() {
   const otherSessionCount = ordered.filter(session => !session.Current).length
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{uiAccount.sessions.title}</h1>
-        <p className="text-sm text-muted-foreground">{uiAccount.sessions.intro}</p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title={uiAccount.sessions.title} description={uiAccount.sessions.intro} />
       <section aria-label={uiAccount.sessions.sectionLabel} className="min-w-0 rounded-xl border bg-card p-5 text-card-foreground">
         <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
           <p className="text-sm text-muted-foreground">{uiAccount.sessions.note}</p>
@@ -136,6 +135,6 @@ export function AccountSessionsPage() {
           ))}
         </ul>
       </section>
-    </div>
+    </PageContainer>
   )
 }

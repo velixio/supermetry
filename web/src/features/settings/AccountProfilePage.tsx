@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { type FormEvent, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -36,8 +38,8 @@ export function AccountProfilePage({ name, email, totpEnabled, preferences, requ
     const data = new FormData(event.currentTarget)
     mutation.mutate({ method, path, body: Object.fromEntries(fields.map((field) => [field, String(data.get(field) ?? '')])) })
   }
-  return <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-    <header><h1 className="text-2xl font-semibold tracking-tight">{uiAccount.profile.title}</h1><p className="text-sm text-muted-foreground">{uiAccount.profile.intro}</p></header>
+  return <PageContainer width="narrow">
+    <PageHeader title={uiAccount.profile.title} description={uiAccount.profile.intro} />
     <Card><CardHeader><CardTitle>{uiAccount.profile.displayName}</CardTitle><CardDescription>{uiAccount.profile.displayNameNote}</CardDescription></CardHeader>
       <form onSubmit={submit('PATCH', '/api/private/me', ['name'])}><CardContent><FieldGroup><Field><FieldLabel htmlFor="display-name">{uiAccount.profile.displayName}</FieldLabel><Input id="display-name" name="name" defaultValue={name} required /></Field></FieldGroup></CardContent><CardFooter><Button disabled={mutation.isPending}>{uiAccount.profile.saveName}</Button></CardFooter></form></Card>
     <Card><CardHeader><CardTitle>{uiAccount.profile.landingTitle}</CardTitle><CardDescription>{uiAccount.profile.landingNote}</CardDescription></CardHeader>
@@ -51,5 +53,5 @@ export function AccountProfilePage({ name, email, totpEnabled, preferences, requ
     <Card><CardHeader><CardTitle>{uiAccount.profile.deleteTitle}</CardTitle><CardDescription>{uiAccount.profile.deleteNote}</CardDescription></CardHeader>
       <form onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const body: Record<string, unknown> = { password: String(data.get('password') ?? '') }; if (totpEnabled) body.totp_code = String(data.get('totp_code') ?? ''); setDeleteBody(body) }}><CardContent><FieldGroup><Field><FieldLabel htmlFor="delete-password">{uiAccount.profile.deletePassword}</FieldLabel><Input id="delete-password" name="password" type="password" required /></Field>{totpEnabled ? <Field><FieldLabel htmlFor="delete-totp">{uiAccount.profile.authCode}</FieldLabel><Input id="delete-totp" name="totp_code" inputMode="numeric" required /></Field> : null}{mutation.error ? <FieldError>{mutation.error.message}</FieldError> : null}</FieldGroup></CardContent><CardFooter><Button variant="destructive">{uiAccount.profile.deleteTitle}</Button></CardFooter></form></Card>
     <AlertDialog open={deleteBody !== null} onOpenChange={(open) => { if (!open) setDeleteBody(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{uiAccount.profile.deleteConfirmTitle}</AlertDialogTitle><AlertDialogDescription>{uiAccount.profile.deleteConfirmBody}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{uiAccount.profile.cancel}</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={mutation.isPending} onClick={(event) => { event.preventDefault(); if (deleteBody) mutation.mutate({ method: 'DELETE', path: '/api/private/me', body: deleteBody }) }}>{uiAccount.profile.deleteForever}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-  </div>
+  </PageContainer>
 }

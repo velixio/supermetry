@@ -16,13 +16,7 @@ const OUTSIDE_SHELL = new Set<string>([
 ])
 
 // Files still to migrate. Each adoption task deletes its entries.
-const PENDING = new Set<string>([
-  'src/features/admin/AdminCommon.tsx',
-  'src/features/settings/AccountProfilePage.tsx',
-  'src/features/settings/AccountSessionsPage.tsx',
-  'src/routes/app.account.organizations.new.tsx',
-  'src/routes/app.account.security.tsx',
-])
+const PENDING = new Set<string>([])
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

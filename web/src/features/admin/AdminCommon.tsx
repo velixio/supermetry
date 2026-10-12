@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -7,13 +9,12 @@ import { activeLocale } from '@/lib/i18n/intl'
 
 export function AdminPage({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <section className="flex min-w-0 flex-col gap-4" aria-labelledby="admin-page-title">
-      <div className="flex flex-col gap-1">
-        <h1 id="admin-page-title" className="text-2xl font-semibold">{title}</h1>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-      </div>
-      {children}
-    </section>
+    <PageContainer width="narrow">
+      <section className="flex min-w-0 flex-col gap-4" aria-labelledby="admin-page-title">
+        <PageHeader titleId="admin-page-title" title={title} description={description} />
+        {children}
+      </section>
+    </PageContainer>
   )
 }
 
