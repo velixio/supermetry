@@ -9,11 +9,16 @@ function isEditing(target: EventTarget | null): boolean {
   )
 }
 
-/** The map key for a keydown: the lower-cased key, or `mod+<key>` while Ctrl or Cmd is held. Alt combinations are never shortcuts. */
+/**
+ * The map key for a keydown: the lower-cased key, `mod+<key>` while Ctrl or Cmd is held, or
+ * `mod+shift+<key>` when Shift is held too, so `mod+k` never fires for Shift+Ctrl+K.
+ * Alt combinations are never shortcuts. Plain keys ignore Shift (`?` needs it on most layouts).
+ */
 function shortcutKey(event: KeyboardEvent): string | undefined {
   if (event.altKey) return undefined
   const key = event.key.toLowerCase()
-  return event.ctrlKey || event.metaKey ? `mod+${key}` : key
+  if (!(event.ctrlKey || event.metaKey)) return key
+  return event.shiftKey ? `mod+shift+${key}` : `mod+${key}`
 }
 
 /**
@@ -37,4 +42,12 @@ export function useShortcuts(map: Record<string, () => void>) {
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [])
+}
+
+/** Whether to show ⌘ rather than Ctrl in shortcut hints. */
+export function isApplePlatform(
+  nav: Pick<Navigator, 'platform' | 'userAgent'> | undefined = typeof navigator === 'undefined' ? undefined : navigator,
+): boolean {
+  if (!nav) return false
+  return /Mac|iPhone|iPad|iPod/i.test(nav.platform || nav.userAgent)
 }

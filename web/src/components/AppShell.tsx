@@ -1,7 +1,7 @@
 import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
 import { AuthorizationProvider } from '@/lib/authorization'
-import { useEffect, useRef, useState } from 'react'
-import { Outlet, useRouterState } from '@tanstack/react-router'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 
 import { AccountSidebar } from './AccountSidebar'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
@@ -27,6 +27,11 @@ import { matchesSite, SupermetrySidebar } from './Sidebar'
 import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
+import { requestLogout } from '@/lib/session-lifecycle'
+import { paletteCommands, type PaletteCommand } from './paletteCommands'
+
+// cmdk and the palette load on first open, so they stay out of the initial JS budget.
+const CommandPalette = lazy(() => import('./CommandPalette').then((module) => ({ default: module.CommandPalette })))
 import { ui } from '@/messages/ui'
 import { sidebarStartsOpen } from './sidebarState'
 
@@ -39,6 +44,10 @@ export function AppShell({
 }) {
   const { theme, toggle } = useTheme()
   const [helpOpen, setHelpOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [paletteLoaded, setPaletteLoaded] = useState(false)
+  const paletteTrigger = useRef<HTMLButtonElement>(null)
+  const router = useRouter()
   const [sidebarOpen] = useState(() => sidebarStartsOpen(document.cookie, window.innerWidth))
   const { pathname, requestedSite, renderedPathnames } = useRouterState({
     select: (state) => {
@@ -61,9 +70,26 @@ export function AppShell({
     void privateRequest('PATCH', '/api/private/me', { body: { preferences: { last_site_id: scopedSite.id } } }).catch(() => undefined)
   }, [scopedSite])
 
+  const openPalette = () => {
+    setPaletteLoaded(true)
+    setPaletteOpen(true)
+  }
+  // Runs after the palette starts closing; the palette decides where focus goes afterwards.
+  const runPaletteCommand = (command: PaletteCommand) => {
+    setPaletteOpen(false)
+    if (command.kind === 'navigate') router.history.push(command.href)
+    else if (command.action === 'theme') toggle()
+    else if (command.action === 'help') setHelpOpen(true)
+    else void requestLogout()
+  }
+
   useShortcuts({
     d: toggle,
     '?': () => setHelpOpen(true),
+    'mod+k': () => {
+      setPaletteLoaded(true)
+      setPaletteOpen((open) => !open)
+    },
   })
 
   return (
@@ -93,6 +119,8 @@ export function AppShell({
             theme={theme}
             onToggleTheme={toggle}
             onOpenHelp={() => setHelpOpen(true)}
+            onOpenPalette={openPalette}
+            paletteTriggerRef={paletteTrigger}
           />
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
             {membership ? (
@@ -133,11 +161,23 @@ export function AppShell({
             <li>{en.shortcuts.theme}</li>
             <li>{en.shortcuts.help}</li>
             <li>{en.shortcuts.sidebar}</li>
+            <li>{en.shortcuts.palette}</li>
             <li>{en.shortcuts.period}</li>
             <li>{en.shortcuts.compare}</li>
           </ul>
         </DialogContent>
       </Dialog>
+      {paletteLoaded ? (
+        <Suspense fallback={null}>
+          <CommandPalette
+            open={paletteOpen}
+            onOpenChange={setPaletteOpen}
+            commands={paletteOpen ? paletteCommands({ me, membership, requestedSite, theme }) : []}
+            onRun={runPaletteCommand}
+            fallbackFocus={() => paletteTrigger.current}
+          />
+        </Suspense>
+      ) : null}
       <Toaster />
     </TooltipProvider>
     </AuthorizationProvider>

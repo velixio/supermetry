@@ -149,6 +149,9 @@ const messages: MessageTree = {
     },
   },
   palette: {
+    open: 'Abrir la paleta de comandos',
+    keyHint: 'Ctrl K',
+    keyHintApple: '⌘K',
     title: 'Paleta de comandos',
     description: 'Ve a una página, cambia de sitio u organización o ejecuta una acción.',
     inputLabel: 'Buscar comandos',

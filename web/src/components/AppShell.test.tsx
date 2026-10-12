@@ -9,17 +9,31 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useLiveSummary, useReplayAvailability, privateRequest } = vi.hoisted(() => ({ useLiveSummary: vi.fn(), useReplayAvailability: vi.fn(), privateRequest: vi.fn() }))
+const { useLiveSummary, useReplayAvailability, privateRequest, shortcuts, toggleTheme, requestLogout } = vi.hoisted(() => ({
+  useLiveSummary: vi.fn(),
+  useReplayAvailability: vi.fn(),
+  privateRequest: vi.fn(),
+  shortcuts: { current: {} as Record<string, () => void> },
+  toggleTheme: vi.fn(),
+  requestLogout: vi.fn(),
+}))
 
 vi.mock('@/features/realtime/useLiveSummary', () => ({ useLiveSummary }))
 vi.mock('@/components/replay/api', () => ({
   useReplayAvailability,
 }))
-vi.mock('@/lib/shortcuts', () => ({ useShortcuts: () => undefined }))
-vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn() }) }))
+vi.mock('@/lib/shortcuts', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/shortcuts')>(),
+  useShortcuts: (map: Record<string, () => void>) => { shortcuts.current = map },
+}))
+vi.mock('@/lib/theme', () => ({ useTheme: () => ({ theme: 'light', toggle: toggleTheme }) }))
+vi.mock('@/lib/session-lifecycle', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/session-lifecycle')>(),
+  requestLogout,
+}))
 vi.mock('@/features/settings/privateApi', () => ({ privateRequest }))
 
 import type { Me, Membership } from '@/lib/me'
@@ -112,6 +126,7 @@ function renderAppShell(initialEntry: string, shellMe: Me = me) {
 
 describe('AppShell live visitor badge', () => {
   beforeEach(() => {
+    Element.prototype.scrollIntoView = () => undefined
     window.scrollTo = () => undefined
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
@@ -358,6 +373,7 @@ describe('AppShell live visitor badge', () => {
       'D — Toggle dark mode',
       '? — Show this help',
       'Ctrl/⌘ B — Collapse or expand the sidebar',
+      'Ctrl/⌘ K — Open the command palette',
       'M — Show the last 30 days (dashboard)',
       'C — Turn period comparison on or off (dashboard)',
     ])
@@ -392,5 +408,93 @@ describe('AppShell live visitor badge', () => {
     expect(follows(skip, sidebar)).toBe(true)
     expect(follows(sidebar, screen.getByRole('banner', { name: 'Application header' }))).toBe(true)
     expect(within(sidebar).getByRole('link', { name: 'Instance administration' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('opens the command palette from the header trigger and returns focus to it on Escape', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const header = await screen.findByRole('banner', { name: 'Application header' })
+    const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
+    const input = within(dialog).getByRole('combobox', { name: 'Search commands' })
+    await waitFor(() => expect(input).toHaveFocus())
+    fireEvent.keyDown(input, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it('registers Ctrl/⌘ K and navigates to a page from the palette', async () => {
+    const { router } = renderShell('/app/acme/docs/settings/general')
+    await screen.findByRole('banner', { name: 'Application header' })
+    act(() => shortcuts.current['mod+k']())
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
+    const input = within(dialog).getByRole('combobox', { name: 'Search commands' })
+    fireEvent.change(input, { target: { value: 'Realtime' } })
+    await waitFor(() => expect(within(dialog).getByRole('option', { name: 'Realtime' })).toHaveAttribute('aria-selected', 'true'))
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs/realtime'))
+    expect(await screen.findByRole('heading', { name: 'Realtime page' })).toBeVisible()
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
+  })
+
+  it('runs only the existing actions: theme, shortcut help and log out', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const openPalette = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))
+      return screen.findByRole('dialog', { name: 'Command palette' })
+    }
+    const actions = within(await openPalette()).getByRole('group', { name: 'Actions' })
+    expect(within(actions).getAllByRole('option').map((option) => option.textContent)).toEqual(['Use dark theme', 'Show keyboard shortcuts', 'Log out'])
+    fireEvent.click(within(actions).getByRole('option', { name: 'Use dark theme' }))
+    expect(toggleTheme).toHaveBeenCalledOnce()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument())
+
+    fireEvent.click(within(await openPalette()).getByRole('option', { name: 'Show keyboard shortcuts' }))
+    expect(await screen.findByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Keyboard shortcuts' }), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeInTheDocument())
+
+    fireEvent.click(within(await openPalette()).getByRole('option', { name: 'Log out' }))
+    expect(requestLogout).toHaveBeenCalledOnce()
+  })
+
+  it('returns focus to the header trigger after the theme command when opened by the shortcut', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const header = await screen.findByRole('banner', { name: 'Application header' })
+    const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+    act(() => shortcuts.current['mod+k']())
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Use dark theme' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it('offers no blocked analytics screen in the palette for an anonymous site', async () => {
+    const anonymousMembership: Membership = { ...membership, sites: membership.sites.map((site) => ({ ...site, tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] } })) }
+    renderShell('/app/acme/docs-public/settings/general', anonymousMembership)
+    fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))
+    const pages = within(await screen.findByRole('dialog', { name: 'Command palette' })).getByRole('group', { name: 'Pages' })
+    const names = within(pages).getAllByRole('option').map((option) => option.textContent)
+    expect(names).toContain('Dashboard')
+    for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals', 'Revenue', 'Cohorts']) {
+      expect(names).not.toContain(label)
+    }
+  })
+
+  it('limits the palette to account pages and organizations outside an organization', async () => {
+    renderAppShell('/app/account/profile')
+    fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
+    expect(within(within(dialog).getByRole('group', { name: 'Pages' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Account settings'])
+    expect(within(within(dialog).getByRole('group', { name: 'Organizations' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Acme'])
+    expect(within(dialog).queryByRole('group', { name: 'Sites' })).toBeNull()
+  })
+
+  it('loads the palette code only when it is first opened', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    await screen.findByRole('banner', { name: 'Application header' })
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
+    expect(document.querySelector('[cmdk-root]')).toBeNull()
   })
 })

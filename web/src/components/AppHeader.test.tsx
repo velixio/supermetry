@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { useLiveSummary } = vi.hoisted(() => ({ useLiveSummary: vi.fn() }))
@@ -22,11 +22,11 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function show(path: string) {
+function show(path: string, onOpenPalette = vi.fn()) {
   renderWithRouter(
     <TooltipProvider>
       <SidebarProvider>
-        <AppHeader theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} />
+        <AppHeader theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} onOpenPalette={onOpenPalette} />
       </SidebarProvider>
     </TooltipProvider>,
     path,
@@ -43,6 +43,15 @@ describe('AppHeader outside an organization', () => {
     expect(within(header).getByRole('button', { name: 'Show keyboard shortcuts' })).toBeInTheDocument()
     expect(within(header).getByRole('button', { name: 'Use dark theme' })).toBeInTheDocument()
     expect(useLiveSummary).not.toHaveBeenCalled()
+  })
+
+  it('opens the command palette from a labelled trigger that announces its shortcut', async () => {
+    const onOpenPalette = vi.fn()
+    const header = await show('/app/account/profile', onOpenPalette)
+    const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+    expect(trigger).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K')
+    fireEvent.click(trigger)
+    expect(onOpenPalette).toHaveBeenCalledOnce()
   })
 
   it('shows no breadcrumbs for an organization the user has no membership in', async () => {

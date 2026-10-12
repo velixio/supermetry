@@ -1,6 +1,6 @@
-import { useId } from 'react'
+import { useId, type Ref } from 'react'
 import { Link } from '@tanstack/react-router'
-import { CircleHelpIcon, MoonIcon, SunIcon } from 'lucide-react'
+import { CircleHelpIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
 
 import { Breadcrumbs } from './Breadcrumbs'
 import { LiveBadge } from '@/components/LiveBadge'
@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import type { Membership, Site } from '@/lib/me'
 import type { Theme } from '@/lib/theme'
+import { isApplePlatform } from '@/lib/shortcuts'
 import { isAnonymousTracking } from '@/lib/tracking-policy'
 import { en } from '@/messages/en'
 import { ui } from '@/messages/ui'
@@ -51,7 +52,7 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
 }
 
 /**
- * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, live badge, help and theme.
+ * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, command palette trigger, live badge, help and theme.
  * Outside an organization (no membership) there is no site, so no live badge.
  */
 export function AppHeader({
@@ -61,6 +62,8 @@ export function AppHeader({
   theme,
   onToggleTheme,
   onOpenHelp,
+  onOpenPalette,
+  paletteTriggerRef,
 }: {
   membership?: Membership
   site?: Site
@@ -68,6 +71,9 @@ export function AppHeader({
   theme: Theme
   onToggleTheme: () => void
   onOpenHelp: () => void
+  onOpenPalette: () => void
+  /** Lets the shell return focus here after a command that leaves focus nowhere else. */
+  paletteTriggerRef?: Ref<HTMLButtonElement>
 }) {
   return (
     <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
@@ -76,6 +82,21 @@ export function AppHeader({
         <Breadcrumbs membership={membership} />
       </div>
       <div className="flex items-center gap-1">
+        <Button
+          ref={paletteTriggerRef}
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="gap-1.5 text-muted-foreground"
+          aria-label={ui.palette.open}
+          aria-keyshortcuts="Control+K Meta+K"
+          onClick={onOpenPalette}
+        >
+          <SearchIcon aria-hidden="true" />
+          <kbd className="hidden rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium md:inline">
+            {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
+          </kbd>
+        </Button>
         {membership && site && requestedSite ? (
           <div className="hidden sm:block">
             <SiteLiveBadge

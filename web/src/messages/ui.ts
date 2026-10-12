@@ -119,6 +119,9 @@ export const ui = {
     } as Record<string, string>,
   },
   palette: {
+    open: 'Open command palette',
+    keyHint: 'Ctrl K',
+    keyHintApple: '⌘K',
     title: 'Command palette',
     description: 'Go to a page, switch site or organization, or run an action.',
     inputLabel: 'Search commands',

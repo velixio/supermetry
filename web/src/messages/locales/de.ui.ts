@@ -149,6 +149,9 @@ const messages: MessageTree = {
     },
   },
   palette: {
+    open: 'Befehlspalette öffnen',
+    keyHint: 'Strg K',
+    keyHintApple: '⌘K',
     title: 'Befehlspalette',
     description: 'Zu einer Seite gehen, Website oder Organisation wechseln oder eine Aktion ausführen.',
     inputLabel: 'Befehle durchsuchen',

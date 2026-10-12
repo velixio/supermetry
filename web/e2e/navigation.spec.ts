@@ -152,3 +152,28 @@ test('starts on the icon rail at tablet width and keeps the saved sidebar state'
   await expect(sidebar).toHaveAttribute('data-state', 'expanded')
   expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
 })
+
+test('opens the command palette with Ctrl+K and from the header, and navigates without a reload', async ({ page, owner }) => {
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await owner.login(page, dashboard)
+  let documentRequests = 0
+  page.on('request', (request) => {
+    if (request.resourceType() === 'document') documentRequests += 1
+  })
+  await page.keyboard.press('Control+k')
+  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  await expect(palette).toBeVisible()
+  await palette.getByRole('combobox', { name: 'Search commands' }).fill('Funnels')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(`${dashboard}/funnels`)
+  await expect(palette).toHaveCount(0)
+  expect(documentRequests).toBe(0)
+
+  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Open command palette' })
+  await trigger.click()
+  await expect(palette).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(palette).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+})

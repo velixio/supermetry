@@ -118,6 +118,10 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   await owner.login(page, dashboard)
   await waitForDashboard(page)
   reports.push(await audit(page, 'dashboard'))
+  await page.getByRole('button', { name: 'Open command palette' }).click()
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+  reports.push(await audit(page, 'command-palette'))
+  await page.keyboard.press('Escape')
 
   await page.goto(`${dashboard}/sessions`)
   await waitForSessions(page)

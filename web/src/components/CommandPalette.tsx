@@ -54,20 +54,23 @@ export function CommandPalette({
   onOpenChange,
   commands,
   onRun,
+  fallbackFocus,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   commands: PaletteCommand[]
   onRun: (command: PaletteCommand) => void
+  /** Where focus goes after a command that neither navigates nor opens a dialog (theme) when the invoker is gone or was the page body. */
+  fallbackFocus?: () => HTMLElement | null
 }) {
   // The palette opens from a global shortcut or a button, not a DialogTrigger, so Radix has no
   // trigger to refocus on close. Remember the invoker before focus moves into the dialog.
   const invoker = useRef<HTMLElement | null>(null)
-  const ran = useRef(false)
+  const ran = useRef<PaletteCommand | null>(null)
   useLayoutEffect(() => {
     if (open) {
       invoker.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      ran.current = false
+      ran.current = null
     }
   }, [open])
 
@@ -76,9 +79,15 @@ export function CommandPalette({
       <DialogContent className="top-[20%] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-lg" showCloseButton={false}
         onCloseAutoFocus={(event) => {
           event.preventDefault()
-          // After a command ran (it may have navigated), the caller owns focus: refocusing the old
-          // invoker here would override route-change focus.
-          if (!ran.current && invoker.current?.isConnected) invoker.current.focus()
+          // After a command ran, the caller owns focus (navigation moves it with the route, help opens
+          // its own dialog). Only a command that changes nothing focusable (theme) must put it back,
+          // or it would be stranded on the body.
+          const command = ran.current
+          const previous = invoker.current?.isConnected && invoker.current !== document.body ? invoker.current : null
+          if (!command) {
+            if (invoker.current?.isConnected) invoker.current.focus()
+          }
+          else if (command.kind === 'action' && command.action === 'theme') (previous ?? fallbackFocus?.())?.focus()
         }}
       >
         <DialogTitle className="sr-only">{ui.palette.title}</DialogTitle>
@@ -96,7 +105,7 @@ export function CommandPalette({
                     <CommandItem key={command.id} keywords={[command.label, ...(command.detail ? [command.detail] : []), ...command.keywords]}
                       value={command.id}
                       onSelect={() => {
-                        ran.current = true
+                        ran.current = command
                         onRun(command)
                       }}>
                       <CommandIcon command={command} />

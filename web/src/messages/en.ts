@@ -259,6 +259,7 @@ export const en = {
     theme: 'D — Toggle dark mode',
     help: '? — Show this help',
     sidebar: 'Ctrl/⌘ B — Collapse or expand the sidebar',
+    palette: 'Ctrl/⌘ K — Open the command palette',
     period: 'M — Show the last 30 days (dashboard)',
     compare: 'C — Turn period comparison on or off (dashboard)',
   },
