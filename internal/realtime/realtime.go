@@ -58,6 +58,9 @@ func RichSnapshot(store session.Store, siteID int32, now time.Time) session.Real
 		return session.RealtimeSnapshot{VisitorsPerMinute: emptyMinutes(now)}
 	}
 	live, _ := store.ActiveSince(siteID, now.Add(-LiveWindow))
+	if activity, ok := store.(session.AcceptedActivityStore); ok {
+		live = activity.ActiveVisitorsSince(siteID, now.Add(-LiveWindow), now)
+	}
 	if rich, ok := store.(session.RichRealtimeStore); ok {
 		result := rich.RealtimeSnapshot(siteID, now)
 		result.VisitorsLast30m = result.ActiveVisitors

@@ -802,6 +802,7 @@ func TestRealtimeSummaryMatchesFullRealtimeWithoutDatabaseAccess(t *testing.T) {
 		{SiteID: 2, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 404, PathID: 78},
 	} {
 		store.Touch(hit)
+		store.RecordActivity(session.Activity{SiteID: hit.SiteID, Timestamp: hit.TS, VisitorID: hit.VisitorID, Kind: hit.Kind, PathID: hit.PathID})
 	}
 	router := identifiedRouter(api.Deps{
 		Config: config.Config{AdminAPIKey: "test-key"}, Sessions: store,
@@ -882,6 +883,7 @@ func TestPrivateRealtimeSummaryUsesDashboardSessionAuthorization(t *testing.T) {
 	now := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	store := session.NewMemory(1, nil)
 	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 101, PathID: 12})
+	store.RecordActivity(session.Activity{SiteID: 1, Timestamp: now.Add(-time.Minute), VisitorID: 101, Kind: 0, PathID: 12})
 	router := identifiedRouter(api.Deps{
 		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
 		Sessions:    store,

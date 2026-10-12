@@ -124,6 +124,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 18. ~~User profiles and `identify`~~ ✅ (opt-in per site, D40)
 19. ~~Heatmaps: aggregated click grid and scroll map~~ ✅ (opt-in per site)
 20. ~~Richer realtime (live feed, per-minute chart, all breakdowns) and SVG country flags~~ ✅
+21. ~~Exact five-minute distinct live visitor counts with three-product accuracy observation~~ ✅
 
 ### Later
 

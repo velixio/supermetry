@@ -118,12 +118,12 @@ describe('AppShell live visitor badge', () => {
 
     const badge = await screen.findByRole('link', { name: /12 live/ })
     expect(badge).toHaveTextContent('● 12 live')
-    expect(badge).toHaveAccessibleDescription('12 active now, 48 in the last 30 minutes')
+    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. 48 visitors in the last 30 minutes.')
     expect(badge).toHaveAttribute('href', '/app/acme/docs-public/realtime')
 
     fireEvent.focus(badge)
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      '12 active now, 48 in the last 30 minutes',
+      '12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. 48 visitors in the last 30 minutes.',
     )
 
     fireEvent.click(badge)
@@ -209,7 +209,7 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByRole('heading', { name: 'Realtime page' })).not.toBeInTheDocument()
     const badge = screen.getByText('12 live').closest('[tabindex="0"]')
     expect(badge).toHaveTextContent('● 12 live')
-    expect(badge).toHaveAccessibleDescription('12 active now, 48 in the last 30 minutes')
+    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. 48 visitors in the last 30 minutes.')
     expect(screen.queryByRole('link', { name: /12 live/ })).not.toBeInTheDocument()
     expect(useReplayAvailability).not.toHaveBeenCalled()
     for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals']) {

@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab
+.PHONY: build build-go fixtures test lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -11,7 +11,13 @@ build-go:
 	go build -o bin/supermetry ./cmd/supermetry
 
 accuracy-ab: build-go
+	python3 -m unittest tools.bench.accuracy.ab.test_live_scenarios
+	go test ./internal/session ./internal/realtime -run 'Test(ActiveVisitorsSince|RichSnapshotLiveCount)' -count=1
 	python3 tools/bench/accuracy/ab/run.py
+
+ACCURACY_CREDS ?= /tmp/claude-1000/-home-user-code-supermetry/a367a7b0-447b-4879-9004-f5690263327e/scratchpad/cmp-creds.env
+accuracy-live:
+	python3 tools/bench/accuracy/compare_live.py --live --creds "$(ACCURACY_CREDS)"
 
 fixtures:
 	go run ./tools/gen --tier tiny --seed 42 --out test/golden/testdata/tiny.ndjson --sites test/golden/testdata/tiny.sites.json --truth test/golden/testdata/tiny.truth.json

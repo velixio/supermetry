@@ -29,6 +29,19 @@ removes its temporary files. Override the thresholds only for testing with
 
 ## Real-traffic comparison
 
+For the three-product online-count observation, keep the nine `*_URL`,
+`*_USER`, and `*_PASS` values in the approved credential file and run:
+
+```sh
+ACCURACY_CREDS=/path/to/cmp-creds.env make accuracy-live
+```
+
+This signs in normally, discovers the first visible site, samples Supermetry,
+Plausible, and Umami every 30 seconds for 15 minutes, and prints pairwise
+online-count deltas. It sends no events and never prints or persists credential
+values. Pass `--out` directly to `compare_live.py` to retain credential-free
+raw samples, totals, minute series, countries, and browsers for analysis.
+
 Run this once Supermetry and Plausible trackers receive the same real traffic:
 
 ```sh
