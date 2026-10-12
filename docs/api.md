@@ -191,6 +191,56 @@ Rules worth knowing:
 - A saved cohort works as a filter: `{"dimension": "cohort", "operator": "is", "values": ["<id>"]}` in `/api/private/query` and the sessions list. It matches sessions of people in the cohort evaluated at query time (sessions without a profile never match), bypasses result caching, and is not available for funnels, journeys or retention.
 - `sessions` count distinct sessions with a pageview or custom event; `events` count pageviews and custom events. Engagement beacons never count.
 
+## Custom dashboards
+
+Saved, per-site dashboards built from a versioned widget layout. Dashboard session endpoints (not part of the public API-key surface); every path names the site, and an id that belongs to another site answers `404`:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/private/sites/{site}/dashboards` | Saved dashboards by name, or the built-in dashboard alone (`builtin: true`, `id: 0`) when none exist (any member of the site) |
+| POST | `/api/private/sites/{site}/dashboards` | Save one (owner, admin or editor; audited; up to 50 per site, names unique ignoring case) |
+| GET | `/api/private/sites/{site}/dashboards/default` | The flagged default, else the built-in dashboard |
+| DELETE | `/api/private/sites/{site}/dashboards/default` | Unflag the default (back to the built-in dashboard) |
+| GET / PATCH / DELETE | `/api/private/sites/{site}/dashboards/{id}` | Read; rename or re-lay out (needs the current `version`, else `409`; bumps `version`); delete |
+| POST | `/api/private/sites/{site}/dashboards/{id}/duplicate` | Copy as `<name> (copy)`; never the default |
+| POST | `/api/private/sites/{site}/dashboards/{id}/default` | Make it the site default (one per site) |
+
+Write access reuses the segment edit permission (keys need `segments:write`); viewers read only.
+
+Layout (`schema_version` 1), at most 24 widgets and 32 KiB:
+
+```jsonc
+{
+  "schema_version": 1,
+  "period": "30d",              // optional: today yesterday 7d 28d 30d 91d 6mo 12mo month last_month year
+  "compare": "off",             // optional: off previous_period previous_year
+  "filters": [],                // optional, up to 10, same shape as query filters
+  "widgets": [{
+    "id": "pages",              // 1-40 chars of a-z 0-9 - _, unique in the layout
+    "kind": "breakdown",
+    "title": "Pages",           // optional, up to 80 chars
+    "x": 0, "y": 7, "w": 6, "h": 5,   // 12-column grid: x+w <= 12, y < 200, h 1-12
+    "period": "7d",             // optional override of the dashboard period
+    "filters": [],              // optional, up to 10, added to the dashboard filters
+    "config": { "dimension": "page", "metrics": ["visitors"], "limit": 10 }
+  }]
+}
+```
+
+Widget kinds and their `config` (fields a kind does not list are rejected; unknown JSON fields are rejected everywhere):
+
+| kind | config |
+|---|---|
+| `kpi_strip` | `metrics` (1 to 6 known metrics) |
+| `time_series` | `metric` (required) |
+| `breakdown` | `dimension` (required; a known dimension or `prop:<key>`), `metrics` (1 to 4), `limit` (1 to 50) |
+| `map`, `weekly_rhythm` | `metric` (`visitors` or `pageviews`) |
+| `goals` | `limit` (1 to 50) |
+| `funnel` | `funnel_id` (required) |
+| `retention`, `web_vitals` | none |
+
+Widgets only name existing capabilities; a layout never carries SQL. Overlapping widgets are accepted and the client reflows them. Metrics, dimensions and filters are checked with the same rules as `/api/private/query`.
+
 ## Operations endpoints
 
 `GET /healthz` (process alive) and `GET /readyz` (ready to serve) are outside `/api` and need no key. `GET /metrics` (Prometheus) needs `Authorization: Bearer <SUPERMETRY_METRICS_TOKEN>` when that variable is set; without it, only clients on the same machine (loopback) can read it, and everyone else gets 404.

@@ -2447,6 +2447,143 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/dashboards:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listDashboards
+      summary: List saved dashboards
+      description: |
+        Saved dashboards of the site by name. When the site has none, `data` holds one built-in dashboard
+        (`builtin: true`, `id: 0`, `is_default: true`) that reproduces the standard dashboard in the layout model.
+        Any member of the site may read.
+      responses:
+        '200':
+          description: Dashboards.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/DashboardList' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createDashboard
+      summary: Save a dashboard
+      description: Owner, admin or editor. Audited. Up to 50 per site; names are unique per site, ignoring case.
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/DashboardInput' } }
+      responses:
+        '201':
+          description: Created dashboard (version 1, not the default).
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Dashboard' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: The name is taken or the site reached its limit., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/dashboards/default:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getDefaultDashboard
+      summary: Get the dashboard to open for the site
+      description: The saved dashboard flagged as default, otherwise the built-in dashboard.
+      responses:
+        '200':
+          description: The effective default dashboard.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Dashboard' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: clearDefaultDashboard
+      summary: Return the site to the built-in default dashboard
+      description: Owner, admin or editor. Audited. Idempotent.
+      responses:
+        '204': { description: No saved dashboard is the default any more. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/dashboards/{dashboard}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: dashboard, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getDashboard
+      summary: Get one dashboard
+      responses:
+        '200':
+          description: The dashboard.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Dashboard' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateDashboard
+      summary: Rename or re-lay out a dashboard
+      description: |
+        Owner, admin or editor. `version` must equal the stored version (optimistic concurrency); a mismatch is 409 and the
+        client reloads and merges. A successful update increments `version`.
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/DashboardUpdate' } }
+      responses:
+        '200':
+          description: Updated dashboard.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Dashboard' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Stale version or the name is taken., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    delete:
+      operationId: deleteDashboard
+      summary: Delete a dashboard
+      description: Owner, admin or editor. Audited. A dashboard of another site answers 404. Deleting the default returns the site to the built-in default.
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/dashboards/{dashboard}/duplicate:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: dashboard, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    post:
+      operationId: duplicateDashboard
+      summary: Duplicate a dashboard
+      description: Creates a copy named "<name> (copy)", numbered when that name is taken. The copy is never the default.
+      responses:
+        '201':
+          description: The copy.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Dashboard' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: The site reached its limit., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/dashboards/{dashboard}/default:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: dashboard, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    post:
+      operationId: setDefaultDashboard
+      summary: Make a dashboard the site default
+      description: Owner, admin or editor. Audited. Replaces the previous default atomically; does not change `version`.
+      responses:
+        '200':
+          description: The dashboard, now the default.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Dashboard' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/power-users:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3980,6 +4117,79 @@ components:
         window_to: { type: string, format: date-time }
         sample: { type: array, items: { $ref: '#/components/schemas/CohortMember' } }
         sample_withheld: { type: boolean, description: True when a sample was requested but the caller lacks profiles:read. }
+    DashboardWidgetConfig:
+      type: object
+      additionalProperties: false
+      description: |
+        Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
+        `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
+        (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+      properties:
+        metric: { $ref: '#/components/schemas/Metric' }
+        metrics: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/Metric' } }
+        dimension: { type: string, maxLength: 60, description: 'A known query dimension, or prop:<key>.' }
+        limit: { type: integer, minimum: 1, maximum: 50 }
+        funnel_id: { type: integer, format: int64, minimum: 1 }
+    DashboardWidget:
+      type: object
+      additionalProperties: false
+      required: [id, kind, x, y, w, h]
+      description: A widget on a 12-column grid. Widgets may be placed in any order; clients reflow overlaps.
+      properties:
+        id: { type: string, minLength: 1, maxLength: 40, pattern: '^[a-z0-9][a-z0-9_-]*$', description: Unique within the layout. }
+        kind: { type: string, x-go-type: string, enum: [kpi_strip, time_series, breakdown, map, weekly_rhythm, goals, funnel, retention, web_vitals] }
+        title: { type: string, maxLength: 80 }
+        x: { type: integer, minimum: 0, maximum: 11 }
+        y: { type: integer, minimum: 0, maximum: 199 }
+        w: { type: integer, minimum: 1, maximum: 12, description: x + w must not exceed 12. }
+        h: { type: integer, minimum: 1, maximum: 12 }
+        config: { $ref: '#/components/schemas/DashboardWidgetConfig' }
+        period: { type: string, x-go-type: string, enum: [today, yesterday, 7d, 28d, 30d, 91d, 6mo, 12mo, month, last_month, year], description: Overrides the dashboard period for this widget. }
+        filters: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/Filter' }, description: Added to the dashboard filters for this widget. }
+    DashboardLayout:
+      type: object
+      additionalProperties: false
+      required: [schema_version, widgets]
+      properties:
+        schema_version: { type: integer, enum: [1] }
+        period: { type: string, x-go-type: string, enum: [today, yesterday, 7d, 28d, 30d, 91d, 6mo, 12mo, month, last_month, year], description: Default period (default 30d). }
+        compare: { type: string, x-go-type: string, enum: [off, previous_period, previous_year] }
+        filters: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/Filter' }, description: Applied to every widget. }
+        widgets: { type: array, maxItems: 24, items: { $ref: '#/components/schemas/DashboardWidget' } }
+    DashboardInput:
+      type: object
+      additionalProperties: false
+      required: [name, layout]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        layout: { $ref: '#/components/schemas/DashboardLayout' }
+    DashboardUpdate:
+      type: object
+      additionalProperties: false
+      required: [name, layout, version]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        layout: { $ref: '#/components/schemas/DashboardLayout' }
+        version: { type: integer, minimum: 1, description: The version the client edited. }
+    Dashboard:
+      type: object
+      required: [id, site_id, name, layout, is_default, builtin, version, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64, description: 0 for the built-in dashboard. }
+        site_id: { type: integer, format: int32 }
+        name: { type: string }
+        layout: { $ref: '#/components/schemas/DashboardLayout' }
+        is_default: { type: boolean }
+        builtin: { type: boolean, description: True for the unsaved built-in dashboard, which cannot be edited or deleted. }
+        version: { type: integer }
+        created_by: { type: integer, format: int64, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    DashboardList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Dashboard' } }
     PowerUser:
       type: object
       required: [id, external_id, first_seen_at, last_seen_at, sessions, events]

@@ -520,3 +520,8 @@ func (n Normalized) SQLZone() string {
 	}
 	return n.Location.String()
 }
+
+// ValidDimension reports whether name is a dimension the query engine accepts
+// for breakdowns, including custom properties written prop:<key>. Saved
+// dashboard layouts use it so they can only name dimensions the engine knows.
+func ValidDimension(name string) bool { return knownDimension(name) }
