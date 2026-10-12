@@ -56,6 +56,7 @@ import { en } from '@/messages/en'
 import { useCreateDemo } from '@/features/demo/useDemo'
 import { ui } from '@/messages/ui'
 import { AccountMenu } from './HeaderMenus'
+import { defaultSearch } from '@/lib/search'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
@@ -174,7 +175,7 @@ function navigationLink(
         <Link
           to="/app/$org/$site"
           params={{ org, site }}
-          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
+          search={defaultSearch()}
           {...props}
         >
           {content}
@@ -183,25 +184,25 @@ function navigationLink(
     case '/funnels':
       return <Link to="/app/$org/$site/funnels" params={{ org, site }} {...props}>{content}</Link>
     case '/events':
-      return <Link to="/app/$org/$site/events" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, name: '', property: '' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/events" params={{ org, site }} search={{ ...defaultSearch(), name: '', property: '' }} {...props}>{content}</Link>
     case '/sessions':
-      return <Link to="/app/$org/$site/sessions" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/sessions" params={{ org, site }} search={defaultSearch()} {...props}>{content}</Link>
     case '/journeys':
-      return <Link to="/app/$org/$site/journeys" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/journeys" params={{ org, site }} search={{ ...defaultSearch(), direction: 'start', path: '', steps: 3 }} {...props}>{content}</Link>
     case '/retention':
-      return <Link to="/app/$org/$site/retention" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, interval: 'day', identity: 'anonymous' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/retention" params={{ org, site }} search={{ ...defaultSearch(), interval: 'day', identity: 'anonymous' }} {...props}>{content}</Link>
     case '/profiles':
       return <Link to="/app/$org/$site/profiles" params={{ org, site }} {...props}>{content}</Link>
     case '/cohorts':
-      return <Link to="/app/$org/$site/cohorts" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/cohorts" params={{ org, site }} search={defaultSearch()} {...props}>{content}</Link>
     case '/heatmaps':
-      return <Link to="/app/$org/$site/heatmaps" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true, path: '', device: 'desktop' }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/heatmaps" params={{ org, site }} search={{ ...defaultSearch(), path: '', device: 'desktop' }} {...props}>{content}</Link>
     case '/vitals':
       return (
         <Link
           to="/app/$org/$site/vitals"
           params={{ org, site }}
-          search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
+          search={defaultSearch()}
           {...props}
         >
           {content}
@@ -212,7 +213,7 @@ function navigationLink(
     case '/goals':
       return <Link to="/app/$org/$site/goals" params={{ org, site }} {...props}>{content}</Link>
     case '/revenue':
-      return <Link to="/app/$org/$site/revenue" params={{ org, site }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }} {...props}>{content}</Link>
+      return <Link to="/app/$org/$site/revenue" params={{ org, site }} search={defaultSearch()} {...props}>{content}</Link>
     case '/sites':
       return <Link to="/app/$org/sites" params={{ org }} {...props}>{content}</Link>
     case '/links':
@@ -269,7 +270,7 @@ export function SupermetrySidebar({
                   <Link
                     to="/app/$org/$site"
                     params={{ org: membership.org.slug, site: siteSlug(item) }}
-                    search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
+                    search={defaultSearch()}
                     onClick={closeMobile}
                   >
                     <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} />
@@ -303,7 +304,7 @@ export function SupermetrySidebar({
                     <Link
                       to="/app/$org/$site"
                       params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
-                      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
+                      search={defaultSearch()}
                       onClick={closeMobile}
                     >
                       {item.org.name}

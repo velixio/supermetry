@@ -175,6 +175,11 @@ export function parseDashboardSearch(value: unknown): DashboardSearch {
 }
 
 export const dashboardSearch = { parse: parseDashboardSearch }
+
+/** Search params a fresh link into an analytics page starts from: last 30 days, no comparison, no filters. */
+export function defaultSearch(): Pick<DashboardSearch, 'period' | 'compare' | 'f' | 'metric' | 'include_imported'> {
+  return { period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }
+}
 export type FilterOperator = (typeof filterOperatorValues)[number]
 
 export type Filter = {

@@ -188,4 +188,41 @@ describe('SPA navigation', () => {
     expect(screen.getByRole('menuitem', { name: 'Instance administration' })).toHaveAttribute('href', '/app/admin/users')
     expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument()
   })
+
+  it('keeps every sidebar and switcher link target unchanged', async () => {
+    renderSidebar()
+    await screen.findByRole('link', { name: 'Realtime' })
+    const base = 'period=30d&compare=off&f=%5B%5D&metric=visitors&include_imported=true'
+    const site = '/app/acme/docs-public'
+    const links = ['Analyze', 'Behaviour', 'Conversion', 'Manage'].flatMap((name) =>
+      Array.from(screen.getByRole('navigation', { name }).querySelectorAll('a')).map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
+    )
+    expect(links).toEqual([
+      ['Dashboard', `${site}?${base}`],
+      ['Events', `${site}/events?${base}&name=&property=`],
+      ['Sessions', `${site}/sessions?${base}`],
+      ['Realtime', `${site}/realtime`],
+      ['Replays', `${site}/replays?${base}`],
+      ['Journeys', `${site}/journeys?${base}&direction=start&path=&steps=3`],
+      ['Retention', `${site}/retention?${base}&interval=day&identity=anonymous`],
+      ['Profiles', `${site}/profiles`],
+      ['Cohorts', `${site}/cohorts?${base}`],
+      ['Heatmaps', `${site}/heatmaps?${base}&path=&device=desktop`],
+      ['Web Vitals', `${site}/vitals?${base}`],
+      ['Funnels', `${site}/funnels`],
+      ['Goals', `${site}/goals`],
+      ['Revenue', `${site}/revenue?${base}`],
+      ['Sites', '/app/acme/sites'],
+      ['Links and pixels', `${site}/links`],
+      ['Data health', '/app/acme/health'],
+    ])
+    fireEvent.pointerDown(screen.getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    const menu = await screen.findByRole('menu')
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.getAttribute('href'))).toEqual([
+      `${site}?${base}`,
+      '/app/acme/sites/new',
+      `${site}?${base}`,
+      '/app/account/organizations/new',
+    ])
+  })
 })
