@@ -173,6 +173,8 @@ func ProcessFileInLocation(ctx context.Context, source Source, path string, loca
 		}
 		defer file.Close()
 		return ParseUmamiInLocation(contextReader{ctx, file}, location)
+	case SourceGA4:
+		return parseGA4File(ctx, path)
 	default:
 		return newAggregate(), ParseStats{}, fmt.Errorf("unsupported import source %q", source)
 	}

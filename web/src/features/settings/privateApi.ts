@@ -54,7 +54,7 @@ export function regenerateTOTPRecoveryCodes(body: TOTPReauthentication): Promise
   return privateRequest("POST", "/api/private/me/totp/recovery-codes", { body });
 }
 
-export type ImportSource = "plausible" | "umami";
+export type ImportSource = "plausible" | "umami" | "ga4";
 
 function cookie(name: string): string | undefined {
   const prefix = `${encodeURIComponent(name)}=`;
@@ -77,6 +77,7 @@ export function uploadSiteImport<T>(
   file: File,
   onProgress: (percent: number) => void,
   register: typeof registerPrivateTask = registerPrivateTask,
+  replace = false,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -112,7 +113,7 @@ export function uploadSiteImport<T>(
         }
         return;
       }
-      fail(new Error(`Upload failed (${request.status})`));
+      fail(new Error(problemDetail(request.responseText) ?? `Upload failed (${request.status})`));
     };
     const error = () => fail(new Error("Upload failed"));
     const abort = () => fail(new DOMException("Session changed", "AbortError"));
@@ -121,7 +122,7 @@ export function uploadSiteImport<T>(
         abort();
         request.abort();
       });
-      request.open("POST", `/api/private/sites/${siteId}/imports`);
+      request.open("POST", `/api/private/sites/${siteId}/imports${replace ? "?replace=true" : ""}`);
       request.setRequestHeader("X-Supermetry-Org", String(orgId));
       const csrf = cookie("supermetry_csrf");
       if (csrf) request.setRequestHeader("X-CSRF-Token", csrf);
@@ -137,6 +138,69 @@ export function uploadSiteImport<T>(
       fail(reason);
     }
   });
+}
+
+function problemDetail(text: string): string | undefined {
+  try {
+    const detail = (JSON.parse(text) as { detail?: unknown }).detail;
+    return typeof detail === "string" && detail ? detail : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export type ImportRowError = { row: number; message: string };
+
+export type ImportPreview = {
+  source: ImportSource;
+  file_name: string;
+  rows: number;
+  bad_rows: number;
+  duplicate_rows: number;
+  errors: ImportRowError[];
+  days: number;
+  date_from?: string;
+  date_to?: string;
+  totals: { visitors: number; visits: number; pageviews: number; events: number };
+  dimensions: Record<string, number>;
+  overlap: {
+    imported_days: number;
+    live_days: number;
+    same_file: { import_id: number; imported_at: string } | null;
+  };
+};
+
+/** Dry run: parses the file on the server and reports what an import would add. */
+export async function previewSiteImport(
+  siteId: number,
+  orgId: number,
+  source: ImportSource,
+  file: File,
+  register: typeof registerPrivateTask = registerPrivateTask,
+): Promise<ImportPreview> {
+  const controller = new AbortController();
+  const unregister = register(() => controller.abort());
+  try {
+    const headers = new Headers({ "X-Supermetry-Org": String(orgId) });
+    const csrf = cookie("supermetry_csrf");
+    if (csrf) headers.set("X-CSRF-Token", csrf);
+    const body = new FormData();
+    body.set("source", source);
+    body.set("file", file);
+    const response = await fetch(`/api/private/sites/${siteId}/imports/preview`, {
+      method: "POST",
+      headers,
+      body,
+      credentials: "same-origin",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(problemDetail(await response.text()) ?? `Preview failed (${response.status})`);
+    }
+    return (await response.json()) as ImportPreview;
+  } finally {
+    unregister();
+  }
 }
 
 export async function downloadSiteExport(

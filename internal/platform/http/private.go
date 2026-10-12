@@ -277,6 +277,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/dashboards/{dashboard}/default", h.setDefaultDashboard)
 	mux.HandleFunc("POST /api/private/sites/{site}/imports", h.createImport)
 	mux.HandleFunc("GET /api/private/sites/{site}/imports", h.listImports)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports/preview", h.previewImport)
 	mux.HandleFunc("DELETE /api/private/imports/{import}", h.deleteImport)
 	mux.HandleFunc("GET /api/private/sites/{site}/export", h.exportSite)
 	mux.HandleFunc("GET /api/private/sites/{site}/profiles", h.listProfiles)

@@ -77,6 +77,7 @@ POST /api/private/sites/{site}/goals  # Dashboard or account flow; session/priva
 POST /api/private/sites/{site}/icon/refetch  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/imports/preview  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/links  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/links  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/pixel  # Dashboard or account flow; session/private UI contract.

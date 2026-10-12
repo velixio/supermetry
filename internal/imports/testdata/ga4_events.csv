@@ -1,0 +1,5 @@
+Date,Event name,Event count,Total users
+20240301,page_view,500,100
+20240301,signup,7,6
+20240302,signup,3,3
+20240301,file_download,12,9

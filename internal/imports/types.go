@@ -56,9 +56,28 @@ type Aggregate struct {
 	Dimensions map[DimensionKey]Metrics
 }
 
+// maxRecordedErrors bounds how many row errors a parse keeps for reporting;
+// further bad rows are still counted.
+const maxRecordedErrors = 20
+
+// RowError names an input line that was skipped and why.
+type RowError struct {
+	Row     int    `json:"row"`
+	Message string `json:"message"`
+}
+
 type ParseStats struct {
-	Rows    int64
-	BadRows int64
+	Rows          int64
+	BadRows       int64
+	DuplicateRows int64
+	Errors        []RowError
+}
+
+func (s *ParseStats) badRow(line int, err error) {
+	s.BadRows++
+	if len(s.Errors) < maxRecordedErrors {
+		s.Errors = append(s.Errors, RowError{Row: line, Message: err.Error()})
+	}
 }
 
 func newAggregate() Aggregate {

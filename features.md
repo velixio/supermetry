@@ -75,7 +75,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Alerts: traffic spike or drop, goal hit | ✓ (email, traffic spike) | – | ✓ | ✅ |
 | Webhooks, Slack, Discord | – | – | ✓ | ✅ |
 | CSV export | ✓ | ✓ | ? | ✅ (every report, streamed) |
-| Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ✅ (GA4 import not yet) |
+| Full export; import from Plausible, Umami, GA4 | ✓ | partial | ✓ | ✅ (GA4 CSV import with dry-run preview and undo) |
 | Stats API: summary | ✓ | ✓ | ✓ | ✅ |
 | Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ | ✅ |
 | API: sessions, raw events, properties, suggestions | – | ✓ | ✓ | ✅ |
@@ -123,7 +123,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 11. ~~Retention report~~ ✅ (cross-day for identified profiles; same-day for anonymous visitors)
 12. ~~Alerts: traffic spike or drop, goal hit~~ ✅ (spike window is the whole local day for now)
 13. ~~Annotations on the chart~~ ✅
-14. ~~Importers from Plausible and Umami~~ ✅ (GA4 not yet)
+14. ~~Importers from Plausible and Umami~~ ✅ (GA4 CSV added with preview and undo)
 15. ~~Webhooks, Slack and Discord~~ ✅
 16. ~~MCP server for AI assistants~~ ✅
 17. ~~Web Vitals~~ ✅

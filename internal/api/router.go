@@ -434,6 +434,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/sites/{site}/dashboards/{dashboard}/default",
 		"POST " + privatePrefix + "/sites/{site}/imports",
 		"GET " + privatePrefix + "/sites/{site}/imports",
+		"POST " + privatePrefix + "/sites/{site}/imports/preview",
 		"DELETE " + privatePrefix + "/imports/{import}",
 		"GET " + privatePrefix + "/sites/{site}/export",
 		"GET " + privatePrefix + "/sites/{site}/profiles",

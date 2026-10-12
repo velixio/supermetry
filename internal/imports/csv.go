@@ -18,8 +18,14 @@ type csvTable struct {
 }
 
 func newCSVTable(input io.Reader, stats *ParseStats, required ...string) (*csvTable, error) {
+	return newCSVTableComment(input, stats, 0, required...)
+}
+
+// newCSVTableComment skips lines starting with comment (0 disables it).
+func newCSVTableComment(input io.Reader, stats *ParseStats, comment rune, required ...string) (*csvTable, error) {
 	reader := csv.NewReader(input)
 	reader.FieldsPerRecord = -1
+	reader.Comment = comment
 	row, err := reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("read CSV header: %w", err)
@@ -50,20 +56,28 @@ func (t *csvTable) each(fn func(csvRow) error) error {
 			if !errors.As(err, &parseErr) {
 				return err
 			}
-			t.stats.BadRows++
+			t.stats.badRow(parseErr.StartLine, parseErr.Err)
 			continue
 		}
-		if err := fn(csvRow{values: values, header: t.header}); err != nil {
+		line, _ := t.reader.FieldPos(0)
+		if err := fn(csvRow{values: values, header: t.header, line: line}); err != nil {
+			if errors.Is(err, errSkipRow) {
+				continue
+			}
 			var fatal fatalError
 			if errors.As(err, &fatal) {
 				return fatal.err
 			}
-			t.stats.BadRows++
+			t.stats.badRow(line, err)
 			continue
 		}
 		t.stats.Rows++
 	}
 }
+
+// errSkipRow ends a row without counting it as accepted or bad (the callback
+// has already recorded why, e.g. as a duplicate).
+var errSkipRow = errors.New("row skipped")
 
 // fatalError aborts a parse instead of counting the current row as bad.
 type fatalError struct{ err error }
@@ -74,6 +88,7 @@ func (e fatalError) Unwrap() error { return e.err }
 type csvRow struct {
 	values []string
 	header map[string]int
+	line   int
 }
 
 func (r csvRow) text(name string) string {

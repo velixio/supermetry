@@ -259,6 +259,21 @@ Rules worth knowing:
 - A scheduled job imports due connections every 30 minutes, at most 7 days per connection per run, up to two days behind today (the provider lags). The last 3 days are re-fetched on every run, and a day is replaced as a whole, so reruns never duplicate and revised numbers win.
 - Failures back off (5 minutes doubling to 6 hours); a revoked grant parks the connection as `reauth` until the user reconnects.
 - Storage keeps the top 5,000 rows per day, 490 days and 3,000,000 rows per site (oldest days are dropped first). Search queries are never shown through public share links.
+## Imports (session endpoints, owner or admin)
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/api/private/sites/{site}/imports` | Multipart `source` (`plausible`, `umami` or `ga4`) and `file`; `?replace=true` replaces an earlier import of the identical file. Answers `202`; the import runs in the background. |
+| POST | `/api/private/sites/{site}/imports/preview` | Same upload, dry run: parses with the import limits and stores nothing. Returns `rows`, `bad_rows`, `duplicate_rows`, up to 20 `errors` (`row`, `message`), `days`, `date_from`, `date_to`, `totals`, per-dimension `dimensions` counts and `overlap` (`imported_days`, `live_days`, `same_file`). |
+| GET | `/api/private/sites/{site}/imports` | History, newest first. |
+| DELETE | `/api/private/imports/{import}` | Undo: removes the imported batch. |
+
+GA4 input is a CSV from the Data API, a GA4 report export (lines starting with `#` are ignored) or a BigQuery-style table. Needed: a `Date` (or `event_date`) column as `YYYYMMDD` or `YYYY-MM-DD`, and at least one of `Active users`, `Sessions`, `Views`, `Event count`. Optional breakdowns: page path, landing page, session source, country, region, city, device category, browser, operating system, event name. Dates are taken as the civil day already in the property's time zone. Bounce rate and average session duration are turned into bounced sessions and total visit seconds.
+
+- A file with only a date and metrics gives exact daily totals. With breakdown columns, only additive metrics reach the daily totals (views always; sessions only without a page column), because users and per-page sessions do not add up across rows.
+- Exact duplicate rows in one file are ignored and counted. Invalid rows are skipped with their line number. Limits: 512 MB per upload, 3,000,000 rows, 2,000,000 distinct day and value keys.
+- Overlap: per day, the newest completed import wins and live data always wins, so re-importing an overlapping range never double counts. Undo restores the previous source for those days.
+- Imported rows stay separate from live data and follow the existing `include_imported` query option.
 
 ## Operations endpoints
 
