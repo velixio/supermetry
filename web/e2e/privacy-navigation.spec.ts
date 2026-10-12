@@ -196,6 +196,10 @@ async function loginReplayReader(page: Page, owner: Owner, email: string) {
 
 test('identified owners and admins retain replay navigation with profiles off and recording on or off', async ({ page, owner }) => {
   test.skip(process.env.SUPERMETRY_TRACKING_MODE !== 'identified' || process.env.SUPERMETRY_REPLAY_ENABLED !== 'true', 'Requires real identified mode and instance replay permission.')
+  // New projects now start with profiles on; this scenario needs them off.
+  const profiles = (enabled: boolean) => page.request.patch(`/api/private/sites/${owner.siteId}`, { headers: owner.apiHeaders, data: { profiles_enabled: enabled } })
+  const turnedOff = await profiles(false)
+  expect(turnedOff.ok(), await turnedOff.text()).toBe(true)
   expect(syntheticSQL(owner, `select coalesce(settings->>'profiles_enabled','false') from sites where id=${owner.siteId}`)).toBe('false')
   const admin = seedReplayReader(owner, 'admin')
   const seen = watchPrivacyRequests(page)
@@ -227,6 +231,7 @@ test('identified owners and admins retain replay navigation with profiles off an
       })
     }
   }
+  await profiles(true)
 })
 
 test('identified viewer without replay grant has no replay navigation or history requests', async ({ page, owner }) => {
