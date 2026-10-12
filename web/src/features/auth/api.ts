@@ -1,4 +1,5 @@
 import { en } from '@/messages/en'
+import { ApiProblem, readApiProblem } from '@/lib/apiProblem'
 
 export type LoginCredentials = {
   email: string
@@ -6,20 +7,12 @@ export type LoginCredentials = {
   totp?: string
 }
 
-export type LoginResult = { ok: boolean; type?: string }
+export type LoginResult = { ok: boolean; problem?: ApiProblem; type?: string }
 export type SignupMode = 'open' | 'invite'
 export type AuthConfig = {
   signup: SignupMode
   setup_required: boolean
   homepage_url: string
-}
-
-type Problem = { type?: string }
-
-function problemType(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const type = (value as Problem).type
-  return type?.split('/').pop()
 }
 
 async function request(path: string, init: RequestInit, fetcher = globalThis.fetch): Promise<Response> {
@@ -34,9 +27,8 @@ export function createAuthApi(fetcher = globalThis.fetch) {
   return async (path: string, body: Record<string, string>): Promise<LoginResult> => {
     const response = await request(path, { method: 'POST', body: JSON.stringify(body) }, fetcher)
     if (response.ok) return { ok: true }
-    let problem: unknown
-    try { problem = await response.json() } catch { problem = undefined }
-    return { ok: false, type: problemType(problem) }
+    const problem = await readApiProblem(response)
+    return { ok: false, problem, type: problem.type }
   }
 }
 
@@ -56,8 +48,20 @@ export async function authResultMessage(operation: () => Promise<LoginResult>): 
   try {
     const result = await operation()
     if (result.ok) return en.auth.success
-    return result.type === 'password-policy' ? en.auth.passwordPolicy : en.auth.genericError
-  } catch {
-    return en.auth.genericError
+    return result.type?.endsWith('password-policy') ? en.auth.passwordPolicy : authProblemMessage(result.problem)
+  } catch (error) {
+    return error instanceof ApiProblem ? authProblemMessage(error) : en.auth.networkError
   }
+}
+
+export function authProblemMessage(problem?: ApiProblem): string {
+  const type = problem?.type?.split('/').pop()?.toLowerCase() ?? ''
+  const description = `${problem?.title ?? ''} ${problem?.detail ?? ''}`.toLowerCase()
+  if (type.includes('password-policy')) return en.auth.passwordPolicy
+  if (/(setup|invite|reset).*(invalid|expired|used)|(invalid|expired|used).*(setup|invite|reset)/.test(type) || /(?:invitation|setup|reset) (?:is )?invalid|token is invalid|token is expired/.test(description)) return en.auth.invalidToken
+  if (problem?.status === 429) return en.auth.rateLimited
+  if (problem?.status === 403 && (/origin/.test(type) || /origin/.test(description))) return en.auth.originMismatch
+  if (problem?.status && problem.status >= 500) return en.auth.serverError
+  if (problem?.status === 401 || /invalid-credentials|invalid-password|authentication/.test(type)) return en.auth.invalidCredentials
+  return en.auth.genericError
 }

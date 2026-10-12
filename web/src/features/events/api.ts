@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { components } from '@/lib/api.gen'
 import { serializeFilters, type Filter } from '@/lib/search'
+import { apiProblem } from '@/lib/apiProblem'
 
 import type { EventExploreList, PropertyKeyCount, PropertyValueCount, Suggestion } from './types'
 
@@ -32,7 +33,7 @@ async function request<T>(path: string, orgId: number, query: Record<string, unk
   const { data, error, response } = await exploreApi.GET<T>(path, {
     params: { header: { 'X-Supermetry-Org': String(orgId) }, query },
   })
-  if (error || !response.ok) throw new Error(error?.detail ?? `Request failed (${response.status})`)
+  if (error || !response.ok) throw apiProblem(response, error)
   if (data === undefined) throw new Error('The response was empty.')
   return data
 }

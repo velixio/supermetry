@@ -103,13 +103,25 @@ describe('login form', () => {
   it('turns auth network failures into a generic message', async () => {
     await expect(
       authResultMessage(() => Promise.reject(new Error('offline'))),
-    ).resolves.toBe(en.auth.genericError)
+    ).resolves.toBe(en.auth.networkError)
   })
 
   it('explains password policy failures', async () => {
     await expect(
       authResultMessage(() => Promise.resolve({ ok: false, type: 'password-policy' })),
     ).resolves.toBe(en.auth.passwordPolicy)
+  })
+
+  it('maps auth problem statuses and types to useful messages', async () => {
+    const { ApiProblem } = await import('@/lib/apiProblem')
+    for (const [problem, message] of [
+      [new ApiProblem(429), en.auth.rateLimited],
+      [new ApiProblem(403, { type: 'https://supermetry.com/problems/origin-mismatch' }), en.auth.originMismatch],
+      [new ApiProblem(503), en.auth.serverError],
+      [new ApiProblem(400, { detail: 'setup is invalid or has already completed' }), en.auth.invalidToken],
+    ] as const) {
+      await expect(authResultMessage(() => Promise.resolve({ ok: false, problem }))).resolves.toBe(message)
+    }
   })
 
   it('keeps authentication 401 problems in the login flow', async () => {
@@ -126,7 +138,7 @@ describe('login form', () => {
       password: 'pw-123456789',
     })
 
-    expect(result).toEqual({ ok: false, type: 'totp-required' })
+    expect(result).toMatchObject({ ok: false, type: 'https://supermetry.com/problems/totp-required', problem: { status: 401, type: 'https://supermetry.com/problems/totp-required' } })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 

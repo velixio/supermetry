@@ -1,5 +1,6 @@
 import { privateRequest } from '@/features/settings/privateApi'
 import { api } from '@/lib/api'
+import { apiProblem } from '@/lib/apiProblem'
 
 import type { ManagedSite, SiteInput, SiteUpdate } from './types'
 import type { DeletionResult } from '@/features/lifecycle/api'
@@ -102,9 +103,8 @@ export async function refetchSiteIcon(siteId: number, orgId: number): Promise<Ma
     },
   })
   if (!response.ok || !data) {
-    const problem = error as { detail?: string } | undefined
     throw new SiteIconRefetchError(
-      problem?.detail ?? `Request failed (${response.status})`,
+      apiProblem(response, error).message,
       response.status,
     )
   }

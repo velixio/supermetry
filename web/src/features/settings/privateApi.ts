@@ -1,5 +1,6 @@
 import { registerPrivateTask } from "@/lib/session-lifecycle";
 import { api } from "@/lib/api";
+import { apiProblem } from "@/lib/apiProblem";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type ApiResult = { data?: unknown; error?: unknown; response: Response };
@@ -22,10 +23,7 @@ export async function privateRequest<T>(
     params: headers ? { header: headers } : undefined,
   });
   if (!result.response.ok) {
-    const problem = result.error as { detail?: string } | undefined;
-    throw new Error(
-      problem?.detail ?? `Request failed (${result.response.status})`,
-    );
+    throw apiProblem(result.response, result.error);
   }
   return result.data as T;
 }

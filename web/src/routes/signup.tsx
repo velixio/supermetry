@@ -11,7 +11,7 @@ import { signedInRedirect } from '@/lib/signed-in'
 import { applyPreferredTheme } from '@/lib/theme'
 
 import { AuthScreen } from '@/features/auth/AuthScreen'
-import { createAuthConfigApi, postPrivate, type LoginResult, type SignupMode } from '@/features/auth/api'
+import { authProblemMessage, createAuthConfigApi, postPrivate, type LoginResult, type SignupMode } from '@/features/auth/api'
 
 export type SignupInput = {
   email: string
@@ -104,10 +104,10 @@ export function SignupPageContent({
       if (result.ok) {
         onSuccess('/')
       } else {
-		setError(result.type === 'password-policy' ? en.auth.passwordPolicy : en.auth.signupError)
+        setError(result.type?.endsWith('password-policy') ? en.auth.passwordPolicy : authProblemMessage(result.problem))
       }
-    } catch {
-      setError(en.auth.signupError)
+    } catch (reason) {
+      setError(reason instanceof TypeError ? en.auth.networkError : en.auth.serverError)
     } finally {
       setPending(false)
     }

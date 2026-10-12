@@ -36,17 +36,17 @@ describe('setup route', () => {
     expect(fetch).toHaveBeenCalledOnce()
   })
 
-  it('redirects a signed-out visitor without a token to login without probing availability', async () => {
+  it('marks a signed-out visitor without a token as invalid without probing availability', async () => {
     const fetch = setupFetch()
 
-    await expect(setupRouteDestination(undefined, fetch)).resolves.toBe('/login')
+    await expect(setupRouteDestination(undefined, fetch)).resolves.toBe('invalid')
     expect(fetch).toHaveBeenCalledOnce()
   })
 
-  it('redirects to login when setup is unavailable', async () => {
+  it('marks setup as invalid when setup is unavailable', async () => {
     const fetch = setupFetch({ available: false })
 
-    await expect(setupRouteDestination('setup-token', fetch)).resolves.toBe('/login')
+    await expect(setupRouteDestination('setup-token', fetch)).resolves.toBe('invalid')
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
@@ -61,6 +61,6 @@ describe('setup route', () => {
   it('fails closed when setup availability cannot be checked', async () => {
     const fetch = setupFetch({ status: 503 })
 
-    await expect(setupRouteDestination('setup-token', fetch)).resolves.toBe('/login')
+    await expect(setupRouteDestination('setup-token', fetch)).resolves.toBe('invalid')
   })
 })
