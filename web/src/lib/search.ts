@@ -147,6 +147,13 @@ export type DashboardSearch = {
   metric: DashboardMetric
   live?: boolean
   include_imported: boolean
+  /** Saved dashboard id, or 'builtin' for the standard dashboard; absent follows the site default. */
+  dash?: string
+}
+
+function searchDash(value: unknown): string | undefined {
+  const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value : undefined
+  return text !== undefined && /^(builtin|[1-9][0-9]{0,11})$/.test(text) ? text : undefined
 }
 
 export function parseDashboardSearch(value: unknown): DashboardSearch {
@@ -162,6 +169,7 @@ export function parseDashboardSearch(value: unknown): DashboardSearch {
     metric: searchEnum(search.metric, metricValues, 'visitors'),
     ...(search.live === undefined ? {} : { live: searchBoolean(search.live) }),
     include_imported: search.include_imported === undefined || searchBoolean(search.include_imported),
+    ...(searchDash(search.dash) ? { dash: searchDash(search.dash) } : {}),
   }
 }
 
