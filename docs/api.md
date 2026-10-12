@@ -114,6 +114,27 @@ How the numbers are computed:
 
 Reads need `stats:read`. Every write is recorded in the organization's audit log.
 
+## Short links and tracking pixels
+
+Short links redirect through your own domain and count clicks without storing IP addresses. The management endpoints belong to the dashboard session API (`/api/private`); viewers can read, editors and above can change.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET/POST /sites/{site}/links` | List and create links (a site holds at most 500) |
+| `GET/PATCH/DELETE /links/{link}` | Read, change and delete one link |
+| `GET /links/{link}/stats?from&to` | Clicks per day (site time zone), countries, referrer hosts and devices; range up to 366 days, default last 30 days |
+| `GET /sites/{site}/pixel?campaign=` | Pixel image URL and HTML snippet |
+| `GET /sites/{site}/pixel/stats?from&to` | Impressions per day and per campaign |
+
+A link has a `slug` (2 to 64 lowercase letters, digits, `-` or `_`; reserved words such as `api` or `admin` are refused; generated when omitted), a `name`, a `destination`, optional default `utm_*` parameters, `enabled`, optional `expires_at` and optional `click_limit`. Destinations must be absolute `http` or `https` URLs of at most 2048 characters with no credentials, spaces or control characters, and may not point back at a short link. Changes are recorded in the audit log without the destination.
+
+Public endpoints, no authentication:
+
+- `GET /l/{slug}` answers `302` to the stored destination with the default UTM parameters appended unless the destination already sets them. The destination never comes from the request, so there is no open redirect. Disabled and unknown links answer `404`; expired links and links past their click limit answer `410`. Each client address is rate limited (`429` with `Retry-After`).
+- `GET /px/{public_id}.gif?c=campaign` always answers with a 1x1 transparent GIF, whether or not the hit was counted. The optional `c` tag is up to 64 letters, digits, `.`, `_`, `:` or `-`; an invalid tag is ignored.
+
+Bots, and visitors who send Do Not Track or Global Privacy Control on a site that respects them, are redirected but not counted. Counts are aggregated in memory and written in batches every few seconds and on shutdown, so a click appears in statistics after a short delay; click limits are enforced from the same buffer and can overshoot by at most one in-flight request per instance.
+
 ## Send events from your server
 
 `POST /api/public/v1/events` accepts the same payload as the browser tracker, so you can record signups, purchases or API usage from your backend.

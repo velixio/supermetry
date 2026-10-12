@@ -13,7 +13,7 @@ describe('primary sidebar navigation', () => {
   it('shows only supported analytics navigation for anonymous or missing policy', () => {
     const anonymous: Site = { id: 7, name: 'Docs', tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: [] } }
     for (const site of [anonymous, undefined]) {
-      expect(visibleNavigation('owner', true, { effective_capabilities: ['profiles.read', 'replay.read'] }, site).map((item) => item.suffix)).toEqual(['', '/sites', '/health'])
+      expect(visibleNavigation('owner', true, { effective_capabilities: ['profiles.read', 'replay.read'] }, site).map((item) => item.suffix)).toEqual(['', '/sites', '/links', '/health'])
     }
   })
 

@@ -19,6 +19,10 @@ POST /api/private/heatmaps/query  # Dashboard or account flow; session/private U
 DELETE /api/private/imports/{import}  # Dashboard or account flow; session/private UI contract.
 POST /api/private/invitations/{token}/accept  # Dashboard or account flow; session/private UI contract.
 POST /api/private/journeys/query  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/links/{link}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/links/{link}  # Dashboard or account flow; session/private UI contract.
+PATCH /api/private/links/{link}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/links/{link}/stats  # Dashboard or account flow; session/private UI contract.
 GET /api/private/me/ip  # Dashboard or account flow; session/private UI contract.
 DELETE /api/private/me/sessions  # Dashboard or account flow; session/private UI contract.
 GET /api/private/me/sessions  # Dashboard or account flow; session/private UI contract.
@@ -73,6 +77,10 @@ POST /api/private/sites/{site}/goals  # Dashboard or account flow; session/priva
 POST /api/private/sites/{site}/icon/refetch  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/links  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/links  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/pixel  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/pixel/stats  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/profiles  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/properties  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/properties/{key}/values  # Dashboard or account flow; session/private UI contract.
@@ -101,4 +109,3 @@ GET /js/  # Browser tracker asset; not a JSON API operation.
 GET /js/script.full.js  # Browser tracker asset; not a JSON API operation.
 GET /js/script.js  # Browser tracker asset; not a JSON API operation.
 GET /replay.js  # Browser tracker asset; not a JSON API operation.
-

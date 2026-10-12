@@ -2113,6 +2113,57 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /l/{slug}:
+    get:
+      operationId: followShortLink
+      security: []
+      summary: Redirect a managed short link
+      description: >-
+        Public endpoint. Answers 302 with the destination stored on the link, with the link's default UTM
+        parameters appended when the destination does not already set them. The destination is never taken
+        from the request, so the endpoint cannot be used as an open redirect. Bots and requests that send
+        a Do Not Track or Global Privacy Control signal on a site that respects them are redirected but not
+        counted. Disabled and unknown links answer 404; expired links and links past their click limit
+        answer 410.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-z0-9][a-z0-9_-]{1,63}$' }
+      responses:
+        '302':
+          description: Redirect to the destination.
+          headers:
+            Location: { schema: { type: string, format: uri } }
+        '404': { description: The link does not exist or is disabled. }
+        '410': { description: The link has expired or reached its click limit. }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /px/{file}:
+    get:
+      operationId: trackingPixel
+      security: []
+      summary: Record a tracking pixel impression
+      description: >-
+        Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same
+        1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query
+        parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore,
+        colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored.
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema: { type: string, maxLength: 70 }
+        - name: c
+          in: query
+          required: false
+          schema: { type: string, maxLength: 64 }
+      responses:
+        '200':
+          description: A 1x1 transparent GIF.
+          content:
+            image/gif:
+              schema: { type: string, format: binary }
   /healthz:
     get:
       operationId: healthz

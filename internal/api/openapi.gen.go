@@ -3402,6 +3402,11 @@ type StatsTimeseriesParams struct {
 	Interval        *string `form:"interval,omitempty" json:"interval,omitempty"`
 }
 
+// TrackingPixelParams defines parameters for TrackingPixel.
+type TrackingPixelParams struct {
+	C *string `form:"c,omitempty" json:"c,omitempty"`
+}
+
 // AdminSetTwoFactorExemptionJSONRequestBody defines body for AdminSetTwoFactorExemption for application/json ContentType.
 type AdminSetTwoFactorExemptionJSONRequestBody = AdminTwoFactorExemption
 
@@ -4229,9 +4234,15 @@ type ServerInterface interface {
 	// Healthz Check process health
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
+	// FollowShortLink Redirect a managed short link
+	// (GET /l/{slug})
+	FollowShortLink(w http.ResponseWriter, r *http.Request, slug string)
 	// Metrics Get Prometheus metrics
 	// (GET /metrics)
 	Metrics(w http.ResponseWriter, r *http.Request)
+	// TrackingPixel Record a tracking pixel impression
+	// (GET /px/{file})
+	TrackingPixel(w http.ResponseWriter, r *http.Request, file string, params TrackingPixelParams)
 	// Readyz Check service readiness
 	// (GET /readyz)
 	Readyz(w http.ResponseWriter, r *http.Request)
@@ -8201,11 +8212,79 @@ func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
+// FollowShortLink operation middleware
+func (siw *ServerInterfaceWrapper) FollowShortLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FollowShortLink(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Metrics operation middleware
 func (siw *ServerInterfaceWrapper) Metrics(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Metrics(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) TrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "file" -------------
+	var file string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file", r.PathValue("file"), &file, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TrackingPixelParams
+
+	// ------------- Optional query parameter "c" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "c", r.URL.Query(), &params.C, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "c"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "c", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TrackingPixel(w, r, file, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8443,6 +8522,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties", wrapper.ListProperties)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties/{property_key}/values", wrapper.ListPropertyValues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/suggestions", wrapper.ListSuggestions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/l/{slug}", wrapper.FollowShortLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/px/{file}", wrapper.TrackingPixel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

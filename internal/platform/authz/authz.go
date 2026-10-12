@@ -39,6 +39,7 @@ const (
 	ActionGoalsEdit       Action = "goals.edit"
 	ActionSegmentsEdit    Action = "segments.edit"
 	ActionAnnotationsEdit Action = "annotations.edit"
+	ActionLinksManage     Action = "links.manage"
 	ActionSiteCreate      Action = "site.create"
 	ActionSiteDelete      Action = "site.delete"
 	ActionMembersManage   Action = "members.manage"
@@ -57,7 +58,7 @@ const (
 var roleActions = map[Role]map[Action]bool{
 	RoleOwner: {
 		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true, ActionBillingManage: true,
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionSiteCreate: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionLinksManage: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
@@ -65,14 +66,14 @@ var roleActions = map[Role]map[Action]bool{
 	},
 	RoleAdmin: {
 		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true,
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionSiteCreate: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionLinksManage: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
 		ActionOrgUpdate: true,
 	},
 	RoleEditor: {
-		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true,
+		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionLinksManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionChannelsRead: true, ActionAlertsManage: true,
 	},
 	RoleViewer: {
@@ -137,7 +138,7 @@ func Can(p Principal, action Action, siteID int32) bool {
 
 func isSiteAction(action Action) bool {
 	switch action {
-	case ActionProfilesRead, ActionReplayRead, ActionDataExport, ActionSiteDelete, ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSegmentsEdit, ActionAnnotationsEdit, ActionSharesManage, ActionReportsManage, ActionAlertsManage:
+	case ActionProfilesRead, ActionReplayRead, ActionDataExport, ActionSiteDelete, ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSegmentsEdit, ActionAnnotationsEdit, ActionLinksManage, ActionSharesManage, ActionReportsManage, ActionAlertsManage:
 		return true
 	default:
 		return false

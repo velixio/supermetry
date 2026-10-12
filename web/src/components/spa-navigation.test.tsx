@@ -113,7 +113,7 @@ describe('SPA navigation', () => {
       Analyze: ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays'],
       Behaviour: ['Journeys', 'Retention', 'Profiles', 'Heatmaps', 'Web Vitals'],
       Conversion: ['Funnels', 'Goals', 'Revenue'],
-      Manage: ['Sites', 'Data health'],
+      Manage: ['Sites', 'Links and pixels', 'Data health'],
     }
     for (const [name, links] of Object.entries(expected)) {
       const navigation = await screen.findByRole('navigation', { name })
