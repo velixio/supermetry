@@ -19,6 +19,7 @@ import (
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/orgs"
 	"supermetry/internal/platform/store"
+	coresites "supermetry/internal/sites"
 )
 
 func (h *handler) currentIP(w http.ResponseWriter, r *http.Request) {
@@ -123,11 +124,12 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 		       coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 		       coalesce(settings->>'icon_url',''),coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 		       coalesce(revenue_currency::text,''),revenue_currency_state,
-		       is_demo,demo_seeded_at is not null
-		from sites
-		where org_id=$1 and deleted_at is null
-		  and ($2::integer[] is null or id=any($2))
-		order by name,id`, membership.OrgID, membership.SiteIDs)
+		       is_demo,demo_seeded_at is not null,
+		       (select last_event_at from site_last_event where site_id=s.id)
+		from sites s
+		where s.org_id=$1 and s.deleted_at is null
+		  and ($2::integer[] is null or s.id=any($2))
+		order by s.name,s.id`, membership.OrgID, membership.SiteIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -139,11 +141,18 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 		var retention int16
 		if err := rows.Scan(&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.Timezone, &retention,
 			&site.AllowedHosts, &site.ExcludeIPs, &site.ExcludePaths, &site.IconURL, &site.ProfilesEnabled,
-			&site.RevenueCurrency, &site.RevenueCurrencyState, &site.IsDemo, &site.DemoReady); err != nil {
+			&site.RevenueCurrency, &site.RevenueCurrencyState, &site.IsDemo, &site.DemoReady, &site.LastSeenAt); err != nil {
 			return nil, err
 		}
 		site.RetentionDays = int(db.RetentionClass(retention))
+		if site.LastSeenAt == nil {
+			site.LastSeenAt, err = coresites.LastEventAt(ctx, h.deps.Store.Pool, site.ID, db.RetentionClass(retention), h.deps.Now())
+			if err != nil {
+				return nil, err
+			}
+		}
 		site.TrackingPolicy = h.trackingPolicy(site.ProfilesEnabled)
+		site.InstallStatus = coresites.InstallStatusAt(site.LastSeenAt, h.deps.Now())
 		sites = append(sites, site)
 	}
 	return sites, rows.Err()

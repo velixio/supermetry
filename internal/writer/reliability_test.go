@@ -168,6 +168,50 @@ func TestCurrentDayCopyDoesNotTakeSharedDayCloseLock(t *testing.T) {
 	}
 }
 
+func TestConcurrentEventBatchesNeverMoveLastEventBackwards(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, day, day.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+insert into orgs(id,name,slug) overriding system value values(1,'Writer','writer');
+insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values(1,1,'writer000001','Writer','UTC',30)`); err != nil {
+		t.Fatal(err)
+	}
+
+	w := New(pool, nil, 10, time.Hour, time.Hour)
+	errors := make(chan error, 2)
+	start := make(chan struct{})
+	for index, timestamp := range []time.Time{day.Add(time.Hour), day.Add(5 * time.Hour)} {
+		go func(index int, timestamp time.Time) {
+			<-start
+			event := reliabilityEvent(day)
+			event.TS = timestamp
+			event.SessionID = int64(index + 1)
+			event.VisitorID = int64(index + 1)
+			errors <- w.copyEvents(ctx, []Event{event})
+		}(index, timestamp)
+	}
+	close(start)
+	for range 2 {
+		if err := <-errors; err != nil {
+			t.Fatal(err)
+		}
+	}
+	var got time.Time
+	if err := pool.QueryRow(ctx, `select last_event_at from site_last_event where site_id=1`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if want := day.Add(5 * time.Hour); !got.Equal(want) {
+		t.Fatalf("last event=%s, want %s", got, want)
+	}
+}
+
 func TestOlderLocalDaysUsesEventDayForUnregisteredEastOfUTC(t *testing.T) {
 	now := time.Date(2030, time.January, 1, 18, 45, 0, 0, time.UTC)
 	eventDay := time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC)

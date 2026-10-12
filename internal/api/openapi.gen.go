@@ -880,6 +880,27 @@ func (e ShareTheme) Valid() bool {
 	}
 }
 
+// Defines values for SiteInstallStatus.
+const (
+	SiteInstallStatusQuiet     SiteInstallStatus = "quiet"
+	SiteInstallStatusReceiving SiteInstallStatus = "receiving"
+	SiteInstallStatusWaiting   SiteInstallStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the SiteInstallStatus enum.
+func (e SiteInstallStatus) Valid() bool {
+	switch e {
+	case SiteInstallStatusQuiet:
+		return true
+	case SiteInstallStatusReceiving:
+		return true
+	case SiteInstallStatusWaiting:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SiteRevenueCurrencyState.
 const (
 	SiteRevenueCurrencyConfigured   SiteRevenueCurrencyState = "configured"
@@ -2107,7 +2128,13 @@ type Site struct {
 	ExcludePaths    []string   `json:"exclude_paths"`
 	HeatmapsEnabled bool       `json:"heatmaps_enabled"`
 	Id              int32      `json:"id"`
-	IsDemo          bool       `json:"is_demo"`
+
+	// InstallStatus Derived from the site's most recent accepted event.
+	InstallStatus SiteInstallStatus `json:"install_status"`
+	IsDemo        bool              `json:"is_demo"`
+
+	// LastSeenAt Timestamp of the site's most recent accepted event, or null before the first event.
+	LastSeenAt      *time.Time `json:"last_seen_at"`
 	Name            string     `json:"name"`
 	OrgId           int64      `json:"org_id"`
 	ProfilesEnabled bool       `json:"profiles_enabled"`
@@ -2124,6 +2151,9 @@ type Site struct {
 	StrictOrigin bool   `json:"strict_origin"`
 	Timezone     string `json:"timezone"`
 }
+
+// SiteInstallStatus Derived from the site's most recent accepted event.
+type SiteInstallStatus string
 
 // SiteRevenueCurrencyState defines model for Site.RevenueCurrencyState.
 type SiteRevenueCurrencyState string

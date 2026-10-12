@@ -1611,6 +1611,16 @@ export interface components {
             revenue_currency?: string;
             /** @enum {string} */
             revenue_currency_state: "unconfigured" | "configured" | "conflict";
+            /**
+             * @description Derived from the site's most recent accepted event.
+             * @enum {string}
+             */
+            install_status: "waiting" | "receiving" | "quiet";
+            /**
+             * Format: date-time
+             * @description Timestamp of the site's most recent accepted event, or null before the first event.
+             */
+            last_seen_at: string | null;
             is_demo: boolean;
             demo_ready: boolean;
             /** Format: date-time */

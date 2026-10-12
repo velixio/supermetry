@@ -97,6 +97,77 @@ func TestFlushOnShutdownAndLateEventMarksDirty(t *testing.T) {
 	}
 }
 
+func TestCopyEventsUpsertsLatestEventOncePerSite(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, day, day.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	seedWriterSites(t, pool, 1, 2)
+
+	w := writer.New(pool, nil, 10, time.Hour, time.Hour)
+	events := []writer.Event{
+		testEventForSite(day.Add(4*time.Hour), 1, 1),
+		testEventForSite(day.Add(2*time.Hour), 1, 2),
+		testEventForSite(day.Add(3*time.Hour), 2, 3),
+	}
+	if !w.Enqueue(events[0]) || !w.Enqueue(events[1]) || !w.Enqueue(events[2]) {
+		t.Fatal("events rejected")
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	stopped := runWriter(w, runCtx)
+	cancel()
+	waitStopped(t, stopped)
+
+	assertLastEvent(t, pool, 1, day.Add(4*time.Hour))
+	assertLastEvent(t, pool, 2, day.Add(3*time.Hour))
+
+	w = writer.New(pool, nil, 10, time.Hour, time.Hour)
+	if !w.Enqueue(testEventForSite(day.Add(time.Hour), 1, 4)) {
+		t.Fatal("older event rejected")
+	}
+	runCtx, cancel = context.WithCancel(ctx)
+	stopped = runWriter(w, runCtx)
+	cancel()
+	waitStopped(t, stopped)
+	assertLastEvent(t, pool, 1, day.Add(4*time.Hour))
+}
+
+func seedWriterSites(t *testing.T, pool *pgxpool.Pool, ids ...int32) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `insert into orgs(id,name,slug) overriding system value values(1,'Writer','writer') on conflict do nothing`); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range ids {
+		if _, err := pool.Exec(ctx, `insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value values($1,1,$2,$2,'UTC',30)`, id, fmt.Sprintf("writer%06d", id)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func testEventForSite(timestamp time.Time, siteID int32, sequence int) writer.Event {
+	event := testEvent(timestamp.Truncate(24*time.Hour), sequence)
+	event.SiteID = siteID
+	event.TS = timestamp
+	return event
+}
+
+func assertLastEvent(t *testing.T, pool *pgxpool.Pool, siteID int32, want time.Time) {
+	t.Helper()
+	var got time.Time
+	if err := pool.QueryRow(context.Background(), `select last_event_at from site_last_event where site_id=$1`, siteID).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.Equal(want) {
+		t.Fatalf("site %d last event=%s, want %s", siteID, got, want)
+	}
+}
+
 func TestPGOutageThenRecoveryNoDoubleCount(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()

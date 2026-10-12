@@ -77,7 +77,8 @@ type Site = {
   retention_days: number;
   profiles_enabled: boolean;
   tracking_policy?: TrackingPolicy;
-  last_event_received_at?: string;
+  install_status?: "waiting" | "receiving" | "quiet";
+  last_seen_at?: string | null;
   icon_url?: string;
   revenue_currency?: string;
   revenue_currency_state: "unconfigured" | "configured" | "conflict";
@@ -375,8 +376,7 @@ export function InstallationPage({
     queryKey: ["tracking-status", siteId],
     queryFn: () =>
       privateRequest<Site>("GET", `/api/private/sites/${siteId}`, { orgId }),
-    refetchInterval: (query) =>
-      installationStatusInterval(query.state.data?.last_event_received_at),
+    refetchInterval: installationStatusInterval,
     enabled: !isDemo,
   });
   const snippet = useQuery({
@@ -400,7 +400,8 @@ export function InstallationPage({
           publicId={publicId}
           snippet={snippet.data?.snippet}
           fullSnippet={snippet.data?.full_snippet}
-          lastEventReceivedAt={status.data?.last_event_received_at}
+          installStatus={status.data?.install_status}
+          lastSeenAt={status.data?.last_seen_at}
           revenueCurrency={status.data?.revenue_currency}
         />}
       </Surface>

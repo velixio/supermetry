@@ -130,6 +130,52 @@ func TestHostilePayloads(t *testing.T) {
 	}
 }
 
+func TestAcceptedEventDrivesInstallStatus(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	if response := post(t, f.h, okBody, "Googlebot/2.1", "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("bot response status=%d", response.Code)
+	}
+	var projected int
+	if err := f.pool.QueryRow(t.Context(), `select count(*) from site_last_event where site_id=1`).Scan(&projected); err != nil {
+		t.Fatal(err)
+	}
+	if projected != 0 {
+		t.Fatalf("rejected bot created %d last-event rows", projected)
+	}
+	if response := post(t, f.h, okBody, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("accepted event status=%d", response.Code)
+	}
+	f.stop(t)
+
+	var lastSeen *time.Time
+	if err := f.pool.QueryRow(t.Context(), `select last_event_at from site_last_event where site_id=1`).Scan(&lastSeen); err != nil {
+		t.Fatal(err)
+	}
+	if lastSeen == nil || !lastSeen.Equal(f.clock.Now()) {
+		t.Fatalf("last accepted event=%v, want %v", lastSeen, f.clock.Now())
+	}
+	if got := sites.InstallStatusAt(lastSeen, f.clock.Now()); got != sites.InstallReceiving {
+		t.Fatalf("install status=%q, want %q", got, sites.InstallReceiving)
+	}
+}
+
+func TestRejectedEventDoesNotUpdateInstallStatus(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	seedProfileSite(t, f.pool)
+	if response := post(t, f.h, okBody, "Googlebot/2.1", "198.51.100.7:5555"); response.Code != http.StatusAccepted {
+		t.Fatalf("bot response status=%d", response.Code)
+	}
+	f.stop(t)
+	var projected int
+	if err := f.pool.QueryRow(t.Context(), `select count(*) from site_last_event where site_id=1`).Scan(&projected); err != nil {
+		t.Fatal(err)
+	}
+	if projected != 0 {
+		t.Fatalf("rejected-only input created %d last-event rows", projected)
+	}
+}
+
 func TestBotDropStoresOneReasonWithoutUserAgentText(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	if _, err := f.pool.Exec(t.Context(), `insert into orgs(name,slug) values('Drops','drops');
