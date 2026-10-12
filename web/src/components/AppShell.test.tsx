@@ -85,6 +85,10 @@ function renderShell(initialEntry: string, shellMembership = membership) {
   return { router, ...view }
 }
 
+function setWidth(width: number) {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width })
+}
+
 describe('AppShell live visitor badge', () => {
   beforeEach(() => {
     window.scrollTo = () => undefined
@@ -108,11 +112,28 @@ describe('AppShell live visitor badge', () => {
       isError: false,
     })
     privateRequest.mockResolvedValue({})
+    setWidth(1440)
+    document.cookie = 'sidebar_state=; path=/; max-age=0'
   })
 
   afterEach(() => {
+    document.cookie = 'sidebar_state=; path=/; max-age=0'
     cleanup()
     vi.clearAllMocks()
+  })
+
+  it.each([
+    [1024, '', 'collapsed'],
+    [1279, '', 'collapsed'],
+    [1280, '', 'expanded'],
+    [1024, 'sidebar_state=true', 'expanded'],
+    [1440, 'sidebar_state=false', 'collapsed'],
+  ])('at %ipx with cookie %j the sidebar starts %s', async (width, cookie, state) => {
+    setWidth(width)
+    if (cookie) document.cookie = `${cookie}; path=/`
+    const { container } = renderShell('/app/acme/docs/settings/general')
+    await screen.findByRole('banner', { name: 'Application header' })
+    expect(container.querySelector('[data-slot="sidebar"]')).toHaveAttribute('data-state', state)
   })
 
   it('shows counts, accessible detail, tooltip, and a realtime link on nested site routes', async () => {

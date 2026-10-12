@@ -113,3 +113,17 @@ test('renders auth screens dark without leaking into a light dashboard', async (
     '#fafafa',
   )
 })
+
+test('starts on the icon rail at tablet width and keeps the saved sidebar state', async ({ page, owner }) => {
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
+  await page.setViewportSize({ width: 1024, height: 800 })
+  await owner.login(page, dashboard)
+  const sidebar = page.locator('[data-slot="sidebar"]')
+  await expect(sidebar).toHaveAttribute('data-state', 'collapsed')
+  await expect(page.getByRole('link', { name: 'Funnels' })).toBeVisible()
+  await page.getByRole('button', { name: 'Toggle sidebar' }).click()
+  await expect(sidebar).toHaveAttribute('data-state', 'expanded')
+  await page.reload()
+  await expect(sidebar).toHaveAttribute('data-state', 'expanded')
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+})

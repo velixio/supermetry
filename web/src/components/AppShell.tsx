@@ -26,12 +26,7 @@ import { DemoBanner } from '@/features/demo/DemoBanner'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
 import { ui } from '@/messages/ui'
-
-function sidebarStartsOpen(): boolean {
-  return !document.cookie
-    .split('; ')
-    .some((entry) => entry === 'sidebar_state=false')
-}
+import { sidebarStartsOpen } from './sidebarState'
 
 export function AppShell({
   me,
@@ -42,7 +37,7 @@ export function AppShell({
 }) {
   const { theme, toggle } = useTheme()
   const [helpOpen, setHelpOpen] = useState(false)
-  const [sidebarOpen] = useState(sidebarStartsOpen)
+  const [sidebarOpen] = useState(() => sidebarStartsOpen(document.cookie, window.innerWidth))
   const { pathname, requestedSite, renderedPathnames } = useRouterState({
     select: (state) => {
       const params = state.matches.at(-1)?.params
