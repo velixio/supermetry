@@ -29,13 +29,13 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function show(path: string, onOpenPalette = vi.fn(), locale: '' | 'en' | 'es' | 'de' | 'en-XA' = '') {
+function show(path: string, onOpenPalette = vi.fn(), locale: string = '') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   renderWithRouter(
     <QueryClientProvider client={client}>
     <TooltipProvider>
       <SidebarProvider>
-        <AppHeader locale={locale} theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} onOpenPalette={onOpenPalette} />
+        <AppHeader locale={locale as '' | 'en'} theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} onOpenPalette={onOpenPalette} />
       </SidebarProvider>
     </TooltipProvider>
     </QueryClientProvider>,
@@ -71,7 +71,7 @@ describe('AppHeader outside an organization', () => {
 })
 
 describe('AppHeader language menu', () => {
-  const openLanguage = async (path: string, locale: '' | 'en' | 'es' | 'de' | 'en-XA' = '') => {
+  const openLanguage = async (path: string, locale: string = '') => {
     const header = await show(path, vi.fn(), locale)
     const button = within(header).getByRole('button', { name: 'Language' })
     fireEvent.keyDown(button, { key: 'ArrowDown' })
@@ -100,6 +100,20 @@ describe('AppHeader language menu', () => {
     expect(await screen.findByRole('menuitemradio', { name: 'Browser default' })).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('does nothing when the already checked language is chosen again', async () => {
+    await openLanguage('/app/account/profile', 'de')
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: /^Deutsch/ }))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(privateRequest).not.toHaveBeenCalled()
+    expect(applyLocalePreference).not.toHaveBeenCalled()
+  })
+
+  it('treats an unknown stored language as Browser default', async () => {
+    await openLanguage('/app/account/profile', 'fr')
+    expect(await screen.findByRole('menuitemradio', { name: 'Browser default' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getAllByRole('menuitemradio').filter((i) => i.getAttribute('aria-checked') === 'true')).toHaveLength(1)
+  })
+
   it('saves the choice and applies it on success', async () => {
     privateRequest.mockResolvedValue({})
     await openLanguage('/app/account/profile')
@@ -108,7 +122,7 @@ describe('AppHeader language menu', () => {
     expect(privateRequest).toHaveBeenCalledWith('PATCH', '/api/private/me', { body: { preferences: { locale: 'es' } } })
   })
 
-  it('disables the items while saving', async () => {
+  it('disables the trigger while saving', async () => {
     privateRequest.mockReturnValue(new Promise(() => undefined))
     const { button } = await openLanguage('/app/account/profile')
     fireEvent.click(await screen.findByRole('menuitemradio', { name: /^Español/ }))
