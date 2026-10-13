@@ -1,5 +1,6 @@
 import { createRouter } from '@tanstack/react-router'
 
+import { stringifySearch } from '@/lib/search'
 import { RoutePending } from './components/RoutePending'
 import { routeTree } from './routeTree.gen'
 
@@ -26,20 +27,7 @@ export function parseSearch(search: string): Record<string, unknown> {
   return result
 }
 
-export function stringifySearch(search: Record<string, unknown>): string {
-  const params = new URLSearchParams()
-  const append = (key: string, value: unknown) => {
-    if (value === undefined || value === null) return
-    if (Array.isArray(value)) {
-      value.forEach((item) => append(key, item))
-      return
-    }
-    params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value))
-  }
-  Object.entries(search).forEach(([key, value]) => append(key, value))
-  const encoded = params.toString()
-  return encoded ? `?${encoded}` : ''
-}
+export { stringifySearch }
 
 export const router = createRouter({
   routeTree,

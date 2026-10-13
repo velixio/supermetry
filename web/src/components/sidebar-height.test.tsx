@@ -27,4 +27,15 @@ describe('sidebar page height', () => {
 
     expect(container.querySelector('[data-slot="sidebar-gap"]')).toHaveClass('bg-sidebar')
   })
+
+  it('keeps an icon-width column painted when collapsed to the rail', () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen={false}>
+        <Sidebar collapsible="icon" />
+        <main style={{ height: 2000 }} />
+      </SidebarProvider>,
+    )
+    expect(container.querySelector('[data-slot="sidebar"]')).toHaveAttribute('data-collapsible', 'icon')
+    expect(container.querySelector('[data-slot="sidebar-gap"]')).toHaveClass('bg-sidebar', 'group-data-[collapsible=icon]:w-(--sidebar-width-icon)')
+  })
 })

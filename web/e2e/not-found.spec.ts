@@ -31,5 +31,7 @@ test('unknown organizations preserve sign-in intent without creating a redirect 
   await expect(
     page.getByRole('link', { name: 'Dashboard', exact: true }),
   ).toHaveAttribute('href', '/app')
+  await expect(page.getByRole('banner', { name: 'Application header' })).toBeVisible()
+  await expect(page.getByRole('main')).toHaveCount(1)
   await expect(page).not.toHaveURL(/\/login/)
 })

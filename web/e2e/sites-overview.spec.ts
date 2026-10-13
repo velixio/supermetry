@@ -37,6 +37,8 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
 
   await owner.login(page, '/app')
   await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeVisible()
+  await expect(page.getByRole('banner', { name: 'Application header' })).toBeVisible()
+  await expect(page.getByRole('main')).toHaveCount(1)
   await expect(page.getByTestId('site-overview-card').first()).toBeVisible()
   expect(await page.getByTestId('site-overview-card').count()).toBeGreaterThanOrEqual(seededSites + 1)
 

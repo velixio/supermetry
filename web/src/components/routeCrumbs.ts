@@ -9,8 +9,10 @@ const labelOf = (segment: string) => ui.crumbs.segments[segment]
 /**
  * Org / Site / Section / Detail from a pathname. Pure: no router access, so it is
  * trivial to test. The last crumb is the current page and has no link.
+ * Without a membership (sites overview, account, admin, an unknown organization)
+ * only account and admin paths have crumbs.
  */
-export function buildCrumbs(pathname: string, membership: Membership): Crumb[] {
+export function buildCrumbs(pathname: string, membership?: Membership): Crumb[] {
   const parts = pathname.split('/').filter(Boolean) // ['app', ...]
   if (parts[0] !== 'app') return []
   const rest = parts.slice(1)
@@ -24,7 +26,7 @@ export function buildCrumbs(pathname: string, membership: Membership): Crumb[] {
   }
 
   const [org, second, ...after] = rest
-  if (!org) return []
+  if (!org || !membership) return []
   crumbs.push({ label: membership.org.name, to: '/app/$org/sites', params: { org } })
   if (!second) return finish(crumbs)
 

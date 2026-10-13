@@ -106,3 +106,12 @@ export function quietestWeekday(cells: TrafficCell[]): { weekday: number; value:
   }
   return { weekday: cells[quietestIndex * 24]?.weekday ?? quietestIndex, value: totals[quietestIndex] }
 }
+
+export function hourLabel(hour: number, locale?: string): string {
+  const probe = new Intl.DateTimeFormat(locale, { hour: 'numeric', timeZone: 'UTC' })
+  const options = probe.resolvedOptions()
+  return new Intl.DateTimeFormat(locale, options.hour12
+    ? { hour: 'numeric', timeZone: 'UTC' }
+    : { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }
+  ).format(new Date(Date.UTC(2020, 0, 1, hour)))
+}

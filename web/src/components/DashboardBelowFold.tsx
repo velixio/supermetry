@@ -1,6 +1,7 @@
 import { BreakdownCard, type BreakdownTab } from '@/components/BreakdownCard'
 import { WeeklyRhythmCard } from '@/features/map/WeeklyRhythmCard'
 import { WhereCard } from '@/features/map/WhereCard'
+import type { InspectControl } from '@/lib/inspect'
 import { isAnonymousDimensionAllowed } from '@/lib/tracking-policy'
 import type { DashboardMetric, Filter } from '@/lib/search'
 import type { StatsQuery } from '@/lib/stats'
@@ -10,6 +11,7 @@ export function DashboardBelowFold({
   allowedHosts,
   anonymous,
   filters,
+  inspect,
   metric,
   onFilter,
   onShorten,
@@ -18,6 +20,7 @@ export function DashboardBelowFold({
   allowedHosts?: string[]
   anonymous: boolean
   filters: Filter[]
+  inspect?: InspectControl
   metric: DashboardMetric
   onFilter: (filter: Filter) => void
   onShorten: (days: number) => void
@@ -41,6 +44,7 @@ export function DashboardBelowFold({
       tabs={tabs}
       query={page ? { ...query, includeImported: false } : query}
       onFilter={onFilter}
+      inspect={inspect}
       allowSearch={!anonymous}
       allowFilter={!page}
       verifiedPaths={page}
@@ -54,10 +58,10 @@ export function DashboardBelowFold({
     </div>
     <div className="mt-4 grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:grid-rows-[auto_auto]" data-testid="where-when-band">
       <div className="min-w-0 lg:col-start-1 lg:row-start-1" data-dashboard-band-item="where">
-        <WhereCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} />
+        <WhereCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onFilter={onFilter} inspect={inspect} />
       </div>
       <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1" data-dashboard-band-item="weekly-rhythm">
-        <WeeklyRhythmCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={onShorten} />
+        <WeeklyRhythmCard query={query} metric={metric === 'pageviews' ? 'pageviews' : 'visitors'} onShorten={onShorten} inspect={inspect} />
       </div>
       <div className="min-w-0 lg:col-start-1 lg:row-start-2" data-dashboard-band-item="goals-events">
         {breakdownCards().slice(4).map(renderBreakdownCard)}

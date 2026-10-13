@@ -1,8 +1,13 @@
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
   addFilter,
   dashboardSearch,
+  defaultSearch,
+  parseDashboardSearch,
   parseFilters,
   removeFilter,
   replaceFilters,
@@ -206,5 +211,31 @@ describe('filters', () => {
     expect(
       replaceFilters(search, [{ dimension: 'country', operator: 'is_not', values: ['IN'] }]),
     ).toEqual({ ...search, f: ['country:is_not:IN'] })
+  })
+})
+
+describe('defaultSearch', () => {
+  it('equals what the dashboard parses from an empty query', () => {
+    expect(defaultSearch()).toEqual(parseDashboardSearch({}))
+  })
+
+  it('returns a fresh filter array on every call', () => {
+    const first = defaultSearch()
+    first.f.push('x')
+    expect(defaultSearch().f).toEqual([])
+  })
+
+  it('is the only place that spells out the default analytics search', () => {
+    const web = join(__dirname, '..', '..')
+    const literal = ["period: '30d'", "compare: 'off'", 'f: []', "metric: 'visitors'", 'include_imported: true'].join(', ')
+    const files = (dir: string): string[] => readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name)
+      if (statSync(path).isDirectory()) return files(path)
+      return /\.tsx?$/.test(name) && !/\.test\./.test(name) ? [path] : []
+    })
+    const offenders = files(join(web, 'src'))
+      .filter((file) => readFileSync(file, 'utf8').includes(literal))
+      .map((file) => relative(web, file))
+    expect(offenders).toEqual(['src/lib/search.ts'])
   })
 })

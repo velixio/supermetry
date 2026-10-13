@@ -1,6 +1,6 @@
 import { isAnonymousTracking, isAnonymousFilterAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
 import { createFileRoute } from '@tanstack/react-router'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react'
 
 import { DashboardChart } from '../components/DashboardChart'
 import { DeferredContent } from '../components/DeferredContent'
@@ -27,6 +27,9 @@ import {
   resolveRange,
   type Filter,
 } from '../lib/search'
+import { activeInspectTarget, inspectAllowed, nextInspect, parseInspectSearch, serializeInspect, withoutInspect, type InspectControl, type InspectTarget } from '../lib/inspect'
+import { DashboardPanels } from '@/components/DashboardPanels'
+import { Inspector, inspectorDimensionLabel, inspectorTitle } from '@/components/Inspector'
 import { en } from '../messages/en'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -62,8 +65,9 @@ const DashboardManage = isTest
 type EditState = { kind: 'edit'; id: number } | { kind: 'new'; template: TemplateKey } | null
 
 export const Route = createFileRoute('/app/$org/$site/')({
-  validateSearch: (search) => dashboardSearch.parse(search),
-  loaderDeps: ({ search }) => search,
+  validateSearch: (search) => ({ ...dashboardSearch.parse(search), ...parseInspectSearch(search) }),
+  // Opening or closing the inspector must not re-run the dashboard prefetch.
+  loaderDeps: ({ search }) => withoutInspect(search),
   loader: ({ deps, params }) => {
     void import('@/lib/dashboard-prefetch').then(({ prefetchDashboard }) => prefetchDashboard(params.org, params.site, deps))
   },
@@ -86,6 +90,24 @@ function DashboardStateRoute() {
   }
   const dashboardId = parseDashKey(search.dash)
   const [edit, setEdit] = useState<EditState>(null)
+  // The control that opened the inspector; focus returns to it on close.
+  const inspectorOrigin = useRef<HTMLElement | null>(null)
+  // The sticky filter row wraps (notice, chips); the sticky inspector clears its real height via --dashboard-filter-h.
+  const [filterRow, setFilterRow] = useState<HTMLDivElement | null>(null)
+  const [filterRowHeight, setFilterRowHeight] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    if (!filterRow || typeof ResizeObserver === 'undefined') {
+      setFilterRowHeight(undefined)
+      return
+    }
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1]
+      const height = entry?.borderBoxSize?.[0]?.blockSize ?? (entry?.target as HTMLElement | undefined)?.offsetHeight
+      if (height) setFilterRowHeight(height)
+    })
+    observer.observe(filterRow)
+    return () => observer.disconnect()
+  }, [filterRow])
   // Moving to another dashboard (switcher, link, back button) ends edit mode unless the editor itself moved there.
   useEffect(() => {
     setEdit((current) => (current && !(current.kind === 'edit' && current.id === dashboardId) ? null : current))
@@ -154,10 +176,36 @@ function DashboardStateRoute() {
     start.setUTCDate(start.getUTCDate() - Math.max(0, days - 1))
     updateSearch({ ...search, period: 'custom', from: start.toISOString().slice(0, 10), to: query.dateRange.to })
   }
+  const standardDashboard = edit === null && dashboardId === undefined
+  // An ignored or blocked `inspect` value intentionally stays in the URL and reappears on the standard dashboard.
+  const inspectTarget = activeInspectTarget(search.inspect, { anonymous, standardDashboard })
+  // History policy: opening or switching pushes, so Back closes the inspector; closing replaces, so Back never reopens it.
+  const closeInspector = () => {
+    void navigate({ search: { ...search, inspect: undefined }, replace: true })
+  }
+  // Same value again toggles it closed. Used by the Inspect controls.
+  const openInspector = (target: InspectTarget) => {
+    const next = nextInspect(inspectTarget, target)
+    if (next === undefined) closeInspector()
+    else void navigate({ search: { ...search, inspect: next } })
+  }
+  const trafficMetric = search.metric === 'pageviews' ? 'pageviews' : 'visitors'
+  const inspectControl: InspectControl | undefined = standardDashboard ? {
+    selected: inspectTarget,
+    can: (target) => inspectAllowed(target, anonymous),
+    open: (target, origin) => {
+      inspectorOrigin.current = origin
+      openInspector(target)
+    },
+  } : undefined
 
   return (
     <PageContainer>
-      <div className="contents" data-filter-count={filters.length}>
+      <div
+        className="contents"
+        data-filter-count={filters.length}
+        style={filterRowHeight === undefined ? undefined : ({ '--dashboard-filter-h': `${filterRowHeight}px` } as CSSProperties)}
+      >
       <PageHeader
         title={en.navigation.dashboard}
         description={`${fmt.date(query.dateRange.from, timezone)} – ${fmt.date(query.dateRange.to, timezone)}`}
@@ -182,47 +230,49 @@ function DashboardStateRoute() {
                 />
               </Suspense>
             ) : null}
+            {edit ? null : <DashboardExportMenu query={query} anonymous={anonymous} />}
+          </>
+        }
+      />
+      {edit ? null : (
+        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-11 z-10 bg-background py-2" role="group">
+          <ResponsiveFilters className="justify-start">
+            <DatePicker
+              search={search}
+              labels={en.dashboard}
+              onChange={updateSearch}
+            />
+            {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
+              <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
+              {filters.map((filter, index) => <Button key={index} variant="outline" size="sm" onClick={() => updateSearch(removeFilter(search, index))} aria-label={`Remove ${filter.dimension} filter`}>{filter.dimension} {filter.operator} {filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')} ×</Button>)}
+              {dropped.length > 0 ? <p role="status">{en.dashboard.invalidFilter}</p> : null}
+            </div> : <FilterBar
+              siteId={site.id}
+              orgId={membership?.org.id}
+              canEdit={membership?.role !== 'viewer'}
+              dateRange={query.dateRange}
+              filters={filters}
+              dropped={dropped}
+              invalidNotice={en.dashboard.invalidFilter}
+              filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+              removeLabel={(filter) =>
+                en.dashboard.filterLabel
+                  .replace('{dimension}', filter.dimension)
+                  .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))
+              }
+              onApply={(segmentFilters) =>
+                updateSearch(replaceFilters(search, segmentFilters))
+              }
+              onAdd={onFilter}
+              onRemove={(index) => updateSearch(removeFilter(search, index))}
+            />}
             <Field orientation="horizontal" className="w-auto min-h-9 gap-2">
               <Checkbox id="dashboard-include-imported" checked={search.include_imported} onCheckedChange={(checked) => updateSearch({ ...search, include_imported: checked === true })} />
               <FieldLabel htmlFor="dashboard-include-imported" className="text-sm text-muted-foreground">{en.polish.includeImported}</FieldLabel>
             </Field>
-          </>
-        }
-      />
-      {edit ? null : <div className="flex flex-wrap items-center justify-between gap-3">
-        <DashboardExportMenu query={query} anonymous={anonymous} />
-        <ResponsiveFilters>
-        {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
-          <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
-          {filters.map((filter, index) => <Button key={index} variant="outline" size="sm" onClick={() => updateSearch(removeFilter(search, index))} aria-label={`Remove ${filter.dimension} filter`}>{filter.dimension} {filter.operator} {filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')} ×</Button>)}
-          {dropped.length > 0 ? <p role="status">{en.dashboard.invalidFilter}</p> : null}
-        </div> : <FilterBar
-          siteId={site.id}
-          orgId={membership?.org.id}
-          canEdit={membership?.role !== 'viewer'}
-          dateRange={query.dateRange}
-          filters={filters}
-          dropped={dropped}
-          invalidNotice={en.dashboard.invalidFilter}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          removeLabel={(filter) =>
-            en.dashboard.filterLabel
-              .replace('{dimension}', filter.dimension)
-              .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))
-          }
-          onApply={(segmentFilters) =>
-            updateSearch(replaceFilters(search, segmentFilters))
-          }
-          onAdd={onFilter}
-          onRemove={(index) => updateSearch(removeFilter(search, index))}
-        />}
-        <DatePicker
-            search={search}
-            labels={en.dashboard}
-            onChange={updateSearch}
-          />
-        </ResponsiveFilters>
-      </div>}
+          </ResponsiveFilters>
+        </div>
+      )}
       <DashboardNoDataBanner
         query={query}
         href={`/app/${org}/${siteSlug}/settings/installation`}
@@ -260,34 +310,56 @@ function DashboardStateRoute() {
           />
         </Suspense>
       ) : (
-        <>
-        <StatsStrip
-          query={query}
-          compare={search.compare}
-          onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+        <DashboardPanels
+          returnFocusRef={inspectorOrigin}
+          inspector={inspectTarget ? {
+            key: serializeInspect(inspectTarget),
+            title: inspectorTitle(inspectTarget),
+            dimension: inspectorDimensionLabel(inspectTarget.dimension),
+            onClose: closeInspector,
+            body: (
+              <Inspector
+                key={serializeInspect(inspectTarget)}
+                anonymous={anonymous}
+                query={query}
+                target={inspectTarget}
+                trafficMetric={trafficMetric}
+                onFilter={onFilter}
+              />
+            ),
+          } : undefined}
+          main={
+            <>
+              <StatsStrip
+                query={query}
+                compare={search.compare}
+                onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+              />
+              <DashboardChart
+                anonymous={anonymous}
+                canEdit={membership?.role !== 'viewer'}
+                compare={search.compare}
+                metric={search.metric}
+                query={query}
+                siteId={site.id}
+              />
+              <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
+                <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
+                  <DashboardBelowFold
+                    allowedHosts={site.allowed_hosts}
+                    anonymous={anonymous}
+                    filters={filters}
+                    inspect={inspectControl}
+                    metric={search.metric}
+                    onFilter={onFilter}
+                    onShorten={shortenToRawRange}
+                    query={query}
+                  />
+                </Suspense>
+              </DeferredContent>
+            </>
+          }
         />
-        <DashboardChart
-          anonymous={anonymous}
-          canEdit={membership?.role !== 'viewer'}
-          compare={search.compare}
-          metric={search.metric}
-          query={query}
-          siteId={site.id}
-        />
-        <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
-          <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
-            <DashboardBelowFold
-              allowedHosts={site.allowed_hosts}
-              anonymous={anonymous}
-              filters={filters}
-              metric={search.metric}
-              onFilter={onFilter}
-              onShorten={shortenToRawRange}
-              query={query}
-            />
-          </Suspense>
-        </DeferredContent>
-        </>
       )}
       </div>
     </PageContainer>

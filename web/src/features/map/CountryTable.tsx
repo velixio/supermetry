@@ -1,11 +1,14 @@
 import { useState } from 'react'
 
 import { Flag } from '@/components/Flag'
+import { InspectButton } from '@/components/InspectButton'
 import { Button } from '@/components/ui/button'
 import { countryLabel, normalizeCountryCode } from '@/lib/country'
 import { fmt } from '@/lib/format'
+import { inspectTargetFor, sameInspect, type InspectControl } from '@/lib/inspect'
 import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
+import { ui } from '@/messages/ui'
 
 import type { TrafficMetric } from './trafficGrid'
 
@@ -18,9 +21,10 @@ type CountryTableProps = {
   activeCountry?: string
   onActiveChange(country?: string): void
   onSelect(country: string): void
+  inspect?: InspectControl
 }
 
-export function CountryTable({ rows, metric, selectedCountry, activeCountry, onActiveChange, onSelect }: CountryTableProps) {
+export function CountryTable({ rows, metric, selectedCountry, activeCountry, onActiveChange, onSelect, inspect }: CountryTableProps) {
   const [expanded, setExpanded] = useState(false)
   const normalized = rows
     .map((row) => ({ ...row, country: normalizeCountryCode(row.country) ?? '' }))
@@ -39,7 +43,7 @@ export function CountryTable({ rows, metric, selectedCountry, activeCountry, onA
           const label = countryLabel(row.country)
           const active = row.country === activeCountry
           return (
-            <li key={row.country} className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-1.5">
+            <li key={row.country} className={cn('grid items-center gap-1.5', inspect ? 'grid-cols-[1.25rem_minmax(0,1fr)_auto_auto]' : 'grid-cols-[1.25rem_minmax(0,1fr)_auto]')}>
               <span className="text-right text-xs tabular-nums text-muted-foreground" aria-hidden="true">{index + 1}</span>
               <button
                 aria-label={`${label}, rank ${index + 1}, ${fmt.number(value)} ${metricLabel}, ${fmt.percent(share)}`}
@@ -65,6 +69,11 @@ export function CountryTable({ rows, metric, selectedCountry, activeCountry, onA
                 </span>
               </button>
               <span className="text-right text-sm tabular-nums">{fmt.number(value)}</span>
+              {(() => {
+                const target = inspectTargetFor('country', [row.country])
+                if (!inspect || !target || !inspect.can(target)) return null
+                return <InspectButton label={ui.inspector.inspectValue(label)} pressed={sameInspect(inspect.selected, target)} onInspect={(origin) => inspect.open(target, origin)} />
+              })()}
             </li>
           )
         })}

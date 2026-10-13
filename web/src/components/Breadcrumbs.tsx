@@ -14,7 +14,7 @@ import { ui } from '@/messages/ui'
 
 import { buildCrumbs } from './routeCrumbs'
 
-export function Breadcrumbs({ membership }: { membership: Membership }) {
+export function Breadcrumbs({ membership }: { membership?: Membership }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const crumbs = buildCrumbs(pathname, membership)
   if (crumbs.length === 0) return null

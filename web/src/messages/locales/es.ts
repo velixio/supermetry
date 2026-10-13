@@ -260,6 +260,10 @@ const messages: MessageTree = {
     open: 'Mostrar atajos de teclado',
     theme: 'D — Alternar modo oscuro',
     help: '? — Mostrar esta ayuda',
+    sidebar: 'Ctrl/⌘ B — Contraer o expandir la barra lateral',
+    palette: 'Ctrl/⌘ K — Abrir la paleta de comandos',
+    period: 'M — Mostrar los últimos 30 días (panel)',
+    compare: 'C — Activar o desactivar la comparación de periodos (panel)',
   },
   a11y2: {
     skipToMain: 'Saltar al contenido principal',

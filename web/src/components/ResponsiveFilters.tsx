@@ -4,11 +4,12 @@ import { ListFilterIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
 
-export function ResponsiveFilters({ children }: { children: ReactNode }) {
+export function ResponsiveFilters({ children, className }: { children: ReactNode; className?: string }) {
   const mobile = useIsMobile()
-  if (!mobile) return <div className="flex flex-wrap items-center justify-end gap-2">{children}</div>
+  if (!mobile) return <div className={cn('flex flex-wrap items-center justify-end gap-2', className)}>{children}</div>
 
   return (
     <Sheet>
