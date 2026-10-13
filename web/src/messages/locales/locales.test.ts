@@ -13,6 +13,10 @@ import deUi from './de.ui'
 import deUiAccount from './de.uiAccount'
 import esUi from './es.ui'
 import esUiAccount from './es.uiAccount'
+import bn from './bn'
+import bnDashEdit from './bn.dashEdit'
+import bnUi from './bn.ui'
+import bnUiAccount from './bn.uiAccount'
 
 const english = en as unknown as MessageTree
 const englishDashEdit = dashEdit as unknown as MessageTree
@@ -22,6 +26,7 @@ const englishUiAccount = uiAccount as unknown as MessageTree
 describe.each([
   ['es', es, esDashEdit, esUi, esUiAccount],
   ['de', de, deDashEdit, deUi, deUiAccount],
+  ['bn', bn, bnDashEdit, bnUi, bnUiAccount],
 ] as const)('%s catalogue', (_code, main, editor, uiTree, accountTree) => {
   it('has every English key, no extras, and matching placeholders and function arguments', () => {
     expect(compareCatalogue(english, main)).toEqual([])

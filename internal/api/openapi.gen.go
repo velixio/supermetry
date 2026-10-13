@@ -1272,6 +1272,7 @@ func (e UpdateCurrentUserRequestPreferencesLandingPage) Valid() bool {
 
 // Defines values for UpdateCurrentUserRequestPreferencesLocale.
 const (
+	UpdateCurrentUserRequestPreferencesLocaleBn    UpdateCurrentUserRequestPreferencesLocale = "bn"
 	UpdateCurrentUserRequestPreferencesLocaleDe    UpdateCurrentUserRequestPreferencesLocale = "de"
 	UpdateCurrentUserRequestPreferencesLocaleEmpty UpdateCurrentUserRequestPreferencesLocale = ""
 	UpdateCurrentUserRequestPreferencesLocaleEn    UpdateCurrentUserRequestPreferencesLocale = "en"
@@ -1282,6 +1283,8 @@ const (
 // Valid indicates whether the value is a known member of the UpdateCurrentUserRequestPreferencesLocale enum.
 func (e UpdateCurrentUserRequestPreferencesLocale) Valid() bool {
 	switch e {
+	case UpdateCurrentUserRequestPreferencesLocaleBn:
+		return true
 	case UpdateCurrentUserRequestPreferencesLocaleDe:
 		return true
 	case UpdateCurrentUserRequestPreferencesLocaleEmpty:
@@ -1362,6 +1365,7 @@ func (e UserPreferencesLandingPage) Valid() bool {
 
 // Defines values for UserPreferencesLocale.
 const (
+	UserPreferencesLocaleBn    UserPreferencesLocale = "bn"
 	UserPreferencesLocaleDe    UserPreferencesLocale = "de"
 	UserPreferencesLocaleEmpty UserPreferencesLocale = ""
 	UserPreferencesLocaleEn    UserPreferencesLocale = "en"
@@ -1372,6 +1376,8 @@ const (
 // Valid indicates whether the value is a known member of the UserPreferencesLocale enum.
 func (e UserPreferencesLocale) Valid() bool {
 	switch e {
+	case UserPreferencesLocaleBn:
+		return true
 	case UserPreferencesLocaleDe:
 		return true
 	case UserPreferencesLocaleEmpty:
@@ -3262,7 +3268,7 @@ type UpdateCurrentUserRequest struct {
 		LandingPage *UpdateCurrentUserRequestPreferencesLandingPage `json:"landing_page,omitempty"`
 		LastSiteId  *int32                                          `json:"last_site_id,omitempty"`
 
-		// Locale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+		// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
 		Locale    *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
 		SitesView *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
 	} `json:"preferences,omitempty"`
@@ -3271,7 +3277,7 @@ type UpdateCurrentUserRequest struct {
 // UpdateCurrentUserRequestPreferencesLandingPage defines model for UpdateCurrentUserRequest.Preferences.LandingPage.
 type UpdateCurrentUserRequestPreferencesLandingPage string
 
-// UpdateCurrentUserRequestPreferencesLocale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+// UpdateCurrentUserRequestPreferencesLocale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
 type UpdateCurrentUserRequestPreferencesLocale string
 
 // UpdateCurrentUserRequestPreferencesSitesView defines model for UpdateCurrentUserRequest.Preferences.SitesView.
@@ -3308,7 +3314,7 @@ type UserPreferences struct {
 	LandingPage UserPreferencesLandingPage `json:"landing_page"`
 	LastSiteId  *int32                     `json:"last_site_id,omitempty"`
 
-	// Locale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+	// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
 	Locale    *UserPreferencesLocale   `json:"locale,omitempty"`
 	SitesView UserPreferencesSitesView `json:"sites_view"`
 }
@@ -3316,7 +3322,7 @@ type UserPreferences struct {
 // UserPreferencesLandingPage defines model for UserPreferences.LandingPage.
 type UserPreferencesLandingPage string
 
-// UserPreferencesLocale Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+// UserPreferencesLocale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
 type UserPreferencesLocale string
 
 // UserPreferencesSitesView defines model for UserPreferences.SitesView.

@@ -65,7 +65,7 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 		}
 		if request.Preferences.Locale != nil {
 			if !store.SupportedLocales[*request.Preferences.Locale] {
-				writeProblem(w, http.StatusBadRequest, "Bad request", "locale must be empty, en, es, de or en-XA")
+				writeProblem(w, http.StatusBadRequest, "Bad request", "locale must be empty, en, es, de, bn or en-XA")
 				return
 			}
 			merged.Locale = *request.Preferences.Locale
