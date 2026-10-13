@@ -63,7 +63,13 @@ func RichSnapshot(store session.Store, siteID int32, now time.Time) session.Real
 	}
 	if rich, ok := store.(session.RichRealtimeStore); ok {
 		result := rich.RealtimeSnapshot(siteID, now)
+		// Sessions are extended by engagement beacons, so counting them would include
+		// open tabs that sent no pageview or event. Count the last 30 minutes the same
+		// way as the live number when the store tracks accepted activity.
 		result.VisitorsLast30m = result.ActiveVisitors
+		if activity, ok := store.(session.AcceptedActivityStore); ok {
+			result.VisitorsLast30m = activity.ActiveVisitorsSince(siteID, now.Add(-window), now)
+		}
 		result.ActiveVisitors = live
 		return result
 	}
