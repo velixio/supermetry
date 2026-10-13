@@ -71,6 +71,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
 )
 
@@ -332,6 +333,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		LinkCache:      linkHandler,
 		Version:        version,
+		UpdateChecker:  updatecheck.New(version),
 		TrackingMode:   cfg.Tracking.Mode,
 		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
 		MaxSitesPerOrg: cfg.MaxSitesPerOrg,

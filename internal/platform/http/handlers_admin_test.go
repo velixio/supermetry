@@ -62,6 +62,7 @@ func TestAdminRouteAuthorizationMatrix(t *testing.T) {
 		{http.MethodGet, fmt.Sprintf("/api/private/admin/organizations/%d", orgID), ""},
 		{http.MethodGet, "/api/private/admin/sites?limit=10", ""},
 		{http.MethodGet, "/api/private/admin/settings", ""},
+		{http.MethodGet, "/api/private/admin/update", ""},
 		{http.MethodPatch, "/api/private/admin/settings", `{"signup_mode":"invite","replay_visible":false}`},
 		{http.MethodGet, "/api/private/admin/security/2fa-policy", ""},
 		{http.MethodPut, "/api/private/admin/security/2fa-policy", `{"scope":"off","grace_days":7}`},

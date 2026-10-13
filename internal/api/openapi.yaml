@@ -156,6 +156,17 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/update:
+    get:
+      operationId: adminGetUpdateStatus
+      security: [{ cookieAuth: [] }]
+      summary: Check whether a newer stable Supermetry release is available
+      description: Performs a bounded, cached, read-only check of the official GitHub latest stable release. It never downloads or applies an update.
+      responses:
+        '200': { description: Update availability., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUpdateStatus' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/setup/status:
     get:
       operationId: getSetupStatus
@@ -3335,6 +3346,18 @@ components:
       additionalProperties: false
       required: [data]
       properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminAuditEntry' } } }
+    AdminUpdateStatus:
+      type: object
+      additionalProperties: false
+      required: [current_version, latest_version, update_available, release_url, published_at, checked_at, check_error]
+      properties:
+        current_version: { type: string }
+        latest_version: { type: [string, 'null'] }
+        update_available: { type: boolean }
+        release_url: { type: [string, 'null'], format: uri }
+        published_at: { type: [string, 'null'], format: date-time }
+        checked_at: { type: [string, 'null'], format: date-time }
+        check_error: { type: [string, 'null'] }
     Organization:
       type: object
       additionalProperties: false
