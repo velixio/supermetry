@@ -77,6 +77,7 @@ type UpdateChecker interface {
 
 type UpdateStarter interface {
 	Start(context.Context, updatehelper.Request) (updatehelper.Response, error)
+	Status(context.Context, string) (updatehelper.Response, error)
 }
 
 type Deps struct {

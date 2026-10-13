@@ -125,6 +125,10 @@ func (f *fakeUpdateStarter) Start(_ context.Context, request updatehelper.Reques
 	return updatehelper.Response{Version: updatehelper.ProtocolVersion, JobID: request.JobID, State: updatehelper.StateRequested}, nil
 }
 
+func (f *fakeUpdateStarter) Status(_ context.Context, jobID string) (updatehelper.Response, error) {
+	return updatehelper.Response{Version: updatehelper.ProtocolVersion, JobID: jobID, State: updatehelper.StateRequested}, nil
+}
+
 type fakeUpdateChecker struct {
 	status updatecheck.Status
 	calls  int

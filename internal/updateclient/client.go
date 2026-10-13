@@ -33,7 +33,11 @@ func New(dial DialContext) *Client {
 
 func (c *Client) Start(ctx context.Context, request updatehelper.Request) (updatehelper.Response, error) {
 	request.Operation = updatehelper.OperationStart
-	return c.exchange(ctx, request)
+	response, err := c.exchange(ctx, request)
+	if err == nil && response.ErrorCode != "" {
+		return response, fmt.Errorf("%w: %s", ErrRejected, response.ErrorCode)
+	}
+	return response, err
 }
 
 func (c *Client) Status(ctx context.Context, jobID string) (updatehelper.Response, error) {
@@ -63,9 +67,6 @@ func (c *Client) exchange(ctx context.Context, request updatehelper.Request) (up
 	}
 	if response.JobID != request.JobID {
 		return updatehelper.Response{}, errors.New("updater helper returned a different job ID")
-	}
-	if response.ErrorCode != "" {
-		return response, fmt.Errorf("%w: %s", ErrRejected, response.ErrorCode)
 	}
 	return response, nil
 }

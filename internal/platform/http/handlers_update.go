@@ -22,7 +22,8 @@ type adminUpdateStatusResponse struct {
 }
 
 func (h *handler) adminUpdateStatus(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.adminPrincipal(w, r); !ok {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
 		return
 	}
 	response := adminUpdateStatusResponse{
@@ -36,9 +37,27 @@ func (h *handler) adminUpdateStatus(w http.ResponseWriter, r *http.Request) {
 			serviceError(w, err)
 			return
 		}
+		if job != nil && h.deps.UpdateStarter != nil && !terminalUpdateStatus(job.Status) {
+			helperStatus, statusErr := h.deps.UpdateStarter.Status(r.Context(), strconv.FormatInt(job.ID, 10))
+			if statusErr == nil {
+				if err := h.deps.Admin.SyncUpdateJob(r.Context(), principal.UserID, job.ID, helperStatus.State, helperStatus.ErrorCode); err != nil {
+					serviceError(w, err)
+					return
+				}
+				job, err = h.deps.Admin.LatestUpdateJob(r.Context())
+				if err != nil {
+					serviceError(w, err)
+					return
+				}
+			}
+		}
 		response.Job = job
 	}
 	writeJSON(w, http.StatusOK, response)
+}
+
+func terminalUpdateStatus(status string) bool {
+	return status == string(updatehelper.StateComplete) || status == string(updatehelper.StateFailed) || status == string(updatehelper.StateRecoveryRequired)
 }
 
 func (h *handler) adminApplyUpdate(w http.ResponseWriter, r *http.Request) {

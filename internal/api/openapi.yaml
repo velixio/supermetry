@@ -3399,6 +3399,7 @@ components:
         target_version: { type: string }
         deployment_mode: { type: string, enum: [binary, docker] }
         status: { type: string, enum: [requested, preflight, downloading, verifying, stopping, backing_up, activating, restarting, verifying_health, complete, failed, recovery_required] }
+        error_code: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         finished_at: { type: [string, 'null'], format: date-time }

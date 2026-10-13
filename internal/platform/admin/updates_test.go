@@ -8,6 +8,7 @@ import (
 	"supermetry/internal/db"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/testpg"
+	"supermetry/internal/updatehelper"
 )
 
 func TestService_RequestUpdateIsAdminOnlyIdempotentAndSingleActive(t *testing.T) {
@@ -49,6 +50,22 @@ func TestService_RequestUpdateIsAdminOnlyIdempotentAndSingleActive(t *testing.T)
 	}
 	if audits != 1 {
 		t.Fatalf("requested audits = %d, want 1", audits)
+	}
+	if err := service.SyncUpdateJob(ctx, adminID, first.ID, updatehelper.StateDownload, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.SyncUpdateJob(ctx, adminID, first.ID, updatehelper.StatePreflight, ""); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("regression error = %v, want ErrInvalid", err)
+	}
+	if err := service.SyncUpdateJob(ctx, adminID, first.ID, updatehelper.StateComplete, ""); err != nil {
+		t.Fatal(err)
+	}
+	latest, err := service.LatestUpdateJob(ctx)
+	if err != nil || latest == nil || latest.Status != "complete" || latest.FinishedAt == nil {
+		t.Fatalf("latest=%+v err=%v", latest, err)
+	}
+	if _, created, err := service.RequestUpdate(ctx, adminID, UpdateRequest{IdempotencyKey: "admin-request-two", FromVersion: "v1.1.0", TargetVersion: "v1.2.0", DeploymentMode: "binary"}); err != nil || !created {
+		t.Fatalf("request after completion: created=%v err=%v", created, err)
 	}
 }
 
