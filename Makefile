@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev dev-embedded migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -111,6 +111,10 @@ web/dist/index.html: $(shell find web/src web/packages web/public -type f 2>/dev
 dev:
 	$(ENV) if [ -z "$$SUPERMETRY_BASE_URL" ]; then export SUPERMETRY_BASE_URL=http://localhost:5173; fi; \
 		$(DB_ENV) exec sh $(CURDIR)/scripts/dev.sh
+
+# Smoke test of the make dev supervisor (fake build, server and Vite; no database needed).
+test-dev:
+	sh scripts/test-dev-sh.sh
 
 # One-shot embedded build served by Go on :8787 (the old make dev). No watching.
 dev-embedded: web/dist/index.html

@@ -6,7 +6,8 @@
 #   2. Polls the Go sources about once a second. On a change it rebuilds and, only
 #      if the build succeeded, restarts the server. A compile error is printed and
 #      the old server keeps running until the next change.
-#   3. Runs the Vite dev server (hot reload on :5173, proxying to the Go server).
+#   3. Runs the Vite dev server (hot reload on :5173, proxying to the Go server). If
+#      Vite exits (for example :5173 is busy) everything is stopped.
 #   4. SIGINT/SIGTERM stop both children and wait for them, leaving no orphans.
 #
 # Overrides (used by scripts/test-dev-sh.sh): DEV_BUILD_CMD (receives $OUT, the
@@ -39,15 +40,16 @@ sources() {
 		-not -path '*/node_modules/*' -not -path 'web/dist/*' 2>/dev/null
 }
 
-# Succeeds when a source was modified or added since the last call, or when the
-# number of sources changed (a deletion). Cheap: one find per second, no forks per file.
-count=0
+# Succeeds when a source was modified or added since the last call (find -newer),
+# or when the sorted file list changed (a deletion or rename keeps mtimes).
+# Cheap: a couple of finds per second, no forks per file.
+list_sig=
 changed() {
 	touch "$tmp/next"
-	n=$(sources | wc -l)
+	sig=$(sources | sort | cksum)
 	newer=$(sources -newer "$stamp" | head -n 1)
 	mv -f "$tmp/next" "$stamp"
-	[ -n "$newer" ] || [ "$n" != "$count" ] && { count=$n; return 0; }
+	{ [ -n "$newer" ] || [ "$sig" != "$list_sig" ]; } && { list_sig=$sig; return 0; }
 	return 1
 }
 
@@ -87,10 +89,15 @@ build() {
 	return 1
 }
 
+# Prints the direct children of a pid. ps -A -o pid=,ppid= works on Linux and BSD/macOS.
+children() {
+	ps -A -o pid= -o ppid= 2>/dev/null | awk -v p="$1" '$2 == p { print $1 }'
+}
+
 # Signals a process and all its descendants, deepest first. Needed because
 # `bun run dev` starts Vite as a grandchild that would otherwise outlive us.
 kill_tree() {
-	for child in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$child"; done
+	for child in $(children "$1"); do kill_tree "$child"; done
 	kill -TERM "$1" 2>/dev/null
 }
 
@@ -107,23 +114,34 @@ cleanup() {
 trap 'cleanup; exit 0' INT TERM HUP
 trap 'cleanup' EXIT
 
+ps -A -o pid= >/dev/null 2>&1 || log "warning: ps is unavailable; only the direct child processes will be stopped on exit"
+
+# Baseline before anything slow runs, so edits made during a cold build are seen.
+touch "$stamp"
+list_sig=$(sources | sort | cksum)
+
+# Vite starts first so the UI comes up while the Go server compiles.
+if [ -n "$web_cmd" ]; then
+	sh -c "$web_cmd" &
+	web_pid=$!
+fi
 if build; then
 	start_server
 else
 	log "initial build failed; fix the error and save, the server starts on the next change"
 fi
-if [ -n "$web_cmd" ]; then
-	sh -c "$web_cmd" &
-	web_pid=$!
-fi
 
-touch "$stamp"
-count=$(sources | wc -l)
 log "watching: $watch"
 while :; do
 	# Interruptible sleep so a signal is handled immediately.
 	sleep "$poll" &
 	wait $!
+	if [ -n "$web_pid" ] && ! kill -0 "$web_pid" 2>/dev/null; then
+		# Without the UI the Go server alone is not useful (and a busy :5173 would
+		# make logins fail the Origin check), so stop everything.
+		log "vite exited (is port 5173 already in use?); stopping make dev"
+		exit 1
+	fi
 	if [ -n "$server_pid" ] && ! kill -0 "$server_pid" 2>/dev/null; then
 		wait "$server_pid" 2>/dev/null
 		server_pid=

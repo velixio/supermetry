@@ -157,6 +157,7 @@ port 5433 and uses it. `make dev-db-down` stops it; its data is kept.
 ```sh
 make dev     # watch mode: open http://localhost:5173 (hot reload, Go restarts on change)
 make run     # embedded build served on :8787
+make dev-embedded  # one-shot embedded UI build and run, no watching
 make test    # Go tests
 make lint    # go vet and gofmt
 ```
