@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -379,6 +380,9 @@ func TestEngine_VitalsFilteredQueriesMatchLegacyAcrossTiers(t *testing.T) {
 func TestEngine_VitalsFilteredQueryTiming(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping database timing guard in short mode")
+	}
+	if os.Getenv("SUPERMETRY_SKIP_PERFORMANCE_GUARDS") == "1" {
+		t.Skip("performance guards run separately from parallel database packages")
 	}
 	pool, engine := setupVitals(t, db.Ret30)
 	ctx := context.Background()

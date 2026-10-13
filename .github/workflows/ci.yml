@@ -80,7 +80,10 @@ jobs:
         run: make fixtures
 
       - name: Test Go packages
-        run: GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration ./...
+        run: SUPERMETRY_SKIP_PERFORMANCE_GUARDS=1 GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration ./...
+
+      - name: Test Go query performance guards
+        run: GOMAXPROCS=2 go test -p 1 -count=1 -timeout 5m ./internal/query -run '^TestEngine_VitalsFilteredQueryTiming$'
 
       - name: Check Go vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
