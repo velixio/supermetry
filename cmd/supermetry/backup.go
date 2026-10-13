@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"supermetry/internal/appbackup"
 	"supermetry/internal/db"
 )
 
@@ -38,6 +39,7 @@ type backupRuntime struct {
 	lookupPath     func(string) (string, error)
 	command        func(context.Context, string, ...string) *exec.Cmd
 	schemaVersion  func(context.Context, string) (int, error)
+	databaseSize   func(context.Context, string) (int64, error)
 	reachable      func(context.Context, string) error
 	targetSchema   func(context.Context, string) (string, error)
 	prepareRestore func(context.Context, string) error
@@ -59,6 +61,18 @@ func defaultBackupRuntime() backupRuntime {
 				return 0, errors.New("could not read schema_migrations")
 			}
 			return schemaVersion, nil
+		},
+		databaseSize: func(ctx context.Context, dsn string) (int64, error) {
+			pool, err := db.Open(ctx, dsn)
+			if err != nil {
+				return 0, errors.New("database is not reachable")
+			}
+			defer pool.Close()
+			var size int64
+			if err := pool.QueryRow(ctx, `select pg_database_size(current_database())`).Scan(&size); err != nil {
+				return 0, errors.New("could not read database size")
+			}
+			return size, nil
 		},
 		reachable: func(ctx context.Context, dsn string) error {
 			pool, err := db.Open(ctx, dsn)
@@ -171,73 +185,29 @@ func backupCommandWithRuntime(ctx context.Context, args []string, output io.Writ
 	if flags.NArg() != 0 {
 		return errors.New("usage: supermetry backup [--out FILE]")
 	}
-	dsn := getenv("SUPERMETRY_DATABASE_URL")
-	if dsn == "" {
-		return errors.New("SUPERMETRY_DATABASE_URL is required")
-	}
-	pgEnv, err := postgresEnvironment(dsn)
-	if err != nil {
-		return fmt.Errorf("SUPERMETRY_DATABASE_URL: %w", err)
-	}
-	pgDump, err := rt.lookupPath("pg_dump")
-	if err != nil {
-		return errors.New("pg_dump not found; install postgresql-client")
-	}
-	pgDumpVersion, err := postgresClientVersion(ctx, rt, pgDump, pgEnv)
+	dsn, err := appbackup.ResolveDatabaseURL(getenv)
 	if err != nil {
 		return err
 	}
-	schemaVersion, err := rt.schemaVersion(ctx, dsn)
+	appRuntime := appbackup.DefaultRuntime()
+	appRuntime.LookupPath = rt.lookupPath
+	appRuntime.Command = rt.command
+	appRuntime.Now = rt.now
+	appRuntime.InspectDatabase = func(ctx context.Context, dsn string) (int, int64, error) {
+		schemaVersion, err := rt.schemaVersion(ctx, dsn)
+		if err != nil {
+			return 0, 0, err
+		}
+		databaseSize, err := rt.databaseSize(ctx, dsn)
+		return schemaVersion, databaseSize, err
+	}
+	_, err = appbackup.CreateWithRuntime(ctx, appbackup.Options{
+		DatabaseURL:       dsn,
+		Directory:         filepath.Dir(*outName),
+		Filename:          filepath.Base(*outName),
+		SupermetryVersion: version,
+	}, appRuntime)
 	if err != nil {
-		return fmt.Errorf("read database schema version: %w", err)
-	}
-
-	dumpFile, err := os.CreateTemp("", "supermetry-database-*.dump")
-	if err != nil {
-		return fmt.Errorf("create temporary dump: %w", err)
-	}
-	dumpName := dumpFile.Name()
-	defer os.Remove(dumpName)
-	cmd := postgresCommandWithRuntime(ctx, rt, pgDump, []string{"--format=custom", "--no-owner"}, pgEnv)
-	var commandErrors limitedBuffer
-	cmd.Stderr = &commandErrors
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		_ = dumpFile.Close()
-		return fmt.Errorf("open pg_dump output: %w", err)
-	}
-	if err := cmd.Start(); err != nil {
-		_ = dumpFile.Close()
-		return postgresClientError("pg_dump", err, commandErrors.String())
-	}
-	written, copyErr := io.Copy(dumpFile, io.LimitReader(stdout, maxDumpSize+1))
-	if copyErr != nil || written > maxDumpSize {
-		_ = cmd.Process.Kill()
-	}
-	runErr := cmd.Wait()
-	closeErr := dumpFile.Close()
-	if copyErr != nil {
-		return fmt.Errorf("write temporary dump: %w", copyErr)
-	}
-	if written > maxDumpSize {
-		return fmt.Errorf("pg_dump output exceeds %d bytes", maxDumpSize)
-	}
-	if runErr != nil {
-		return postgresClientError("pg_dump", runErr, commandErrors.String())
-	}
-	if closeErr != nil {
-		return fmt.Errorf("close temporary dump: %w", closeErr)
-	}
-
-	manifest := backupManifest{
-		CreatedAt:     rt.now().UTC().Format(time.RFC3339),
-		SchemaVersion: schemaVersion,
-		PGDumpVersion: pgDumpVersion,
-	}
-	if version != "" && version != "dev" {
-		manifest.SupermetryVersion = version
-	}
-	if err := writeBackupArchive(*outName, dumpName, manifest); err != nil {
 		return err
 	}
 	fmt.Fprintf(output, "Backup written to %s\n", *outName)
