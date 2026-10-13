@@ -65,7 +65,7 @@ Commit that change on its own, push, and watch the first run: `gh run list --wor
 
 ## 6. Tag and release
 
-The release workflow (`.github/workflows/release.yml`) runs when a tag starting with `v` is pushed. It builds the dashboard, cross-compiles six targets (linux, darwin and windows, each for amd64 and arm64), writes `SHA256SUMS`, creates a GitHub Release with the archives and both installer scripts (`install.sh`, `install.ps1`), and pushes a multi-arch image to `ghcr.io/velixio/supermetry` tagged with the version and `latest`.
+The release workflow (`.github/workflows/release.yml`) runs when a tag starting with `v` is pushed. It builds the dashboard, cross-compiles eight targets (Linux amd64, arm64, armv6 and armv7; macOS amd64 and arm64; Windows amd64 and arm64), writes `SHA256SUMS`, creates a GitHub Release with the archives and both installer scripts (`install.sh`, `install.ps1`), and pushes an amd64/arm64 image to `ghcr.io/velixio/supermetry` tagged with the version and `latest`.
 
 ```sh
 # 1. Move the changelog entry out of "unreleased" and commit it
@@ -85,7 +85,7 @@ To rehearse the build without publishing, run `SUPERMETRY_RELEASE_VERSION=0.1.0 
 Verify the result:
 
 ```sh
-gh release view v0.1.0 --repo velixio/supermetry --json assets -q '.assets[].name'   # 6 archives, SHA256SUMS, install.sh, install.ps1
+gh release view v0.1.0 --repo velixio/supermetry --json assets -q '.assets[].name'   # 8 archives, SHA256SUMS, install.sh, install.ps1
 gh release download v0.1.0 --repo velixio/supermetry --pattern SHA256SUMS --pattern '*linux-amd64*'
 sha256sum --check --ignore-missing SHA256SUMS                                          # OK
 docker pull ghcr.io/velixio/supermetry:0.1.0 && docker run --rm ghcr.io/velixio/supermetry:0.1.0 version

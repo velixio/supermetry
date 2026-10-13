@@ -93,7 +93,7 @@ export const ui = {
       'api-keys': 'API keys', notifications: 'Notifications',
       'notification-history': 'Notification history', 'replay-storage': 'Replay storage',
       new: 'New', profile: 'Profile', security: 'Security', organizations: 'Organizations',
-      users: 'Users',
+      users: 'Users', update: 'System update',
     } as Record<string, string>,
   },
   inspector: {

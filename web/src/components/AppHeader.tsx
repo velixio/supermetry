@@ -5,10 +5,12 @@ import { CircleHelpIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
 import { Breadcrumbs } from './Breadcrumbs'
 import { LanguageMenu } from './LanguageMenu'
 import { LiveBadge } from '@/components/LiveBadge'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
+import { useUpdateStatus } from '@/features/admin/adminApi'
 import type { Membership, Site } from '@/lib/me'
 import type { LocaleCode } from '@/lib/i18n'
 import type { Theme } from '@/lib/theme'
@@ -53,11 +55,26 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
   )
 }
 
+function UpdateNotice({ instanceAdmin }: { instanceAdmin: boolean }) {
+  const status = useUpdateStatus(instanceAdmin)
+  const jobStatus = status.data?.job?.status
+  const updateActive = Boolean(jobStatus && !['complete', 'failed', 'recovery_required'].includes(jobStatus))
+  if (!instanceAdmin || status.isError || !updateActive && !status.data?.update_available) return null
+  return (
+    <span role="status" aria-atomic="true">
+      <Badge asChild variant="secondary" className="min-h-6">
+        <Link to="/app/admin/update">{updateActive ? en.admin.updateInProgress : en.admin.updateAvailable}</Link>
+      </Badge>
+    </span>
+  )
+}
+
 /**
  * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, command palette trigger, live badge, help and theme.
  * Outside an organization (no membership) there is no site, so no live badge.
  */
 export function AppHeader({
+  instanceAdmin = false,
   membership,
   site,
   requestedSite,
@@ -68,6 +85,7 @@ export function AppHeader({
   onOpenPalette,
   paletteTriggerRef,
 }: {
+  instanceAdmin?: boolean
   membership?: Membership
   site?: Site
   requestedSite?: string
@@ -102,6 +120,7 @@ export function AppHeader({
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
         </Button>
+        <UpdateNotice instanceAdmin={instanceAdmin} />
         {membership && site && requestedSite ? (
           <div className="hidden sm:block">
             <SiteLiveBadge

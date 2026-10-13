@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS web-build
+FROM --platform=$BUILDPLATFORM oven/bun:1 AS web-build
 
 WORKDIR /src/web
 COPY web/package.json web/bun.lock ./
@@ -6,7 +6,7 @@ RUN bun install --frozen-lockfile
 COPY web/ ./
 RUN bun run build
 
-FROM golang:1.27.2-alpine AS go-build
+FROM --platform=$BUILDPLATFORM golang:1.27.2-alpine AS go-build
 
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -15,9 +15,12 @@ COPY . .
 COPY --from=web-build /src/web/dist ./web/dist
 
 ARG VERSION=dev
+ARG RELEASE_TRUSTED_PUBLIC_KEYS=""
+ARG TARGETOS
+ARG TARGETARCH
 ENV CGO_ENABLED=0
-RUN go build -tags embedui -trimpath \
-    -ldflags "-s -w -X main.version=${VERSION}" \
+RUN GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -tags embedui -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.releaseTrustedPublicKeys=${RELEASE_TRUSTED_PUBLIC_KEYS}" \
     -o /out/supermetry ./cmd/supermetry
 
 FROM alpine:3.23

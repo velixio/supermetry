@@ -3,7 +3,7 @@ import { expect, test } from './fixtures'
 test('fixture site reports Receiving after an accepted event', async ({ page, request, owner }) => {
   const accepted = await request.post('/api/public/v1/events', {
     data: {
-      site: owner.siteSlug,
+      site: owner.sitePublicID,
       name: 'pageview',
       url: 'https://site1.test/install-status-check',
     },

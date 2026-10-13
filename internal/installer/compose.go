@@ -24,6 +24,8 @@ type ComposeValues struct {
 	Image      string
 	ListenHost string
 	Port       string
+	Updater    bool
+	UpdaterGID string
 }
 
 // RenderCompose renders the bundled app and PostgreSQL services.

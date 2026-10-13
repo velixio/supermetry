@@ -71,6 +71,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
 )
 
@@ -329,9 +330,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Limiter: ingest.NewTokenBuckets(10, 60), MissLimiter: ingest.NewTokenBuckets(1, 20),
 		TrustedProxies: cfg.TrustedProxies, Now: settings.clock.Now,
 	}
+	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		LinkCache:      linkHandler,
 		Version:        version,
+		UpdateChecker:  updatecheck.New(version),
+		UpdateStarter:  updateController,
+		UpdateMode:     updateMode,
 		TrackingMode:   cfg.Tracking.Mode,
 		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
 		MaxSitesPerOrg: cfg.MaxSitesPerOrg,
@@ -418,9 +423,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 
 	var ready atomic.Bool
+	latestSchemaVersion, err := db.LatestMigrationVersion()
+	if err != nil {
+		return fmt.Errorf("read latest migration version: %w", err)
+	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler,
 		Now: settings.clock.Now, Ready: func() bool { return ready.Load() && postgresReady(pool) },
 		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {

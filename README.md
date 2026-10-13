@@ -81,6 +81,8 @@ Set `SUPERMETRY_TRACKING_MODE=anonymous` on the server to choose the strictest m
 
 - PostgreSQL (18 is what CI runs).
 - Redis is not needed. A single instance runs without it.
+- Release binaries support Linux, macOS and Windows on amd64 and arm64, plus
+  32-bit Linux armv6/armv7 for Raspberry Pi.
 
 ## Quick start
 

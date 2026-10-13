@@ -53,7 +53,7 @@ const messages: MessageTree = {
       pixel: 'পিক্সেল', general: 'সাধারণ', alerts: 'সতর্কতা', installation: 'ইনস্টলেশন', integrations: 'ইন্টিগ্রেশন',
       imports: 'আমদানি', reports: 'রিপোর্ট', shares: 'শেয়ার', tracking: 'ট্র্যাকিং', members: 'সদস্য', invites: 'আমন্ত্রণ',
       audit: 'অডিট লগ', api: 'API', 'api-keys': 'API কী', notifications: 'বিজ্ঞপ্তি', 'notification-history': 'বিজ্ঞপ্তির ইতিহাস',
-      'replay-storage': 'রিপ্লে স্টোরেজ', new: 'নতুন', profile: 'প্রোফাইল', security: 'নিরাপত্তা', organizations: 'প্রতিষ্ঠান', users: 'ব্যবহারকারী',
+      'replay-storage': 'রিপ্লে স্টোরেজ', new: 'নতুন', profile: 'প্রোফাইল', security: 'নিরাপত্তা', organizations: 'প্রতিষ্ঠান', users: 'ব্যবহারকারী', update: 'সিস্টেম আপডেট',
     },
   },
   inspector: {

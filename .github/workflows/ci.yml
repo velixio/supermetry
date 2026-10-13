@@ -1,10 +1,15 @@
 name: CI
 
-# Manual runs only until the push and pull-request triggers below are enabled.
-on:
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
-  # push:
-  # pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -29,14 +34,35 @@ jobs:
     env:
       SUPERMETRY_TEST_DSN: postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
 
       - uses: oven-sh/setup-bun@v2
+
+      - name: Install PostgreSQL 18 client
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/postgresql-pgdg.asc"
+          curl --fail --show-error --silent \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            --output "$key"
+          fingerprint="$(gpg --batch --show-keys --with-colons "$key" | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test "$fingerprint" = "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8"
+          sudo install -D -m 0644 "$key" /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          source /etc/os-release
+          printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' \
+            "$VERSION_CODENAME" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/18/bin/pg_dump --version
 
       - name: Check Go formatting
         shell: bash
@@ -54,7 +80,10 @@ jobs:
         run: make fixtures
 
       - name: Test Go packages
-        run: GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration ./...
+        run: SUPERMETRY_SKIP_PERFORMANCE_GUARDS=1 GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration ./...
+
+      - name: Test Go query performance guards
+        run: GOMAXPROCS=2 go test -p 1 -count=1 -timeout 5m ./internal/query -run '^TestEngine_VitalsFilteredQueryTiming$'
 
       - name: Check Go vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
@@ -80,10 +109,6 @@ jobs:
 
       - name: Build server with embedded web
         run: CGO_ENABLED=0 go build -tags embedui -o bin/supermetry ./cmd/supermetry
-
-      - name: Generate end-to-end fixture
-        working-directory: bench/gen
-        run: go run . --tier tiny --seed 42 --out testdata/tiny.ndjson --sites testdata/tiny.sites.json --truth testdata/tiny.truth.json
 
       - name: Install browser
         working-directory: web
@@ -112,3 +137,138 @@ jobs:
         env:
           SUPERMETRY_E2E_PORT: "18090"
         run: bunx playwright test e2e/account-sessions.spec.ts e2e/accuracy-live.spec.ts e2e/notifications.spec.ts e2e/project-currency.spec.ts e2e/replay-fit.spec.ts e2e/share.spec.ts --reporter=list --workers=1
+
+  web-build:
+    name: Build embedded web assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Build web assets
+        working-directory: web
+        run: bun run build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  binary-build:
+    name: Binary (${{ matrix.goos }}/${{ matrix.release_arch }})
+    needs: web-build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            release_arch: amd64
+          - goos: linux
+            goarch: arm64
+            release_arch: arm64
+          - goos: linux
+            goarch: arm
+            goarm: "6"
+            release_arch: armv6
+          - goos: linux
+            goarch: arm
+            goarm: "7"
+            release_arch: armv7
+          - goos: darwin
+            goarch: amd64
+            release_arch: amd64
+          - goos: darwin
+            goarch: arm64
+            release_arch: arm64
+          - goos: windows
+            goarch: amd64
+            release_arch: amd64
+          - goos: windows
+            goarch: arm64
+            release_arch: arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: Build binary
+        id: build
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          RELEASE_ARCH: ${{ matrix.release_arch }}
+        run: |
+          set -euo pipefail
+          target_dir=".ci-dist/${GOOS}-${RELEASE_ARCH}"
+          mkdir -p "$target_dir"
+          binary="supermetry"
+          if [[ "$GOOS" == "windows" ]]; then
+            binary="supermetry.exe"
+          fi
+          version="ci-${GITHUB_SHA:0:12}"
+          CGO_ENABLED=0 go build -tags embedui -trimpath \
+            -ldflags "-s -w -X main.version=$version -X main.releaseArch=$RELEASE_ARCH" \
+            -o "$target_dir/$binary" ./cmd/supermetry
+          if [[ "$GOOS" == "windows" ]]; then
+            archive=".ci-dist/supermetry-ci-${GOOS}-${RELEASE_ARCH}.zip"
+            zip -q -j "$archive" "$target_dir/$binary"
+          else
+            archive=".ci-dist/supermetry-ci-${GOOS}-${RELEASE_ARCH}.tar.gz"
+            tar -czf "$archive" -C "$target_dir" "$binary"
+          fi
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: supermetry-ci-${{ matrix.goos }}-${{ matrix.release_arch }}
+          path: ${{ steps.build.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 7
+
+  docker-build:
+    name: Docker (linux/amd64, linux/arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image without publishing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: false
+          platforms: linux/amd64,linux/arm64
+          outputs: type=cacheonly
+          build-args: |
+            VERSION=ci-${{ github.sha }}
+          cache-from: type=gha,scope=ci-docker
+          cache-to: type=gha,mode=max,scope=ci-docker,ignore-error=true

@@ -39,6 +39,7 @@ describe('buildCrumbs', () => {
   it('account and admin have no org crumb', () => {
     expect(labels('/app/account/profile')).toEqual(['Account', 'Profile'])
     expect(labels('/app/admin/users')).toEqual(['Admin', 'Users'])
+    expect(labels('/app/admin/update')).toEqual(['Admin', 'System update'])
   })
   it('finds the site by public id or numeric id, keeping the alias from the URL', () => {
     expect(labels('/app/acme/docs-public/events')).toEqual(['Acme', 'Docs', 'Events'])

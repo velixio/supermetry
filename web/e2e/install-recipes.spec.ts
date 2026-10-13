@@ -18,7 +18,7 @@ test('install recipes show real snippets, switch platforms and verify the instal
   await expect(page.getByRole('heading', { name: 'Install recipes' })).toBeVisible()
 
   const html = page.getByLabel('HTML snippet')
-  await expect(html).toContainText(`data-site="${owner.siteSlug}"`)
+  await expect(html).toContainText(`data-site="${owner.sitePublicID}"`)
   await expect(html).toContainText('/js/')
 
   await page.getByRole('tab', { name: 'Next.js' }).click()

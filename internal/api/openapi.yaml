@@ -156,6 +156,36 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/update:
+    get:
+      operationId: adminGetUpdateStatus
+      security: [{ cookieAuth: [] }]
+      summary: Check whether a newer stable Supermetry release is available
+      description: Performs a bounded, cached, read-only check of the official GitHub latest stable release. It never downloads or applies an update.
+      responses:
+        '200': { description: Update availability., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUpdateStatus' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/update/apply:
+    post:
+      operationId: adminApplyUpdate
+      security: [{ cookieAuth: [] }]
+      summary: Apply a verified stable release
+      description: Re-authenticates an instance administrator, creates an idempotent update job, and dispatches it to the narrow privileged updater helper. The helper takes and verifies a full database backup before activation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminApplyUpdateRequest' }
+      responses:
+        '202': { description: Update accepted., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUpdateJob' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: An update is already active or this deployment is not managed by the updater., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/private/setup/status:
     get:
       operationId: getSetupStatus
@@ -3335,6 +3365,44 @@ components:
       additionalProperties: false
       required: [data]
       properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminAuditEntry' } } }
+    AdminUpdateStatus:
+      type: object
+      additionalProperties: false
+      required: [current_version, latest_version, update_available, release_url, published_at, checked_at, check_error, update_supported]
+      properties:
+        current_version: { type: string }
+        latest_version: { type: [string, 'null'] }
+        update_available: { type: boolean }
+        release_url: { type: [string, 'null'], format: uri }
+        published_at: { type: [string, 'null'], format: date-time }
+        checked_at: { type: [string, 'null'], format: date-time }
+        check_error: { type: [string, 'null'] }
+        update_supported: { type: boolean }
+        deployment_mode: { type: string, enum: [binary, docker] }
+        job: { anyOf: [{ $ref: '#/components/schemas/AdminUpdateJob' }, { type: 'null' }] }
+    AdminApplyUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [target_version, idempotency_key, password]
+      properties:
+        target_version: { type: string, pattern: '^v?[0-9]+\.[0-9]+\.[0-9]+$' }
+        idempotency_key: { type: string, minLength: 8, maxLength: 128 }
+        password: { type: string, format: password }
+        totp_code: { type: string, pattern: '^[0-9]{6}$' }
+    AdminUpdateJob:
+      type: object
+      additionalProperties: false
+      required: [id, from_version, target_version, deployment_mode, status, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        from_version: { type: string }
+        target_version: { type: string }
+        deployment_mode: { type: string, enum: [binary, docker] }
+        status: { type: string, enum: [requested, preflight, downloading, verifying, stopping, backing_up, activating, restarting, verifying_health, complete, failed, recovery_required] }
+        error_code: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
     Organization:
       type: object
       additionalProperties: false
@@ -5468,6 +5536,12 @@ components:
       properties:
         status:
           type: string
+        version:
+          type: string
+        schema_version:
+          type: integer
+          format: int64
+          minimum: 0
     ValidationError:
       type: object
       additionalProperties: false

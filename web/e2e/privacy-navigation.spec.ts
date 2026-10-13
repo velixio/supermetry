@@ -89,7 +89,7 @@ test('anonymous dashboard keeps canonical totals and labels verified coverage wi
   // inserting dictionary rows only through SQL would leave its cache stale.
   const hit = await page.request.post('/api/public/v1/events', {
     headers: { Origin: 'https://site1.test', 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' },
-    data: { site: owner.siteSlug, name: 'pageview', url: 'https://site1.test/unlisted-public-fixture' },
+    data: { site: owner.sitePublicID, name: 'pageview', url: 'https://site1.test/unlisted-public-fixture' },
   })
   expect(hit.status()).toBe(202)
   await expect.poll(() => syntheticSQL(owner, "select count(*) from dict where (kind=0 and value='/[redacted]') or (kind=9 and value='Chrome')")).toBe('2')

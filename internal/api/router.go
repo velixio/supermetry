@@ -63,6 +63,8 @@ type DropStatsReader interface {
 // Deps contains the services exposed by the analytics HTTP router.
 type Deps struct {
 	Config         config.Config
+	Version        string
+	SchemaVersion  int64
 	Query          queryService
 	SessionExplore sessionExploreService
 	Revenue        revenueService
@@ -223,15 +225,23 @@ func NewRouter(deps Deps) http.Handler {
 			deps.UI.ServeHTTP(w, r)
 		}))
 	}
+	healthResponse := func() HealthResponse {
+		response := HealthResponse{Status: "ok"}
+		if deps.Version != "" {
+			response.Version = &deps.Version
+			response.SchemaVersion = &deps.SchemaVersion
+		}
+		return response
+	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+		writeJSON(w, http.StatusOK, healthResponse())
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if deps.Ready != nil && !deps.Ready() {
 			writeProblem(w, newProblem(http.StatusServiceUnavailable, "https://supermetry.com/problems/not-ready", "Service unavailable", "the service is not ready"))
 			return
 		}
-		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+		writeJSON(w, http.StatusOK, healthResponse())
 	})
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
@@ -307,6 +317,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PUT " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"DELETE " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"GET " + privatePrefix + "/admin/audit",
+		"GET " + privatePrefix + "/admin/update",
+		"POST " + privatePrefix + "/admin/update/apply",
 		"GET " + privatePrefix + "/auth/config",
 		"POST " + privatePrefix + "/auth/login",
 		"POST " + privatePrefix + "/auth/signup",
