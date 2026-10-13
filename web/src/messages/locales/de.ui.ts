@@ -124,6 +124,7 @@ const messages: MessageTree = {
       security: 'Sicherheit',
       organizations: 'Organisationen',
       users: 'Nutzer',
+      update: 'Systemaktualisierung',
     },
   },
   inspector: {
