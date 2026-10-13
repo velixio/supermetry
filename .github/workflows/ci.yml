@@ -45,6 +45,25 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      - name: Install PostgreSQL 18 client
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/postgresql-pgdg.asc"
+          curl --fail --show-error --silent \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            --output "$key"
+          fingerprint="$(gpg --batch --show-keys --with-colons "$key" | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test "$fingerprint" = "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8"
+          sudo install -D -m 0644 "$key" /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          source /etc/os-release
+          printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' \
+            "$VERSION_CODENAME" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/18/bin/pg_dump --version
+
       - name: Check Go formatting
         shell: bash
         run: |
@@ -146,7 +165,7 @@ jobs:
           retention-days: 1
 
   binary-build:
-    name: Binary (${{ matrix.goos }}/${{ matrix.goarch }})
+    name: Binary (${{ matrix.goos }}/${{ matrix.release_arch }})
     needs: web-build
     runs-on: ubuntu-latest
     strategy:
@@ -155,16 +174,30 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+            release_arch: amd64
           - goos: linux
             goarch: arm64
+            release_arch: arm64
+          - goos: linux
+            goarch: arm
+            goarm: "6"
+            release_arch: armv6
+          - goos: linux
+            goarch: arm
+            goarm: "7"
+            release_arch: armv7
           - goos: darwin
             goarch: amd64
+            release_arch: amd64
           - goos: darwin
             goarch: arm64
+            release_arch: arm64
           - goos: windows
             goarch: amd64
+            release_arch: amd64
           - goos: windows
             goarch: arm64
+            release_arch: arm64
     steps:
       - uses: actions/checkout@v7
         with:
@@ -186,9 +219,11 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          RELEASE_ARCH: ${{ matrix.release_arch }}
         run: |
           set -euo pipefail
-          target_dir=".ci-dist/${GOOS}-${GOARCH}"
+          target_dir=".ci-dist/${GOOS}-${RELEASE_ARCH}"
           mkdir -p "$target_dir"
           binary="supermetry"
           if [[ "$GOOS" == "windows" ]]; then
@@ -196,20 +231,20 @@ jobs:
           fi
           version="ci-${GITHUB_SHA:0:12}"
           CGO_ENABLED=0 go build -tags embedui -trimpath \
-            -ldflags "-s -w -X main.version=$version" \
+            -ldflags "-s -w -X main.version=$version -X main.releaseArch=$RELEASE_ARCH" \
             -o "$target_dir/$binary" ./cmd/supermetry
           if [[ "$GOOS" == "windows" ]]; then
-            archive=".ci-dist/supermetry-ci-${GOOS}-${GOARCH}.zip"
+            archive=".ci-dist/supermetry-ci-${GOOS}-${RELEASE_ARCH}.zip"
             zip -q -j "$archive" "$target_dir/$binary"
           else
-            archive=".ci-dist/supermetry-ci-${GOOS}-${GOARCH}.tar.gz"
+            archive=".ci-dist/supermetry-ci-${GOOS}-${RELEASE_ARCH}.tar.gz"
             tar -czf "$archive" -C "$target_dir" "$binary"
           fi
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: supermetry-ci-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: supermetry-ci-${{ matrix.goos }}-${{ matrix.release_arch }}
           path: ${{ steps.build.outputs.archive }}
           if-no-files-found: error
           retention-days: 7

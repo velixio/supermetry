@@ -93,12 +93,13 @@ func LoadDescriptor(path string) (updatehelper.DeploymentDescriptor, error) {
 }
 
 type ProductionConfig struct {
-	Descriptor  updatehelper.DeploymentDescriptor
-	Keyring     release.Keyring
-	JobsDir     string
-	Environment []string
-	Runner      updatehelper.Runner
-	HTTPClient  *http.Client
+	Descriptor   updatehelper.DeploymentDescriptor
+	Keyring      release.Keyring
+	JobsDir      string
+	Environment  []string
+	ArtifactArch string
+	Runner       updatehelper.Runner
+	HTTPClient   *http.Client
 }
 
 func NewBackendFactory(_ context.Context, config ProductionConfig) (BackendFactory, error) {
@@ -142,6 +143,7 @@ func NewBackendFactory(_ context.Context, config ProductionConfig) (BackendFacto
 				Backup: updatebinary.NewBinaryBackupCreator(config.Runner), Probe: probe,
 				CurrentVersion: parseVersion(versionResult.Stdout), CurrentSchema: currentSchema,
 				Environment: append([]string(nil), config.Environment...),
+				GOARCH:      config.ArtifactArch,
 			})
 		}, nil
 	case updatehelper.DeploymentDocker:

@@ -51,6 +51,7 @@ type memorySession struct {
 	device  int16
 	screen  int16
 	status  uint16
+	_       uint32 // keep the hot record 112 bytes on both 32- and 64-bit targets
 }
 
 const memorySessionSize = unsafe.Sizeof(memorySession{})

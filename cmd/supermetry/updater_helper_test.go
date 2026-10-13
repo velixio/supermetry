@@ -27,6 +27,16 @@ func TestUpdaterReleaseKeyringRejectsMissingKeyAndAcceptsReleaseKey(t *testing.T
 	}
 }
 
+func TestArtifactArchUsesEmbeddedARMVariant(t *testing.T) {
+	t.Parallel()
+	if got := artifactArch("armv6", "arm"); got != "armv6" {
+		t.Fatalf("artifactArch embedded = %q, want armv6", got)
+	}
+	if got := artifactArch("", "arm64"); got != "arm64" {
+		t.Fatalf("artifactArch fallback = %q, want arm64", got)
+	}
+}
+
 func TestReadUpdaterEnvironmentRejectsWritableFilesAndDoesNotExpandValues(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "supermetry.env")

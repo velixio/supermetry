@@ -22,6 +22,10 @@ import (
 // Ed25519 public keys at release build time. Development builds fail closed.
 var releaseTrustedPublicKeys string
 
+// releaseArch is the release artifact architecture, which differs from
+// runtime.GOARCH for 32-bit ARM builds (armv6 and armv7).
+var releaseArch string
+
 const (
 	updaterEnvironmentPath = "/etc/supermetry/supermetry.env"
 	updaterLockPath        = "/var/lib/supermetry-updater/helper.lock"
@@ -49,6 +53,7 @@ func updaterHelperCommand(ctx context.Context) error {
 	factory, err := updaterdaemon.NewBackendFactory(ctx, updaterdaemon.ProductionConfig{
 		Descriptor: descriptor, Keyring: keyring,
 		Environment: environment, JobsDir: updatehelper.DefaultJobStoreDir,
+		ArtifactArch: artifactArch(releaseArch, runtime.GOARCH),
 	})
 	if err != nil {
 		return fmt.Errorf("configure updater backend: %w", err)
@@ -65,6 +70,13 @@ func updaterHelperCommand(ctx context.Context) error {
 	defer listener.Close()
 	controller := updaterdaemon.NewController(updaterdaemon.Config{JobsDir: updatehelper.DefaultJobStoreDir, BackendFactory: factory})
 	return (&updaterdaemon.Server{Listener: listener, Controller: controller}).Serve(ctx)
+}
+
+func artifactArch(embedded, runtimeArch string) string {
+	if embedded != "" {
+		return embedded
+	}
+	return runtimeArch
 }
 
 func updaterReleaseKeyring(encoded string) (release.Keyring, error) {
