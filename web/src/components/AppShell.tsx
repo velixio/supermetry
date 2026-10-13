@@ -127,6 +127,7 @@ export function AppShell({
         )}
         <SidebarInset>
           <AppHeader
+            instanceAdmin={Boolean(me.user.instance_admin)}
             membership={membership}
             site={scopedSite}
             requestedSite={requestedSite}

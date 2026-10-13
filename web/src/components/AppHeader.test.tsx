@@ -2,10 +2,11 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useLiveSummary, privateRequest, applyLocalePreference, toastError } = vi.hoisted(() => ({
-  useLiveSummary: vi.fn(), privateRequest: vi.fn(), applyLocalePreference: vi.fn(), toastError: vi.fn(),
+const { useLiveSummary, useUpdateStatus, privateRequest, applyLocalePreference, toastError } = vi.hoisted(() => ({
+  useLiveSummary: vi.fn(), useUpdateStatus: vi.fn(), privateRequest: vi.fn(), applyLocalePreference: vi.fn(), toastError: vi.fn(),
 }))
 vi.mock('@/features/realtime/useLiveSummary', () => ({ useLiveSummary }))
+vi.mock('@/features/admin/adminApi', () => ({ useUpdateStatus }))
 vi.mock('@/features/settings/privateApi', () => ({ privateRequest }))
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
 vi.mock('@/lib/i18n', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/i18n')>(), applyLocalePreference }))
@@ -19,6 +20,7 @@ import { renderWithRouter } from '@/test/renderWithRouter'
 import { AppHeader } from './AppHeader'
 
 beforeEach(() => {
+  useUpdateStatus.mockReturnValue({ data: undefined, isError: false })
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }),
@@ -29,13 +31,13 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function show(path: string, onOpenPalette = vi.fn(), locale: string = '') {
+function show(path: string, onOpenPalette = vi.fn(), locale: string = '', instanceAdmin = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   renderWithRouter(
     <QueryClientProvider client={client}>
     <TooltipProvider>
       <SidebarProvider>
-        <AppHeader locale={locale as '' | 'en'} theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} onOpenPalette={onOpenPalette} />
+        <AppHeader instanceAdmin={instanceAdmin} locale={locale as '' | 'en'} theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} onOpenPalette={onOpenPalette} />
       </SidebarProvider>
     </TooltipProvider>
     </QueryClientProvider>,
@@ -67,6 +69,43 @@ describe('AppHeader outside an organization', () => {
   it('shows no breadcrumbs for an organization the user has no membership in', async () => {
     const header = await show('/app/missing')
     expect(within(header).queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull()
+  })
+})
+
+describe('AppHeader update notice', () => {
+  it('does not query or show an update notice for a non-admin', async () => {
+    useUpdateStatus.mockReturnValue({
+      data: { current_version: '1.2.0', latest_version: '1.3.0', update_available: true },
+      isError: false,
+    })
+    const header = await show('/app/account/profile')
+
+    expect(useUpdateStatus).toHaveBeenCalledWith(false)
+    expect(within(header).queryByRole('link', { name: 'Update available' })).not.toBeInTheDocument()
+  })
+
+  it('shows admins an accessible update link when a release is available', async () => {
+    useUpdateStatus.mockReturnValue({
+      data: { current_version: '1.2.0', latest_version: '1.3.0', update_available: true },
+      isError: false,
+    })
+
+    const header = await show('/app/admin/users', vi.fn(), '', true)
+    const notice = within(header).getByRole('link', { name: 'Update available' })
+
+    expect(useUpdateStatus).toHaveBeenCalledWith(true)
+    expect(notice).toHaveTextContent('Update available')
+    expect(notice).toHaveAttribute('href', '/app/admin/update')
+    expect(notice.closest('[role="status"]')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['the instance is current', { data: { current_version: '1.3.0', latest_version: '1.3.0', update_available: false }, isError: false }],
+    ['the check failed', { data: undefined, isError: true }],
+  ])('shows no update notice when %s', async (_name, result) => {
+    useUpdateStatus.mockReturnValue(result)
+    const header = await show('/app/admin/users', vi.fn(), '', true)
+    expect(within(header).queryByRole('link', { name: 'Update available' })).not.toBeInTheDocument()
   })
 })
 

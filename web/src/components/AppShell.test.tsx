@@ -13,9 +13,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { loadPalette, useLiveSummary, useReplayAvailability, privateRequest, shortcuts, toggleTheme, requestLogout } = vi.hoisted(() => ({
+const { loadPalette, useLiveSummary, useUpdateStatus, useReplayAvailability, privateRequest, shortcuts, toggleTheme, requestLogout } = vi.hoisted(() => ({
   loadPalette: vi.fn(),
   useLiveSummary: vi.fn(),
+  useUpdateStatus: vi.fn(),
   useReplayAvailability: vi.fn(),
   privateRequest: vi.fn(),
   shortcuts: { current: {} as Record<string, () => void> },
@@ -24,6 +25,7 @@ const { loadPalette, useLiveSummary, useReplayAvailability, privateRequest, shor
 }))
 
 vi.mock('@/features/realtime/useLiveSummary', () => ({ useLiveSummary }))
+vi.mock('@/features/admin/adminApi', () => ({ useUpdateStatus }))
 vi.mock('@/components/replay/api', () => ({
   useReplayAvailability,
 }))
@@ -148,6 +150,7 @@ describe('AppShell live visitor badge', () => {
       disconnect() {}
     })
     useReplayAvailability.mockReturnValue({ enabled: false })
+    useUpdateStatus.mockReturnValue({ data: undefined, isError: false })
     useLiveSummary.mockReturnValue({
       data: { active_visitors: 12, visitors_last_30m: 48 },
       isPending: false,
@@ -415,6 +418,7 @@ describe('AppShell live visitor badge', () => {
     expect(follows(skip, sidebar)).toBe(true)
     expect(follows(sidebar, screen.getByRole('banner', { name: 'Application header' }))).toBe(true)
     expect(within(sidebar).getByRole('link', { name: 'Instance administration' })).toHaveAttribute('aria-current', 'page')
+    expect(useUpdateStatus).toHaveBeenCalledWith(true)
   })
 
   it('opens the command palette from the header trigger and returns focus to it on Escape', async () => {
