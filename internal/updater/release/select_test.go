@@ -19,6 +19,24 @@ func TestSelectArtifactChoosesExactStableUpgradePlatform(t *testing.T) {
 	}
 }
 
+func TestSelectArtifactDistinguishesRaspberryPiARMVersions(t *testing.T) {
+	t.Parallel()
+	manifest := validManifest()
+	manifest.Artifacts = append(manifest.Artifacts,
+		release.Artifact{Name: "supermetry_1.2.0_linux_armv6.tar.gz", OS: "linux", Arch: "armv6", Size: 7, SHA256: strings.Repeat("e", 64)},
+		release.Artifact{Name: "supermetry_1.2.0_linux_armv7.tar.gz", OS: "linux", Arch: "armv7", Size: 7, SHA256: strings.Repeat("f", 64)},
+	)
+	for _, arch := range []string{"armv6", "armv7"} {
+		artifact, err := release.SelectArtifact(manifest, "v1.1.0", "linux", arch)
+		if err != nil {
+			t.Fatalf("SelectArtifact(%s): %v", arch, err)
+		}
+		if artifact.Arch != arch {
+			t.Fatalf("SelectArtifact(%s) arch = %q", arch, artifact.Arch)
+		}
+	}
+}
+
 func TestSelectArtifactRejectsUnsafeTargets(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

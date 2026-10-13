@@ -230,7 +230,7 @@ func collectArtifacts(dist, version string) ([]release.Artifact, error) {
 		return nil, errors.New("--dist is required")
 	}
 	versionName := strings.TrimPrefix(version, "v")
-	pattern := regexp.MustCompile(`^supermetry_` + regexp.QuoteMeta(versionName) + `_(linux|darwin|windows)_(amd64|arm64)\.(tar\.gz|zip)$`)
+	pattern := regexp.MustCompile(`^supermetry_` + regexp.QuoteMeta(versionName) + `_(linux|darwin|windows)_(amd64|arm64|armv6|armv7)\.(tar\.gz|zip)$`)
 	entries, err := os.ReadDir(dist)
 	if err != nil {
 		return nil, fmt.Errorf("read release directory: %w", err)

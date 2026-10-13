@@ -19,6 +19,8 @@ func TestGenerateCreatesVerifiableCanonicalManifest(t *testing.T) {
 	t.Parallel()
 	dist := t.TempDir()
 	writeArtifact(t, dist, "supermetry_1.2.3_linux_amd64.tar.gz", "linux")
+	writeArtifact(t, dist, "supermetry_1.2.3_linux_armv6.tar.gz", "armv6")
+	writeArtifact(t, dist, "supermetry_1.2.3_linux_armv7.tar.gz", "armv7")
 	writeArtifact(t, dist, "supermetry_1.2.3_windows_arm64.zip", "windows")
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -60,11 +62,14 @@ func TestGenerateCreatesVerifiableCanonicalManifest(t *testing.T) {
 	if manifest.Version != "v1.2.3" || manifest.Schema.Version != 150 || manifest.Schema.RollbackCompatible {
 		t.Fatalf("unexpected manifest metadata: %+v", manifest)
 	}
-	if len(manifest.Artifacts) != 2 || manifest.Artifacts[0].Name != "supermetry_1.2.3_linux_amd64.tar.gz" {
+	if len(manifest.Artifacts) != 4 || manifest.Artifacts[0].Name != "supermetry_1.2.3_linux_amd64.tar.gz" {
 		t.Fatalf("artifacts are not deterministic: %+v", manifest.Artifacts)
 	}
 	if manifest.Artifacts[0].Size != 5 || manifest.Artifacts[0].SHA256 != hashString("linux") {
 		t.Fatalf("artifact metadata = %+v", manifest.Artifacts[0])
+	}
+	if manifest.Artifacts[1].Arch != "armv6" || manifest.Artifacts[2].Arch != "armv7" {
+		t.Fatalf("Raspberry Pi artifact metadata = %+v", manifest.Artifacts[1:3])
 	}
 	if len(manifest.Container.Platforms) != 2 || manifest.Container.Platforms[0].Arch != "amd64" {
 		t.Fatalf("container platforms are not deterministic: %+v", manifest.Container.Platforms)

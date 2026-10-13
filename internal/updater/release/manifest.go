@@ -232,7 +232,7 @@ func validateArtifact(artifact Artifact) error {
 	if artifact.Name == "" || artifact.Name == "." || artifact.Name == ".." || path.Base(artifact.Name) != artifact.Name || strings.ContainsAny(artifact.Name, `\\`) || !validArtifactName(artifact.Name) {
 		return fmt.Errorf("artifact name %q is unsafe", artifact.Name)
 	}
-	if !supportedPlatform(artifact.OS, artifact.Arch) {
+	if !supportedArtifactPlatform(artifact.OS, artifact.Arch) {
 		return fmt.Errorf("artifact %q has unsupported platform %s/%s", artifact.Name, artifact.OS, artifact.Arch)
 	}
 	if artifact.Size <= 0 || artifact.Size > maxArtifactSize {
@@ -265,7 +265,7 @@ func validateContainer(container Container) error {
 	}
 	seen := make(map[string]struct{}, len(container.Platforms))
 	for _, platform := range container.Platforms {
-		if !supportedPlatform(platform.OS, platform.Arch) || platform.OS != "linux" {
+		if !supportedContainerPlatform(platform.OS, platform.Arch) {
 			return fmt.Errorf("unsupported container platform %s/%s", platform.OS, platform.Arch)
 		}
 		if !validDigest(platform.Digest) {
@@ -303,11 +303,19 @@ func validKeyID(id string) bool {
 	return true
 }
 
-func supportedPlatform(goos, goarch string) bool {
-	if goarch != "amd64" && goarch != "arm64" {
+func supportedArtifactPlatform(goos, goarch string) bool {
+	switch goos {
+	case "darwin", "windows":
+		return goarch == "amd64" || goarch == "arm64"
+	case "linux":
+		return goarch == "amd64" || goarch == "arm64" || goarch == "armv6" || goarch == "armv7"
+	default:
 		return false
 	}
-	return goos == "linux" || goos == "darwin" || goos == "windows"
+}
+
+func supportedContainerPlatform(goos, goarch string) bool {
+	return goos == "linux" && (goarch == "amd64" || goarch == "arm64")
 }
 
 func validDigest(value string) bool {
