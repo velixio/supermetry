@@ -242,6 +242,11 @@ func runBinary(ctx context.Context, opts Options, p *Prompter, sys System) error
 		if _, err := sys.LookPath("systemctl"); err != nil {
 			return errors.New("systemd is required for a Linux binary install; use --mode docker or install on a systemd host")
 		}
+		for _, client := range []string{"pg_dump", "pg_restore"} {
+			if _, err := sys.LookPath(client); err != nil {
+				return fmt.Errorf("%s is required for verified pre-update backups; install postgresql-client and rerun the installer", client)
+			}
+		}
 	}
 	secret := ReadExistingSecret(envPath)
 	if secret == "" {
@@ -371,6 +376,11 @@ func runDocker(ctx context.Context, opts Options, p *Prompter, sys System) error
 	}
 	host := strings.TrimSuffix(opts.Listen, ":"+port)
 	managedUpdates := sys.GOOS == "linux" && opts.Image == "download" && filepath.Clean(opts.Dir) == "/opt/supermetry"
+	if managedUpdates {
+		if _, err := sys.LookPath("pg_restore"); err != nil {
+			return errors.New("pg_restore is required on the host for independently verified pre-update backups; install postgresql-client and rerun the installer")
+		}
+	}
 	files := []plannedFile{
 		{Path: filepath.Join(opts.Dir, ".env"), Data: RenderEnv(EnvValues{BaseURL: opts.BaseURL, Listen: ":8787", TrustedProxies: trustedProxies(opts.Proxy), SecretKey: secret, Docker: true, PostgresPassword: postgresPassword}), Mode: 0o600},
 		{Path: filepath.Join(opts.Dir, "docker-compose.yml"), Data: RenderCompose(ComposeValues{Version: opts.Version, Image: opts.Image, ListenHost: host, Port: port, Updater: managedUpdates, UpdaterGID: updaterGroupIDMarker}), Mode: 0o644},
