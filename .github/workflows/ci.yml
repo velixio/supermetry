@@ -110,10 +110,6 @@ jobs:
       - name: Build server with embedded web
         run: CGO_ENABLED=0 go build -tags embedui -o bin/supermetry ./cmd/supermetry
 
-      - name: Generate end-to-end fixture
-        working-directory: bench/gen
-        run: go run . --tier tiny --seed 42 --out testdata/tiny.ndjson --sites testdata/tiny.sites.json --truth testdata/tiny.truth.json
-
       - name: Install browser
         working-directory: web
         run: bunx playwright install --with-deps chromium
