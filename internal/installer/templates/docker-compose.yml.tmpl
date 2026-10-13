@@ -9,10 +9,11 @@ services:
       SUPERMETRY_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       SUPERMETRY_DATABASE_NAME: supermetry
       SUPERMETRY_DATABASE_SSLMODE: disable
+      SUPERMETRY_DATA_DIR: /data
     ports:
       - "{{.ListenHost}}:{{.Port}}:8787"
     volumes:
-      - supermetry-data:/var/lib/supermetry
+      - supermetry-data:/data
     depends_on:
       postgres:
         condition: service_healthy

@@ -10,6 +10,34 @@ import (
 	"testing"
 )
 
+func TestReleaseWorkflowUsesDeploymentDockerfile(t *testing.T) {
+	t.Parallel()
+
+	workflow := readReleaseWorkflow(t)
+	if !strings.Contains(workflow, "file: deploy/Dockerfile") {
+		t.Fatal("release image build does not use deploy/Dockerfile")
+	}
+}
+
+func TestReleaseWorkflowPassesResolvedVersionToDockerBuild(t *testing.T) {
+	t.Parallel()
+
+	workflow := readReleaseWorkflow(t)
+	if !strings.Contains(workflow, "build-args: |\n            VERSION=${{ steps.version.outputs.version }}") {
+		t.Fatal("release image build does not pass the resolved version as the VERSION build argument")
+	}
+}
+
+func readReleaseWorkflow(t *testing.T) string {
+	t.Helper()
+
+	workflow, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "release.yml"))
+	if err != nil {
+		t.Fatalf("read release workflow: %v", err)
+	}
+	return string(workflow)
+}
+
 func TestRenderCompose(t *testing.T) {
 	t.Parallel()
 
@@ -32,10 +60,11 @@ func TestRenderCompose(t *testing.T) {
       SUPERMETRY_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       SUPERMETRY_DATABASE_NAME: supermetry
       SUPERMETRY_DATABASE_SSLMODE: disable
+      SUPERMETRY_DATA_DIR: /data
     ports:
       - "127.0.0.1:8787:8787"
     volumes:
-      - supermetry-data:/var/lib/supermetry
+      - supermetry-data:/data
     depends_on:
       postgres:
         condition: service_healthy
