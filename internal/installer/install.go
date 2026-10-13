@@ -49,6 +49,7 @@ type System struct {
 	SetupRequired func(ctx context.Context, baseURL string) (bool, error)
 	Stat          func(path string) (os.FileInfo, error)
 	PrepareSource func(ctx context.Context, opts Options) error
+	LocalIP       func() (string, error)
 }
 
 type commandRunner struct{}
@@ -119,25 +120,26 @@ func Run(ctx context.Context, opts Options, p *Prompter, sys System) error {
 	if opts.Mode != "binary" && opts.Mode != "docker" {
 		return fmt.Errorf("--mode must be binary or docker")
 	}
-	if opts.BaseURL == "" {
-		opts.BaseURL, err = p.Ask("Public URL", "", validateHTTPURL)
-		if err != nil {
-			return err
-		}
-	} else if err := validateHTTPURL(opts.BaseURL); err != nil {
-		return err
-	}
+	// The listen address comes first so the public URL can default to it.
 	if opts.Listen == "" {
 		if opts.Yes || opts.DryRun {
 			opts.Listen = "127.0.0.1:8787"
 		} else {
-			opts.Listen, err = p.Ask("Listen address", "127.0.0.1:8787", validateListen)
+			opts.Listen, err = p.Ask("Listen address (0.0.0.0:8787 to accept other devices)", "127.0.0.1:8787", validateListen)
 			if err != nil {
 				return err
 			}
 		}
 	}
 	if err := validateListen(opts.Listen); err != nil {
+		return err
+	}
+	if opts.BaseURL == "" {
+		opts.BaseURL, err = p.Ask("Public URL", suggestBaseURL(opts.Listen, sys.LocalIP), validateHTTPURL)
+		if err != nil {
+			return err
+		}
+	} else if err := validateHTTPURL(opts.BaseURL); err != nil {
 		return err
 	}
 	if opts.Proxy == "" {
@@ -835,6 +837,9 @@ func withSystemDefaults(sys System) System {
 	}
 	if sys.Stat == nil {
 		sys.Stat = os.Stat
+	}
+	if sys.LocalIP == nil {
+		sys.LocalIP = detectLocalIP
 	}
 	if sys.PrepareSource == nil {
 		sys.PrepareSource = prepareDockerBuildSource
