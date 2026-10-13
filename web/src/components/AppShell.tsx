@@ -50,6 +50,7 @@ export function AppShell({
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [paletteLoaded, setPaletteLoaded] = useState(false)
   // React.lazy memoises a rejected import, so a failed load gets a fresh lazy component and boundary.
+  // lazyPalette is an initializer here and an updater in onError: each call yields a fresh lazy component.
   const [Palette, setPalette] = useState(lazyPalette)
   const [paletteAttempt, setPaletteAttempt] = useState(0)
   const paletteTrigger = useRef<HTMLButtonElement>(null)
@@ -67,6 +68,12 @@ export function AppShell({
       }
     },
   })
+  // Commands are computed only while open; the last list is kept while the dialog animates closed
+  // (an empty list would flash "no matching commands"), and dropped when the scope changes.
+  const paletteScope = `${membership?.org.id ?? ''}/${requestedSite ?? ''}`
+  const lastCommands = useRef<{ scope: string; list: PaletteCommand[] }>({ scope: '', list: [] })
+  if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({ me, membership, requestedSite, theme }) }
+  const commands = lastCommands.current.scope === paletteScope ? lastCommands.current.list : []
   const scopedSite = membership?.sites.find((item) => matchesSite(item, requestedSite))
   const recordedLastSite = useRef(me.preferences?.last_site_id)
 
@@ -179,20 +186,22 @@ export function AppShell({
           key={paletteAttempt}
           onError={() => {
             setPaletteOpen(false)
+            // Unload too, so the failed load is retried on the next open, not straight away.
+            setPaletteLoaded(false)
             setPalette(lazyPalette)
             setPaletteAttempt((attempt) => attempt + 1)
             toast.error(ui.palette.loadFailed)
           }}
         >
-        <Suspense fallback={null}>
-          <Palette
-            open={paletteOpen}
-            onOpenChange={setPaletteOpen}
-            commands={paletteOpen ? paletteCommands({ me, membership, requestedSite, theme }) : []}
-            onRun={runPaletteCommand}
-            fallbackFocus={() => paletteTrigger.current}
-          />
-        </Suspense>
+          <Suspense fallback={null}>
+            <Palette
+              open={paletteOpen}
+              onOpenChange={setPaletteOpen}
+              commands={commands}
+              onRun={runPaletteCommand}
+              fallbackFocus={() => paletteTrigger.current}
+            />
+          </Suspense>
         </PaletteBoundary>
       ) : null}
       <Toaster />

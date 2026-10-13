@@ -10,6 +10,7 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { loadPalette, useLiveSummary, useReplayAvailability, privateRequest, shortcuts, toggleTheme, requestLogout } = vi.hoisted(() => ({
@@ -39,6 +40,7 @@ vi.mock('@/lib/session-lifecycle', async (importOriginal) => ({
 vi.mock('@/features/settings/privateApi', () => ({ privateRequest }))
 
 import type { Me, Membership } from '@/lib/me'
+import { ui } from '@/messages/ui'
 
 import { AppShell } from './AppShell'
 
@@ -159,6 +161,7 @@ describe('AppShell live visitor badge', () => {
   afterEach(() => {
     document.cookie = 'sidebar_state=; path=/; max-age=0'
     cleanup()
+    toast.dismiss()
     vi.clearAllMocks()
   })
 
@@ -519,6 +522,29 @@ describe('AppShell live visitor badge', () => {
       expect(screen.getByRole('banner', { name: 'Application header' })).toBeInTheDocument()
       expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
 
+      fireEvent.click(trigger)
+      expect(await screen.findByRole('dialog', { name: 'Command palette' })).toBeVisible()
+      expect(loadPalette).toHaveBeenCalledTimes(2)
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it('does not retry a failing palette load until the next open', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      loadPalette.mockRejectedValue(new Error('offline'))
+      renderShell('/app/acme/docs/settings/general')
+      const header = await screen.findByRole('banner', { name: 'Application header' })
+      const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+      fireEvent.click(trigger)
+      await screen.findByText(ui.palette.loadFailed)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      expect(loadPalette).toHaveBeenCalledTimes(1)
+      expect(screen.getAllByText(ui.palette.loadFailed)).toHaveLength(1)
+      expect(screen.getByRole('banner', { name: 'Application header' })).toBeInTheDocument()
+
+      loadPalette.mockImplementation(async () => (await vi.importActual<typeof import('./paletteLoader')>('./paletteLoader')).loadPalette())
       fireEvent.click(trigger)
       expect(await screen.findByRole('dialog', { name: 'Command palette' })).toBeVisible()
       expect(loadPalette).toHaveBeenCalledTimes(2)
