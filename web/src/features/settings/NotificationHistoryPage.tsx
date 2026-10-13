@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { AlertTriangleIcon, CheckCircle2Icon, Clock3Icon, RotateCcwIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -23,11 +25,8 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
   const items = history.data?.data ?? []
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{en.notify.historyTitle}</h1>
-        <p className="text-sm text-muted-foreground">{en.notify.historyDescription}</p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title={en.notify.historyTitle} description={en.notify.historyDescription} />
       <section aria-label="Delivery filters" className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm font-medium">
           Status
@@ -68,6 +67,6 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
           )
         })}
       </ol>
-    </div>
+    </PageContainer>
   )
 }

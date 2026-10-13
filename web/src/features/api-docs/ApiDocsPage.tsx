@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -474,13 +476,8 @@ export function ApiDocsPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">{t.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t.description}
-        </p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title={t.title} description={t.description} />
       <Card className="min-h-[36rem] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-0">
         <CardHeader className="min-w-0 content-start border-b lg:border-r lg:border-b-0">
           <CardTitle>{t.endpoints}</CardTitle>
@@ -517,6 +514,6 @@ export function ApiDocsPage({
           />
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

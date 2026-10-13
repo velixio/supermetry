@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useState, type FormEvent } from 'react'
 
 import { ErrorState } from '@/components/ErrorState'
@@ -208,11 +210,8 @@ export function IntegrationsPage({
   const searchConsole = integrations.data?.find((entry) => entry.provider === SEARCH_CONSOLE)
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
-        <p className="text-sm text-muted-foreground">{t.intro}</p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title={t.title} description={t.intro} />
 
       {result ? (
         <div
@@ -248,6 +247,6 @@ export function IntegrationsPage({
       )}
 
       {searchConsole?.connection ? <SearchConsoleReport orgId={orgId} siteId={siteId} /> : null}
-    </div>
+    </PageContainer>
   )
 }

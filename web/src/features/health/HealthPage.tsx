@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useQuery } from "@tanstack/react-query";
 
 import { fmt } from "@/lib/format";
@@ -40,14 +42,16 @@ export function HealthPage({ orgId, version = "dev" }: { orgId?: number; version
   });
   const instanceScope = health.data ? health.data.instance_scope : true;
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Data health</h1>
-        <p className="text-sm text-muted-foreground">
-          Live intake and aggregation signals, refreshed every five seconds.
-        </p>
-        <p className="text-xs text-muted-foreground">Supermetry {version || "dev"}</p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="Data health"
+        description={
+          <>
+            Live intake and aggregation signals, refreshed every five seconds.
+            <span className="mt-1 block text-xs">Supermetry {version || "dev"}</span>
+          </>
+        }
+      />
       {instanceScope && health.data?.rollup_backfill.status === "running" ? (
         <p
           role="status"
@@ -158,7 +162,7 @@ export function HealthPage({ orgId, version = "dev" }: { orgId?: number; version
           {health.error.message}
         </p>
       ) : null}
-    </div>
+    </PageContainer>
   );
 }
 

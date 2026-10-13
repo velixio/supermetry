@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useDeferredValue, useEffect, useId, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -181,8 +183,12 @@ export function SitesOverview({ canAdd, orgs, org = '', period, query, sort, vie
   const addOrg = orgs.find((item) => item.slug === org && item.canCreate !== false) ?? orgs.find((item) => item.canCreate !== false)
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-tight">{en.sitesOverview.title}</h1><p className="text-sm text-muted-foreground">{en.sitesOverview.description}</p></div>{canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}><PlusIcon data-icon="inline-start" />Add site</Link></Button> : null}</header>
+    <PageContainer>
+      <PageHeader
+        title={en.sitesOverview.title}
+        description={en.sitesOverview.description}
+        actions={canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}><PlusIcon data-icon="inline-start" />Add site</Link></Button> : undefined}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <Input className="min-w-48 flex-1 sm:max-w-xs" aria-label="Search sites" type="search" placeholder="Search name or domain" value={query} onChange={(event) => onSearchChange(event.target.value)} />
         {orgs.length > 1 ? <Select value={org || 'all'} onValueChange={(value) => onOrgChange(value === 'all' ? '' : value)}><SelectTrigger aria-label="Organization"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">All organizations</SelectItem>{orgs.map((item) => <SelectItem key={item.id} value={item.slug}>{item.name}</SelectItem>)}</SelectGroup></SelectContent></Select> : null}
@@ -197,6 +203,6 @@ export function SitesOverview({ canAdd, orgs, org = '', period, query, sort, vie
               : view === 'cards' ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{filtered.map((site) => <SiteCard key={site.id} site={site} multipleOrganizations={multipleOrganizations} onDelete={setPendingDelete} />)}</div>
                 : <SitesTable sites={filtered} multipleOrganizations={multipleOrganizations} onDelete={setPendingDelete} />}
       <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(undefined) }}><DialogContent role="alertdialog"><DialogHeader><DialogTitle>Delete {pendingDelete?.name}?</DialogTitle><DialogDescription>The site stops collecting data now. You can restore it for 7 days.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" disabled={deletion.isPending} onClick={async () => { if (!pendingDelete) return; await deletion.mutateAsync(pendingDelete); setPendingDelete(undefined) }}>Delete site</Button></DialogFooter></DialogContent></Dialog>
-    </div>
+    </PageContainer>
   )
 }

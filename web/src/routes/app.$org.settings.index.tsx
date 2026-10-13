@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOrganization } from '@/features/settings/routeContext'
@@ -17,13 +19,8 @@ function OrganizationOverview() {
   const queryClient = useQueryClient()
   if (!membership) return null
   return (
-    <section className="flex max-w-2xl flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold">{membership.org.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your organization access
-        </p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title={membership.org.name} description="Your organization access" />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border bg-card px-4 py-3 text-sm">
       <p>
         Role: <span className="font-medium capitalize">{membership.role}</span>
@@ -59,6 +56,6 @@ function OrganizationOverview() {
           }}
         />
       ) : null}
-    </section>
+    </PageContainer>
   )
 }

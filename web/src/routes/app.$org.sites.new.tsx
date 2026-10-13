@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
@@ -19,11 +21,8 @@ function NewSiteRoute() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Add site</h1>
-        <p className="text-sm text-muted-foreground">Set the domains, local time, and raw-data retention for this site.</p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title="Add site" description="Set the domains, local time, and raw-data retention for this site." />
       <section className="rounded-xl border bg-card p-5">
         <SiteForm
           submitLabel="Add site"
@@ -37,6 +36,6 @@ function NewSiteRoute() {
           }}
         />
       </section>
-    </div>
+    </PageContainer>
   )
 }
