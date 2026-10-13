@@ -25,19 +25,22 @@ func TestService_RequestUpdateIsAdminOnlyIdempotentAndSingleActive(t *testing.T)
 	}
 	service := New(&store.Store{Pool: pool})
 
-	if _, err := service.RequestUpdate(ctx, userID, UpdateRequest{IdempotencyKey: "ordinary-user-request", FromVersion: "v1.0.0", TargetVersion: "v1.1.0", DeploymentMode: "binary"}); !errors.Is(err, ErrForbidden) {
+	if _, _, err := service.RequestUpdate(ctx, userID, UpdateRequest{IdempotencyKey: "ordinary-user-request", FromVersion: "v1.0.0", TargetVersion: "v1.1.0", DeploymentMode: "binary"}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("non-admin error = %v, want ErrForbidden", err)
 	}
 	request := UpdateRequest{IdempotencyKey: "admin-request-one", FromVersion: "v1.0.0", TargetVersion: "v1.1.0", DeploymentMode: "binary"}
-	first, err := service.RequestUpdate(ctx, adminID, request)
+	first, created, err := service.RequestUpdate(ctx, adminID, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	again, err := service.RequestUpdate(ctx, adminID, request)
-	if err != nil || again.ID != first.ID {
+	if !created {
+		t.Fatal("first request was not created")
+	}
+	again, created, err := service.RequestUpdate(ctx, adminID, request)
+	if err != nil || created || again.ID != first.ID {
 		t.Fatalf("idempotent request = %+v, %v; want job %d", again, err, first.ID)
 	}
-	if _, err := service.RequestUpdate(ctx, adminID, UpdateRequest{IdempotencyKey: "admin-request-two", FromVersion: "v1.0.0", TargetVersion: "v1.2.0", DeploymentMode: "binary"}); !errors.Is(err, ErrUpdateActive) {
+	if _, _, err := service.RequestUpdate(ctx, adminID, UpdateRequest{IdempotencyKey: "admin-request-two", FromVersion: "v1.0.0", TargetVersion: "v1.2.0", DeploymentMode: "binary"}); !errors.Is(err, ErrUpdateActive) {
 		t.Fatalf("second active request error = %v, want ErrUpdateActive", err)
 	}
 	var audits int
@@ -63,7 +66,7 @@ func TestService_RequestUpdateValidatesExactUpgrade(t *testing.T) {
 		{name: "short idempotency key", request: UpdateRequest{IdempotencyKey: "short", FromVersion: "v1.0.0", TargetVersion: "v1.1.0", DeploymentMode: "binary"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := service.RequestUpdate(context.Background(), 1, test.request); !errors.Is(err, ErrInvalid) {
+			if _, _, err := service.RequestUpdate(context.Background(), 1, test.request); !errors.Is(err, ErrInvalid) {
 				t.Fatalf("error = %v, want ErrInvalid", err)
 			}
 		})

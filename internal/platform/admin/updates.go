@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -33,16 +34,17 @@ type UpdateJob struct {
 	FinishedAt     *time.Time `json:"finished_at"`
 }
 
-func (s *Service) RequestUpdate(ctx context.Context, actorID int64, request UpdateRequest) (UpdateJob, error) {
+func (s *Service) RequestUpdate(ctx context.Context, actorID int64, request UpdateRequest) (UpdateJob, bool, error) {
 	request.IdempotencyKey = strings.TrimSpace(request.IdempotencyKey)
 	from := normalizeStableVersion(request.FromVersion)
 	target := normalizeStableVersion(request.TargetVersion)
 	if len(request.IdempotencyKey) < 8 || len(request.IdempotencyKey) > 128 || from == "" || target == "" || semver.Compare(target, from) <= 0 || request.DeploymentMode != "binary" && request.DeploymentMode != "docker" {
-		return UpdateJob{}, ErrInvalid
+		return UpdateJob{}, false, ErrInvalid
 	}
 	request.FromVersion, request.TargetVersion = from, target
 
 	var job UpdateJob
+	created := false
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
 		if err := requireAdmin(ctx, tx, actorID); err != nil {
 			return err
@@ -79,6 +81,7 @@ func (s *Service) RequestUpdate(ctx context.Context, actorID int64, request Upda
 			}
 			return err
 		}
+		created = true
 		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
 			ActorUserID: actorID,
 			Action:      "instance.update.requested",
@@ -89,7 +92,46 @@ func (s *Service) RequestUpdate(ctx context.Context, actorID int64, request Upda
 			},
 		})
 	})
-	return job, err
+	return job, created, err
+}
+
+func (s *Service) LatestUpdateJob(ctx context.Context) (*UpdateJob, error) {
+	var job UpdateJob
+	err := s.store.Pool.QueryRow(ctx, `
+		select id,from_version,target_version,deployment_mode,status,created_at,updated_at,finished_at
+		from instance_update_jobs order by id desc limit 1`).Scan(
+		&job.ID, &job.FromVersion, &job.TargetVersion, &job.DeploymentMode,
+		&job.Status, &job.CreatedAt, &job.UpdatedAt, &job.FinishedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return &job, err
+}
+
+func (s *Service) FailUndispatchedUpdate(ctx context.Context, actorID, jobID int64, code string) error {
+	if !errorCodePattern.MatchString(code) {
+		return ErrInvalid
+	}
+	return s.store.Tx(ctx, func(tx pgx.Tx) error {
+		if err := requireAdmin(ctx, tx, actorID); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `
+			update instance_update_jobs
+			set status='failed',error_code=$3,error_message='The updater helper was unavailable before dispatch.',updated_at=now(),finished_at=now()
+			where id=$1 and requested_by=$2 and status='requested'`, jobID, actorID, code)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return ErrInvalid
+		}
+		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
+			ActorUserID: actorID, Action: "instance.update.failed", TargetType: "update_job", TargetID: jobID,
+			Metadata: map[string]any{"failure_class": code},
+		})
+	})
 }
 
 func normalizeStableVersion(version string) string {
@@ -102,3 +144,5 @@ func normalizeStableVersion(version string) string {
 	}
 	return semver.Canonical(version)
 }
+
+var errorCodePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
