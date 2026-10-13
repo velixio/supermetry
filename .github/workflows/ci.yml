@@ -35,6 +35,8 @@ jobs:
       SUPERMETRY_TEST_DSN: postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@v7
         with:
@@ -117,3 +119,122 @@ jobs:
         env:
           SUPERMETRY_E2E_PORT: "18090"
         run: bunx playwright test e2e/account-sessions.spec.ts e2e/accuracy-live.spec.ts e2e/notifications.spec.ts e2e/project-currency.spec.ts e2e/replay-fit.spec.ts e2e/share.spec.ts --reporter=list --workers=1
+
+  web-build:
+    name: Build embedded web assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Build web assets
+        working-directory: web
+        run: bun run build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  binary-build:
+    name: Binary (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: web-build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: Build binary
+        id: build
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          target_dir=".ci-dist/${GOOS}-${GOARCH}"
+          mkdir -p "$target_dir"
+          binary="supermetry"
+          if [[ "$GOOS" == "windows" ]]; then
+            binary="supermetry.exe"
+          fi
+          version="ci-${GITHUB_SHA:0:12}"
+          CGO_ENABLED=0 go build -tags embedui -trimpath \
+            -ldflags "-s -w -X main.version=$version" \
+            -o "$target_dir/$binary" ./cmd/supermetry
+          if [[ "$GOOS" == "windows" ]]; then
+            archive=".ci-dist/supermetry-ci-${GOOS}-${GOARCH}.zip"
+            zip -q -j "$archive" "$target_dir/$binary"
+          else
+            archive=".ci-dist/supermetry-ci-${GOOS}-${GOARCH}.tar.gz"
+            tar -czf "$archive" -C "$target_dir" "$binary"
+          fi
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: supermetry-ci-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ steps.build.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 7
+
+  docker-build:
+    name: Docker (linux/amd64, linux/arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image without publishing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: false
+          platforms: linux/amd64,linux/arm64
+          outputs: type=cacheonly
+          build-args: |
+            VERSION=ci-${{ github.sha }}
+          cache-from: type=gha,scope=ci-docker
+          cache-to: type=gha,mode=max,scope=ci-docker,ignore-error=true
