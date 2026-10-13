@@ -6,6 +6,8 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+import { devAllowedHosts } from './dev-hosts'
+
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
@@ -24,8 +26,9 @@ export default defineConfig({
   },
   // make dev: the Go server (:8787) reverse-proxies the UI to this server, so the
   // browser only uses :8787. strictPort: fail loudly if :5173 is taken, because the
-  // Go proxy expects the UI there.
-  server: { host: 'localhost', port: 5173, strictPort: true },
+  // Go proxy expects the UI there. allowedHosts extends Vite's host check (never
+  // disables it) with the SUPERMETRY_BASE_URL hostname, see dev-hosts.ts.
+  server: { host: 'localhost', port: 5173, strictPort: true, allowedHosts: devAllowedHosts(process.env) },
   build: {
     manifest: true,
     rollupOptions: {
