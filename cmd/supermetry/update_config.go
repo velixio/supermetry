@@ -11,6 +11,9 @@ import (
 )
 
 func managedUpdater(currentVersion string) (*updateclient.Client, updatehelper.DeploymentMode) {
+	if strings.TrimSpace(releaseTrustedPublicKeys) == "" {
+		return nil, ""
+	}
 	canonical := "v" + strings.TrimPrefix(strings.TrimSpace(currentVersion), "v")
 	if !semver.IsValid(canonical) || semver.Canonical(canonical) != canonical || semver.Prerelease(canonical) != "" {
 		return nil, ""
