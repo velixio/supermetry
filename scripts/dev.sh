@@ -30,6 +30,17 @@ case $listen in
 0.0.0.0:* | '[::]:'* | 127.0.0.1:* | '[::1]:'*) api_url=http://localhost:${listen##*:} ;;
 *) api_url=http://$listen ;;
 esac
+# Behind a domain, the address to open is SUPERMETRY_BASE_URL, and its hostname must be
+# allowed by Vite (web/dev-hosts.ts does that from the same variable).
+base_host=$(printf '%s' "${SUPERMETRY_BASE_URL:-}" | sed -E 's|^[A-Za-z][A-Za-z0-9+.-]*://||; s|[/?#].*||; s|^[^@]*@||' | tr 'A-Z' 'a-z')
+case $base_host in
+'['*) base_host=${base_host#[}; base_host=${base_host%%]*} ;; # IPv6 literal
+*) base_host=${base_host%:*} ;;
+esac
+case $base_host in
+'' | localhost | 127.0.0.1 | ::1) base_host= ;;
+*) open_url=$(printf '%s' "$SUPERMETRY_BASE_URL" | sed 's|/*$||') ;;
+esac
 # The Go server redirects pages to the origin of the UI URL only (no path).
 ui_origin=$(printf '%s' "$ui_url" | sed -E 's|^(https?://[^/]+).*|\1|')
 
@@ -138,7 +149,8 @@ web_prepare() {
 	fi
 }
 banner() {
-	log "Open: $api_url   (the Go server; Vite runs behind it on $ui_origin)"
+	log "Open: ${open_url:-$api_url}   (the Go server; Vite runs behind it on $ui_origin)"
+	[ -z "$base_host" ] || log "Host:  $base_host is allowed for Vite (from SUPERMETRY_BASE_URL)"
 }
 [ -n "$custom_web" ] || web_prepare
 

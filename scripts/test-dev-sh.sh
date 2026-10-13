@@ -41,7 +41,7 @@ B
 
 start() { # start [web command]; sets pid
 	web=${1:-". $root/web.sh"}
-	(cd "$root" && SUPERMETRY_DEV_UI_URL=http://localhost:5173 SUPERMETRY_LISTEN=:8787 DEV_POLL=0.2 DEV_BIN="$root/bin/supermetry" \
+	(cd "$root" && SUPERMETRY_BASE_URL=http://localhost:8787 SUPERMETRY_DEV_UI_URL=http://localhost:5173 SUPERMETRY_LISTEN=:8787 DEV_POLL=0.2 DEV_BIN="$root/bin/supermetry" \
 		DEV_BUILD_CMD='. ./build.sh' DEV_WEB_CMD="$web" \
 		DEV_SERVER_CMD="exec $root/bin/supermetry" \
 		setsid python3 -c 'import os, signal, sys
@@ -128,6 +128,19 @@ wait_gone SIGINT
 : >"$pids"; start "echo 'Port 5173 is in use'; exit 1"
 wait_for 'vite exited' 'a dying Vite is reported'
 wait_gone 'Vite exits'
+# Behind a domain the banner opens SUPERMETRY_BASE_URL and names the allowed Vite host.
+for b in https://Ana.VoiceStudio.sh:8443/x/ http://localhost:8787; do
+	(cd "$root" && SUPERMETRY_BASE_URL=$b DEV_POLL=0.2 DEV_BIN="$root/bin/supermetry" DEV_BUILD_CMD='. ./build.sh' \
+		DEV_WEB_CMD="exec sleep 5" DEV_SERVER_CMD="exec $root/bin/supermetry" timeout 3 sh "$root/dev.sh") >"$root/log" 2>&1 || true
+	if [ "$b" = http://localhost:8787 ]; then
+		grep -q 'Open: http://localhost:8787 ' "$root/log" && ! grep -q 'Host:' "$root/log" || fail "banner for a local base URL"
+	else
+		grep -q 'Open: https://Ana.VoiceStudio.sh:8443/x  ' "$root/log" || fail "banner Open line for a domain"
+		grep -q 'Host:  ana.voicestudio.sh is allowed for Vite (from SUPERMETRY_BASE_URL)' "$root/log" || fail "banner Host line for a domain"
+	fi
+done
+echo "ok: the banner opens SUPERMETRY_BASE_URL and names the allowed host for a domain, nothing extra for localhost"
+
 # make dev binds to loopback unless SUPERMETRY_LISTEN is set, and the banner says localhost.
 make -C "$repo_root" -n dev 2>/dev/null | grep -q 'if \[ -z "\$SUPERMETRY_LISTEN" \]; then export SUPERMETRY_LISTEN=127.0.0.1:8787' || fail "make dev does not default SUPERMETRY_LISTEN to loopback"
 echo "ok: make dev defaults SUPERMETRY_LISTEN to 127.0.0.1:8787 when unset"
