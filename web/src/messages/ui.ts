@@ -118,6 +118,10 @@ export const ui = {
       screen_size: 'Screen size', goal: 'Goal', event: 'Event', weekday_hour: 'Weekly rhythm',
     } as Record<string, string>,
   },
+  language: {
+    menu: 'Language',
+    saveFailed: 'The language could not be saved. Try again.',
+  },
   palette: {
     open: 'Open command palette',
     loadFailed: 'The command palette could not be loaded. Check your connection and try again.',

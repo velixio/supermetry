@@ -489,6 +489,17 @@ describe('AppShell live visitor badge', () => {
     }
   })
 
+  it('offers the language menu on account and admin pages with the saved language checked', async () => {
+    const withLocale: Me = { ...me, user: { ...me.user, instance_admin: true }, preferences: { landing_page: 'overview', sites_view: 'cards', locale: 'es' } }
+    for (const path of ['/app/account/profile', '/app/admin/users']) {
+      const view = renderAppShell(path, withLocale)
+      const header = await screen.findByRole('banner', { name: 'Application header' })
+      fireEvent.keyDown(within(header).getByRole('button', { name: 'Language' }), { key: 'ArrowDown' })
+      expect(await screen.findByRole('menuitemradio', { name: /^Español/ })).toHaveAttribute('aria-checked', 'true')
+      view.unmount()
+    }
+  })
+
   it('limits the palette to account pages and organizations outside an organization', async () => {
     renderAppShell('/app/account/profile')
     fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))

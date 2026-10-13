@@ -130,6 +130,7 @@ export function AppShell({
             membership={membership}
             site={scopedSite}
             requestedSite={requestedSite}
+            locale={me.preferences?.locale ?? ''}
             theme={theme}
             onToggleTheme={toggle}
             onOpenHelp={() => setHelpOpen(true)}

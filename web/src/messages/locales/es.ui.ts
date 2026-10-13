@@ -148,6 +148,10 @@ const messages: MessageTree = {
       screen_size: 'Tamaño de pantalla', goal: 'Objetivo', event: 'Evento', weekday_hour: 'Ritmo semanal',
     },
   },
+  language: {
+    menu: 'Idioma',
+    saveFailed: 'No se pudo guardar el idioma. Inténtalo de nuevo.',
+  },
   palette: {
     open: 'Abrir la paleta de comandos',
     loadFailed: 'No se pudo cargar la paleta de comandos. Compruebe su conexión e inténtelo de nuevo.',

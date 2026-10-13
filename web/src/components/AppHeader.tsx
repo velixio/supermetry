@@ -3,12 +3,14 @@ import { Link } from '@tanstack/react-router'
 import { CircleHelpIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
 
 import { Breadcrumbs } from './Breadcrumbs'
+import { LanguageMenu } from './LanguageMenu'
 import { LiveBadge } from '@/components/LiveBadge'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import type { Membership, Site } from '@/lib/me'
+import type { LocaleCode } from '@/lib/i18n'
 import type { Theme } from '@/lib/theme'
 import { isApplePlatform } from '@/lib/shortcuts'
 import { isAnonymousTracking } from '@/lib/tracking-policy'
@@ -59,6 +61,7 @@ export function AppHeader({
   membership,
   site,
   requestedSite,
+  locale = '',
   theme,
   onToggleTheme,
   onOpenHelp,
@@ -68,6 +71,8 @@ export function AppHeader({
   membership?: Membership
   site?: Site
   requestedSite?: string
+  /** The signed-in user's saved interface language; '' follows the browser. */
+  locale?: LocaleCode | ''
   theme: Theme
   onToggleTheme: () => void
   onOpenHelp: () => void
@@ -117,6 +122,7 @@ export function AppHeader({
         >
           <CircleHelpIcon />
         </Button>
+        <LanguageMenu locale={locale} />
         <Button
           type="button"
           size="icon"
