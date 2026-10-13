@@ -57,11 +57,13 @@ function SiteLiveBadge({ siteId, org, site, detailsAvailable }: { siteId: number
 
 function UpdateNotice({ instanceAdmin }: { instanceAdmin: boolean }) {
   const status = useUpdateStatus(instanceAdmin)
-  if (!instanceAdmin || !status.data?.update_available || status.isError) return null
+  const jobStatus = status.data?.job?.status
+  const updateActive = Boolean(jobStatus && !['complete', 'failed', 'recovery_required'].includes(jobStatus))
+  if (!instanceAdmin || status.isError || !updateActive && !status.data?.update_available) return null
   return (
     <span role="status" aria-atomic="true">
       <Badge asChild variant="secondary" className="min-h-6">
-        <Link to="/app/admin/update">{en.admin.updateAvailable}</Link>
+        <Link to="/app/admin/update">{updateActive ? en.admin.updateInProgress : en.admin.updateAvailable}</Link>
       </Badge>
     </span>
   )

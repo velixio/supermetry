@@ -15,6 +15,10 @@ export type AdminTwoFactorPolicy = Schemas['AdminTwoFactorPolicy']
 export type AdminTwoFactorExemption = Schemas['AdminTwoFactorExemption']
 export type AdminAuditEntry = Schemas['AdminAuditEntry']
 export type AdminUpdateStatus = Schemas['AdminUpdateStatus']
+export type AdminApplyUpdateRequest = Schemas['AdminApplyUpdateRequest']
+export type AdminUpdateJob = Schemas['AdminUpdateJob']
+
+const terminalUpdateStates = new Set<AdminUpdateJob['status']>(['complete', 'failed', 'recovery_required'])
 
 const base = '/api/private/admin'
 
@@ -123,5 +127,22 @@ export function useUpdateStatus(enabled: boolean) {
     staleTime: 6 * 60 * 60 * 1000,
     retry: false,
     refetchOnWindowFocus: false,
+    refetchInterval: (query) => {
+      const job = (query.state.data as AdminUpdateStatus | undefined)?.job
+      return job && !terminalUpdateStates.has(job.status) ? 2_000 : false
+    },
+  })
+}
+
+export function useApplyUpdate() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: AdminApplyUpdateRequest) =>
+      privateRequest<AdminUpdateJob>('POST', `${base}/update/apply`, { body }),
+    onSuccess: (job) => {
+      client.setQueryData<AdminUpdateStatus>(adminKeys.update, (current) => current ? { ...current, job } : current)
+      void client.invalidateQueries({ queryKey: adminKeys.update, exact: true })
+      void client.invalidateQueries({ queryKey: adminKeys.audit, exact: true })
+    },
   })
 }

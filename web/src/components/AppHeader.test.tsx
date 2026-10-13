@@ -99,6 +99,20 @@ describe('AppHeader update notice', () => {
     expect(notice.closest('[role="status"]')).toBeInTheDocument()
   })
 
+  it('changes the admin notice while an update is running', async () => {
+    useUpdateStatus.mockReturnValue({
+      data: {
+        current_version: '1.2.0', latest_version: '1.3.0', update_available: true,
+        job: { status: 'activating' },
+      },
+      isError: false,
+    })
+
+    const header = await show('/app/admin/update', vi.fn(), '', true)
+    expect(within(header).getByRole('link', { name: 'Update in progress' })).toHaveAttribute('href', '/app/admin/update')
+    expect(within(header).queryByRole('link', { name: 'Update available' })).not.toBeInTheDocument()
+  })
+
   it.each([
     ['the instance is current', { data: { current_version: '1.3.0', latest_version: '1.3.0', update_available: false }, isError: false }],
     ['the check failed', { data: undefined, isError: true }],
