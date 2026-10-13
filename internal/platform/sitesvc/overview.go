@@ -45,6 +45,7 @@ type OverviewSite struct {
 	ID               int32                   `json:"id"`
 	OrgID            int64                   `json:"org_id"`
 	PublicID         string                  `json:"public_id"`
+	Slug             string                  `json:"slug"`
 	Name             string                  `json:"name"`
 	Domain           string                  `json:"domain"`
 	Timezone         string                  `json:"timezone"`
@@ -147,7 +148,7 @@ func (s *Overview) List(ctx context.Context, userID int64, period OverviewPeriod
 
 func (s *Overview) readableSites(ctx context.Context, userID int64, after overviewCursor, hasAfter bool, limit int) ([]OverviewSite, error) {
 	query := `
-select s.id,s.org_id,s.public_id,s.name,s.allowed_hosts,s.timezone,
+select s.id,s.org_id,s.public_id,s.slug,s.name,s.allowed_hosts,s.timezone,
        coalesce(s.settings->>'icon_url',''),o.id,o.name,o.slug,m.role,s.created_at,
        le.last_event_at
 from memberships m
@@ -172,7 +173,7 @@ where m.user_id=$1 and (m.site_ids is null or s.id=any(m.site_ids))`
 	for rows.Next() {
 		var item OverviewSite
 		var hosts []string
-		if err := rows.Scan(&item.ID, &item.OrgID, &item.PublicID, &item.Name, &hosts, &item.Timezone,
+		if err := rows.Scan(&item.ID, &item.OrgID, &item.PublicID, &item.Slug, &item.Name, &hosts, &item.Timezone,
 			&item.IconURL, &item.Organization.ID, &item.Organization.Name, &item.Organization.Slug,
 			&item.Role, &item.CreatedAt, &item.LastEventAt); err != nil {
 			return nil, err

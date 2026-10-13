@@ -19,7 +19,7 @@ export function useCreateDemo(org: DemoOrganization) {
       void queryClient.invalidateQueries({ queryKey: ['me'] })
       await navigate({
         to: '/app/$org/$site',
-        params: { org: org.slug, site: site.public_id },
+        params: { org: org.slug, site: site.slug ?? site.public_id },
         search: defaultSearch(),
       })
     },

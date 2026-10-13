@@ -90,6 +90,7 @@ type Site struct {
 	ID                    int32
 	OrgID                 int64
 	PublicID              string
+	Slug                  string
 	Name                  string
 	AllowedHosts          []string
 	Timezone              string
@@ -134,9 +135,9 @@ func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		insert into sites (org_id, public_id, name, allowed_hosts, timezone, retention_class, revenue_currency, revenue_currency_state, settings)
 		values ($1, $2, $3, $4, $5, $6, $7, 'configured', '{"profiles_enabled": true}'::jsonb)
 		on conflict (public_id) do nothing
-		returning id, created_at`,
+		returning id, slug, created_at`,
 		site.OrgID, site.PublicID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass, site.RevenueCurrency,
-	).Scan(&site.ID, &site.CreatedAt)
+	).Scan(&site.ID, &site.Slug, &site.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Site{}, pgx.ErrNoRows
@@ -148,7 +149,7 @@ func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 
 func SiteForUpdate(ctx context.Context, tx pgx.Tx, orgID int64, id int32) (Site, error) {
 	row := tx.QueryRow(ctx, `
-		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
+		select id, org_id, public_id, slug, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
 		       coalesce(settings->'exclude_countries', '[]'::jsonb),
@@ -171,6 +172,7 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 	err := tx.QueryRow(ctx, `
 		update sites
 		set name = $3, allowed_hosts = $4, timezone = $5, retention_class = $6,
+		    slug = coalesce(nullif($16::text, ''), slug),
 		    settings = jsonb_set(
 		        jsonb_set(
 		            jsonb_set(
@@ -186,7 +188,7 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		            'strict_origin', $14::boolean,
 		            'blocked_referrers', coalesce(to_jsonb($15::text[]), '[]'::jsonb))
 		where id = $1 and org_id = $2 and deleted_at is null
-		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
+		returning id, org_id, public_id, slug, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),
 		          coalesce(settings->'exclude_paths', '[]'::jsonb),
 		          coalesce(settings->'exclude_countries', '[]'::jsonb),
@@ -201,9 +203,9 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		          is_demo, demo_seeded_at, demo_started_at`,
 		site.ID, site.OrgID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass,
 		site.ExcludeIPs, site.ExcludePaths, site.ExcludeCountries, string(site.Tracker), site.ProfilesEnabled, site.HeatmapsEnabled,
-		site.RespectPrivacySignals, site.StrictOrigin, site.BlockedReferrers,
+		site.RespectPrivacySignals, site.StrictOrigin, site.BlockedReferrers, site.Slug,
 	).Scan(
-		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
+		&site.ID, &site.OrgID, &site.PublicID, &site.Slug, &site.Name, &site.AllowedHosts,
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
@@ -359,7 +361,7 @@ func RestoreSite(ctx context.Context, tx pgx.Tx, orgID int64, id int32, now time
 
 func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 	rows, err := data.Pool.Query(ctx, `
-		select s.id, s.org_id, s.public_id, s.name, s.allowed_hosts, s.timezone, s.retention_class,
+		select s.id, s.org_id, s.public_id, s.slug, s.name, s.allowed_hosts, s.timezone, s.retention_class,
 		       coalesce(s.settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(s.settings->'exclude_paths', '[]'::jsonb),
 		       coalesce(s.settings->'exclude_countries', '[]'::jsonb),
@@ -385,7 +387,7 @@ func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 
 func ListSites(ctx context.Context, data *Store, orgID int64, siteIDs []int32, after int32, limit int) ([]Site, error) {
 	rows, err := data.Pool.Query(ctx, `
-		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
+		select id, org_id, public_id, slug, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
 		       coalesce(settings->'exclude_countries', '[]'::jsonb),
@@ -417,7 +419,7 @@ type siteScanner interface {
 func scanSite(row siteScanner) (Site, error) {
 	var site Site
 	if err := row.Scan(
-		&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.AllowedHosts,
+		&site.ID, &site.OrgID, &site.PublicID, &site.Slug, &site.Name, &site.AllowedHosts,
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
@@ -435,7 +437,7 @@ func SetSiteIcon(ctx context.Context, data *Store, orgID int64, id int32, iconUR
 			case when $3::text = '' then '{}'::jsonb else jsonb_build_object('icon_url', $3::text) end ||
 			jsonb_build_object('icon_checked_at', $4::text)
 		where id = $1 and org_id = $2 and deleted_at is null
-		returning id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
+		returning id, org_id, public_id, slug, name, allowed_hosts, timezone, retention_class,
 		          coalesce(settings->'exclude_ips', '[]'::jsonb),
 		          coalesce(settings->'exclude_paths', '[]'::jsonb),
 		          coalesce(settings->'exclude_countries', '[]'::jsonb),
@@ -504,9 +506,9 @@ func CreateDemoSite(ctx context.Context, tx pgx.Tx, site Site, createdAt time.Ti
 				'USD', 'configured', $7, true, now()
 			)
 			on conflict (public_id) do nothing
-			returning id, public_id, created_at, demo_started_at`,
+			returning id, public_id, slug, created_at, demo_started_at`,
 			site.OrgID, publicID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass, createdAt,
-		).Scan(&site.ID, &site.PublicID, &site.CreatedAt, &site.DemoStartedAt)
+		).Scan(&site.ID, &site.PublicID, &site.Slug, &site.CreatedAt, &site.DemoStartedAt)
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
@@ -529,7 +531,7 @@ func CreateDemoSite(ctx context.Context, tx pgx.Tx, site Site, createdAt time.Ti
 
 func DemoSiteForOrg(ctx context.Context, q DBTX, orgID int64) (Site, bool, error) {
 	row := q.QueryRow(ctx, `
-		select id, org_id, public_id, name, allowed_hosts, timezone, retention_class,
+		select id, org_id, public_id, slug, name, allowed_hosts, timezone, retention_class,
 		       coalesce(settings->'exclude_ips', '[]'::jsonb),
 		       coalesce(settings->'exclude_paths', '[]'::jsonb),
 		       coalesce(settings->'exclude_countries', '[]'::jsonb),

@@ -2503,6 +2503,8 @@ export interface components {
             /** Format: int64 */
             org_id: number;
             public_id: string;
+            /** @description Readable per-organization URL segment; public_id resolves too. */
+            slug: string;
             name: string;
             domain: string;
             timezone: string;
@@ -2750,6 +2752,8 @@ export interface components {
             /** Format: int64 */
             org_id: number;
             public_id: string;
+            /** @description Readable per-organization URL segment; public_id resolves too. */
+            slug: string;
             name: string;
             timezone: string;
             retention_days: number;
@@ -2811,6 +2815,8 @@ export interface components {
         UpdateSiteRequest: {
             profiles_enabled?: boolean;
             name?: string;
+            /** @description Readable URL segment, unique per organization. Reserved words (sites, settings, health, new) and twelve-character ids are rejected; a taken slug returns 409. */
+            slug?: string;
             hosts?: string[];
             timezone?: string;
             /** @enum {integer} */

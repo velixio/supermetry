@@ -3184,6 +3184,9 @@ type Site struct {
 	RevenueCurrency       *string                  `json:"revenue_currency,omitempty"`
 	RevenueCurrencyState  SiteRevenueCurrencyState `json:"revenue_currency_state"`
 
+	// Slug Readable per-organization URL segment; public_id resolves too.
+	Slug string `json:"slug"`
+
 	// StrictOrigin Require an allowed Origin or Referer host during browser event ingestion.
 	StrictOrigin bool   `json:"strict_origin"`
 	Timezone     string `json:"timezone"`
@@ -3224,7 +3227,10 @@ type SitesOverviewItem struct {
 	PublicId         string `json:"public_id"`
 
 	// Role Membership role for the site's organization (owner, admin, editor, or viewer).
-	Role      string `json:"role"`
+	Role string `json:"role"`
+
+	// Slug Readable per-organization URL segment; public_id resolves too.
+	Slug      string `json:"slug"`
 	Sparkline []struct {
 		Start    time.Time `json:"start"`
 		Visitors int64     `json:"visitors"`
@@ -3300,6 +3306,9 @@ type UpdateSiteRequest struct {
 
 	// RevenueCurrency Permanent once selected; only unconfigured projects may set it.
 	RevenueCurrency *string `json:"revenue_currency,omitempty"`
+
+	// Slug Readable URL segment, unique per organization. Reserved words (sites, settings, health, new) and twelve-character ids are rejected; a taken slug returns 409.
+	Slug *string `json:"slug,omitempty"`
 
 	// StrictOrigin Require an allowed Origin or Referer host during browser event ingestion.
 	StrictOrigin *bool   `json:"strict_origin,omitempty"`
