@@ -14,6 +14,7 @@ export type AdminSettingsPatch = Schemas['AdminSettingsPatch']
 export type AdminTwoFactorPolicy = Schemas['AdminTwoFactorPolicy']
 export type AdminTwoFactorExemption = Schemas['AdminTwoFactorExemption']
 export type AdminAuditEntry = Schemas['AdminAuditEntry']
+export type AdminUpdateStatus = Schemas['AdminUpdateStatus']
 
 const base = '/api/private/admin'
 
@@ -26,6 +27,7 @@ export const adminKeys = {
   settings: ['admin', 'settings'] as const,
   policy: ['admin', 'policy'] as const,
   audit: ['admin', 'audit'] as const,
+  update: ['admin', 'update'] as const,
 }
 
 function withSearch(path: string, search: string) {
@@ -111,4 +113,15 @@ export function useRemoveExemption() {
 
 export function useAdminAudit() {
   return useQuery({ queryKey: adminKeys.audit, queryFn: () => privateRequest<{ data: AdminAuditEntry[] }>('GET', `${base}/audit?limit=50`) })
+}
+
+export function useUpdateStatus(enabled: boolean) {
+  return useQuery({
+    queryKey: adminKeys.update,
+    enabled,
+    queryFn: () => privateRequest<AdminUpdateStatus>('GET', `${base}/update`),
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
 }
