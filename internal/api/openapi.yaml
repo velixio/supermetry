@@ -5536,6 +5536,12 @@ components:
       properties:
         status:
           type: string
+        version:
+          type: string
+        schema_version:
+          type: integer
+          format: int64
+          minimum: 0
     ValidationError:
       type: object
       additionalProperties: false

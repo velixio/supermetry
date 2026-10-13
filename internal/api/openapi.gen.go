@@ -127,6 +127,90 @@ func (e AdminTwoFactorPolicyScope) Valid() bool {
 	}
 }
 
+// Defines values for AdminUpdateJobDeploymentMode.
+const (
+	AdminUpdateJobDeploymentModeBinary AdminUpdateJobDeploymentMode = "binary"
+	AdminUpdateJobDeploymentModeDocker AdminUpdateJobDeploymentMode = "docker"
+)
+
+// Valid indicates whether the value is a known member of the AdminUpdateJobDeploymentMode enum.
+func (e AdminUpdateJobDeploymentMode) Valid() bool {
+	switch e {
+	case AdminUpdateJobDeploymentModeBinary:
+		return true
+	case AdminUpdateJobDeploymentModeDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminUpdateJobStatus.
+const (
+	AdminUpdateJobStatusActivating       AdminUpdateJobStatus = "activating"
+	AdminUpdateJobStatusBackingUp        AdminUpdateJobStatus = "backing_up"
+	AdminUpdateJobStatusComplete         AdminUpdateJobStatus = "complete"
+	AdminUpdateJobStatusDownloading      AdminUpdateJobStatus = "downloading"
+	AdminUpdateJobStatusFailed           AdminUpdateJobStatus = "failed"
+	AdminUpdateJobStatusPreflight        AdminUpdateJobStatus = "preflight"
+	AdminUpdateJobStatusRecoveryRequired AdminUpdateJobStatus = "recovery_required"
+	AdminUpdateJobStatusRequested        AdminUpdateJobStatus = "requested"
+	AdminUpdateJobStatusRestarting       AdminUpdateJobStatus = "restarting"
+	AdminUpdateJobStatusStopping         AdminUpdateJobStatus = "stopping"
+	AdminUpdateJobStatusVerifying        AdminUpdateJobStatus = "verifying"
+	AdminUpdateJobStatusVerifyingHealth  AdminUpdateJobStatus = "verifying_health"
+)
+
+// Valid indicates whether the value is a known member of the AdminUpdateJobStatus enum.
+func (e AdminUpdateJobStatus) Valid() bool {
+	switch e {
+	case AdminUpdateJobStatusActivating:
+		return true
+	case AdminUpdateJobStatusBackingUp:
+		return true
+	case AdminUpdateJobStatusComplete:
+		return true
+	case AdminUpdateJobStatusDownloading:
+		return true
+	case AdminUpdateJobStatusFailed:
+		return true
+	case AdminUpdateJobStatusPreflight:
+		return true
+	case AdminUpdateJobStatusRecoveryRequired:
+		return true
+	case AdminUpdateJobStatusRequested:
+		return true
+	case AdminUpdateJobStatusRestarting:
+		return true
+	case AdminUpdateJobStatusStopping:
+		return true
+	case AdminUpdateJobStatusVerifying:
+		return true
+	case AdminUpdateJobStatusVerifyingHealth:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminUpdateStatusDeploymentMode.
+const (
+	AdminUpdateStatusDeploymentModeBinary AdminUpdateStatusDeploymentMode = "binary"
+	AdminUpdateStatusDeploymentModeDocker AdminUpdateStatusDeploymentMode = "docker"
+)
+
+// Valid indicates whether the value is a known member of the AdminUpdateStatusDeploymentMode enum.
+func (e AdminUpdateStatusDeploymentMode) Valid() bool {
+	switch e {
+	case AdminUpdateStatusDeploymentModeBinary:
+		return true
+	case AdminUpdateStatusDeploymentModeDocker:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateSiteRequestRetentionDays.
 const (
 	CreateSiteRequestRetentionDaysN0   CreateSiteRequestRetentionDays = 0
@@ -1556,6 +1640,14 @@ type APIKeyList struct {
 	Data []APIKey `json:"data"`
 }
 
+// AdminApplyUpdateRequest defines model for AdminApplyUpdateRequest.
+type AdminApplyUpdateRequest struct {
+	IdempotencyKey string  `json:"idempotency_key"`
+	Password       string  `json:"password"`
+	TargetVersion  string  `json:"target_version"`
+	TotpCode       *string `json:"totp_code,omitempty"`
+}
+
 // AdminAuditEntry defines model for AdminAuditEntry.
 type AdminAuditEntry struct {
 	Action      string                 `json:"action"`
@@ -1661,6 +1753,42 @@ type AdminTwoFactorPolicy struct {
 
 // AdminTwoFactorPolicyScope defines model for AdminTwoFactorPolicy.Scope.
 type AdminTwoFactorPolicyScope string
+
+// AdminUpdateJob defines model for AdminUpdateJob.
+type AdminUpdateJob struct {
+	CreatedAt      time.Time                    `json:"created_at"`
+	DeploymentMode AdminUpdateJobDeploymentMode `json:"deployment_mode"`
+	ErrorCode      *string                      `json:"error_code,omitempty"`
+	FinishedAt     *time.Time                   `json:"finished_at,omitempty"`
+	FromVersion    string                       `json:"from_version"`
+	Id             int64                        `json:"id"`
+	Status         AdminUpdateJobStatus         `json:"status"`
+	TargetVersion  string                       `json:"target_version"`
+	UpdatedAt      time.Time                    `json:"updated_at"`
+}
+
+// AdminUpdateJobDeploymentMode defines model for AdminUpdateJob.DeploymentMode.
+type AdminUpdateJobDeploymentMode string
+
+// AdminUpdateJobStatus defines model for AdminUpdateJob.Status.
+type AdminUpdateJobStatus string
+
+// AdminUpdateStatus defines model for AdminUpdateStatus.
+type AdminUpdateStatus struct {
+	CheckError      *string                          `json:"check_error"`
+	CheckedAt       *time.Time                       `json:"checked_at"`
+	CurrentVersion  string                           `json:"current_version"`
+	DeploymentMode  *AdminUpdateStatusDeploymentMode `json:"deployment_mode,omitempty"`
+	Job             *AdminUpdateJob                  `json:"job,omitempty"`
+	LatestVersion   *string                          `json:"latest_version"`
+	PublishedAt     *time.Time                       `json:"published_at"`
+	ReleaseUrl      *string                          `json:"release_url"`
+	UpdateAvailable bool                             `json:"update_available"`
+	UpdateSupported bool                             `json:"update_supported"`
+}
+
+// AdminUpdateStatusDeploymentMode defines model for AdminUpdateStatus.DeploymentMode.
+type AdminUpdateStatusDeploymentMode string
 
 // AdminUser defines model for AdminUser.
 type AdminUser struct {
@@ -2244,7 +2372,9 @@ type GoalInputMatch string
 
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
-	Status string `json:"status"`
+	SchemaVersion *int64  `json:"schema_version,omitempty"`
+	Status        string  `json:"status"`
+	Version       *string `json:"version,omitempty"`
 }
 
 // HeatmapCell defines model for HeatmapCell.
@@ -3847,6 +3977,9 @@ type AdminUpdateTwoFactorPolicyJSONRequestBody = AdminTwoFactorPolicy
 // AdminUpdateSettingsJSONRequestBody defines body for AdminUpdateSettings for application/json ContentType.
 type AdminUpdateSettingsJSONRequestBody = AdminSettingsPatch
 
+// AdminApplyUpdateJSONRequestBody defines body for AdminApplyUpdate for application/json ContentType.
+type AdminApplyUpdateJSONRequestBody = AdminApplyUpdateRequest
+
 // AdminUpdateUserJSONRequestBody defines body for AdminUpdateUser for application/json ContentType.
 type AdminUpdateUserJSONRequestBody = AdminUserPatch
 
@@ -4395,6 +4528,12 @@ type ServerInterface interface {
 	// AdminListSites List sites with usage, last event and retention
 	// (GET /api/private/admin/sites)
 	AdminListSites(w http.ResponseWriter, r *http.Request, params AdminListSitesParams)
+	// AdminGetUpdateStatus Check whether a newer stable Supermetry release is available
+	// (GET /api/private/admin/update)
+	AdminGetUpdateStatus(w http.ResponseWriter, r *http.Request)
+	// AdminApplyUpdate Apply a verified stable release
+	// (POST /api/private/admin/update/apply)
+	AdminApplyUpdate(w http.ResponseWriter, r *http.Request)
 	// AdminListUsers List and search instance users
 	// (GET /api/private/admin/users)
 	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
@@ -5025,6 +5164,34 @@ func (siw *ServerInterfaceWrapper) AdminListSites(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminListSites(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetUpdateStatus operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetUpdateStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetUpdateStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminApplyUpdate operation middleware
+func (siw *ServerInterfaceWrapper) AdminApplyUpdate(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminApplyUpdate(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9767,6 +9934,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminDeleteTwoFactorExemption)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminSetTwoFactorExemption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/audit", wrapper.AdminListAudit)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/update", wrapper.AdminGetUpdateStatus)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/update/apply", wrapper.AdminApplyUpdate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/setup/status", wrapper.GetSetupStatus)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/me", wrapper.DeleteCurrentUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me", wrapper.GetCurrentUser)
