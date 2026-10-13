@@ -40,7 +40,7 @@ export function SitesOverviewLanding({ me }: { me: Me }) {
 
 export function landingTarget(me: Me): string | undefined {
   const sites = me.memberships.flatMap((membership) => membership.sites.map((site) => ({ membership, site })))
-  if (sites.length === 0 || (me.preferences?.landing_page ?? (sites.length === 1 ? 'last_site' : 'overview')) === 'overview') return undefined
+  if (sites.length === 0 || (me.preferences?.landing_page ?? 'last_site') === 'overview') return undefined
   const selected = sites.find(({ site }) => site.id === me.preferences?.last_site_id) ?? sites[0]
   return selected ? `/app/${selected.membership.org.slug}/${selected.site.slug ?? selected.site.public_id ?? String(selected.site.id)}` : undefined
 }

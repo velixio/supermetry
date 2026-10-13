@@ -9,13 +9,13 @@ import { landingTarget } from '@/features/sites/SitesOverviewLanding'
 afterEach(cleanup)
 
 describe('onboarding', () => {
-  it('defaults one site to its dashboard and multiple sites to overview', () => {
+  it('defaults to the last visited site, or the first site, unless overview is chosen', () => {
     const single = {
       user: { id: 1, name: 'Owner', email: 'owner@example.com' },
       memberships: [{ org: { id: 1, name: 'Acme', slug: 'acme' }, role: 'owner' as const, sites: [{ id: 7, name: 'Docs', public_id: 'docs-public' }] }],
     }
     expect(landingTarget(single)).toBe('/app/acme/docs-public')
-    expect(landingTarget({ ...single, memberships: [{ ...single.memberships[0], sites: [...single.memberships[0].sites, { id: 8, name: 'Shop', public_id: 'shop-public' }] }] })).toBeUndefined()
+    expect(landingTarget({ ...single, memberships: [{ ...single.memberships[0], sites: [...single.memberships[0].sites, { id: 8, name: 'Shop', public_id: 'shop-public' }] }] })).toBe('/app/acme/docs-public')
   })
 
   it('honors overview and last-site preferences', () => {
