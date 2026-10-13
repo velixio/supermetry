@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev dev-embedded migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -101,8 +101,19 @@ run: build
 web/dist/index.html: $(shell find web/src web/packages web/public -type f 2>/dev/null) web/package.json web/index.html web/vite.config.ts
 	$(MAKE) web
 
-# Run with the dashboard, without rebuilding it on every start.
-dev: web/dist/index.html
+# make dev: watch mode. Open http://localhost:5173 (the Vite dev server with hot reload).
+# Vite proxies the API, tracker, health and short-link paths to the Go server on :8787.
+# The Go server is rebuilt and restarted when .go files, go.mod/go.sum or the assets
+# embedded from cmd/ and internal/ change; a compile error keeps the old server running.
+# UI edits need no restart. SUPERMETRY_BASE_URL defaults to http://localhost:5173 here
+# (the origin the browser uses); if .env sets another value, login through :5173 fails
+# the Origin check, so leave it unset for make dev. Ctrl+C stops both processes.
+dev:
+	$(ENV) if [ -z "$$SUPERMETRY_BASE_URL" ]; then export SUPERMETRY_BASE_URL=http://localhost:5173; fi; \
+		$(DB_ENV) exec sh $(CURDIR)/scripts/dev.sh
+
+# One-shot embedded build served by Go on :8787 (the old make dev). No watching.
+dev-embedded: web/dist/index.html
 	mkdir -p bin
 	go build -tags embedui -o bin/supermetry ./cmd/supermetry
 	$(DB_ENV) $(CURDIR)/bin/supermetry serve
@@ -111,7 +122,10 @@ migrate: build-go
 	$(DB_ENV) $(CURDIR)/bin/supermetry migrate
 
 # Stop the supermetry server started by make run/dev from this checkout (anchored, so it never matches itself or worktree servers).
+# Also stops the make dev supervisor and its Vite dev server from this checkout.
 kill:
+	-pkill -f '^sh $(CURDIR)/scripts/dev.sh' && echo "stopped dev watcher" || true
+	-pkill -f '^[^ ]*(node|bun) .*$(CURDIR)/web/node_modules/\.bin/vite' && echo "stopped vite" || true
 	-pkill -f '^$(CURDIR)/bin/supermetry serve' && echo "stopped supermetry" || echo "no supermetry running"
 
 # The dev database also starts on its own with run/dev/migrate/test; these are for manual use.
