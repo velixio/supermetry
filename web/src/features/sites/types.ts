@@ -42,6 +42,7 @@ export type ManagedSite = {
   id: number
   org_id?: number
   public_id: string
+  slug?: string
   name: string
   timezone: string
   retention_days?: number

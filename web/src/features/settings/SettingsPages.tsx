@@ -74,6 +74,7 @@ import { activeLocale } from '@/lib/i18n/intl'
 type Site = {
   id: number;
   public_id: string;
+  slug?: string;
   name: string;
   allowed_hosts: string[];
   timezone: string;
@@ -198,10 +199,13 @@ export function SiteGeneralPage({
   siteId,
   orgId,
   role,
+  onSlugChange,
 }: {
   siteId: number;
   orgId: number;
   role: Role;
+  /** Called after a save changed the slug, so the page can move to the new URL. */
+  onSlugChange?: (slug: string) => void;
 }) {
   const queryClient = useQueryClient();
   const site = useQuery({
@@ -215,7 +219,14 @@ export function SiteGeneralPage({
         orgId,
         body,
       }),
-    onSuccess: (value) => queryClient.setQueryData(["site", siteId], value),
+    onSuccess: (value) => {
+      const previous = queryClient.getQueryData<Site>(["site", siteId])?.slug;
+      queryClient.setQueryData(["site", siteId], value);
+      if (value.slug && previous && value.slug !== previous) {
+        void queryClient.invalidateQueries({ queryKey: ["me"] });
+        onSlugChange?.(value.slug);
+      }
+    },
   });
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -225,6 +236,7 @@ export function SiteGeneralPage({
       .toUpperCase();
     save.mutate({
       name: String(data.get("name") ?? ""),
+      ...(data.get("slug") !== null ? { slug: String(data.get("slug")).trim() } : {}),
       hosts: String(data.get("hosts") ?? "")
         .split(",")
         .map((host) => host.trim())
@@ -259,6 +271,24 @@ export function SiteGeneralPage({
                     defaultValue={site.data.name}
                   />
                 </Field>
+                {site.data.slug !== undefined ? (
+                  <Field>
+                    <FieldLabel htmlFor="site-slug">URL name</FieldLabel>
+                    <Input
+                      id="site-slug"
+                      name="slug"
+                      defaultValue={site.data.slug}
+                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                      maxLength={63}
+                      autoCapitalize="none"
+                      spellCheck={false}
+                    />
+                    <FieldDescription>
+                      Used in this site's address. Lowercase letters, digits and single hyphens. Changing it
+                      does not break older links that use the site id.
+                    </FieldDescription>
+                  </Field>
+                ) : null}
                 <RevenueCurrencySettings site={site.data} role={role} />
                 <Field>
                   <FieldLabel htmlFor="site-hosts">Allowed hosts</FieldLabel>

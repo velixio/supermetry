@@ -31,7 +31,7 @@ function NewSiteRoute() {
             await queryClient.invalidateQueries({ queryKey: ['me'] })
             await navigate({
               to: '/app/$org/$site/settings/installation',
-              params: { org, site: site.public_id },
+              params: { org, site: site.slug ?? site.public_id },
             })
           }}
         />

@@ -85,9 +85,9 @@ function SiteActions({ site, onDelete }: { site: OverviewSite; onDelete(site: Ov
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild><Link to="/app/$org/$site" params={{ org: site.organization.slug, site: site.public_id }} search={defaultSearch()}>Open dashboard</Link></DropdownMenuItem>
-          {canEdit ? <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/general" params={{ org: site.organization.slug, site: site.public_id }}>Site settings</Link></DropdownMenuItem> : null}
-          <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/installation" params={{ org: site.organization.slug, site: site.public_id }}>Installation</Link></DropdownMenuItem>
+          <DropdownMenuItem asChild><Link to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={defaultSearch()}>Open dashboard</Link></DropdownMenuItem>
+          {canEdit ? <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/general" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }}>Site settings</Link></DropdownMenuItem> : null}
+          <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/installation" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }}>Installation</Link></DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void copyText(site.tracking_snippet)}>Copy tracking snippet</DropdownMenuItem>
           {canDelete ? <DropdownMenuItem variant="destructive" onSelect={() => onDelete(site)}>Delete site</DropdownMenuItem> : null}
         </DropdownMenuGroup>
@@ -103,7 +103,7 @@ function SiteCard({ site, multipleOrganizations, onDelete }: { site: OverviewSit
       <CardHeader className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
         <SiteIcon iconUrl={site.icon_url} name={site.name} size={40} />
         <div className="min-w-0">
-          <CardTitle className="text-base"><Link aria-label={accessibleName} className="outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.public_id }} search={defaultSearch()}>{site.name}</Link></CardTitle>
+          <CardTitle className="text-base"><Link aria-label={accessibleName} className="outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={defaultSearch()}>{site.name}</Link></CardTitle>
           <p className="truncate text-sm text-muted-foreground">{site.domain}</p>
           {multipleOrganizations ? <p className="truncate text-xs text-muted-foreground">{site.organization.name} · {site.role}</p> : <p className="text-xs capitalize text-muted-foreground">{site.role}</p>}
           <p className="text-xs text-muted-foreground">Created {fmt.date(site.created_at, site.timezone)}</p>
@@ -130,7 +130,7 @@ function SitesTable({ sites, multipleOrganizations, onDelete }: { sites: Overvie
         <TableHead>Site</TableHead>{multipleOrganizations ? <TableHead>Organization</TableHead> : null}<TableHead>Created</TableHead><TableHead>Visitors</TableHead><TableHead>Change</TableHead><TableHead>Traffic</TableHead><TableHead>Live</TableHead><TableHead>Last event</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead>
       </TableRow></TableHeader><TableBody>{sites.map((site) => (
         <TableRow className="h-20" key={site.id}>
-          <TableCell><div className="flex items-center gap-3"><SiteIcon iconUrl={site.icon_url} name={site.name} size={32} /><div className="min-w-0"><Link className="font-medium hover:underline" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.public_id }} search={defaultSearch()}>{site.name}</Link><p className="max-w-52 truncate text-xs text-muted-foreground">{site.domain}</p></div></div></TableCell>
+          <TableCell><div className="flex items-center gap-3"><SiteIcon iconUrl={site.icon_url} name={site.name} size={32} /><div className="min-w-0"><Link className="font-medium hover:underline" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={defaultSearch()}>{site.name}</Link><p className="max-w-52 truncate text-xs text-muted-foreground">{site.domain}</p></div></div></TableCell>
           {multipleOrganizations ? <TableCell>{site.organization.name}<p className="text-xs capitalize text-muted-foreground">{site.role}</p></TableCell> : null}
           <TableCell>{fmt.date(site.created_at, site.timezone)}</TableCell><TableCell className="tabular-nums">{fmt.number(site.visitors)}</TableCell><TableCell><ChangeBadge site={site} /></TableCell><TableCell className="w-36"><Sparkline site={site} /></TableCell><TableCell className="tabular-nums">{fmt.number(site.live_visitors)}</TableCell><TableCell>{lastEvent(site)}</TableCell><TableCell><InstallStatusView status={site.install_status} lastSeenAt={site.last_event_at} /></TableCell><TableCell><SiteActions site={site} onDelete={onDelete} /></TableCell>
         </TableRow>

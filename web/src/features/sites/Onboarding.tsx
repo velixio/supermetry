@@ -45,7 +45,7 @@ export function Onboarding({ me, createSite, navigate }: {
           submitLabel="Create site"
           onSubmit={async (input) => {
             const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
-            navigate(`/app/${membership.org.slug}/${site.public_id}/settings/installation`)
+            navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/installation`)
           }}
           secondaryAction={me.demo_prompt_dismissed !== false ? <Button type="button" variant="ghost" onClick={() => navigate(`/app/${membership.org.slug}/sites`)}>Skip for now</Button> : undefined}
         />
