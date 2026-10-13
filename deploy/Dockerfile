@@ -15,10 +15,10 @@ COPY . .
 COPY --from=web-build /src/web/dist ./web/dist
 
 ARG VERSION=dev
-ARG RELEASE_SIGNING_PUBLIC_KEY=""
+ARG RELEASE_TRUSTED_PUBLIC_KEYS=""
 ENV CGO_ENABLED=0
 RUN go build -tags embedui -trimpath \
-    -ldflags "-s -w -X main.version=${VERSION} -X main.releaseSigningPublicKey=${RELEASE_SIGNING_PUBLIC_KEY}" \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.releaseTrustedPublicKeys=${RELEASE_TRUSTED_PUBLIC_KEYS}" \
     -o /out/supermetry ./cmd/supermetry
 
 FROM alpine:3.23
