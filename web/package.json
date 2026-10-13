@@ -10,7 +10,7 @@
     "gen:api-client": "openapi-typescript ../internal/api/openapi.yaml -o packages/api-client/src/schema.ts",
     "gen:routes": "bun node_modules/@tanstack/router-cli/dist/esm/index.js generate",
     "typecheck": "bun run gen:routes && tsc --noEmit",
-    "test": "vitest --configLoader runner --exclude=e2e/**",
+    "test": "bun packages/tokens/build.ts && vitest --configLoader runner --exclude=e2e/**",
     "build": "bun scripts/copy-flags.mjs && bun run gen:routes && tsc --noEmit && vite build --configLoader runner && bun scripts/size-check.mjs",
     "e2e": "playwright test"
   },

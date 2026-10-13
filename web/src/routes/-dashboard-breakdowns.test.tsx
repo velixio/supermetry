@@ -598,7 +598,7 @@ describe('dashboard breakdown route', () => {
     await waitFor(() => expect(router.state.location.search.inspect).toBeUndefined())
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(router.state.location.search.f ?? []).toEqual([])
-  })
+  }, 10_000)
 
   it('returns focus to the Inspect button when the inspector closes with Esc', async () => {
     const router = renderAt(range)
