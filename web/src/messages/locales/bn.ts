@@ -1,0 +1,337 @@
+import type { MessageTree } from '@/lib/i18n/catalogue'
+
+/*
+Core analytics glossary (English -> Bengali):
+visitors -> দর্শনার্থী
+unique visitors -> স্বতন্ত্র দর্শনার্থী
+pageviews -> পেজভিউ
+sessions -> সেশন
+bounce rate -> বাউন্স রেট
+views per visit -> প্রতি ভিজিটে ভিউ
+visit duration -> ভিজিটের সময়কাল
+referrers/sources -> রেফারার/উৎস
+channels -> চ্যানেল
+campaigns -> প্রচারণা
+goals -> লক্ষ্য
+conversions -> রূপান্তর
+funnels -> ফানেল
+retention -> ধরে রাখা
+cohorts -> কোহর্ট
+journeys -> যাত্রাপথ
+events -> ইভেন্ট
+properties -> প্রপার্টি
+revenue -> আয়
+filters/segments -> ফিল্টার/সেগমেন্ট
+realtime/live -> রিয়েলটাইম/সরাসরি
+dashboard -> ড্যাশবোর্ড
+sites -> সাইট
+organization/members -> প্রতিষ্ঠান/সদস্য
+API keys -> API কী
+replays/heatmaps -> রিপ্লে/হিটম্যাপ
+imports/exports -> আমদানি/রপ্তানি
+*/
+
+// BN translation of messages/en.ts. Machine-assisted first translation (reviewed: false in the manifest).
+// Keys, placeholders and function arguments must match English exactly; the catalogue test enforces it.
+const messages: MessageTree = {
+  appName: 'Supermetry',
+  loadingDashboard: 'ড্যাশবোর্ড লোড হচ্ছে…',
+  auth: {
+    email: 'ইমেইল', name: 'নাম', password: 'পাসওয়ার্ড', newPassword: 'নতুন পাসওয়ার্ড', authenticationCode: 'প্রমাণীকরণ কোড',
+    organizationName: 'প্রতিষ্ঠানের নাম', signIn: 'সাইন ইন', signingIn: 'সাইন ইন করা হচ্ছে…', verify: 'যাচাই করুন', verifying: 'যাচাই করা হচ্ছে…',
+    signInHeading: 'Supermetry-তে সাইন ইন করুন', signInDescription: 'আপনার ড্যাশবোর্ড খুলতে অ্যাকাউন্ট ব্যবহার করুন।',
+    totpDescription: 'আপনার অথেন্টিকেটর অ্যাপের ছয় অঙ্কের কোড লিখুন।', genericError: 'সাইন ইন ব্যর্থ হয়েছে। তথ্য পরীক্ষা করে আবার চেষ্টা করুন।',
+    invalidCredentials: 'ইমেইল, পাসওয়ার্ড বা প্রমাণীকরণ কোড ভুল।', invalidToken: 'এই লিংকটি অবৈধ, মেয়াদোত্তীর্ণ বা ইতিমধ্যে ব্যবহৃত হয়েছে। চালিয়ে যেতে নতুন লিংক চান।',
+    rateLimited: 'অনেকবার চেষ্টা করা হয়েছে। আবার চেষ্টা করার আগে কিছুক্ষণ অপেক্ষা করুন।', originMismatch: 'কনফিগার করা বেস URL-এ Supermetry খুলে আবার চেষ্টা করুন।',
+    serverError: 'Supermetry অনুরোধটি সম্পন্ন করতে পারেনি। কিছুক্ষণ পর আবার চেষ্টা করুন।', networkError: 'Supermetry-তে পৌঁছানো যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',
+    passwordPolicy: 'কমপক্ষে 6টি অক্ষর ব্যবহার করুন এবং বহুল ব্যবহৃত পাসওয়ার্ড এড়িয়ে চলুন।', setupHeading: 'Supermetry সেট আপ করুন',
+    setupDescription: 'প্রথম মালিক ও প্রতিষ্ঠান তৈরি করুন।', completeSetup: 'সেটআপ সম্পন্ন করুন', invitationHeading: 'আমন্ত্রণ গ্রহণ করুন',
+    invitationDescription: 'প্রতিষ্ঠানে যোগ দিতে আপনার অ্যাকাউন্ট সম্পন্ন করুন।', acceptInvitation: 'আমন্ত্রণ গ্রহণ করুন', resetHeading: 'নতুন পাসওয়ার্ড বেছে নিন',
+    resetDescription: 'আগে ব্যবহার করেননি এমন শক্তিশালী পাসওয়ার্ড ব্যবহার করুন।', resetPassword: 'পাসওয়ার্ড রিসেট করুন', success: 'আপনার পরিবর্তন সংরক্ষিত হয়েছে।',
+    signupHeading: 'আপনার Supermetry অ্যাকাউন্ট তৈরি করুন', signupDescription: 'আপনার সাইটগুলোর জন্য একটি অ্যাকাউন্ট ও প্রতিষ্ঠান তৈরি করুন।', createAccount: 'অ্যাকাউন্ট তৈরি করুন',
+    creatingAccount: 'অ্যাকাউন্ট তৈরি হচ্ছে…', signupError: 'অ্যাকাউন্ট তৈরি ব্যর্থ হয়েছে। তথ্য পরীক্ষা করে আবার চেষ্টা করুন।', inviteOnly: 'শুধু আমন্ত্রণে নিবন্ধন করা যায়।', backToLogin: 'সাইন ইন',
+  },
+  navigation: {
+    dashboard: 'ড্যাশবোর্ড', events: 'ইভেন্ট', sessions: 'সেশন', journeys: 'যাত্রাপথ', retention: 'ধরে রাখা', profiles: 'প্রোফাইল', cohorts: 'কোহর্ট',
+    heatmaps: 'হিটম্যাপ', vitals: 'Web Vitals', funnels: 'ফানেল', realtime: 'রিয়েলটাইম', goals: 'লক্ষ্য', revenue: 'আয়', settings: 'সাইট সেটিংস',
+    organizationSettings: 'প্রতিষ্ঠানের সেটিংস', sites: 'সাইট', addSite: '+ সাইট যোগ করুন', health: 'ডেটার স্বাস্থ্য', organization: 'প্রতিষ্ঠান',
+    organizations: 'প্রতিষ্ঠান', addOrganization: '+ প্রতিষ্ঠান যোগ করুন', projects: 'প্রকল্প', brand: 'Supermetry', site: 'সাইট',
+    collapse: 'সাইডবার টগল করুন', sidebarTitle: 'সাইডবার', sidebarDescription: 'ড্যাশবোর্ড নেভিগেশন।',
+  },
+  common: { close: 'বন্ধ করুন' },
+  apiKeys: {
+    title: 'API কী', description: 'নির্দিষ্ট সুযোগের ইন্টিগ্রেশন কী তৈরি করুন। নতুন গোপন কী শুধু একবার দেখানো হয়।', unauthorized: 'শুধু মালিক ও অ্যাডমিনরা API কী পরিচালনা করতে পারেন।',
+    create: 'কী তৈরি করুন', createTitle: 'API কী তৈরি করুন', createDescription: 'এই ইন্টিগ্রেশনের জন্য প্রয়োজনীয় সর্বনিম্ন অনুমতি ও সাইট বেছে নিন।',
+    name: 'কীর নাম', namePlaceholder: 'রিপোর্টিং ইন্টিগ্রেশন', scopes: 'সুযোগ', scopesRequired: 'কমপক্ষে একটি সুযোগ বেছে নিন',
+    keysManageWarning: 'API কী তৈরি ও বাতিল করতে পারে।', siteAccess: 'সাইটে প্রবেশাধিকার', allSites: 'সব সাইট', onlySites: 'শুধু এই সাইটগুলো',
+    sitesRequired: 'কমপক্ষে একটি সাইট বেছে নিন', expiry: 'মেয়াদ শেষের তারিখ', expiryDescription: 'ঐচ্ছিক। এই তারিখের শুরু থেকে কীটি আর কাজ করবে না (UTC)।',
+    expiryFuture: 'মেয়াদ শেষের তারিখ ভবিষ্যতের হতে হবে', never: 'কখনো নয়', active: 'সক্রিয়', expired: 'মেয়াদোত্তীর্ণ', revoked: 'বাতিল', revoke: 'বাতিল করুন',
+    revokeTitle: 'API কী বাতিল করবেন?', revokeDescription: 'এতে কীটির প্রমাণীকরণ অবিলম্বে বন্ধ হবে এবং এটি ফিরিয়ে আনা যাবে না।', revokeConfirm: 'কী বাতিল করুন',
+    apiReference: 'API রেফারেন্স', authGuide: 'API প্রমাণীকরণ নির্দেশিকা', tableLabel: 'API কী', empty: 'এখনও কোনো API কী নেই।', secretTitle: 'আপনার API কী কপি করুন',
+    secretDescription: 'এই কীটি আর দেখানো হবে না। বন্ধ করার আগে নিরাপদ স্থানে রাখুন।', secretLabel: 'API কী', curlLabel: 'কীটি পরীক্ষা করুন',
+    curlDescription: 'এই অনুরোধটি কীটি যেসব সাইটে প্রবেশ করতে পারে সেগুলোর তালিকা দেয়।', copyKey: 'API কী কপি করুন', copyCurl: 'curl কমান্ড কপি করুন',
+    columns: { name: 'নাম', prefix: 'প্রিফিক্স', scopes: 'সুযোগ', sites: 'সাইট', created: 'তৈরি হয়েছে', expires: 'মেয়াদ শেষ', lastUsed: 'সর্বশেষ ব্যবহার', status: 'অবস্থা', actions: 'কাজ' },
+    scopeLabels: {
+      'profiles:read': 'প্রোফাইল পড়ুন', 'replay:read': 'রিপ্লে দেখুন', 'data:export': 'ডেটা রপ্তানি করুন', 'stats:read': 'অ্যানালিটিক্স পড়ুন',
+      'sites:write': 'সাইট পরিচালনা করুন', 'goals:write': 'লক্ষ্য পরিচালনা করুন', 'annotations:write': 'টীকা পরিচালনা করুন',
+      'segments:write': 'সেগমেন্ট পরিচালনা করুন', 'keys:manage': 'API কী পরিচালনা করুন',
+    },
+    scopeDescriptions: {
+      'stats:read': 'সাধারণ অ্যানালিটিক্স, বেনামী সেশন ও ইভেন্ট, সমষ্টিগত রিপোর্ট এবং মিলে যাওয়া MCP টুল পড়ুন। প্রোফাইল, রিপ্লে রেকর্ডিং বা ডাউনলোডের অনুমতি দেয় না।',
+      'profiles:read': 'শনাক্ত দর্শনার্থী, প্রোফাইলের বৈশিষ্ট্য ও ইতিহাস এবং প্রোফাইলভিত্তিক ধরে রাখা পড়ুন। অ্যানালিটিক্স এন্ডপয়েন্টের জন্য stats:read যোগ করুন।',
+      'replay:read': 'সেশন রেকর্ডিং ও রিপ্লে মেটাডেটা পড়ুন। সেশন ও ইভেন্টের লিংকের জন্য stats:read যোগ করুন।',
+      'data:export': 'CSV ও সাইট রপ্তানি ডাউনলোড করুন। সংশ্লিষ্ট অ্যানালিটিক্স, প্রোফাইল বা রিপ্লে পড়ার সুযোগও প্রয়োজন।',
+      'sites:write': 'সাইট তৈরি, হালনাগাদ ও মুছুন', 'goals:write': 'লক্ষ্য ও ফানেল তৈরি, হালনাগাদ ও মুছুন',
+      'annotations:write': 'চার্টের টীকা তৈরি, হালনাগাদ ও মুছুন', 'segments:write': 'সংরক্ষিত সেগমেন্ট তৈরি, হালনাগাদ ও মুছুন',
+      'keys:manage': 'প্রতিষ্ঠানের API কী তালিকাভুক্ত, তৈরি ও বাতিল করুন। শুধু মালিক বা অ্যাডমিন এটি দিতে পারেন।',
+    },
+  },
+  dashboard: {
+    viewFullReport: 'পূর্ণ রিপোর্ট দেখুন', period: 'সময়কাল',
+    periods: { today: 'আজ', yesterday: 'গতকাল', '7d': 'গত 7 দিন', '28d': 'গত 28 দিন', '30d': 'গত 30 দিন', '91d': 'গত 91 দিন', '6mo': 'গত 6 মাস', '12mo': 'গত 12 মাস', month: 'এই মাস', last_month: 'গত মাস', year: 'এই বছর', custom: 'কাস্টম সময়সীমা' },
+    from: 'থেকে', to: 'পর্যন্ত', compare: 'তুলনা', comparisons: { off: 'তুলনা নেই', previous_period: 'আগের সময়কাল', previous_year: 'আগের বছর' },
+    invalidFilter: 'কিছু অবৈধ ফিল্টার সরানো হয়েছে।', filterLabel: '{dimension} ফিল্টার {value} সরান', metrics: { timeOnPage: 'পেজে সময়', exitRate: 'প্রস্থান হার' },
+  },
+  sessions: { card: { sessionStarted: 'সেশন শুরু', source: 'উৎস', profile: 'প্রোফাইল', page: 'পেজ', pages: 'পেজ', event: 'ইভেন্ট', events: 'ইভেন্ট' } },
+  replays: {
+    title: 'রিপ্লে', description: 'আরও ভালোভাবে দেখা দরকার এমন রেকর্ডিং খুঁজুন ও সংরক্ষণ করুন।', filters: 'রিপ্লে ফিল্টার', search: 'রিপ্লে খুঁজুন',
+    searchPlaceholder: 'প্রবেশ, প্রস্থান, দেশ, ব্রাউজার বা ইভেন্ট', view: 'রিপ্লে ভিউ', all: 'সব', saved: 'সংরক্ষিত', layout: 'তালিকার লেআউট',
+    table: 'টেবিল', cards: 'কার্ড', minimumDuration: 'সেকেন্ডে সর্বনিম্ন সময়কাল', maximumDuration: 'সেকেন্ডে সর্বোচ্চ সময়কাল', events: 'ইভেন্ট কার্যকলাপ',
+    any: 'যেকোনো কার্যকলাপ', hasEvents: 'ইভেন্ট আছে', noEvents: 'ইভেন্ট নেই', save: 'রিপ্লে সংরক্ষণ করুন', unsave: 'সংরক্ষিত রিপ্লে সরান',
+    saveRetry: 'আবার সংরক্ষণের চেষ্টা করুন।', loading: 'রিপ্লে লোড হচ্ছে', noSaved: 'কোনো সংরক্ষিত রিপ্লে নেই', noSavedDescription: 'হাতের কাছে রাখতে একটি রিপ্লে সংরক্ষণ করুন।',
+    noResults: 'কোনো রিপ্লে পাওয়া যায়নি', noResultsFiltered: 'একটি ফিল্টার সরান বা আরও বিস্তৃতভাবে খুঁজুন।', noResultsDescription: 'আরও বড় তারিখসীমা বা অন্য রিপ্লে স্যাম্পলিং চেষ্টা করুন।',
+    showAll: 'সব রিপ্লে দেখুন', clearFilters: 'ফিল্টার মুছুন', cardsLabel: 'রিপ্লে কার্ড', tableLabel: 'সেশন রিপ্লে', play: 'চালান', started: 'শুরু হয়েছে',
+    location: 'অবস্থান', browser: 'ব্রাউজার', os: 'OS', device: 'ডিভাইস', actions: 'কাজ', duration: 'সময়কাল', pages: 'পেজ', trigger: 'ট্রিগার',
+  },
+  map: {
+    visitors: 'দর্শনার্থী', pageviews: 'পেজভিউ', countries: 'দেশ', trafficTitle: 'ঘণ্টা অনুযায়ী ট্রাফিক', trafficCaption: '{timezone}-এ সময় দেখানো হয়েছে',
+    busiest: 'ব্যস্ততম: {weekday} {hour}, {value} {metric}', noTraffic: 'এই সময়সীমায় কোনো ট্রাফিক নেই', loadingTraffic: 'ঘণ্টা অনুযায়ী ট্রাফিক লোড হচ্ছে',
+    fewer: 'কম', more: 'বেশি', retry: 'আবার চেষ্টা করুন', genericError: 'ট্রাফিক লোড করা যায়নি।',
+    retention: 'এই সময়সীমা সাইটটির সংরক্ষিত {days} দিনের কাঁচা ডেটার চেয়ে দীর্ঘ। ছোট সময়সীমা বেছে নিন।', useLastDays: 'গত {days} দিন ব্যবহার করুন',
+    legend: 'মানচিত্রের নির্দেশিকা', clearSelection: 'নির্বাচন মুছুন', filterDashboard: 'এই দেশ দিয়ে ড্যাশবোর্ড ফিল্টার করুন', detailsLoading: 'দেশের বিস্তারিত লোড হচ্ছে',
+    detailsError: 'দেশের বিস্তারিত লোড করা যায়নি।', detailsEmpty: 'এই সময়সীমায় কোনো বিস্তারিত নেই।', share: 'মোটের অংশ', country: 'দেশ',
+    mapDescription: 'নির্বাচিত সময়সীমায় দেশ অনুযায়ী ট্রাফিক।', details: 'দেশের বিস্তারিত', bounceRate: 'বাউন্স রেট', visitDuration: 'গড় ভিজিটের সময়কাল',
+    topPages: 'শীর্ষ পেজ', regions: 'অঞ্চল', cities: 'শহর', sources: 'উৎস', value: 'মান', percent: 'শতাংশ', unknown: 'অজানা',
+  },
+  theme: { light: 'ডার্ক থিম ব্যবহার করুন', dark: 'লাইট থিম ব্যবহার করুন' },
+  shares: {
+    preview: 'শেয়ারের প্রিভিউ', content: 'দৃশ্যমান অংশ', scope: 'নির্ধারিত দর্শক ও তারিখ', appearance: 'চেহারা', access: 'প্রবেশাধিকার ও এম্বেডিং',
+    wildcardWarning: 'যেকোনো ওয়েবসাইট এই ড্যাশবোর্ড ফ্রেমে দেখাতে পারবে। শুধু অবাধে প্রকাশের উপযোগী ডেটার জন্য নিশ্চিত করুন।',
+  },
+  shortcuts: {
+    title: 'কীবোর্ড শর্টকাট', description: 'কীবোর্ড না ছেড়েই ড্যাশবোর্ডে চলাচল করুন।', open: 'কীবোর্ড শর্টকাট দেখান',
+    theme: 'D — ডার্ক মোড টগল করুন', help: '? — এই সহায়তা দেখান', sidebar: 'Ctrl/⌘ B — সাইডবার সংকুচিত বা প্রসারিত করুন',
+    palette: 'Ctrl/⌘ K — কমান্ড প্যালেট খুলুন', period: 'M — গত 30 দিন দেখান (ড্যাশবোর্ড)', compare: 'C — সময়কালের তুলনা চালু বা বন্ধ করুন (ড্যাশবোর্ড)',
+  },
+  a11y2: {
+    skipToMain: 'মূল কনটেন্টে যান', mainContent: 'মূল কনটেন্ট', applicationHeader: 'অ্যাপ্লিকেশন হেডার', applicationSidebar: 'অ্যাপ্লিকেশন সাইডবার',
+    sidebarSections: { analyze: 'বিশ্লেষণ', behaviour: 'আচরণ', conversion: 'রূপান্তর', manage: 'পরিচালনা' },
+    dataSummary: '{from} থেকে {to} পর্যন্ত {title}। মোট {total}। সর্বোচ্চ {peak}। সর্বনিম্ন {low}।',
+    selectedDataSummary: '{title} {range}। মোট {total}। সর্বোচ্চ {peak}। সর্বনিম্ন {low}।', peakOn: '{time}-এ {value}',
+    countryValue: '{country}-এ {value}', whereLeader: '{country} এগিয়ে, {value} {metric}।', weeklyValue: '{weekday} {hour}-এ {value}',
+    selectedRange: 'নির্বাচিত সময়সীমার জন্য', replayDetails: 'রিপ্লের বিস্তারিত',
+  },
+  liveAccuracy: {
+    definition: 'গত 5 মিনিটে গৃহীত পেজভিউ বা কাস্টম ইভেন্টসহ স্বতন্ত্র দর্শনার্থী।', exclusions: 'গোপনীয়তার সংকেত, বট ও সাইটের বর্জন গণনা করা হয় না।',
+    badgeDescription: 'গত 5 মিনিটে গৃহীত পেজভিউ বা কাস্টম ইভেন্টসহ {count} জন স্বতন্ত্র দর্শনার্থী। গোপনীয়তার সংকেত, বট ও সাইটের বর্জন গণনা করা হয় না। গত 30 মিনিটে {thirty} জন দর্শনার্থী।',
+  },
+  polish: {
+    filters: 'ফিল্টার', filtersDescription: 'তারিখসীমা, তুলনা ও ডেটা ফিল্টার সমন্বয় করুন।', chooseRange: 'তারিখসীমা বেছে নিন',
+    chooseRangeDescription: 'একটি পূর্বনির্ধারিত সীমা বেছে নিন অথবা শুরু ও শেষের তারিখ নির্বাচন করুন।', preset: 'পূর্বনির্ধারিত', previousMonth: 'আগের মাস',
+    nextMonth: 'পরের মাস', selectEnd: 'শেষ নির্বাচন করুন', includeImported: 'আমদানি করা ডেটা অন্তর্ভুক্ত করুন', emptyRange: 'এই তারিখসীমায় কোনো ডেটা নেই।',
+    emptyNext: 'আরও বড় তারিখসীমা চেষ্টা করুন বা একটি ফিল্টার সরান।', noTrafficNext: 'আরও বড় সময়সীমা বেছে নিন বা ট্র্যাকিং ইনস্টল করা আছে কি না যাচাই করুন।',
+  },
+  sitesOverview: { title: 'সাইট', description: 'আপনার প্রবেশাধিকার থাকা সব সাইটের ট্রাফিক ও ইনস্টলেশনের স্বাস্থ্য।' },
+  admin: {
+    title: 'ইনস্ট্যান্স প্রশাসন', nav: 'ইনস্ট্যান্স প্রশাসনের অংশ', link: 'ইনস্ট্যান্স প্রশাসন', users: 'ব্যবহারকারী', organizations: 'প্রতিষ্ঠান',
+    sites: 'সাইট', settings: 'ইনস্ট্যান্স সেটিংস', security: 'নিরাপত্তা', searchLabel: 'খুঁজুন', searchPlaceholder: 'নাম, ইমেইল, স্লাগ বা ডোমেইন',
+    loading: 'লোড হচ্ছে…', empty: 'এই অনুসন্ধানের সঙ্গে কিছুই মেলেনি।', instanceAdmin: 'ইনস্ট্যান্স অ্যাডমিন', disabled: 'নিষ্ক্রিয়',
+    resetRequired: 'পাসওয়ার্ড রিসেট প্রয়োজন', twoFactorOn: '2FA চালু', neverSignedIn: 'কখনো নয়', enable: 'সক্রিয় করুন', disable: 'নিষ্ক্রিয় করুন',
+    requireReset: 'পাসওয়ার্ড রিসেট আবশ্যক করুন', promote: 'ইনস্ট্যান্স অ্যাডমিন করুন', demote: 'ইনস্ট্যান্স অ্যাডমিন সরান',
+    confirmDisable: 'এই ব্যবহারকারীকে নিষ্ক্রিয় করবেন? তাকে সাইন আউট করা হবে এবং আবার সক্রিয় না করা পর্যন্ত সাইন ইন করতে পারবেন না।',
+    confirmDemote: 'এই ব্যবহারকারীর ইনস্ট্যান্স অ্যাডমিন অধিকার সরাবেন?', members: 'সদস্য', quota: 'সাইট কোটা', details: 'বিস্তারিত', close: 'বিস্তারিত বন্ধ করুন',
+    usage: 'পেজভিউ', lastEvent: 'সর্বশেষ ইভেন্ট', retention: 'ধরে রাখা', signupMode: 'নিবন্ধন মোড', signupInvite: 'শুধু আমন্ত্রণে', signupOpen: 'সবার জন্য উন্মুক্ত',
+    replayVisible: 'ইন্টারফেসে সেশন রিপ্লে দেখান', policyTitle: 'দুই-ধাপ নীতি', policyScope: 'কাদের দুই-ধাপ প্রমাণীকরণ ব্যবহার করতে হবে',
+    scopeOff: 'কাউকে নয়', scopeAdmins: 'ইনস্ট্যান্স অ্যাডমিন', scopeOwners: 'ইনস্ট্যান্স অ্যাডমিন, মালিক ও অ্যাডমিন', scopeEveryone: 'সবাই',
+    graceDays: 'অতিরিক্ত সময় (দিন)', savePolicy: 'নীতি সংরক্ষণ করুন',
+    policyHelp: 'দুই-ধাপ প্রমাণীকরণ না থাকা ব্যক্তিরা অতিরিক্ত সময়ে সাইন ইন করতে পারবেন; এরপর এটি চালু করতে হবে। রিকভারি কোডই পুনরুদ্ধারের উপায় থাকবে।',
+    exemptionTitle: 'দুই-ধাপের ছাড়', exemptionUser: 'ব্যবহারকারী', exemptionReason: 'কারণ', exemptionExpires: 'মেয়াদ শেষ (ঐচ্ছিক)',
+    grantExemption: 'ছাড় দিন', removeExemption: 'ছাড় সরান', auditTitle: 'সাম্প্রতিক প্রশাসনিক কার্যকলাপ', saved: 'সংরক্ষিত হয়েছে।',
+  },
+  notify: {
+    historyTitle: 'বিজ্ঞপ্তির ইতিহাস', historyDescription: 'চ্যানেলের গোপন তথ্য প্রকাশ না করে প্রতিটি সতর্কতা পাঠানো পর্যালোচনা করুন এবং ব্যর্থ হলে আবার চেষ্টা করুন।',
+    templatesTitle: 'বার্তার টেমপ্লেট', templatesDescription: 'প্রতিটি চ্যানেলে পাঠানো সাধারণ পাঠ্য বার্তা সাজান।', variables: 'লভ্য চলক', preview: 'নমুনা প্রিভিউ',
+  },
+  revenueReport: {
+    title: 'বিভাজন অনুযায়ী আয়', description: 'ঐচ্ছিক অ্যাট্রিবিউশন মডেলসহ একটি মাত্রা অনুযায়ী গ্রুপ করা অর্ডার ও আয়।', breakdown: 'যে অনুযায়ী বিভাজন',
+    attribution: 'অ্যাট্রিবিউশন', lookback: 'পেছনে দেখার দিন', lookbackHint: '1 থেকে 90 দিন। প্রথম ও শেষ ক্লিকের জন্য ব্যবহৃত হয়।',
+    breakdowns: { country: 'দেশ', region: 'অঞ্চল', source: 'উৎস', campaign: 'প্রচারণা', page: 'পেজ', product: 'পণ্য' },
+    attributions: { event: 'ইভেন্ট (যেভাবে রেকর্ড হয়েছে)', first_click: 'প্রথম ক্লিক', last_click: 'শেষ ক্লিক' },
+    orders: 'অর্ডার', revenue: 'আয়', averageOrderValue: 'গড় অর্ডার মূল্য', revenuePerVisitor: 'দর্শনার্থীপ্রতি আয়', visitors: 'সময়কালের দৈনিক দর্শনার্থী',
+    uniqueCustomers: 'স্বতন্ত্র গ্রাহক', repeatRate: 'পুনরাবৃত্তির হার', repeatCustomers: 'পুনরায় আসা গ্রাহক', direct: 'সরাসরি বা অজানা',
+    loading: 'আয়ের বিভাজন লোড হচ্ছে…', empty: 'নির্বাচিত বিভাজনের জন্য এই সময়কালে কোনো অর্ডার নেই।',
+    truncated: 'এই রিপোর্টে সর্বোচ্চ 20,000টি অর্ডার রাখা হয়, তাই মোট ও সারি সময়কালের শুধু একটি অংশ দেখায়। সঠিক সংখ্যার জন্য তারিখসীমা ছোট করুন।',
+    currencyConflict: 'এই সময়কালের অর্ডারে একাধিক মুদ্রা ব্যবহৃত হয়েছে, তাই পরিমাণ রূপান্তর ছাড়া বিভাজন দেখানো যাবে না।', forbidden: 'এই রিপোর্ট দেখার অনুমতি আপনার নেই।',
+    summary: (count: number, breakdown: string, top: string) => `${breakdown.toLowerCase()} অনুযায়ী ${count}টি গ্রুপ। আয়ে সবচেয়ে বড় হলো ${top}।`,
+    exportCsv: 'CSV রপ্তানি করুন', exporting: 'রপ্তানি হচ্ছে…', exportFailed: 'রপ্তানি ব্যর্থ হয়েছে।', exportForbidden: 'রপ্তানির জন্য ডেটা রপ্তানির অনুমতি প্রয়োজন।',
+    customersTitle: 'গ্রাহক', customersDescription: 'আয় অনুযায়ী শনাক্ত গ্রাহক।', customersSearch: 'গ্রাহক খুঁজুন', customersSearchPlaceholder: 'বাহ্যিক ID',
+    customersEmpty: 'কোনো গ্রাহক মেলেনি।', customersForbidden: 'গ্রাহক দেখতে প্রোফাইলের অনুমতি প্রয়োজন, কারণ বাহ্যিক ID ব্যক্তিগত ডেটা হতে পারে।',
+    customersUnavailable: 'এই সাইটে গ্রাহক পাওয়া যায় না। তাদের দেখতে প্রোফাইলসহ শনাক্ত মোড চালু করুন।', customersLoading: 'গ্রাহক লোড হচ্ছে…',
+    customer: 'গ্রাহক', firstOrder: 'প্রথম অর্ডার', lastOrder: 'সর্বশেষ অর্ডার', retry: 'আবার চেষ্টা করুন',
+  },
+  linksUi: {
+    nav: 'লিংক ও পিক্সেল', title: 'লিংক ও পিক্সেল', description: 'প্রচারণার ডিফল্টসহ সংক্ষিপ্ত লিংক এবং ইমেইল ও স্ক্রিপ্ট চলতে পারে না এমন স্থানের জন্য ট্র্যাকিং পিক্সেল।',
+    tabsLabel: 'লিংক ও পিক্সেলের অংশ', tabLinks: 'সংক্ষিপ্ত লিংক', tabPixel: 'ট্র্যাকিং পিক্সেল', create: 'লিংক তৈরি করুন', edit: 'সম্পাদনা করুন', delete: 'মুছুন',
+    confirmDelete: 'এই লিংকটি মুছবেন? এর সংক্ষিপ্ত URL আর কাজ করবে না এবং ক্লিকের ইতিহাস মুছে যাবে।', deleteAction: 'লিংক মুছুন', cancel: 'বাতিল করুন',
+    save: 'লিংক সংরক্ষণ করুন', saving: 'সংরক্ষণ করা হচ্ছে…', createTitle: 'সংক্ষিপ্ত লিংক তৈরি করুন', editTitle: 'সংক্ষিপ্ত লিংক সম্পাদনা করুন',
+    dialogDescription: 'সংক্ষিপ্ত URL খোলা দর্শনার্থীরা গন্তব্যে যান। IP ঠিকানা না রেখেই ক্লিক গণনা করা হয়।', empty: 'এখনও কোনো সংক্ষিপ্ত লিংক নেই।',
+    emptyHint: 'নিউজলেটার, সামাজিক পোস্ট ও মুদ্রিত উপকরণ থেকে ক্লিক পরিমাপ করতে একটি তৈরি করুন।', loading: 'লিংক লোড হচ্ছে…', loadError: 'লিংক লোড করা যায়নি।',
+    retry: 'আবার চেষ্টা করুন', viewerNote: 'আপনি লিংক ও তাদের পরিসংখ্যান দেখতে পারবেন। সম্পাদক ও তার ওপরের ভূমিকা সেগুলো তৈরি ও পরিবর্তন করতে পারে।',
+    columns: { link: 'লিংক', destination: 'গন্তব্য', clicks: 'ক্লিক', status: 'অবস্থা', actions: 'কাজ' },
+    status: { active: 'সক্রিয়', disabled: 'নিষ্ক্রিয়', expired: 'মেয়াদোত্তীর্ণ', limit_reached: 'সীমা পূর্ণ' },
+    fields: {
+      name: 'নাম', slug: 'সংক্ষিপ্ত URL-এর শেষাংশ', slugHint: 'ছোট হাতের অক্ষর, সংখ্যা, হাইফেন ও আন্ডারস্কোর। স্বয়ংক্রিয়ভাবে তৈরি করতে ফাঁকা রাখুন।',
+      destination: 'গন্তব্য URL', destinationHint: 'http:// বা https:// দিয়ে শুরু হতে হবে।', utm: 'ডিফল্ট প্রচারণার প্যারামিটার',
+      utmHint: 'গন্তব্যে আগে থেকে না থাকলে এগুলো যোগ করা হবে।', utmSource: 'উৎস', utmMedium: 'মাধ্যম', utmCampaign: 'প্রচারণা', utmTerm: 'শব্দ',
+      utmContent: 'কনটেন্ট', enabled: 'সক্রিয়', expires: 'মেয়াদ শেষ', expiresHint: 'ঐচ্ছিক। এই সময়ের পর লিংকটি আর রিডাইরেক্ট করবে না।',
+      clickLimit: 'ক্লিকের সীমা', clickLimitHint: 'ঐচ্ছিক। এতগুলো গণনা করা ক্লিকের পর লিংকটি আর রিডাইরেক্ট করবে না।',
+    },
+    copy: 'কপি করুন', copied: 'কপি হয়েছে', copyManual: 'কপি ব্যর্থ হয়েছে। পাঠ্য নির্বাচন করে নিজে কপি করুন।', copyShortUrl: '{name}-এর সংক্ষিপ্ত URL কপি করুন',
+    qr: 'QR কোড', qrTitle: '{name}-এর QR কোড', qrAlt: '{url} খোলে এমন QR কোড', qrTooLong: 'এই সংক্ষিপ্ত URL অন্তর্নির্মিত QR কোডের জন্য অতিরিক্ত দীর্ঘ।',
+    qrDownload: 'SVG ডাউনলোড করুন', qrNote: 'আপনার ব্রাউজারেই তৈরি হয়; অন্য কোনো সেবায় কিছু পাঠানো হয় না।', stats: 'পরিসংখ্যান', back: 'লিংকে ফিরে যান',
+    statsTitle: 'লিংকের পরিসংখ্যান', period: 'সময়কাল', last7: 'গত 7 দিন', last30: 'গত 30 দিন', last90: 'গত 91 দিন', totalClicks: 'সময়কালের ক্লিক',
+    allTimeClicks: 'সর্বকালের ক্লিক', dailyTitle: 'দৈনিক ক্লিক', dailyAlt: '{from} থেকে {to} পর্যন্ত {total}টি ক্লিক। ব্যস্ততম দিন {peakDay}, {peak}টি ক্লিক।',
+    dailyNone: 'এই সময়কালে কোনো ক্লিক নেই।', countries: 'দেশ', referrers: 'রেফারার', devices: 'ডিভাইস', direct: 'সরাসরি বা অজানা', unknownCountry: 'অজানা',
+    day: 'দিন', noData: 'কোনো ডেটা নেই', statsNote: 'দিন সাইটের সময় অঞ্চল অনুসরণ করে। বট এবং গোপনীয়তার সংকেত মানা সাইটে এমন সংকেত পাঠানো দর্শনার্থী গণনা করা হয় না।',
+    pixelTitle: 'ট্র্যাকিং পিক্সেল', pixelDescription: 'ইমেইল বা পেজ লোড হলে ইমপ্রেশন রেকর্ড করা 1x1 ছবি। কোনো কুকি সেট বা IP ঠিকানা সংরক্ষণ করা হয় না।',
+    pixelCampaign: 'প্রচারণা ট্যাগ', pixelCampaignHint: 'ঐচ্ছিক। অক্ষর, সংখ্যা, ডট, আন্ডারস্কোর, কোলন বা হাইফেন—সর্বোচ্চ 64 অক্ষর।',
+    pixelCampaignInvalid: 'ট্যাগটিতে অনুমোদিত নয় এমন অক্ষর আছে, তাই ঠিক না করা পর্যন্ত কোনো স্নিপেট দেখানো হবে না।', pixelSnippet: 'HTML স্নিপেট', pixelUrl: 'ছবির URL',
+    pixelCopySnippet: 'স্নিপেট কপি করুন', pixelCopyUrl: 'URL কপি করুন', pixelStatsTitle: 'ইমপ্রেশন', pixelCampaigns: 'প্রচারণা', pixelUntagged: 'ট্যাগবিহীন',
+    pixelImpressions: 'সময়কালের ইমপ্রেশন', pixelNote: 'ছবি ব্লক বা প্রক্সি করা ইমেইল ক্লায়েন্টে কম বা বেশি গণনা হতে পারে; ইমপ্রেশনকে প্রবণতা হিসেবে দেখুন, নির্ভুল ওপেন রেট হিসেবে নয়।',
+  },
+  cohorts: {
+    title: 'কোহর্ট', description: 'মানুষ কী করেছেন তার ভিত্তিতে দর্শকগোষ্ঠী সংরক্ষণ করুন, তারপর আকার নির্ধারণ, নমুনা তালিকা ও ফিল্টার হিসেবে ব্যবহার করুন।',
+    tabCohorts: 'কোহর্ট', tabPower: 'সক্রিয় ব্যবহারকারী', newCohort: 'নতুন কোহর্ট', editCohort: 'কোহর্ট সম্পাদনা করুন', builderTitleNew: 'নতুন কোহর্ট',
+    builderTitleEdit: 'কোহর্ট সম্পাদনা করুন', name: 'নাম', match: 'মানুষের মিল', matchAll: 'সব শর্ত', matchAny: 'যেকোনো শর্ত', window: 'সময়সীমা (দিন)',
+    windowHelp: 'ইভেন্ট, পেজ ও কার্যকলাপের শর্ত এখন থেকে সর্বোচ্চ 90 দিন পেছনে দেখে।', conditions: 'শর্ত', addCondition: 'শর্ত যোগ করুন',
+    removeCondition: (position: number) => `${position} নম্বর শর্ত সরান`, conditionLabel: (position: number) => `শর্ত ${position}`, conditionType: 'ধরন',
+    types: { event: 'কাস্টম ইভেন্ট করেছে', page: 'পেজ দেখেছে', event_property: 'প্রপার্টির মানসহ ইভেন্ট', activity: 'কার্যকলাপের মাত্রা', first_seen: 'প্রথম দেখা', last_seen: 'সর্বশেষ দেখা' },
+    negateLabel: 'করেনি (এই শর্ত উল্টে দিন)',
+    fields: {
+      eventName: 'ইভেন্টের নাম', propertyKey: 'প্রপার্টি', propertyValue: 'মান', pagePath: 'পেজ পাথ', pageOperator: 'পাথের মিল',
+      pageIs: 'হুবহু', pageStartsWith: 'যা দিয়ে শুরু', minCount: 'কমপক্ষে এতবার', metric: 'গণনা', relation: 'দেখা হয়েছে', days: 'দিন',
+    },
+    metricSessions: 'সেশন', metricEvents: 'ইভেন্ট', within: 'এর মধ্যে', before: 'আগে', firstSeen: 'প্রথম দেখা', lastSeen: 'সর্বশেষ দেখা', not: 'নয়: ',
+    times: (count: number) => ` ${count}+ বার`, joinAll: ' এবং ', joinAny: ' অথবা ',
+    describe: {
+      event: (name: string, times: string) => `“${name}” করেছে${times}`, property: (name: string, key: string, value: string, times: string) => `${key} = ${value} সহ “${name}” করেছে${times}`,
+      page: (path: string, times: string) => `${path} দেখেছে${times}`, pagePrefix: (path: string, times: string) => `${path} দিয়ে শুরু হওয়া পেজ দেখেছে${times}`,
+      activity: (metric: string, count: number) => `কমপক্ষে ${count}টি ${metric} আছে`, seen: (kind: string, relation: string, days: number) => `প্রোফাইল ${kind}, গত ${days} দিনের ${relation}`,
+    },
+    previewSize: 'আকারের প্রিভিউ', evaluate: 'মূল্যায়ন করুন', evaluating: 'মূল্যায়ন হচ্ছে…', save: 'কোহর্ট সংরক্ষণ করুন', saving: 'সংরক্ষণ করা হচ্ছে…',
+    cancel: 'বাতিল করুন', saved: 'কোহর্ট সংরক্ষিত হয়েছে।', resultTitle: 'ফলাফল', sizeLabel: 'মিলে যাওয়া প্রোফাইল',
+    sizeCapped: (cap: string) => `${cap}-এর বেশি; এখানে গণনা থামে।`, windowText: (from: string, to: string) => `সময়সীমা: ${from} থেকে ${to}`, sampleTitle: 'নমুনা সদস্য',
+    sampleEmpty: 'এই সময়সীমায় কোনো প্রোফাইল কোহর্টটির সঙ্গে মেলেনি।', sampleWithheld: 'সদস্যদের নমুনা দেখতে প্রোফাইল পড়ার অনুমতি প্রয়োজন। ওপরের আকারটি সমষ্টিগত।',
+    colExternalId: 'বাহ্যিক ID', colLastSeen: 'সর্বশেষ দেখা', colSessions: 'সেশন', colEvents: 'ইভেন্ট', colName: 'নাম', colWindow: 'সময়সীমা',
+    colDefinition: 'সংজ্ঞা', colActions: 'কাজ', windowValue: (days: number) => `${days} দিন`, actionEvaluate: (name: string) => `${name} মূল্যায়ন করুন`,
+    actionEdit: (name: string) => `${name} সম্পাদনা করুন`, actionDuplicate: (name: string) => `${name} অনুলিপি করুন`, actionDelete: (name: string) => `${name} মুছুন`,
+    actionFilter: (name: string) => `${name} ড্যাশবোর্ড ফিল্টার হিসেবে ব্যবহার করুন`, useAsFilter: 'ফিল্টার হিসেবে ব্যবহার করুন', deleteTitle: 'কোহর্ট মুছবেন?',
+    deleteBody: (name: string) => `“${name}” মুছবেন? এটি ব্যবহার করা সংরক্ষিত ড্যাশবোর্ড লিংক আর কারও সঙ্গে মিলবে না। এটি ফিরিয়ে আনা যাবে না।`,
+    deleteConfirm: 'কোহর্ট মুছুন', deleting: 'মোছা হচ্ছে…', empty: 'এখনও কোনো কোহর্ট নেই',
+    emptyDescription: '“গত 30 দিনে নিবন্ধন করেছে এবং মূল্যের পেজ দেখেছে”-এর মতো দর্শকগোষ্ঠী সংরক্ষণ করতে কোহর্ট তৈরি করুন।', loading: 'কোহর্ট লোড হচ্ছে',
+    anonymousTitle: 'কোহর্টের জন্য শনাক্ত ট্র্যাকিং প্রয়োজন', anonymousBody: 'বেনামী ট্র্যাকিংয়ে ব্যক্তিপর্যায়ের ইতিহাস থাকে না, তাই ব্যক্তির কাজ থেকে দর্শকগোষ্ঠী তৈরি করা যায় না। বিদ্যমান ডেটা রাখা হয়; ইনস্ট্যান্সকে শনাক্ত ট্র্যাকিংয়ে নিলে কিছুই মুছে যায় না।',
+    profilesOffTitle: 'এই সাইটে প্রোফাইল নিষ্ক্রিয়', profilesOffBody: 'শনাক্ত প্রোফাইল থেকে কোহর্ট তৈরি হয়। সাধারণ সাইট সেটিংসে প্রোফাইল চালু করে আপনার সাইট থেকে ব্যবহারকারীদের শনাক্ত করুন।',
+    powerTitle: 'সক্রিয় ব্যবহারকারী', powerDescription: 'নির্বাচিত তারিখসীমায় সবচেয়ে সক্রিয় শনাক্ত প্রোফাইল।', powerMetric: 'যে অনুযায়ী ক্রম', powerThreshold: 'কমপক্ষে',
+    powerThresholdOption: (count: number, metric: string) => `${count}+ ${metric}`, powerQualifying: (count: string) => `সীমায় পৌঁছানো প্রোফাইল: ${count}`,
+    powerEmpty: 'এই সময়সীমায় কোনো প্রোফাইল সীমায় পৌঁছায়নি।', powerSaveAsCohort: 'কোহর্ট হিসেবে সংরক্ষণ করুন', powerRank: 'ক্রম', powerNeedsPermission: 'প্রোফাইল পড়ুন',
+    errors: {
+      required: 'আবশ্যক।', tooLong: (max: number) => `${max} অক্ষরের বেশি হতে পারবে না।`, count: 'গণনা 1 থেকে 1000-এর মধ্যে পূর্ণসংখ্যা হতে হবে।',
+      days: 'দিন 1 থেকে 365-এর মধ্যে পূর্ণসংখ্যা হতে হবে।', window: 'সময়সীমা 1 থেকে 90 দিনের মধ্যে পূর্ণসংখ্যা হতে হবে।', noConditions: 'কমপক্ষে একটি শর্ত যোগ করুন।',
+      tooMany: 'একটি কোহর্টে সর্বোচ্চ 10টি শর্ত রাখা যায়।', name: 'নাম 1 থেকে 80 অক্ষরের মধ্যে হতে হবে।',
+    },
+  },
+  ga4Import: {
+    provider: 'Google Analytics 4 (CSV)', providerHelp: 'GA4 থেকে CSV হিসেবে রপ্তানি করা রিপোর্ট আপলোড করুন। প্রিভিউ নিশ্চিত না করা পর্যন্ত কিছুই আমদানি হবে না।',
+    formatTitle: 'ফাইলে যা প্রয়োজন', formatDate: 'একটি Date কলাম (20240301 বা 2024-03-01)।', formatMetrics: 'Active users, Sessions, Views বা Event count-এর অন্তত একটি।',
+    formatDimensions: 'ঐচ্ছিক কলাম: page path, landing page, session source, country, region, city, device category, browser, operating system বা event name।',
+    formatTotals: 'শুধু Date ও মেট্রিক থাকা রিপোর্ট সঠিক দৈনিক মোট দেয়। বিভাজন কলাম থাকা রিপোর্ট বিভাজন টেবিল পূরণ করে; সঠিক দৈনিক দর্শনার্থীর জন্য শুধু তারিখের একটি রিপোর্ট যোগ করুন।',
+    previewAction: 'আমদানির প্রিভিউ', previewing: 'ফাইল পড়া হচ্ছে…', previewHeading: 'প্রিভিউ: এখনও কিছু আমদানি হয়নি', rowsAccepted: 'গৃহীত সারি',
+    rowsSkipped: 'বাদ দেওয়া সারি', rowsDuplicate: 'উপেক্ষিত সদৃশ সারি', days: 'অন্তর্ভুক্ত দিন', range: 'তারিখসীমা', visitors: 'দর্শনার্থী', visits: 'সেশন',
+    pageviews: 'পেজভিউ', events: 'ইভেন্ট', breakdowns: 'পাওয়া বিভাজন', errorsHeading: 'যেসব সারি বাদ যাবে',
+    errorRow: (row: number, message: string) => `সারি ${row}: ${message}`, errorsMore: (shown: number, total: number) => `বাদ যাওয়া ${total}টি সারির প্রথম ${shown}টি দেখানো হচ্ছে।`,
+    overlapImported: (days: number) => `এই দিনগুলোর ${days}টি আগের আমদানিতে রয়েছে। নিশ্চিত করলে এই ফাইলটি ওই দিনগুলোর উৎস হবে।`,
+    overlapLive: (days: number) => `এই দিনগুলোর ${days}টিতে ইতিমধ্যে সরাসরি ডেটা আছে। সরাসরি ডেটা সবসময় অগ্রাধিকার পায়, তাই ওই দিনগুলো বদলাবে না।`,
+    sameFile: (date: string) => `একই ফাইল ${date}-এ আমদানি করা হয়েছিল। নিশ্চিত করলে সেই আমদানি প্রতিস্থাপিত হবে।`, confirm: 'আমদানি নিশ্চিত করুন',
+    confirmReplace: 'আগের আমদানি প্রতিস্থাপন করুন', chooseAnother: 'অন্য ফাইল বেছে নিন', undo: 'পূর্বাবস্থায় নিন', undoTitle: 'এই আমদানি পূর্বাবস্থায় নেবেন?',
+    undoBody: (file: string) => `${file} থেকে আমদানি করা ডেটা এই সাইট থেকে সরানো হবে। সরাসরি ডেটা প্রভাবিত হবে না।`, undoConfirm: 'আমদানি পূর্বাবস্থায় নিন',
+    undoKeep: 'আমদানি রাখুন', noRange: 'তারিখসহ কোনো সারি নেই',
+  },
+  dashView: {
+    switcherLabel: 'ড্যাশবোর্ড', builtinName: 'সাধারণ ড্যাশবোর্ড', defaultTag: 'ডিফল্ট', loadError: 'সংরক্ষিত ড্যাশবোর্ড লোড করা যায়নি।',
+    emptyTitle: 'এই ড্যাশবোর্ডে এখনও কোনো উইজেট নেই', emptyBody: 'এই ড্যাশবোর্ডে যোগ করা উইজেট এখানে দেখা যাবে।', missingTitle: 'এই ড্যাশবোর্ডটি আর নেই',
+    missingBody: 'এটি হয়তো মুছে ফেলা হয়েছে। সাধারণ ড্যাশবোর্ড খুলুন বা অন্যটি বেছে নিন।', openStandard: 'সাধারণ ড্যাশবোর্ড খুলুন',
+    widgetFailed: (title: string) => `${title} দেখানো যায়নি।`, retry: 'আবার চেষ্টা করুন', loading: (title: string) => `${title} লোড হচ্ছে`, goals: 'লক্ষ্য',
+    goalsEmpty: 'এখনও কোনো লক্ষ্য নেই। এখানে রূপান্তর দেখতে লক্ষ্য তৈরি করুন।', goalName: 'লক্ষ্য', goalConversions: 'রূপান্তর', goalRate: 'হার', funnel: 'ফানেল',
+    funnelMissing: 'এই ফানেলটি মুছে ফেলা হয়েছে বা এই সাইটে পাওয়া যায় না।', funnelShort: 'এই ফানেলে অন্তত দুটি ধাপ প্রয়োজন।', retention: 'ধরে রাখা',
+    retentionEmpty: 'এই সময়সীমায় এখনও কোনো ফিরে আসা দর্শনার্থী নেই।', vitals: 'Web Vitals', vitalsEmpty: 'এখনও কোনো Web Vitals নেই। এর জন্য পূর্ণ ট্র্যাকার স্ক্রিপ্ট ও কিছু ভিজিট প্রয়োজন।',
+    vitalsSamples: (count: number) => `${count}টি নমুনা`, vitalsShares: (good: number, needs: number, poor: number) => `${good}% ভালো, ${needs}% উন্নতি প্রয়োজন, ${poor}% খারাপ`,
+    periodNote: (period: string) => `সময়কাল: ${period}`, overrideNote: 'নিজস্ব সময়কাল', widgetGrid: 'ড্যাশবোর্ড উইজেট',
+  },
+  integrationsUi: {
+    title: 'ইন্টিগ্রেশন', intro: 'বাইরের সেবা যুক্ত করে তাদের ডেটা এই সাইটে আনুন। টোকেন এনক্রিপ্ট করে রাখা হয় এবং কখনো দেখানো হয় না।',
+    loading: 'ইন্টিগ্রেশন লোড হচ্ছে', loadError: 'ইন্টিগ্রেশন লোড করা যায়নি।', retry: 'আবার চেষ্টা করুন',
+    notConfiguredTitle: 'এই ইনস্ট্যান্সে কোনো ইন্টিগ্রেশন কনফিগার করা নেই',
+    notConfiguredBody: 'Google Search Console যুক্ত করার আগে অ্যাডমিনকে Google ক্লায়েন্ট ID ও গোপন কী (SUPERMETRY_GSC_CLIENT_ID এবং SUPERMETRY_GSC_CLIENT_SECRET) সেট করতে হবে।',
+    providerHeading: 'লভ্য প্রদানকারী', statusLabel: 'অবস্থা', statusNone: 'সংযুক্ত নয়', statusActive: 'সংযুক্ত', statusReauth: 'আবার সংযোগ প্রয়োজন',
+    statusError: 'সিঙ্ক সমস্যা', property: 'প্রপার্টি', lastSync: 'সর্বশেষ সিঙ্ক', syncedThrough: 'এ পর্যন্ত সিঙ্ক', never: 'এখনও নয়',
+    reauthBody: 'Google প্রবেশাধিকার বাতিল করেছে বা এর মেয়াদ শেষ হয়েছে। আমদানি আবার চালু করতে পুনরায় সংযোগ করুন।',
+    errorBody: (detail: string) => `সর্বশেষ সিঙ্ক ব্যর্থ হয়েছে এবং আবার চেষ্টা করা হবে: ${detail}`, connectHeading: 'Google Search Console যুক্ত করুন',
+    propertyLabel: 'Search Console প্রপার্টি', propertyHint: 'sc-domain:example.com-এর মতো ডোমেইন প্রপার্টি বা https://example.com/-এর মতো URL প্রিফিক্স ব্যবহার করুন।',
+    backfillLabel: 'ইতিহাস আমদানি করুন', backfillOption: (days: number) => `গত ${days} দিন`, connect: 'Google দিয়ে যুক্ত করুন', reconnect: 'Google দিয়ে আবার যুক্ত করুন',
+    connecting: 'Google-এ পাঠানো হচ্ছে…', propertyRequired: 'আমদানির জন্য Search Console প্রপার্টি লিখুন।', readOnly: 'শুধু মালিক ও অ্যাডমিনরা ইন্টিগ্রেশন যুক্ত বা বিচ্ছিন্ন করতে পারেন।',
+    disconnect: 'বিচ্ছিন্ন করুন', disconnecting: 'বিচ্ছিন্ন করা হচ্ছে…', disconnectTitle: 'Google Search Console বিচ্ছিন্ন করবেন?',
+    disconnectBody: 'এতে সংরক্ষিত অ্যাক্সেস টোকেন ও এই সাইটের আমদানি করা সব Search Console সারি মুছে যাবে এবং Google-এ অনুমতি বাতিল হবে। আবার আমদানি না করলে ডেটা ফেরানো যাবে না।',
+    disconnectConfirm: 'টোকেন ও আমদানি করা ডেটা মুছুন', cancel: 'বাতিল করুন', disconnected: 'Google Search Console বিচ্ছিন্ন হয়েছে এবং এর আমদানি করা ডেটা মুছে গেছে।',
+    resultConnected: 'Google Search Console সংযুক্ত হয়েছে। প্রথম আমদানি শিগগিরই চলবে।', resultDenied: 'Google-এ প্রবেশাধিকার দেওয়া হয়নি, তাই কিছুই সংযুক্ত হয়নি।',
+    resultError: 'Google Search Console যুক্ত করা যায়নি। আবার চেষ্টা করুন।', dismiss: 'খারিজ করুন', reportHeading: 'Search Console রিপোর্ট',
+    reportIntro: 'Google Search থেকে এই সাইটে আসতে মানুষের ব্যবহৃত কোয়েরি ও পেজ।', range: 'তারিখসীমা', rangeOption: (days: number) => `গত ${days} দিন`,
+    tabQueries: 'শীর্ষ কোয়েরি', tabPages: 'শীর্ষ পেজ', search: 'সারি ফিল্টার করুন', searchPlaceholder: 'পাঠ্য দিয়ে ফিল্টার করুন', keyQuery: 'কোয়েরি', keyPage: 'পেজ',
+    clicks: 'ক্লিক', impressions: 'ইমপ্রেশন', ctr: 'CTR', position: 'গড় অবস্থান',
+    sortBy: (column: string, direction: string) => `${column} অনুযায়ী সাজান, বর্তমানে ${direction}`, ascending: 'ঊর্ধ্বক্রম', descending: 'নিম্নক্রম',
+    reportLoading: 'Search Console ডেটা লোড হচ্ছে', reportError: 'Search Console ডেটা লোড করা যায়নি।',
+    reportEmpty: 'এই সময়সীমায় এখনও কোনো Search Console ডেটা নেই। সংযোগের পর আমদানি শুরু হয় এবং Google প্রায় দুই দিন দেরিতে ডেটা দেয়।',
+    reportNoMatch: 'ফিল্টারের সঙ্গে কোনো সারি মেলেনি।',
+    reportSummary: (rows: number, clicks: string, impressions: string, from: string, to: string) =>
+      `${from} থেকে ${to} পর্যন্ত ${rows}টি সারি: মোট ${clicks}টি ক্লিক ও ${impressions}টি ইমপ্রেশন।`,
+    tableCaption: (name: string, from: string, to: string) => `${from} থেকে ${to} পর্যন্ত ${name}`,
+    rowsShown: (shown: number, total: number) => `${total}টি সারির মধ্যে ${shown}টি দেখানো হচ্ছে`,
+  },
+  eventExportImport: {
+    mixpanelProvider: 'Mixpanel (ইভেন্ট রপ্তানি)', amplitudeProvider: 'Amplitude (ইভেন্ট রপ্তানি)',
+    providerHelp: 'কাঁচা ইভেন্ট রপ্তানি আপলোড করুন। প্রিভিউ নিশ্চিত না করা পর্যন্ত কিছুই আমদানি হবে না।', formatTitle: 'ফাইলে যা প্রয়োজন',
+    formatTime: 'ইভেন্টের সময় UTC হিসেবে পড়া হয় এবং সাইটের স্থানীয় দিন অনুযায়ী গণনা করা হয়।',
+    formatPrivacy: 'IP ঠিকানা, user agent, user id ও device id কখনো সংরক্ষণ করা হয় না; ফাইল পড়ার সময় শুধু ইভেন্ট গ্রুপ করতে ব্যবহৃত হয়। পেজ URL-এ শুধু পাথ রাখা হয়।',
+    formatSessions: 'প্রতিটি দর্শনার্থী দিনে একটি ভিজিট হিসেবে গণ্য হন। ঠিক একটি পেজভিউ থাকা ভিজিট বাউন্স।',
+    mixpanel: {
+      file: 'Mixpanel কাঁচা রপ্তানির JSON lines (প্রতি লাইনে একটি ইভেন্ট) বা CSV, চাইলে gzip বা zip করা।',
+      fields: 'প্রতি ইভেন্টে প্রয়োজন: event, time এবং distinct_id। থাকলে ব্যবহৃত হয়: সদৃশতা দূর করতে $insert_id, $current_url, $referring_domain, $browser, $os, mp_country_code, $region এবং $city।',
+    },
+    amplitude: {
+      file: 'Amplitude রপ্তানির JSON lines: একটি .json ফাইল, একটি .gz ফাইল বা ঘণ্টাভিত্তিক .json.gz ফাইলের ZIP।',
+      fields: 'প্রতি ইভেন্টে প্রয়োজন: event_type, event_time এবং user_id বা device_id। থাকলে ব্যবহৃত হয়: সদৃশতা দূর করতে $insert_id বা uuid, পেজ পাথ বা URL, referrer, country, region, city, platform এবং os_name।',
+    },
+  },
+  apiDocs: {
+    title: 'API রেফারেন্স', description: 'এম্বেড করা OpenAPI চুক্তি দেখুন, টাইপযুক্ত উদাহরণ কপি করুন এবং কোনো সাইটে পড়ার অনুরোধ পরীক্ষা করুন।',
+    endpoints: 'এন্ডপয়েন্ট', grouped: 'সক্ষমতা অনুযায়ী গ্রুপ', searchLabel: 'এন্ডপয়েন্ট খুঁজুন', searchPlaceholder: 'নাম, পাথ বা মেথড দিয়ে খুঁজুন',
+    noMatches: 'আপনার অনুসন্ধানের সঙ্গে কোনো এন্ডপয়েন্ট মেলেনি।',
+  },
+  language: {
+    title: 'ভাষা', description: 'মেনু, লেবেল ও বার্তার ভাষা বেছে নিন। তারিখ, সংখ্যা ও সপ্তাহের প্রথম দিন এই ভাষা অনুসরণ করবে।',
+    label: 'ইন্টারফেসের ভাষা', browserDefault: 'ব্রাউজারের ডিফল্ট', machineTranslated: '(যন্ত্র-সহায়িত)',
+    note: 'আপনার ডেটা থেকে আসা চার্ট লেবেলের মতো কিছু পাঠ্য এখনও অনুবাদ করা হয়নি।',
+  },
+  uiFix: { realtimeEmpty: 'গত 30 মিনিটে কোনো দর্শনার্থী নেই। নতুন কার্যকলাপ এলে এখানে দেখা যাবে।' },
+}
+
+export default messages
