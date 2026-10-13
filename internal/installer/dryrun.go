@@ -9,7 +9,7 @@ import (
 func printDryRun(opts Options, p *Prompter, sys System) error {
 	fmt.Fprintln(p.out, "DRY RUN: no files, commands, users, services, proxies, sockets, or database connections will be changed.")
 	if opts.Mode == "docker" {
-		return printDockerDryRun(opts, p)
+		return printDockerDryRun(opts, p, sys)
 	}
 
 	envPath := ".env"
@@ -21,8 +21,11 @@ func printDryRun(opts Options, p *Prompter, sys System) error {
 	fmt.Fprintln(p.out, "  contents: SUPERMETRY_DATABASE_URL=<redacted>, SUPERMETRY_SECRET_KEY=<generated>, SUPERMETRY_BASE_URL, SUPERMETRY_LISTEN, optional trusted proxy, commented SMTP settings")
 	if sys.GOOS == "linux" {
 		fmt.Fprintln(p.out, "User: create system user supermetry when absent")
-		fmt.Fprintln(p.out, "File: /usr/local/bin/supermetry (installed executable, mode 0755)")
+		fmt.Fprintf(p.out, "File: /opt/supermetry/versions/%s/supermetry (installed executable, mode 0755)\n", opts.Version)
+		fmt.Fprintln(p.out, "Symlink: /opt/supermetry/current -> installed version (atomic replacement)")
 		fmt.Fprintln(p.out, "File: /etc/systemd/system/supermetry.service (bundled systemd unit, mode 0644)")
+		fmt.Fprintln(p.out, "File: /etc/supermetry/deployment.json (fixed managed-deployment descriptor, mode 0644)")
+		fmt.Fprintln(p.out, "Files: /etc/systemd/system/supermetry-updater.{socket,service} (root-owned updater units, mode 0644)")
 		fmt.Fprintln(p.out, "Command: id -u supermetry")
 		fmt.Fprintln(p.out, "Command: useradd --system --home /var/lib/supermetry --shell /usr/sbin/nologin supermetry (when absent)")
 		fmt.Fprintln(p.out, "Command: chown root:supermetry /etc/supermetry/supermetry.env")
@@ -35,11 +38,14 @@ func printDryRun(opts Options, p *Prompter, sys System) error {
 	return nil
 }
 
-func printDockerDryRun(opts Options, p *Prompter) error {
+func printDockerDryRun(opts Options, p *Prompter, sys System) error {
 	fmt.Fprintf(p.out, "File: %s (mode 0600)\n", filepath.Join(opts.Dir, ".env"))
 	fmt.Fprintln(p.out, "  contents: generated application and PostgreSQL secrets, base URL, listen address, optional trusted proxy, commented SMTP settings")
 	fmt.Fprintf(p.out, "File: %s (mode 0644)\n", filepath.Join(opts.Dir, "docker-compose.yml"))
 	fmt.Fprintf(p.out, "  contents: Supermetry %s image source, postgres:18-alpine, named volumes, health check, port %s\n", opts.Image, opts.Listen)
+	if sys.GOOS == "linux" && opts.Image == "download" && filepath.Clean(opts.Dir) == "/opt/supermetry" {
+		fmt.Fprintln(p.out, "Updater: install root-owned helper and systemd socket; mount only /run/supermetry-updater and the read-only deployment descriptor; add the numeric socket group")
+	}
 	if opts.Image == "download" {
 		fmt.Fprintf(p.out, "Command: docker compose --project-directory %s pull\n", opts.Dir)
 	} else {

@@ -14,7 +14,11 @@ services:
       - "{{.ListenHost}}:{{.Port}}:8787"
     volumes:
       - supermetry-data:/data
-    depends_on:
+{{if .Updater}}      - /run/supermetry-updater:/run/supermetry-updater:ro
+      - /etc/supermetry/deployment.json:/etc/supermetry/deployment.json:ro
+    group_add:
+      - "{{.UpdaterGID}}"
+{{end}}    depends_on:
       postgres:
         condition: service_healthy
   postgres:

@@ -94,6 +94,34 @@ volumes:
 	}
 }
 
+func TestRenderComposeManagedUpdaterAccess(t *testing.T) {
+	t.Parallel()
+
+	got := string(RenderCompose(ComposeValues{
+		Version: "v1.2.3", Image: "download", ListenHost: "127.0.0.1", Port: "8787",
+		Updater: true, UpdaterGID: "987",
+	}))
+	for _, want := range []string{
+		`group_add:`, `- "987"`,
+		`/run/supermetry-updater:/run/supermetry-updater:ro`,
+		`/etc/supermetry/deployment.json:/etc/supermetry/deployment.json:ro`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("managed Compose output missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "/var/run/docker.sock") {
+		t.Fatalf("managed Compose exposes Docker socket:\n%s", got)
+	}
+
+	localBuild := string(RenderCompose(ComposeValues{
+		Version: "v1.2.3", Image: "build", ListenHost: "127.0.0.1", Port: "8787",
+	}))
+	if strings.Contains(localBuild, "supermetry-updater") || strings.Contains(localBuild, "group_add") {
+		t.Fatalf("local-build Compose unexpectedly enables managed updates:\n%s", localBuild)
+	}
+}
+
 func TestExtractSourceArchive(t *testing.T) {
 	t.Parallel()
 	var archive bytes.Buffer

@@ -64,11 +64,13 @@ type plannedFile struct {
 }
 
 type privilegedPlan struct {
-	Files         []plannedFile `json:"files"`
-	InstallBinary bool          `json:"install_binary"`
-	Proxy         string        `json:"proxy"`
-	Domain        string        `json:"domain"`
-	Listen        string        `json:"listen"`
+	Files          []plannedFile `json:"files"`
+	InstallBinary  bool          `json:"install_binary"`
+	InstallUpdater bool          `json:"install_updater"`
+	Version        string        `json:"version"`
+	Proxy          string        `json:"proxy"`
+	Domain         string        `json:"domain"`
+	Listen         string        `json:"listen"`
 }
 
 var errInstallDeclined = errors.New("installation declined")
@@ -269,7 +271,7 @@ func runBinary(ctx context.Context, opts Options, p *Prompter, sys System) error
 	}
 
 	if sys.GOOS == "linux" && !sys.IsRoot {
-		return handOffPrivileged(ctx, p, sys, privilegedPlan{Files: files, InstallBinary: true, Proxy: opts.Proxy, Domain: proxyDomain(opts.BaseURL), Listen: opts.Listen})
+		return handOffPrivileged(ctx, p, sys, privilegedPlan{Files: files, InstallBinary: true, Version: opts.Version, Proxy: opts.Proxy, Domain: proxyDomain(opts.BaseURL), Listen: opts.Listen})
 	}
 	if err := confirmFiles(p, opts.Yes, files, sys.Stat); err != nil {
 		return err
@@ -279,7 +281,7 @@ func runBinary(ctx context.Context, opts Options, p *Prompter, sys System) error
 		return err
 	}
 	if sys.GOOS == "linux" {
-		if err := installService(ctx, sys.Runner, sys.WriteFile); err != nil {
+		if err := installService(ctx, sys.Runner, sys.WriteFile, opts.Version, opts.Listen); err != nil {
 			return err
 		}
 		if err := sys.Ready(ctx, localBaseURL(opts.Listen), 60*time.Second); err != nil {
@@ -368,9 +370,10 @@ func runDocker(ctx context.Context, opts Options, p *Prompter, sys System) error
 		return errors.New("--listen must be HOST:PORT")
 	}
 	host := strings.TrimSuffix(opts.Listen, ":"+port)
+	managedUpdates := sys.GOOS == "linux" && opts.Image == "download" && filepath.Clean(opts.Dir) == "/opt/supermetry"
 	files := []plannedFile{
 		{Path: filepath.Join(opts.Dir, ".env"), Data: RenderEnv(EnvValues{BaseURL: opts.BaseURL, Listen: ":8787", TrustedProxies: trustedProxies(opts.Proxy), SecretKey: secret, Docker: true, PostgresPassword: postgresPassword}), Mode: 0o600},
-		{Path: filepath.Join(opts.Dir, "docker-compose.yml"), Data: RenderCompose(ComposeValues{Version: opts.Version, Image: opts.Image, ListenHost: host, Port: port}), Mode: 0o644},
+		{Path: filepath.Join(opts.Dir, "docker-compose.yml"), Data: RenderCompose(ComposeValues{Version: opts.Version, Image: opts.Image, ListenHost: host, Port: port, Updater: managedUpdates, UpdaterGID: updaterGroupIDMarker}), Mode: 0o644},
 	}
 	if sys.GOOS == "linux" {
 		proxyFile, err := plannedProxy(opts, sys)
@@ -385,7 +388,21 @@ func runDocker(ctx context.Context, opts Options, p *Prompter, sys System) error
 		return err
 	}
 	baseFiles, proxyFile := splitProxyFile(files, opts.Proxy)
-	if err := writePlannedFiles(baseFiles, sys.WriteFile); err != nil {
+	if managedUpdates {
+		if !sys.IsRoot {
+			if err := handOffPrivileged(ctx, p, sys, privilegedPlan{Files: baseFiles, InstallUpdater: true, Version: opts.Version, Listen: opts.Listen}); err != nil {
+				return err
+			}
+		} else {
+			gid, err := installDockerUpdater(ctx, sys.Runner, sys.WriteFile, opts.Listen)
+			if err != nil {
+				return err
+			}
+			if err := writePlannedFiles(replaceUpdaterGroupID(baseFiles, gid), sys.WriteFile); err != nil {
+				return err
+			}
+		}
+	} else if err := writePlannedFiles(baseFiles, sys.WriteFile); err != nil {
 		return err
 	}
 	if sys.Runner == nil {
@@ -613,12 +630,21 @@ func handOffPrivileged(ctx context.Context, p *Prompter, sys System, plan privil
 		fmt.Fprintln(p.out, "  write", file.Path)
 	}
 	if plan.InstallBinary {
-		fmt.Fprintln(p.out, "  install", "/usr/local/bin/supermetry")
+		fmt.Fprintf(p.out, "  install /opt/supermetry/versions/%s/supermetry\n", plan.Version)
 		fmt.Fprintln(p.out, "  write", "/etc/systemd/system/supermetry.service")
 	}
+	if plan.InstallUpdater {
+		fmt.Fprintln(p.out, "  install", "/opt/supermetry/updater/supermetry")
+		fmt.Fprintln(p.out, "  write", deploymentDescriptorPath)
+		fmt.Fprintln(p.out, "  write", "/etc/systemd/system/supermetry-updater.socket")
+		fmt.Fprintln(p.out, "  write", "/etc/systemd/system/supermetry-updater.service")
+	}
 	confirmed, err := p.Confirm("Apply this plan with sudo", false)
-	if err != nil || !confirmed {
+	if err != nil {
 		return err
+	}
+	if !confirmed {
+		return errInstallDeclined
 	}
 	payload, err := json.Marshal(plan)
 	if err != nil {
@@ -634,7 +660,7 @@ func handOffPrivileged(ctx context.Context, p *Prompter, sys System, plan privil
 	}
 	if _, err := sys.LookPath("sudo"); err != nil {
 		fmt.Fprintf(p.out, "Run: sudo %s install --apply %s\n", executable, path)
-		return nil
+		return errInstallDeclined
 	}
 	defer os.Remove(path)
 	if sys.Runner == nil {
@@ -657,11 +683,18 @@ func applySavedPlan(ctx context.Context, path string, sys System) error {
 		return err
 	}
 	baseFiles, proxyFile := splitProxyFile(plan.Files, plan.Proxy)
+	if plan.InstallUpdater {
+		gid, err := installDockerUpdater(ctx, sys.Runner, sys.WriteFile, plan.Listen)
+		if err != nil {
+			return err
+		}
+		baseFiles = replaceUpdaterGroupID(baseFiles, gid)
+	}
 	if err := writePlannedFiles(baseFiles, sys.WriteFile); err != nil {
 		return err
 	}
 	if plan.InstallBinary {
-		if err := installService(ctx, sys.Runner, sys.WriteFile); err != nil {
+		if err := installService(ctx, sys.Runner, sys.WriteFile, plan.Version, plan.Listen); err != nil {
 			return err
 		}
 		if err := sys.Ready(ctx, localBaseURL(plan.Listen), 60*time.Second); err != nil {
@@ -702,6 +735,15 @@ func writePlannedFiles(files []plannedFile, writeFile func(string, []byte, os.Fi
 		}
 	}
 	return nil
+}
+
+func replaceUpdaterGroupID(files []plannedFile, gid string) []plannedFile {
+	replaced := make([]plannedFile, len(files))
+	copy(replaced, files)
+	for i := range replaced {
+		replaced[i].Data = bytes.ReplaceAll(replaced[i].Data, []byte(updaterGroupIDMarker), []byte(gid))
+	}
+	return replaced
 }
 
 func applyProxyFile(ctx context.Context, proxy string, file *plannedFile, sys System) error {

@@ -183,6 +183,73 @@ func TestRunDockerUsesRequestedImageSource(t *testing.T) {
 	}
 }
 
+func TestRunManagedDockerInstallsNarrowUpdaterAccess(t *testing.T) {
+	var writes = make(map[string][]byte)
+	runner := &fakeRunner{outputs: map[string][]byte{
+		"getent group supermetry-updater": []byte("supermetry-updater:x:987:\n"),
+	}}
+	sys := System{
+		Runner: runner, GOOS: "linux", IsRoot: true,
+		WriteFile: func(path string, data []byte, _ os.FileMode) error {
+			writes[path] = append([]byte(nil), data...)
+			return nil
+		},
+		Ready:         func(context.Context, string, time.Duration) error { return nil },
+		SetupRequired: func(context.Context, string) (bool, error) { return true, nil },
+	}
+	opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "download", Dir: "/opt/supermetry", Version: "v1.2.3", Yes: true}
+	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys); err != nil {
+		t.Fatal(err)
+	}
+	compose := string(writes["/opt/supermetry/docker-compose.yml"])
+	for _, want := range []string{`- "987"`, "/run/supermetry-updater:/run/supermetry-updater:ro", "/etc/supermetry/deployment.json:/etc/supermetry/deployment.json:ro"} {
+		if !strings.Contains(compose, want) {
+			t.Errorf("Compose output missing %q:\n%s", want, compose)
+		}
+	}
+	if strings.Contains(compose, updaterGroupIDMarker) || strings.Contains(compose, "/var/run/docker.sock") {
+		t.Fatalf("Compose contains an unresolved or unsafe mount:\n%s", compose)
+	}
+	descriptor := string(writes[deploymentDescriptorPath])
+	if !strings.Contains(descriptor, `"mode": "docker"`) {
+		t.Fatalf("descriptor = %q", descriptor)
+	}
+	for _, want := range []string{
+		"systemctl enable --now supermetry-updater.socket",
+		"docker compose --project-directory /opt/supermetry pull",
+		"docker compose --project-directory /opt/supermetry up -d",
+	} {
+		if !slices.Contains(runner.calls, want) {
+			t.Errorf("commands missing %q: %v", want, runner.calls)
+		}
+	}
+}
+
+func TestRunLocalBuildDockerDoesNotInstallUpdater(t *testing.T) {
+	var writes = make(map[string][]byte)
+	runner := &fakeRunner{}
+	sys := System{
+		Runner: runner, GOOS: "linux", IsRoot: true,
+		WriteFile: func(path string, data []byte, _ os.FileMode) error {
+			writes[path] = append([]byte(nil), data...)
+			return nil
+		},
+		Ready:         func(context.Context, string, time.Duration) error { return nil },
+		SetupRequired: func(context.Context, string) (bool, error) { return true, nil },
+		PrepareSource: func(context.Context, Options) error { return nil },
+	}
+	opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "build", Dir: "/opt/supermetry", Version: "v1.2.3", Yes: true}
+	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := writes[deploymentDescriptorPath]; ok {
+		t.Fatal("local-build Docker install wrote a managed deployment descriptor")
+	}
+	if got := string(writes["/opt/supermetry/docker-compose.yml"]); strings.Contains(got, "supermetry-updater") || strings.Contains(got, "group_add") {
+		t.Fatalf("local-build Docker unexpectedly enables UI updates:\n%s", got)
+	}
+}
+
 func TestRunDockerExistingAdminPrintsSignInGuidance(t *testing.T) {
 	var output bytes.Buffer
 	sys := System{
@@ -464,7 +531,7 @@ func TestRunNoWritesBeforeConfirm(t *testing.T) {
 	if writes != 0 || len(runner.calls) != 0 {
 		t.Fatalf("before confirmation: writes = %d, commands = %v; want none", writes, runner.calls)
 	}
-	if !strings.Contains(output.String(), "/etc/supermetry/supermetry.env") || !strings.Contains(output.String(), "/usr/local/bin/supermetry") {
+	if !strings.Contains(output.String(), "/etc/supermetry/supermetry.env") || !strings.Contains(output.String(), "/opt/supermetry/versions/latest/supermetry") {
 		t.Fatalf("plan output missing paths:\n%s", output.String())
 	}
 }
