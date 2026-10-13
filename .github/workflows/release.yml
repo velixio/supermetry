@@ -54,8 +54,11 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          file: deploy/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
           tags: |
             ghcr.io/velixio/supermetry:${{ steps.version.outputs.version }}
             ghcr.io/velixio/supermetry:latest
