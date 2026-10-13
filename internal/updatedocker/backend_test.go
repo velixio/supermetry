@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"supermetry/internal/updatedocker"
 	"supermetry/internal/updatehelper"
@@ -287,7 +288,7 @@ func baseFixture() *fixture {
 }
 
 func (f *fixture) config() updatedocker.Config {
-	return updatedocker.Config{Runner: f.runner, Files: f.fs, Backup: f.backup, Probe: f.probe, Descriptor: f.descriptor, Manifest: f.manifest, CurrentVersion: "v1.1.0", OS: "linux", Arch: "amd64"}
+	return updatedocker.Config{Runner: f.runner, Files: f.fs, Backup: f.backup, Probe: f.probe, Descriptor: f.descriptor, Manifest: f.manifest, CurrentVersion: "v1.1.0", OS: "linux", Arch: "amd64", HealthTimeout: time.Nanosecond, PollInterval: time.Nanosecond, Sleep: func(context.Context, time.Duration) error { return nil }}
 }
 
 func (f *fixture) rebuild(t *testing.T) {

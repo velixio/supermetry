@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 
@@ -75,6 +76,10 @@ type Config struct {
 	CurrentVersion string
 	OS             string
 	Arch           string
+	PollInterval   time.Duration
+	HealthTimeout  time.Duration
+	Now            func() time.Time
+	Sleep          func(context.Context, time.Duration) error
 }
 
 type Backend struct {
@@ -89,6 +94,10 @@ type Backend struct {
 	platformArch   string
 	targetRef      string
 	targetDigest   string
+	pollInterval   time.Duration
+	healthTimeout  time.Duration
+	now            func() time.Time
+	sleep          func(context.Context, time.Duration) error
 }
 
 type backupMetadata struct {
@@ -125,11 +134,24 @@ func New(config Config) (*Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("select signed container: %w", err)
 	}
+	if config.PollInterval <= 0 {
+		config.PollInterval = time.Second
+	}
+	if config.HealthTimeout <= 0 {
+		config.HealthTimeout = 30 * time.Second
+	}
+	if config.Now == nil {
+		config.Now = time.Now
+	}
+	if config.Sleep == nil {
+		config.Sleep = sleepContext
+	}
 	return &Backend{
 		runner: config.Runner, files: config.Files, backup: config.Backup, probe: config.Probe,
 		descriptor: config.Descriptor, manifest: config.Manifest, currentVersion: config.CurrentVersion,
 		platformOS: platformOS, platformArch: platformArch,
 		targetRef: selection.Image + "@" + selection.Digest, targetDigest: selection.Digest,
+		pollInterval: config.PollInterval, healthTimeout: config.HealthTimeout, now: config.Now, sleep: config.Sleep,
 	}, nil
 }
 
@@ -261,10 +283,7 @@ func (b *Backend) activate(jobID string) error {
 }
 
 func (b *Backend) verifyOrRollback(ctx context.Context, jobID string) error {
-	version, healthErr := b.probe.ReadyVersion(ctx, b.descriptor.ReadinessURL)
-	if healthErr == nil && version != b.manifest.Version {
-		healthErr = fmt.Errorf("running version %q does not match target %q", version, b.manifest.Version)
-	}
+	healthErr := b.waitForVersion(ctx, b.manifest.Version)
 	if healthErr == nil {
 		return nil
 	}
@@ -294,6 +313,39 @@ func (b *Backend) verifyOrRollback(ctx context.Context, jobID string) error {
 		return errors.Join(updatehelper.ErrRecoveryRequired, fmt.Errorf("previous image verification failed: version=%q: %w", oldVersion, err), healthErr)
 	}
 	return errors.Join(updatehelper.ErrRolledBack, healthErr)
+}
+
+func (b *Backend) waitForVersion(ctx context.Context, expected string) error {
+	deadline := b.now().Add(b.healthTimeout)
+	var lastErr error
+	for {
+		version, err := b.probe.ReadyVersion(ctx, b.descriptor.ReadinessURL)
+		if err == nil && version == expected {
+			return nil
+		}
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = fmt.Errorf("running version %q does not match expected %q", version, expected)
+		}
+		if !b.now().Before(deadline) {
+			return fmt.Errorf("readiness did not report exact version %s: %w", expected, lastErr)
+		}
+		if err := b.sleep(ctx, b.pollInterval); err != nil {
+			return err
+		}
+	}
+}
+
+func sleepContext(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (b *Backend) restoreCompose(jobID string) error {
