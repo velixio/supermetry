@@ -35,7 +35,16 @@ export const manifest: Record<LocaleCode, LocaleInfo> = {
       return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default }
     },
   },
+  bn: {
+    code: 'bn', label: 'Bengali', nativeName: 'বাংলা', reviewed: false,
+    load: async () => {
+      const [main, dashEdit, ui, uiAccount] = await Promise.all([
+        import('@/messages/locales/bn'), import('@/messages/locales/bn.dashEdit'), import('@/messages/locales/bn.ui'), import('@/messages/locales/bn.uiAccount'),
+      ])
+      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default }
+    },
+  },
 }
 
 /** Languages offered in the picker; the pseudo-locale is for testing only. */
-export const pickerLocales: LocaleCode[] = ['en', 'es', 'de']
+export const pickerLocales: LocaleCode[] = ['en', 'es', 'de', 'bn']

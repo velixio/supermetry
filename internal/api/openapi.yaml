@@ -3457,7 +3457,7 @@ components:
         landing_page: { type: string, enum: [overview, last_site] }
         sites_view: { type: string, enum: [cards, table] }
         last_site_id: { type: [integer, 'null'], format: int32 }
-        locale: { type: string, enum: ['', en, es, de, en-XA], description: 'Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.' }
+        locale: { type: string, enum: ['', en, es, de, bn, en-XA], description: 'Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.' }
     UpdateCurrentUserRequest:
       type: object
       additionalProperties: false
@@ -3472,7 +3472,7 @@ components:
             landing_page: { type: string, enum: [overview, last_site] }
             sites_view: { type: string, enum: [cards, table] }
             last_site_id: { type: [integer, 'null'], format: int32 }
-            locale: { type: string, enum: ['', en, es, de, en-XA], description: 'Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.' }
+            locale: { type: string, enum: ['', en, es, de, bn, en-XA], description: 'Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.' }
     SitesOverviewResponse:
       type: object
       additionalProperties: false

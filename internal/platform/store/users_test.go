@@ -130,3 +130,12 @@ func TestUserPreferencesRoundTrip(t *testing.T) {
 		t.Fatalf("preferences=%+v want=%+v", got.Preferences, want)
 	}
 }
+
+func TestSupportedLocalesAcceptsBengaliAndRejectsUnknown(t *testing.T) {
+	if !store.SupportedLocales["bn"] {
+		t.Fatal("bn must be a supported locale")
+	}
+	if store.SupportedLocales["xx"] {
+		t.Fatal("xx must not be a supported locale")
+	}
+}

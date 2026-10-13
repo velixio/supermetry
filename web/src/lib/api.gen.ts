@@ -2472,10 +2472,10 @@ export interface components {
             /** Format: int32 */
             last_site_id?: number | null;
             /**
-             * @description Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+             * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
              * @enum {string}
              */
-            locale?: "" | "en" | "es" | "de" | "en-XA";
+            locale?: "" | "en" | "es" | "de" | "bn" | "en-XA";
         };
         UpdateCurrentUserRequest: {
             name?: string;
@@ -2487,10 +2487,10 @@ export interface components {
                 /** Format: int32 */
                 last_site_id?: number | null;
                 /**
-                 * @description Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+                 * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
                  * @enum {string}
                  */
-                locale?: "" | "en" | "es" | "de" | "en-XA";
+                locale?: "" | "en" | "es" | "de" | "bn" | "en-XA";
             };
         };
         SitesOverviewResponse: {
