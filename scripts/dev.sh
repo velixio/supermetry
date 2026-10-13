@@ -25,7 +25,13 @@ if [ "${DEV_WEB_CMD+set}" = set ]; then web_cmd=$DEV_WEB_CMD; custom_web=1; else
 fi
 ui_url=${SUPERMETRY_DEV_UI_URL:-http://localhost:5173}
 listen=${SUPERMETRY_LISTEN:-:8787}
-case $listen in :*) api_url=http://localhost$listen ;; *) api_url=http://$listen ;; esac
+case $listen in
+:*) api_url=http://localhost$listen ;;
+0.0.0.0:* | '[::]:'*) api_url=http://localhost:${listen##*:} ;;
+*) api_url=http://$listen ;;
+esac
+# The Go server redirects pages to the origin of the UI URL only (no path).
+ui_origin=$(printf '%s' "$ui_url" | sed -E 's|^(https?://[^/]+).*|\1|')
 
 mkdir -p "$(dirname "$bin")"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/supermetry-dev.XXXXXX") || exit 1
@@ -125,14 +131,14 @@ ps -A -o pid= >/dev/null 2>&1 || log "warning: ps is unavailable; only the direc
 # Fail early and clearly when Bun is missing or the dependency install fails.
 web_prepare() {
 	command -v bun >/dev/null 2>&1 || { log "bun is required: https://bun.sh"; exit 1; }
-	if [ ! -d web/node_modules ] || [ -n "$(find web/bun.lock -newer web/node_modules 2>/dev/null)" ]; then
+	if [ ! -d web/node_modules ] || [ -n "$(find web/bun.lock web/package.json web/packages/*/package.json -newer web/node_modules 2>/dev/null | head -n 1)" ]; then
 		log "installing web dependencies (bun install --frozen-lockfile)"
 		(cd web && bun install --frozen-lockfile) || { log "web dependency install failed; fix it and run make dev again"; exit 1; }
 		touch web/node_modules
 	fi
 }
 banner() {
-	log "UI:  $ui_url   (open this one)"
+	log "UI:  $ui_origin   (open this one)"
 	log "API: $api_url"
 }
 [ -n "$custom_web" ] || web_prepare

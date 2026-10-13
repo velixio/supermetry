@@ -1,3 +1,5 @@
+//go:build !embedui
+
 package web
 
 import (
@@ -9,6 +11,11 @@ import (
 
 // DevUIEnv names the variable `make dev` sets to the Vite dev server's address.
 const DevUIEnv = "SUPERMETRY_DEV_UI_URL"
+
+// devProxyHeader is set by the Vite dev proxy on every request it forwards here
+// (web/dev-proxy.ts defines the same name). Such a request already came from the
+// UI host, so redirecting it back would loop for paths this server does not own.
+const devProxyHeader = "X-Supermetry-Dev-Proxy"
 
 // devUIOrigin returns scheme://host of raw when it is an absolute http(s) URL
 // with a host, and "" otherwise. Only this origin is ever used as a redirect
@@ -30,14 +37,22 @@ func devUI(next http.Handler, raw string) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet && r.Method != http.MethodHead) || r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
+		if (r.Method != http.MethodGet && r.Method != http.MethodHead) || r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") ||
+			r.Header.Get(devProxyHeader) != "" ||
+			// The legacy /invite?token= link is rewritten by the UI handler itself;
+			// its target /invite/<token> is redirected to Vite on the next hop.
+			(r.URL.Path == "/invite" && r.URL.Query().Get("token") != "") {
 			next.ServeHTTP(w, r)
 			return
 		}
-		// Collapse leading slashes and backslashes; the origin is fixed anyway.
-		target := url.URL{Path: "/" + strings.TrimLeft(r.URL.Path, `/\`), RawQuery: r.URL.RawQuery}
+		// Keep the original escaped path (so /a%2fb stays as sent) and drop extra
+		// leading slashes. The scheme and host always come from the configuration.
+		target := origin + "/" + strings.TrimLeft(r.URL.EscapedPath(), "/")
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
 		w.Header().Set("Cache-Control", "no-store")
-		http.Redirect(w, r, origin+target.String(), http.StatusFound)
+		http.Redirect(w, r, target, http.StatusFound)
 	})
 }
 
