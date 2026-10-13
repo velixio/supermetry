@@ -70,8 +70,8 @@ bump() { sleep 1.1; eval "$1"; } # runs after the mtime tick so -newer sees it
 # (a) initial build and start; supervisor, server and fake Vite tree all running
 start
 wait_for 'server v1 up' 'initial build starts the server (v1)'
-wait_for 'UI:  http://localhost:5173   (open this one)' 'the banner names the UI address'
-wait_for 'API: http://localhost:8787' 'the banner names the API address'
+wait_for 'Open: http://localhost:8787 ' 'the banner names the single address to open'
+wait_for 'Vite runs behind it on http://localhost:5173' 'the banner mentions Vite behind it'
 sleep 0.5
 [ "$(wc -l <"$pids")" -ge 4 ] || fail "expected supervisor, server, vite shell and its child in $pids"
 first=$(sed -n 's/.*server v1 up pid \([0-9]*\).*/\1/p' "$root/log" | head -1)
@@ -128,6 +128,18 @@ wait_gone SIGINT
 : >"$pids"; start "echo 'Port 5173 is in use'; exit 1"
 wait_for 'vite exited' 'a dying Vite is reported'
 wait_gone 'Vite exits'
+# make dev binds to loopback unless SUPERMETRY_LISTEN is set, and the banner says localhost.
+make -C "$repo_root" -n dev 2>/dev/null | grep -q 'if \[ -z "\$SUPERMETRY_LISTEN" \]; then export SUPERMETRY_LISTEN=127.0.0.1:8787' || fail "make dev does not default SUPERMETRY_LISTEN to loopback"
+echo "ok: make dev defaults SUPERMETRY_LISTEN to 127.0.0.1:8787 when unset"
+for l in 127.0.0.1:8787 0.0.0.0:8787; do
+	: >"$pids"
+	(cd "$root" && SUPERMETRY_LISTEN=$l DEV_POLL=0.2 DEV_BIN="$root/bin/supermetry" DEV_BUILD_CMD='. ./build.sh' \
+		DEV_WEB_CMD="exec sleep 5" DEV_SERVER_CMD="exec $root/bin/supermetry" timeout 3 sh "$root/dev.sh") >"$root/log" 2>&1 || true
+	grep -q 'Open: http://localhost:8787 ' "$root/log" || fail "banner for SUPERMETRY_LISTEN=$l"
+	for p in $(cat "$pids"); do kill "$p" 2>/dev/null || true; done
+done
+echo "ok: the banner shows localhost for loopback and wildcard listen addresses"
+
 # Missing Bun: a clear message, a failing exit status and nothing left running.
 if [ -z "$(PATH=/usr/bin:/bin command -v bun || true)" ]; then
 	: >"$pids"
