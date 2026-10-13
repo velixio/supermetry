@@ -161,7 +161,9 @@ test('opens the command palette with Ctrl+K and from the header, and navigates w
   page.on('request', (request) => {
     if (request.resourceType() === 'document') documentRequests += 1
   })
-  await page.keyboard.press('Control+k')
+  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Open command palette' })
+  await expect(trigger).toBeVisible()
+  await page.keyboard.press('Control+KeyK')
   const palette = page.getByRole('dialog', { name: 'Command palette' })
   await expect(palette).toBeVisible()
   await palette.getByRole('combobox', { name: 'Search commands' }).fill('Funnels')
@@ -170,7 +172,6 @@ test('opens the command palette with Ctrl+K and from the header, and navigates w
   await expect(palette).toHaveCount(0)
   expect(documentRequests).toBe(0)
 
-  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Open command palette' })
   await trigger.click()
   await expect(palette).toBeVisible()
   await page.keyboard.press('Escape')
