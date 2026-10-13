@@ -25,6 +25,7 @@ type siteResponse struct {
 	ID                    int32                          `json:"id"`
 	OrgID                 int64                          `json:"org_id"`
 	PublicID              string                         `json:"public_id"`
+	Slug                  string                         `json:"slug"`
 	Name                  string                         `json:"name"`
 	Timezone              string                         `json:"timezone"`
 	RetentionDays         int                            `json:"retention_days"`
@@ -325,6 +326,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		BlockedReferrers      *[]string       `json:"blocked_referrers"`
 		RevenueCurrency       *string         `json:"revenue_currency"`
 		IsDemo                *bool           `json:"is_demo"`
+		Slug                  *string         `json:"slug"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -371,6 +373,7 @@ func (h *handler) updateSite(w http.ResponseWriter, r *http.Request) {
 		StrictOrigin:          request.StrictOrigin,
 		BlockedReferrers:      request.BlockedReferrers,
 		RevenueCurrency:       request.RevenueCurrency,
+		Slug:                  request.Slug,
 	})
 	if err != nil {
 		serviceError(w, err)
@@ -423,7 +426,7 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 	}
 	response := siteResponse{
 		TrackingPolicy: h.trackingPolicy(site.ProfilesEnabled),
-		ID:             site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Timezone: timezone,
+		ID:             site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Slug: site.Slug, Timezone: timezone,
 		RetentionDays: int(site.Retention), AllowedHosts: append([]string(nil), site.AllowedHosts...),
 		ExcludeIPs: append([]string{}, site.Exclusions.IPRules...), ExcludePaths: append([]string{}, site.Exclusions.PathRules...),
 		ExcludeCountries: append([]string{}, site.Exclusions.CountryRules...),

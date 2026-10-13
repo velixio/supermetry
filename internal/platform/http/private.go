@@ -695,6 +695,8 @@ func serviceError(w http.ResponseWriter, err error) {
 		errors.Is(err, orgs.ErrForbidden), errors.Is(err, invites.ErrForbidden),
 		errors.Is(err, shares.ErrForbidden), errors.Is(err, reports.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot perform this action")
+	case errors.Is(err, sitesvc.ErrSlugTaken):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, sitesvc.ErrLimit):
 		writeProblem(w, http.StatusForbidden, "Limit reached", err.Error())
 	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, keys.ErrInvalid), errors.Is(err, orgs.ErrInvalidRole),
