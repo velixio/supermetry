@@ -93,7 +93,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		items = append(items, item)
 		totalSites += len(sites)
 	}
-	preferences := effectiveUserPreferences(user.Preferences, totalSites)
+	preferences := effectiveUserPreferences(user.Preferences)
 	var twoFactorSetupRequired bool
 	var twoFactorGraceUntil *time.Time
 	if h.deps.Admin != nil {
@@ -140,12 +140,9 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func effectiveUserPreferences(preferences store.UserPreferences, siteCount int) store.UserPreferences {
+func effectiveUserPreferences(preferences store.UserPreferences) store.UserPreferences {
 	if preferences.LandingPage == "" {
 		preferences.LandingPage = "last_site"
-		if siteCount >= 2 {
-			preferences.LandingPage = "overview"
-		}
 	}
 	if preferences.SitesView == "" {
 		preferences.SitesView = "cards"
