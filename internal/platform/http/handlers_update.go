@@ -106,8 +106,21 @@ func (h *handler) adminApplyUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !created {
-		writeJSON(w, http.StatusAccepted, job)
-		return
+		helperStatus, statusErr := h.deps.UpdateStarter.Status(r.Context(), strconv.FormatInt(job.ID, 10))
+		if statusErr != nil {
+			writeProblem(w, http.StatusServiceUnavailable, "Updater unavailable", "the host updater helper could not confirm the request")
+			return
+		}
+		if helperStatus.ErrorCode != "job_not_found" {
+			if err := h.deps.Admin.SyncUpdateJob(r.Context(), principal.UserID, job.ID, helperStatus.State, helperStatus.ErrorCode); err != nil {
+				serviceError(w, err)
+				return
+			}
+			job.Status = string(helperStatus.State)
+			job.ErrorCode = helperStatus.ErrorCode
+			writeJSON(w, http.StatusAccepted, job)
+			return
+		}
 	}
 	nonce, err := h.deps.UpdateNonce()
 	if err != nil {

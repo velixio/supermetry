@@ -116,6 +116,10 @@ func TestAdminApplyUpdateRequiresReauthenticationAndDispatches(t *testing.T) {
 	if err := json.Unmarshal(got.Body.Bytes(), &job); err != nil || job.Status != "requested" {
 		t.Fatalf("job=%+v err=%v", job, err)
 	}
+	retry := request(`{"target_version":"v1.3.0","idempotency_key":"update-2026-10-14","password":"pw-123456789"}`)
+	if retry.Code != http.StatusAccepted || len(starter.requests) != 1 {
+		t.Fatalf("retry status=%d requests=%d body=%s", retry.Code, len(starter.requests), retry.Body.String())
+	}
 }
 
 type fakeUpdateStarter struct{ requests []updatehelper.Request }
