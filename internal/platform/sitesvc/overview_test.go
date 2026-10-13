@@ -108,3 +108,44 @@ func TestOverviewRejectsInvalidPeriodLimitAndCursor(t *testing.T) {
 		}
 	}
 }
+
+// A database built without legacy zone aliases rejects names such as
+// Asia/Calcutta that Go resolves, which used to fail the whole overview.
+func TestOverviewAcceptsTimezoneNamesThePostgresBuildDoesNotKnow(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 12, 12, 30, 0, 0, time.UTC)
+	var userID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash,is_admin) values ('legacy@example.test','Legacy','x',false) returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values('Legacy','legacy') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class,created_at) values($1,'legacyzone01','Legacy',array['legacy.example'],'Asia/Calcutta',30,$2) returning id`, orgID, now.Add(-time.Hour)).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role,site_ids) values($1,$2,'owner',null)`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into visitors_per_minute(site_id,minute,visitors,pageviews,events) values($1,$2,5,5,0)`, siteID, now.Add(-15*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	service := NewOverview(&store.Store{Pool: pool}, session.NewMemory(1, overviewClock{now}))
+	service.SetClock(func() time.Time { return now })
+
+	for _, period := range []OverviewPeriod{Overview24Hours, Overview7Days, Overview30Days} {
+		items, _, err := service.List(ctx, userID, period, "", OverviewMaxLimit)
+		if err != nil {
+			t.Fatalf("%s: %v", period, err)
+		}
+		if len(items) != 1 || items[0].Visitors != 5 {
+			t.Fatalf("%s: items=%+v, want one site with 5 visitors", period, items)
+		}
+	}
+}
