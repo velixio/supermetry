@@ -106,9 +106,11 @@ web/dist/index.html: $(shell find web/src web/packages web/public -type f 2>/dev
 # embedded from cmd/ and internal/ change; a compile error keeps the old server running.
 # The UI comes from the Vite dev server (hot reload) on :5173, which the Go server
 # reverse-proxies (SUPERMETRY_DEV_UI_URL), so the browser only uses :8787 and login,
-# CSRF and cookies behave as usual. Ctrl+C stops both processes.
+# CSRF and cookies behave as usual. The server listens on 127.0.0.1 only (unless
+# SUPERMETRY_LISTEN is set), since it forwards to the Vite dev server. Ctrl+C stops both.
 dev:
 	$(ENV) if [ -z "$$SUPERMETRY_DEV_UI_URL" ]; then export SUPERMETRY_DEV_UI_URL=http://localhost:5173; fi; \
+		if [ -z "$$SUPERMETRY_LISTEN" ]; then export SUPERMETRY_LISTEN=127.0.0.1:8787; fi; \
 		$(DB_ENV) exec sh $(CURDIR)/scripts/dev.sh
 
 # Smoke test of the make dev supervisor (fake build, server and Vite; no database needed).

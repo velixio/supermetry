@@ -27,7 +27,7 @@ ui_url=${SUPERMETRY_DEV_UI_URL:-http://localhost:5173}
 listen=${SUPERMETRY_LISTEN:-:8787}
 case $listen in
 :*) api_url=http://localhost$listen ;;
-0.0.0.0:* | '[::]:'*) api_url=http://localhost:${listen##*:} ;;
+0.0.0.0:* | '[::]:'* | 127.0.0.1:* | '[::1]:'*) api_url=http://localhost:${listen##*:} ;;
 *) api_url=http://$listen ;;
 esac
 # The Go server redirects pages to the origin of the UI URL only (no path).

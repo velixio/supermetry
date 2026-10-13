@@ -120,8 +120,60 @@ func TestDevUIDropsCredentialsBeforeForwarding(t *testing.T) {
 	if got.Header.Get("Accept") != "text/html" {
 		t.Errorf("ordinary headers must be forwarded")
 	}
-	if got.Host != strings.TrimPrefix(srv.URL, "http://") {
-		t.Errorf("upstream saw Host %q", got.Host)
+	if got.Host != "example.com" {
+		t.Errorf("upstream saw Host %q, want the client's Host", got.Host)
+	}
+}
+
+// Vite's allowedHosts check (DNS-rebinding protection) only works if it sees the
+// Host the client sent, so the proxy must forward it unchanged.
+func TestDevUIForwardsTheClientHostVerbatim(t *testing.T) {
+	up := &recorder{}
+	srv := httptest.NewServer(up)
+	defer srv.Close()
+	h := devUI(teapot(), srv.URL)
+	for _, host := range []string{"localhost:8787", "evil.example", "192.168.1.20:8787", "evil.example:80"} {
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Host = host
+		h.ServeHTTP(rr, req)
+		if got := up.last(t).Host; got != host {
+			t.Errorf("client Host %q reached the upstream as %q", host, got)
+		}
+	}
+}
+
+func TestDevUIDropsUpstreamCSP(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src *")
+		w.Header().Add("Content-Security-Policy-Report-Only", "default-src *")
+	}))
+	defer srv.Close()
+	rr := httptest.NewRecorder()
+	devUI(teapot(), srv.URL).ServeHTTP(rr, httptest.NewRequest("GET", "/", nil))
+	if got := rr.Header().Values("Content-Security-Policy"); len(got) != 1 || got[0] != devCSP {
+		t.Errorf("CSP headers %q, want only the dev policy", got)
+	}
+	if rr.Header().Get("Content-Security-Policy-Report-Only") != "" {
+		t.Errorf("upstream report-only policy leaked through")
+	}
+}
+
+func TestDevCSPKeepsTheProductionBasics(t *testing.T) {
+	for _, want := range []string{"form-action 'self'", "object-src 'none'", "base-uri 'self'", "font-src 'self' data: blob: https:"} {
+		if !strings.Contains(devCSP, want) {
+			t.Errorf("devCSP lacks %q", want)
+		}
+	}
+}
+
+func TestDevUIPassThroughResponsesGetNoDevCSP(t *testing.T) {
+	srv := httptest.NewServer(&recorder{})
+	defer srv.Close()
+	rr := httptest.NewRecorder()
+	devUI(teapot(), srv.URL).ServeHTTP(rr, httptest.NewRequest("GET", "/api/private/me", nil))
+	if rr.Header().Get("Content-Security-Policy") != "" {
+		t.Errorf("an /api response carries the dev CSP: %q", rr.Header().Get("Content-Security-Policy"))
 	}
 }
 
@@ -130,23 +182,42 @@ func TestDevUIHostileTargetsNeverChangeTheUpstream(t *testing.T) {
 	srv := httptest.NewServer(up)
 	defer srv.Close()
 	h := devUI(teapot(), srv.URL)
-	targets := []string{
-		"//evil.example", "//evil.example/x", "/%5Cevil.example", "/%2f%2fevil.example", "///evil.example",
-		"/..//evil.example", "/%0d%0aX-Injected:1", "/a?b=%0d%0aX-Injected:1", "/@evil.example", "/a?next=//evil.example",
-		"http://evil.example/x", "http://evil.example//evil2.example", "/" + strings.Repeat("a", 8192), "/%2e%2e/%2e%2e/evil.example",
-		"http://user@evil.example/x",
+	long := "/" + strings.Repeat("a", 8192)
+	// target -> escaped path and raw query the upstream must receive.
+	targets := []struct{ target, path, query string }{
+		{"//evil.example", "//evil.example", ""},
+		{"//evil.example/x", "//evil.example/x", ""},
+		{"/%5Cevil.example", "/%5Cevil.example", ""},
+		{"/%2f%2fevil.example", "/%2f%2fevil.example", ""},
+		{"///evil.example", "///evil.example", ""},
+		{"/..//evil.example", "/..//evil.example", ""},
+		{"/%0d%0aX-Injected:1", "/%0d%0aX-Injected:1", ""},
+		{"/a?b=%0d%0aX-Injected:1", "/a", "b=%0d%0aX-Injected:1"},
+		{"/@evil.example", "/@evil.example", ""},
+		{"/a?next=//evil.example", "/a", "next=//evil.example"},
+		{"http://evil.example/x", "/x", ""},
+		{"http://evil.example//evil2.example", "//evil2.example", ""},
+		{long, long, ""},
+		{"/%2e%2e/%2e%2e/evil.example", "/%2e%2e/%2e%2e/evil.example", ""},
+		{"http://user@evil.example/x?q=1", "/x", "q=1"},
 	}
-	for _, target := range targets {
+	for _, tc := range targets {
 		before := up.count()
 		rr := httptest.NewRecorder()
-		h.ServeHTTP(rr, rawRequest(t, "GET "+target, ""))
+		h.ServeHTTP(rr, rawRequest(t, "GET "+tc.target, ""))
 		if rr.Code != 200 || up.count() != before+1 {
-			t.Errorf("%.40q: status %d, upstream hits %d", target, rr.Code, up.count()-before)
+			t.Errorf("%.40q: status %d, upstream hits %d", tc.target, rr.Code, up.count()-before)
 			continue
 		}
 		got := up.last(t)
-		if got.Host != strings.TrimPrefix(srv.URL, "http://") || got.Header.Get("X-Injected") != "" {
-			t.Errorf("%.40q: upstream saw host %q, injected %q", target, got.Host, got.Header.Get("X-Injected"))
+		// The client's Host is forwarded for Vite's own host check; the connection
+		// itself always goes to the configured upstream (the recorder is the only
+		// server listening, and it received the request).
+		if got.Header.Get("X-Injected") != "" {
+			t.Errorf("%.40q: header injection reached the upstream", tc.target)
+		}
+		if got.URL.EscapedPath() != tc.path || got.URL.RawQuery != tc.query {
+			t.Errorf("%.40q: upstream received path %.60q query %q, want %.60q %q", tc.target, got.URL.EscapedPath(), got.URL.RawQuery, tc.path, tc.query)
 		}
 	}
 }

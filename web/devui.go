@@ -18,8 +18,10 @@ const DevUIEnv = "SUPERMETRY_DEV_UI_URL"
 
 // devCSP replaces the app's strict policy on proxied pages: Vite injects an
 // inline module script (React refresh) and opens a WebSocket for hot reload.
-// It only exists in builds without the embedded UI, never in production.
-const devCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-src 'self' blob: https: http:; object-src 'none'; base-uri 'self'"
+// It only exists in builds without the embedded UI, never in production. The
+// rest mirrors the production app/replay-viewer policy in cmd/supermetry/serve.go
+// (a different package, so it is copied; keep the two in step).
+const devCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: blob: https:; connect-src 'self' ws: wss:; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 // devUIOrigin returns scheme://host of raw when it is an absolute http(s) URL
 // with a host and no credentials, and "" otherwise. Only this origin is ever
@@ -47,8 +49,11 @@ func devUI(next http.Handler, raw string) http.Handler {
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
 			// SetURL swaps scheme and host for the configured ones; the path and
-			// query are forwarded as received. Vite needs no credentials.
+			// query are forwarded as received. The client's Host is kept so Vite's
+			// own allowedHosts check (DNS-rebinding protection) still applies.
+			// Vite needs no credentials.
 			r.SetURL(target)
+			r.Out.Host = r.In.Host
 			r.Out.Header.Del("Cookie")
 			r.Out.Header.Del("Authorization")
 		},
@@ -58,6 +63,12 @@ func devUI(next http.Handler, raw string) http.Handler {
 			ResponseHeaderTimeout: 30 * time.Second,
 			IdleConnTimeout:       30 * time.Second,
 			MaxIdleConns:          8,
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			// Only the dev policy set below may apply to proxied pages.
+			resp.Header.Del("Content-Security-Policy")
+			resp.Header.Del("Content-Security-Policy-Report-Only")
+			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, _ error) {
 			if r.Context().Err() == context.Canceled {
