@@ -1,8 +1,8 @@
 import { createFileRoute, Link, Outlet, redirect, useRouter } from '@tanstack/react-router'
-import { AccountFrame } from '@/components/AccountFrame'
+import { PageContainer } from '@/components/PageContainer'
 import { DeletedOrgsList } from '@/features/lifecycle/DeletedOrgsList'
 import { queryClient } from '@/lib/queryClient'
-import { meQueryOptions, useMe } from './app.$org'
+import { meQueryOptions } from './app.$org'
 
 export const Route = createFileRoute('/app/account')({
   beforeLoad: async ({ location }) => {
@@ -14,16 +14,15 @@ export const Route = createFileRoute('/app/account')({
   component: AccountLayout,
 })
 
+// Content inside the app shell: the account section tabs, the page, and restorable organizations.
 function AccountLayout() {
-  const me = useMe()
   const router = useRouter()
-  if (!me.data) return <main className="p-6" role="status">Loading account…</main>
   return (
-    <AccountFrame me={me.data}>
+    <PageContainer width="narrow">
       <AccountSettingsNavigation />
       <Outlet />
       <DeletedOrgsList navigate={(path) => router.history.push(path)} />
-    </AccountFrame>
+    </PageContainer>
   )
 }
 

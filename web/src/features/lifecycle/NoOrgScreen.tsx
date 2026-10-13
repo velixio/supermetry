@@ -1,19 +1,19 @@
 import { Link } from '@tanstack/react-router'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { DeletedOrgsList } from './DeletedOrgsList'
 
 export function NoOrgScreen({ navigate }: { navigate: (path: string) => void }) {
   return (
-    <section className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-8">
-      <header className="flex flex-col items-start gap-3 border-l-2 border-accent pl-5">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">You don't belong to an organization</h1>
-          <p className="text-sm text-muted-foreground">Create one to start collecting analytics, or restore one below.</p>
-        </div>
-        <Button asChild><Link to="/app/account/organizations/new">Create organization</Link></Button>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader
+        title="You don't belong to an organization"
+        description="Create one to start collecting analytics, or restore one below."
+        actions={<Button asChild><Link to="/app/account/organizations/new">Create organization</Link></Button>}
+      />
       <DeletedOrgsList navigate={navigate} />
-    </section>
+    </PageContainer>
   )
 }

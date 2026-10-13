@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { PlaySquareIcon } from 'lucide-react'
 import type { ComponentProps } from 'react'
+import { defaultSearch } from '@/lib/search'
 
 type ReplayNavLinkProps = { enabled: boolean; org: string; site: string } & Omit<
   ComponentProps<'a'>,
@@ -17,7 +18,7 @@ export function ReplayNavLink({ enabled, org, site, ...props }: ReplayNavLinkPro
       aria-label="Replays"
       to="/app/$org/$site/replays"
       params={{ org, site }}
-      search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}
+      search={defaultSearch()}
     >
       <PlaySquareIcon />
       <span>Replays</span>

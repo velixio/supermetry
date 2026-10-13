@@ -22,6 +22,18 @@ describe('PageHeader', () => {
     expect(screen.getByRole('button', { name: 'New goal' })).toBeInTheDocument()
   })
 
+  it('hides an actions wrapper whose children all render nothing', () => {
+    const { container } = render(<PageHeader title="Goals" actions={<>{null}</>} />)
+    const wrapper = container.querySelector('[data-slot="page-header-actions"]')
+    expect(wrapper).toHaveClass('empty:hidden')
+    expect(wrapper?.childNodes).toHaveLength(0)
+  })
+
+  it('sets the heading id from titleId', () => {
+    render(<PageHeader title="Goals" titleId="goals-title" />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('id', 'goals-title')
+  })
+
   it('renders no description or actions wrapper when they are absent', () => {
     const { container } = render(<PageHeader title="Goals" />)
     expect(container.querySelector('p')).toBeNull()

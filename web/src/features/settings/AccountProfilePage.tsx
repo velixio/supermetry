@@ -11,9 +11,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import type { UserPreferences } from '@/lib/me'
-import { applyLocalePreference, manifest, pickerLocales, type LocaleCode } from '@/lib/i18n'
+import { manifest, pickerLocales, type LocaleCode } from '@/lib/i18n'
 import { en } from '@/messages/en'
 import { privateRequest } from './privateApi'
+import { useSaveLocalePreference } from './useSaveLocalePreference'
 import { uiAccount } from '@/messages/uiAccount'
 
 type Method = 'PATCH' | 'POST' | 'DELETE'
@@ -25,6 +26,7 @@ export function AccountProfilePage({ name, email, totpEnabled, preferences, requ
   const queryClient = useQueryClient()
   const [deleteBody, setDeleteBody] = useState<Record<string, unknown> | null>(null)
   const [emailSent, setEmailSent] = useState(false)
+  const localeSave = useSaveLocalePreference(request)
   const mutation = useMutation({
     mutationFn: ({ method, path, body }: { method: Method; path: string; body: Record<string, unknown> }) => request(method, path, body),
     onSuccess: (_, variables) => {
@@ -45,7 +47,7 @@ export function AccountProfilePage({ name, email, totpEnabled, preferences, requ
     <Card><CardHeader><CardTitle>{uiAccount.profile.landingTitle}</CardTitle><CardDescription>{uiAccount.profile.landingNote}</CardDescription></CardHeader>
       <CardContent><FieldGroup><Field><FieldLabel htmlFor="landing-page">{uiAccount.profile.afterSignIn}</FieldLabel><select id="landing-page" className="h-8 rounded-lg border bg-background px-2.5 text-sm" defaultValue={preferences?.landing_page ?? 'overview'} disabled={mutation.isPending} onChange={(event) => mutation.mutate({ method: 'PATCH', path: '/api/private/me', body: { preferences: { landing_page: event.target.value } } })}><option value="overview">{uiAccount.profile.sitesOverview}</option><option value="last_site">{uiAccount.profile.lastSite}</option></select><FieldDescription>{uiAccount.profile.landingHint}</FieldDescription></Field></FieldGroup></CardContent></Card>
     <Card><CardHeader><CardTitle>{en.language.title}</CardTitle><CardDescription>{en.language.description}</CardDescription></CardHeader>
-      <CardContent><FieldGroup><Field><FieldLabel htmlFor="interface-language">{en.language.label}</FieldLabel><select id="interface-language" className="h-11 rounded-lg border bg-background px-2.5 text-sm" defaultValue={preferences?.locale ?? ''} disabled={mutation.isPending} onChange={(event) => { const value = event.target.value as LocaleCode | ''; mutation.mutate({ method: 'PATCH', path: '/api/private/me', body: { preferences: { locale: value } } }, { onSuccess: () => applyLocalePreference(value) }) }}><option value="">{en.language.browserDefault}</option>{pickerLocales.map((code) => <option key={code} value={code}>{manifest[code].nativeName}{manifest[code].reviewed ? '' : ` ${en.language.machineTranslated}`}</option>)}</select><FieldDescription>{en.language.note}</FieldDescription></Field></FieldGroup></CardContent></Card>
+      <CardContent><FieldGroup><Field><FieldLabel htmlFor="interface-language">{en.language.label}</FieldLabel><select id="interface-language" className="h-11 rounded-lg border bg-background px-2.5 text-sm" defaultValue={preferences?.locale ?? ''} disabled={mutation.isPending || localeSave.isPending} onChange={(event) => localeSave.save(event.target.value as LocaleCode | '')}><option value="">{en.language.browserDefault}</option>{pickerLocales.map((code) => <option key={code} value={code}>{manifest[code].nativeName}{manifest[code].reviewed ? '' : ` ${en.language.machineTranslated}`}</option>)}</select><FieldDescription>{en.language.note}</FieldDescription></Field></FieldGroup></CardContent></Card>
     <Card><CardHeader><CardTitle>{uiAccount.profile.emailTitle}</CardTitle><CardDescription>{uiAccount.profile.emailNote(email)}</CardDescription></CardHeader>
       <form onSubmit={submit('POST', '/api/private/me/email', ['new_email', 'password'])}><CardContent><FieldGroup><Field><FieldLabel htmlFor="new-email">{uiAccount.profile.newEmail}</FieldLabel><Input id="new-email" name="new_email" type="email" required /></Field><Field><FieldLabel htmlFor="email-password">{uiAccount.profile.emailPassword}</FieldLabel><Input id="email-password" name="password" type="password" required /></Field>{emailSent ? <FieldDescription>{uiAccount.profile.emailSent}</FieldDescription> : null}</FieldGroup></CardContent><CardFooter><Button disabled={mutation.isPending}>{uiAccount.profile.sendConfirmation}</Button></CardFooter></form></Card>
     <Card><CardHeader><CardTitle>{uiAccount.profile.passwordTitle}</CardTitle><CardDescription>{uiAccount.profile.passwordNote}</CardDescription></CardHeader>

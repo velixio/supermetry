@@ -102,4 +102,28 @@ describe('TrafficGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalledOnce()
   })
+
+  it('inspects a cell on activation and marks the inspected cell', () => {
+    const open = vi.fn()
+    render(<TrafficGrid dateRange={{ from: '2026-09-28', to: '2026-09-30' }} metric="visitors" rows={[
+      { weekday: 1, hour_of_day: 13, visitors: 89 },
+    ]} timezone="UTC" locale="en-GB" inspect={{ selected: { dimension: 'weekday_hour', values: ['1', '13'] }, can: () => true, open }} />)
+
+    const cell = screen.getByRole('gridcell', { name: 'Monday 13:00: 89 visitors' })
+    expect(cell).toHaveAttribute('aria-selected', 'true')
+    expect(cell).toHaveAccessibleDescription('Select a cell to inspect it.')
+    expect(screen.getByRole('gridcell', { name: 'Monday 14:00: 0 visitors' })).toHaveAttribute('aria-selected', 'false')
+    fireEvent.click(cell)
+    expect(open).toHaveBeenCalledWith({ dimension: 'weekday_hour', values: ['1', '13'] }, cell)
+  })
+
+  it('keeps cells inert without an inspect control', () => {
+    render(<TrafficGrid dateRange={{ from: '2026-09-28', to: '2026-09-30' }} metric="visitors" rows={[
+      { weekday: 1, hour_of_day: 13, visitors: 89 },
+    ]} timezone="UTC" locale="en-GB" />)
+
+    const cell = screen.getByRole('gridcell', { name: 'Monday 13:00: 89 visitors' })
+    expect(cell).not.toHaveAttribute('aria-selected')
+    expect(cell).not.toHaveAttribute('aria-describedby')
+  })
 })

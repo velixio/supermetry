@@ -8,8 +8,10 @@ import type { Membership } from '@/lib/me'
 
 export function authorizationScope(
   userId: number,
-  membership: Membership,
+  membership: Membership | undefined,
 ): string {
+  // Outside an organization (account, admin) no organization grant applies.
+  if (!membership) return JSON.stringify([userId, null])
   return JSON.stringify([
     userId,
     membership.org.id,

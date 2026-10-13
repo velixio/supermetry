@@ -42,4 +42,25 @@ describe('CountryTable', () => {
     rerender(<CountryTable rows={rows.slice(0, 2)} metric="visitors" activeCountry="US" onActiveChange={onActiveChange} onSelect={onSelect} />)
     expect(screen.getByRole('button', { name: /United States, rank 1/i })).toHaveAttribute('data-active', 'true')
   })
+
+  it('offers Inspect per country without selecting it, and only where allowed', () => {
+    const onSelect = vi.fn()
+    const open = vi.fn()
+    render(
+      <CountryTable
+        rows={rows.slice(0, 2)}
+        metric="visitors"
+        onActiveChange={vi.fn()}
+        onSelect={onSelect}
+        inspect={{ selected: { dimension: 'country', values: ['IN'] }, can: (target) => target.values[0] !== 'US', open }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Inspect United States' })).toBeNull()
+    const india = screen.getByRole('button', { name: 'Inspect India' })
+    expect(india).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(india)
+    expect(open).toHaveBeenCalledWith({ dimension: 'country', values: ['IN'] }, india)
+    expect(onSelect).not.toHaveBeenCalled()
+  })
 })

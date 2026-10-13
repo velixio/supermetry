@@ -6,10 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { rampStep } from '@/features/map/rampStep'
 import { fmt } from '@/lib/format'
+import { inspectTargetFor, sameInspect, type InspectControl } from '@/lib/inspect'
 import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
+import { ui } from '@/messages/ui'
 
 import {
+  hourLabel,
   marginTotals,
   orderedWeekdays,
   peakTrafficCell,
@@ -31,18 +34,10 @@ type TrafficGridProps = {
   error?: { detail?: string } | null
   onRetry?(): void
   onShorten?(days: number): void
+  inspect?: InspectControl
 }
 
 const stepClasses = ['bg-muted/35', 'bg-accent/20', 'bg-accent/40', 'bg-accent/60', 'bg-accent/80', 'bg-accent'] as const
-
-function hourLabel(hour: number, locale?: string): string {
-  const probe = new Intl.DateTimeFormat(locale, { hour: 'numeric', timeZone: 'UTC' })
-  const options = probe.resolvedOptions()
-  return new Intl.DateTimeFormat(locale, options.hour12
-    ? { hour: 'numeric', timeZone: 'UTC' }
-    : { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }
-  ).format(new Date(Date.UTC(2020, 0, 1, hour)))
-}
 
 function timezoneLabel(timezone: string, locale?: string): string {
   try {
@@ -73,8 +68,9 @@ function cellLabel(cell: TrafficCell, weekday: string, metric: string, locale?: 
   return `${weekday} ${hourLabel(cell.hour, locale)}: ${fmt.number(cell.value)} ${metric}`
 }
 
-export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoading = false, error, onRetry, onShorten }: TrafficGridProps) {
+export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoading = false, error, onRetry, onShorten, inspect }: TrafficGridProps) {
   const summaryId = useId()
+  const inspectHintId = useId()
   const weekdays = useMemo(() => orderedWeekdays(locale), [locale])
   const cells = useMemo(() => trafficCells(rows, metric, locale), [rows, metric, locale])
   const totals = useMemo(() => marginTotals(cells), [cells])
@@ -161,6 +157,7 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
         <CardTitle id="weekly-rhythm-title">Weekly rhythm</CardTitle>
         <CardDescription>{en.map.trafficCaption.replace('{timezone}', timezoneLabel(timezone, locale))}</CardDescription>
         <p className="sr-only" id={summaryId}>{dataSummary}</p>
+        {inspect ? <p className="sr-only" id={inspectHintId}>{ui.inspector.cellHint}</p> : null}
         {summary ? <p className="text-sm font-medium" aria-live="polite">{summary}</p> : null}
         {quietestName ? <p className="text-xs text-muted-foreground">Quietest weekday: {quietestName}</p> : null}
       </CardHeader>
@@ -201,11 +198,16 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
                     const index = row * 24 + hour
                     const label = cellLabel(cell, weekday.name, metricLabel, locale)
                     const busiest = peak?.weekday === cell.weekday && peak.hour === cell.hour
+                    const target = inspectTargetFor('weekday_hour', [String(cell.weekday), String(cell.hour)])
+                    const inspectTarget = target && inspect?.can(target) ? target : undefined
                     return (
                       <button
                         key={cell.hour}
                         ref={(node) => { cellRefs.current[index] = node }}
                         aria-label={label}
+                        aria-describedby={inspectTarget ? inspectHintId : undefined}
+                        aria-selected={inspectTarget ? sameInspect(inspect?.selected, inspectTarget) : undefined}
+                        onClick={inspectTarget ? (event) => inspect?.open(inspectTarget, event.currentTarget) : undefined}
                         className={cn(
                           'relative h-6 min-w-0 rounded-[3px] outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring',
                           stepClasses[rampStep(cell.value, maximum)],

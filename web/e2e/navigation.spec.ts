@@ -15,6 +15,8 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   })
   await page.setViewportSize({ width: 1440, height: 900 })
   await owner.login(page, dashboard)
+  await expect(page.getByRole('navigation', { name: 'Projects' })).toHaveCount(0)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
 
   let documentRequests = 0
   const countDocuments = (request: Request) => {
@@ -76,6 +78,31 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   expect(documentRequests).toBe(0)
 })
 
+test('keeps the same shell mounted between a site and the account pages', async ({ page, owner }) => {
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await owner.login(page, dashboard)
+  const shell = page.locator('[data-slot="sidebar-wrapper"]')
+  await shell.evaluate((element) => {
+    ;(element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken = 'persistent'
+  })
+  let documentRequests = 0
+  page.on('request', (request) => {
+    if (request.resourceType() === 'document') documentRequests += 1
+  })
+  await page.getByRole('button', { name: 'Account', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
+  await expect(page).toHaveURL('/app/account/profile')
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  await expect(page.getByRole('main')).toHaveCount(1)
+  const token = () => shell.evaluate((element) => (element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken)
+  expect(await token()).toBe('persistent')
+  await page.goBack()
+  await expect(page).toHaveURL((url) => url.pathname === dashboard)
+  expect(await token()).toBe('persistent')
+  expect(documentRequests).toBe(0)
+})
+
 test('serves an authenticated nested route as a direct URL', async ({ page, owner }) => {
   const settings = `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`
   await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}`)
@@ -110,4 +137,43 @@ test('renders auth screens dark without leaking into a light dashboard', async (
     'content',
     '#fafafa',
   )
+})
+
+test('starts on the icon rail at tablet width and keeps the saved sidebar state', async ({ page, owner }) => {
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
+  await page.setViewportSize({ width: 1024, height: 800 })
+  await owner.login(page, dashboard)
+  const sidebar = page.locator('[data-slot="sidebar"]')
+  await expect(sidebar).toHaveAttribute('data-state', 'collapsed')
+  await expect(page.getByRole('link', { name: 'Funnels' })).toBeVisible()
+  await page.getByRole('button', { name: 'Toggle sidebar' }).click()
+  await expect(sidebar).toHaveAttribute('data-state', 'expanded')
+  await page.reload()
+  await expect(sidebar).toHaveAttribute('data-state', 'expanded')
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+})
+
+test('opens the command palette with Ctrl+K and from the header, and navigates without a reload', async ({ page, owner }) => {
+  const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await owner.login(page, dashboard)
+  let documentRequests = 0
+  page.on('request', (request) => {
+    if (request.resourceType() === 'document') documentRequests += 1
+  })
+  await page.keyboard.press('Control+k')
+  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  await expect(palette).toBeVisible()
+  await palette.getByRole('combobox', { name: 'Search commands' }).fill('Funnels')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(`${dashboard}/funnels`)
+  await expect(palette).toHaveCount(0)
+  expect(documentRequests).toBe(0)
+
+  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Open command palette' })
+  await trigger.click()
+  await expect(palette).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(palette).toHaveCount(0)
+  await expect(trigger).toBeFocused()
 })

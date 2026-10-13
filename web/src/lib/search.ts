@@ -175,6 +175,11 @@ export function parseDashboardSearch(value: unknown): DashboardSearch {
 }
 
 export const dashboardSearch = { parse: parseDashboardSearch }
+
+/** Search params a fresh link into an analytics page starts from: last 30 days, no comparison, no filters. */
+export function defaultSearch(): Pick<DashboardSearch, 'period' | 'compare' | 'f' | 'metric' | 'include_imported'> {
+  return { period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }
+}
 export type FilterOperator = (typeof filterOperatorValues)[number]
 
 export type Filter = {
@@ -408,4 +413,19 @@ export function resolveRange(
       }
       return fallbackRange(today)
   }
+}
+
+export function stringifySearch(search: Record<string, unknown>): string {
+  const params = new URLSearchParams()
+  const append = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return
+    if (Array.isArray(value)) {
+      value.forEach((item) => append(key, item))
+      return
+    }
+    params.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value))
+  }
+  Object.entries(search).forEach(([key, value]) => append(key, value))
+  const encoded = params.toString()
+  return encoded ? `?${encoded}` : ''
 }

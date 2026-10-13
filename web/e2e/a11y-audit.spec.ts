@@ -118,6 +118,10 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   await owner.login(page, dashboard)
   await waitForDashboard(page)
   reports.push(await audit(page, 'dashboard'))
+  await page.getByRole('button', { name: 'Open command palette' }).click()
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+  reports.push(await audit(page, 'command-palette'))
+  await page.keyboard.press('Escape')
 
   await page.goto(`${dashboard}/sessions`)
   await waitForSessions(page)
@@ -126,6 +130,11 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   await page.goto(`${dashboard}/settings/general`)
   await waitForSettings(page)
   reports.push(await audit(page, 'settings'))
+
+  await page.goto('/app/account/profile')
+  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
+  await expect(page.getByRole('main')).toHaveCount(1)
+  reports.push(await audit(page, 'account'))
 
   saveAxeReport(reports)
 })
@@ -156,7 +165,7 @@ test('captures the dashboard and grouped sidebar at the requested breakpoints', 
   await owner.login(page, dashboard)
   await waitForDashboard(page)
 
-  for (const name of ['Analyze', 'Behaviour', 'Conversion', 'Manage']) {
+  for (const name of ['Analyze', 'Behaviour', 'Conversion', 'Manage', 'Settings']) {
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
   }
   await screenshot(page, 'dashboard-1440-light.png')
