@@ -20,16 +20,24 @@ const (
 	ControlSocketPath = "/run/supermetry-updater/control.sock"
 )
 
+type Operation string
+
+const (
+	OperationStart  Operation = "start"
+	OperationStatus Operation = "status"
+)
+
 var (
 	versionPattern   = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 	errorCodePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 )
 
 type Request struct {
-	Version       int    `json:"version"`
-	JobID         string `json:"job_id"`
-	TargetVersion string `json:"target_version"`
-	Nonce         string `json:"nonce"`
+	Version       int       `json:"version"`
+	Operation     Operation `json:"operation"`
+	JobID         string    `json:"job_id"`
+	TargetVersion string    `json:"target_version"`
+	Nonce         string    `json:"nonce"`
 }
 
 type Response struct {
@@ -46,19 +54,28 @@ func (r Request) Validate() error {
 	if err := validateJobID(r.JobID); err != nil {
 		return err
 	}
-	if err := validateStableVersion(r.TargetVersion); err != nil {
-		return err
-	}
-	nonce, err := base64.RawURLEncoding.DecodeString(r.Nonce)
-	if err != nil || len(nonce) != 32 || base64.RawURLEncoding.EncodeToString(nonce) != r.Nonce {
-		return errors.New("nonce must be a 32-byte unpadded base64url value")
+	switch r.Operation {
+	case OperationStart:
+		if err := validateStableVersion(r.TargetVersion); err != nil {
+			return err
+		}
+		nonce, err := base64.RawURLEncoding.DecodeString(r.Nonce)
+		if err != nil || len(nonce) != 32 || base64.RawURLEncoding.EncodeToString(nonce) != r.Nonce {
+			return errors.New("nonce must be a 32-byte unpadded base64url value")
+		}
+	case OperationStatus:
+		if r.TargetVersion != "" || r.Nonce != "" {
+			return errors.New("status request must not include a target version or nonce")
+		}
+	default:
+		return fmt.Errorf("unsupported operation %q", r.Operation)
 	}
 	return nil
 }
 
 func ReadRequest(r io.Reader) (Request, error) {
 	var request Request
-	if err := readFrame(r, &request, "version", "job_id", "target_version", "nonce"); err != nil {
+	if err := readFrame(r, &request, "version", "operation", "job_id", "target_version", "nonce"); err != nil {
 		return Request{}, err
 	}
 	if err := request.Validate(); err != nil {

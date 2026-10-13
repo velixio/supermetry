@@ -32,6 +32,15 @@ func New(dial DialContext) *Client {
 }
 
 func (c *Client) Start(ctx context.Context, request updatehelper.Request) (updatehelper.Response, error) {
+	request.Operation = updatehelper.OperationStart
+	return c.exchange(ctx, request)
+}
+
+func (c *Client) Status(ctx context.Context, jobID string) (updatehelper.Response, error) {
+	return c.exchange(ctx, updatehelper.Request{Version: updatehelper.ProtocolVersion, Operation: updatehelper.OperationStatus, JobID: jobID})
+}
+
+func (c *Client) exchange(ctx context.Context, request updatehelper.Request) (updatehelper.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, operationTimeout)
 	defer cancel()
 	connection, err := c.dial(ctx, "unix", updatehelper.ControlSocketPath)

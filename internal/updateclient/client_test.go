@@ -12,7 +12,7 @@ import (
 func TestClientStartUsesNarrowFramedProtocol(t *testing.T) {
 	server, application := net.Pipe()
 	t.Cleanup(func() { _ = server.Close(); _ = application.Close() })
-	want := updatehelper.Request{Version: 1, JobID: "42", TargetVersion: "v1.2.0", Nonce: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY"}
+	want := updatehelper.Request{Version: 1, Operation: updatehelper.OperationStart, JobID: "42", TargetVersion: "v1.2.0", Nonce: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY"}
 	dialed := false
 	client := New(func(context.Context, string, string) (net.Conn, error) {
 		dialed = true
@@ -42,7 +42,7 @@ func TestClientStartUsesNarrowFramedProtocol(t *testing.T) {
 }
 
 func TestClientStartHonorsContextAndRejectsMismatchedJob(t *testing.T) {
-	request := updatehelper.Request{Version: 1, JobID: "7", TargetVersion: "v1.2.0", Nonce: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY"}
+	request := updatehelper.Request{Version: 1, Operation: updatehelper.OperationStart, JobID: "7", TargetVersion: "v1.2.0", Nonce: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY"}
 	t.Run("cancelled dial", func(t *testing.T) {
 		client := New(func(ctx context.Context, _, _ string) (net.Conn, error) {
 			<-ctx.Done()
@@ -69,4 +69,29 @@ func TestClientStartHonorsContextAndRejectsMismatchedJob(t *testing.T) {
 			t.Fatal("mismatched job response succeeded")
 		}
 	})
+}
+
+func TestClientStatusOmitsUpdateInputs(t *testing.T) {
+	server, application := net.Pipe()
+	defer server.Close()
+	defer application.Close()
+	client := New(func(context.Context, string, string) (net.Conn, error) { return application, nil })
+	done := make(chan error, 1)
+	go func() {
+		request, err := updatehelper.ReadRequest(server)
+		if err == nil && (request.Operation != updatehelper.OperationStatus || request.JobID != "42" || request.TargetVersion != "" || request.Nonce != "") {
+			t.Errorf("request=%+v", request)
+		}
+		if err == nil {
+			err = updatehelper.WriteResponse(server, updatehelper.Response{Version: 1, JobID: "42", State: updatehelper.StateDownload})
+		}
+		done <- err
+	}()
+	response, err := client.Status(context.Background(), "42")
+	if err != nil || response.State != updatehelper.StateDownload {
+		t.Fatalf("response=%+v err=%v", response, err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
 }
