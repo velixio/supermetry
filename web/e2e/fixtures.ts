@@ -21,6 +21,7 @@ export type Owner = {
   orgId: number;
   orgSlug: string;
   siteId: number;
+  sitePublicID: string;
   siteSlug: string;
   shareSlug: string;
   apiHeaders: Record<string, string>;
@@ -125,7 +126,8 @@ export default async function globalSetup(config: FullConfig) {
   });
   const site = await responseJSON<Record<string, unknown>>(createdSite);
   const siteId = value<number>(site, "id", "ID");
-  const siteSlug = value<string>(site, "public_id", "PublicID");
+  const sitePublicID = value<string>(site, "public_id", "PublicID");
+  const siteSlug = value<string>(site, "slug", "Slug");
 
   const createdShare = await api.post(`/api/private/sites/${siteId}/shares`, {
     headers: apiHeaders,
@@ -150,6 +152,7 @@ export default async function globalSetup(config: FullConfig) {
     orgId,
     orgSlug,
     siteId,
+    sitePublicID,
     siteSlug,
     shareSlug,
     apiHeaders,
