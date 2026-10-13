@@ -20,6 +20,7 @@ const sections = [
   ['/app/admin/sites', en.admin.sites],
   ['/app/admin/settings', en.admin.settings],
   ['/app/admin/security', en.admin.security],
+  ['/app/admin/update', en.admin.update],
 ] as const
 
 // Content inside the app shell: the administration section tabs and the page.
