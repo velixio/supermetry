@@ -14,6 +14,11 @@ import (
 
 const operationTimeout = 5 * time.Second
 
+var (
+	ErrUnavailable = errors.New("updater helper is unavailable")
+	ErrRejected    = errors.New("updater helper rejected the request")
+)
+
 type DialContext func(context.Context, string, string) (net.Conn, error)
 
 type Client struct{ dial DialContext }
@@ -31,7 +36,7 @@ func (c *Client) Start(ctx context.Context, request updatehelper.Request) (updat
 	defer cancel()
 	connection, err := c.dial(ctx, "unix", updatehelper.ControlSocketPath)
 	if err != nil {
-		return updatehelper.Response{}, fmt.Errorf("connect updater helper: %w", err)
+		return updatehelper.Response{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
 	defer connection.Close()
 	deadline, ok := ctx.Deadline()
@@ -51,7 +56,7 @@ func (c *Client) Start(ctx context.Context, request updatehelper.Request) (updat
 		return updatehelper.Response{}, errors.New("updater helper returned a different job ID")
 	}
 	if response.ErrorCode != "" {
-		return response, fmt.Errorf("updater helper rejected request: %s", response.ErrorCode)
+		return response, fmt.Errorf("%w: %s", ErrRejected, response.ErrorCode)
 	}
 	return response, nil
 }

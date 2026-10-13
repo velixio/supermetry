@@ -5,15 +5,21 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"supermetry/internal/db"
 	"supermetry/internal/platform/admin"
+	platformauth "supermetry/internal/platform/auth"
+	platformcrypto "supermetry/internal/platform/crypto"
 	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/mail"
 	"supermetry/internal/platform/store"
+	"supermetry/internal/platform/users"
 	"supermetry/internal/testpg"
 	"supermetry/internal/updatecheck"
+	"supermetry/internal/updatehelper"
 )
 
 func TestAdminUpdateStatus(t *testing.T) {
@@ -55,6 +61,68 @@ func TestAdminUpdateStatus(t *testing.T) {
 	if checker.calls != 1 {
 		t.Fatalf("checker calls=%d, want 1", checker.calls)
 	}
+}
+
+func TestAdminApplyUpdateRequiresReauthenticationAndDispatches(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	box, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/totp/v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authService := platformauth.New(data, &mail.Fake{}, box, "https://supermetry.example")
+	userID, err := users.New(data).Create(ctx, "update-apply@example.test", "Admin", "pw-123456789")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update users set is_admin=true where id=$1`, userID); err != nil {
+		t.Fatal(err)
+	}
+	starter := &fakeUpdateStarter{}
+	handler := platformhttp.New(platformhttp.Deps{
+		Version: "v1.2.0", Auth: authService, Store: data, Admin: admin.New(data),
+		Authenticator: actorAuthenticator{"admin": {UserID: userID}},
+		UpdateMode:    updatehelper.DeploymentBinary, UpdateStarter: starter,
+		UpdateNonce: func() (string, error) { return "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY", nil },
+	})
+
+	request := func(body string) *httptest.ResponseRecorder {
+		t.Helper()
+		r := httptest.NewRequest(http.MethodPost, "/api/private/admin/update/apply", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("X-Test-Actor", "admin")
+		r.Header.Set("X-CSRF-Token", "token")
+		r.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	wrong := request(`{"target_version":"v1.3.0","idempotency_key":"update-2026-10-14","password":"wrong"}`)
+	if wrong.Code != http.StatusUnauthorized || len(starter.requests) != 0 {
+		t.Fatalf("wrong password status=%d requests=%d body=%s", wrong.Code, len(starter.requests), wrong.Body.String())
+	}
+	got := request(`{"target_version":"v1.3.0","idempotency_key":"update-2026-10-14","password":"pw-123456789"}`)
+	if got.Code != http.StatusAccepted || len(starter.requests) != 1 {
+		t.Fatalf("status=%d requests=%d body=%s", got.Code, len(starter.requests), got.Body.String())
+	}
+	if starter.requests[0].TargetVersion != "v1.3.0" || starter.requests[0].JobID == "" {
+		t.Fatalf("helper request=%+v", starter.requests[0])
+	}
+	var job admin.UpdateJob
+	if err := json.Unmarshal(got.Body.Bytes(), &job); err != nil || job.Status != "requested" {
+		t.Fatalf("job=%+v err=%v", job, err)
+	}
+}
+
+type fakeUpdateStarter struct{ requests []updatehelper.Request }
+
+func (f *fakeUpdateStarter) Start(_ context.Context, request updatehelper.Request) (updatehelper.Response, error) {
+	f.requests = append(f.requests, request)
+	return updatehelper.Response{Version: updatehelper.ProtocolVersion, JobID: request.JobID, State: updatehelper.StateRequested}, nil
 }
 
 type fakeUpdateChecker struct {

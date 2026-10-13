@@ -39,6 +39,7 @@ import (
 	"supermetry/internal/replay"
 	coresites "supermetry/internal/sites"
 	"supermetry/internal/updatecheck"
+	"supermetry/internal/updatehelper"
 )
 
 const maxBodyBytes = 1 << 20
@@ -72,6 +73,10 @@ type DemoService interface {
 
 type UpdateChecker interface {
 	Check(context.Context) updatecheck.Status
+}
+
+type UpdateStarter interface {
+	Start(context.Context, updatehelper.Request) (updatehelper.Response, error)
 }
 
 type Deps struct {
@@ -142,6 +147,9 @@ type Deps struct {
 	Overview      *sitesvc.Overview
 	Admin         *admin.Service
 	UpdateChecker UpdateChecker
+	UpdateStarter UpdateStarter
+	UpdateMode    updatehelper.DeploymentMode
+	UpdateNonce   func() (string, error)
 
 	// Integrations serves the third-party connection endpoints. Optional.
 	Integrations IntegrationsService
@@ -199,6 +207,9 @@ func New(deps Deps) http.Handler {
 	if deps.UpdateChecker == nil {
 		deps.UpdateChecker = updatecheck.New(deps.Version)
 	}
+	if deps.UpdateNonce == nil {
+		deps.UpdateNonce = newUpdateNonce
+	}
 	if deps.Shares != nil && len(deps.SecretKey) > 0 {
 		deps.Shares.SetCookieSecret(deps.SecretKey)
 	}
@@ -230,6 +241,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/admin/security/2fa-exemptions/{user}", h.adminDeleteTwoFactorExemption)
 	mux.HandleFunc("GET /api/private/admin/audit", h.adminListAudit)
 	mux.HandleFunc("GET /api/private/admin/update", h.adminUpdateStatus)
+	mux.HandleFunc("POST /api/private/admin/update/apply", h.adminApplyUpdate)
 	mux.HandleFunc("GET /api/private/sites", h.listSites)
 	mux.HandleFunc("GET /api/private/sites/overview", h.sitesOverview)
 	mux.HandleFunc("POST /api/private/sites", h.createSite)
