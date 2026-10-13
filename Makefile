@@ -107,9 +107,11 @@ web/dist/index.html: $(shell find web/src web/packages web/public -type f 2>/dev
 # embedded from cmd/ and internal/ change; a compile error keeps the old server running.
 # UI edits need no restart. SUPERMETRY_BASE_URL defaults to http://localhost:5173 here
 # (the origin the browser uses); if .env sets another value, login through :5173 fails
-# the Origin check, so leave it unset for make dev. Ctrl+C stops both processes.
+# the Origin check, so leave it unset for make dev. The Go server on :8787 redirects
+# browser pages to Vite (SUPERMETRY_DEV_UI_URL). Ctrl+C stops both processes.
 dev:
 	$(ENV) if [ -z "$$SUPERMETRY_BASE_URL" ]; then export SUPERMETRY_BASE_URL=http://localhost:5173; fi; \
+		if [ -z "$$SUPERMETRY_DEV_UI_URL" ]; then export SUPERMETRY_DEV_UI_URL=http://localhost:5173; fi; \
 		$(DB_ENV) exec sh $(CURDIR)/scripts/dev.sh
 
 # Smoke test of the make dev supervisor (fake build, server and Vite; no database needed).

@@ -22,7 +22,7 @@ var rootIcons = map[string]bool{
 
 // Handler serves the embedded dashboard and its static assets.
 func Handler() http.Handler {
-	return newHandler(builtUI.files())
+	return wrapUI(newHandler(builtUI.files()))
 }
 
 func newHandler(files fs.FS) http.Handler {

@@ -20,7 +20,18 @@ poll=${DEV_POLL:-1}
 watch=${DEV_WATCH:-cmd internal web go.mod go.sum}
 build_cmd=${DEV_BUILD_CMD:-go build -o "\$OUT" ./cmd/supermetry}
 server_cmd=${DEV_SERVER_CMD:-exec $bin serve}
-web_cmd=${DEV_WEB_CMD-cd web && bun install --frozen-lockfile >/dev/null && exec bun run dev}
+# DEV_WEB_CMD unset: install the web dependencies if needed (web_prepare) and run Vite.
+if [ "${DEV_WEB_CMD+set}" = set ]; then web_cmd=$DEV_WEB_CMD; custom_web=1; else web_cmd='cd web && exec bun run dev'; custom_web=
+fi
+ui_url=${SUPERMETRY_DEV_UI_URL:-http://localhost:5173}
+listen=${SUPERMETRY_LISTEN:-:8787}
+case $listen in
+:*) api_url=http://localhost$listen ;;
+0.0.0.0:* | '[::]:'*) api_url=http://localhost:${listen##*:} ;;
+*) api_url=http://$listen ;;
+esac
+# The Go server redirects pages to the origin of the UI URL only (no path).
+ui_origin=$(printf '%s' "$ui_url" | sed -E 's|^(https?://[^/]+).*|\1|')
 
 mkdir -p "$(dirname "$bin")"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/supermetry-dev.XXXXXX") || exit 1
@@ -74,6 +85,7 @@ start_server() {
 	sh -c "$server_cmd" &
 	server_pid=$!
 	log "server started (pid $server_pid)"
+	[ -z "$web_cmd" ] || banner
 }
 
 # Builds into a temp file and swaps it in only on success, so a failed build never
@@ -115,6 +127,21 @@ trap 'cleanup; exit 0' INT TERM HUP
 trap 'cleanup' EXIT
 
 ps -A -o pid= >/dev/null 2>&1 || log "warning: ps is unavailable; only the direct child processes will be stopped on exit"
+
+# Fail early and clearly when Bun is missing or the dependency install fails.
+web_prepare() {
+	command -v bun >/dev/null 2>&1 || { log "bun is required: https://bun.sh"; exit 1; }
+	if [ ! -d web/node_modules ] || [ -n "$(find web/bun.lock web/package.json web/packages/*/package.json -newer web/node_modules 2>/dev/null | head -n 1)" ]; then
+		log "installing web dependencies (bun install --frozen-lockfile)"
+		(cd web && bun install --frozen-lockfile) || { log "web dependency install failed; fix it and run make dev again"; exit 1; }
+		touch web/node_modules
+	fi
+}
+banner() {
+	log "UI:  $ui_origin   (open this one)"
+	log "API: $api_url"
+}
+[ -n "$custom_web" ] || web_prepare
 
 # Baseline before anything slow runs, so edits made during a cold build are seen.
 touch "$stamp"

@@ -41,7 +41,7 @@ B
 
 start() { # start [web command]; sets pid
 	web=${1:-". $root/web.sh"}
-	(cd "$root" && DEV_POLL=0.2 DEV_BIN="$root/bin/supermetry" \
+	(cd "$root" && SUPERMETRY_DEV_UI_URL=http://localhost:5173 SUPERMETRY_LISTEN=:8787 DEV_POLL=0.2 DEV_BIN="$root/bin/supermetry" \
 		DEV_BUILD_CMD='. ./build.sh' DEV_WEB_CMD="$web" \
 		DEV_SERVER_CMD="exec $root/bin/supermetry" \
 		setsid python3 -c 'import os, signal, sys
@@ -70,6 +70,8 @@ bump() { sleep 1.1; eval "$1"; } # runs after the mtime tick so -newer sees it
 # (a) initial build and start; supervisor, server and fake Vite tree all running
 start
 wait_for 'server v1 up' 'initial build starts the server (v1)'
+wait_for 'UI:  http://localhost:5173   (open this one)' 'the banner names the UI address'
+wait_for 'API: http://localhost:8787' 'the banner names the API address'
 sleep 0.5
 [ "$(wc -l <"$pids")" -ge 4 ] || fail "expected supervisor, server, vite shell and its child in $pids"
 first=$(sed -n 's/.*server v1 up pid \([0-9]*\).*/\1/p' "$root/log" | head -1)
@@ -126,4 +128,17 @@ wait_gone SIGINT
 : >"$pids"; start "echo 'Port 5173 is in use'; exit 1"
 wait_for 'vite exited' 'a dying Vite is reported'
 wait_gone 'Vite exits'
+# Missing Bun: a clear message, a failing exit status and nothing left running.
+if [ -z "$(PATH=/usr/bin:/bin command -v bun || true)" ]; then
+	: >"$pids"
+	rc=0
+	(cd "$root" && PATH=/usr/bin:/bin DEV_BIN="$root/bin/supermetry" DEV_BUILD_CMD='. ./build.sh' \
+		DEV_SERVER_CMD="exec $root/bin/supermetry" sh "$root/dev.sh") >"$root/log" 2>&1 || rc=$?
+	[ "$rc" -ne 0 ] || fail "dev.sh succeeded without bun"
+	grep -q 'bun is required: https://bun.sh' "$root/log" || fail "missing the bun message"
+	echo "ok: a missing bun stops with a clear message (exit $rc)"
+	wait_gone 'a missing bun'
+else
+	echo "skip: bun is on the default PATH, cannot test the missing-bun path"
+fi
 echo "PASS"
