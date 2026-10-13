@@ -231,13 +231,15 @@ func collectArtifacts(dist, version string) ([]release.Artifact, error) {
 	}
 	versionName := strings.TrimPrefix(version, "v")
 	pattern := regexp.MustCompile(`^supermetry_` + regexp.QuoteMeta(versionName) + `_(linux|darwin|windows)_(amd64|arm64|armv6|armv7)\.(tar\.gz|zip)$`)
+	// Bare binaries are published for manual downloads and covered by SHA256SUMS; updates use the archives.
+	barePattern := regexp.MustCompile(`^supermetry_` + regexp.QuoteMeta(versionName) + `_((linux|darwin)_(amd64|arm64|armv6|armv7)|windows_(amd64|arm64)\.exe)$`)
 	entries, err := os.ReadDir(dist)
 	if err != nil {
 		return nil, fmt.Errorf("read release directory: %w", err)
 	}
 	var artifacts []release.Artifact
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "supermetry_"+versionName+"_") {
+		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "supermetry_"+versionName+"_") || barePattern.MatchString(entry.Name()) {
 			continue
 		}
 		matches := pattern.FindStringSubmatch(entry.Name())

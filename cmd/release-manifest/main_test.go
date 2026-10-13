@@ -22,6 +22,9 @@ func TestGenerateCreatesVerifiableCanonicalManifest(t *testing.T) {
 	writeArtifact(t, dist, "supermetry_1.2.3_linux_armv6.tar.gz", "armv6")
 	writeArtifact(t, dist, "supermetry_1.2.3_linux_armv7.tar.gz", "armv7")
 	writeArtifact(t, dist, "supermetry_1.2.3_windows_arm64.zip", "windows")
+	// Bare binaries ship next to the archives for manual downloads; the manifest lists archives only.
+	writeArtifact(t, dist, "supermetry_1.2.3_linux_amd64", "bare")
+	writeArtifact(t, dist, "supermetry_1.2.3_windows_arm64.exe", "bare")
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)

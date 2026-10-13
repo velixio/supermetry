@@ -56,6 +56,7 @@ mkdir -p dist
 find dist -maxdepth 1 -type f \( \
     -name 'supermetry_*.tar.gz' -o \
     -name 'supermetry_*.zip' -o \
+    -name 'supermetry_*_*_*' -o \
     -name SHA256SUMS -o \
     -name install.sh -o \
     -name install.ps1 \
@@ -99,6 +100,12 @@ for target in $targets; do
         -ldflags "-s -w -X main.version=$version -X main.releaseArch=$release_arch -X main.releaseTrustedPublicKeys=$release_trusted_public_keys" \
         -o "$package_dir/$binary" ./cmd/supermetry
 
+    bare="supermetry_${version}_${goos}_${release_arch}"
+    if [[ "$goos" == windows ]]; then
+        bare="$bare.exe"
+    fi
+    cp "$package_dir/$binary" "dist/$bare"
+
     cp LICENSE NOTICE "$package_dir/"
     if [[ "$goos" == windows ]]; then
         archive="supermetry_${version}_${goos}_${release_arch}.zip"
@@ -122,10 +129,11 @@ cp deploy/install.sh deploy/install.ps1 dist/
         echo "release.sh: no release archives were built" >&2
         exit 1
     fi
+    files=(supermetry_*)
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "${archives[@]}" >SHA256SUMS
+        sha256sum "${files[@]}" >SHA256SUMS
     else
-        shasum -a 256 "${archives[@]}" >SHA256SUMS
+        shasum -a 256 "${files[@]}" >SHA256SUMS
     fi
 )
 
