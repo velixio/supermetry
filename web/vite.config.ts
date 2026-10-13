@@ -8,6 +8,29 @@ import { defineConfig } from 'vite'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
+// `make dev` serves the UI from Vite and forwards everything the Go server owns.
+// The tracker and event paths are configurable, so they follow the server's env.
+const devApi = process.env.SUPERMETRY_DEV_API || 'http://127.0.0.1:8787'
+const trackerPath = process.env.SUPERMETRY_TRACKER_PATH || '/js/script.js'
+const eventPath = process.env.SUPERMETRY_EVENT_PATH || '/api/public/v1/events'
+const trackerDir = trackerPath.slice(0, trackerPath.lastIndexOf('/') + 1) || '/'
+const goPaths = [
+  '/api', // private and public APIs, replay intake, openapi.json
+  '/healthz',
+  '/readyz',
+  '/metrics',
+  '/replay.js',
+  '/l/', // short links
+  '/px/', // tracking pixel
+  trackerDir === '/' ? trackerPath : trackerDir, // tracker script and per-site scripts
+  eventPath,
+]
+// Origin and Cookie pass through untouched, so the server's Origin check sees the
+// browser's origin (SUPERMETRY_BASE_URL) and cookies stay first-party on the Vite host.
+const proxy = Object.fromEntries(
+  [...new Set(goPaths)].map((p) => [p, { target: devApi, changeOrigin: true }]),
+)
+
 export default defineConfig({
   plugins: [
     tanstackRouter({
@@ -22,6 +45,7 @@ export default defineConfig({
       '@': path.resolve(rootDir, 'src'),
     },
   },
+  server: { proxy },
   build: {
     manifest: true,
     rollupOptions: {
