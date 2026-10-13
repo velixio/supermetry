@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+var (
+	// ErrRolledBack means the backend restored and health-checked the previous
+	// deployment after a failed activation. The job is terminally failed, but
+	// does not require operator recovery.
+	ErrRolledBack = errors.New("update rolled back to the previous deployment")
+	// ErrRecoveryRequired means the backend cannot safely roll back, usually
+	// because the database schema may have advanced.
+	ErrRecoveryRequired = errors.New("update requires operator recovery")
+)
+
 type RunOptions struct {
 	Dir string
 	Env []string
@@ -73,15 +83,24 @@ func (e Engine) runFollowingSteps(ctx context.Context, job Job, startIndex int) 
 
 func (e Engine) failStep(ctx context.Context, job Job, step State, stepErr error) (Job, error) {
 	failedState := StateFailed
-	if stateRanks[step] >= stateRanks[StateActivating] {
+	if errors.Is(stepErr, ErrRecoveryRequired) {
+		failedState = StateRecoveryRequired
+	} else if errors.Is(stepErr, ErrRolledBack) {
+		// This is the one permitted post-activation transition to failed: the
+		// backend has already restored and health-checked the old deployment.
+		job.State = StateFailed
+		failedState = StateFailed
+	} else if stateRanks[step] >= stateRanks[StateActivating] {
 		failedState = StateRecoveryRequired
 	} else if stateRanks[step] >= stateRanks[StateStopping] {
 		if recoveryErr := e.Backend.Recover(ctx, RecoveryFailSafely, job); recoveryErr != nil {
 			return job, errors.Join(fmt.Errorf("run %s: %w", step, stepErr), fmt.Errorf("recover old deployment: %w", recoveryErr))
 		}
 	}
-	if transitionErr := job.Advance(failedState); transitionErr != nil {
-		return job, errors.Join(stepErr, transitionErr)
+	if job.State != failedState {
+		if transitionErr := job.Advance(failedState); transitionErr != nil {
+			return job, errors.Join(stepErr, transitionErr)
+		}
 	}
 	job.ErrorCode = "step_failed"
 	e.stamp(&job)

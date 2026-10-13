@@ -3,6 +3,7 @@ package updatehelper
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -22,6 +23,7 @@ type fakeBackend struct {
 	calls         []State
 	recoveryCalls []RecoveryAction
 	failAt        State
+	failError     error
 	failRecovery  bool
 }
 
@@ -36,9 +38,26 @@ func (b *fakeBackend) Recover(_ context.Context, action RecoveryAction, _ Job) e
 func (b *fakeBackend) RunStep(_ context.Context, step State, _ Job) error {
 	b.calls = append(b.calls, step)
 	if step == b.failAt {
+		if b.failError != nil {
+			return b.failError
+		}
 		return errors.New("injected failure")
 	}
 	return nil
+}
+
+func TestEngineRecordsSuccessfulBackendRollbackAsFailed(t *testing.T) {
+	t.Parallel()
+	store := &memoryJobStore{}
+	backend := &fakeBackend{failAt: StateHealthCheck, failError: fmt.Errorf("unhealthy target: %w", ErrRolledBack)}
+	engine := Engine{Store: store, Backend: backend}
+	got, err := engine.Run(context.Background(), Job{ID: "42", TargetVersion: "v1.2.3", State: StateRequested})
+	if err == nil || !errors.Is(err, ErrRolledBack) {
+		t.Fatalf("Run error = %v, want ErrRolledBack", err)
+	}
+	if got.State != StateFailed || store.job.State != StateFailed {
+		t.Fatalf("state = %q, persisted = %q, want failed", got.State, store.job.State)
+	}
 }
 
 func TestEnginePersistsEverySuccessfulStep(t *testing.T) {
