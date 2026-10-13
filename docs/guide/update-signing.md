@@ -55,6 +55,12 @@ installers and `SHA256SUMS`, plus:
 - the `supermetry-signed-release-metadata` workflow artifact containing those
   two files.
 
+The signed binary set contains eight targets: Linux amd64, arm64, armv6 and
+armv7; macOS amd64 and arm64; and Windows amd64 and arm64. The armv6 and armv7
+names intentionally distinguish the two 32-bit ARM instruction targets even
+though both are built with Go's `GOARCH=arm`. Container images remain Linux
+amd64 and arm64 only.
+
 The publish job fails closed if either key is absent or malformed, the keys do
 not match, the image index lacks either supported Linux platform, an artifact
 does not match the expected naming convention, or manifest validation fails.

@@ -24,6 +24,12 @@ setup defaults to none, and the recommended listen address is
 `127.0.0.1:8787`. On macOS and Windows, a binary install writes `.env` and prints
 the command to start Supermetry; it does not create a service.
 
+Binary archives are published for Linux, macOS and Windows on amd64 and arm64.
+Linux also has armv6 and armv7 archives for 32-bit Raspberry Pi systems. The
+installer selects armv6 for Pi 1 and original Pi Zero-class systems, armv7 for
+32-bit Pi 2 and later systems, and arm64 when the Pi runs a 64-bit OS. Docker
+images support Linux amd64 and arm64.
+
 For unattended use, pass `--yes` and every required value. Available flags are:
 
 - `--mode docker|binary`
