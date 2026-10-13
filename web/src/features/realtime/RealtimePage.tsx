@@ -176,7 +176,7 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
-              <section className="flex flex-col gap-2" aria-labelledby="live-now-title">
+              <section className="flex flex-col gap-2" aria-labelledby="live-now-title" aria-describedby="live-now-note">
                 <h2 className="flex items-center gap-2 text-sm font-medium" id="live-now-title">
                   <span className="relative flex size-2" aria-hidden="true">
                     <span className="absolute inline-flex size-full rounded-full bg-primary opacity-50 motion-safe:animate-ping" />
@@ -184,19 +184,17 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
                   </span>
                   Live now
                 </h2>
-                <p className="max-w-sm text-sm text-muted-foreground">{en.liveAccuracy.definition}</p>
                 <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.active_visitors)}</output>
+                {/* How "live" is counted: kept for screen readers, not printed on the page. */}
+                <p className="sr-only" id="live-now-note">{en.liveAccuracy.definition} {en.liveAccuracy.exclusions}</p>
               </section>
               <section className="flex flex-col gap-2" aria-labelledby="last-thirty-title">
                 <h2 className="text-sm font-medium" id="last-thirty-title">Last 30 minutes</h2>
                 <p className="text-sm text-muted-foreground">Visitors</p>
                 <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.visitors_last_30m)}</output>
+                <p className="text-sm text-muted-foreground">{fmt.number(data.pageviews_last_30m)} pageviews</p>
               </section>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {fmt.number(data.pageviews_last_30m)} pageviews in the last 30 minutes
-            </p>
-            <p className="text-sm text-muted-foreground">{en.liveAccuracy.exclusions}</p>
           </CardContent>
         </Card>
 
