@@ -5,6 +5,7 @@ package web
 import (
 	"embed"
 	"io/fs"
+	"net/http"
 )
 
 //go:embed all:dist
@@ -21,3 +22,6 @@ func (releaseFiles) files() fs.FS {
 }
 
 var builtUI uiFileSystem = releaseFiles{}
+
+// wrapUI is a no-op: the embedded UI is always served as is.
+func wrapUI(h http.Handler) http.Handler { return h }

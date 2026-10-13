@@ -155,7 +155,7 @@ You need Go, [Bun](https://bun.sh) and Docker. No database settings are needed: 
 port 5433 and uses it. `make dev-db-down` stops it; its data is kept.
 
 ```sh
-make dev     # watch mode: open http://localhost:5173 (hot reload, Go restarts on change)
+make dev     # watch mode: open http://localhost:5173 (hot reload, Go restarts on change; :8787 redirects there)
 make run     # embedded build served on :8787
 make dev-embedded  # one-shot embedded UI build and run, no watching
 make test    # Go tests
