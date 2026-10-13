@@ -20,8 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"supermetry/internal/db"
 )
 
@@ -274,14 +272,8 @@ func defaultRuntime() Runtime {
 			}
 			return schemaVersion, size, nil
 		},
-		FreeBytes: func(path string) (uint64, error) {
-			var stat unix.Statfs_t
-			if err := unix.Statfs(path, &stat); err != nil {
-				return 0, err
-			}
-			return stat.Bavail * uint64(stat.Bsize), nil
-		},
-		Now: time.Now,
+		FreeBytes: freeBytes,
+		Now:       time.Now,
 	}
 }
 
