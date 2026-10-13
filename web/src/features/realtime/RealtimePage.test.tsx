@@ -68,12 +68,13 @@ describe('RealtimePage', () => {
 
     expect(screen.getByText('12')).toBeVisible()
     expect(screen.getByText('Live now')).toBeVisible()
-    expect(screen.getByText('Distinct visitors with an accepted pageview or custom event in the last 5 minutes.')).toBeVisible()
-    expect(screen.getByText('Privacy signals, bots, and site exclusions are not counted.')).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Live now' })).toHaveAccessibleDescription(
+      'Distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted.',
+    )
     expect(screen.getByText('41')).toBeVisible()
     expect(screen.getByText('Last 30 minutes')).toBeVisible()
     expect(screen.getByText('Visitors')).toBeVisible()
-    expect(screen.getByText('91 pageviews in the last 30 minutes')).toBeVisible()
+    expect(screen.getByText('91 pageviews')).toBeVisible()
     expect(screen.getByRole('img', { name: 'Visitors during the last 30 minutes' })).toBeVisible()
     expect(screen.getAllByText('/docs').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/pricing').length).toBeGreaterThan(0)
