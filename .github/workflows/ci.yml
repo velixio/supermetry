@@ -1,10 +1,15 @@
 name: CI
 
-# Manual runs only until the push and pull-request triggers below are enabled.
-on:
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
-  # push:
-  # pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -29,9 +34,9 @@ jobs:
     env:
       SUPERMETRY_TEST_DSN: postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
