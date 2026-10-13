@@ -174,6 +174,9 @@ func TestBackendHealthFailureRollsBackOnlyWhenSchemaSafe(t *testing.T) {
 			fixture := newFixture(t)
 			fixture.manifest.Schema.RollbackCompatible = tt.rollbackCompatible
 			fixture.probe.schema = tt.schemaAfter
+			if tt.rollbackCompatible && tt.schemaAfter != 41 {
+				fixture.probe.schemas = []int64{tt.schemaAfter, 41}
+			}
 			fixture.probe.readyResults = []readyResult{{version: "v1.2.0", err: errors.New("unhealthy")}, {version: "v1.1.0"}}
 			fixture.rebuild(t)
 			job := updatehelper.Job{ID: "9", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
@@ -205,6 +208,7 @@ func TestBackendHealthFailureRollsBackOnlyWhenSchemaSafe(t *testing.T) {
 func TestBackendTreatsWrongReportedVersionAsFailedHealth(t *testing.T) {
 	t.Parallel()
 	fixture := newFixture(t)
+	fixture.probe.schema = 41
 	fixture.probe.readyResults = []readyResult{{version: "v9.9.9"}, {version: "v1.1.0"}}
 	job := updatehelper.Job{ID: "14", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
 	for _, step := range []updatehelper.State{updatehelper.StatePreflight, updatehelper.StateBackup, updatehelper.StateActivating} {
@@ -282,7 +286,7 @@ func baseFixture() *fixture {
 	return &fixture{
 		runner: &fakeRunner{}, fs: &fakeFS{files: map[string][]byte{updatedocker.ComposeFilePath: []byte(compose)}},
 		backup:     &fakeBackup{result: updatedocker.BackupResult{Path: "/var/lib/supermetry-updater/backups/update-42.dump", SHA256: strings.Repeat("e", 64), Size: 1024, SchemaVersion: 41}},
-		probe:      &fakeProbe{image: updatedocker.ImageInfo{Digest: newDigest, OS: "linux", Arch: "amd64"}, version: "v1.2.0", schema: 41},
+		probe:      &fakeProbe{image: updatedocker.ImageInfo{Digest: newDigest, OS: "linux", Arch: "amd64"}, version: "v1.2.0", schema: 42},
 		descriptor: descriptor, manifest: manifest,
 	}
 }
@@ -349,6 +353,7 @@ type fakeProbe struct {
 	readyURL     string
 	version      string
 	schema       int64
+	schemas      []int64
 	readyResults []readyResult
 }
 
@@ -370,7 +375,14 @@ func (p *fakeProbe) ReadyVersion(_ context.Context, url string) (string, error) 
 	}
 	return p.version, nil
 }
-func (p *fakeProbe) SchemaVersion(context.Context) (int64, error) { return p.schema, nil }
+func (p *fakeProbe) SchemaVersion(context.Context) (int64, error) {
+	if len(p.schemas) > 0 {
+		value := p.schemas[0]
+		p.schemas = p.schemas[1:]
+		return value, nil
+	}
+	return p.schema, nil
+}
 
 func containsCall(calls []command, parts ...string) bool {
 	for _, call := range calls {

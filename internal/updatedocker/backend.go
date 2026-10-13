@@ -283,7 +283,8 @@ func (b *Backend) activate(jobID string) error {
 }
 
 func (b *Backend) verifyOrRollback(ctx context.Context, jobID string) error {
-	healthErr := b.waitForVersion(ctx, b.manifest.Version)
+	targetSchema := b.manifest.Schema.Version
+	healthErr := b.waitForVersion(ctx, b.manifest.Version, &targetSchema)
 	if healthErr == nil {
 		return nil
 	}
@@ -308,22 +309,28 @@ func (b *Backend) verifyOrRollback(ctx context.Context, jobID string) error {
 	if err := b.start(ctx); err != nil {
 		return errors.Join(updatehelper.ErrRecoveryRequired, fmt.Errorf("restart previous image: %w", err), healthErr)
 	}
-	oldVersion, err := b.probe.ReadyVersion(ctx, b.descriptor.ReadinessURL)
-	if err != nil || oldVersion != b.currentVersion {
-		return errors.Join(updatehelper.ErrRecoveryRequired, fmt.Errorf("previous image verification failed: version=%q: %w", oldVersion, err), healthErr)
+	if err := b.waitForVersion(ctx, b.currentVersion, &metadata.SchemaVersion); err != nil {
+		return errors.Join(updatehelper.ErrRecoveryRequired, fmt.Errorf("previous image verification failed: %w", err), healthErr)
 	}
 	return errors.Join(updatehelper.ErrRolledBack, healthErr)
 }
 
-func (b *Backend) waitForVersion(ctx context.Context, expected string) error {
+func (b *Backend) waitForVersion(ctx context.Context, expected string, expectedSchema *int64) error {
 	deadline := b.now().Add(b.healthTimeout)
 	var lastErr error
 	for {
 		version, err := b.probe.ReadyVersion(ctx, b.descriptor.ReadinessURL)
 		if err == nil && version == expected {
-			return nil
-		}
-		if err != nil {
+			schema, schemaErr := b.probe.SchemaVersion(ctx)
+			if schemaErr == nil && (expectedSchema == nil || schema == *expectedSchema) {
+				return nil
+			}
+			if schemaErr != nil {
+				lastErr = schemaErr
+			} else {
+				lastErr = fmt.Errorf("running schema %d does not match expected %d", schema, *expectedSchema)
+			}
+		} else if err != nil {
 			lastErr = err
 		} else {
 			lastErr = fmt.Errorf("running version %q does not match expected %q", version, expected)
