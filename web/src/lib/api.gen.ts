@@ -160,6 +160,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check whether a newer stable Supermetry release is available
+         * @description Performs a bounded, cached, read-only check of the official GitHub latest stable release. It never downloads or applies an update.
+         */
+        get: operations["adminGetUpdateStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/setup/status": {
         parameters: {
             query?: never;
@@ -2378,6 +2398,18 @@ export interface components {
         AdminAuditResponse: {
             data: components["schemas"]["AdminAuditEntry"][];
         };
+        AdminUpdateStatus: {
+            current_version: string;
+            latest_version: string | null;
+            update_available: boolean;
+            /** Format: uri */
+            release_url: string | null;
+            /** Format: date-time */
+            published_at: string | null;
+            /** Format: date-time */
+            checked_at: string | null;
+            check_error: string | null;
+        };
         Organization: {
             /** Format: int64 */
             id: number;
@@ -4352,6 +4384,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminAuditResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetUpdateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Update availability. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUpdateStatus"];
                 };
             };
             401: components["responses"]["Unauthorized"];
