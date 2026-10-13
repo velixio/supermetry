@@ -6,7 +6,7 @@
 #   2. Polls the Go sources about once a second. On a change it rebuilds and, only
 #      if the build succeeded, restarts the server. A compile error is printed and
 #      the old server keeps running until the next change.
-#   3. Runs the Vite dev server (hot reload on :5173, proxying to the Go server). If
+#   3. Runs the Vite dev server (hot reload on :5173; the Go server proxies the UI to it). If
 #      Vite exits (for example :5173 is busy) everything is stopped.
 #   4. SIGINT/SIGTERM stop both children and wait for them, leaving no orphans.
 #
@@ -138,8 +138,7 @@ web_prepare() {
 	fi
 }
 banner() {
-	log "UI:  $ui_origin   (open this one)"
-	log "API: $api_url"
+	log "Open: $api_url   (the Go server; Vite runs behind it on $ui_origin)"
 }
 [ -n "$custom_web" ] || web_prepare
 

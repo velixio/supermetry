@@ -70,8 +70,8 @@ bump() { sleep 1.1; eval "$1"; } # runs after the mtime tick so -newer sees it
 # (a) initial build and start; supervisor, server and fake Vite tree all running
 start
 wait_for 'server v1 up' 'initial build starts the server (v1)'
-wait_for 'UI:  http://localhost:5173   (open this one)' 'the banner names the UI address'
-wait_for 'API: http://localhost:8787' 'the banner names the API address'
+wait_for 'Open: http://localhost:8787 ' 'the banner names the single address to open'
+wait_for 'Vite runs behind it on http://localhost:5173' 'the banner mentions Vite behind it'
 sleep 0.5
 [ "$(wc -l <"$pids")" -ge 4 ] || fail "expected supervisor, server, vite shell and its child in $pids"
 first=$(sed -n 's/.*server v1 up pid \([0-9]*\).*/\1/p' "$root/log" | head -1)

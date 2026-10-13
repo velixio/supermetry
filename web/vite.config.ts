@@ -6,8 +6,6 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-import { buildDevProxy } from './dev-proxy'
-
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
@@ -24,9 +22,10 @@ export default defineConfig({
       '@': path.resolve(rootDir, 'src'),
     },
   },
-  // strictPort: if :5173 is taken, fail instead of moving to another port, which would
-  // break the Origin check (SUPERMETRY_BASE_URL is http://localhost:5173 in make dev).
-  server: { host: 'localhost', port: 5173, strictPort: true, proxy: buildDevProxy(process.env) },
+  // make dev: the Go server (:8787) reverse-proxies the UI to this server, so the
+  // browser only uses :8787. strictPort: fail loudly if :5173 is taken, because the
+  // Go proxy expects the UI there.
+  server: { host: 'localhost', port: 5173, strictPort: true },
   build: {
     manifest: true,
     rollupOptions: {
