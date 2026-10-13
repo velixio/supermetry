@@ -91,7 +91,11 @@ func TestAdminRouteAuthorizationMatrix(t *testing.T) {
 						t.Fatalf("status=%d body=%s, want 401", response.Code, response.Body.String())
 					}
 				case "instance-admin":
-					if response.Code >= http.StatusBadRequest {
+					if route.path == "/api/private/admin/update/apply" {
+						if response.Code != http.StatusConflict {
+							t.Fatalf("status=%d body=%s, want 409 for unmanaged deployment", response.Code, response.Body.String())
+						}
+					} else if response.Code >= http.StatusBadRequest {
 						t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 					}
 				default:
