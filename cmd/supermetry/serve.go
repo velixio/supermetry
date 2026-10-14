@@ -42,6 +42,7 @@ import (
 	"supermetry/internal/integrations"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
+	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
@@ -330,9 +331,26 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Limiter: ingest.NewTokenBuckets(10, 60), MissLimiter: ingest.NewTokenBuckets(1, 20),
 		TrustedProxies: cfg.TrustedProxies, Now: settings.clock.Now,
 	}
+	pixelTotals := pixels.NewTotalCache()
+	pixelRegistry := pixels.NewRegistry(
+		func(ctx context.Context) ([]pixels.Pixel, error) { return pixels.All(ctx, pool) },
+		func(ctx context.Context) (map[int64]int64, error) { return pixels.Totals(ctx, pool) },
+		pixelTotals,
+	)
+	if err := pixelRegistry.Reload(ctx); err != nil {
+		return fmt.Errorf("load pixels: %w", err)
+	}
+	pixelRecorder := pixels.NewRecorder(pixels.PoolWriter(pool), pixelTotals)
+	pixelHandler := &pixels.Handler{
+		Pixels: pixelRegistry, Recorder: pixelRecorder, Sites: registry, Enricher: enricher,
+		IPLimiter: ingest.NewTokenBuckets(10, 60), ProxyLimiter: pixels.NewProxyLimiter(),
+		Fallback: linkHandler.ServePixel, ClientIP: linkHandler.ClientKey,
+		Branded: cfg.BadgeBranding, Now: settings.clock.Now,
+	}
 	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		LinkCache:      linkHandler,
+		Pixels:         pixelRegistry,
 		Version:        version,
 		UpdateChecker:  updatecheck.New(version),
 		UpdateStarter:  updateController,
@@ -430,7 +448,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
 		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
-		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler,
+		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler,
 		Now: settings.clock.Now, Ready: func() bool { return ready.Load() && postgresReady(pool) },
 		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {
 			progress, err := rollupBackfill.Progress(ctx)
@@ -462,6 +480,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	linkStatsCtx, cancelLinkStats := context.WithCancel(context.Background())
 	linkStatsDone := make(chan error, 1)
 	go func() { linkStatsDone <- linkRecorder.Run(linkStatsCtx) }()
+	pixelStatsCtx, cancelPixelStats := context.WithCancel(context.Background())
+	pixelStatsDone := make(chan error, 1)
+	go func() { pixelStatsDone <- pixelRecorder.Run(pixelStatsCtx) }()
 	replayIndexCtx, cancelReplayIndex := context.WithCancel(context.Background())
 	replayIndexDone := make(chan error, 1)
 	go func() { replayIndexDone <- replayIndex.Run(replayIndexCtx) }()
@@ -529,6 +550,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-linkStatsDone:
 		cause = err
 		linkStatsDone = nil
+	case err := <-pixelStatsDone:
+		cause = err
+		pixelStatsDone = nil
 	case err := <-replayIndexDone:
 		cause = err
 		replayIndexDone = nil
@@ -578,6 +602,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelLinkStats()
 	if linkStatsDone != nil {
 		cause = errors.Join(cause, <-linkStatsDone)
+	}
+	cancelPixelStats()
+	if pixelStatsDone != nil {
+		cause = errors.Join(cause, <-pixelStatsDone)
 	}
 	cancelReplayIndex()
 	if replayIndexDone != nil {

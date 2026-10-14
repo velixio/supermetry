@@ -27,8 +27,8 @@ const (
 	maxReferrer   = 100
 )
 
-// transparentGIF is a 1x1 transparent GIF89a image (43 bytes).
-var transparentGIF = []byte("GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;")
+// TransparentGIF is a 1x1 transparent GIF89a image (43 bytes).
+var TransparentGIF = []byte("GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;")
 
 // Enricher is the part of the shared enrichment service the handlers need.
 type Enricher interface {
@@ -89,6 +89,9 @@ func (h *Handler) clientKey(r *http.Request) (string, netip.Addr) {
 	sum := sha256.Sum256([]byte(ip.String()))
 	return hex.EncodeToString(sum[:8]), ip
 }
+
+// ClientKey returns the privacy-preserving limiter key and parsed client IP.
+func (h *Handler) ClientKey(r *http.Request) (string, netip.Addr) { return h.clientKey(r) }
 
 func plain(w http.ResponseWriter, status int, text string) {
 	header := w.Header()
@@ -216,7 +219,7 @@ func (h *Handler) ServePixel(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		w.WriteHeader(http.StatusOK)
 		if r.Method != http.MethodHead {
-			_, _ = w.Write(transparentGIF)
+			_, _ = w.Write(TransparentGIF)
 		}
 	}()
 	if !isGIF || r.Method != http.MethodGet || len(publicID) > 64 {

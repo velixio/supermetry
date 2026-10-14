@@ -1472,6 +1472,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/pixels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get: operations["listPixels"];
+        put?: never;
+        post: operations["createPixel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/pixels/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get: operations["pixelStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/pixels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deletePixel"];
+        options?: never;
+        head?: never;
+        patch: operations["updatePixel"];
+        trace?: never;
+    };
     "/l/{slug}": {
         parameters: {
             query?: never;
@@ -1500,7 +1555,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Record a tracking pixel impression
+         * Record a tracking pixel impression or serve a pixel-project badge
          * @description Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same 1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore, colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored.
          */
         get: operations["trackingPixel"];
@@ -2450,6 +2505,7 @@ export interface components {
             deployment_mode: "binary" | "docker";
             /** @enum {string} */
             status: "requested" | "preflight" | "downloading" | "verifying" | "stopping" | "backing_up" | "activating" | "restarting" | "verifying_health" | "complete" | "failed" | "recovery_required";
+            error_code?: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -2831,6 +2887,8 @@ export interface components {
             /** Format: int64 */
             org_id: number;
             public_id: string;
+            /** @enum {string} */
+            kind: "web" | "pixel";
             /** @description Readable per-organization URL segment; public_id resolves too. */
             slug: string;
             name: string;
@@ -2883,13 +2941,68 @@ export interface components {
             data: components["schemas"]["Site"][];
             next_cursor?: string | null;
         };
+        /** @description hosts and revenue_currency are required when kind is web (the default) and ignored for pixel. */
         CreateSiteRequest: {
             name: string;
-            hosts: string[];
+            /**
+             * @description Fixed at creation.
+             * @default web
+             * @enum {string}
+             */
+            kind: "web" | "pixel";
+            hosts?: string[];
             timezone: string;
             /** @enum {integer} */
             retention_days: 0 | 7 | 30 | 90 | 365;
-            revenue_currency: string;
+            revenue_currency?: string;
+        };
+        PixelInput: {
+            name?: string;
+            badge_label?: string;
+            enabled?: boolean;
+        };
+        Pixel: {
+            /** Format: int64 */
+            id: number;
+            public_id: string;
+            name: string;
+            badge_label: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: int64
+             * @description All-time views (views
+             */
+            total: number;
+            /** Format: int64 */
+            views_30d: number;
+            /** Format: uri */
+            gif_url: string;
+            /** Format: uri */
+            svg_url: string;
+        };
+        PixelStats: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            daily: {
+                /** Format: date */
+                day: string;
+                proxy: number;
+                direct: number;
+            }[];
+            pixels: {
+                /** Format: int64 */
+                pixel_id: number;
+                views: number;
+            }[];
+            /** @description Direct views only; image proxies such as GitHub hide the country. */
+            countries: {
+                country: string;
+                views: number;
+            }[];
         };
         UpdateSiteRequest: {
             profiles_enabled?: boolean;
@@ -3971,6 +4084,9 @@ export interface components {
         };
         HealthResponse: {
             status: string;
+            version?: string;
+            /** Format: int64 */
+            schema_version?: number;
         };
         ValidationError: {
             field?: string;
@@ -7004,6 +7120,141 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    listPixels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pixels */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pixel"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createPixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PixelInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pixel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The project already has 100 pixels */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    pixelStats: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                pixel?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Views */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PixelStats"];
+                };
+            };
+        };
+    };
+    deletePixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted with its daily views */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updatePixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PixelInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pixel"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
     followShortLink: {
         parameters: {
             query?: never;
@@ -7045,6 +7296,8 @@ export interface operations {
         parameters: {
             query?: {
                 c?: string;
+                style?: "flat" | "flat-square";
+                color?: string;
             };
             header?: never;
             path: {
@@ -7061,6 +7314,7 @@ export interface operations {
                 };
                 content: {
                     "image/gif": string;
+                    "image/svg+xml": string;
                 };
             };
         };

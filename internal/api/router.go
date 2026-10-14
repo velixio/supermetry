@@ -73,6 +73,7 @@ type Deps struct {
 	Ingest         http.Handler
 	// Links serves the public short-link redirect and tracking pixel. Optional.
 	Links        *links.Handler
+	Pixels       http.Handler
 	Replay       http.Handler
 	ReplayCSS    http.Handler
 	PublicAuth   Authenticator
@@ -176,7 +177,11 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.Links != nil {
 		mux.HandleFunc("GET /l/{slug}", deps.Links.ServeRedirect)
-		mux.HandleFunc("GET /px/{file}", deps.Links.ServePixel)
+		if deps.Pixels != nil {
+			mux.Handle("GET /px/{file}", deps.Pixels)
+		} else {
+			mux.HandleFunc("GET /px/{file}", deps.Links.ServePixel)
+		}
 	}
 	if deps.Config.Replay.Enabled && deps.Replay != nil {
 		mux.Handle("POST /api/replay/start", deps.Replay)
@@ -420,6 +425,11 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PATCH " + privatePrefix + "/links/{link}",
 		"DELETE " + privatePrefix + "/links/{link}",
 		"GET " + privatePrefix + "/links/{link}/stats",
+		"GET " + privatePrefix + "/sites/{site}/pixels",
+		"POST " + privatePrefix + "/sites/{site}/pixels",
+		"GET " + privatePrefix + "/sites/{site}/pixels/stats",
+		"PATCH " + privatePrefix + "/sites/{site}/pixels/{id}",
+		"DELETE " + privatePrefix + "/sites/{site}/pixels/{id}",
 		"GET " + privatePrefix + "/sites/{site}/pixel",
 		"GET " + privatePrefix + "/sites/{site}/pixel/stats",
 		"GET " + privatePrefix + "/sites/{site}/funnels",

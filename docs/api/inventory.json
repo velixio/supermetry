@@ -18,6 +18,190 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/events",
+      "TestPrivateRoutesMatrixAuthentication/funnels_query",
+      "TestPrivateRoutesMatrixAuthentication/health",
+      "TestPrivateRoutesMatrixAuthentication/heatmaps_query",
+      "TestPrivateRoutesMatrixAuthentication/journeys_query",
+      "TestPrivateRoutesMatrixAuthentication/properties",
+      "TestPrivateRoutesMatrixAuthentication/property_values",
+      "TestPrivateRoutesMatrixAuthentication/query",
+      "TestPrivateRoutesMatrixAuthentication/realtime",
+      "TestPrivateRoutesMatrixAuthentication/realtime_summary",
+      "TestPrivateRoutesMatrixAuthentication/retention_query",
+      "TestPrivateRoutesMatrixAuthentication/session_get",
+      "TestPrivateRoutesMatrixAuthentication/sessions_list",
+      "TestPrivateRoutesMatrixAuthentication/stats_breakdown",
+      "TestPrivateRoutesMatrixAuthentication/stats_summary",
+      "TestPrivateRoutesMatrixAuthentication/stats_timeseries",
+      "TestPrivateRoutesMatrixAuthentication/suggestions",
+      "TestPrivateRoutesMatrixAuthentication/vitals_query",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnels_query",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnels_query/invalid",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/heatmaps_query",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/heatmaps_query/invalid",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/journeys_query",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/journeys_query/invalid",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/query",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/query/invalid",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/retention_query",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/retention_query/invalid",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/vitals_query",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/vitals_query/invalid"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/audit",
+    "group": "/api/private/admin",
+    "handler": "h.adminListAudit",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/organizations",
+    "group": "/api/private/admin",
+    "handler": "h.adminListOrganizations",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/organizations/{org}",
+    "group": "/api/private/admin",
+    "handler": "h.adminGetOrganization",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/admin/security/2fa-exemptions/{user}",
+    "group": "/api/private/admin",
+    "handler": "h.adminDeleteTwoFactorExemption",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PUT",
+    "pattern": "/api/private/admin/security/2fa-exemptions/{user}",
+    "group": "/api/private/admin",
+    "handler": "h.adminSetTwoFactorExemption",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/security/2fa-policy",
+    "group": "/api/private/admin",
+    "handler": "h.adminGetTwoFactorPolicy",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PUT",
+    "pattern": "/api/private/admin/security/2fa-policy",
+    "group": "/api/private/admin",
+    "handler": "h.adminUpdateTwoFactorPolicy",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/settings",
+    "group": "/api/private/admin",
+    "handler": "h.adminGetSettings",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/admin/settings",
+    "group": "/api/private/admin",
+    "handler": "h.adminUpdateSettings",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/sites",
+    "group": "/api/private/admin",
+    "handler": "h.adminListSites",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/update",
+    "group": "/api/private/admin",
+    "handler": "h.adminUpdateStatus",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/admin/update/apply",
+    "group": "/api/private/admin",
+    "handler": "h.adminApplyUpdate",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/admin/users",
+    "group": "/api/private/admin",
+    "handler": "h.adminListUsers",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/admin/users/{user}",
+    "group": "/api/private/admin",
+    "handler": "h.adminUpdateUser",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
       "(unnamed test)"
     ]
   },
@@ -29,7 +213,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/annotation/foreign_delete",
+      "TestPrivateRoutesMatrixAuthentication/annotation_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/annotation_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/annotation_delete/invalid"
     ]
   },
   {
@@ -40,7 +228,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/annotation/foreign_update",
+      "TestPrivateRoutesMatrixAuthentication/annotation_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/annotation_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/annotation_update/invalid"
     ]
   },
   {
@@ -132,6 +324,39 @@
     ]
   },
   {
+    "method": "DELETE",
+    "pattern": "/api/private/cohorts/{cohort}",
+    "group": "/api/private/cohorts",
+    "handler": "h.deleteCohort",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/cohorts/{cohort}",
+    "group": "/api/private/cohorts",
+    "handler": "h.updateCohort",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/cohorts/{cohort}/duplicate",
+    "group": "/api/private/cohorts",
+    "handler": "h.duplicateCohort",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
     "method": "GET",
     "pattern": "/api/private/erasures/{erasure}",
     "group": "/api/private/erasures",
@@ -139,7 +364,8 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/erasure_get"
     ]
   },
   {
@@ -150,7 +376,10 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/erasure_retry",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/erasure_retry",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/erasure_retry/invalid"
     ]
   },
   {
@@ -160,7 +389,10 @@
     "handler": "h.funnelRequest",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_funnel_body",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/funnel_report"
+    ]
   },
   {
     "method": "DELETE",
@@ -170,7 +402,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/funnel/foreign_delete",
+      "TestPrivateRoutesMatrixAuthentication/funnel_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnel_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnel_delete/invalid"
     ]
   },
   {
@@ -181,7 +417,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/funnel/foreign_update",
+      "TestPrivateRoutesMatrixAuthentication/funnel_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnel_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnel_update/invalid"
     ]
   },
   {
@@ -192,7 +432,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/goal/foreign_delete",
+      "TestPrivateRoutesMatrixAuthentication/goal_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/goal_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/goal_delete/invalid"
     ]
   },
   {
@@ -203,7 +447,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/goal/foreign_update",
+      "TestPrivateRoutesMatrixAuthentication/goal_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/goal_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/goal_update/invalid"
     ]
   },
   {
@@ -213,7 +461,10 @@
     "handler": "dataHealthHandler",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/health"
+    ]
   },
   {
     "method": "POST",
@@ -222,7 +473,11 @@
     "handler": "h.heatmapRequest",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_heatmap_body",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/heatmaps"
+    ]
   },
   {
     "method": "DELETE",
@@ -232,7 +487,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/import_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/import_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/import_delete/invalid"
     ]
   },
   {
@@ -258,6 +516,17 @@
     ]
   },
   {
+    "method": "GET",
+    "pattern": "/api/private/integrations/{provider}/callback",
+    "group": "/api/private/integrations",
+    "handler": "h.integrationCallback",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
     "method": "POST",
     "pattern": "/api/private/invitations/{token}/accept",
     "group": "/api/private/invitations",
@@ -275,7 +544,54 @@
     "handler": "h.journeyRequest",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_journey_body",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/journey_report"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/links/{link}",
+    "group": "/api/private/links",
+    "handler": "h.deleteLink",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/links/{link}",
+    "group": "/api/private/links",
+    "handler": "h.getLink",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/links/{link}",
+    "group": "/api/private/links",
+    "handler": "h.updateLink",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/links/{link}/stats",
+    "group": "/api/private/links",
+    "handler": "h.linkStats",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "DELETE",
@@ -685,6 +1001,74 @@
     ]
   },
   {
+    "method": "PUT",
+    "pattern": "/api/private/orgs/{org}/notification-settings",
+    "group": "/api/private/orgs",
+    "handler": "h.saveNotificationSettings",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/notification_settings",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_settings",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_settings/invalid"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/orgs/{org}/notification-templates",
+    "group": "/api/private/orgs",
+    "handler": "h.listNotificationTemplates",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/notification_templates"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/orgs/{org}/notification-templates/{kind}",
+    "group": "/api/private/orgs",
+    "handler": "h.resetNotificationTemplate",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/notification_template_reset",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_template_reset",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_template_reset/invalid"
+    ]
+  },
+  {
+    "method": "PUT",
+    "pattern": "/api/private/orgs/{org}/notification-templates/{kind}",
+    "group": "/api/private/orgs",
+    "handler": "h.saveNotificationTemplate",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/notification_template_save",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_template_save",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_template_save/invalid"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/orgs/{org}/notification-templates/{kind}/preview",
+    "group": "/api/private/orgs",
+    "handler": "h.previewNotificationTemplate",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/notification_template_preview",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_template_preview",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_template_preview/invalid"
+    ]
+  },
+  {
     "method": "GET",
     "pattern": "/api/private/orgs/{org}/sites/deleted",
     "group": "/api/private/orgs",
@@ -703,7 +1087,10 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/profile_erase",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/profile_erase",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/profile_erase/invalid"
     ]
   },
   {
@@ -714,7 +1101,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/profile_get"
     ]
   },
   {
@@ -724,7 +1112,13 @@
     "handler": "h.queryRequest",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/huge-filter",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_query_body",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/other_org_query",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/query"
+    ]
   },
   {
     "method": "GET",
@@ -733,7 +1127,10 @@
     "handler": "realtimeHandler",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/realtime"
+    ]
   },
   {
     "method": "GET",
@@ -742,7 +1139,10 @@
     "handler": "realtimeSummaryHandler",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/realtime_summary"
+    ]
   },
   {
     "method": "POST",
@@ -751,7 +1151,10 @@
     "handler": "h.retentionRequest",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_retention_body",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/retention_report"
+    ]
   },
   {
     "method": "DELETE",
@@ -761,7 +1164,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/segment/foreign_delete",
+      "TestPrivateRoutesMatrixAuthentication/segment_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/segment_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/segment_delete/invalid"
     ]
   },
   {
@@ -772,7 +1179,11 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/segment/foreign_update",
+      "TestPrivateRoutesMatrixAuthentication/segment_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/segment_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/segment_update/invalid"
     ]
   },
   {
@@ -782,7 +1193,11 @@
     "handler": "h.getSession",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/session-detail",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_session_id"
+    ]
   },
   {
     "method": "POST",
@@ -825,7 +1240,8 @@
     "auth": "none",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/share_query"
     ]
   },
   {
@@ -836,7 +1252,8 @@
     "auth": "none",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/share_stats"
     ]
   },
   {
@@ -847,7 +1264,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/sites_list"
     ]
   },
   {
@@ -857,6 +1275,21 @@
     "handler": "h.createSite",
     "auth": "session",
     "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_create_site",
+      "TestPrivateRoutesMatrixAuthentication/sites_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/sites_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/sites_create/invalid"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/overview",
+    "group": "/api/private/sites",
+    "handler": "h.sitesOverview",
+    "auth": "session",
+    "in_openapi": true,
     "hit_by_tests": [
       "(unnamed test)"
     ]
@@ -869,7 +1302,11 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_delete_site",
+      "TestPrivateRoutesMatrixAuthentication/site_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_delete/invalid"
     ]
   },
   {
@@ -880,7 +1317,12 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/editor_cannot_read_unassigned_site",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/foreign_owner_cannot_read_site",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_read_unassigned_site",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_reads_allowed_site",
+      "TestPrivateRoutesMatrixAuthentication/site_get"
     ]
   },
   {
@@ -891,7 +1333,12 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/editor_cannot_update_unassigned_site",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_update_site",
+      "TestPrivateRoutesMatrixAuthentication/site_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_update/invalid"
     ]
   },
   {
@@ -902,7 +1349,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/alerts_list"
     ]
   },
   {
@@ -913,7 +1361,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/alerts_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/alerts_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/alerts_create/invalid"
     ]
   },
   {
@@ -924,7 +1375,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/alert_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/alert_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/alert_delete/invalid"
     ]
   },
   {
@@ -935,7 +1389,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/alert_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/alert_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/alert_update/invalid"
     ]
   },
   {
@@ -946,7 +1403,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/annotations_list"
     ]
   },
   {
@@ -956,6 +1414,143 @@
     "handler": "h.createAnnotation",
     "auth": "session",
     "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/annotation/create",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_create_annotation",
+      "TestPrivateRoutesMatrixAuthentication/annotations_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/annotations_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/annotations_create/invalid"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/cohorts",
+    "group": "/api/private/sites",
+    "handler": "h.listCohorts",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/cohorts",
+    "group": "/api/private/sites",
+    "handler": "h.createCohort",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/cohorts/evaluate",
+    "group": "/api/private/sites",
+    "handler": "h.evaluateCohort",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/dashboards",
+    "group": "/api/private/sites",
+    "handler": "h.listDashboards",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/dashboards",
+    "group": "/api/private/sites",
+    "handler": "h.createDashboard",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/dashboards/default",
+    "group": "/api/private/sites",
+    "handler": "h.clearDefaultDashboard",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/dashboards/default",
+    "group": "/api/private/sites",
+    "handler": "h.getDefaultDashboard",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/dashboards/{dashboard}",
+    "group": "/api/private/sites",
+    "handler": "h.deleteDashboard",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/dashboards/{dashboard}",
+    "group": "/api/private/sites",
+    "handler": "h.getDashboard",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/sites/{site}/dashboards/{dashboard}",
+    "group": "/api/private/sites",
+    "handler": "h.updateDashboard",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/dashboards/{dashboard}/default",
+    "group": "/api/private/sites",
+    "handler": "h.setDefaultDashboard",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/dashboards/{dashboard}/duplicate",
+    "group": "/api/private/sites",
+    "handler": "h.duplicateDashboard",
+    "auth": "session",
+    "in_openapi": true,
     "hit_by_tests": [
       "(unnamed test)"
     ]
@@ -968,7 +1563,10 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/demo_heartbeat",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/demo_heartbeat",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/demo_heartbeat/invalid"
     ]
   },
   {
@@ -978,7 +1576,11 @@
     "handler": "h.events",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/events",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/other_org_events"
+    ]
   },
   {
     "method": "GET",
@@ -988,7 +1590,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/site_export"
     ]
   },
   {
@@ -999,7 +1602,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/funnels_list"
     ]
   },
   {
@@ -1010,7 +1614,12 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/funnel/create",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_create_funnel",
+      "TestPrivateRoutesMatrixAuthentication/funnels_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnels_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/funnels_create/invalid"
     ]
   },
   {
@@ -1021,7 +1630,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/goals_list"
     ]
   },
   {
@@ -1032,7 +1642,12 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/goal/create",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_create_goal",
+      "TestPrivateRoutesMatrixAuthentication/goals_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/goals_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/goals_create/invalid"
     ]
   },
   {
@@ -1043,7 +1658,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/site_icon_refetch",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_icon_refetch",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_icon_refetch/invalid"
     ]
   },
   {
@@ -1054,7 +1672,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/imports_list"
     ]
   },
   {
@@ -1064,6 +1683,201 @@
     "handler": "h.createImport",
     "auth": "session",
     "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_create_import",
+      "TestPrivateRoutesMatrixAuthentication/imports_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/imports_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/imports_create/invalid"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/imports/preview",
+    "group": "/api/private/sites",
+    "handler": "h.previewImport",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/integrations",
+    "group": "/api/private/sites",
+    "handler": "h.listIntegrations",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/integrations/{provider}",
+    "group": "/api/private/sites",
+    "handler": "h.disconnectIntegration",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/integrations/{provider}/backfill",
+    "group": "/api/private/sites",
+    "handler": "h.backfillIntegration",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/integrations/{provider}/connect",
+    "group": "/api/private/sites",
+    "handler": "h.connectIntegration",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/links",
+    "group": "/api/private/sites",
+    "handler": "h.listLinks",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/links",
+    "group": "/api/private/sites",
+    "handler": "h.createLink",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/notification-history",
+    "group": "/api/private/sites",
+    "handler": "h.listNotificationHistory",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/notification_history"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/notification-history/{delivery}/retry",
+    "group": "/api/private/sites",
+    "handler": "h.retryNotificationDelivery",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/notification_retry",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_retry",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/notification_retry/invalid"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/pixel",
+    "group": "/api/private/sites",
+    "handler": "h.pixelSnippet",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/pixel/stats",
+    "group": "/api/private/sites",
+    "handler": "h.pixelStats",
+    "auth": "session",
+    "in_openapi": false,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/pixels",
+    "group": "/api/private/sites",
+    "handler": "h.listPixels",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "POST",
+    "pattern": "/api/private/sites/{site}/pixels",
+    "group": "/api/private/sites",
+    "handler": "h.createPixel",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/pixels/stats",
+    "group": "/api/private/sites",
+    "handler": "h.pixelProjectStats",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/pixels/{id}",
+    "group": "/api/private/sites",
+    "handler": "h.deletePixel",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "pattern": "/api/private/sites/{site}/pixels/{id}",
+    "group": "/api/private/sites",
+    "handler": "h.updatePixel",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/power-users",
+    "group": "/api/private/sites",
+    "handler": "h.listPowerUsers",
+    "auth": "session",
+    "in_openapi": true,
     "hit_by_tests": [
       "(unnamed test)"
     ]
@@ -1076,7 +1890,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/profiles_list"
     ]
   },
   {
@@ -1086,7 +1901,9 @@
     "handler": "h.properties",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/properties"
+    ]
   },
   {
     "method": "GET",
@@ -1095,7 +1912,9 @@
     "handler": "h.propertyValues",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/property_values"
+    ]
   },
   {
     "method": "GET",
@@ -1105,7 +1924,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/purges_list"
     ]
   },
   {
@@ -1116,7 +1936,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/purges_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/purges_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/purges_create/invalid"
     ]
   },
   {
@@ -1127,7 +1950,8 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/replay_settings_get"
     ]
   },
   {
@@ -1138,7 +1962,10 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/replay_settings_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/replay_settings_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/replay_settings_update/invalid"
     ]
   },
   {
@@ -1149,7 +1976,8 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/replays_list"
     ]
   },
   {
@@ -1157,6 +1985,29 @@
     "pattern": "/api/private/sites/{site}/replays/{replay_path...}",
     "group": "/api/private/sites",
     "handler": "h.replayAsset",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/replay_asset"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "pattern": "/api/private/sites/{site}/replays/{session}/saved",
+    "group": "/api/private/sites",
+    "handler": "h.unsaveReplay",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "PUT",
+    "pattern": "/api/private/sites/{site}/replays/{session}/saved",
+    "group": "/api/private/sites",
+    "handler": "h.saveReplay",
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
@@ -1171,7 +2022,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/reports_list"
     ]
   },
   {
@@ -1182,7 +2034,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/reports_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/reports_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/reports_create/invalid"
     ]
   },
   {
@@ -1193,7 +2048,10 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/report_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/report_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/report_delete/invalid"
     ]
   },
   {
@@ -1201,6 +2059,42 @@
     "pattern": "/api/private/sites/{site}/restore",
     "group": "/api/private/sites",
     "handler": "h.restoreSite",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/site_restore",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_restore",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/site_restore/invalid"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/revenue/customers",
+    "group": "/api/private/sites",
+    "handler": "h.revenueCustomers",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/revenue/report",
+    "group": "/api/private/sites",
+    "handler": "h.revenueReport",
+    "auth": "session",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/api/private/sites/{site}/search-console/top",
+    "group": "/api/private/sites",
+    "handler": "h.searchConsoleTop",
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
@@ -1215,7 +2109,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/segments_list"
     ]
   },
   {
@@ -1226,7 +2121,12 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/segment/create",
+      "TestPrivateResourcesMatrixRoleSiteAndObjectBoundaries/viewer_cannot_create_segment",
+      "TestPrivateRoutesMatrixAuthentication/segments_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/segments_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/segments_create/invalid"
     ]
   },
   {
@@ -1236,7 +2136,15 @@
     "handler": "h.listSessions",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus\u0026limit=1000",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/cursor",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/first",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/huge-cursor",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/oversized-limit",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/sessions_list"
+    ]
   },
   {
     "method": "GET",
@@ -1246,7 +2154,8 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/shares_list"
     ]
   },
   {
@@ -1257,7 +2166,10 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/shares_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/shares_create",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/shares_create/invalid"
     ]
   },
   {
@@ -1268,7 +2180,10 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/share_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/share_delete",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/share_delete/invalid"
     ]
   },
   {
@@ -1279,7 +2194,10 @@
     "auth": "session",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/share_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/share_update",
+      "TestPrivateRoutesMatrixWritesRequireCSRF/share_update/invalid"
     ]
   },
   {
@@ -1290,7 +2208,8 @@
     "auth": "session",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPrivateRoutesMatrixAuthentication/site_snippet"
     ]
   },
   {
@@ -1300,7 +2219,9 @@
     "handler": "h.suggestions",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/suggestions"
+    ]
   },
   {
     "method": "GET",
@@ -1309,7 +2230,15 @@
     "handler": "h.statsBreakdown",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/demo/breakdown",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/plus-05-30/breakdown",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/plus-05-45/breakdown",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/restorable_deletion/breakdown",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/zero_event/breakdown",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/stats_breakdown"
+    ]
   },
   {
     "method": "GET",
@@ -1318,7 +2247,18 @@
     "handler": "h.statsSummary",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/demo/summary",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/plus-05-30/summary",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/plus-05-45/summary",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/restorable_deletion/summary",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/ten-year-range",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/zero_event/summary",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_stats_site",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/other_org_stats",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/stats_summary"
+    ]
   },
   {
     "method": "GET",
@@ -1327,7 +2267,14 @@
     "handler": "h.statsTimeseries",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/demo/timeseries",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/plus-05-30/timeseries",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/plus-05-45/timeseries",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/restorable_deletion/timeseries",
+      "TestPrivateAnalyticsMatrixListsLimitsAndReviewFocus/zero_event/timeseries",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/stats_timeseries"
+    ]
   },
   {
     "method": "POST",
@@ -1336,7 +2283,11 @@
     "handler": "h.vitalsRequest",
     "auth": "session",
     "in_openapi": false,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/bad_vitals_body",
+      "TestPrivateAnalyticsMatrixValidMalformedAndTenantBoundaries/vitals"
+    ]
   },
   {
     "method": "GET",
@@ -1357,7 +2308,26 @@
     "auth": "public-key",
     "in_openapi": false,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/events_list",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/fallback",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/funnel_query",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/heatmap_query",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/journey_query",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/properties_list",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/property_values",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/query",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/realtime",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/realtime_summary",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/retention_query",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/session_get",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/sessions_list",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/stats_breakdown",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/stats_summary",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/stats_timeseries",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/suggestions",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/vitals_query",
+      "TestPublicV1MatrixListsLimitsCursorsAndRateHeaders/rate-01"
     ]
   },
   {
@@ -1368,7 +2338,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/annotations_delete"
     ]
   },
   {
@@ -1379,7 +2350,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/annotations_update"
     ]
   },
   {
@@ -1390,7 +2362,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/api_keys_list"
     ]
   },
   {
@@ -1401,7 +2374,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/api_keys_create"
     ]
   },
   {
@@ -1412,7 +2386,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/api_keys_revoke"
     ]
   },
   {
@@ -1423,7 +2398,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/erasure_get"
     ]
   },
   {
@@ -1432,9 +2408,10 @@
     "group": "/api/public/v1",
     "handler": "deps.Ingest",
     "auth": "none",
-    "in_openapi": false,
+    "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/event_preflight"
     ]
   },
   {
@@ -1445,7 +2422,8 @@
     "auth": "none",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/event_ingest"
     ]
   },
   {
@@ -1455,7 +2433,9 @@
     "handler": "h.funnelRequest",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "DELETE",
@@ -1465,7 +2445,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/funnel_delete"
     ]
   },
   {
@@ -1476,7 +2457,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/funnel_update"
     ]
   },
   {
@@ -1487,7 +2469,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/goal_delete"
     ]
   },
   {
@@ -1498,7 +2481,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/goal_update"
     ]
   },
   {
@@ -1508,7 +2492,9 @@
     "handler": "h.heatmapRequest",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "POST",
@@ -1517,7 +2503,9 @@
     "handler": "h.journeyRequest",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "POST",
@@ -1525,9 +2513,10 @@
     "group": "/api/public/v1",
     "handler": "NewMCPHandler",
     "auth": "public-key",
-    "in_openapi": false,
+    "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/mcp"
     ]
   },
   {
@@ -1538,7 +2527,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/profile_get"
     ]
   },
   {
@@ -1548,7 +2538,10 @@
     "handler": "h.queryRequest",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPublicV1MatrixAuthorizationBoundaries/malformed_body"
+    ]
   },
   {
     "method": "GET",
@@ -1557,7 +2550,9 @@
     "handler": "realtimeHandler",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "GET",
@@ -1566,7 +2561,9 @@
     "handler": "realtimeSummaryHandler",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "POST",
@@ -1575,7 +2572,9 @@
     "handler": "h.retentionRequest",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "DELETE",
@@ -1585,7 +2584,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/segment_delete"
     ]
   },
   {
@@ -1596,7 +2596,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/segment_update"
     ]
   },
   {
@@ -1606,7 +2607,10 @@
     "handler": "h.getSession",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "malformed session id"
+    ]
   },
   {
     "method": "GET",
@@ -1616,7 +2620,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/sites_list"
     ]
   },
   {
@@ -1627,7 +2632,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/sites_create"
     ]
   },
   {
@@ -1638,7 +2644,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/site_delete"
     ]
   },
   {
@@ -1649,7 +2656,9 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixAuthorizationBoundaries/other_org_site",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/site_get"
     ]
   },
   {
@@ -1660,7 +2669,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/site_update"
     ]
   },
   {
@@ -1671,7 +2681,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/annotations_list"
     ]
   },
   {
@@ -1682,7 +2693,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/annotations_create"
     ]
   },
   {
@@ -1692,7 +2704,9 @@
     "handler": "h.events",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "GET",
@@ -1702,7 +2716,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/funnels_list"
     ]
   },
   {
@@ -1713,7 +2728,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/funnels_create"
     ]
   },
   {
@@ -1724,7 +2740,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/goals_list"
     ]
   },
   {
@@ -1735,7 +2752,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/goals_create"
     ]
   },
   {
@@ -1746,7 +2764,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/profiles_list"
     ]
   },
   {
@@ -1756,7 +2775,9 @@
     "handler": "h.properties",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "GET",
@@ -1765,7 +2786,9 @@
     "handler": "h.propertyValues",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "GET",
@@ -1775,7 +2798,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/segments_list"
     ]
   },
   {
@@ -1786,7 +2810,8 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixEveryRouteRequiresDocumentedAuthentication/segments_create"
     ]
   },
   {
@@ -1796,7 +2821,14 @@
     "handler": "h.listSessions",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPublicV1MatrixListsLimitsCursorsAndRateHeaders/cursor-page",
+      "TestPublicV1MatrixListsLimitsCursorsAndRateHeaders/default-limit",
+      "TestPublicV1MatrixListsLimitsCursorsAndRateHeaders/max-limit",
+      "TestPublicV1MatrixListsLimitsCursorsAndRateHeaders/next-cursor",
+      "TestPublicV1MatrixListsLimitsCursorsAndRateHeaders/oversized-limit"
+    ]
   },
   {
     "method": "GET",
@@ -1805,7 +2837,9 @@
     "handler": "h.suggestions",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "GET",
@@ -1814,7 +2848,9 @@
     "handler": "h.statsBreakdown",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "GET",
@@ -1824,7 +2860,18 @@
     "auth": "public-key",
     "in_openapi": true,
     "hit_by_tests": [
-      "(unnamed test)"
+      "(unnamed test)",
+      "TestPublicV1MatrixAuthorizationBoundaries/empty_other_site",
+      "TestPublicV1MatrixAuthorizationBoundaries/malformed_site_id",
+      "TestPublicV1MatrixAuthorizationBoundaries/other_org_stats",
+      "TestPublicV1MatrixAuthorizationBoundaries/valid_summary",
+      "TestPublicV1MatrixAuthorizationBoundaries/wrong_scope",
+      "TestPublicV1MatrixListsLimitsCursorsAndRateHeaders/rate-00",
+      "TestPublicV1MatrixProblemJSONShape",
+      "TestPublicV1MatrixReviewFocusSitesAndRanges/demo",
+      "TestPublicV1MatrixReviewFocusSitesAndRanges/restorable_deletion",
+      "TestPublicV1MatrixReviewFocusSitesAndRanges/ten-year-range",
+      "TestPublicV1MatrixReviewFocusSitesAndRanges/zero_event"
     ]
   },
   {
@@ -1834,7 +2881,11 @@
     "handler": "h.statsTimeseries",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)",
+      "TestPublicV1MatrixReviewFocusSitesAndRanges/plus-05-30",
+      "TestPublicV1MatrixReviewFocusSitesAndRanges/plus-05-45"
+    ]
   },
   {
     "method": "POST",
@@ -1843,7 +2894,9 @@
     "handler": "h.vitalsRequest",
     "auth": "public-key",
     "in_openapi": true,
-    "hit_by_tests": []
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
   },
   {
     "method": "OPTIONS",
@@ -1953,9 +3006,31 @@
   },
   {
     "method": "GET",
+    "pattern": "/l/{slug}",
+    "group": "/l/{slug}",
+    "handler": "deps.Links.ServeRedirect",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
     "pattern": "/metrics",
     "group": "/metrics",
     "handler": "metricsHandler",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
+    "pattern": "/px/{file}",
+    "group": "/px/{file}",
+    "handler": "deps.Links.ServePixel",
     "auth": "none",
     "in_openapi": true,
     "hit_by_tests": [

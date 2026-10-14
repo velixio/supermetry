@@ -22,6 +22,7 @@ import (
 	"supermetry/internal/api"
 	"supermetry/internal/config"
 	"supermetry/internal/imports"
+	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
@@ -111,6 +112,7 @@ type Deps struct {
 	Definitions    interface{ Invalidate() error }
 	// LinkCache drops cached short-link resolutions after a change. Optional.
 	LinkCache interface{ Forget(slugs ...string) }
+	Pixels    *pixels.Registry
 	Auth      *platformauth.Auth
 	Orgs      *orgs.Orgs
 	Keys      *keys.Keys
@@ -165,6 +167,7 @@ type Services struct {
 
 type CreateSiteRequest struct {
 	Name            string   `json:"name"`
+	Kind            string   `json:"kind"`
 	Hosts           []string `json:"hosts"`
 	Timezone        string   `json:"timezone"`
 	RetentionDays   int      `json:"retention_days"`
@@ -275,6 +278,11 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/private/links/{link}", h.updateLink)
 	mux.HandleFunc("DELETE /api/private/links/{link}", h.deleteLink)
 	mux.HandleFunc("GET /api/private/links/{link}/stats", h.linkStats)
+	mux.HandleFunc("GET /api/private/sites/{site}/pixels", h.listPixels)
+	mux.HandleFunc("POST /api/private/sites/{site}/pixels", h.createPixel)
+	mux.HandleFunc("GET /api/private/sites/{site}/pixels/stats", h.pixelProjectStats)
+	mux.HandleFunc("PATCH /api/private/sites/{site}/pixels/{id}", h.updatePixel)
+	mux.HandleFunc("DELETE /api/private/sites/{site}/pixels/{id}", h.deletePixel)
 	mux.HandleFunc("GET /api/private/sites/{site}/pixel", h.pixelSnippet)
 	mux.HandleFunc("GET /api/private/sites/{site}/pixel/stats", h.pixelStats)
 	mux.HandleFunc("GET /api/private/sites/{site}/funnels", h.listFunnels)
@@ -383,7 +391,10 @@ func (s Services) CreateSite(ctx context.Context, principal authz.Principal, req
 	if s.Sites == nil {
 		return coresites.Site{}, errors.New("site service is unavailable")
 	}
-	return s.Sites.Create(ctx, principal, request.Name, request.Hosts, request.Timezone, request.RetentionDays, request.RevenueCurrency)
+	return s.Sites.Create(ctx, principal, sitesvc.CreateInput{
+		Name: request.Name, Kind: request.Kind, Hosts: request.Hosts, Timezone: request.Timezone,
+		RetentionDays: request.RetentionDays, RevenueCurrency: request.RevenueCurrency,
+	})
 }
 
 func (s Services) UpdateSite(ctx context.Context, principal authz.Principal, id int32, patch sitesvc.SitePatch) (coresites.Site, error) {

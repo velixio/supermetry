@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/db"
+	"supermetry/internal/pixels"
 	"supermetry/internal/platform/authz"
 	platformhttp "supermetry/internal/platform/http"
 	"supermetry/internal/platform/sitesvc"
@@ -33,6 +34,8 @@ type linkFixture struct {
 	foreignSite int32
 	userID      int64
 	cache       *forgetRecorder
+	registry    *sitesvc.Registry
+	pixels      *pixels.Registry
 }
 
 func newLinkFixture(t *testing.T) linkFixture {
@@ -66,6 +69,14 @@ func newLinkFixture(t *testing.T) linkFixture {
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)
 	cache := &forgetRecorder{}
+	pixelReg := pixels.NewRegistry(
+		func(ctx context.Context) ([]pixels.Pixel, error) { return pixels.All(ctx, pool) },
+		func(ctx context.Context) (map[int64]int64, error) { return pixels.Totals(ctx, pool) },
+		pixels.NewTotalCache(),
+	)
+	if err := pixelReg.Reload(ctx); err != nil {
+		t.Fatal(err)
+	}
 	authenticator := actorAuthenticator{
 		"owner":         {UserID: userID, OrgID: orgID, Role: authz.RoleOwner},
 		"editor":        {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
@@ -78,10 +89,12 @@ func newLinkFixture(t *testing.T) linkFixture {
 	return linkFixture{
 		handler: platformhttp.New(platformhttp.Deps{
 			Authenticator: authenticator, Sites: registry, Store: data, LinkCache: cache,
+			Pixels:  pixelReg,
 			BaseURL: "https://sm.example.test",
 			Now:     func() time.Time { return now },
 		}),
 		pool: pool, now: now, siteID: siteID, otherSite: otherSite, foreignSite: foreignSite, userID: userID, cache: cache,
+		registry: registry, pixels: pixelReg,
 	}
 }
 
