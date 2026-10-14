@@ -2354,7 +2354,7 @@ git commit -m "chore(web): regenerate API client for pixels"
 - Modify: `internal/retention/retention.go` (new `deleteExpiredPixelViews`, called from `Run`; add `pixel_views_daily` handling to `Erase` via the pixels join)
 - Test: `internal/retention/retention_test.go`
 
-Decision: the spec says pixel rows follow the project's retention class "using the same purge job as other daily tables". `pixel_views_daily` is small and unpartitioned, so the job deletes rows older than `retention_class` days in the site's zone (class `0` keeps nothing past today's closing slack, matching how the hot tier treats 0; if `retention.Run` treats 0 as "forever", mirror that instead — read the top of `Run` first).
+Decision: the spec says pixel rows follow the project's retention class "using the same purge job as other daily tables". `pixel_views_daily` is small and unpartitioned, so the job deletes rows older than `retention_class + 1` days in the site's zone, the same one day of closing slack `Run` gives partitions (`retention.go:57`: `cutoff := now.AddDate(0, 0, -int(partition.Class)-1)`), so class `0` keeps about one day.
 
 **Interfaces:**
 - Consumes: `retention.Run(ctx, pool, now)`.
@@ -2364,8 +2364,11 @@ Decision: the spec says pixel rows follow the project's retention class "using t
 
 ```go
 func TestRunDeletesExpiredPixelViews(t *testing.T) {
-	pool := newRetentionDB(t) // existing helper in this file; match its name
+	pool, _ := testpg.New(t)
 	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
 	var orgID int64
 	_ = pool.QueryRow(ctx, `insert into orgs(name,slug) values ('R','r-px') returning id`).Scan(&orgID)
 	var siteID int32
@@ -2399,8 +2402,8 @@ Expected: FAIL, `left = 3`.
 func deleteExpiredPixelViews(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
 	_, err := pool.Exec(ctx, `
 		delete from pixel_views_daily v using pixels p, sites s
-		where v.pixel_id = p.id and p.site_id = s.id and s.retention_class > 0
-		  and v.day < (($1::timestamptz at time zone s.timezone)::date - s.retention_class)`, now)
+		where v.pixel_id = p.id and p.site_id = s.id
+		  and v.day < (($1::timestamptz at time zone s.timezone)::date - s.retention_class - 1)`, now)
 	if err != nil {
 		return fmt.Errorf("delete expired pixel views: %w", err)
 	}
