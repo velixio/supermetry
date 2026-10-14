@@ -2422,3 +2422,1005 @@ Expected: `ok`.
 git add internal/retention/retention.go internal/retention/retention_test.go
 git commit -m "feat(retention): expire pixel views by retention class"
 ```
+
+### Task 10: Open counters schema, config and key parsing
+
+**Files:**
+- Create: `internal/db/migrations/0170_open_counters.sql`, `internal/db/migrate_open_counters_test.go`
+- Create: `internal/opencounters/key.go`, `internal/opencounters/key_test.go`
+- Modify: `internal/config/config.go`, `internal/config/config_test.go`
+
+**Interfaces:**
+- Produces:
+  - tables `open_counters(id bigint identity, key text unique, created_at, last_seen_day date)`, `open_counter_views_daily(counter_id, day, views)`
+  - `config.Config.OpenCounters bool` (`SUPERMETRY_OPEN_COUNTERS`, default `false`), `config.Config.OpenCounterBlocklist string` (`SUPERMETRY_OPEN_COUNTER_BLOCKLIST`, a file path, optional)
+  - `func opencounters.ParsePath(rest string) (key, ext string, ok bool)` — `rest` is everything after `/c/`; returns key like `github.com/owner` or `github.com/owner/repo` (lower-cased) and ext `"svg"|"gif"|""`
+  - `func opencounters.LoadBlocklist(path string) (map[string]bool, error)` — one key per line, `#` comments, blank lines ignored, keys lower-cased
+
+- [ ] **Step 1: Write the failing tests**
+
+`key_test.go`:
+
+```go
+package opencounters
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestParsePath(t *testing.T) {
+	ok := map[string][2]string{
+		"github.com/Velixio.svg":            {"github.com/velixio", "svg"},
+		"github.com/velixio/Supermetry.gif": {"github.com/velixio/supermetry", "gif"},
+		"github.com/a-b/c.d_e-f":            {"github.com/a-b/c.d_e-f", ""},
+		"github.com/x/" + strings.Repeat("r", 100) + ".svg": {"github.com/x/" + strings.Repeat("r", 100), "svg"},
+	}
+	for in, want := range ok {
+		key, ext, good := ParsePath(in)
+		if !good || key != want[0] || ext != want[1] {
+			t.Errorf("ParsePath(%q) = %q %q %v", in, key, ext, good)
+		}
+	}
+	for _, bad := range []string{
+		"gitlab.com/a.svg", "github.com/.svg", "github.com/a_b.svg", "github.com/" + strings.Repeat("o", 40) + ".svg",
+		"github.com/a/" + strings.Repeat("r", 101) + ".svg", "github.com/a/b/c.svg", "github.com/a/<x>.svg",
+		"github.com/a.png", "github.com/a/b.svg.svg", "github.com/a/..svg",
+	} {
+		if _, _, good := ParsePath(bad); good {
+			t.Errorf("ParsePath(%q) accepted", bad)
+		}
+	}
+}
+
+func TestLoadBlocklist(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "block.txt")
+	_ = os.WriteFile(path, []byte("# spam\nGitHub.com/Bad\n\n github.com/bad/repo \n"), 0o600)
+	list, err := LoadBlocklist(path)
+	if err != nil || !list["github.com/bad"] || !list["github.com/bad/repo"] || len(list) != 2 {
+		t.Fatalf("list = %v, %v", list, err)
+	}
+	if empty, err := LoadBlocklist(""); err != nil || len(empty) != 0 {
+		t.Fatalf("empty = %v, %v", empty, err)
+	}
+}
+```
+
+Note `github.com/a/..svg`: the repo would be `.`, which GitHub forbids; the parser rejects repos `.` and `..`.
+
+`migrate_open_counters_test.go`:
+
+```go
+package db_test
+
+import (
+	"context"
+	"testing"
+
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
+)
+
+func TestOpenCountersMigration(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var id int64
+	if err := pool.QueryRow(ctx, `insert into open_counters(key,last_seen_day) values ('github.com/a','2026-10-14') returning id`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into open_counters(key,last_seen_day) values ('github.com/a','2026-10-14')`); err == nil {
+		t.Fatal("duplicate key accepted")
+	}
+	if _, err := pool.Exec(ctx, `insert into open_counters(key,last_seen_day) values ('GitHub.com/A','2026-10-14')`); err == nil {
+		t.Fatal("upper-case key accepted")
+	}
+	if _, err := pool.Exec(ctx, `insert into open_counter_views_daily values ($1,'2026-10-14',3)`, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `delete from open_counters where id=$1`, id); err != nil {
+		t.Fatal(err)
+	}
+}
+```
+
+Config test (same style as Task 6):
+
+```go
+func TestLoadOpenCounters(t *testing.T) {
+	values := baseValues() // match the helper name used by TestLoadHomepageURL
+	c, err := Load(mapGetenv(values))
+	if err != nil || c.OpenCounters || c.OpenCounterBlocklist != "" {
+		t.Fatalf("defaults = %v %q %v", c.OpenCounters, c.OpenCounterBlocklist, err)
+	}
+	values["SUPERMETRY_OPEN_COUNTERS"] = "true"
+	values["SUPERMETRY_OPEN_COUNTER_BLOCKLIST"] = "/etc/supermetry/blocklist.txt"
+	c, err = Load(mapGetenv(values))
+	if err != nil || !c.OpenCounters || c.OpenCounterBlocklist != "/etc/supermetry/blocklist.txt" {
+		t.Fatalf("set = %v %q %v", c.OpenCounters, c.OpenCounterBlocklist, err)
+	}
+}
+```
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `go test ./internal/db ./internal/opencounters ./internal/config -count=1`
+Expected: FAIL (`relation "open_counters" does not exist`, `undefined: ParsePath`, `c.OpenCounters undefined`).
+
+- [ ] **Step 3: Migration `0170_open_counters.sql`**
+
+```sql
+-- Open counters: account-free view counters for GitHub profiles and repos.
+-- Only aggregate daily views; no IPs, user agents or countries.
+-- Small and unpartitioned: cleanup uses DELETE (documented exception).
+
+CREATE TABLE open_counters (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    key text NOT NULL UNIQUE CHECK (key = lower(key) AND char_length(key) <= 160),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    last_seen_day date NOT NULL
+);
+CREATE INDEX open_counters_last_seen_day_idx ON open_counters (last_seen_day);
+
+CREATE TABLE open_counter_views_daily (
+    counter_id bigint NOT NULL REFERENCES open_counters(id) ON DELETE CASCADE,
+    day date NOT NULL,
+    views bigint NOT NULL CHECK (views > 0),
+    PRIMARY KEY (counter_id, day)
+);
+CREATE INDEX open_counter_views_daily_day_idx ON open_counter_views_daily USING brin (day);
+```
+
+The `last_seen_day` btree serves the 365-day idle cleanup; BRIN on `day` serves the 400-day delete.
+
+- [ ] **Step 4: `key.go`**
+
+```go
+// Package opencounters serves account-free view counters for GitHub keys.
+package opencounters
+
+import (
+	"bufio"
+	"os"
+	"regexp"
+	"strings"
+)
+
+var (
+	ownerRE = regexp.MustCompile(`^[A-Za-z0-9-]{1,39}$`)
+	repoRE  = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
+)
+
+const host = "github.com"
+
+func ParsePath(rest string) (key, ext string, ok bool) {
+	for _, e := range []string{".svg", ".gif"} {
+		if trimmed, found := strings.CutSuffix(rest, e); found {
+			rest, ext = trimmed, e[1:]
+			break
+		}
+	}
+	parts := strings.Split(rest, "/")
+	if len(parts) < 2 || len(parts) > 3 || parts[0] != host || !ownerRE.MatchString(parts[1]) {
+		return "", "", false
+	}
+	if len(parts) == 3 && (!repoRE.MatchString(parts[2]) || parts[2] == "." || parts[2] == ".." || strings.HasSuffix(parts[2], ".svg") || strings.HasSuffix(parts[2], ".gif")) {
+		return "", "", false
+	}
+	if len(parts) == 2 && strings.Contains(parts[1], ".") {
+		return "", "", false
+	}
+	return strings.ToLower(strings.Join(parts, "/")), ext, true
+}
+
+func LoadBlocklist(path string) (map[string]bool, error) {
+	out := map[string]bool{}
+	if path == "" {
+		return out, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.ToLower(strings.TrimSpace(scanner.Text()))
+		if line != "" && !strings.HasPrefix(line, "#") {
+			out[line] = true
+		}
+	}
+	return out, scanner.Err()
+}
+```
+
+(`github.com/a.png` is rejected because the owner part `a.png` contains a dot, which the owner regexp disallows.)
+
+- [ ] **Step 5: Config**
+
+Add `OpenCounters bool` and `OpenCounterBlocklist string` to `Config`; in `Load`: `OpenCounterBlocklist: getenv("SUPERMETRY_OPEN_COUNTER_BLOCKLIST"),` in the literal and `parseOptionalBool(getenv("SUPERMETRY_OPEN_COUNTERS"), "SUPERMETRY_OPEN_COUNTERS", &c.OpenCounters, &errs)` after the badge line.
+
+- [ ] **Step 6: Run and commit (three commits)**
+
+Run: `go vet ./... && go test ./internal/db ./internal/opencounters ./internal/config -count=1`
+Expected: all `ok`.
+
+```bash
+git add internal/db/migrations/0170_open_counters.sql internal/db/migrate_open_counters_test.go
+git commit -m "feat(db): add open counter tables"
+git add internal/opencounters/key.go internal/opencounters/key_test.go
+git commit -m "feat(opencounters): parse GitHub counter keys and blocklist"
+git add internal/config/config.go internal/config/config_test.go
+git commit -m "feat(config): add open counter switch and blocklist path"
+```
+
+### Task 11: Open counter recorder and badge handler
+
+**Files:**
+- Create: `internal/opencounters/recorder.go`, `internal/opencounters/recorder_test.go`, `internal/opencounters/handler.go`, `internal/opencounters/handler_test.go`
+
+**Interfaces:**
+- Consumes: `pixels.DetectProxy`, `pixels.NewProxyLimiter`/`Allow(int64, string)`, `pixels.RenderBadge`, `pixels.ParseBadgeQuery`, `links.TransparentGIF`, `ingest.NewTokenBuckets`, `ParsePath`.
+- Produces:
+  - `type Store interface { Upsert(ctx, rows map[ViewKey]int64) error; Totals(ctx, keys []string) (map[string]int64, error) }`; `PoolStore(pool) Store`
+  - `type ViewKey struct { Key, Day string }`
+  - `type Recorder struct`; `NewRecorder(store Store, newPerMinute float64, newBurst int) *Recorder`; `View(key, day string)`; `Total(key string) int64` (cache only; marks cold keys for the next flush); `Flush(ctx) error`; `Run(ctx) error`
+  - `type Handler struct { Recorder *Recorder; Proxy *pixels.ProxyLimiter; Blocklist map[string]bool; Branded bool; HomepageURL string; Now func() time.Time; Stats StatsFunc }`; `ServeHTTP` for `GET /c/{rest...}`
+
+Decision: totals for counters live in a `map[string]int64` inside the recorder (keyed by counter key, since a brand-new counter has no id until flush) rather than `pixels.TotalCache` (keyed by pixel id); behaviour matches the spec's "same in-memory total cache". The proxy limiter key is the FNV-64a hash of the counter key.
+
+Counter-creation cap semantics: a key not yet known to exist (not in the in-memory known set) needs a token from the global new-counter limiter (50/min, burst 500) on its first view; without one the view is not counted. Keys loaded from the DB or already created are "known" and skip the cap.
+
+- [ ] **Step 1: Write the failing recorder test**
+
+```go
+package opencounters
+
+import (
+	"context"
+	"maps"
+	"sync"
+	"testing"
+)
+
+type memStore struct {
+	mu     sync.Mutex
+	views  map[ViewKey]int64
+	totals map[string]int64
+	loads  int
+}
+
+func (m *memStore) Upsert(_ context.Context, rows map[ViewKey]int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for k, n := range rows {
+		m.views[k] += n
+	}
+	return nil
+}
+
+func (m *memStore) Totals(_ context.Context, keys []string) (map[string]int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.loads++
+	out := map[string]int64{}
+	for _, k := range keys {
+		if n, ok := m.totals[k]; ok {
+			out[k] = n
+		}
+	}
+	return out, nil
+}
+
+func TestColdKeyLoadsLazilyOnFlush(t *testing.T) {
+	store := &memStore{views: map[ViewKey]int64{}, totals: map[string]int64{"github.com/old": 500}}
+	r := NewRecorder(store, 50, 500)
+	if got := r.Total("github.com/old"); got != 0 {
+		t.Fatalf("before load = %d, want 0 (no DB read on request)", got)
+	}
+	if err := r.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	r.View("github.com/old", "2026-10-14")
+	if got := r.Total("github.com/old"); got != 501 || store.loads != 1 {
+		t.Fatalf("total = %d loads = %d", got, store.loads)
+	}
+}
+
+func TestNewCounterCap(t *testing.T) {
+	store := &memStore{views: map[ViewKey]int64{}, totals: map[string]int64{}}
+	r := NewRecorder(store, 0.0001, 2)
+	for _, k := range []string{"github.com/a", "github.com/b", "github.com/c"} {
+		r.View(k, "2026-10-14")
+	}
+	r.View("github.com/a", "2026-10-14") // known now; no new token needed
+	_ = r.Flush(context.Background())
+	want := map[ViewKey]int64{{"github.com/a", "2026-10-14"}: 2, {"github.com/b", "2026-10-14"}: 1}
+	if !maps.Equal(store.views, want) {
+		t.Fatalf("views = %v", store.views)
+	}
+}
+```
+
+Add a DB round trip to `recorder_test.go` (needs `SUPERMETRY_TEST_DSN`):
+
+```go
+func TestPoolStoreCreatesCountersAndSumsTotals(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	s := PoolStore(pool)
+	for range 2 {
+		if err := s.Upsert(ctx, map[ViewKey]int64{{"github.com/a", "2026-10-13"}: 2, {"github.com/a", "2026-10-14"}: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	totals, err := s.Totals(ctx, []string{"github.com/a", "github.com/missing"})
+	if err != nil || totals["github.com/a"] != 6 || len(totals) != 1 {
+		t.Fatalf("totals = %v, %v", totals, err)
+	}
+	var lastSeen string
+	_ = pool.QueryRow(ctx, `select last_seen_day::text from open_counters where key='github.com/a'`).Scan(&lastSeen)
+	if lastSeen != "2026-10-14" {
+		t.Fatalf("last_seen_day = %s", lastSeen)
+	}
+}
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `go test ./internal/opencounters -count=1`
+Expected: FAIL to compile, `undefined: NewRecorder`.
+
+- [ ] **Step 3: Implement `recorder.go`**
+
+```go
+package opencounters
+
+import (
+	"context"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"supermetry/internal/ingest"
+)
+
+const maxKeys = 200_000
+
+type ViewKey struct{ Key, Day string }
+
+type Store interface {
+	Upsert(ctx context.Context, rows map[ViewKey]int64) error
+	Totals(ctx context.Context, keys []string) (map[string]int64, error)
+}
+
+type Recorder struct {
+	store   Store
+	newCap  ingest.RateLimiter
+	mu      sync.Mutex
+	rows    map[ViewKey]int64
+	totals  map[string]int64
+	known   map[string]bool // exists in DB or created this run
+	cold    map[string]bool // requested but not yet loaded
+	flushMu sync.Mutex
+}
+
+func NewRecorder(store Store, newPerMinute float64, newBurst int) *Recorder {
+	return &Recorder{
+		store: store, newCap: ingest.NewTokenBuckets(newPerMinute/60, newBurst),
+		rows: map[ViewKey]int64{}, totals: map[string]int64{}, known: map[string]bool{}, cold: map[string]bool{},
+	}
+}
+
+// Total returns the cached total; an unseen key is queued for the next flush.
+func (r *Recorder) Total(key string) int64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.totals[key]; !ok && !r.known[key] && len(r.cold) < maxKeys {
+		r.cold[key] = true
+	}
+	return r.totals[key]
+}
+
+func (r *Recorder) View(key, day string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.known[key] {
+		if len(r.known) >= maxKeys || !r.newCap.Allow("new") {
+			return
+		}
+		r.known[key] = true
+		delete(r.cold, key)
+	}
+	r.rows[ViewKey{key, day}]++
+	r.totals[key]++
+}
+
+func (r *Recorder) Flush(ctx context.Context) error {
+	r.flushMu.Lock()
+	defer r.flushMu.Unlock()
+	r.mu.Lock()
+	rows, cold := r.rows, make([]string, 0, len(r.cold))
+	r.rows = map[ViewKey]int64{}
+	for k := range r.cold {
+		cold = append(cold, k)
+	}
+	r.cold = map[string]bool{}
+	r.mu.Unlock()
+
+	if len(rows) > 0 {
+		if err := r.store.Upsert(ctx, rows); err != nil {
+			r.mu.Lock()
+			for k, n := range rows {
+				r.rows[k] += n
+			}
+			r.mu.Unlock()
+			return err
+		}
+	}
+	if len(cold) > 0 {
+		loaded, err := r.store.Totals(ctx, cold)
+		if err != nil {
+			return err
+		}
+		r.mu.Lock()
+		for k, n := range loaded {
+			r.totals[k] += n // views recorded before the load are added on top
+			r.known[k] = true
+		}
+		r.mu.Unlock()
+	}
+	return nil
+}
+
+func (r *Recorder) Run(ctx context.Context) error {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			flushCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			return r.Flush(flushCtx)
+		case <-ticker.C:
+			if err := r.Flush(ctx); err != nil {
+				slog.Warn("open counter flush failed", "err", err)
+			}
+		}
+	}
+}
+
+type poolStore struct{ pool *pgxpool.Pool }
+
+func PoolStore(pool *pgxpool.Pool) Store { return poolStore{pool} }
+
+func (s poolStore) Upsert(ctx context.Context, rows map[ViewKey]int64) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		batch := &pgx.Batch{}
+		for k, n := range rows {
+			batch.Queue(`
+				with c as (
+					insert into open_counters(key, last_seen_day) values ($1, $2::date)
+					on conflict (key) do update set last_seen_day = greatest(open_counters.last_seen_day, excluded.last_seen_day)
+					returning id)
+				insert into open_counter_views_daily(counter_id, day, views) select id, $2::date, $3 from c
+				on conflict (counter_id, day) do update set views = open_counter_views_daily.views + excluded.views`,
+				k.Key, k.Day, n)
+		}
+		return tx.SendBatch(ctx, batch).Close()
+	})
+}
+
+func (s poolStore) Totals(ctx context.Context, keys []string) (map[string]int64, error) {
+	rows, err := s.pool.Query(ctx, `
+		select c.key, coalesce(sum(v.views), 0)::bigint from open_counters c
+		left join open_counter_views_daily v on v.counter_id = c.id
+		where c.key = any($1) group by c.key`, keys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int64{}
+	for rows.Next() {
+		var k string
+		var n int64
+		if err := rows.Scan(&k, &n); err != nil {
+			return nil, err
+		}
+		out[k] = n
+	}
+	return out, rows.Err()
+}
+```
+
+Known edge: a key that exists in the DB but has not been loaded yet is treated as new on its first view, and spends a new-counter token. That is acceptable (the cap only bounds the creation rate) and keeps the hot path DB-free.
+
+- [ ] **Step 4: Run and commit the recorder**
+
+Run: `go test -race ./internal/opencounters -count=1`
+Expected: `ok`.
+
+```bash
+git add internal/opencounters/recorder.go internal/opencounters/recorder_test.go
+git commit -m "feat(opencounters): buffer counter views with lazy totals"
+```
+
+- [ ] **Step 5: Write the failing handler test** (`handler_test.go`)
+
+```go
+package opencounters
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"supermetry/internal/pixels"
+)
+
+func newCounterServer(t *testing.T, enabled bool) (*http.ServeMux, *memStore) {
+	t.Helper()
+	store := &memStore{views: map[ViewKey]int64{}, totals: map[string]int64{}}
+	h := &Handler{
+		Recorder: NewRecorder(store, 50, 500), Proxy: pixels.NewProxyLimiter(),
+		Blocklist: map[string]bool{"github.com/spam": true}, Branded: true, HomepageURL: "https://supermetry.example",
+		Now: func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) },
+	}
+	mux := http.NewServeMux()
+	Register(mux, h, enabled)
+	return mux, store
+}
+
+func hit(mux *http.ServeMux, path, ua string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.Header.Set("User-Agent", ua)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestDisabledReturns404(t *testing.T) {
+	mux, _ := newCounterServer(t, false)
+	if res := hit(mux, "/c/github.com/a.svg", "github-camo (1)"); res.Code != http.StatusNotFound {
+		t.Fatalf("status = %d", res.Code)
+	}
+}
+
+func TestOnlyProxiedViewsCount(t *testing.T) {
+	mux, store := newCounterServer(t, true)
+	for _, tc := range []struct{ path, ua string }{
+		{"/c/github.com/Velixio/Supermetry.svg", "github-camo (1)"},
+		{"/c/github.com/velixio/supermetry.gif", "github-camo (1)"},
+		{"/c/github.com/velixio/supermetry.svg", "curl/8.5.0"},
+		{"/c/github.com/spam.svg", "github-camo (1)"},
+	} {
+		res := hit(mux, tc.path, tc.ua)
+		if res.Code != 200 || res.Header().Get("Cache-Control") != "no-store, max-age=0" {
+			t.Fatalf("%s: %d %v", tc.path, res.Code, res.Header())
+		}
+	}
+	h := hit(mux, "/c/github.com/bad_owner.svg", "github-camo (1)")
+	if h.Code != http.StatusNotFound {
+		t.Fatalf("invalid key status = %d", h.Code)
+	}
+	_ = context.Background()
+	_ = mux // flush through the handler's recorder
+	if err := handlerOf(mux).Recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if store.views[ViewKey{"github.com/velixio/supermetry", "2026-10-14"}] != 2 || len(store.views) != 1 {
+		t.Fatalf("views = %v", store.views)
+	}
+	svg := hit(mux, "/c/github.com/velixio/supermetry.svg", "curl/8.5.0").Body.String()
+	if !strings.Contains(svg, ">views<") || !strings.Contains(svg, ">2<") {
+		t.Fatalf("badge = %s", svg)
+	}
+}
+```
+
+Simplify the flush access: have `newCounterServer` also return the `*Handler` (replace `handlerOf(mux)` with that return value) — write it that way from the start:
+
+```go
+func newCounterServer(t *testing.T, enabled bool) (*http.ServeMux, *memStore, *Handler)
+```
+
+and in the test `mux, store, h := newCounterServer(t, true)` then `h.Recorder.Flush(...)`; drop the `_ = ...` lines.
+
+- [ ] **Step 6: Implement `handler.go`**
+
+```go
+package opencounters
+
+import (
+	"hash/fnv"
+	"net/http"
+	"strconv"
+	"time"
+
+	"supermetry/internal/links"
+	"supermetry/internal/pixels"
+)
+
+type Handler struct {
+	Recorder    *Recorder
+	Proxy       *pixels.ProxyLimiter
+	Blocklist   map[string]bool
+	Branded     bool
+	HomepageURL string
+	Now         func() time.Time
+	Stats       StatsFunc // Task 12; nil serves 404 for the page
+}
+
+// Register mounts /c/ routes; when disabled every /c/ path is 404.
+func Register(mux *http.ServeMux, h *Handler, enabled bool) {
+	if !enabled {
+		mux.HandleFunc("GET /c/", http.NotFound)
+		return
+	}
+	mux.Handle("GET /c/{rest...}", h)
+}
+
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	key, ext, ok := ParsePath(r.PathValue("rest"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if ext == "" {
+		h.servePage(w, r, key)
+		return
+	}
+	if !h.Blocklist[key] && r.Method == http.MethodGet {
+		if proxy, isProxy := pixels.DetectProxy(r.UserAgent()); isProxy && h.Proxy.Allow(hashKey(key), proxy) {
+			h.Recorder.View(key, h.Now().UTC().Format(time.DateOnly))
+		}
+	}
+	var body []byte
+	contentType := "image/gif"
+	if ext == "svg" {
+		total := int64(0)
+		if !h.Blocklist[key] {
+			total = h.Recorder.Total(key)
+		}
+		style, color := pixels.ParseBadgeQuery(r.URL.Query())
+		body, contentType = pixels.RenderBadge(pixels.BadgeOptions{Label: "views", Count: total, Style: style, Color: color, Branded: h.Branded}), "image/svg+xml"
+	} else {
+		body = links.TransparentGIF
+	}
+	header := w.Header()
+	header.Set("Content-Type", contentType)
+	header.Set("Cache-Control", "no-store, max-age=0")
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(http.StatusOK)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write(body)
+	}
+}
+
+func hashKey(key string) int64 {
+	f := fnv.New64a()
+	_, _ = f.Write([]byte(key))
+	return int64(f.Sum64() >> 1)
+}
+```
+
+Days are UTC (counters have no project time zone). Until Task 12 lands, add a temporary `func (h *Handler) servePage(w http.ResponseWriter, r *http.Request, _ string) { http.NotFound(w, r) }` and `type StatsFunc func()` in `page.go` so this commit builds; Task 12 replaces both.
+
+- [ ] **Step 7: Run and commit the handler**
+
+Run: `go vet ./internal/opencounters && go test -race ./internal/opencounters -count=1`
+Expected: `ok`.
+
+```bash
+git add internal/opencounters/handler.go internal/opencounters/handler_test.go internal/opencounters/page.go
+git commit -m "feat(opencounters): serve counter badges for proxied views"
+```
+
+### Task 12: Open counter stats page, cleanup job and server wiring
+
+**Files:**
+- Modify: `internal/opencounters/page.go` (real page), Create: `internal/opencounters/page_test.go`
+- Create: `internal/opencounters/cleanup.go`, `internal/opencounters/cleanup_test.go`
+- Modify: `internal/api/router.go` (`OpenCounters *opencounters.Handler`, `OpenCountersEnabled bool`; call `opencounters.Register`)
+- Modify: `cmd/supermetry/serve.go` (build recorder/handler when `cfg.OpenCounters`; run recorder; add daily `open-counters-cleanup` job next to `dict-gc` at line ~991)
+
+**Interfaces:**
+- Produces:
+  - `type DayCount struct { Day string; Views int64 }`
+  - `type StatsFunc func(ctx context.Context, key string, from, to string) ([]DayCount, error)`; `PoolStats(pool) StatsFunc`
+  - `func RenderSparkline(days []DayCount, width, height int) string` (inline SVG `<polyline>`)
+  - `func Cleanup(ctx, pool *pgxpool.Pool, today time.Time) (deletedCounters int64, err error)` — deletes counters with `last_seen_day < today-365` and daily rows with `day < today-400`
+
+- [ ] **Step 1: Write the failing tests**
+
+`page_test.go`:
+
+```go
+package opencounters
+
+import (
+	"context"
+	"net/http"
+	"strings"
+	"testing"
+)
+
+func TestStatsPage(t *testing.T) {
+	mux, _, h := newCounterServer(t, true)
+	h.Stats = func(_ context.Context, key, from, to string) ([]DayCount, error) {
+		if key != "github.com/velixio" || from != "2026-09-15" || to != "2026-10-14" {
+			t.Errorf("stats args %s %s %s", key, from, to)
+		}
+		return []DayCount{{"2026-10-13", 3}, {"2026-10-14", 5}}, nil
+	}
+	res := hit(mux, "/c/github.com/Velixio", "Mozilla/5.0")
+	body := res.Body.String()
+	if res.Code != 200 || !strings.HasPrefix(res.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("%d %v", res.Code, res.Header())
+	}
+	for _, want := range []string{"github.com/velixio", "<polyline", "Track your own site with Supermetry", `href="https://supermetry.example/?ref=counter"`, "views, not unique visitors"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing %q", want)
+		}
+	}
+	if strings.Contains(body, "<script") {
+		t.Error("page must not ship scripts")
+	}
+	_ = http.StatusOK
+}
+
+func TestRenderSparklineEmptyAndFlat(t *testing.T) {
+	if s := RenderSparkline(nil, 300, 40); !strings.Contains(s, "<svg") {
+		t.Fatalf("empty = %s", s)
+	}
+	if s := RenderSparkline([]DayCount{{"2026-10-14", 0}}, 300, 40); strings.Contains(s, "NaN") {
+		t.Fatalf("flat = %s", s)
+	}
+}
+```
+
+`cleanup_test.go`:
+
+```go
+package opencounters
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
+)
+
+func TestCleanupDeletesIdleCountersAndOldRows(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var idle, live int64
+	_ = pool.QueryRow(ctx, `insert into open_counters(key,last_seen_day) values ('github.com/idle','2025-10-13') returning id`).Scan(&idle)
+	_ = pool.QueryRow(ctx, `insert into open_counters(key,last_seen_day) values ('github.com/live','2026-10-14') returning id`).Scan(&live)
+	_, _ = pool.Exec(ctx, `insert into open_counter_views_daily values ($1,'2025-10-13',1),($2,'2025-09-01',7),($2,'2026-10-14',2)`, idle, live)
+	n, err := Cleanup(ctx, pool, time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC))
+	if err != nil || n != 1 {
+		t.Fatalf("deleted = %d, %v", n, err)
+	}
+	var rows int64
+	_ = pool.QueryRow(ctx, `select coalesce(sum(views),0) from open_counter_views_daily`).Scan(&rows)
+	if rows != 2 {
+		t.Fatalf("remaining views = %d, want 2", rows)
+	}
+}
+```
+
+(2025-10-13 is 366 days before 2026-10-14, so `idle` goes; 2025-09-01 is 408 days old, so that row goes.)
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `go test ./internal/opencounters -run 'StatsPage|Sparkline|Cleanup' -count=1`
+Expected: FAIL to compile, `undefined: DayCount`.
+
+- [ ] **Step 3: Implement `page.go`** (replace the Task 11 stub)
+
+```go
+package opencounters
+
+import (
+	"context"
+	"fmt"
+	"html/template"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"supermetry/internal/pixels"
+)
+
+type DayCount struct {
+	Day   string
+	Views int64
+}
+
+type StatsFunc func(ctx context.Context, key, from, to string) ([]DayCount, error)
+
+func PoolStats(pool *pgxpool.Pool) StatsFunc {
+	return func(ctx context.Context, key, from, to string) ([]DayCount, error) {
+		rows, err := pool.Query(ctx, `select v.day::text, v.views from open_counter_views_daily v
+			join open_counters c on c.id = v.counter_id where c.key=$1 and v.day between $2::date and $3::date order by v.day`, key, from, to)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var out []DayCount
+		for rows.Next() {
+			var d DayCount
+			if err := rows.Scan(&d.Day, &d.Views); err != nil {
+				return nil, err
+			}
+			out = append(out, d)
+		}
+		return out, rows.Err()
+	}
+}
+
+func RenderSparkline(days []DayCount, width, height int) string {
+	var max int64 = 1
+	for _, d := range days {
+		if d.Views > max {
+			max = d.Views
+		}
+	}
+	points := make([]string, 0, len(days))
+	for i, d := range days {
+		x := 0
+		if len(days) > 1 {
+			x = i * width / (len(days) - 1)
+		}
+		y := height - int(d.Views*int64(height-2)/max) - 1
+		points = append(points, fmt.Sprintf("%d,%d", x, y))
+	}
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" role="img" aria-label="Views over the last 30 days"><polyline fill="none" stroke="#5b3cf0" stroke-width="2" points="%s"/></svg>`,
+		width, height, width, height, strings.Join(points, " "))
+}
+
+var pageTmpl = template.Must(template.New("page").Parse(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{.Key}} views</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 16px;color:#1c1a2b;background:#fbfbfd}
+@media (prefers-color-scheme:dark){body{color:#f4f3f8;background:#151320}}h1{font-size:1.25rem;word-break:break-all}.total{font-size:2.5rem;font-weight:700}small{opacity:.7}</style>
+</head><body><h1>{{.Key}}</h1><p class="total">{{.Total}}</p><p><small>views, not unique visitors. Last 30 days:</small></p>
+{{.Sparkline}}
+<p><a href="{{.Homepage}}/?ref=counter">Track your own site with Supermetry</a></p></body></html>`))
+
+func (h *Handler) servePage(w http.ResponseWriter, r *http.Request, key string) {
+	if h.Stats == nil || h.Blocklist[key] {
+		http.NotFound(w, r)
+		return
+	}
+	today := h.Now().UTC()
+	from, to := today.AddDate(0, 0, -29).Format(time.DateOnly), today.Format(time.DateOnly)
+	days, err := h.Stats(r.Context(), key, from, to)
+	if err != nil {
+		http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
+	_ = pageTmpl.Execute(w, map[string]any{
+		"Key": key, "Total": pixels.FormatCount(h.Recorder.Total(key)),
+		"Sparkline": template.HTML(RenderSparkline(days, 300, 40)), // built from integers only
+		"Homepage":  strings.TrimRight(h.HomepageURL, "/"),
+	})
+}
+```
+
+The page reads the DB (stats page, not the counting hot path), cached for 5 minutes by the CDN. Remove the Task 11 stub `StatsFunc`.
+
+- [ ] **Step 4: Implement `cleanup.go`**
+
+```go
+package opencounters
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Cleanup removes counters idle for 365 days and daily rows older than 400.
+// These tables are small and unpartitioned, so DELETE is used (documented
+// exception to the drop-partition rule).
+func Cleanup(ctx context.Context, pool *pgxpool.Pool, today time.Time) (int64, error) {
+	day := today.UTC().Format(time.DateOnly)
+	tag, err := pool.Exec(ctx, `delete from open_counters where last_seen_day < $1::date - 365`, day)
+	if err != nil {
+		return 0, fmt.Errorf("delete idle open counters: %w", err)
+	}
+	if _, err := pool.Exec(ctx, `delete from open_counter_views_daily where day < $1::date - 400`, day); err != nil {
+		return 0, fmt.Errorf("delete old open counter views: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+```
+
+- [ ] **Step 5: Run and commit page + cleanup**
+
+Run: `go vet ./internal/opencounters && go test ./internal/opencounters -count=1`
+Expected: `ok`.
+
+```bash
+git add internal/opencounters/page.go internal/opencounters/page_test.go
+git commit -m "feat(opencounters): add public counter stats page"
+git add internal/opencounters/cleanup.go internal/opencounters/cleanup_test.go
+git commit -m "feat(opencounters): clean up idle counters and old rows"
+```
+
+- [ ] **Step 6: Wire into the server**
+
+`internal/api/router.go` deps: `OpenCounters *opencounters.Handler` and `OpenCountersEnabled bool`; in routes, after the pixel block: `if deps.OpenCounters != nil { opencounters.Register(mux, deps.OpenCounters, deps.OpenCountersEnabled) } else { opencounters.Register(mux, nil, false) }`.
+
+`cmd/supermetry/serve.go`:
+
+```go
+	var counterHandler *opencounters.Handler
+	if cfg.OpenCounters {
+		blocklist, err := opencounters.LoadBlocklist(cfg.OpenCounterBlocklist)
+		if err != nil {
+			return fmt.Errorf("load open counter blocklist: %w", err)
+		}
+		counterRecorder := opencounters.NewRecorder(opencounters.PoolStore(pool), 50, 500)
+		counterHandler = &opencounters.Handler{
+			Recorder: counterRecorder, Proxy: pixels.NewProxyLimiter(), Blocklist: blocklist,
+			Branded: cfg.BadgeBranding, HomepageURL: cfg.HomepageURL, Now: settings.clock.Now,
+			Stats: opencounters.PoolStats(pool),
+		}
+		// start counterRecorder.Run alongside linkRecorder.Run / pixelRecorder.Run
+	}
+```
+
+Pass `OpenCounters: counterHandler, OpenCountersEnabled: cfg.OpenCounters` into router deps. Add the job (only when enabled):
+
+```go
+		{Name: "open-counters-cleanup", Every: 24 * time.Hour, Run: func(ctx context.Context) error {
+			if !cfg.OpenCounters {
+				return nil
+			}
+			_, err := opencounters.Cleanup(ctx, pool, clk.Now())
+			return err
+		}},
+```
+
+Add a router test in `internal/api` (style of the existing router tests: `grep -n "func Test" internal/api/router_test.go | head`) asserting `GET /c/github.com/a.svg` is 404 with the default config.
+
+- [ ] **Step 7: Verify and commit wiring + docs**
+
+Run: `go build ./... && go vet ./... && go test ./internal/api ./cmd/supermetry ./internal/opencounters -count=1 && make api-inventory`
+Expected: all `ok`; document `/c/{rest}` (public, off by default) in `openapi.yaml` so the inventory passes.
+
+```bash
+git add internal/api/router.go internal/api/router_test.go cmd/supermetry/serve.go
+git commit -m "feat(server): mount open counters behind SUPERMETRY_OPEN_COUNTERS"
+git add internal/api/openapi.yaml
+git commit -m "docs(api): document open counter endpoints"
+```
