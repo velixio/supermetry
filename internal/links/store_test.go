@@ -3,6 +3,7 @@ package links
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -115,9 +116,9 @@ func TestRecorderFlushPersistsBatchesAndStatsMatchFixture(t *testing.T) {
 	}
 	recorder.Click(link.ID, "2026-10-11", "", "", "tablet")
 	recorder.Click(link.ID, "2026-10-12", "NP", "", "desktop")
-	recorder.Impression(siteID, "2026-10-11", "spring", "NP")
-	recorder.Impression(siteID, "2026-10-11", "spring", "NP")
-	recorder.Impression(siteID, "2026-10-12", "", "US")
+	recorder.Impression(siteID, "2026-10-11", "spring", Place{Country: "NP"})
+	recorder.Impression(siteID, "2026-10-11", "spring", Place{Country: "NP"})
+	recorder.Impression(siteID, "2026-10-12", "", Place{Country: "US"})
 	if got := recorder.Pending(link.ID); got != 8 {
 		t.Fatalf("pending = %d", got)
 	}
@@ -342,5 +343,44 @@ func TestSiteViewsRegisterAndUnregisterBoundAllocation(t *testing.T) {
 	views.Unregister(1, "known")
 	if _, _, ok := views.Snapshot(1, "known", "2026-10-14", 1); ok || len(views.entries) != 0 {
 		t.Fatal("unregister retained cache state")
+	}
+}
+
+func TestImpressionStatsBreakDownSourcesCountriesAndCities(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	recorder := NewRecorder(pool, RecorderOptions{})
+	recorder.Views = NewSiteViews()
+	recorder.Views.Register(siteID, "readme")
+	if _, err := pool.Exec(ctx, `insert into tracking_pixels(site_id,name,tag) values ($1,'README','readme')`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		recorder.Impression(siteID, "2026-10-11", "readme", Place{Source: SourceGitHub})
+	}
+	for range 2 {
+		recorder.Impression(siteID, "2026-10-11", "readme", Place{Country: "NP", City: "Kathmandu", Source: SourceOther})
+	}
+	recorder.Impression(siteID, "2026-10-12", "readme", Place{Country: "NP", City: "Pokhara", Source: SourceOther})
+	recorder.Impression(siteID, "2026-10-12", "readme", Place{Country: "US", Source: SourceOther})
+	recorder.Impression(siteID, "2026-10-12", "readme", Place{Source: "whatever"}) // anything but github is other
+	if err := recorder.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	stats, err := ImpressionStats(ctx, pool, siteID, "2026-10-11", "2026-10-12", "readme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Total != 8 {
+		t.Fatalf("total = %d, want 8", stats.Total)
+	}
+	if want := []PlaceCount{{Source: "other", Impressions: 5}, {Source: "github", Impressions: 3}}; fmt.Sprint(stats.Sources) != fmt.Sprint(want) {
+		t.Fatalf("sources = %+v, want %+v", stats.Sources, want)
+	}
+	if want := []PlaceCount{{Country: "NP", Impressions: 3}, {Country: "US", Impressions: 1}}; fmt.Sprint(stats.Countries) != fmt.Sprint(want) {
+		t.Fatalf("countries = %+v, want %+v", stats.Countries, want)
+	}
+	if want := []PlaceCount{{Country: "NP", City: "Kathmandu", Impressions: 2}, {Country: "NP", City: "Pokhara", Impressions: 1}}; fmt.Sprint(stats.Cities) != fmt.Sprint(want) {
+		t.Fatalf("cities = %+v, want %+v", stats.Cities, want)
 	}
 }

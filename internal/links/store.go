@@ -252,15 +252,27 @@ type ImpressionSummary struct {
 	Total  int64 `json:"total"`
 }
 
+// PlaceCount is one row of a "where from" breakdown. A source row has only Source set,
+// a country row only Country, a city row Country and City.
+type PlaceCount struct {
+	Source      string `json:"source,omitempty"`
+	Country     string `json:"country,omitempty"`
+	City        string `json:"city,omitempty"`
+	Impressions int64  `json:"impressions"`
+}
+
 type PixelStats struct {
-	Summary ImpressionSummary `json:"summary"`
-	Total   int64             `json:"total"`
-	Daily   []DayCount        `json:"daily"`
+	Summary   ImpressionSummary `json:"summary"`
+	Total     int64             `json:"total"`
+	Daily     []DayCount        `json:"daily"`
+	Sources   []PlaceCount      `json:"sources"`
+	Countries []PlaceCount      `json:"countries"`
+	Cities    []PlaceCount      `json:"cities"`
 }
 
 // ImpressionStats aggregates one campaign's pixel rows for the inclusive day range.
 func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to, campaign string) (PixelStats, error) {
-	stats := PixelStats{Daily: []DayCount{}}
+	stats := PixelStats{Daily: []DayCount{}, Sources: []PlaceCount{}, Countries: []PlaceCount{}, Cities: []PlaceCount{}}
 	rows, err := db.Query(ctx, `
 		select day::text, sum(impressions)::bigint from pixel_impressions_daily
 		where site_id=$1 and day between $2::date and $3::date and campaign = $4
@@ -280,6 +292,36 @@ func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to, campa
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return PixelStats{}, err
+	}
+	const scope = ` from pixel_impressions_daily where site_id=$1 and day between $2::date and $3::date and campaign=$4`
+	for _, q := range []struct {
+		sql  string
+		into *[]PlaceCount
+		scan func(pgx.Rows, *PlaceCount) error
+	}{
+		{`select source, sum(impressions)::bigint as n` + scope + ` group by source order by n desc, source`, &stats.Sources,
+			func(r pgx.Rows, p *PlaceCount) error { return r.Scan(&p.Source, &p.Impressions) }},
+		{`select country, sum(impressions)::bigint as n` + scope + ` and country <> '' group by country order by n desc, country limit 10`, &stats.Countries,
+			func(r pgx.Rows, p *PlaceCount) error { return r.Scan(&p.Country, &p.Impressions) }},
+		{`select country, city, sum(impressions)::bigint as n` + scope + ` and city <> '' group by country, city order by n desc, country, city limit 10`, &stats.Cities,
+			func(r pgx.Rows, p *PlaceCount) error { return r.Scan(&p.Country, &p.City, &p.Impressions) }},
+	} {
+		places, err := db.Query(ctx, q.sql, siteID, from, to, campaign)
+		if err != nil {
+			return PixelStats{}, err
+		}
+		for places.Next() {
+			var p PlaceCount
+			if err := q.scan(places, &p); err != nil {
+				places.Close()
+				return PixelStats{}, err
+			}
+			*q.into = append(*q.into, p)
+		}
+		places.Close()
+		if err := places.Err(); err != nil {
+			return PixelStats{}, err
+		}
 	}
 	return stats, nil
 }
