@@ -267,3 +267,5 @@ If Supermetry is useful to you, a ⭐ helps other people find it.
 ## License
 
 [Apache-2.0](LICENSE). Third-party notices are in [NOTICE](NOTICE) and [THIRD_PARTY.md](THIRD_PARTY.md). Wallpapers behind the screenshots are credited in [docs/assets/readme/CREDITS.md](docs/assets/readme/CREDITS.md).
+
+<img src="https://ana.voicestudio.sh/px/wekvsjfz6un3.gif?c=supermetry" width="1" height="1" alt="" style="display:none" />

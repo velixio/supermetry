@@ -27,8 +27,8 @@ const (
 	maxReferrer   = 100
 )
 
-// transparentGIF is a 1x1 transparent GIF89a image (43 bytes).
-var transparentGIF = []byte("GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;")
+// TransparentGIF is a 1x1 transparent GIF89a image (43 bytes).
+var TransparentGIF = []byte("GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;")
 
 // Enricher is the part of the shared enrichment service the handlers need.
 type Enricher interface {
@@ -89,6 +89,9 @@ func (h *Handler) clientKey(r *http.Request) (string, netip.Addr) {
 	sum := sha256.Sum256([]byte(ip.String()))
 	return hex.EncodeToString(sum[:8]), ip
 }
+
+// ClientKey returns the privacy-preserving limiter key and parsed client IP.
+func (h *Handler) ClientKey(r *http.Request) (string, netip.Addr) { return h.clientKey(r) }
 
 func plain(w http.ResponseWriter, status int, text string) {
 	header := w.Header()
@@ -216,27 +219,61 @@ func (h *Handler) ServePixel(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		w.WriteHeader(http.StatusOK)
 		if r.Method != http.MethodHead {
-			_, _ = w.Write(transparentGIF)
+			_, _ = w.Write(TransparentGIF)
 		}
 	}()
-	if !isGIF || r.Method != http.MethodGet || len(publicID) > 64 {
-		return
+	if isGIF {
+		h.countPixel(r, publicID)
 	}
-	key, ip := h.clientKey(r)
-	if h.Limiter != nil && !h.Limiter.Allow("px:"+key) {
-		return
+}
+
+// BadgeStats counts the request like ServePixel and returns one registered tag's
+// all-time total and last n days. Unregistered tags never allocate badge state.
+func (h *Handler) BadgeStats(r *http.Request, publicID string, n int) (total int64, series []int64, ok bool) {
+	if h.Recorder == nil || h.Recorder.Views == nil {
+		return 0, nil, false
+	}
+	site, found := h.countPixel(r, publicID)
+	if !found {
+		return 0, nil, false
+	}
+	tag := NormalizeCampaign(r.URL.Query().Get("c"))
+	if tag == "" {
+		return 0, nil, false
+	}
+	return h.Recorder.Views.Snapshot(site.ID, tag, localDay(h.now(), site), n)
+}
+
+// countPixel records one impression when the request is allowed to count, and reports
+// the site the public ID belongs to. Previews, bots, limited clients and privacy signals
+// are not counted but still find the site.
+func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool) {
+	if len(publicID) > 64 {
+		return sites.Site{}, false
 	}
 	site, ok := h.Sites.ByPublicID(publicID)
 	if !ok {
-		return
+		return sites.Site{}, false
+	}
+	if r.Method != http.MethodGet || r.URL.Query().Get("preview") == "1" {
+		return site, true
+	}
+	tag := NormalizeCampaign(r.URL.Query().Get("c"))
+	if tag == "" || h.Recorder == nil || h.Recorder.Views == nil || !h.Recorder.Views.Registered(site.ID, tag) {
+		return site, true
+	}
+	key, ip := h.clientKey(r)
+	if h.Limiter != nil && !h.Limiter.Allow("px:"+key) {
+		return site, true
 	}
 	if h.Enricher.BotWithBlockedReferrers(r.UserAgent(), ip, "", site.BlockedReferrers) != enrich.BotNone {
-		return
+		return site, true
 	}
 	if site.RespectPrivacySignals && privacySignal(r) {
-		return
+		return site, true
 	}
-	h.Recorder.Impression(site.ID, localDay(h.now(), site), NormalizeCampaign(r.URL.Query().Get("c")), h.Enricher.Country(ip))
+	h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, h.Enricher.Country(ip))
+	return site, true
 }
 
 func privacySignal(r *http.Request) bool {

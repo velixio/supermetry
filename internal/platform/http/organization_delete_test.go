@@ -58,7 +58,7 @@ func newOrgDeleteFixture(t *testing.T) orgDeleteFixture {
 
 func (f orgDeleteFixture) createSite(t *testing.T, name string) int32 {
 	t.Helper()
-	site, err := f.sites.Create(context.Background(), f.principal, name, []string{name + ".example.test"}, "UTC", 30, "USD")
+	site, err := f.sites.Create(context.Background(), f.principal, sitesvc.CreateInput{Name: name, Hosts: []string{name + ".example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,7 @@ func TestDeleteOrgSerializesConcurrentSiteCreation(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				<-start
-				_, createErr = f.sites.Create(context.Background(), f.principal, "racing", []string{"racing.example.test"}, "UTC", 30, "USD")
+				_, createErr = f.sites.Create(context.Background(), f.principal, sitesvc.CreateInput{Name: "racing", Hosts: []string{"racing.example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 			}()
 			go func() {
 				defer wg.Done()

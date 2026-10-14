@@ -51,7 +51,23 @@ export type LinkStats = {
 
 export type PixelSnippet = { campaign: string; path: string; url: string; html: string }
 
+export type TrackingPixel = {
+  id: number
+  site_id: number
+  name: string
+  tag: string
+  gif_url: string
+  svg_url: string
+  html: string
+  total: number
+  views_30d: number
+  created_at: string
+}
+
+export type TrackingPixelInput = { name: string; tag?: string }
+
 export type PixelStats = {
+  summary: { today: number; last_7: number; last_30: number; total: number }
   from: string
   to: string
   total: number

@@ -44,6 +44,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 	if err := deleteExpiredDropStats(ctx, pool, now); err != nil {
 		return nil, err
 	}
+	if err := deleteExpiredPixelViews(ctx, pool, now); err != nil {
+		return nil, err
+	}
 	var expired []db.Partition
 	for _, table := range []string{"events", "sessions"} {
 		partitions, err := db.ListPartitions(ctx, pool, table)
@@ -114,6 +117,22 @@ func Erase(ctx context.Context, pool *pgxpool.Pool, siteID int32, batch int, pau
 	if batch <= 0 {
 		return fmt.Errorf("erase batch must be positive")
 	}
+	for {
+		tag, err := pool.Exec(ctx, `delete from pixel_views_daily
+			where ctid in (
+				select v.ctid from pixel_views_daily v join pixels p on p.id=v.pixel_id
+				where p.site_id=$1 limit $2
+			)`, siteID, batch)
+		if err != nil {
+			return fmt.Errorf("erase site %d from pixel_views_daily: %w", siteID, err)
+		}
+		if tag.RowsAffected() < int64(batch) {
+			break
+		}
+		if err := wait(ctx, pause); err != nil {
+			return err
+		}
+	}
 	for _, table := range eraseTables {
 		identifier := pgx.Identifier{table}.Sanitize()
 		query := fmt.Sprintf(`DELETE FROM %s
@@ -132,6 +151,20 @@ WHERE (tableoid, ctid) IN (
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// deleteExpiredPixelViews applies each pixel project's retention class to its
+// small, unpartitioned daily table, in the project's time zone.
+func deleteExpiredPixelViews(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	_, err := pool.Exec(ctx, `
+		delete from pixel_views_daily v using pixels p, sites s
+		where v.pixel_id = p.id and p.site_id = s.id
+		  and s.retention_class <> 0
+		  and v.day < (($1::timestamptz at time zone s.timezone)::date - s.retention_class - 1)`, now)
+	if err != nil {
+		return fmt.Errorf("delete expired pixel views: %w", err)
 	}
 	return nil
 }

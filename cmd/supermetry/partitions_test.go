@@ -21,7 +21,7 @@ func TestPartitionsJobCoversTwoPreviousUTCDays(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
-	jobs := scheduledJobs(pool, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, config.ReplayEnv{}, "", nil, nil, partitionClock{now: now})
+	jobs := scheduledJobs(pool, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, config.ReplayEnv{}, "", nil, nil, false, partitionClock{now: now})
 	for _, job := range jobs {
 		if job.Name != "partitions" {
 			continue

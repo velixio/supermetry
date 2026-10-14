@@ -9,5 +9,5 @@ function PixelRoute() {
   const { org, site: slug } = Route.useParams()
   const { membership, site } = useSite(org, slug)
   if (!membership || !site) return null
-  return <PixelPage org={org} siteId={site.id} siteSlug={slug} timezone={site.timezone || 'UTC'} />
+  return <PixelPage canManage={membership.role !== 'viewer'} org={org} siteId={site.id} siteSlug={slug} />
 }

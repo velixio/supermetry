@@ -41,6 +41,8 @@ type Recorder struct {
 	flushEvery time.Duration
 	maxKeys    int
 	wake       chan struct{}
+	// Views, when set, mirrors recorded impressions for in-memory badges.
+	Views *SiteViews
 
 	mu          sync.Mutex
 	clicks      map[clickKey]int64
@@ -108,6 +110,9 @@ func (r *Recorder) Click(linkID int64, day, country, referrer, device string) {
 
 // Impression records one pixel load. It never blocks on the database.
 func (r *Recorder) Impression(siteID int32, day, campaign, country string) {
+	if r == nil || campaign == "" || r.Views == nil || !r.Views.Registered(siteID, campaign) {
+		return
+	}
 	key := impressionKey{siteID, day, campaign, country}
 	r.mu.Lock()
 	if _, ok := r.impressions[key]; !ok && len(r.clicks)+len(r.impressions) >= r.maxKeys {
@@ -118,6 +123,7 @@ func (r *Recorder) Impression(siteID int32, day, campaign, country string) {
 	r.impressions[key]++
 	full := len(r.clicks)+len(r.impressions) >= flushThreshold
 	r.mu.Unlock()
+	r.Views.Add(siteID, campaign, day, 1)
 	if full {
 		r.nudge()
 	}
@@ -201,7 +207,9 @@ func (r *Recorder) Flush(ctx context.Context) error {
 	for key, n := range impressions {
 		batch.Queue(`
 			insert into pixel_impressions_daily(site_id, day, campaign, country, impressions)
-			select $1, $2::date, $3, $4, $5 where exists (select 1 from sites where id=$1)
+			select $1, $2::date, $3, $4, $5 where exists (
+				select 1 from tracking_pixels where site_id=$1 and tag=$3
+			)
 			on conflict (site_id, day, campaign, country)
 			do update set impressions = pixel_impressions_daily.impressions + excluded.impressions`,
 			key.siteID, key.day, key.campaign, key.country, n)

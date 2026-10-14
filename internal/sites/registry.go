@@ -8,11 +8,17 @@ import (
 	"supermetry/internal/db"
 )
 
+const (
+	KindWeb   = "web"
+	KindPixel = "pixel"
+)
+
 // Site is the analytics-core view of a tracked website.
 type Site struct {
 	ID                    int32
 	OrgID                 int64 // owning organization; site checks compare it with the caller's org
 	PublicID              string
+	Kind                  string // KindWeb or KindPixel; fixed at creation
 	Slug                  string // readable per-organization URL segment; PublicID also resolves
 	TZ                    *time.Location
 	Retention             db.RetentionClass

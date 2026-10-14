@@ -42,6 +42,8 @@ import (
 	"supermetry/internal/integrations"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
+	"supermetry/internal/opencounters"
+	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
@@ -322,6 +324,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	overviewService := sitesvc.NewOverview(platformStore, sessions)
 	overviewService.SetClock(settings.clock.Now)
 	linkRecorder := links.NewRecorder(pool, links.RecorderOptions{})
+	linkRecorder.Views = links.NewSiteViews()
+	if err := linkRecorder.Views.Reload(ctx, pool); err != nil {
+		return fmt.Errorf("load pixel impressions: %w", err)
+	}
 	linkHandler := &links.Handler{
 		Lookup: func(ctx context.Context, slug string) (links.Link, error) {
 			return links.BySlug(ctx, pool, slug)
@@ -330,17 +336,52 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Limiter: ingest.NewTokenBuckets(10, 60), MissLimiter: ingest.NewTokenBuckets(1, 20),
 		TrustedProxies: cfg.TrustedProxies, Now: settings.clock.Now,
 	}
+	pixelTotals := pixels.NewTotalCache()
+	pixelRegistry := pixels.NewRegistry(
+		func(ctx context.Context) ([]pixels.Pixel, error) { return pixels.All(ctx, pool) },
+		func(ctx context.Context) (map[int64]int64, error) { return pixels.Totals(ctx, pool) },
+		pixelTotals,
+	)
+	pixelRegistry.SeedDays = func(ctx context.Context, since string) (map[int64]map[string]int64, error) {
+		return pixels.RecentDayViews(ctx, pool, since)
+	}
+	if err := pixelRegistry.Reload(ctx); err != nil {
+		return fmt.Errorf("load pixels: %w", err)
+	}
+	pixelRecorder := pixels.NewRecorder(pixels.PoolWriter(pool), pixelTotals)
+	pixelHandler := &pixels.Handler{
+		Pixels: pixelRegistry, Recorder: pixelRecorder, Sites: registry, Enricher: enricher,
+		IPLimiter: ingest.NewTokenBuckets(10, 60), ProxyLimiter: pixels.NewProxyLimiter(),
+		Fallback: linkHandler.ServePixel, LegacyBadge: linkHandler.BadgeStats, ClientIP: linkHandler.ClientKey,
+		Branded: cfg.BadgeBranding, Now: settings.clock.Now,
+	}
+	var counterRecorder *opencounters.Recorder
+	var counterHandler *opencounters.Handler
+	if cfg.OpenCounters {
+		blocklist, err := opencounters.LoadBlocklist(cfg.OpenCounterBlocklist)
+		if err != nil {
+			return fmt.Errorf("load open counter blocklist: %w", err)
+		}
+		counterRecorder = opencounters.NewRecorder(opencounters.PoolStore(pool), 50, 500)
+		counterHandler = &opencounters.Handler{
+			Recorder: counterRecorder, Proxy: pixels.NewProxyLimiter(), Blocklist: blocklist,
+			Branded: cfg.BadgeBranding, HomepageURL: cfg.HomepageURL, Now: settings.clock.Now,
+			Stats: opencounters.PoolStats(pool),
+		}
+	}
 	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
-		LinkCache:      linkHandler,
-		Version:        version,
-		UpdateChecker:  updatecheck.New(version),
-		UpdateStarter:  updateController,
-		UpdateMode:     updateMode,
-		TrackingMode:   cfg.Tracking.Mode,
-		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
-		MaxSitesPerOrg: cfg.MaxSitesPerOrg,
-		BaseURL:        cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
+		LinkCache:          linkHandler,
+		TrackingPixelViews: linkRecorder.Views,
+		Pixels:             pixelRegistry,
+		Version:            version,
+		UpdateChecker:      updatecheck.New(version),
+		UpdateStarter:      updateController,
+		UpdateMode:         updateMode,
+		TrackingMode:       cfg.Tracking.Mode,
+		MaxOrgsPerUser:     cfg.MaxOrgsPerUser,
+		MaxSitesPerOrg:     cfg.MaxSitesPerOrg,
+		BaseURL:            cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
 		},
@@ -430,7 +471,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
 		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
-		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler,
+		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler,
+		OpenCounters: counterHandler, OpenCountersEnabled: cfg.OpenCounters,
 		Now: settings.clock.Now, Ready: func() bool { return ready.Load() && postgresReady(pool) },
 		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {
 			progress, err := rollupBackfill.Progress(ctx)
@@ -462,6 +504,18 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	linkStatsCtx, cancelLinkStats := context.WithCancel(context.Background())
 	linkStatsDone := make(chan error, 1)
 	go func() { linkStatsDone <- linkRecorder.Run(linkStatsCtx) }()
+	pixelStatsCtx, cancelPixelStats := context.WithCancel(context.Background())
+	pixelStatsDone := make(chan error, 1)
+	go func() { pixelStatsDone <- pixelRecorder.Run(pixelStatsCtx) }()
+	pixelRegistryCtx, cancelPixelRegistry := context.WithCancel(context.Background())
+	pixelRegistryDone := make(chan error, 1)
+	go func() { pixelRegistryDone <- pixelRegistry.Run(pixelRegistryCtx, 30*time.Second) }()
+	counterStatsCtx, cancelCounterStats := context.WithCancel(context.Background())
+	var counterStatsDone chan error
+	if counterRecorder != nil {
+		counterStatsDone = make(chan error, 1)
+		go func() { counterStatsDone <- counterRecorder.Run(counterStatsCtx) }()
+	}
 	replayIndexCtx, cancelReplayIndex := context.WithCancel(context.Background())
 	replayIndexDone := make(chan error, 1)
 	go func() { replayIndexDone <- replayIndex.Run(replayIndexCtx) }()
@@ -475,7 +529,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}()
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
-	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, settings.clock, engine.InvalidateSite)
+	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, cfg.OpenCounters, settings.clock, engine.InvalidateSite)
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
@@ -529,6 +583,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-linkStatsDone:
 		cause = err
 		linkStatsDone = nil
+	case err := <-pixelStatsDone:
+		cause = err
+		pixelStatsDone = nil
+	case err := <-pixelRegistryDone:
+		cause = err
+		pixelRegistryDone = nil
+	case err := <-counterStatsDone:
+		cause = err
+		counterStatsDone = nil
 	case err := <-replayIndexDone:
 		cause = err
 		replayIndexDone = nil
@@ -578,6 +641,18 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelLinkStats()
 	if linkStatsDone != nil {
 		cause = errors.Join(cause, <-linkStatsDone)
+	}
+	cancelPixelStats()
+	if pixelStatsDone != nil {
+		cause = errors.Join(cause, <-pixelStatsDone)
+	}
+	cancelPixelRegistry()
+	if pixelRegistryDone != nil {
+		cause = errors.Join(cause, <-pixelRegistryDone)
+	}
+	cancelCounterStats()
+	if counterStatsDone != nil {
+		cause = errors.Join(cause, <-counterStatsDone)
 	}
 	cancelReplayIndex()
 	if replayIndexDone != nil {
@@ -965,6 +1040,7 @@ func scheduledJobs(
 	dataDir string,
 	secretKey []byte,
 	refreshReplayDiskGuard func(),
+	openCounters bool,
 	clk clock,
 	closeInvalidators ...func(int32),
 ) []scheduler.Job {
@@ -989,6 +1065,13 @@ func scheduledJobs(
 			return err
 		}},
 		{Name: "dict-gc", Every: 24 * time.Hour, Run: func(ctx context.Context) error { _, err := dictionary.GarbageCollect(ctx, 0); return err }},
+		{Name: "open-counters-cleanup", Every: 24 * time.Hour, Run: func(ctx context.Context) error {
+			if !openCounters {
+				return nil
+			}
+			_, err := opencounters.Cleanup(ctx, pool, clk.Now())
+			return err
+		}},
 		{Name: "expire-sessions", Every: time.Minute, Run: func(context.Context) error {
 			sessions.Expire(clk.Now())
 			return nil

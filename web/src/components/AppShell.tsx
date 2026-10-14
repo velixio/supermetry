@@ -3,6 +3,7 @@ import { AuthorizationProvider } from '@/lib/authorization'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 
 import { AccountSidebar } from './AccountSidebar'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
@@ -26,6 +27,7 @@ import type { Me, Membership } from '@/lib/me'
 
 import { matchesSite, SupermetrySidebar } from './Sidebar'
 import { DemoBanner } from '@/features/demo/DemoBanner'
+import { getSite } from '@/features/sites/api'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
 import { requestLogout } from '@/lib/session-lifecycle'
@@ -75,6 +77,12 @@ export function AppShell({
   if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({ me, membership, requestedSite, theme }) }
   const commands = lastCommands.current.scope === paletteScope ? lastCommands.current.list : []
   const scopedSite = membership?.sites.find((item) => matchesSite(item, requestedSite))
+  const siteDetails = useQuery({
+    queryKey: ['site', scopedSite?.id],
+    queryFn: () => getSite(scopedSite!.id, membership!.org.id),
+    enabled: Boolean(scopedSite && membership && scopedSite.kind !== 'web' && scopedSite.kind !== 'pixel'),
+  })
+  const resolvedSite = siteDetails.data?.id === scopedSite?.id ? siteDetails.data : scopedSite
   const recordedLastSite = useRef(me.preferences?.last_site_id)
 
   useEffect(() => {
@@ -121,7 +129,7 @@ export function AppShell({
           {en.a11y2.skipToMain}
         </a>
         {membership ? (
-          <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} />
+          <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} resolvedSite={resolvedSite} />
         ) : (
           <AccountSidebar me={me} />
         )}
@@ -129,7 +137,7 @@ export function AppShell({
           <AppHeader
             instanceAdmin={Boolean(me.user.instance_admin)}
             membership={membership}
-            site={scopedSite}
+            site={resolvedSite}
             requestedSite={requestedSite}
             locale={me.preferences?.locale ?? ''}
             theme={theme}

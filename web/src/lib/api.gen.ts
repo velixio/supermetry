@@ -1472,6 +1472,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/pixels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get: operations["listPixels"];
+        put?: never;
+        post: operations["createPixel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/pixels/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get: operations["pixelStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/pixels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deletePixel"];
+        options?: never;
+        head?: never;
+        patch: operations["updatePixel"];
+        trace?: never;
+    };
+    "/api/private/sites/{site}/tracking-pixels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get: operations["listManagedTrackingPixels"];
+        put?: never;
+        post: operations["createManagedTrackingPixel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/tracking-pixels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get: operations["getManagedTrackingPixel"];
+        put?: never;
+        post?: never;
+        delete: operations["deleteManagedTrackingPixel"];
+        options?: never;
+        head?: never;
+        patch: operations["updateManagedTrackingPixel"];
+        trace?: never;
+    };
     "/l/{slug}": {
         parameters: {
             query?: never;
@@ -1500,10 +1591,30 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Record a tracking pixel impression
-         * @description Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same 1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore, colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored.
+         * Record a tracking pixel impression or serve a pixel-project badge
+         * @description Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same 1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore, colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored. A .svg file with a site's public ID serves a badge with that site's running impression total across all campaigns, or with style=stats the total, today and a 30-day graph; loading it counts one impression.
          */
         get: operations["trackingPixel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/c/{rest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show or render an opt-in public GitHub view counter
+         * @description Public endpoint, disabled by default. A github.com owner or repository key returns a stats page; adding .svg or .gif returns an embeddable counter image. Only recognized image-proxy fetches are counted. IP addresses and user-agent strings are never stored.
+         */
+        get: operations["openCounter"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2450,6 +2561,7 @@ export interface components {
             deployment_mode: "binary" | "docker";
             /** @enum {string} */
             status: "requested" | "preflight" | "downloading" | "verifying" | "stopping" | "backing_up" | "activating" | "restarting" | "verifying_health" | "complete" | "failed" | "recovery_required";
+            error_code?: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -2831,6 +2943,8 @@ export interface components {
             /** Format: int64 */
             org_id: number;
             public_id: string;
+            /** @enum {string} */
+            kind: "web" | "pixel";
             /** @description Readable per-organization URL segment; public_id resolves too. */
             slug: string;
             name: string;
@@ -2883,13 +2997,102 @@ export interface components {
             data: components["schemas"]["Site"][];
             next_cursor?: string | null;
         };
+        /** @description hosts and revenue_currency are required when kind is web (the default) and ignored for pixel. */
         CreateSiteRequest: {
             name: string;
-            hosts: string[];
+            /**
+             * @description Fixed at creation.
+             * @default web
+             * @enum {string}
+             */
+            kind: "web" | "pixel";
+            hosts?: string[];
             timezone: string;
             /** @enum {integer} */
             retention_days: 0 | 7 | 30 | 90 | 365;
-            revenue_currency: string;
+            revenue_currency?: string;
+        };
+        PixelInput: {
+            name?: string;
+            badge_label?: string;
+            enabled?: boolean;
+        };
+        Pixel: {
+            /** Format: int64 */
+            id: number;
+            public_id: string;
+            name: string;
+            badge_label: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: int64
+             * @description All-time views (views
+             */
+            total: number;
+            /** Format: int64 */
+            views_30d: number;
+            /** Format: uri */
+            gif_url: string;
+            /** Format: uri */
+            svg_url: string;
+        };
+        PixelStats: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @description Views for today, the last 7 and 30 days and all time in the site's time zone, independent of from and to. */
+            summary: {
+                today: number;
+                last_7: number;
+                last_30: number;
+                total: number;
+            };
+            daily: {
+                /** Format: date */
+                day: string;
+                proxy: number;
+                direct: number;
+            }[];
+            pixels: {
+                /** Format: int64 */
+                pixel_id: number;
+                views: number;
+            }[];
+            /** @description Direct views only; image proxies such as GitHub hide the country. */
+            countries: {
+                country: string;
+                views: number;
+            }[];
+        };
+        ManagedTrackingPixelInput: {
+            name: string;
+            /** @description Omit or send an empty string to generate an eight-character tag. */
+            tag?: string;
+        };
+        ManagedTrackingPixelPatch: {
+            name: string;
+        };
+        ManagedTrackingPixel: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            name: string;
+            tag: string;
+            /** Format: uri */
+            gif_url: string;
+            /** Format: uri */
+            svg_url: string;
+            html: string;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            views_30d: number;
+            /** Format: date-time */
+            created_at: string;
         };
         UpdateSiteRequest: {
             profiles_enabled?: boolean;
@@ -3971,6 +4174,9 @@ export interface components {
         };
         HealthResponse: {
             status: string;
+            version?: string;
+            /** Format: int64 */
+            schema_version?: number;
         };
         ValidationError: {
             field?: string;
@@ -7004,6 +7210,283 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    listPixels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pixels */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pixel"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createPixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PixelInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pixel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The project already has 100 pixels */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    pixelStats: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                pixel?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Views */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PixelStats"];
+                };
+            };
+        };
+    };
+    deletePixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted with its daily views */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updatePixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PixelInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pixel"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listManagedTrackingPixels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Managed tracking pixels */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedTrackingPixel"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createManagedTrackingPixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManagedTrackingPixelInput"];
+            };
+        };
+        responses: {
+            /** @description Created tracking pixel */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedTrackingPixel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The tag is already registered for this site */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getManagedTrackingPixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tracking pixel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedTrackingPixel"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteManagedTrackingPixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted registration and its impression aggregates */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateManagedTrackingPixel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManagedTrackingPixelPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated tracking pixel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedTrackingPixel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     followShortLink: {
         parameters: {
             query?: never;
@@ -7045,6 +7528,8 @@ export interface operations {
         parameters: {
             query?: {
                 c?: string;
+                style?: "flat" | "flat-square" | "stats";
+                color?: string;
             };
             header?: never;
             path: {
@@ -7061,8 +7546,41 @@ export interface operations {
                 };
                 content: {
                     "image/gif": string;
+                    "image/svg+xml": string;
                 };
             };
+        };
+    };
+    openCounter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A counter page or image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                    "image/gif": string;
+                    "image/svg+xml": string;
+                };
+            };
+            /** @description Open counters are disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     healthz: {
