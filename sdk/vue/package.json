@@ -3,6 +3,19 @@
   "version": "0.1.0",
   "description": "Vue 3 plugin and composable for Supermetry analytics",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velixio/supermetry.git",
+    "directory": "sdk/vue"
+  },
+  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/vue#readme",
+  "bugs": {
+    "url": "https://github.com/velixio/supermetry/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -12,9 +25,12 @@
     }
   },
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": ["dist", "README.md", "LICENSE", "NOTICE"],
+  "keywords": ["analytics", "supermetry", "vue", "privacy", "tracking"],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "package:check": "node ../scripts/check-packages.mjs vue",
+    "prepack": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

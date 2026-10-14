@@ -1,6 +1,6 @@
 # `@supermetry/nextjs`
 
-[Supermetry](https://github.com/supermetry) analytics for the Next.js App Router (Next 14+), with an optional first-party proxy.
+[Supermetry](https://github.com/velixio/supermetry) analytics for the Next.js App Router (Next 14+), with an optional first-party proxy.
 
 ```sh
 npm install @supermetry/nextjs
@@ -36,7 +36,7 @@ export function SignupButton() {
 }
 ```
 
-`<Supermetry />` accepts every [`@supermetry/tracker` option](../js/README.md). Functions such as `beforeSend` cannot cross the server/client boundary, so render `<Supermetry beforeSend={…} />` from your own `"use client"` component when you need one.
+`<Supermetry />` accepts every [`@supermetry/tracker` option](https://github.com/velixio/supermetry/blob/main/sdk/js/README.md). Functions such as `beforeSend` cannot cross the server/client boundary, so render `<Supermetry beforeSend={…} />` from your own `"use client"` component when you need one.
 
 ## First-party proxy
 
@@ -69,4 +69,4 @@ The proxy forwards the visitor's `User-Agent`, `Origin`, `Referer`, `DNT` and `S
 
 ## Server-side events
 
-For events from route handlers, server actions or webhooks, use [`@supermetry/node`](../node/README.md).
+For events from route handlers, server actions or webhooks, use [`@supermetry/node`](https://www.npmjs.com/package/@supermetry/node).

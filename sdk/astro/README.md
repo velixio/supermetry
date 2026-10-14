@@ -1,6 +1,6 @@
 # `@supermetry/astro`
 
-Astro component for [Supermetry](https://github.com/supermetry) analytics (Astro 4+). It renders the tracker `<script>` tag; nothing is bundled into your pages.
+Astro component for [Supermetry](https://github.com/velixio/supermetry) analytics (Astro 4+). It renders the tracker `<script>` tag; nothing is bundled into your pages.
 
 ```sh
 npm install @supermetry/astro

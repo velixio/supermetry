@@ -1,6 +1,6 @@
 # `@supermetry/vue`
 
-Vue 3 plugin and composable for [Supermetry](https://github.com/supermetry) analytics, with optional Vue Router integration.
+Vue 3 plugin and composable for [Supermetry](https://github.com/velixio/supermetry) analytics, with optional Vue Router integration.
 
 ```sh
 npm install @supermetry/vue
@@ -35,4 +35,4 @@ const buy = () => supermetry.track("Purchase", { plan: "pro" }, { revenue: { amo
 </template>
 ```
 
-The plugin accepts every [`@supermetry/tracker` option](../js/README.md). The tracker is also available as `$supermetry` in templates. `useSupermetry()` returns `pageview`, `track`, `identify`, `consent`, `optIn` and `optOut`; calls are queued until the script loads, and the plugin does nothing during server rendering, so it is safe in Nuxt and other SSR setups.
+The plugin accepts every [`@supermetry/tracker` option](https://github.com/velixio/supermetry/blob/main/sdk/js/README.md). The tracker is also available as `$supermetry` in templates. `useSupermetry()` returns `pageview`, `track`, `identify`, `consent`, `optIn` and `optOut`; calls are queued until the script loads, and the plugin does nothing during server rendering, so it is safe in Nuxt and other SSR setups.

@@ -1,6 +1,6 @@
 # `@supermetry/react-native`
 
-React Native SDK for [Supermetry](../SPEC.md): screen views, custom events, identify, persisted opt-out, and an offline-tolerant queue.
+React Native SDK for [Supermetry](https://github.com/velixio/supermetry/blob/main/sdk/SPEC.md): screen views, custom events, identify, persisted opt-out, and an offline-tolerant queue.
 
 ## Install
 

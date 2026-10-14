@@ -3,8 +3,21 @@
   "version": "0.1.0",
   "description": "Astro component for Supermetry analytics, View Transitions aware",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velixio/supermetry.git",
+    "directory": "sdk/astro"
+  },
+  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/astro#readme",
+  "bugs": {
+    "url": "https://github.com/velixio/supermetry/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
-  "keywords": ["astro-component", "withastro", "analytics"],
+  "keywords": ["astro-component", "withastro", "analytics", "supermetry", "privacy", "tracking"],
   "exports": {
     ".": "./Supermetry.astro",
     "./Supermetry.astro": "./Supermetry.astro",
@@ -13,9 +26,11 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "Supermetry.astro"],
+  "files": ["dist", "Supermetry.astro", "README.md", "LICENSE", "NOTICE"],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "package:check": "node ../scripts/check-packages.mjs astro",
+    "prepack": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
