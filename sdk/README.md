@@ -89,9 +89,9 @@ Vue, Astro and Express second; Next.js and Remix last. A dependency must be publ
 before a dependent package is staged. Stable versions use npm's `latest` tag;
 prerelease versions use `next`.
 
-The first staged publication needs a granular `NPM_TOKEN` secret with stage access
-in the `npm` GitHub environment; it does not need to bypass 2FA. After the package
-exists, configure npm trusted publishing separately for each package, using this
-repository, `publish-node-sdk.yml`, and the `npm` environment, with only
-`npm stage publish` allowed. The npm CLI will then use OIDC instead of the
-long-lived token. Remove `NPM_TOKEN` after every package has a trusted publisher.
+For a new package, npm requires a one-time `npm stage publish` from a local,
+interactive npm session because trusted publishing can only be configured after
+the package exists. Once that first version is staged, configure trusted publishing
+for the package using this repository, `publish-node-sdk.yml`, and the `npm`
+environment, with only `npm stage publish` allowed. All workflow releases use OIDC;
+do not add an npm token to GitHub.
