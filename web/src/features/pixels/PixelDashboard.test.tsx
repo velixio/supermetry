@@ -26,7 +26,7 @@ describe('PixelDashboard', () => {
     expect(screen.getByText('1.2k')).toBeInTheDocument()
     expect(screen.getByText(/views, not unique visitors/)).toBeInTheDocument()
     expect(screen.getByText(/hide the country/)).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /GitHub profile badge preview/ })).toHaveAttribute('src', pixel.svg_url)
+    expect(screen.getByRole('img', { name: /GitHub profile badge preview/ })).toHaveAttribute('src', `${pixel.svg_url}?preview=1`)
     expect(screen.getByRole('button', { name: /Copy linked Markdown badge/ })).toBeInTheDocument()
   })
 })

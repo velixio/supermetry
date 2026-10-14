@@ -62,7 +62,7 @@ func write(w http.ResponseWriter, r *http.Request, contentType string, body []by
 }
 
 func (h *Handler) count(r *http.Request, pixel Pixel) {
-	if r.Method != http.MethodGet || !pixel.Enabled {
+	if r.Method != http.MethodGet || !pixel.Enabled || r.URL.Query().Get("preview") == "1" {
 		return
 	}
 	site, ok := h.Sites.Site(pixel.SiteID)

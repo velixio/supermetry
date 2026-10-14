@@ -42,7 +42,7 @@ export function PixelList({ siteId, pixels, homepage }: { siteId: number; pixels
                   <TableCell className="tabular-nums">{formatViews(pixel.total)}</TableCell>
                   <TableCell className="tabular-nums">{formatViews(pixel.views_30d)}</TableCell>
                   <TableCell><Switch aria-label={`${pixel.name} enabled`} checked={pixel.enabled} disabled={update.isPending} onCheckedChange={(enabled) => update.mutate({ id: pixel.id, enabled })} /></TableCell>
-                  <TableCell><img src={pixel.svg_url} alt={`${pixel.name} badge preview`} height={20} /></TableCell>
+                  <TableCell><img src={`${pixel.svg_url}?preview=1`} alt={`${pixel.name} badge preview`} height={20} /></TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
                       <DropdownMenu>

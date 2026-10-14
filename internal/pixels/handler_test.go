@@ -133,6 +133,17 @@ func TestNotCountedButImageServed(t *testing.T) {
 	}
 }
 
+func TestBadgePreviewDoesNotCount(t *testing.T) {
+	f := newPxFixture(t)
+	res := f.get(t, http.MethodGet, "/px/pAAAAAAAAAAA.svg?preview=1", camoUA)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "1.2k") {
+		t.Fatalf("preview response = %d %s", res.Code, res.Body.String())
+	}
+	if f.total() != 0 {
+		t.Fatalf("preview counted rows %v", f.rows)
+	}
+}
+
 func TestOddFileNamesServeImageWithoutCounting(t *testing.T) {
 	f := newPxFixture(t)
 	for _, path := range []string{"/px/pAAAAAAAAAAA.svg.gif", "/px/.svg", "/px/p" + strings.Repeat("A", 200) + ".svg"} {
