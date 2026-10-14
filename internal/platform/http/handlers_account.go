@@ -157,7 +157,7 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 		       coalesce(settings->>'icon_url',''),coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 		       coalesce(revenue_currency::text,''),revenue_currency_state,
 		       is_demo,demo_seeded_at is not null,
-		       (select last_event_at from site_last_event where site_id=s.id)
+		       (select last_event_at from site_last_event where site_id=s.id),kind
 		from sites s
 		where s.org_id=$1 and s.deleted_at is null
 		  and ($2::integer[] is null or s.id=any($2))
@@ -173,7 +173,7 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 		var retention int16
 		if err := rows.Scan(&site.ID, &site.OrgID, &site.PublicID, &site.Slug, &site.Name, &site.Timezone, &retention,
 			&site.AllowedHosts, &site.ExcludeIPs, &site.ExcludePaths, &site.IconURL, &site.ProfilesEnabled,
-			&site.RevenueCurrency, &site.RevenueCurrencyState, &site.IsDemo, &site.DemoReady, &site.LastSeenAt); err != nil {
+			&site.RevenueCurrency, &site.RevenueCurrencyState, &site.IsDemo, &site.DemoReady, &site.LastSeenAt, &site.Kind); err != nil {
 			return nil, err
 		}
 		site.RetentionDays = int(db.RetentionClass(retention))
