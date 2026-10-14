@@ -202,6 +202,24 @@ func TestLoadBadgeBranding(t *testing.T) {
 	}
 }
 
+func TestLoadOpenCounters(t *testing.T) {
+	values := baseEnv()
+	c, err := Load(env(values))
+	if err != nil || c.OpenCounters || c.OpenCounterBlocklist != "" {
+		t.Fatalf("open-counter defaults = (%v, %q), %v", c.OpenCounters, c.OpenCounterBlocklist, err)
+	}
+	values["SUPERMETRY_OPEN_COUNTERS"] = "true"
+	values["SUPERMETRY_OPEN_COUNTER_BLOCKLIST"] = "/etc/supermetry/counters-blocklist"
+	c, err = Load(env(values))
+	if err != nil || !c.OpenCounters || c.OpenCounterBlocklist != values["SUPERMETRY_OPEN_COUNTER_BLOCKLIST"] {
+		t.Fatalf("open-counter config = (%v, %q), %v", c.OpenCounters, c.OpenCounterBlocklist, err)
+	}
+	values["SUPERMETRY_OPEN_COUNTERS"] = "sometimes"
+	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_OPEN_COUNTERS") {
+		t.Fatalf("invalid open-counter flag error = %v", err)
+	}
+}
+
 func TestLoadRejectsLegacyPrefixAsConfiguration(t *testing.T) {
 	legacyPrefix := "PAN" + "EL_"
 	values := map[string]string{
