@@ -41,6 +41,8 @@ type Recorder struct {
 	flushEvery time.Duration
 	maxKeys    int
 	wake       chan struct{}
+	// Views, when set, mirrors recorded impressions for in-memory badges.
+	Views *SiteViews
 
 	mu          sync.Mutex
 	clicks      map[clickKey]int64
@@ -116,6 +118,9 @@ func (r *Recorder) Impression(siteID int32, day, campaign, country string) {
 		return
 	}
 	r.impressions[key]++
+	if r.Views != nil {
+		r.Views.Add(siteID, day, 1)
+	}
 	full := len(r.clicks)+len(r.impressions) >= flushThreshold
 	r.mu.Unlock()
 	if full {

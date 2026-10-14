@@ -21,9 +21,12 @@ type Handler struct {
 	IPLimiter    ingest.RateLimiter
 	ProxyLimiter *ProxyLimiter
 	Fallback     http.HandlerFunc
-	ClientIP     func(*http.Request) (string, netip.Addr)
-	Branded      bool
-	Now          func() time.Time
+	// LegacyBadge serves badges for the site-level email pixel: it counts the request and
+	// returns the site's total and last n days, or ok=false for an unknown site.
+	LegacyBadge func(r *http.Request, publicID string, n int) (total int64, series []int64, ok bool)
+	ClientIP    func(*http.Request) (string, netip.Addr)
+	Branded     bool
+	Now         func() time.Time
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +39,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if known && (ext == "gif" || ext == "svg") {
 		h.count(r, pixel)
+	}
+	if ext == "svg" && !known && h.LegacyBadge != nil {
+		if total, series, ok := h.LegacyBadge(r, id, RecentDays); ok {
+			style, color := ParseBadgeQuery(r.URL.Query())
+			if r.URL.Query().Get("style") == "stats" {
+				write(w, r, "image/svg+xml", RenderStatsBadge(StatsBadgeOptions{Label: "views", Total: total, Today: series[len(series)-1], Series: series, Style: "flat", Color: color, Branded: h.Branded}))
+				return
+			}
+			write(w, r, "image/svg+xml", RenderBadge(BadgeOptions{Label: "views", Count: total, Style: style, Color: color, Branded: h.Branded}))
+			return
+		}
 	}
 	if ext == "svg" {
 		label, total := "views", int64(0)

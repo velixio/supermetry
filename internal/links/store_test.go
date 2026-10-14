@@ -281,3 +281,21 @@ func TestImpressionStatsForOneCampaign(t *testing.T) {
 		t.Fatalf("summary = %+v, want %+v", summary, want)
 	}
 }
+
+func TestSiteViewsSeedsFromStoredImpressions(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_daily(site_id, day, campaign, impressions) values
+		($1,'2026-10-30','a',4), ($1,'2026-10-30','b',2), ($1,'2026-10-29','a',3), ($1,'2026-09-01','a',100)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	views := NewSiteViews()
+	views.Add(siteID, "2026-10-30", 1) // counted before seeding, still unflushed
+	if err := views.Seed(ctx, pool, "2026-10-01"); err != nil {
+		t.Fatal(err)
+	}
+	total, series := views.Snapshot(siteID, "2026-10-30", 3)
+	if total != 109 || series[0] != 0 || series[1] != 3 || series[2] != 6 {
+		t.Fatalf("total=%d series=%v, want 109 and [0 3 6]", total, series)
+	}
+}

@@ -330,3 +330,29 @@ func TestPixelRateLimitStillServesImage(t *testing.T) {
 		t.Fatalf("rate-limited hits were recorded: total %d", total)
 	}
 }
+
+func TestBadgeStatsCountsAndReportsSiteViews(t *testing.T) {
+	f := newFixture(t)
+	f.recorder.Views = NewSiteViews()
+	f.recorder.Views.Add(1, "2026-10-12", 5) // history already stored
+	request := func(target string) (int64, []int64, bool) {
+		r := httptest.NewRequest(http.MethodGet, target, nil)
+		r.RemoteAddr = "203.0.113.9:4000"
+		r.Header.Set("User-Agent", chromeUA)
+		return f.handler.BadgeStats(r, r.URL.Path[len("/px/"):len(r.URL.Path)-len(".svg")], 3)
+	}
+	// 20:30 UTC is already 2026-10-13 in Kathmandu; any campaign tag counts toward the site.
+	total, series, ok := request("/px/pubsite0001.svg?c=spring")
+	if !ok || total != 6 || len(series) != 3 || series[2] != 1 || series[1] != 5 || series[0] != 0 {
+		t.Fatalf("total=%d series=%v ok=%v", total, series, ok)
+	}
+	if total, _, _ := request("/px/pubsite0001.svg?preview=1"); total != 6 {
+		t.Fatalf("a preview must not count, total=%d", total)
+	}
+	if _, _, ok := request("/px/nosuchsite.svg"); ok {
+		t.Fatal("an unknown site must not produce badge numbers")
+	}
+	if total, _, _ := request("/px/pubsite0002.svg"); total != 1 { // its own view only, none of site 1's
+		t.Fatalf("other site total = %d", total)
+	}
+}

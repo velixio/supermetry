@@ -324,6 +324,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	overviewService := sitesvc.NewOverview(platformStore, sessions)
 	overviewService.SetClock(settings.clock.Now)
 	linkRecorder := links.NewRecorder(pool, links.RecorderOptions{})
+	linkRecorder.Views = links.NewSiteViews()
+	if err := linkRecorder.Views.Seed(ctx, pool, settings.clock.Now().UTC().AddDate(0, 0, -pixels.RecentDays-1).Format(time.DateOnly)); err != nil {
+		return fmt.Errorf("load pixel impressions: %w", err)
+	}
 	linkHandler := &links.Handler{
 		Lookup: func(ctx context.Context, slug string) (links.Link, error) {
 			return links.BySlug(ctx, pool, slug)
@@ -348,7 +352,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	pixelHandler := &pixels.Handler{
 		Pixels: pixelRegistry, Recorder: pixelRecorder, Sites: registry, Enricher: enricher,
 		IPLimiter: ingest.NewTokenBuckets(10, 60), ProxyLimiter: pixels.NewProxyLimiter(),
-		Fallback: linkHandler.ServePixel, ClientIP: linkHandler.ClientKey,
+		Fallback: linkHandler.ServePixel, LegacyBadge: linkHandler.BadgeStats, ClientIP: linkHandler.ClientKey,
 		Branded: cfg.BadgeBranding, Now: settings.clock.Now,
 	}
 	var counterRecorder *opencounters.Recorder

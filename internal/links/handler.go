@@ -222,24 +222,52 @@ func (h *Handler) ServePixel(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write(TransparentGIF)
 		}
 	}()
-	if !isGIF || r.Method != http.MethodGet || len(publicID) > 64 {
-		return
+	if isGIF {
+		h.countPixel(r, publicID)
 	}
-	key, ip := h.clientKey(r)
-	if h.Limiter != nil && !h.Limiter.Allow("px:"+key) {
-		return
+}
+
+// BadgeStats counts the request like ServePixel and returns the site's all-time total and its
+// last n days (oldest first) for a badge. ok is false when the site is unknown or no
+// in-memory counts are configured.
+func (h *Handler) BadgeStats(r *http.Request, publicID string, n int) (total int64, series []int64, ok bool) {
+	if h.Recorder == nil || h.Recorder.Views == nil {
+		return 0, nil, false
+	}
+	site, found := h.countPixel(r, publicID)
+	if !found {
+		return 0, nil, false
+	}
+	total, series = h.Recorder.Views.Snapshot(site.ID, localDay(h.now(), site), n)
+	return total, series, true
+}
+
+// countPixel records one impression when the request is allowed to count, and reports
+// the site the public ID belongs to. Previews, bots, limited clients and privacy signals
+// are not counted but still find the site.
+func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool) {
+	if len(publicID) > 64 {
+		return sites.Site{}, false
 	}
 	site, ok := h.Sites.ByPublicID(publicID)
 	if !ok {
-		return
+		return sites.Site{}, false
+	}
+	if r.Method != http.MethodGet || r.URL.Query().Get("preview") == "1" {
+		return site, true
+	}
+	key, ip := h.clientKey(r)
+	if h.Limiter != nil && !h.Limiter.Allow("px:"+key) {
+		return site, true
 	}
 	if h.Enricher.BotWithBlockedReferrers(r.UserAgent(), ip, "", site.BlockedReferrers) != enrich.BotNone {
-		return
+		return site, true
 	}
 	if site.RespectPrivacySignals && privacySignal(r) {
-		return
+		return site, true
 	}
 	h.Recorder.Impression(site.ID, localDay(h.now(), site), NormalizeCampaign(r.URL.Query().Get("c")), h.Enricher.Country(ip))
+	return site, true
 }
 
 func privacySignal(r *http.Request) bool {

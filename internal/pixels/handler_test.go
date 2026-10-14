@@ -166,3 +166,32 @@ func TestWebPixelStillServedForSiteIDStartingWithP(t *testing.T) {
 		t.Fatalf("fallback=%d rows=%v", f.fallback, f.rows)
 	}
 }
+
+func TestLegacySiteBadgeIsServedForTheEmailPixelID(t *testing.T) {
+	f := newPxFixture(t)
+	var seen []string
+	f.h.LegacyBadge = func(r *http.Request, id string, n int) (int64, []int64, bool) {
+		seen = append(seen, id)
+		series := make([]int64, n)
+		series[n-1] = 3
+		return 40, series, id == "siteLegacy01"
+	}
+	rec := f.get(t, http.MethodGet, "/px/siteLegacy01.svg?style=stats", chromeUA)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, "<polyline") || !strings.Contains(body, "today 3") || !strings.Contains(body, "40") {
+		t.Fatalf("stats badge = %d %s", rec.Code, body)
+	}
+	flat := f.get(t, http.MethodGet, "/px/siteLegacy01.svg", chromeUA).Body.String()
+	if strings.Contains(flat, "<polyline") || !strings.Contains(flat, "40") {
+		t.Fatalf("flat badge = %s", flat)
+	}
+	if unknown := f.get(t, http.MethodGet, "/px/nosuchsite00.svg", chromeUA).Body.String(); !strings.Contains(unknown, ">0<") {
+		t.Fatalf("unknown id must show an empty badge: %s", unknown)
+	}
+	if len(seen) != 3 {
+		t.Fatalf("legacy lookups = %v", seen)
+	}
+	if f.get(t, http.MethodGet, "/px/pAAAAAAAAAAA.svg", camoUA); len(seen) != 3 {
+		t.Fatal("a pixel-project id must not use the legacy lookup")
+	}
+}
