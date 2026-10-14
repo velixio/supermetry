@@ -173,5 +173,4 @@ jobs:
         env:
           ARCHIVE: ${{ needs.verify.outputs.archive }}
           DIST_TAG: ${{ needs.verify.outputs.dist-tag }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm stage publish "./sdk-package/$ARCHIVE" --access public --tag "$DIST_TAG" --provenance --ignore-scripts
