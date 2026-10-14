@@ -1556,7 +1556,7 @@ export interface paths {
         };
         /**
          * Record a tracking pixel impression or serve a pixel-project badge
-         * @description Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same 1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore, colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored.
+         * @description Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same 1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore, colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored. A .svg file with a site's public ID serves a badge with that site's running impression total across all campaigns, or with style=stats the total, today and a 30-day graph; loading it counts one impression.
          */
         get: operations["trackingPixel"];
         put?: never;
