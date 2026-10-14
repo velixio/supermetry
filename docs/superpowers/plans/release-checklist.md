@@ -82,6 +82,8 @@ gh run watch --exit-status $(gh run list --workflow release.yml --limit 1 --json
 
 You can also release from the GitHub web UI: Releases, Draft a new release, choose a new `v*` tag on `main`, and publish. Publishing creates the tag, which starts the workflow, and the workflow attaches the archives and signed manifest to that release. The release is visible for a few minutes before the assets arrive, so do not announce it until the workflow has finished.
 
+The simplest way to tag is `make release`. It checks that you are on an up-to-date `main` with a clean tree, shows the latest release and the next patch, minor and major versions, asks for the version (Enter accepts the next patch), warns if `CHANGELOG.md` has no section for it, and asks to confirm before it tags and pushes. Use `make release VERSION=0.2.0` or `BUMP=minor` to skip the question, and `DRY_RUN=1` to see what it would do.
+
 To rehearse the build without publishing, run `SUPERMETRY_RELEASE_VERSION=0.1.0 scripts/release.sh` locally and inspect `dist/`.
 
 Verify the result:
