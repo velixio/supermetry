@@ -72,5 +72,7 @@ export type PixelStats = {
   to: string
   total: number
   daily: DayCount[]
-  campaigns: { campaign: string; impressions: number }[]
+  sources: { source: 'github' | 'other'; impressions: number }[]
+  countries: { country: string; impressions: number }[]
+  cities: { country: string; city: string; impressions: number }[]
 }

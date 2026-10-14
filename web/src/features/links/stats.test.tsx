@@ -90,7 +90,7 @@ describe('TrackingPixelPage', () => {
           response: { status: 200 },
         }
       }
-      return { data: { from: '2026-10-01', to: '2026-10-12', summary: { today: 1, last_7: 4, last_30: 6, total: 6 }, total: 6, daily: [{ day: '2026-10-11', count: 6 }], campaigns: [] }, response: { status: 200 } }
+      return { data: { from: '2026-10-01', to: '2026-10-12', summary: { today: 1, last_7: 4, last_30: 6, total: 6 }, total: 6, daily: [{ day: '2026-10-11', count: 6 }], sources: [{ source: 'other', impressions: 4 }, { source: 'github', impressions: 2 }], countries: [{ country: 'NP', impressions: 3 }], cities: [{ country: 'NP', city: 'Kathmandu', impressions: 3 }] }, response: { status: 200 } }
     })
   })
   afterEach(() => cleanup())
@@ -107,6 +107,9 @@ describe('TrackingPixelPage', () => {
       expect(calls.length).toBeGreaterThan(0)
       expect(calls.every(([, options]) => options.params.query.campaign === 'spring')).toBe(true)
     })
+    expect(await screen.findByRole('heading', { name: 'Where views come from' })).toBeInTheDocument()
+    expect(screen.getByText('GitHub')).toBeInTheDocument()
+    expect(screen.getByText('Kathmandu, Nepal')).toBeInTheDocument()
   })
 
   it('asks for confirmation before deleting', async () => {

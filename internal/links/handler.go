@@ -34,6 +34,7 @@ var TransparentGIF = []byte("GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\
 type Enricher interface {
 	BotWithBlockedReferrers(ua string, ip netip.Addr, referrer string, blocked []string) enrich.BotReason
 	Country(netip.Addr) string
+	City(netip.Addr) enrich.CityInfo
 	Client(ua string) enrich.Client
 }
 
@@ -272,7 +273,11 @@ func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool
 	if h.DetectProxy != nil {
 		if proxy, ok := h.DetectProxy(r.UserAgent()); ok {
 			if h.ProxyLimiter == nil || h.ProxyLimiter.Allow(int64(site.ID), proxy) {
-				h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, "")
+				source := SourceOther
+				if proxy == "camo" {
+					source = SourceGitHub
+				}
+				h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, Place{Source: source})
 			}
 			return site, true
 		}
@@ -287,7 +292,8 @@ func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool
 	if site.RespectPrivacySignals && privacySignal(r) {
 		return site, true
 	}
-	h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, h.Enricher.Country(ip))
+	where := h.Enricher.City(ip)
+	h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, Place{Country: where.Country, City: where.City, Source: SourceOther})
 	return site, true
 }
 

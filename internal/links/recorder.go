@@ -25,11 +25,23 @@ type clickKey struct {
 	device   string
 }
 
+// Place is where a counted pixel view came from. It never holds an address or user agent.
+type Place struct {
+	Country string // ISO code, empty when unknown or behind an image proxy
+	City    string
+	Source  string // SourceGitHub or SourceOther
+}
+
+const (
+	SourceGitHub = "github"
+	SourceOther  = "other"
+)
+
 type impressionKey struct {
 	siteID   int32
 	day      string
 	campaign string
-	country  string
+	place    Place
 }
 
 // Recorder aggregates clicks and impressions in memory and persists them in
@@ -109,11 +121,14 @@ func (r *Recorder) Click(linkID int64, day, country, referrer, device string) {
 }
 
 // Impression records one pixel load. It never blocks on the database.
-func (r *Recorder) Impression(siteID int32, day, campaign, country string) {
+func (r *Recorder) Impression(siteID int32, day, campaign string, place Place) {
 	if r == nil || campaign == "" || r.Views == nil || !r.Views.Registered(siteID, campaign) {
 		return
 	}
-	key := impressionKey{siteID, day, campaign, country}
+	if place.Source != SourceGitHub {
+		place.Source = SourceOther
+	}
+	key := impressionKey{siteID, day, campaign, place}
 	r.mu.Lock()
 	if _, ok := r.impressions[key]; !ok && len(r.clicks)+len(r.impressions) >= r.maxKeys {
 		r.mu.Unlock()
@@ -206,13 +221,13 @@ func (r *Recorder) Flush(ctx context.Context) error {
 	}
 	for key, n := range impressions {
 		batch.Queue(`
-			insert into pixel_impressions_daily(site_id, day, campaign, country, impressions)
-			select $1, $2::date, $3, $4, $5 where exists (
+			insert into pixel_impressions_daily(site_id, day, campaign, country, city, source, impressions)
+			select $1, $2::date, $3, $4, $5, $6, $7 where exists (
 				select 1 from tracking_pixels where site_id=$1 and tag=$3
 			)
-			on conflict (site_id, day, campaign, country)
+			on conflict (site_id, day, campaign, country, city, source)
 			do update set impressions = pixel_impressions_daily.impressions + excluded.impressions`,
-			key.siteID, key.day, key.campaign, key.country, n)
+			key.siteID, key.day, key.campaign, key.place.Country, truncateRunes(key.place.City, 100), key.place.Source, n)
 	}
 
 	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
@@ -259,4 +274,11 @@ func (r *Recorder) restore(clicks map[clickKey]int64, impressions map[impression
 		}
 		r.impressions[key] += n
 	}
+}
+
+func truncateRunes(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
 }
