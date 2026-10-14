@@ -876,6 +876,9 @@ func authorizedSiteDrops(r *http.Request, reader DropStatsReader, registry sites
 			continue
 		}
 		row := SiteDropHealth{SiteID: summary.SiteID, SitePublicID: publicID, TopBotRules: summary.TopBotRules, Reasons: make([]DropReasonHealth, 0, len(dropstats.Reasons()))}
+		if row.TopBotRules == nil {
+			row.TopBotRules = []dropstats.BotRuleCount{} // encode as [], the dashboard reads .length
+		}
 		for _, reason := range dropstats.Reasons() {
 			today, previous := summary.Today[reason], summary.Previous7[reason]
 			row.Reasons = append(row.Reasons, DropReasonHealth{Reason: reason.String(), Today: today, Previous7Days: previous, Trailing7DayAverage: float64(previous) / 7, Spike: dropstats.Spike(today, previous)})
