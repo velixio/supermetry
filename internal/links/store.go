@@ -243,25 +243,28 @@ func ClickStats(ctx context.Context, db DBTX, linkID int64, from, to string) (St
 	return stats, nil
 }
 
-// CampaignCount is one pixel campaign's impressions.
-type CampaignCount struct {
-	Campaign    string `json:"campaign"`
-	Impressions int64  `json:"impressions"`
-}
-
 // PixelStats summarizes pixel impressions for a site.
-type PixelStats struct {
-	Total     int64           `json:"total"`
-	Daily     []DayCount      `json:"daily"`
-	Campaigns []CampaignCount `json:"campaigns"`
+// ImpressionSummary counts impressions for today, the last 7 and 30 days (including today) and all time.
+type ImpressionSummary struct {
+	Today  int64 `json:"today"`
+	Last7  int64 `json:"last_7"`
+	Last30 int64 `json:"last_30"`
+	Total  int64 `json:"total"`
 }
 
-// ImpressionStats aggregates a site's pixel rows for the inclusive day range.
-func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to string) (PixelStats, error) {
-	stats := PixelStats{Daily: []DayCount{}, Campaigns: []CampaignCount{}}
+type PixelStats struct {
+	Summary ImpressionSummary `json:"summary"`
+	Total   int64             `json:"total"`
+	Daily   []DayCount        `json:"daily"`
+}
+
+// ImpressionStats aggregates one campaign's pixel rows for the inclusive day range.
+func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to, campaign string) (PixelStats, error) {
+	stats := PixelStats{Daily: []DayCount{}}
 	rows, err := db.Query(ctx, `
 		select day::text, sum(impressions)::bigint from pixel_impressions_daily
-		where site_id=$1 and day between $2::date and $3::date group by day order by day`, siteID, from, to)
+		where site_id=$1 and day between $2::date and $3::date and campaign = $4
+		group by day order by day`, siteID, from, to, campaign)
 	if err != nil {
 		return PixelStats{}, err
 	}
@@ -278,20 +281,18 @@ func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to string
 	if err := rows.Err(); err != nil {
 		return PixelStats{}, err
 	}
-	campaigns, err := db.Query(ctx, `
-		select campaign, sum(impressions)::bigint as total from pixel_impressions_daily
-		where site_id=$1 and day between $2::date and $3::date
-		group by campaign order by total desc, campaign limit 50`, siteID, from, to)
-	if err != nil {
-		return PixelStats{}, err
-	}
-	defer campaigns.Close()
-	for campaigns.Next() {
-		var c CampaignCount
-		if err := campaigns.Scan(&c.Campaign, &c.Impressions); err != nil {
-			return PixelStats{}, err
-		}
-		stats.Campaigns = append(stats.Campaigns, c)
-	}
-	return stats, campaigns.Err()
+	return stats, nil
+}
+
+// ImpressionSummaryFor totals one campaign's pixel impressions up to and including today.
+func ImpressionSummaryFor(ctx context.Context, db DBTX, siteID int32, today, campaign string) (ImpressionSummary, error) {
+	var s ImpressionSummary
+	err := db.QueryRow(ctx, `select
+		coalesce(sum(impressions) filter (where day = $2::date),0)::bigint,
+		coalesce(sum(impressions) filter (where day > $2::date - 7),0)::bigint,
+		coalesce(sum(impressions) filter (where day > $2::date - 30),0)::bigint,
+		coalesce(sum(impressions),0)::bigint
+		from pixel_impressions_daily where site_id=$1 and day <= $2::date and campaign = $3`, siteID, today, campaign).
+		Scan(&s.Today, &s.Last7, &s.Last30, &s.Total)
+	return s, err
 }

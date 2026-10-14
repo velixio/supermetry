@@ -2,105 +2,11 @@
 
 | Measure | Total |
 |---|---:|
-| Registered routes | 187 |
-| Documented routes | 82 |
-| Routes hit by tests | 151 |
+| Registered routes | 252 |
+| Documented routes | 140 |
+| Routes hit by tests | 250 |
 
 ## Routes not hit by tests
-
-### `/api/private/funnels`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| POST | `/api/private/funnels/query` | `h.funnelRequest` | session |
-
-### `/api/private/health`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| GET | `/api/private/health` | `dataHealthHandler` | session |
-
-### `/api/private/heatmaps`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| POST | `/api/private/heatmaps/query` | `h.heatmapRequest` | session |
-
-### `/api/private/journeys`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| POST | `/api/private/journeys/query` | `h.journeyRequest` | session |
-
-### `/api/private/query`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| POST | `/api/private/query` | `h.queryRequest` | session |
-
-### `/api/private/realtime`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| GET | `/api/private/realtime` | `realtimeHandler` | session |
-| GET | `/api/private/realtime/summary` | `realtimeSummaryHandler` | session |
-
-### `/api/private/retention`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| POST | `/api/private/retention/query` | `h.retentionRequest` | session |
-
-### `/api/private/sessions`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| GET | `/api/private/sessions/{session}` | `h.getSession` | session |
-
-### `/api/private/sites`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| GET | `/api/private/sites/{site}/events` | `h.events` | session |
-| GET | `/api/private/sites/{site}/properties` | `h.properties` | session |
-| GET | `/api/private/sites/{site}/properties/{key}/values` | `h.propertyValues` | session |
-| GET | `/api/private/sites/{site}/sessions` | `h.listSessions` | session |
-| GET | `/api/private/sites/{site}/suggestions` | `h.suggestions` | session |
-
-### `/api/private/stats`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| GET | `/api/private/stats/breakdown` | `h.statsBreakdown` | session |
-| GET | `/api/private/stats/summary` | `h.statsSummary` | session |
-| GET | `/api/private/stats/timeseries` | `h.statsTimeseries` | session |
-
-### `/api/private/vitals`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| POST | `/api/private/vitals/query` | `h.vitalsRequest` | session |
-
-### `/api/public/v1`
-
-| Method | Pattern | Handler | Auth |
-|---|---|---|---|
-| POST | `/api/public/v1/funnels/query` | `h.funnelRequest` | public-key |
-| POST | `/api/public/v1/heatmaps/query` | `h.heatmapRequest` | public-key |
-| POST | `/api/public/v1/journeys/query` | `h.journeyRequest` | public-key |
-| POST | `/api/public/v1/query` | `h.queryRequest` | public-key |
-| GET | `/api/public/v1/realtime` | `realtimeHandler` | public-key |
-| GET | `/api/public/v1/realtime/summary` | `realtimeSummaryHandler` | public-key |
-| POST | `/api/public/v1/retention/query` | `h.retentionRequest` | public-key |
-| GET | `/api/public/v1/sessions/{session}` | `h.getSession` | public-key |
-| GET | `/api/public/v1/sites/{site}/events` | `h.events` | public-key |
-| GET | `/api/public/v1/sites/{site}/properties` | `h.properties` | public-key |
-| GET | `/api/public/v1/sites/{site}/properties/{key}/values` | `h.propertyValues` | public-key |
-| GET | `/api/public/v1/sites/{site}/sessions` | `h.listSessions` | public-key |
-| GET | `/api/public/v1/sites/{site}/suggestions` | `h.suggestions` | public-key |
-| GET | `/api/public/v1/stats/breakdown` | `h.statsBreakdown` | public-key |
-| GET | `/api/public/v1/stats/timeseries` | `h.statsTimeseries` | public-key |
-| POST | `/api/public/v1/vitals/query` | `h.vitalsRequest` | public-key |
 
 ### `/api/replay/chunk`
 
@@ -190,6 +96,15 @@
 | Method | Pattern | Handler | Auth |
 |---|---|---|---|
 | POST | `/api/private/journeys/query` | `h.journeyRequest` | session |
+
+### `/api/private/links`
+
+| Method | Pattern | Handler | Auth |
+|---|---|---|---|
+| DELETE | `/api/private/links/{link}` | `h.deleteLink` | session |
+| GET | `/api/private/links/{link}` | `h.getLink` | session |
+| PATCH | `/api/private/links/{link}` | `h.updateLink` | session |
+| GET | `/api/private/links/{link}/stats` | `h.linkStats` | session |
 
 ### `/api/private/me`
 
@@ -294,6 +209,11 @@
 | POST | `/api/private/sites/{site}/icon/refetch` | `h.refetchSiteIcon` | session |
 | GET | `/api/private/sites/{site}/imports` | `h.listImports` | session |
 | POST | `/api/private/sites/{site}/imports` | `h.createImport` | session |
+| POST | `/api/private/sites/{site}/imports/preview` | `h.previewImport` | session |
+| GET | `/api/private/sites/{site}/links` | `h.listLinks` | session |
+| POST | `/api/private/sites/{site}/links` | `h.createLink` | session |
+| GET | `/api/private/sites/{site}/pixel` | `h.pixelSnippet` | session |
+| GET | `/api/private/sites/{site}/pixel/stats` | `h.pixelStats` | session |
 | GET | `/api/private/sites/{site}/profiles` | `h.listProfiles` | session |
 | GET | `/api/private/sites/{site}/properties` | `h.properties` | session |
 | GET | `/api/private/sites/{site}/properties/{key}/values` | `h.propertyValues` | session |
@@ -333,8 +253,6 @@
 | Method | Pattern | Handler | Auth |
 |---|---|---|---|
 | * | `/api/public/v1/` | `func` | public-key |
-| OPTIONS | `/api/public/v1/events` | `deps.Ingest` | none |
-| POST | `/api/public/v1/mcp` | `NewMCPHandler` | public-key |
 
 ### `/api/replay/chunk`
 

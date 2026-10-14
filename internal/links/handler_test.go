@@ -54,6 +54,7 @@ func newFixture(t *testing.T) *fixture {
 	now := time.Date(2026, 10, 12, 20, 30, 0, 0, time.UTC) // 02:15 next day in Kathmandu (+5:45)
 	lookups := 0
 	f := &fixture{recorder: NewRecorder(nil, RecorderOptions{}), now: &now, lookups: &lookups, links: map[string]Link{}}
+	f.recorder.Views = NewSiteViews()
 	f.handler = &Handler{
 		Recorder: f.recorder,
 		Sites: registry{
@@ -281,7 +282,8 @@ func TestLookupFailureIsServiceUnavailableAndNotCached(t *testing.T) {
 
 func TestPixelAlwaysReturnsGIFAndRecordsImpressions(t *testing.T) {
 	f := newFixture(t)
-	for _, target := range []string{"/px/pubsite0001.gif?c=spring-2026", "/px/pubsite0001.gif?c=%3Cscript%3E", "/px/pubsite0001.gif"} {
+	f.recorder.Views.Register(1, "spring-2026")
+	for _, target := range []string{"/px/pubsite0001.gif?c=spring-2026", "/px/pubsite0001.gif?c=unregistered", "/px/pubsite0001.gif?c=%3Cscript%3E", "/px/pubsite0001.gif"} {
 		response := f.get(target)
 		if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "image/gif" || response.Body.Len() != 43 {
 			t.Fatalf("%s: status=%d type=%q len=%d", target, response.Code, response.Header().Get("Content-Type"), response.Body.Len())
@@ -298,7 +300,6 @@ func TestPixelAlwaysReturnsGIFAndRecordsImpressions(t *testing.T) {
 	_, impressions := f.recorder.snapshot()
 	want := map[impressionKey]int64{
 		{1, "2026-10-13", "spring-2026", ""}: 1,
-		{1, "2026-10-13", "", ""}:            2,
 	}
 	if len(impressions) != len(want) {
 		t.Fatalf("impressions = %v, want %v", impressions, want)
@@ -308,13 +309,20 @@ func TestPixelAlwaysReturnsGIFAndRecordsImpressions(t *testing.T) {
 			t.Fatalf("impressions = %v, want %v", impressions, want)
 		}
 	}
+	if total, _, ok := f.recorder.Views.Snapshot(1, "spring-2026", "2026-10-13", 1); !ok || total != 1 {
+		t.Fatalf("registered cache total=%d ok=%v, want 1", total, ok)
+	}
+	if _, _, ok := f.recorder.Views.Snapshot(1, "unregistered", "2026-10-13", 1); ok {
+		t.Fatal("an unregistered campaign entered the cache")
+	}
 }
 
 func TestPixelRateLimitStillServesImage(t *testing.T) {
 	f := newFixture(t)
+	f.recorder.Views.Register(1, "limited")
 	f.handler.Limiter = ingest.NewTokenBuckets(0, 1)
 	for range 3 {
-		if response := f.get("/px/pubsite0001.gif"); response.Code != http.StatusOK || response.Body.Len() != 43 {
+		if response := f.get("/px/pubsite0001.gif?c=limited"); response.Code != http.StatusOK || response.Body.Len() != 43 {
 			t.Fatalf("status=%d len=%d", response.Code, response.Body.Len())
 		}
 	}
@@ -328,5 +336,69 @@ func TestPixelRateLimitStillServesImage(t *testing.T) {
 	}
 	if total != 1 {
 		t.Fatalf("rate-limited hits were recorded: total %d", total)
+	}
+}
+
+func TestRecorderRejectsEmptyAndUnregisteredCampaigns(t *testing.T) {
+	recorder := NewRecorder(nil, RecorderOptions{})
+	recorder.Impression(1, "2026-10-13", "known", "")
+	recorder.Impression(1, "2026-10-13", "", "")
+	if _, impressions := recorder.snapshot(); len(impressions) != 0 {
+		t.Fatalf("a recorder without a registry counted impressions: %v", impressions)
+	}
+
+	recorder.Views = NewSiteViews()
+	recorder.Views.Register(1, "known")
+	if !recorder.Views.Registered(1, "known") || recorder.Views.Registered(1, "unknown") {
+		t.Fatal("registered lookup does not match the registry")
+	}
+	recorder.Impression(1, "2026-10-13", "known", "")
+	recorder.Impression(1, "2026-10-13", "unknown", "")
+	_, impressions := recorder.snapshot()
+	if len(impressions) != 1 || impressions[impressionKey{1, "2026-10-13", "known", ""}] != 1 {
+		t.Fatalf("impressions = %v, want only the registered campaign", impressions)
+	}
+}
+
+func TestBadgeStatsCountsAndReportsSiteViews(t *testing.T) {
+	f := newFixture(t)
+	f.recorder.Views = NewSiteViews()
+	f.recorder.Views.Register(1, "spring")
+	f.recorder.Views.Add(1, "spring", "2026-10-12", 5) // history already stored
+	request := func(target string) (int64, []int64, bool) {
+		r := httptest.NewRequest(http.MethodGet, target, nil)
+		r.RemoteAddr = "203.0.113.9:4000"
+		r.Header.Set("User-Agent", chromeUA)
+		return f.handler.BadgeStats(r, r.URL.Path[len("/px/"):len(r.URL.Path)-len(".svg")], 3)
+	}
+	// 20:30 UTC is already 2026-10-13 in Kathmandu.
+	total, series, ok := request("/px/pubsite0001.svg?c=spring")
+	if !ok || total != 6 || len(series) != 3 || series[2] != 1 || series[1] != 5 || series[0] != 0 {
+		t.Fatalf("total=%d series=%v ok=%v", total, series, ok)
+	}
+	if total, _, ok := request("/px/pubsite0001.svg?c=spring&preview=1"); !ok || total != 6 {
+		t.Fatalf("a preview must not count, total=%d", total)
+	}
+	if _, _, ok := request("/px/pubsite0001.svg?c=arbitrary"); ok {
+		t.Fatal("an unregistered tag must not expose badge counts")
+	}
+	if _, _, ok := request("/px/pubsite0001.svg"); ok {
+		t.Fatal("a missing tag must not expose site-wide badge counts")
+	}
+	if _, _, ok := request("/px/nosuchsite.svg"); ok {
+		t.Fatal("an unknown site must not produce badge numbers")
+	}
+	if _, _, ok := request("/px/pubsite0002.svg?c=spring"); ok {
+		t.Fatal("the same tag on another site must not share a registration")
+	}
+	_, impressions := f.recorder.snapshot()
+	var arbitrary int64
+	for key, n := range impressions {
+		if key.siteID == 1 && key.campaign == "arbitrary" {
+			arbitrary += n
+		}
+	}
+	if arbitrary != 0 {
+		t.Fatalf("unregistered impression was buffered: %v", impressions)
 	}
 }

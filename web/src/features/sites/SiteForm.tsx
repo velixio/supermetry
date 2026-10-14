@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
-import type { RetentionDays, SiteInput } from './types'
+import type { RetentionDays, WebSiteInput } from './types'
 
 const retentionOptions: { value: RetentionDays; label: string }[] = [
   { value: 7, label: '7 days' },
@@ -26,7 +26,7 @@ export function SiteForm({
   secondaryAction,
 }: {
   submitLabel: string
-  onSubmit: (input: SiteInput) => Promise<void>
+  onSubmit: (input: WebSiteInput) => Promise<void>
   secondaryAction?: React.ReactNode
 }) {
   const [error, setError] = useState('')
@@ -75,15 +75,7 @@ export function SiteForm({
           <FieldDescription>Comma-separated hostnames, without a scheme or path.</FieldDescription>
           <FieldError>{error}</FieldError>
         </Field>
-        <Field>
-          <FieldLabel htmlFor="site-timezone">Time zone</FieldLabel>
-          <Input
-            id="site-timezone"
-            name="timezone"
-            defaultValue={Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}
-            required
-          />
-        </Field>
+        <TimezoneSelect />
         <Field>
           <FieldLabel htmlFor="site-retention">Retention</FieldLabel>
           <select
@@ -120,5 +112,21 @@ export function SiteForm({
         {secondaryAction}
       </div>
     </form>
+  )
+}
+
+export function TimezoneSelect({ value, onChange }: { value?: string; onChange?: (value: string) => void }) {
+  return (
+    <Field>
+      <FieldLabel htmlFor="site-timezone">Time zone</FieldLabel>
+      <Input
+        id="site-timezone"
+        name="timezone"
+        value={value}
+        defaultValue={value === undefined ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : undefined}
+        onChange={onChange ? (event) => onChange(event.target.value) : undefined}
+        required
+      />
+    </Field>
   )
 }

@@ -100,6 +100,11 @@ func TestRecorderFlushPersistsBatchesAndStatsMatchFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	recorder := NewRecorder(pool, RecorderOptions{})
+	recorder.Views = NewSiteViews()
+	recorder.Views.Register(siteID, "spring")
+	if _, err := pool.Exec(ctx, `insert into tracking_pixels(site_id,name,tag) values ($1,'Spring','spring')`, siteID); err != nil {
+		t.Fatal(err)
+	}
 	// Hand-computed fixture: 2026-10-10 has 3 clicks, 2026-10-11 has 4, 2026-10-12 has 1.
 	for range 2 {
 		recorder.Click(link.ID, "2026-10-10", "NP", "news.example", "desktop")
@@ -162,8 +167,8 @@ func TestRecorderFlushPersistsBatchesAndStatsMatchFixture(t *testing.T) {
 	if reloaded.Clicks != 9 {
 		t.Fatalf("links.clicks = %d, want 9", reloaded.Clicks)
 	}
-	pixel, err := ImpressionStats(ctx, pool, siteID, "2026-10-10", "2026-10-12")
-	if err != nil || pixel.Total != 3 || len(pixel.Campaigns) != 2 || pixel.Campaigns[0] != (CampaignCount{"spring", 2}) {
+	pixel, err := ImpressionStats(ctx, pool, siteID, "2026-10-10", "2026-10-12", "spring")
+	if err != nil || pixel.Total != 2 || len(pixel.Daily) != 1 {
 		t.Fatalf("pixel = %+v, %v", pixel, err)
 	}
 }
@@ -235,5 +240,107 @@ func TestRecorderRunFlushesOnShutdown(t *testing.T) {
 	_ = pool.QueryRow(ctx, `select clicks from links where id=$1`, link.ID).Scan(&clicks)
 	if clicks != 1 {
 		t.Fatalf("clicks after shutdown flush = %d", clicks)
+	}
+}
+
+func TestImpressionSummaryAgainstHandComputedFixture(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	// today is 2026-10-30: the 7-day window starts 10-24 and the 30-day window 10-01.
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_daily(site_id, day, campaign, impressions) values
+		($1,'2026-10-30','a',4), ($1,'2026-10-24','a',3), ($1,'2026-10-23','a',20),
+		($1,'2026-10-01','a',7), ($1,'2026-09-30','a',100), ($1,'2026-10-31','a',999)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ImpressionSummaryFor(ctx, pool, siteID, "2026-10-30", "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (ImpressionSummary{Today: 4, Last7: 7, Last30: 34, Total: 134}); got != want {
+		t.Fatalf("summary = %+v, want %+v", got, want)
+	}
+}
+
+func TestImpressionStatsForOneCampaign(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `insert into tracking_pixels(site_id,name,tag) values ($1,'Spring','spring'),($1,'Summer','summer')`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_daily(site_id, day, campaign, impressions) values
+		($1,'2026-10-30','spring',4), ($1,'2026-10-29','spring',3), ($1,'2026-10-30','summer',9),
+		($1,'2026-10-01','spring',20)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	stats, err := ImpressionStats(ctx, pool, siteID, "2026-10-29", "2026-10-30", "spring")
+	if err != nil || stats.Total != 7 || len(stats.Daily) != 2 {
+		t.Fatalf("spring = %+v, %v", stats, err)
+	}
+	summary, err := ImpressionSummaryFor(ctx, pool, siteID, "2026-10-30", "spring")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (ImpressionSummary{Today: 4, Last7: 7, Last30: 27, Total: 27}); summary != want {
+		t.Fatalf("summary = %+v, want %+v", summary, want)
+	}
+}
+
+func TestSiteViewsReloadsRegisteredTagTotalsAndReconciles(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `insert into tracking_pixels(site_id,name,tag) values ($1,'A','a'),($1,'B','b')`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_daily(site_id, day, campaign, impressions) values
+		($1,current_date,'a',4), ($1,current_date,'b',2), ($1,current_date-1,'a',3), ($1,current_date-60,'a',100),
+		($1,current_date,'unregistered',9)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	views := NewSiteViews()
+	var today string
+	if err := pool.QueryRow(ctx, `select current_date::text`).Scan(&today); err != nil {
+		t.Fatal(err)
+	}
+	views.Register(siteID, "a")
+	views.Add(siteID, "a", today, 5) // counted before reload, still unflushed
+	views.Add(siteID, "unregistered", today, 20)
+	if err := views.Reload(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	total, series, ok := views.Snapshot(siteID, "a", today, 3)
+	if !ok || total != 107 || series[0] != 0 || series[1] != 3 || series[2] != 5 {
+		t.Fatalf("total=%d series=%v ok=%v, want 107 and [0 3 5]", total, series, ok)
+	}
+	if total, series, ok := views.Snapshot(siteID, "b", today, 1); !ok || total != 2 || series[0] != 2 {
+		t.Fatalf("b total=%d series=%v ok=%v", total, series, ok)
+	}
+	if _, _, ok := views.Snapshot(siteID, "unregistered", today, 1); ok {
+		t.Fatal("an arbitrary persisted campaign must not enter the registered cache")
+	}
+	if _, err := pool.Exec(ctx, `delete from tracking_pixels where site_id=$1 and tag='b'`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := views.Reload(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok := views.Snapshot(siteID, "b", today, 1); ok {
+		t.Fatal("reload retained a deleted registration")
+	}
+}
+
+func TestSiteViewsRegisterAndUnregisterBoundAllocation(t *testing.T) {
+	views := NewSiteViews()
+	views.Add(1, "arbitrary", "2026-10-14", 1)
+	if len(views.entries) != 0 {
+		t.Fatalf("unregistered add allocated %d entries", len(views.entries))
+	}
+	views.Register(1, "known")
+	views.Add(1, "known", "2026-10-14", 2)
+	if total, _, ok := views.Snapshot(1, "known", "2026-10-14", 1); !ok || total != 2 {
+		t.Fatalf("registered snapshot total=%d ok=%v", total, ok)
+	}
+	views.Unregister(1, "known")
+	if _, _, ok := views.Snapshot(1, "known", "2026-10-14", 1); ok || len(views.entries) != 0 {
+		t.Fatal("unregister retained cache state")
 	}
 }

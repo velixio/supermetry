@@ -211,6 +211,24 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 	}
 }
 
+// Defines values for CreateSiteRequestKind.
+const (
+	CreateSiteRequestKindPixel CreateSiteRequestKind = "pixel"
+	CreateSiteRequestKindWeb   CreateSiteRequestKind = "web"
+)
+
+// Valid indicates whether the value is a known member of the CreateSiteRequestKind enum.
+func (e CreateSiteRequestKind) Valid() bool {
+	switch e {
+	case CreateSiteRequestKindPixel:
+		return true
+	case CreateSiteRequestKindWeb:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateSiteRequestRetentionDays.
 const (
 	CreateSiteRequestRetentionDaysN0   CreateSiteRequestRetentionDays = 0
@@ -1225,6 +1243,24 @@ func (e SiteInstallStatus) Valid() bool {
 	}
 }
 
+// Defines values for SiteKind.
+const (
+	SiteKindPixel SiteKind = "pixel"
+	SiteKindWeb   SiteKind = "web"
+)
+
+// Valid indicates whether the value is a known member of the SiteKind enum.
+func (e SiteKind) Valid() bool {
+	switch e {
+	case SiteKindPixel:
+		return true
+	case SiteKindWeb:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SiteRevenueCurrencyState.
 const (
 	SiteRevenueCurrencyConfigured   SiteRevenueCurrencyState = "configured"
@@ -1621,6 +1657,27 @@ func (e McpParamsMCPProtocolVersion) Valid() bool {
 	}
 }
 
+// Defines values for TrackingPixelParamsStyle.
+const (
+	Flat       TrackingPixelParamsStyle = "flat"
+	FlatSquare TrackingPixelParamsStyle = "flat-square"
+	Stats      TrackingPixelParamsStyle = "stats"
+)
+
+// Valid indicates whether the value is a known member of the TrackingPixelParamsStyle enum.
+func (e TrackingPixelParamsStyle) Valid() bool {
+	switch e {
+	case Flat:
+		return true
+	case FlatSquare:
+		return true
+	case Stats:
+		return true
+	default:
+		return false
+	}
+}
+
 // APIKey defines model for APIKey.
 type APIKey struct {
 	CreatedAt  time.Time  `json:"created_at"`
@@ -1952,14 +2009,20 @@ type CreateShareRequest struct {
 	Password      *string          `json:"password,omitempty"`
 }
 
-// CreateSiteRequest defines model for CreateSiteRequest.
+// CreateSiteRequest hosts and revenue_currency are required when kind is web (the default) and ignored for pixel.
 type CreateSiteRequest struct {
-	Hosts           []string                       `json:"hosts"`
+	Hosts *[]string `json:"hosts,omitempty"`
+
+	// Kind Fixed at creation.
+	Kind            *CreateSiteRequestKind         `json:"kind,omitempty"`
 	Name            string                         `json:"name"`
 	RetentionDays   CreateSiteRequestRetentionDays `json:"retention_days"`
-	RevenueCurrency string                         `json:"revenue_currency"`
+	RevenueCurrency *string                        `json:"revenue_currency,omitempty"`
 	Timezone        string                         `json:"timezone"`
 }
+
+// CreateSiteRequestKind Fixed at creation.
+type CreateSiteRequestKind string
 
 // CreateSiteRequestRetentionDays defines model for CreateSiteRequest.RetentionDays.
 type CreateSiteRequestRetentionDays int
@@ -2552,6 +2615,44 @@ type MCPResponse0 = interface{}
 // MCPResponse1 defines model for MCPResponse.1.
 type MCPResponse1 = interface{}
 
+// ManagedTrackingPixel defines model for ManagedTrackingPixel.
+type ManagedTrackingPixel struct {
+	CreatedAt time.Time `json:"created_at"`
+	GifUrl    string    `json:"gif_url"`
+	Html      string    `json:"html"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	SiteId    int32     `json:"site_id"`
+	SvgUrl    string    `json:"svg_url"`
+	Tag       string    `json:"tag"`
+	Total     int64     `json:"total"`
+	Views30d  int64     `json:"views_30d"`
+}
+
+// ManagedTrackingPixelInput defines model for ManagedTrackingPixelInput.
+type ManagedTrackingPixelInput struct {
+	Name string `json:"name"`
+
+	// Tag Omit or send an empty string to generate an eight-character tag.
+	Tag *ManagedTrackingPixelInput_Tag `json:"tag,omitempty"`
+}
+
+// ManagedTrackingPixelInputTag0 defines model for ManagedTrackingPixelInput.Tag.0.
+type ManagedTrackingPixelInputTag0 = string
+
+// ManagedTrackingPixelInputTag1 defines model for ManagedTrackingPixelInput.Tag.1.
+type ManagedTrackingPixelInputTag1 = string
+
+// ManagedTrackingPixelInput_Tag Omit or send an empty string to generate an eight-character tag.
+type ManagedTrackingPixelInput_Tag struct {
+	union json.RawMessage
+}
+
+// ManagedTrackingPixelPatch defines model for ManagedTrackingPixelPatch.
+type ManagedTrackingPixelPatch struct {
+	Name string `json:"name"`
+}
+
 // Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 type Metric string
 
@@ -2628,6 +2729,57 @@ type Organization struct {
 
 // Period all is capped to the latest 366 days.
 type Period string
+
+// Pixel defines model for Pixel.
+type Pixel struct {
+	BadgeLabel string    `json:"badge_label"`
+	CreatedAt  time.Time `json:"created_at"`
+	Enabled    bool      `json:"enabled"`
+	GifUrl     string    `json:"gif_url"`
+	Id         int64     `json:"id"`
+	Name       string    `json:"name"`
+	PublicId   string    `json:"public_id"`
+	SvgUrl     string    `json:"svg_url"`
+
+	// Total All-time views (views
+	Total    int64 `json:"total"`
+	Views30d int64 `json:"views_30d"`
+}
+
+// PixelInput defines model for PixelInput.
+type PixelInput struct {
+	BadgeLabel *string `json:"badge_label,omitempty"`
+	Enabled    *bool   `json:"enabled,omitempty"`
+	Name       *string `json:"name,omitempty"`
+}
+
+// PixelStats defines model for PixelStats.
+type PixelStats struct {
+	// Countries Direct views only; image proxies such as GitHub hide the country.
+	Countries []struct {
+		Country string `json:"country"`
+		Views   int    `json:"views"`
+	} `json:"countries"`
+	Daily []struct {
+		Day    openapi_types.Date `json:"day"`
+		Direct int                `json:"direct"`
+		Proxy  int                `json:"proxy"`
+	} `json:"daily"`
+	From   openapi_types.Date `json:"from"`
+	Pixels []struct {
+		PixelId int64 `json:"pixel_id"`
+		Views   int   `json:"views"`
+	} `json:"pixels"`
+
+	// Summary Views for today, the last 7 and 30 days and all time in the site's time zone, independent of from and to.
+	Summary struct {
+		Last30 int `json:"last_30"`
+		Last7  int `json:"last_7"`
+		Today  int `json:"today"`
+		Total  int `json:"total"`
+	} `json:"summary"`
+	To openapi_types.Date `json:"to"`
+}
 
 // PowerUser defines model for PowerUser.
 type PowerUser struct {
@@ -3299,6 +3451,7 @@ type Site struct {
 	// InstallStatus Derived from the site's most recent accepted event.
 	InstallStatus SiteInstallStatus `json:"install_status"`
 	IsDemo        bool              `json:"is_demo"`
+	Kind          SiteKind          `json:"kind"`
 
 	// LastSeenAt Timestamp of the site's most recent accepted event, or null before the first event.
 	LastSeenAt      *time.Time `json:"last_seen_at"`
@@ -3324,6 +3477,9 @@ type Site struct {
 
 // SiteInstallStatus Derived from the site's most recent accepted event.
 type SiteInstallStatus string
+
+// SiteKind defines model for Site.Kind.
+type SiteKind string
 
 // SiteRevenueCurrencyState defines model for Site.RevenueCurrencyState.
 type SiteRevenueCurrencyState string
@@ -3728,6 +3884,13 @@ type ListNotificationHistoryParams struct {
 	Limit   *int                     `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// PixelStatsParams defines parameters for PixelStats.
+type PixelStatsParams struct {
+	From  *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+	To    *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	Pixel *int64              `form:"pixel,omitempty" json:"pixel,omitempty"`
+}
+
 // ListPowerUsersParams defines parameters for ListPowerUsers.
 type ListPowerUsersParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
@@ -3965,8 +4128,13 @@ type StatsTimeseriesParams struct {
 
 // TrackingPixelParams defines parameters for TrackingPixel.
 type TrackingPixelParams struct {
-	C *string `form:"c,omitempty" json:"c,omitempty"`
+	C     *string                   `form:"c,omitempty" json:"c,omitempty"`
+	Style *TrackingPixelParamsStyle `form:"style,omitempty" json:"style,omitempty"`
+	Color *string                   `form:"color,omitempty" json:"color,omitempty"`
 }
+
+// TrackingPixelParamsStyle defines parameters for TrackingPixel.
+type TrackingPixelParamsStyle string
 
 // AdminSetTwoFactorExemptionJSONRequestBody defines body for AdminSetTwoFactorExemption for application/json ContentType.
 type AdminSetTwoFactorExemptionJSONRequestBody = AdminTwoFactorExemption
@@ -4054,6 +4222,18 @@ type BackfillSiteIntegrationJSONRequestBody = IntegrationBackfillRequest
 
 // ConnectSiteIntegrationJSONRequestBody defines body for ConnectSiteIntegration for application/json ContentType.
 type ConnectSiteIntegrationJSONRequestBody = IntegrationConnectRequest
+
+// CreatePixelJSONRequestBody defines body for CreatePixel for application/json ContentType.
+type CreatePixelJSONRequestBody = PixelInput
+
+// UpdatePixelJSONRequestBody defines body for UpdatePixel for application/json ContentType.
+type UpdatePixelJSONRequestBody = PixelInput
+
+// CreateManagedTrackingPixelJSONRequestBody defines body for CreateManagedTrackingPixel for application/json ContentType.
+type CreateManagedTrackingPixelJSONRequestBody = ManagedTrackingPixelInput
+
+// UpdateManagedTrackingPixelJSONRequestBody defines body for UpdateManagedTrackingPixel for application/json ContentType.
+type UpdateManagedTrackingPixelJSONRequestBody = ManagedTrackingPixelPatch
 
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
@@ -4496,6 +4676,68 @@ func (t *MCPResponse_Id) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+// AsManagedTrackingPixelInputTag0 returns the union data inside the ManagedTrackingPixelInput_Tag as a ManagedTrackingPixelInputTag0
+func (t ManagedTrackingPixelInput_Tag) AsManagedTrackingPixelInputTag0() (ManagedTrackingPixelInputTag0, error) {
+	var body ManagedTrackingPixelInputTag0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromManagedTrackingPixelInputTag0 overwrites any union data inside the ManagedTrackingPixelInput_Tag as the provided ManagedTrackingPixelInputTag0
+func (t *ManagedTrackingPixelInput_Tag) FromManagedTrackingPixelInputTag0(v ManagedTrackingPixelInputTag0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeManagedTrackingPixelInputTag0 performs a merge with any union data inside the ManagedTrackingPixelInput_Tag, using the provided ManagedTrackingPixelInputTag0
+func (t *ManagedTrackingPixelInput_Tag) MergeManagedTrackingPixelInputTag0(v ManagedTrackingPixelInputTag0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsManagedTrackingPixelInputTag1 returns the union data inside the ManagedTrackingPixelInput_Tag as a ManagedTrackingPixelInputTag1
+func (t ManagedTrackingPixelInput_Tag) AsManagedTrackingPixelInputTag1() (ManagedTrackingPixelInputTag1, error) {
+	var body ManagedTrackingPixelInputTag1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromManagedTrackingPixelInputTag1 overwrites any union data inside the ManagedTrackingPixelInput_Tag as the provided ManagedTrackingPixelInputTag1
+func (t *ManagedTrackingPixelInput_Tag) FromManagedTrackingPixelInputTag1(v ManagedTrackingPixelInputTag1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeManagedTrackingPixelInputTag1 performs a merge with any union data inside the ManagedTrackingPixelInput_Tag, using the provided ManagedTrackingPixelInputTag1
+func (t *ManagedTrackingPixelInput_Tag) MergeManagedTrackingPixelInputTag1(v ManagedTrackingPixelInputTag1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ManagedTrackingPixelInput_Tag) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ManagedTrackingPixelInput_Tag) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// AdminListAudit List instance administration audit entries
@@ -4735,6 +4977,21 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+
+	// (GET /api/private/sites/{site}/pixels)
+	ListPixels(w http.ResponseWriter, r *http.Request, site int32)
+
+	// (POST /api/private/sites/{site}/pixels)
+	CreatePixel(w http.ResponseWriter, r *http.Request, site int32)
+
+	// (GET /api/private/sites/{site}/pixels/stats)
+	PixelStats(w http.ResponseWriter, r *http.Request, site int32, params PixelStatsParams)
+
+	// (DELETE /api/private/sites/{site}/pixels/{id})
+	DeletePixel(w http.ResponseWriter, r *http.Request, site int32, id int64)
+
+	// (PATCH /api/private/sites/{site}/pixels/{id})
+	UpdatePixel(w http.ResponseWriter, r *http.Request, site int32, id int64)
 	// ListPowerUsers Top profiles by sessions or events
 	// (GET /api/private/sites/{site}/power-users)
 	ListPowerUsers(w http.ResponseWriter, r *http.Request, site int32, params ListPowerUsersParams)
@@ -4747,6 +5004,21 @@ type ServerInterface interface {
 	// GetSearchConsoleTop Top queries or pages from imported Search Console data
 	// (GET /api/private/sites/{site}/search-console/top)
 	GetSearchConsoleTop(w http.ResponseWriter, r *http.Request, site int32, params GetSearchConsoleTopParams)
+
+	// (GET /api/private/sites/{site}/tracking-pixels)
+	ListManagedTrackingPixels(w http.ResponseWriter, r *http.Request, site int32)
+
+	// (POST /api/private/sites/{site}/tracking-pixels)
+	CreateManagedTrackingPixel(w http.ResponseWriter, r *http.Request, site int32)
+
+	// (DELETE /api/private/tracking-pixels/{id})
+	DeleteManagedTrackingPixel(w http.ResponseWriter, r *http.Request, id int64)
+
+	// (GET /api/private/tracking-pixels/{id})
+	GetManagedTrackingPixel(w http.ResponseWriter, r *http.Request, id int64)
+
+	// (PATCH /api/private/tracking-pixels/{id})
+	UpdateManagedTrackingPixel(w http.ResponseWriter, r *http.Request, id int64)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -4888,6 +5160,9 @@ type ServerInterface interface {
 	// VitalsQuery Query Web Vitals from raw events
 	// (POST /api/public/v1/vitals/query)
 	VitalsQuery(w http.ResponseWriter, r *http.Request)
+	// OpenCounter Show or render an opt-in public GitHub view counter
+	// (GET /c/{rest})
+	OpenCounter(w http.ResponseWriter, r *http.Request, rest string)
 	// Healthz Check process health
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
@@ -4897,7 +5172,7 @@ type ServerInterface interface {
 	// Metrics Get Prometheus metrics
 	// (GET /metrics)
 	Metrics(w http.ResponseWriter, r *http.Request)
-	// TrackingPixel Record a tracking pixel impression
+	// TrackingPixel Record a tracking pixel impression or serve a pixel-project badge
 	// (GET /px/{file})
 	TrackingPixel(w http.ResponseWriter, r *http.Request, file string, params TrackingPixelParams)
 	// Readyz Check service readiness
@@ -7250,6 +7525,196 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
+// ListPixels operation middleware
+func (siw *ServerInterfaceWrapper) ListPixels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPixels(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePixel operation middleware
+func (siw *ServerInterfaceWrapper) CreatePixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePixel(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PixelStats operation middleware
+func (siw *ServerInterfaceWrapper) PixelStats(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PixelStatsParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "pixel" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pixel", r.URL.Query(), &params.Pixel, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pixel"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pixel", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PixelStats(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePixel operation middleware
+func (siw *ServerInterfaceWrapper) DeletePixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePixel(w, r, site, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePixel operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePixel(w, r, site, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPowerUsers operation middleware
 func (siw *ServerInterfaceWrapper) ListPowerUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -7604,6 +8069,136 @@ func (siw *ServerInterfaceWrapper) GetSearchConsoleTop(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSearchConsoleTop(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListManagedTrackingPixels operation middleware
+func (siw *ServerInterfaceWrapper) ListManagedTrackingPixels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListManagedTrackingPixels(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) CreateManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateManagedTrackingPixel(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) DeleteManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteManagedTrackingPixel(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) GetManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetManagedTrackingPixel(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) UpdateManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateManagedTrackingPixel(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9692,6 +10287,32 @@ func (siw *ServerInterfaceWrapper) VitalsQuery(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// OpenCounter operation middleware
+func (siw *ServerInterfaceWrapper) OpenCounter(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "rest" -------------
+	var rest string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rest", r.PathValue("rest"), &rest, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rest", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenCounter(w, r, rest)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Healthz operation middleware
 func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
 
@@ -9773,6 +10394,32 @@ func (siw *ServerInterfaceWrapper) TrackingPixel(w http.ResponseWriter, r *http.
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "c"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "c", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "style" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "style", r.URL.Query(), &params.Style, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "style"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "style", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "color" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "color", r.URL.Query(), &params.Color, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "color"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "color", Err: err})
 		}
 		return
 	}
@@ -10018,8 +10665,19 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties", wrapper.ListProperties)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties/{property_key}/values", wrapper.ListPropertyValues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/suggestions", wrapper.ListSuggestions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.CreatePixel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels/stats", wrapper.PixelStats)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/pixels/{id}", wrapper.DeletePixel)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/pixels/{id}", wrapper.UpdatePixel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/tracking-pixels", wrapper.ListManagedTrackingPixels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/tracking-pixels", wrapper.CreateManagedTrackingPixel)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/tracking-pixels/{id}", wrapper.DeleteManagedTrackingPixel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/tracking-pixels/{id}", wrapper.GetManagedTrackingPixel)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/tracking-pixels/{id}", wrapper.UpdateManagedTrackingPixel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/l/{slug}", wrapper.FollowShortLink)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/px/{file}", wrapper.TrackingPixel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/c/{rest}", wrapper.OpenCounter)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

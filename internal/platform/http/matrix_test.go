@@ -417,7 +417,7 @@ func TestMeReturnsUserMembershipsAndSites(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, principal, "Example site", []string{"example.test"}, "Asia/Kathmandu", 30, "USD")
+	site, err := sites.Create(ctx, principal, sitesvc.CreateInput{Name: "Example site", Hosts: []string{"example.test"}, Timezone: "Asia/Kathmandu", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -497,7 +497,7 @@ func TestMutationsWriteAudit(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, principal, "Example", []string{"example.test"}, "UTC", 30, "USD")
+	site, err := sites.Create(ctx, principal, sitesvc.CreateInput{Name: "Example", Hosts: []string{"example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -622,7 +622,7 @@ func TestGoalAndFunnelMutationsWriteAudit(t *testing.T) {
 	t.Cleanup(registry.Close)
 	siteService := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := siteService.Create(ctx, principal, "Routes", []string{"routes.example.test"}, "UTC", 30, "USD")
+	site, err := siteService.Create(ctx, principal, sitesvc.CreateInput{Name: "Routes", Hosts: []string{"routes.example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -70,6 +70,18 @@ func RandomSlug() string {
 	return string(out)
 }
 
+// RandomCampaignTag returns an eight-character lowercase alphanumeric tag.
+func RandomCampaignTag() string {
+	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+	var raw [8]byte
+	_, _ = rand.Read(raw[:])
+	out := make([]byte, len(raw))
+	for i, b := range raw {
+		out[i] = alphabet[int(b)%len(alphabet)]
+	}
+	return string(out)
+}
+
 // NormalizeName trims and bounds the display name.
 func NormalizeName(raw string) (string, error) {
 	name := strings.TrimSpace(raw)

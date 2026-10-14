@@ -2146,6 +2146,108 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/private/sites/{site}/pixels:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listPixels
+      tags: [Pixels]
+      responses:
+        '200': { description: Pixels, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Pixel' } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createPixel
+      tags: [Pixels]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PixelInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Pixel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: The project already has 100 pixels, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/pixels/stats:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: pixelStats
+      tags: [Pixels]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: pixel, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200': { description: Views, content: { application/json: { schema: { $ref: '#/components/schemas/PixelStats' } } } }
+  /api/private/sites/{site}/pixels/{id}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+    patch:
+      operationId: updatePixel
+      tags: [Pixels]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PixelInput' } } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Pixel' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deletePixel
+      tags: [Pixels]
+      responses:
+        '204': { description: Deleted with its daily views }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/tracking-pixels:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listManagedTrackingPixels
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      responses:
+        '200': { description: Managed tracking pixels, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixelInput' } } } }
+      responses:
+        '201': { description: Created tracking pixel, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: The tag is already registered for this site, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/tracking-pixels/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      responses:
+        '200': { description: Tracking pixel, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixelPatch' } } } }
+      responses:
+        '200': { description: Updated tracking pixel, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      responses:
+        '204': { description: Deleted registration and its impression aggregates }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /l/{slug}:
     get:
       operationId: followShortLink
@@ -2176,12 +2278,14 @@ paths:
     get:
       operationId: trackingPixel
       security: []
-      summary: Record a tracking pixel impression
+      summary: Record a tracking pixel impression or serve a pixel-project badge
       description: >-
         Public endpoint. The file is the site's public ID followed by .gif. It always answers with the same
         1x1 transparent GIF, whether or not the site exists or the hit was counted. The optional c query
         parameter tags the impression with a campaign name of up to 64 letters, numbers, dot, underscore,
         colon or hyphen; an invalid tag is ignored. No cookie is set and no IP address is stored.
+        A .svg file with a site's public ID serves a badge with that site's running impression total across all
+        campaigns, or with style=stats the total, today and a 30-day graph; loading it counts one impression.
       parameters:
         - name: file
           in: path
@@ -2191,12 +2295,43 @@ paths:
           in: query
           required: false
           schema: { type: string, maxLength: 64 }
+        - name: style
+          in: query
+          schema: { type: string, enum: [flat, flat-square, stats], description: "stats draws the wider badge with the total, today and a 30-day sparkline (pixel projects only)." }
+        - name: color
+          in: query
+          schema: { type: string, pattern: '^[0-9A-Fa-f]{6}$' }
       responses:
         '200':
           description: A 1x1 transparent GIF.
           content:
             image/gif:
               schema: { type: string, format: binary }
+            image/svg+xml:
+              schema: { type: string, format: binary }
+  /c/{rest}:
+    get:
+      operationId: openCounter
+      security: []
+      summary: Show or render an opt-in public GitHub view counter
+      description: >-
+        Public endpoint, disabled by default. A github.com owner or repository key returns a stats page;
+        adding .svg or .gif returns an embeddable counter image. Only recognized image-proxy fetches are
+        counted. IP addresses and user-agent strings are never stored.
+      parameters:
+        - name: rest
+          in: path
+          required: true
+          schema: { type: string, maxLength: 160 }
+      responses:
+        '200':
+          description: A counter page or image.
+          content:
+            text/html: { schema: { type: string } }
+            image/gif: { schema: { type: string, format: binary } }
+            image/svg+xml: { schema: { type: string, format: binary } }
+        '404': { description: Open counters are disabled, blocked, or the key is invalid. }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /healthz:
     get:
       operationId: healthz
@@ -3904,11 +4039,12 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, slug, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state, install_status, last_seen_at, is_demo, demo_ready]
+      required: [id, org_id, public_id, kind, slug, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state, install_status, last_seen_at, is_demo, demo_ready]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
         public_id: { type: string }
+        kind: { type: string, enum: [web, pixel] }
         slug: { type: string, pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', minLength: 1, maxLength: 63, description: Readable per-organization URL segment; public_id resolves too. }
         name: { type: string }
         timezone: { type: string }
@@ -3975,16 +4111,91 @@ components:
     CreateSiteRequest:
       type: object
       additionalProperties: false
-      required: [name, hosts, timezone, retention_days, revenue_currency]
+      required: [name, timezone, retention_days]
+      description: hosts and revenue_currency are required when kind is web (the default) and ignored for pixel.
       properties:
         name: { type: string }
+        kind: { type: string, enum: [web, pixel], default: web, description: Fixed at creation. }
         hosts:
           type: array
-          minItems: 1
           items: { type: string }
         timezone: { type: string }
         retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
         revenue_currency: { type: string, pattern: '^[A-Z]{3}$' }
+    PixelInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        badge_label: { type: string, maxLength: 40 }
+        enabled: { type: boolean }
+    Pixel:
+      type: object
+      required: [id, public_id, name, badge_label, enabled, created_at, total, views_30d, gif_url, svg_url]
+      properties:
+        id: { type: integer, format: int64 }
+        public_id: { type: string, pattern: '^p[A-Za-z0-9]{11}$' }
+        name: { type: string }
+        badge_label: { type: string }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        total: { type: integer, format: int64, description: All-time views (views, not unique visitors). }
+        views_30d: { type: integer, format: int64 }
+        gif_url: { type: string, format: uri }
+        svg_url: { type: string, format: uri }
+    PixelStats:
+      type: object
+      required: [from, to, summary, daily, pixels, countries]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        summary:
+          type: object
+          description: Views for today, the last 7 and 30 days and all time in the site's time zone, independent of from and to.
+          required: [today, last_7, last_30, total]
+          properties: { today: { type: integer }, last_7: { type: integer }, last_30: { type: integer }, total: { type: integer } }
+        daily:
+          type: array
+          items: { type: object, required: [day, proxy, direct], properties: { day: { type: string, format: date }, proxy: { type: integer }, direct: { type: integer } } }
+        pixels:
+          type: array
+          items: { type: object, required: [pixel_id, views], properties: { pixel_id: { type: integer, format: int64 }, views: { type: integer } } }
+        countries:
+          type: array
+          description: Direct views only; image proxies such as GitHub hide the country.
+          items: { type: object, required: [country, views], properties: { country: { type: string }, views: { type: integer } } }
+    ManagedTrackingPixelInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        tag:
+          oneOf:
+            - { type: string, maxLength: 0 }
+            - { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$' }
+          description: Omit or send an empty string to generate an eight-character tag.
+    ManagedTrackingPixelPatch:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+    ManagedTrackingPixel:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, name, tag, gif_url, svg_url, html, total, views_30d, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        name: { type: string }
+        tag: { type: string }
+        gif_url: { type: string, format: uri }
+        svg_url: { type: string, format: uri }
+        html: { type: string }
+        total: { type: integer, format: int64, minimum: 0 }
+        views_30d: { type: integer, format: int64, minimum: 0 }
+        created_at: { type: string, format: date-time }
     UpdateSiteRequest:
       type: object
       additionalProperties: false

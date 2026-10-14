@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/db"
+	"supermetry/internal/links"
+	"supermetry/internal/pixels"
 	"supermetry/internal/platform/authz"
 	platformhttp "supermetry/internal/platform/http"
 	"supermetry/internal/platform/sitesvc"
@@ -25,14 +28,19 @@ type forgetRecorder struct{ slugs []string }
 func (f *forgetRecorder) Forget(slugs ...string) { f.slugs = append(f.slugs, slugs...) }
 
 type linkFixture struct {
-	handler     http.Handler
-	pool        *pgxpool.Pool
-	now         time.Time
-	siteID      int32
-	otherSite   int32
-	foreignSite int32
-	userID      int64
-	cache       *forgetRecorder
+	handler       http.Handler
+	pool          *pgxpool.Pool
+	now           time.Time
+	siteID        int32
+	otherSite     int32
+	foreignSite   int32
+	userID        int64
+	cache         *forgetRecorder
+	registry      *sitesvc.Registry
+	pixels        *pixels.Registry
+	data          *store.Store
+	views         *links.SiteViews
+	authenticator actorAuthenticator
 }
 
 func newLinkFixture(t *testing.T) linkFixture {
@@ -66,6 +74,15 @@ func newLinkFixture(t *testing.T) linkFixture {
 	registry := sitesvc.NewRegistry(data, 0)
 	t.Cleanup(registry.Close)
 	cache := &forgetRecorder{}
+	views := links.NewSiteViews()
+	pixelReg := pixels.NewRegistry(
+		func(ctx context.Context) ([]pixels.Pixel, error) { return pixels.All(ctx, pool) },
+		func(ctx context.Context) (map[int64]int64, error) { return pixels.Totals(ctx, pool) },
+		pixels.NewTotalCache(),
+	)
+	if err := pixelReg.Reload(ctx); err != nil {
+		t.Fatal(err)
+	}
 	authenticator := actorAuthenticator{
 		"owner":         {UserID: userID, OrgID: orgID, Role: authz.RoleOwner},
 		"editor":        {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
@@ -78,10 +95,13 @@ func newLinkFixture(t *testing.T) linkFixture {
 	return linkFixture{
 		handler: platformhttp.New(platformhttp.Deps{
 			Authenticator: authenticator, Sites: registry, Store: data, LinkCache: cache,
+			TrackingPixelViews: views, Pixels: pixelReg,
 			BaseURL: "https://sm.example.test",
 			Now:     func() time.Time { return now },
 		}),
 		pool: pool, now: now, siteID: siteID, otherSite: otherSite, foreignSite: foreignSite, userID: userID, cache: cache,
+		registry: registry, pixels: pixelReg,
+		data: data, views: views, authenticator: authenticator,
 	}
 }
 
@@ -406,12 +426,18 @@ func TestPixelSnippetAndStats(t *testing.T) {
 		}
 	}
 	if _, err := f.pool.Exec(context.Background(), `insert into pixel_impressions_daily(site_id,day,campaign,country,impressions) values
-		($1,'2026-10-10','spring','NP',5), ($1,'2026-10-10','spring','US',1), ($1,'2026-10-11','',  'NP',2), ($2,'2026-10-10','spring','NP',99)`, f.siteID, f.otherSite); err != nil {
+		($1,'2026-10-10','spring','NP',5), ($1,'2026-10-10','spring','US',1), ($2,'2026-10-10','spring','NP',99)`, f.siteID, f.otherSite); err != nil {
 		t.Fatal(err)
 	}
-	stats := f.request(t, "viewer", http.MethodGet, site+"/stats?from=2026-10-01&to=2026-10-31", "")
-	if stats.Code != http.StatusOK || !strings.Contains(stats.Body.String(), `"total":8`) ||
-		!strings.Contains(stats.Body.String(), `{"campaign":"spring","impressions":6}`) || strings.Contains(stats.Body.String(), "99") {
+	stats := f.request(t, "viewer", http.MethodGet, site+"/stats?campaign=spring&from=2026-10-01&to=2026-10-31", "")
+	if stats.Code != http.StatusOK || !strings.Contains(stats.Body.String(), `"total":6`) ||
+		strings.Contains(stats.Body.String(), `"campaigns"`) || strings.Contains(stats.Body.String(), "99") {
 		t.Fatalf("stats status=%d body=%s", stats.Code, stats.Body.String())
+	}
+	for _, invalid := range []string{"(none)", ""} {
+		response := f.request(t, "viewer", http.MethodGet, site+"/stats?campaign="+url.QueryEscape(invalid), "")
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("campaign %q status=%d body=%s", invalid, response.Code, response.Body.String())
+		}
 	}
 }

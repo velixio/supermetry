@@ -188,7 +188,9 @@ func (e *Env) Site(t testing.TB, org Org) Site {
 func (e *Env) SiteInTimezone(t testing.TB, org Org, timezone string) Site {
 	t.Helper()
 	n := sequence.Add(1)
-	created, err := e.sites.Create(context.Background(), authz.Principal{UserID: org.Owner.ID, OrgID: org.ID, Role: authz.RoleOwner}, fmt.Sprintf("Site %d", n), []string{fmt.Sprintf("site-%d.example.test", n)}, timezone, 30, "USD")
+	created, err := e.sites.Create(context.Background(), authz.Principal{UserID: org.Owner.ID, OrgID: org.ID, Role: authz.RoleOwner}, sitesvc.CreateInput{
+		Name: fmt.Sprintf("Site %d", n), Hosts: []string{fmt.Sprintf("site-%d.example.test", n)}, Timezone: timezone, RetentionDays: 30, RevenueCurrency: "USD",
+	})
 	if err != nil {
 		t.Fatalf("seed site: %v", err)
 	}

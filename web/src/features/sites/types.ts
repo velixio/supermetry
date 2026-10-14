@@ -7,13 +7,25 @@ export type TrackingPolicy = {
 
 export type RetentionDays = 0 | 7 | 30 | 90 | 365
 
-export type SiteInput = {
+export type SiteKind = 'web' | 'pixel'
+
+export type WebSiteInput = {
+  kind?: 'web'
   name: string
   hosts: string[]
   timezone: string
   retention_days: RetentionDays
   revenue_currency: string
 }
+
+export type PixelSiteInput = {
+  kind: 'pixel'
+  name: string
+  timezone: string
+  retention_days: RetentionDays
+}
+
+export type SiteInput = WebSiteInput | PixelSiteInput
 
 export type TrackerSettings = {
   outbound: boolean
@@ -40,6 +52,7 @@ export type SiteUpdate = {
 export type ManagedSite = {
   tracking_policy?: TrackingPolicy
   id: number
+  kind: SiteKind
   org_id?: number
   public_id: string
   slug?: string

@@ -468,8 +468,17 @@ func (h *handler) pixelStats(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "link")
 		return
 	}
-	stats, err := links.ImpressionStats(r.Context(), h.deps.Store.Pool, site.ID, from, to)
+	campaign := links.NormalizeCampaign(r.URL.Query().Get("campaign"))
+	if campaign == "" {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "campaign must be 1 to 64 letters, digits, dot, underscore, colon or hyphen")
+		return
+	}
+	stats, err := links.ImpressionStats(r.Context(), h.deps.Store.Pool, site.ID, from, to, campaign)
 	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	if stats.Summary, err = links.ImpressionSummaryFor(r.Context(), h.deps.Store.Pool, site.ID, h.deps.Now().In(siteLocation(site)).Format(time.DateOnly), campaign); err != nil {
 		serviceError(w, err)
 		return
 	}

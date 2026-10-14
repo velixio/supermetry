@@ -1,6 +1,7 @@
 import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 
+import { bucketKey, type Granularity } from '../pixels/buckets'
 import type { DayCount } from './types'
 
 const t = en.linksUi
@@ -15,12 +16,17 @@ export function daysBetween(from: string, to: string): string[] {
   return days
 }
 
-type Props = { from: string; to: string; daily: DayCount[]; unit: string; title: string }
+type Props = { from: string; to: string; daily: DayCount[]; unit: string; title: string; granularity?: Granularity }
 
 /** A bar-per-day chart with a text summary and an equivalent data table. */
-export function DailyBars({ from, to, daily, unit, title }: Props) {
+export function DailyBars({ from, to, daily, unit, title, granularity = 'day' }: Props) {
   const byDay = new Map(daily.map((item) => [item.day, item.count]))
-  const days = daysBetween(from, to).map((day) => ({ day, count: byDay.get(day) ?? 0 }))
+  const buckets = new Map<string, number>()
+  for (const day of daysBetween(from, to)) {
+    const key = bucketKey(day, granularity)
+    buckets.set(key, (buckets.get(key) ?? 0) + (byDay.get(day) ?? 0))
+  }
+  const days = [...buckets].map(([day, count]) => ({ day, count }))
   const total = days.reduce((sum, item) => sum + item.count, 0)
   const peak = days.reduce((best, item) => (item.count > best.count ? item : best), days[0] ?? { day: from, count: 0 })
   if (total === 0) {

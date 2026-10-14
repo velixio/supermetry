@@ -98,16 +98,64 @@ func (s *Sites) SetClock(now func() time.Time) {
 	s.now = now
 }
 
-func (s *Sites) Create(ctx context.Context, principal authz.Principal, name string, hosts []string, timezone string, retentionDays int, currency string) (coresites.Site, error) {
+// CreateInput is a new project. Pixel projects need no hosts or currency.
+type CreateInput struct {
+	Name            string
+	Kind            string
+	Hosts           []string
+	Timezone        string
+	RetentionDays   int
+	RevenueCurrency string
+}
+
+func (s *Sites) Create(ctx context.Context, principal authz.Principal, input any, legacy ...any) (coresites.Site, error) {
+	var in CreateInput
+	switch value := input.(type) {
+	case CreateInput:
+		in = value
+	case string:
+		if len(legacy) != 4 {
+			return coresites.Site{}, fmt.Errorf("%w: invalid create input", ErrInvalid)
+		}
+		hosts, hostsOK := legacy[0].([]string)
+		timezone, timezoneOK := legacy[1].(string)
+		retentionDays, retentionOK := legacy[2].(int)
+		currency, currencyOK := legacy[3].(string)
+		if !hostsOK || !timezoneOK || !retentionOK || !currencyOK {
+			return coresites.Site{}, fmt.Errorf("%w: invalid create input", ErrInvalid)
+		}
+		in = CreateInput{Name: value, Hosts: hosts, Timezone: timezone, RetentionDays: retentionDays, RevenueCurrency: currency}
+	default:
+		return coresites.Site{}, fmt.Errorf("%w: invalid create input", ErrInvalid)
+	}
 	if !authz.Can(principal, authz.ActionSiteCreate, 0) {
 		return coresites.Site{}, ErrForbidden
 	}
-	name, hosts, location, retention, err := validateSite(name, hosts, timezone, retentionDays)
+	if in.Kind == "" {
+		in.Kind = coresites.KindWeb
+	}
+	var (
+		name      string
+		hosts     []string
+		location  *time.Location
+		retention db.RetentionClass
+		err       error
+		state     = string(coresites.RevenueCurrencyConfigured)
+	)
+	switch in.Kind {
+	case coresites.KindWeb:
+		name, hosts, location, retention, err = validateSite(in.Name, in.Hosts, in.Timezone, in.RetentionDays)
+		if err == nil && !coresites.ValidCurrency(in.RevenueCurrency) {
+			err = fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
+		}
+	case coresites.KindPixel:
+		name, _, location, retention, err = validateSite(in.Name, []string{"pixel.invalid"}, in.Timezone, in.RetentionDays)
+		hosts, in.RevenueCurrency, state = []string{}, "", string(coresites.RevenueCurrencyUnconfigured)
+	default:
+		err = fmt.Errorf("%w: kind must be web or pixel", ErrInvalid)
+	}
 	if err != nil {
 		return coresites.Site{}, err
-	}
-	if !coresites.ValidCurrency(currency) {
-		return coresites.Site{}, fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
 	}
 
 	var created store.Site
@@ -131,9 +179,9 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 				return err
 			}
 			created, err = store.CreateSite(ctx, tx, store.Site{
-				OrgID: principal.OrgID, PublicID: publicID, Name: name,
+				OrgID: principal.OrgID, PublicID: publicID, Name: name, Kind: in.Kind,
 				AllowedHosts: hosts, Timezone: location.String(), RetentionClass: int16(retention),
-				RespectPrivacySignals: true, RevenueCurrency: currency, RevenueCurrencyState: string(coresites.RevenueCurrencyConfigured),
+				RespectPrivacySignals: true, RevenueCurrency: in.RevenueCurrency, RevenueCurrencyState: state,
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
 				continue
@@ -142,7 +190,7 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, name stri
 				return err
 			}
 			return audit.Write(ctx, tx, principal, "site.created", "site", int64(created.ID), map[string]any{
-				"name": name, "timezone": location.String(), "retention_days": retentionDays, "revenue_currency": currency,
+				"name": name, "timezone": location.String(), "retention_days": in.RetentionDays, "revenue_currency": in.RevenueCurrency,
 			})
 		}
 		return errors.New("generate unique site public ID")
@@ -248,11 +296,18 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 				return fmt.Errorf("%w: invalid revenue currency state", ErrInvalid)
 			}
 		}
+		validationHosts := current.AllowedHosts
+		if current.Kind == coresites.KindPixel {
+			validationHosts = []string{"pixel.invalid"}
+		}
 		name, hosts, location, retention, err := validateSite(
-			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
+			current.Name, validationHosts, current.Timezone, int(current.RetentionClass),
 		)
 		if err != nil {
 			return err
+		}
+		if current.Kind == coresites.KindPixel {
+			hosts = []string{}
 		}
 		current.Name, current.AllowedHosts = name, hosts
 		current.Timezone, current.RetentionClass = location.String(), int16(retention)
@@ -590,7 +645,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 	}
 	tracker := ParseStoredTracker(row.ID, row.Tracker)
 	return coresites.Site{
-		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, Slug: row.Slug, TZ: location, Retention: retention,
+		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, Kind: row.Kind, Slug: row.Slug, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
 		Tracker:               tracker,
 		ProfilesEnabled:       row.ProfilesEnabled,
