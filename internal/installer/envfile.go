@@ -65,9 +65,15 @@ func ReadExistingSecret(path string) string {
 }
 
 func readExistingValue(path, wanted string) string {
+	return readDotEnv(path)[wanted]
+}
+
+// readDotEnv parses KEY=VALUE lines without touching the process environment.
+func readDotEnv(path string) map[string]string {
+	values := map[string]string{}
 	f, err := os.Open(path)
 	if err != nil {
-		return ""
+		return values
 	}
 	defer f.Close()
 
@@ -76,14 +82,17 @@ func readExistingValue(path, wanted string) string {
 		text := strings.TrimSpace(scanner.Text())
 		text = strings.TrimPrefix(text, "export ")
 		key, value, ok := strings.Cut(text, "=")
-		if !ok || strings.TrimSpace(key) != wanted {
+		key = strings.TrimSpace(key)
+		if !ok || key == "" || strings.HasPrefix(key, "#") {
 			continue
 		}
 		value = strings.TrimSpace(value)
 		if len(value) >= 2 && ((value[0] == '\'' && value[len(value)-1] == '\'') || (value[0] == '"' && value[len(value)-1] == '"')) {
 			value = value[1 : len(value)-1]
 		}
-		return value
+		if _, seen := values[key]; !seen {
+			values[key] = value
+		}
 	}
-	return ""
+	return values
 }

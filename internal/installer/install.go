@@ -22,6 +22,7 @@ import (
 // Options mirrors the interactive installer questions.
 type Options struct {
 	Mode    string
+	DotEnv  string // dotenv file offered as answers; empty disables
 	BaseURL string
 	DB      DBConfig
 	Listen  string
@@ -107,6 +108,11 @@ func Run(ctx context.Context, opts Options, p *Prompter, sys System) error {
 	}
 
 	var err error
+	if !opts.Yes && !opts.DryRun {
+		if opts, err = adoptDotEnv(opts, p); err != nil {
+			return err
+		}
+	}
 	if opts.Mode == "" {
 		modes := []string{"binary"}
 		if _, dockerErr := sys.Runner.Run(ctx, "docker", "compose", "version"); dockerErr == nil {
