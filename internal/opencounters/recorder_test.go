@@ -2,6 +2,8 @@ package opencounters
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"sync"
 	"testing"
 
@@ -14,6 +16,7 @@ type memoryStore struct {
 	rows   map[ViewKey]int64
 	totals map[string]int64
 	loads  int
+	loaded [][]string
 }
 
 func newMemoryStore() *memoryStore {
@@ -34,11 +37,102 @@ func (s *memoryStore) Totals(_ context.Context, keys []string) (map[string]int64
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.loads++
+	s.loaded = append(s.loaded, append([]string(nil), keys...))
 	out := make(map[string]int64, len(keys))
 	for _, key := range keys {
-		out[key] = s.totals[key]
+		if total, ok := s.totals[key]; ok {
+			out[key] = total
+		}
 	}
 	return out, nil
+}
+
+func TestRecorderCapsAndBoundsColdLoads(t *testing.T) {
+	store := newMemoryStore()
+	recorder := NewRecorder(store, 50, 500)
+	for i := range 1_500 {
+		recorder.Total(fmt.Sprintf("github.com/passive-%04d", i))
+	}
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.loaded) != 1 || len(store.loaded[0]) > 1_000 {
+		t.Fatalf("cold load batches = %v, want one batch of at most 1000", sliceLengths(store.loaded))
+	}
+	if len(store.loaded[0]) > 128 {
+		t.Fatalf("passive cold load = %d keys, want bounded lookup set", len(store.loaded[0]))
+	}
+}
+
+func TestRecorderBatchesCountedColdLoads(t *testing.T) {
+	store := newMemoryStore()
+	recorder := NewRecorder(store, 0, 2_000)
+	for i := range 1_500 {
+		recorder.View(fmt.Sprintf("github.com/counted-%04d", i), "2026-10-14")
+	}
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := sliceLengths(store.loaded); !slices.Equal(got, []int{1_000, 500}) {
+		t.Fatalf("counted cold-load batches = %v, want [1000 500]", got)
+	}
+}
+
+func TestRecorderNegativelyCachesMisses(t *testing.T) {
+	store := newMemoryStore()
+	recorder := NewRecorder(store, 50, 500)
+	recorder.Total("github.com/missing")
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	recorder.Total("github.com/missing")
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if store.loads != 1 {
+		t.Fatalf("loads = %d, want one while miss is cached", store.loads)
+	}
+}
+
+func TestRecorderFirstViewLoadsPersistedTotal(t *testing.T) {
+	store := newMemoryStore()
+	store.totals["github.com/existing"] = 500
+	recorder := NewRecorder(store, 50, 500)
+	recorder.View("github.com/existing", "2026-10-14")
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := recorder.Total("github.com/existing"); got != 501 {
+		t.Fatalf("total after first post-restart view = %d, want 501", got)
+	}
+}
+
+func TestRecorderCountedViewRechecksNegativeMiss(t *testing.T) {
+	store := newMemoryStore()
+	recorder := NewRecorder(store, 50, 500)
+	recorder.Total("github.com/replicated")
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	store.totals["github.com/replicated"] = 500
+	recorder.View("github.com/replicated", "2026-10-14")
+	if err := recorder.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := recorder.Total("github.com/replicated"); got != 501 {
+		t.Fatalf("total after counted view of remotely created counter = %d, want 501", got)
+	}
+}
+
+func sliceLengths(values [][]string) []int {
+	out := make([]int, len(values))
+	for i := range values {
+		out[i] = len(values[i])
+	}
+	return out
 }
 
 func TestRecorderLoadsColdTotal(t *testing.T) {
