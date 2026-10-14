@@ -43,16 +43,42 @@ Supermetry is an open-source, self-hosted web analytics platform and a privacy-f
 
 ## Why Supermetry
 
-Most analytics tools make you pick two: **privacy**, **depth**, or **easy hosting**. Supermetry gives you all three.
-
-|  |  |
-|---|---|
-| 🪶 **Simple to run** | One Go binary and a PostgreSQL database. Redis is not needed. Installers for Linux, macOS and Windows, plus backup and restore commands. |
-| 🔒 **Private by design** | No cookies, no fingerprinting, no raw IP addresses stored. Visitors are counted with a random daily salt that is deleted after about 48 hours. Do Not Track and Global Privacy Control are honoured. |
-| ⚡ **Light on servers and pages** | The tracker is about 1.2 KB gzipped. In a 4-hour test one process ingested 200 events per second, 2.88 million events in all, with no loss, no errors, a worst-case p99 latency of 23 ms and under 190 MiB of memory ([details](tools/bench/soak/README.md)). |
-| ✅ **Numbers you can check** | Side by side with Plausible Community Edition on identical real-browser traffic, every metric and breakdown matched, in both products and against hand-computed truth ([details](tools/bench/accuracy/ab/README.md)). |
-| 🧭 **More than pageviews** | Goals, funnels, revenue, retention, user journeys, Web Vitals, heatmaps and session replay, all in the open-source release. No feature locks. |
-| 🔓 **Yours to leave** | Apache-2.0, a REST API, an MCP endpoint for AI assistants, CSV export and imports from Google Analytics 4, Plausible, Umami, Mixpanel and Amplitude. |
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <img src="docs/assets/readme/why-run.webp" alt="Terminal: one binary and PostgreSQL, started with supermetry serve">
+      <br><b>Simple to run</b><br>
+      <sub>One Go binary + PostgreSQL. No Redis, no ClickHouse.</sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/assets/readme/why-private.webp" alt="Tracker settings where every extra collection feature is off by default">
+      <br><b>Private by design</b><br>
+      <sub>No cookies, no fingerprinting, no raw IPs. Extras are opt-in.</sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/assets/readme/why-light.webp" alt="The one-line tracking script, about 1.2 KB gzipped">
+      <br><b>Featherweight</b><br>
+      <sub>~1.2 KB tracker. 200 events/s for 4 hours, p99 23 ms, &lt;190 MiB. <a href="tools/bench/soak/README.md">Proof</a></sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top">
+      <img src="docs/assets/readme/why-numbers.webp" alt="Dashboard stat cards and a 30-day traffic chart">
+      <br><b>Numbers you can check</b><br>
+      <sub>Matched Plausible CE on identical real traffic. <a href="tools/bench/accuracy/ab/README.md">Proof</a></sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/assets/readme/why-depth.webp" alt="User journeys flow diagram">
+      <br><b>More than pageviews</b><br>
+      <sub>Funnels, journeys, revenue, replay and heatmaps. No feature locks.</sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/assets/readme/why-open.webp" alt="Import historical data from Plausible, Umami, GA4, Mixpanel or Amplitude">
+      <br><b>Yours to leave</b><br>
+      <sub>Apache-2.0, REST API, MCP, CSV export and five importers.</sub>
+    </td>
+  </tr>
+</table>
 
 ## A quick tour
 
