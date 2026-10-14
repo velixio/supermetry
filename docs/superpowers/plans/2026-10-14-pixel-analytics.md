@@ -2971,7 +2971,7 @@ import (
 	"supermetry/internal/pixels"
 )
 
-func newCounterServer(t *testing.T, enabled bool) (*http.ServeMux, *memStore) {
+func newCounterServer(t *testing.T, enabled bool) (*http.ServeMux, *memStore, *Handler) {
 	t.Helper()
 	store := &memStore{views: map[ViewKey]int64{}, totals: map[string]int64{}}
 	h := &Handler{
@@ -2981,7 +2981,7 @@ func newCounterServer(t *testing.T, enabled bool) (*http.ServeMux, *memStore) {
 	}
 	mux := http.NewServeMux()
 	Register(mux, h, enabled)
-	return mux, store
+	return mux, store, h
 }
 
 func hit(mux *http.ServeMux, path, ua string) *httptest.ResponseRecorder {
@@ -2993,14 +2993,14 @@ func hit(mux *http.ServeMux, path, ua string) *httptest.ResponseRecorder {
 }
 
 func TestDisabledReturns404(t *testing.T) {
-	mux, _ := newCounterServer(t, false)
+	mux, _, _ := newCounterServer(t, false)
 	if res := hit(mux, "/c/github.com/a.svg", "github-camo (1)"); res.Code != http.StatusNotFound {
 		t.Fatalf("status = %d", res.Code)
 	}
 }
 
 func TestOnlyProxiedViewsCount(t *testing.T) {
-	mux, store := newCounterServer(t, true)
+	mux, store, h := newCounterServer(t, true)
 	for _, tc := range []struct{ path, ua string }{
 		{"/c/github.com/Velixio/Supermetry.svg", "github-camo (1)"},
 		{"/c/github.com/velixio/supermetry.gif", "github-camo (1)"},
@@ -3012,13 +3012,10 @@ func TestOnlyProxiedViewsCount(t *testing.T) {
 			t.Fatalf("%s: %d %v", tc.path, res.Code, res.Header())
 		}
 	}
-	h := hit(mux, "/c/github.com/bad_owner.svg", "github-camo (1)")
-	if h.Code != http.StatusNotFound {
-		t.Fatalf("invalid key status = %d", h.Code)
+	if res := hit(mux, "/c/github.com/bad_owner.svg", "github-camo (1)"); res.Code != http.StatusNotFound {
+		t.Fatalf("invalid key status = %d", res.Code)
 	}
-	_ = context.Background()
-	_ = mux // flush through the handler's recorder
-	if err := handlerOf(mux).Recorder.Flush(context.Background()); err != nil {
+	if err := h.Recorder.Flush(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if store.views[ViewKey{"github.com/velixio/supermetry", "2026-10-14"}] != 2 || len(store.views) != 1 {
@@ -3030,14 +3027,6 @@ func TestOnlyProxiedViewsCount(t *testing.T) {
 	}
 }
 ```
-
-Simplify the flush access: have `newCounterServer` also return the `*Handler` (replace `handlerOf(mux)` with that return value) — write it that way from the start:
-
-```go
-func newCounterServer(t *testing.T, enabled bool) (*http.ServeMux, *memStore, *Handler)
-```
-
-and in the test `mux, store, h := newCounterServer(t, true)` then `h.Recorder.Flush(...)`; drop the `_ = ...` lines.
 
 - [ ] **Step 6: Implement `handler.go`**
 
@@ -3180,7 +3169,9 @@ func TestStatsPage(t *testing.T) {
 	if strings.Contains(body, "<script") {
 		t.Error("page must not ship scripts")
 	}
-	_ = http.StatusOK
+	if res := hit(mux, "/c/github.com/spam", "Mozilla/5.0"); res.Code != http.StatusNotFound {
+		t.Errorf("blocked key page = %d", res.Code)
+	}
 }
 
 func TestRenderSparklineEmptyAndFlat(t *testing.T) {
