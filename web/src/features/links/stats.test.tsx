@@ -83,7 +83,7 @@ describe('PixelPage', () => {
         const url = `https://sm.example.test/px/abc.gif${campaign ? `?c=${campaign}` : ''}`
         return { data: { campaign, path: '/px/abc.gif', url, html: `<img src="${url}" width="1" height="1" alt="" />` }, response: { status: 200 } }
       }
-      return { data: { from: '2026-10-01', to: '2026-10-12', total: 8, daily: [{ day: '2026-10-11', count: 8 }], campaigns: [{ campaign: 'spring', impressions: 6 }, { campaign: '', impressions: 2 }] }, response: { status: 200 } }
+      return { data: { from: '2026-10-01', to: '2026-10-12', summary: { today: 3, last_7: 5, last_30: 8, total: 8 }, total: 8, daily: [{ day: '2026-10-11', count: 8 }], campaigns: [{ campaign: 'spring', impressions: 6 }, { campaign: '', impressions: 2 }] }, response: { status: 200 } }
     })
   })
   afterEach(() => cleanup())

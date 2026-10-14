@@ -52,6 +52,7 @@ export type LinkStats = {
 export type PixelSnippet = { campaign: string; path: string; url: string; html: string }
 
 export type PixelStats = {
+  summary: { today: number; last_7: number; last_30: number; total: number }
   from: string
   to: string
   total: number

@@ -13,6 +13,7 @@ import { en } from '@/messages/en'
 import { usePixelSnippet, usePixelStats } from './api'
 import { CopyButton } from './CopyButton'
 import { DailyBars } from './DailyBars'
+import { type Granularity } from '../pixels/buckets'
 import { LinksTabs } from './LinksTabs'
 
 const t = en.linksUi
@@ -22,6 +23,8 @@ const periods: { value: Period; label: string }[] = [
   { value: '7d', label: t.last7 },
   { value: '30d', label: t.last30 },
   { value: '91d', label: t.last90 },
+  { value: '6mo', label: t.last6mo },
+  { value: '12mo', label: t.last12mo },
 ]
 
 type Props = { org: string; siteSlug: string; siteId: number; timezone: string }
@@ -29,6 +32,7 @@ type Props = { org: string; siteSlug: string; siteId: number; timezone: string }
 export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
   const [campaign, setCampaign] = useState('')
   const [period, setPeriod] = useState<Period>('30d')
+  const [granularity, setGranularity] = useState<Granularity>('day')
   const range = useMemo(() => resolveRange(period, timezone, new Date()), [period, timezone])
   const trimmed = campaign.trim()
   const valid = trimmed === '' || campaignPattern.test(trimmed)
@@ -72,6 +76,18 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
       <section aria-labelledby="pixel-stats" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-base font-medium" id="pixel-stats">{t.pixelStatsTitle}</h2>
+          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="pixel-group">{t.groupBy}</Label>
+            <select
+              id="pixel-group" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" value={granularity}
+              onChange={(event) => setGranularity(event.target.value as Granularity)}
+            >
+              <option value="day">{t.byDay}</option>
+              <option value="week">{t.byWeek}</option>
+              <option value="month">{t.byMonth}</option>
+            </select>
+          </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="pixel-period">{t.period}</Label>
             <select
@@ -80,6 +96,7 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
             >
               {periods.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
+          </div>
           </div>
         </div>
         {stats.isPending ? <p className="text-sm text-muted-foreground" role="status">{t.loading}</p> : null}
@@ -91,11 +108,16 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
         ) : null}
         {stats.data ? (
           <>
-            <dl>
-              <dt className="text-xs text-muted-foreground">{t.pixelImpressions}</dt>
-              <dd className="text-2xl font-semibold tabular-nums">{fmt.number(stats.data.total)}</dd>
+            <dl className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={t.pixelPeriodCards}>
+              {([[t.pixelToday, stats.data.summary.today], [t.last7, stats.data.summary.last_7], [t.last30, stats.data.summary.last_30], [t.pixelAllTime, stats.data.summary.total]] as const).map(([label, value]) => (
+                <div className="rounded-lg border p-3" key={label}>
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="text-2xl font-semibold tabular-nums">{fmt.number(value)}</dd>
+                </div>
+              ))}
             </dl>
-            <DailyBars daily={stats.data.daily} from={stats.data.from} title={t.pixelStatsTitle} to={stats.data.to} unit={t.pixelStatsTitle} />
+            <p className="text-xs text-muted-foreground">{t.pixelImpressions}: {fmt.number(stats.data.total)}</p>
+            <DailyBars granularity={granularity} daily={stats.data.daily} from={stats.data.from} title={t.pixelStatsTitle} to={stats.data.to} unit={t.pixelStatsTitle} />
             {stats.data.campaigns.length > 0 ? (
               <div>
                 <h3 className="mb-2 text-sm font-medium">{t.pixelCampaigns}</h3>
