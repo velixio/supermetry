@@ -12,6 +12,7 @@ vi.mock('@/lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) })
 
 import { daysBetween, DailyBars } from './DailyBars'
 import { LinkStatsPage } from './LinkStatsPage'
+import { CampaignPage } from './CampaignPage'
 import { PixelPage } from './PixelPage'
 
 function wrap(node: ReactNode) {
@@ -101,16 +102,35 @@ describe('PixelPage', () => {
     expect(screen.getAllByText('8').length).toBeGreaterThan(0)
   })
 
-  it('narrows the stats to one campaign and clears the filter', async () => {
+  it('links each campaign to its own page', async () => {
     wrap(<PixelPage org="acme" siteId={7} siteSlug="main" timezone="UTC" />)
-    fireEvent.click(await screen.findByRole('button', { name: /spring/ }))
-    expect(await screen.findByText('Showing campaign: spring')).toBeInTheDocument()
-    const statsCalls = () => get.mock.calls.filter(([path]) => path === '/api/private/sites/{site}/pixel/stats')
-    expect(statsCalls().at(-1)?.[1].params.query.campaign).toBe('spring')
-    fireEvent.click(screen.getByRole('button', { name: /^Untagged/ }))
-    expect(await screen.findByText('Showing campaign: Untagged')).toBeInTheDocument()
-    expect(statsCalls().at(-1)?.[1].params.query.campaign).toBe('(none)')
-    fireEvent.click(screen.getByRole('button', { name: 'Show all campaigns' }))
-    await waitFor(() => expect(statsCalls().at(-1)?.[1].params.query.campaign).toBeUndefined())
+    expect(await screen.findByRole('link', { name: /^spring/ })).toHaveAttribute('href', '/app/acme/main/links/pixel/spring')
+    expect(screen.getByRole('link', { name: /^Untagged/ })).toHaveAttribute('href', '/app/acme/main/links/pixel/~untagged')
+  })
+})
+
+describe('CampaignPage', () => {
+  afterEach(() => cleanup())
+
+  it('shows the stats of one tag with its image URL', async () => {
+    get.mockImplementation(async (path: string, options: { params: { query?: { campaign?: string } } }) => {
+      if (path === '/api/private/sites/{site}/pixel') {
+        return { data: { campaign: 'spring', path: '/px/abc.gif', url: 'https://sm.example.test/px/abc.gif?c=spring', html: '' }, response: { status: 200 } }
+      }
+      return { data: { from: '2026-10-01', to: '2026-10-12', summary: { today: 1, last_7: 4, last_30: 6, total: 6 }, total: 6, daily: [{ day: '2026-10-11', count: 6 }], campaigns: [{ campaign: 'spring', impressions: 6 }] }, response: { status: 200 } }
+    })
+    wrap(<CampaignPage org="acme" segment="spring" siteId={7} siteSlug="main" timezone="UTC" />)
+    expect(await screen.findByRole('heading', { name: 'Campaign: spring' })).toBeInTheDocument()
+    expect(await screen.findByText('https://sm.example.test/px/abc.gif?c=spring')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Campaigns' })).not.toBeInTheDocument()
+    await waitFor(() => expect(get.mock.calls.some(([path, options]) => path === '/api/private/sites/{site}/pixel/stats' && options.params.query.campaign === 'spring')).toBe(true))
+  })
+
+  it('maps the untagged segment to the untagged filter', async () => {
+    get.mockImplementation(async () => ({ data: { from: '2026-10-01', to: '2026-10-12', summary: { today: 0, last_7: 0, last_30: 0, total: 0 }, total: 0, daily: [], campaigns: [] }, response: { status: 200 } }))
+    wrap(<CampaignPage org="acme" segment="~untagged" siteId={7} siteSlug="main" timezone="UTC" />)
+    expect(await screen.findByRole('heading', { name: 'Campaign: Untagged' })).toBeInTheDocument()
+    await waitFor(() => expect(get.mock.calls.some(([path, options]) => path === '/api/private/sites/{site}/pixel/stats' && options.params.query.campaign === '(none)')).toBe(true))
+    expect(get.mock.calls.some(([path]) => path === '/api/private/sites/{site}/pixel')).toBe(false)
   })
 })
