@@ -1729,3 +1729,693 @@ Expected: `ok` for both.
 git add internal/api/router.go internal/links/handler.go cmd/supermetry/serve.go
 git commit -m "feat(server): route pixel project images"
 ```
+
+### Task 8: Pixel stats query, private API and OpenAPI
+
+**Files:**
+- Create: `internal/pixels/stats.go`, `internal/pixels/stats_test.go`
+- Create: `internal/platform/http/handlers_pixels.go`, `internal/platform/http/handlers_pixels_test.go`
+- Modify: `internal/platform/http/private.go:~272` (routes), `Deps` struct (`Pixels *pixels.Registry`)
+- Modify: `internal/platform/http/handlers_links_test.go:27-116` (keep `registry` on `linkFixture` so pixel tests can call `Invalidate()`)
+- Modify: `cmd/supermetry/serve.go` (`Pixels: pixelRegistry` in `platformhttp.Deps`)
+- Modify: `internal/api/openapi.yaml` (paths + schemas)
+
+**Interfaces:**
+- Consumes: Task 3 store, Task 4 `Registry.Reload`/`Totals()`; existing `sitePrincipal`, `statsRange`, `linkRoles()`, `authz.ActionLinksManage`, `audit.Write`, `h.linkBase(r)`.
+- Produces:
+  - `type DayViews struct { Day string \`json:"day"\`; Proxy int64 \`json:"proxy"\`; Direct int64 \`json:"direct"\` }`
+  - `type PixelViews struct { PixelID int64 \`json:"pixel_id"\`; Views int64 \`json:"views"\` }`
+  - `type CountryViews struct { Country string \`json:"country"\`; Views int64 \`json:"views"\` }`
+  - `type Stats struct { Daily []DayViews; Pixels []PixelViews; Countries []CountryViews }` (json `daily`, `pixels`, `countries`)
+  - `func StatsFor(ctx, db DBTX, siteID int32, from, to string, pixelID int64) (Stats, error)` (`pixelID == 0` means all)
+  - `func Views30(ctx, db DBTX, siteID int32, today string) (map[int64]int64, error)`
+  - HTTP: `GET/POST /api/private/sites/{site}/pixels`, `PATCH/DELETE /api/private/sites/{site}/pixels/{id}`, `GET /api/private/sites/{site}/pixels/stats?from=&to=&pixel=`
+  - JSON `pixelJSON { id, public_id, name, badge_label, enabled, created_at, total, views_30d, gif_url, svg_url }`
+
+Decision: the stats endpoint takes `from`/`to` (same as link stats, via `statsRange`) instead of the spec's `period=`; the web client maps its period picker to dates. Non-pixel projects get `404 problem+json` ("not a pixel project") on all pixel routes.
+
+- [ ] **Step 1: Write the failing store test** (`internal/pixels/stats_test.go`)
+
+```go
+package pixels
+
+import (
+	"context"
+	"testing"
+)
+
+func TestStatsAgainstHandComputedFixture(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	a, _ := Create(ctx, pool, Pixel{SiteID: siteID, Name: "a", Enabled: true})
+	b, _ := Create(ctx, pool, Pixel{SiteID: siteID, Name: "b", Enabled: true})
+	_, err := pool.Exec(ctx, `insert into pixel_views_daily values
+		($1,'2026-10-01','','proxy',10), ($1,'2026-10-01','NP','direct',2), ($1,'2026-10-02','IN','direct',3),
+		($2,'2026-10-02','','proxy',5),  ($2,'2026-09-30','NP','direct',100)`, a.ID, b.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := StatsFor(ctx, pool, siteID, "2026-10-01", "2026-10-02", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []DayViews{{"2026-10-01", 10, 2}, {"2026-10-02", 5, 3}}
+	if len(s.Daily) != 2 || s.Daily[0] != want[0] || s.Daily[1] != want[1] {
+		t.Fatalf("daily = %+v", s.Daily)
+	}
+	if len(s.Pixels) != 2 || s.Pixels[0] != (PixelViews{a.ID, 15}) || s.Pixels[1] != (PixelViews{b.ID, 5}) {
+		t.Fatalf("pixels = %+v", s.Pixels)
+	}
+	if len(s.Countries) != 2 || s.Countries[0] != (CountryViews{"IN", 3}) || s.Countries[1] != (CountryViews{"NP", 2}) {
+		t.Fatalf("countries = %+v", s.Countries)
+	}
+	only, _ := StatsFor(ctx, pool, siteID, "2026-10-01", "2026-10-02", b.ID)
+	if len(only.Daily) != 1 || only.Daily[0] != (DayViews{"2026-10-02", 5, 0}) {
+		t.Fatalf("filtered = %+v", only.Daily)
+	}
+	v30, _ := Views30(ctx, pool, siteID, "2026-10-02")
+	if v30[a.ID] != 15 || v30[b.ID] != 105 {
+		t.Fatalf("views30 = %v", v30)
+	}
+}
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `go test ./internal/pixels -run TestStats -count=1`
+Expected: FAIL to compile, `undefined: StatsFor`.
+
+- [ ] **Step 3: Implement `internal/pixels/stats.go`**
+
+```go
+package pixels
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+)
+
+type DayViews struct {
+	Day    string `json:"day"`
+	Proxy  int64  `json:"proxy"`
+	Direct int64  `json:"direct"`
+}
+type PixelViews struct {
+	PixelID int64 `json:"pixel_id"`
+	Views   int64 `json:"views"`
+}
+type CountryViews struct {
+	Country string `json:"country"`
+	Views   int64  `json:"views"`
+}
+type Stats struct {
+	Daily     []DayViews     `json:"daily"`
+	Pixels    []PixelViews   `json:"pixels"`
+	Countries []CountryViews `json:"countries"`
+}
+
+// Rows are scoped through pixels.site_id, so a pixel id from another site
+// returns nothing.
+const scope = `from pixel_views_daily v join pixels p on p.id = v.pixel_id
+	where p.site_id = $1 and v.day between $2::date and $3::date and ($4 = 0 or v.pixel_id = $4)`
+
+func StatsFor(ctx context.Context, db DBTX, siteID int32, from, to string, pixelID int64) (Stats, error) {
+	var s Stats
+	var err error
+	args := []any{siteID, from, to, pixelID}
+	if s.Daily, err = collect(ctx, db, `select v.day::text,
+		coalesce(sum(v.views) filter (where v.via='proxy'),0)::bigint,
+		coalesce(sum(v.views) filter (where v.via='direct'),0)::bigint `+scope+` group by v.day order by v.day`,
+		args, func(r pgx.CollectableRow) (DayViews, error) { var d DayViews; return d, r.Scan(&d.Day, &d.Proxy, &d.Direct) }); err != nil {
+		return Stats{}, err
+	}
+	if s.Pixels, err = collect(ctx, db, `select v.pixel_id, sum(v.views)::bigint `+scope+` group by v.pixel_id order by v.pixel_id`,
+		args, func(r pgx.CollectableRow) (PixelViews, error) { var p PixelViews; return p, r.Scan(&p.PixelID, &p.Views) }); err != nil {
+		return Stats{}, err
+	}
+	if s.Countries, err = collect(ctx, db, `select v.country, sum(v.views)::bigint `+scope+` and v.via='direct' and v.country <> ''
+		group by v.country order by 2 desc, 1 limit 250`,
+		args, func(r pgx.CollectableRow) (CountryViews, error) { var c CountryViews; return c, r.Scan(&c.Country, &c.Views) }); err != nil {
+		return Stats{}, err
+	}
+	return s, nil
+}
+
+func collect[T any](ctx context.Context, db DBTX, q string, args []any, fn pgx.RowToFunc[T]) ([]T, error) {
+	rows, err := db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	out, err := pgx.CollectRows(rows, fn)
+	if out == nil {
+		out = []T{}
+	}
+	return out, err
+}
+
+func Views30(ctx context.Context, db DBTX, siteID int32, today string) (map[int64]int64, error) {
+	rows, err := db.Query(ctx, `select v.pixel_id, sum(v.views)::bigint from pixel_views_daily v join pixels p on p.id=v.pixel_id
+		where p.site_id=$1 and v.day > $2::date - 30 and v.day <= $2::date group by v.pixel_id`, siteID, today)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]int64{}
+	for rows.Next() {
+		var id, n int64
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}
+```
+
+The primary key `(pixel_id, day, …)` serves these range scans; no extra index (CLAUDE.md: only indexes queries prove they need).
+
+- [ ] **Step 4: Run and commit the query**
+
+Run: `go test ./internal/pixels -count=1`
+Expected: `ok`.
+
+```bash
+git add internal/pixels/stats.go internal/pixels/stats_test.go
+git commit -m "feat(pixels): query daily, per-pixel and country views"
+```
+
+- [ ] **Step 5: Write the failing API test** (`internal/platform/http/handlers_pixels_test.go`). First add `registry *sitesvc.Registry` to `linkFixture` and set it in `newLinkFixture`; also pass `Pixels: pixelReg` built from `pixels.NewRegistry(... pixels.All/Totals on pool ...)` and store it as `pixels *pixels.Registry`.
+
+```go
+func newPixelFixture(t *testing.T) linkFixture {
+	t.Helper()
+	f := newLinkFixture(t)
+	if _, err := f.pool.Exec(context.Background(), `update sites set kind='pixel' where id=$1`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func TestPixelsCRUDLimitAndStats(t *testing.T) {
+	f := newPixelFixture(t)
+	base := fmt.Sprintf("/api/private/sites/%d/pixels", f.siteID)
+	res := f.request(t, "editor", http.MethodPost, base, `{"name":"GitHub profile"}`)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("create %d %s", res.Code, res.Body)
+	}
+	var created map[string]any
+	_ = json.NewDecoder(res.Body).Decode(&created)
+	publicID := created["public_id"].(string)
+	if created["badge_label"] != "views" || created["svg_url"] != "https://sm.example.test/px/"+publicID+".svg" {
+		t.Fatalf("created = %v", created)
+	}
+	if _, ok := f.pixels.ByPublicID(publicID); !ok {
+		t.Fatal("registry not reloaded after create")
+	}
+	id := int64(created["id"].(float64))
+	if res := f.request(t, "viewer", http.MethodPost, base, `{"name":"x"}`); res.Code != http.StatusForbidden {
+		t.Fatalf("viewer create = %d", res.Code)
+	}
+	if res := f.request(t, "editor", http.MethodPost, base, `{"name":""}`); res.Code != http.StatusBadRequest {
+		t.Fatalf("empty name = %d", res.Code)
+	}
+	if res := f.request(t, "editor", http.MethodPatch, fmt.Sprintf("%s/%d", base, id), `{"badge_label":"hits","enabled":false}`); res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"enabled":false`) {
+		t.Fatalf("patch %d %s", res.Code, res.Body)
+	}
+	for i := 1; i < 100; i++ {
+		f.request(t, "editor", http.MethodPost, base, fmt.Sprintf(`{"name":"p%d"}`, i))
+	}
+	res = f.request(t, "editor", http.MethodPost, base, `{"name":"too many"}`)
+	if res.Code != http.StatusConflict || res.Header().Get("Content-Type") != "application/problem+json" {
+		t.Fatalf("101st = %d %s", res.Code, res.Header())
+	}
+	if _, err := f.pool.Exec(context.Background(), `insert into pixel_views_daily values ($1,'2026-10-12','','proxy',4)`, id); err != nil {
+		t.Fatal(err)
+	}
+	res = f.request(t, "viewer", http.MethodGet, base+"/stats?from=2026-10-01&to=2026-10-13", "")
+	if res.Code != 200 || !strings.Contains(res.Body.String(), `{"day":"2026-10-12","proxy":4,"direct":0}`) {
+		t.Fatalf("stats %d %s", res.Code, res.Body)
+	}
+	if res := f.request(t, "editor", http.MethodDelete, fmt.Sprintf("%s/%d", base, id), ""); res.Code != http.StatusNoContent {
+		t.Fatalf("delete = %d", res.Code)
+	}
+	web := fmt.Sprintf("/api/private/sites/%d/pixels", f.otherSite)
+	if res := f.request(t, "owner", http.MethodGet, web, ""); res.Code != http.StatusNotFound {
+		t.Fatalf("web project pixels = %d", res.Code)
+	}
+}
+```
+
+- [ ] **Step 6: Run to verify it fails**
+
+Run: `go test ./internal/platform/http -run TestPixels -count=1`
+Expected: FAIL (`f.registry undefined` / 404 for the routes).
+
+- [ ] **Step 7: Implement `handlers_pixels.go`**
+
+```go
+package platformhttp
+
+import (
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"supermetry/internal/platform/audit"
+	"supermetry/internal/platform/authz"
+	"supermetry/internal/pixels"
+	coresites "supermetry/internal/sites"
+)
+
+type pixelInput struct {
+	Name       *string `json:"name"`
+	BadgeLabel *string `json:"badge_label"`
+	Enabled    *bool   `json:"enabled"`
+}
+
+type pixelJSON struct {
+	pixels.Pixel
+	Total    int64  `json:"total"`
+	Views30d int64  `json:"views_30d"`
+	GIFURL   string `json:"gif_url"`
+	SVGURL   string `json:"svg_url"`
+}
+
+func (h *handler) pixelSite(w http.ResponseWriter, r *http.Request, action authz.Action) (authz.Principal, coresites.Site, bool) {
+	principal, site, ok := h.sitePrincipal(w, r, action, linkRoles()...)
+	if !ok {
+		return principal, site, false
+	}
+	if site.Kind != coresites.KindPixel || h.deps.Store == nil || h.deps.Pixels == nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "not a pixel project")
+		return principal, site, false
+	}
+	return principal, site, true
+}
+
+func (h *handler) toPixelJSON(r *http.Request, p pixels.Pixel, v30 map[int64]int64) pixelJSON {
+	base := h.linkBase(r) + "/px/" + p.PublicID
+	return pixelJSON{Pixel: p, Total: h.deps.Pixels.Totals().Get(p.ID), Views30d: v30[p.ID], GIFURL: base + ".gif", SVGURL: base + ".svg"}
+}
+
+func applyPixelInput(p *pixels.Pixel, in pixelInput) error {
+	if in.Name != nil {
+		p.Name = strings.TrimSpace(*in.Name)
+	}
+	if in.BadgeLabel != nil {
+		p.BadgeLabel = strings.TrimSpace(*in.BadgeLabel)
+	}
+	if in.Enabled != nil {
+		p.Enabled = *in.Enabled
+	}
+	if n := len([]rune(p.Name)); n < 1 || n > 120 {
+		return errors.New("name must be 1 to 120 characters")
+	}
+	if n := len([]rune(p.BadgeLabel)); p.BadgeLabel != "" && n > 40 {
+		return errors.New("badge_label must be at most 40 characters")
+	}
+	return nil
+}
+
+func (h *handler) listPixels(w http.ResponseWriter, r *http.Request) {
+	_, site, ok := h.pixelSite(w, r, authz.ActionStatsRead)
+	if !ok {
+		return
+	}
+	rows, err := pixels.List(r.Context(), h.deps.Store.Pool, site.ID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	v30, err := pixels.Views30(r.Context(), h.deps.Store.Pool, site.ID, h.deps.Now().In(siteLocation(site)).Format(time.DateOnly))
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	out := make([]pixelJSON, 0, len(rows))
+	for _, p := range rows {
+		out = append(out, h.toPixelJSON(r, p, v30))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *handler) createPixel(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.pixelSite(w, r, authz.ActionLinksManage)
+	if !ok {
+		return
+	}
+	var in pixelInput
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	p := pixels.Pixel{SiteID: site.ID, Enabled: true}
+	if err := applyPixelInput(&p, in); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
+		return
+	}
+	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		var err error
+		if p, err = pixels.Create(r.Context(), tx, p); err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "pixel.created", "pixel", p.ID, map[string]any{"site_id": site.ID})
+	})
+	if errors.Is(err, pixels.ErrLimit) {
+		writeProblem(w, http.StatusConflict, "Conflict", "a project can have at most 100 pixels")
+		return
+	}
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	h.reloadPixels(r)
+	writeJSON(w, http.StatusCreated, h.toPixelJSON(r, p, nil))
+}
+
+func (h *handler) updatePixel(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.pixelSite(w, r, authz.ActionLinksManage)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "id must be a positive integer")
+		return
+	}
+	var in pixelInput
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	var p pixels.Pixel
+	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		list, err := pixels.List(r.Context(), tx, site.ID)
+		if err != nil {
+			return err
+		}
+		for _, candidate := range list {
+			if candidate.ID == id {
+				p = candidate
+			}
+		}
+		if p.ID == 0 {
+			return pixels.ErrNotFound
+		}
+		if err := applyPixelInput(&p, in); err != nil {
+			return errBadPixel{err}
+		}
+		if p, err = pixels.Update(r.Context(), tx, p); err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "pixel.updated", "pixel", p.ID, map[string]any{"site_id": site.ID})
+	})
+	var bad errBadPixel
+	switch {
+	case errors.As(err, &bad):
+		writeProblem(w, http.StatusBadRequest, "Bad request", bad.Error())
+	case errors.Is(err, pixels.ErrNotFound):
+		writeProblem(w, http.StatusNotFound, "Not found", "pixel not found")
+	case err != nil:
+		serviceError(w, err)
+	default:
+		h.reloadPixels(r)
+		writeJSON(w, http.StatusOK, h.toPixelJSON(r, p, nil))
+	}
+}
+
+type errBadPixel struct{ error }
+
+func (h *handler) deletePixel(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.pixelSite(w, r, authz.ActionLinksManage)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "id must be a positive integer")
+		return
+	}
+	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		if err := pixels.Delete(r.Context(), tx, site.ID, id); err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "pixel.deleted", "pixel", id, map[string]any{"site_id": site.ID})
+	})
+	if errors.Is(err, pixels.ErrNotFound) {
+		writeProblem(w, http.StatusNotFound, "Not found", "pixel not found")
+		return
+	}
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	h.reloadPixels(r)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) pixelStats(w http.ResponseWriter, r *http.Request) {
+	_, site, ok := h.pixelSite(w, r, authz.ActionStatsRead)
+	if !ok {
+		return
+	}
+	from, to, ok := statsRange(w, r, site, h.deps.Now())
+	if !ok {
+		return
+	}
+	var pixelID int64
+	if raw := r.URL.Query().Get("pixel"); raw != "" {
+		var err error
+		if pixelID, err = strconv.ParseInt(raw, 10, 64); err != nil || pixelID <= 0 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "pixel must be a positive integer")
+			return
+		}
+	}
+	stats, err := pixels.StatsFor(r.Context(), h.deps.Store.Pool, site.ID, from, to, pixelID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"from": from, "to": to, "daily": stats.Daily, "pixels": stats.Pixels, "countries": stats.Countries})
+}
+
+func (h *handler) reloadPixels(r *http.Request) {
+	if err := h.deps.Pixels.Reload(r.Context()); err != nil {
+		h.logger().Warn("reload pixel registry", "err", err)
+	}
+}
+
+func siteLocation(site coresites.Site) *time.Location {
+	if site.TZ == nil {
+		return time.UTC
+	}
+	return site.TZ
+}
+```
+
+Adjust import paths for `audit`/`authz` and the logger accessor to what `handlers_links.go` uses (copy its import block). Register routes in `private.go` next to the link routes:
+
+```go
+	mux.HandleFunc("GET /api/private/sites/{site}/pixels", h.listPixels)
+	mux.HandleFunc("POST /api/private/sites/{site}/pixels", h.createPixel)
+	mux.HandleFunc("GET /api/private/sites/{site}/pixels/stats", h.pixelStats)
+	mux.HandleFunc("PATCH /api/private/sites/{site}/pixels/{id}", h.updatePixel)
+	mux.HandleFunc("DELETE /api/private/sites/{site}/pixels/{id}", h.deletePixel)
+```
+
+Add `Pixels *pixels.Registry` to `Deps`, and `Pixels: pixelRegistry` in `serve.go`.
+
+- [ ] **Step 8: Run and commit the API**
+
+Run: `go build ./... && go vet ./... && go test ./internal/platform/http -count=1`
+Expected: `ok`.
+
+```bash
+git add internal/platform/http cmd/supermetry/serve.go
+git commit -m "feat(api): manage pixels and read pixel stats"
+```
+
+- [ ] **Step 9: Document in OpenAPI**
+
+Add under `paths` (follow the style of `/api/private/sites/{site}/links`, same security and `Problem` responses):
+
+```yaml
+  /api/private/sites/{site}/pixels:
+    parameters: [{ $ref: '#/components/parameters/SitePath' }]
+    get:
+      operationId: listPixels
+      tags: [Pixels]
+      responses:
+        '200': { description: Pixels, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Pixel' } } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createPixel
+      tags: [Pixels]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PixelInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Pixel' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { description: The project already has 100 pixels, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/pixels/stats:
+    parameters: [{ $ref: '#/components/parameters/SitePath' }]
+    get:
+      operationId: pixelStats
+      tags: [Pixels]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: pixel, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200': { description: Views, content: { application/json: { schema: { $ref: '#/components/schemas/PixelStats' } } } }
+  /api/private/sites/{site}/pixels/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/SitePath' }
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+    patch:
+      operationId: updatePixel
+      tags: [Pixels]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PixelInput' } } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Pixel' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deletePixel
+      tags: [Pixels]
+      responses:
+        '204': { description: Deleted with its daily views }
+        '404': { $ref: '#/components/responses/Problem' }
+```
+
+and schemas:
+
+```yaml
+    PixelInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        badge_label: { type: string, maxLength: 40 }
+        enabled: { type: boolean }
+    Pixel:
+      type: object
+      required: [id, public_id, name, badge_label, enabled, created_at, total, views_30d, gif_url, svg_url]
+      properties:
+        id: { type: integer, format: int64 }
+        public_id: { type: string, pattern: '^p[A-Za-z0-9]{11}$' }
+        name: { type: string }
+        badge_label: { type: string }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        total: { type: integer, format: int64, description: All-time views (views, not unique visitors). }
+        views_30d: { type: integer, format: int64 }
+        gif_url: { type: string, format: uri }
+        svg_url: { type: string, format: uri }
+    PixelStats:
+      type: object
+      required: [from, to, daily, pixels, countries]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        daily:
+          type: array
+          items: { type: object, required: [day, proxy, direct], properties: { day: { type: string, format: date }, proxy: { type: integer }, direct: { type: integer } } }
+        pixels:
+          type: array
+          items: { type: object, required: [pixel_id, views], properties: { pixel_id: { type: integer, format: int64 }, views: { type: integer } } }
+        countries:
+          type: array
+          description: Direct views only; image proxies such as GitHub hide the country.
+          items: { type: object, required: [country, views], properties: { country: { type: string }, views: { type: integer } } }
+```
+
+Use the parameter/response component names that already exist (`grep -n "parameters:\|  responses:" internal/api/openapi.yaml | head`) if `SitePath`/`Problem` are spelled differently. Also document `GET /px/{file}` (public, image/gif and image/svg+xml, `style`, `color` query) next to the existing pixel path entry.
+
+- [ ] **Step 10: Verify and commit OpenAPI + generated client**
+
+Run: `go test ./internal/api -count=1 && make api-inventory && cd web && bun run gen:api && bun run typecheck`
+Expected: `ok`; inventory reports no undocumented routes; typecheck exit 0.
+
+```bash
+git add internal/api/openapi.yaml
+git commit -m "docs(api): document pixel endpoints"
+git add web/src/lib/api.gen.ts web/packages/api-client/src/schema.ts
+git commit -m "chore(web): regenerate API client for pixels"
+```
+
+### Task 9: Retention for pixel views
+
+**Files:**
+- Modify: `internal/retention/retention.go` (new `deleteExpiredPixelViews`, called from `Run`; add `pixel_views_daily` handling to `Erase` via the pixels join)
+- Test: `internal/retention/retention_test.go`
+
+Decision: the spec says pixel rows follow the project's retention class "using the same purge job as other daily tables". `pixel_views_daily` is small and unpartitioned, so the job deletes rows older than `retention_class` days in the site's zone (class `0` keeps nothing past today's closing slack, matching how the hot tier treats 0; if `retention.Run` treats 0 as "forever", mirror that instead — read the top of `Run` first).
+
+**Interfaces:**
+- Consumes: `retention.Run(ctx, pool, now)`.
+- Produces: `func deleteExpiredPixelViews(ctx, pool, now) error`.
+
+- [ ] **Step 1: Write the failing test**
+
+```go
+func TestRunDeletesExpiredPixelViews(t *testing.T) {
+	pool := newRetentionDB(t) // existing helper in this file; match its name
+	ctx := context.Background()
+	var orgID int64
+	_ = pool.QueryRow(ctx, `insert into orgs(name,slug) values ('R','r-px') returning id`).Scan(&orgID)
+	var siteID int32
+	_ = pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class,kind) values ($1,'retpx0000001','R','UTC',30,'pixel') returning id`, orgID).Scan(&siteID)
+	var pixelID int64
+	_ = pool.QueryRow(ctx, `insert into pixels(site_id,public_id,name) values ($1,'pRETENTION00','r') returning id`, siteID).Scan(&pixelID)
+	if _, err := pool.Exec(ctx, `insert into pixel_views_daily values ($1,'2026-08-01','','proxy',1),($1,'2026-10-10','','proxy',2)`, pixelID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(ctx, pool, time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	var left int64
+	_ = pool.QueryRow(ctx, `select coalesce(sum(views),0) from pixel_views_daily`).Scan(&left)
+	if left != 2 {
+		t.Fatalf("left = %d, want only the recent row (2)", left)
+	}
+}
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `go test ./internal/retention -run TestRunDeletesExpiredPixelViews -count=1`
+Expected: FAIL, `left = 3`.
+
+- [ ] **Step 3: Implement**
+
+```go
+// deleteExpiredPixelViews applies each pixel project's retention class to its
+// small, unpartitioned daily table, in the project's time zone.
+func deleteExpiredPixelViews(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	_, err := pool.Exec(ctx, `
+		delete from pixel_views_daily v using pixels p, sites s
+		where v.pixel_id = p.id and p.site_id = s.id and s.retention_class > 0
+		  and v.day < (($1::timestamptz at time zone s.timezone)::date - s.retention_class)`, now)
+	if err != nil {
+		return fmt.Errorf("delete expired pixel views: %w", err)
+	}
+	return nil
+}
+```
+
+Call it from `Run` right after `deleteExpiredDropStats`. A bad `timezone` string would fail the statement; sites are validated on write, and the same assumption holds for `at time zone` elsewhere — if `Run` must survive bad zones, switch to the per-site loop used by `deleteExpiredDropStats`.
+
+- [ ] **Step 4: Run tests and commit**
+
+Run: `go vet ./internal/retention && go test ./internal/retention -count=1`
+Expected: `ok`.
+
+```bash
+git add internal/retention/retention.go internal/retention/retention_test.go
+git commit -m "feat(retention): expire pixel views by retention class"
+```
