@@ -189,6 +189,19 @@ func TestLoadHomepageURL(t *testing.T) {
 	}
 }
 
+func TestLoadBadgeBranding(t *testing.T) {
+	values := baseEnv()
+	c, err := Load(env(values))
+	if err != nil || !c.BadgeBranding {
+		t.Fatalf("default BadgeBranding = %v, %v", c.BadgeBranding, err)
+	}
+	values["SUPERMETRY_BADGE_BRANDING"] = "false"
+	c, err = Load(env(values))
+	if err != nil || c.BadgeBranding {
+		t.Fatalf("BadgeBranding = %v, %v", c.BadgeBranding, err)
+	}
+}
+
 func TestLoadRejectsLegacyPrefixAsConfiguration(t *testing.T) {
 	legacyPrefix := "PAN" + "EL_"
 	values := map[string]string{

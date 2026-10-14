@@ -59,6 +59,7 @@ type Config struct {
 	Listen            string
 	BaseURL           string
 	HomepageURL       string
+	BadgeBranding     bool
 	EventPath         string
 	TrackerPath       string
 	GeoIPPath         string
@@ -166,6 +167,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		Listen:               valueOrDefault(getenv("SUPERMETRY_LISTEN"), defaultListen),
 		BaseURL:              getenv("SUPERMETRY_BASE_URL"),
 		HomepageURL:          valueOrDefault(getenv("SUPERMETRY_HOMEPAGE_URL"), defaultHomepageURL),
+		BadgeBranding:        true,
 		EventPath:            valueOrDefault(getenv("SUPERMETRY_EVENT_PATH"), defaultEventPath),
 		TrackerPath:          valueOrDefault(getenv("SUPERMETRY_TRACKER_PATH"), defaultTrackerPath),
 		GeoIPPath:            geo.GeoIPPath,
@@ -262,6 +264,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
+	parseOptionalBool(getenv("SUPERMETRY_BADGE_BRANDING"), "SUPERMETRY_BADGE_BRANDING", &c.BadgeBranding, &errs)
 	parseOptionalBoolPointer(getenv("SUPERMETRY_REPLAY_MASK"), "SUPERMETRY_REPLAY_MASK", &c.Replay.Mask, &errs)
 	parseOptionalIntPointer(getenv("SUPERMETRY_REPLAY_SAMPLE_RATE"), "SUPERMETRY_REPLAY_SAMPLE_RATE", 0, 100, &c.Replay.SampleRate, &errs)
 	parseOptionalIntPointer(getenv("SUPERMETRY_REPLAY_RETENTION_DAYS"), "SUPERMETRY_REPLAY_RETENTION_DAYS", 1, 365, &c.Replay.Retention, &errs)
