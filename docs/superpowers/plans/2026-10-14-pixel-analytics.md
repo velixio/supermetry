@@ -3415,3 +3415,515 @@ git commit -m "feat(server): mount open counters behind SUPERMETRY_OPEN_COUNTERS
 git add internal/api/openapi.yaml
 git commit -m "docs(api): document open counter endpoints"
 ```
+
+### Task 13: Web onboarding asks "What do you want to measure?"
+
+**Files:**
+- Create: `web/src/features/sites/KindChoice.tsx`, `web/src/features/sites/PixelProjectForm.tsx`, `web/src/features/sites/KindChoice.test.tsx`
+- Modify: `web/src/features/sites/Onboarding.tsx` (choice before the form; pixel projects land on the dashboard, not installation)
+- Modify: `web/src/features/sites/types.ts` (`SiteInput`, `ManagedSite.kind`), `web/src/lib/me.ts:8` (`Site.kind?: 'web' | 'pixel'`)
+- Modify: `web/src/messages/en.ts` (new `pixels` block)
+
+**Interfaces:**
+- Consumes: `createSite(input, orgId)` (`web/src/features/sites/api.ts:42`); `siteResponse.kind` (Task 2; `/api/private/me` reuses `siteResponse`, so memberships carry `kind`).
+- Produces: `type SiteKind = 'web' | 'pixel'`; `type SiteInput = WebSiteInput | PixelSiteInput` where `PixelSiteInput = { kind: 'pixel'; name: string; timezone: string; retention_days: RetentionDays }`; `<KindChoice value onChange />`; `<PixelProjectForm submitLabel onSubmit />`; `en.pixels.*` strings.
+
+- [ ] **Step 1: Write the failing test** (`KindChoice.test.tsx`)
+
+```tsx
+import '@testing-library/jest-dom/vitest'
+
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { Onboarding } from './Onboarding'
+import type { Me } from '@/routes/app.$org'
+
+afterEach(cleanup)
+
+const me = {
+  demo_prompt_dismissed: true,
+  memberships: [{ org: { id: 1, slug: 'acme', name: 'Acme' }, role: 'owner', sites: [], site_ids: [], capabilities: [], effective_capabilities: [] }],
+} as unknown as Me
+
+describe('Onboarding kind choice', () => {
+  it('creates a pixel project with only name and time zone', async () => {
+    const createSite = vi.fn().mockResolvedValue({ id: 9, slug: 'readme', public_id: 'abc', kind: 'pixel' })
+    const navigate = vi.fn()
+    render(<Onboarding me={me} createSite={createSite} navigate={navigate} />)
+    expect(screen.getByRole('heading', { name: 'What do you want to measure?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: /Views anywhere/ }))
+    expect(screen.queryByLabelText('Domains')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'README views' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }))
+    await waitFor(() => expect(createSite).toHaveBeenCalledWith(expect.objectContaining({ kind: 'pixel', name: 'README views', retention_days: 365 })))
+    expect(createSite.mock.calls[0][0]).not.toHaveProperty('hosts')
+    expect(navigate).toHaveBeenCalledWith('/app/acme/readme')
+  })
+
+  it('keeps the website form as the default', () => {
+    render(<Onboarding me={me} createSite={vi.fn()} navigate={vi.fn()} />)
+    expect(screen.getByRole('radio', { name: /Website/ })).toBeChecked()
+    expect(screen.getByLabelText('Domains')).toBeInTheDocument()
+  })
+})
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `cd web && bun run test --run src/features/sites/KindChoice.test.tsx`
+Expected: FAIL, `Unable to find role "heading" with name "What do you want to measure?"`.
+
+- [ ] **Step 3: Implement**
+
+`en.ts` (inside the exported object):
+
+```ts
+  pixels: {
+    measureTitle: 'What do you want to measure?',
+    website: 'Website',
+    websiteHint: 'Web analytics with a script on your site.',
+    anywhere: 'Views anywhere',
+    anywhereHint: 'Pixel analytics for GitHub, READMEs and docs.',
+    projectName: 'Project name',
+    createProject: 'Create project',
+    viewsNote: 'views, not unique visitors',
+    noCountryNote: 'GitHub and other image proxies hide the country, so their views have none.',
+  },
+```
+
+`types.ts`:
+
+```ts
+export type SiteKind = 'web' | 'pixel'
+export type WebSiteInput = { kind?: 'web'; name: string; hosts: string[]; timezone: string; retention_days: RetentionDays; revenue_currency: string }
+export type PixelSiteInput = { kind: 'pixel'; name: string; timezone: string; retention_days: RetentionDays }
+export type SiteInput = WebSiteInput | PixelSiteInput
+```
+
+and `kind: SiteKind` on `ManagedSite`. Fix any `input.hosts` use in `SiteForm.tsx` by typing its `onSubmit` as `(input: WebSiteInput) => Promise<void>`.
+
+`KindChoice.tsx` (shadcn `RadioGroup`; add it with `bunx shadcn@latest add radio-group` if `src/components/ui/radio-group.tsx` is missing):
+
+```tsx
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import type { SiteKind } from '@/features/sites/types'
+import { en } from '@/messages/en'
+
+export function KindChoice({ value, onChange }: { value: SiteKind; onChange: (kind: SiteKind) => void }) {
+  const options = [
+    { kind: 'web' as const, title: en.pixels.website, hint: en.pixels.websiteHint },
+    { kind: 'pixel' as const, title: en.pixels.anywhere, hint: en.pixels.anywhereHint },
+  ]
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="sr-only">{en.pixels.measureTitle}</legend>
+      <RadioGroup value={value} onValueChange={(next) => onChange(next as SiteKind)} className="grid gap-2 sm:grid-cols-2">
+        {options.map((option) => (
+          <Label key={option.kind} htmlFor={`kind-${option.kind}`} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 has-[[data-state=checked]]:border-primary">
+            <RadioGroupItem id={`kind-${option.kind}`} value={option.kind} aria-label={`${option.title}: ${option.hint}`} />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">{option.title}</span>
+              <span className="text-xs text-muted-foreground">{option.hint}</span>
+            </span>
+          </Label>
+        ))}
+      </RadioGroup>
+    </fieldset>
+  )
+}
+```
+
+`PixelProjectForm.tsx`: a form with `Project name` input and the same time-zone select `SiteForm` uses (import its time-zone field component, or copy the `<select>` it renders if it is inline), submitting `{ kind: 'pixel', name, timezone, retention_days: 365 }`, button label from props.
+
+```tsx
+import { useState } from 'react'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { TimezoneSelect } from '@/features/sites/SiteForm'
+import type { PixelSiteInput } from '@/features/sites/types'
+import { en } from '@/messages/en'
+
+export function PixelProjectForm({ submitLabel, onSubmit }: { submitLabel: string; onSubmit: (input: PixelSiteInput) => Promise<void> }) {
+  const [name, setName] = useState('')
+  const [timezone, setTimezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  return (
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={async (event) => {
+        event.preventDefault()
+        setBusy(true)
+        setError(null)
+        try {
+          await onSubmit({ kind: 'pixel', name: name.trim(), timezone, retention_days: 365 })
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err))
+        } finally {
+          setBusy(false)
+        }
+      }}
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="pixel-project-name">{en.pixels.projectName}</Label>
+        <Input id="pixel-project-name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <TimezoneSelect value={timezone} onChange={setTimezone} />
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+      <Button type="submit" disabled={busy || name.trim() === ''}>{submitLabel}</Button>
+    </form>
+  )
+}
+```
+
+If `SiteForm.tsx` has no exported `TimezoneSelect`, extract its time-zone field into an exported `TimezoneSelect({ value, onChange })` in the same file first (no behaviour change; `sites.test.tsx` must still pass).
+
+`Onboarding.tsx`: add `const [kind, setKind] = useState<SiteKind>('web')`; change the header to `<PageHeader title={en.pixels.measureTitle} />`, render `<KindChoice value={kind} onChange={setKind} />`, then either the existing `<SiteForm …/>` or:
+
+```tsx
+<PixelProjectForm
+  submitLabel={en.pixels.createProject}
+  onSubmit={async (input) => {
+    const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
+    navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}`)
+  }}
+/>
+```
+
+Apply the same choice to the "Add site" dialog in `SitesPage.tsx` if it renders `SiteForm` directly (`grep -n "<SiteForm" web/src`).
+
+- [ ] **Step 4: Run web checks**
+
+Run: `cd web && bun run test --run src/features/sites && bun run typecheck`
+Expected: all tests pass (including the existing `sites.test.tsx`, whose "Create your first site" heading assertion must be updated to the new title), typecheck exit 0.
+
+- [ ] **Step 5: Commit (two commits)**
+
+```bash
+git add web/src/features/sites/types.ts web/src/lib/me.ts web/src/messages/en.ts web/src/features/sites/SiteForm.tsx
+git commit -m "feat(web): add project kind types and copy"
+git add web/src/features/sites/KindChoice.tsx web/src/features/sites/PixelProjectForm.tsx web/src/features/sites/KindChoice.test.tsx web/src/features/sites/Onboarding.tsx web/src/features/sites/SitesPage.tsx web/src/features/sites/sites.test.tsx web/src/components/ui/radio-group.tsx
+git commit -m "feat(web): choose website or views anywhere when creating a project"
+```
+
+### Task 14: Pixel dashboard, snippets and sidebar
+
+**Files:**
+- Create: `web/src/features/pixels/api.ts`, `web/src/features/pixels/snippets.ts`, `web/src/features/pixels/snippets.test.ts`
+- Create: `web/src/features/pixels/PixelDashboard.tsx`, `web/src/features/pixels/PixelList.tsx`, `web/src/features/pixels/PixelDashboard.test.tsx`
+- Modify: `web/src/routes/app.$org.$site.index.tsx:~78` (branch on `site.kind === 'pixel'`)
+- Modify: `web/src/components/Sidebar.tsx:96-100` (`visibleNavigation` hides web-only items for pixel projects), `web/src/components/Sidebar.test.tsx`
+- Modify: `internal/platform/http/handlers_sites.go` / `siteResponse` — add `homepage_url`? No: the homepage comes from the existing public config endpoint; check `grep -rn "homepage_url" web/src internal/platform/http | head`. If it is not exposed, add `HomepageURL string \`json:"homepage_url"\`` to the `/api/private/me` response (Task 2 style, with OpenAPI) in a separate commit before the UI commit.
+
+**Interfaces:**
+- Consumes: Task 8 endpoints and generated types `components['schemas']['Pixel']`, `['PixelStats']`.
+- Produces:
+  - `snippets.ts`: `export function pixelSnippets(p: { svg_url: string; gif_url: string }, homepage: string): { linkedMarkdown: string; markdown: string; invisibleMarkdown: string; html: string }`
+  - `api.ts`: `usePixels(siteId)`, `usePixelStats(siteId, { from, to, pixel? })`, `useCreatePixel(siteId)`, `useUpdatePixel(siteId)`, `useDeletePixel(siteId)` (TanStack Query, keys `['pixels', siteId]`, `['pixel-stats', siteId, from, to, pixel]`)
+  - `<PixelDashboard site />`
+  - `PIXEL_NAV_SUFFIXES = ['', '/sites', '/health']` exported from `Sidebar.tsx`
+
+- [ ] **Step 1: Write the failing snippet test**
+
+```ts
+import { describe, expect, it } from 'vitest'
+
+import { pixelSnippets } from './snippets'
+
+describe('pixelSnippets', () => {
+  const p = { svg_url: 'https://sm.example/px/pAAAAAAAAAAA.svg', gif_url: 'https://sm.example/px/pAAAAAAAAAAA.gif' }
+  it('links the badge to the homepage by default and offers unlinked variants', () => {
+    const s = pixelSnippets(p, 'https://supermetry.com/')
+    expect(s.linkedMarkdown).toBe('[![views](https://sm.example/px/pAAAAAAAAAAA.svg)](https://supermetry.com/?ref=badge)')
+    expect(s.markdown).toBe('![views](https://sm.example/px/pAAAAAAAAAAA.svg)')
+    expect(s.invisibleMarkdown).toBe('![](https://sm.example/px/pAAAAAAAAAAA.gif)')
+    expect(s.html).toBe('<img src="https://sm.example/px/pAAAAAAAAAAA.gif" alt="" width="1" height="1" referrerpolicy="no-referrer-when-downgrade">')
+  })
+})
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `cd web && bun run test --run src/features/pixels/snippets.test.ts`
+Expected: FAIL, `Failed to resolve import "./snippets"`.
+
+- [ ] **Step 3: Implement `snippets.ts`**
+
+```ts
+export function pixelSnippets(p: { svg_url: string; gif_url: string }, homepage: string) {
+  const home = homepage.replace(/\/+$/, '')
+  return {
+    linkedMarkdown: `[![views](${p.svg_url})](${home}/?ref=badge)`,
+    markdown: `![views](${p.svg_url})`,
+    invisibleMarkdown: `![](${p.gif_url})`,
+    html: `<img src="${p.gif_url}" alt="" width="1" height="1" referrerpolicy="no-referrer-when-downgrade">`,
+  }
+}
+```
+
+Run the test again; expected PASS. Commit:
+
+```bash
+git add web/src/features/pixels/snippets.ts web/src/features/pixels/snippets.test.ts
+git commit -m "feat(web): build pixel and badge snippets"
+```
+
+- [ ] **Step 4: Write the failing dashboard + sidebar tests**
+
+`PixelDashboard.test.tsx` (mock `fetch` the way neighbouring dashboard tests do; `grep -rn "vi.stubGlobal('fetch'" web/src | head -3` and reuse that helper):
+
+```tsx
+import '@testing-library/jest-dom/vitest'
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { PixelDashboard } from './PixelDashboard'
+
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+const pixel = { id: 1, public_id: 'pAAAAAAAAAAA', name: 'GitHub profile', badge_label: 'views', enabled: true, created_at: '2026-10-01T00:00:00Z', total: 1234, views_30d: 56, gif_url: 'https://sm.example/px/pAAAAAAAAAAA.gif', svg_url: 'https://sm.example/px/pAAAAAAAAAAA.svg' }
+const stats = { from: '2026-09-15', to: '2026-10-14', daily: [{ day: '2026-10-14', proxy: 50, direct: 6 }], pixels: [{ pixel_id: 1, views: 56 }], countries: [{ country: 'NP', views: 6 }] }
+
+describe('PixelDashboard', () => {
+  it('shows views, the pixel list with snippets, and the country note', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes('/stats') ? stats : [pixel]), { headers: { 'Content-Type': 'application/json' } })))
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PixelDashboard site={{ id: 7, name: 'README', kind: 'pixel', timezone: 'UTC' }} homepage="https://supermetry.com" />
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('GitHub profile')).toBeInTheDocument()
+    expect(screen.getByText('1.2k')).toBeInTheDocument()
+    expect(screen.getByText(/views, not unique visitors/)).toBeInTheDocument()
+    expect(screen.getByText(/hide the country/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /GitHub profile badge preview/ })).toHaveAttribute('src', pixel.svg_url)
+    expect(screen.getByRole('button', { name: /Copy linked Markdown badge/ })).toBeInTheDocument()
+  })
+})
+```
+
+Add to `web/src/components/Sidebar.test.tsx`:
+
+```ts
+it('hides web-only pages for pixel projects', () => {
+  const items = visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site)
+  expect(items.map((item) => item.suffix)).toEqual(['', '/sites', '/health'])
+})
+```
+
+- [ ] **Step 5: Run to verify they fail**
+
+Run: `cd web && bun run test --run src/features/pixels src/components/Sidebar.test.tsx`
+Expected: FAIL (`./PixelDashboard` unresolved; sidebar returns web items).
+
+- [ ] **Step 6: Implement**
+
+`Sidebar.tsx`:
+
+```ts
+export const PIXEL_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health']
+```
+
+and at the end of `visibleNavigation`, filter: `.filter((item) => site?.kind !== 'pixel' || PIXEL_NAV_SUFFIXES.includes(item.suffix))`. Also hide `ReplayNavLink` when `site?.kind === 'pixel'` (`replaysAvailable` returns false for pixel sites).
+
+`api.ts`:
+
+```ts
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
+import type { components } from '@/lib/api.gen'
+import { privateRequest } from '@/lib/privateRequest' // same import api.ts in features/sites uses
+
+export type Pixel = components['schemas']['Pixel']
+export type PixelStats = components['schemas']['PixelStats']
+export type PixelInput = components['schemas']['PixelInput']
+
+export const usePixels = (siteId: number) =>
+  useQuery({ queryKey: ['pixels', siteId], queryFn: () => privateRequest<Pixel[]>('GET', `/api/private/sites/${siteId}/pixels`) })
+
+export const usePixelStats = (siteId: number, range: { from: string; to: string; pixel?: number }) =>
+  useQuery({
+    queryKey: ['pixel-stats', siteId, range.from, range.to, range.pixel ?? 0],
+    queryFn: () => {
+      const q = new URLSearchParams({ from: range.from, to: range.to })
+      if (range.pixel) q.set('pixel', String(range.pixel))
+      return privateRequest<PixelStats>('GET', `/api/private/sites/${siteId}/pixels/stats?${q}`)
+    },
+  })
+
+function useInvalidate(siteId: number) {
+  const client = useQueryClient()
+  return () => Promise.all([client.invalidateQueries({ queryKey: ['pixels', siteId] }), client.invalidateQueries({ queryKey: ['pixel-stats', siteId] })])
+}
+
+export function useCreatePixel(siteId: number) {
+  const invalidate = useInvalidate(siteId)
+  return useMutation({ mutationFn: (body: PixelInput) => privateRequest<Pixel>('POST', `/api/private/sites/${siteId}/pixels`, { body }), onSuccess: invalidate })
+}
+
+export function useUpdatePixel(siteId: number) {
+  const invalidate = useInvalidate(siteId)
+  return useMutation({ mutationFn: ({ id, ...body }: PixelInput & { id: number }) => privateRequest<Pixel>('PATCH', `/api/private/sites/${siteId}/pixels/${id}`, { body }), onSuccess: invalidate })
+}
+
+export function useDeletePixel(siteId: number) {
+  const invalidate = useInvalidate(siteId)
+  return useMutation({ mutationFn: (id: number) => privateRequest<void>('DELETE', `/api/private/sites/${siteId}/pixels/${id}`), onSuccess: invalidate })
+}
+```
+
+(Match the real path of `privateRequest`: `grep -n "privateRequest" web/src/features/sites/api.ts | head -2`.)
+
+`PixelDashboard.tsx` — layout: page header with a "Create pixel" button (dialog: name + badge label → `useCreatePixel`); a stacked area chart (shadcn chart, series `proxy` and `direct`, from `usePixelStats` for the last 30 days in the site zone) with a pixel `<Select>` filter ("All pixels" or one) and the caption `en.pixels.viewsNote`; `<PixelList>`; a countries card (top 10 rows from `stats.countries`) with `en.pixels.noCountryNote` beneath. Reuse the chart wrapper the links pixel page uses (`grep -n "Chart" web/src/routes/app.\$org.\$site.links.pixel.tsx`), so styling matches. Format numbers with a TS port of `FormatCount`:
+
+```ts
+export function formatViews(n: number): string {
+  const units: [number, string][] = [[1e9, 'B'], [1e6, 'M'], [1e3, 'k']]
+  for (let i = 0; i < units.length; i++) {
+    const [div, suffix] = units[i]
+    if (n < div) continue
+    const tenths = Math.floor((n * 10 + div / 2) / div)
+    if (tenths >= 10000 && i > 0) return `1${units[i - 1][1]}`
+    return tenths % 10 === 0 ? `${tenths / 10}${suffix}` : `${Math.floor(tenths / 10)}.${tenths % 10}${suffix}`
+  }
+  return String(n)
+}
+```
+
+`PixelList.tsx` — a table (TanStack Table not needed for ≤100 rows; a shadcn `<Table>` is enough) with columns: name, total (`formatViews(total)`), 30-day views, enabled `<Switch>` (→ `useUpdatePixel`), badge preview `<img src={svg_url} alt={`${name} badge preview`} height={20}>`, and a "Copy" dropdown whose items are `Copy linked Markdown badge`, `Copy Markdown badge`, `Copy invisible Markdown pixel`, `Copy HTML <img>` from `pixelSnippets(pixel, homepage)` via `navigator.clipboard.writeText`, plus Delete with a confirm dialog.
+
+In `app.$org.$site.index.tsx` `DashboardStateRoute`, after resolving `site`: `if (site?.kind === 'pixel') return <PixelDashboard site={site} homepage={me.homepage_url ?? 'https://supermetry.com'} />` (place it before any web-dashboard hooks run, or split into a wrapper component so hook order stays stable).
+
+- [ ] **Step 7: Run web checks**
+
+Run: `cd web && bun run test --run src/features/pixels src/components/Sidebar.test.tsx && bun run typecheck`
+Expected: tests pass, typecheck exit 0.
+
+- [ ] **Step 8: Commit (three commits)**
+
+```bash
+git add web/src/features/pixels/api.ts
+git commit -m "feat(web): add pixel API hooks"
+git add web/src/features/pixels/PixelDashboard.tsx web/src/features/pixels/PixelList.tsx web/src/features/pixels/PixelDashboard.test.tsx 'web/src/routes/app.$org.$site.index.tsx'
+git commit -m "feat(web): show the pixel project dashboard"
+git add web/src/components/Sidebar.tsx web/src/components/Sidebar.test.tsx
+git commit -m "feat(web): hide web-only pages for pixel projects"
+```
+
+### Task 15: End-to-end test
+
+**Files:**
+- Create: `web/e2e/pixels.spec.ts`
+- Modify: `Makefile` (`test-e2e`: add `e2e/pixels.spec.ts` to the links/settings batch)
+
+**Interfaces:**
+- Consumes: the `owner` fixture from `web/e2e/fixtures.ts` (`owner.login`, `owner.orgSlug`, `owner.apiHeaders`, `owner.orgId` — check the fixture for exact names), Tasks 2, 7, 8, 13, 14.
+
+- [ ] **Step 1: Write the test**
+
+```ts
+import { expect, test } from './fixtures'
+
+const camoUA = 'github-camo (876de43e)'
+
+test('pixel project: create, add a pixel, count a Camo view, see it on the dashboard', async ({ page, owner }) => {
+  await owner.login(page, `/app/${owner.orgSlug}/sites`)
+  const created = await page.request.post('/api/private/sites', {
+    headers: owner.apiHeaders,
+    data: { name: 'README views', kind: 'pixel', timezone: 'UTC', retention_days: 365 },
+  })
+  expect(created.status(), await created.text()).toBe(201)
+  const site = await created.json()
+  expect(site.kind).toBe('pixel')
+
+  const pixel = await page.request.post(`/api/private/sites/${site.id}/pixels`, { headers: owner.apiHeaders, data: { name: 'GitHub profile' } })
+  expect(pixel.status(), await pixel.text()).toBe(201)
+  const { public_id: publicId } = await pixel.json()
+
+  const svg = await page.request.get(`/px/${publicId}.svg`, { headers: { 'User-Agent': camoUA } })
+  expect(svg.status()).toBe(200)
+  expect(svg.headers()['content-type']).toBe('image/svg+xml')
+  expect(await svg.text()).toContain('<svg')
+
+  await expect.poll(async () => {
+    const list = await (await page.request.get(`/api/private/sites/${site.id}/pixels`)).json()
+    return list[0]?.total as number
+  }, { timeout: 20_000 }).toBe(1)
+
+  await page.goto(`/app/${owner.orgSlug}/${site.slug}`)
+  await expect(page.getByText('GitHub profile')).toBeVisible()
+  await expect(page.getByText(/views, not unique visitors/)).toBeVisible()
+  await expect(page.getByRole('link', { name: /Sessions/ })).toHaveCount(0)
+
+  const unknown = await page.request.get('/px/pZZZZZZZZZZZ.gif', { headers: { 'User-Agent': camoUA } })
+  expect(unknown.status()).toBe(200)
+  expect(unknown.headers()['content-type']).toBe('image/gif')
+})
+```
+
+The badge total updates in memory immediately, but `views_30d`/stats need the 10-second flush, hence the poll on `total` and no assertion on the chart's numbers.
+
+- [ ] **Step 2: Run it**
+
+Run: `make build && cd web && bunx playwright test e2e/pixels.spec.ts --reporter=list --workers=1`
+Expected: `1 passed`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add web/e2e/pixels.spec.ts Makefile
+git commit -m "test(e2e): cover pixel project creation and counting"
+```
+
+### Task 16: Docs (CHANGELOG, features.md, configuration)
+
+**Files:**
+- Modify: `CHANGELOG.md` (Unreleased → Added), `features.md` (move pixel analytics to done), the configuration reference that lists `SUPERMETRY_HOMEPAGE_URL` (`grep -rln "SUPERMETRY_HOMEPAGE_URL" docs/ README.md`)
+
+- [ ] **Step 1: Write the entries**
+
+CHANGELOG (under `## Unreleased` / `### Added`):
+
+```markdown
+- Pixel analytics projects ("Views anywhere"): 1×1 GIF pixels and SVG view-count badges for GitHub profiles, READMEs and docs. Views are daily aggregates split by image proxy and direct; no IPs or user agents are stored. Up to 100 pixels per project.
+- Badges carry a small Supermetry mark; set `SUPERMETRY_BADGE_BRANDING=false` to remove it. `?style=flat|flat-square` and `?color=<hex>` customise them.
+- Open counters (`/c/github.com/{owner}[/{repo}].svg`), off by default: enable with `SUPERMETRY_OPEN_COUNTERS=true`; optional `SUPERMETRY_OPEN_COUNTER_BLOCKLIST` file, one key per line.
+```
+
+Configuration reference rows for `SUPERMETRY_BADGE_BRANDING` (default `true`), `SUPERMETRY_OPEN_COUNTERS` (default `false`), `SUPERMETRY_OPEN_COUNTER_BLOCKLIST` (default empty). In `features.md`, move the pixel analytics entry to "Done" with a one-line summary and list "Camo IP-range verification" and "more open-counter hosts" under "Deferred".
+
+- [ ] **Step 2: Verify and commit**
+
+Run: `grep -n "SUPERMETRY_OPEN_COUNTERS" CHANGELOG.md features.md docs -r | head` — expected: at least the CHANGELOG and configuration reference lines. Then `go build ./... && go vet ./...` (no code change; sanity).
+
+```bash
+git add CHANGELOG.md features.md docs
+git commit -m "docs: changelog and configuration for pixel analytics"
+```
+
+---
+
+## Follow-up in supermetry-cloud and supermetry-site
+
+Not in this repo; track as separate PRs there.
+
+**supermetry-cloud**
+- Set `SUPERMETRY_OPEN_COUNTERS=true` on the hosted deployment.
+- Serve `counter.supermetry.com` behind the CDN; no caching for `.svg`/`.gif` (respect `no-store`); allow the 5-minute cache on stats pages.
+- Ship and mount the blocklist file and set `SUPERMETRY_OPEN_COUNTER_BLOCKLIST`; document how to add a key and restart.
+- Monitoring: alert on open-counter flush failures, new-counter cap saturation, and `/c/` request rate.
+
+**supermetry-site**
+- Privacy policy and terms sections covering open counters (no IPs, user agents or countries stored; 365-day idle deletion).
+- A short "Views anywhere" docs page with the snippet variants and the `?ref=badge` landing behaviour on the homepage.
+
+## Self-review notes
+
+- Spec coverage: data model (T1), kind (T2), registry/cache (T3–T4), counting rules 1–4 (T5, T7), badge cache (T4, T7), API + 409 limit (T3, T8), retention (T9), UI choice/dashboard/snippets/sidebar (T13–T14), part 2 branding/style/linked snippet (T6, T14), part 3 switch/keys/storage/counting/cap/totals/cleanup/page (T10–T12), tests incl. e2e (T15).
+- Resolved ambiguities: stats take `from`/`to` instead of `period`; pixel public id is 12 chars including the `p`; open-counter totals keyed by string inside the counter recorder; counter days are UTC; pixel retention mirrors partition slack (`class + 1` days); blocklist loading lives in core because the env var is core config.
