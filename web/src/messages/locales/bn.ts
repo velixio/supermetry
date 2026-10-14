@@ -241,6 +241,7 @@ const messages: MessageTree = {
     pixelCampaignInvalid: 'ট্যাগটিতে অনুমোদিত নয় এমন অক্ষর আছে, তাই ঠিক না করা পর্যন্ত কোনো স্নিপেট দেখানো হবে না।', pixelSnippet: 'HTML স্নিপেট', pixelUrl: 'ছবির URL',
     pixelCopySnippet: 'স্নিপেট কপি করুন', pixelCopyUrl: 'URL কপি করুন', pixelStatsTitle: 'ইমপ্রেশন', pixelCampaigns: 'প্রচারণা', pixelUntagged: 'ট্যাগবিহীন',
     pixelImpressions: 'সময়কালের ইমপ্রেশন', pixelNote: 'ছবি ব্লক বা প্রক্সি করা ইমেইল ক্লায়েন্টে কম বা বেশি গণনা হতে পারে; ইমপ্রেশনকে প্রবণতা হিসেবে দেখুন, নির্ভুল ওপেন রেট হিসেবে নয়।',
+    last6mo: 'গত ৬ মাস', last12mo: 'গত ১২ মাস', groupBy: 'গ্রুপ করুন', byDay: 'দিন অনুযায়ী', byWeek: 'সপ্তাহ অনুযায়ী', byMonth: 'মাস অনুযায়ী', pixelToday: 'আজ', pixelAllTime: 'সব সময়', pixelPeriodCards: 'সময়কাল অনুযায়ী ইমপ্রেশন',
   },
   cohorts: {
     title: 'কোহর্ট', description: 'মানুষ কী করেছেন তার ভিত্তিতে দর্শকগোষ্ঠী সংরক্ষণ করুন, তারপর আকার নির্ধারণ, নমুনা তালিকা ও ফিল্টার হিসেবে ব্যবহার করুন।',
