@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { XIcon } from 'lucide-react'
@@ -132,13 +134,8 @@ export function ExclusionsPage({
   }, [countryRules, countrySearch])
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Exclusions</h1>
-        <p className="text-sm text-muted-foreground">
-          Ignore your own traffic and pages that should not appear in analytics.
-        </p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title="Exclusions" description="Ignore your own traffic and pages that should not appear in analytics." />
       <section className="flex items-center justify-between gap-4 rounded-xl border bg-card p-5 text-card-foreground">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium" htmlFor="privacy-signals-enabled">Respect browser privacy signals</label>
@@ -278,6 +275,6 @@ export function ExclusionsPage({
           <p className="text-sm text-muted-foreground">Loading exclusions…</p>
         )}
       </section>
-    </div>
+    </PageContainer>
   )
 }

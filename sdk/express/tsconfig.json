@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["bun", "node"],
+    "paths": {
+      "@supermetry/node": ["../node/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

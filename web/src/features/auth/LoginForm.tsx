@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 import { AuthScreen } from './AuthScreen'
 import type { LoginCredentials, LoginResult, SignupMode } from './api'
+import { authProblemMessage } from './api'
 import { safeAuthNext } from './navigation'
 
 export function LoginForm({ login, next, onSuccess, signup }: {
@@ -30,9 +31,9 @@ export function LoginForm({ login, next, onSuccess, signup }: {
     try {
       const result = await login({ email, password, ...(needsTOTP ? { totp } : {}) })
       if (result.ok) onSuccess(safeAuthNext(next))
-      else if (result.type === 'totp-required') setNeedsTOTP(true)
-      else setError(en.auth.genericError)
-    } catch { setError(en.auth.genericError) }
+      else if ((result.problem?.type ?? result.type)?.endsWith('totp-required')) setNeedsTOTP(true)
+      else setError(result.type?.endsWith('/password-policy') ? en.auth.passwordPolicy : authProblemMessage(result.problem))
+    } catch (reason) { setError(reason instanceof TypeError ? en.auth.networkError : en.auth.serverError) }
     finally { setPending(false) }
   }
 

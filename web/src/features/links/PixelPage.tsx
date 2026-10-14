@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -34,11 +36,8 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
   const stats = usePixelStats(siteId, range)
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-6">
-      <header className="flex max-w-2xl flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
-        <p className="text-sm text-muted-foreground">{t.pixelDescription}</p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title={t.title} description={t.pixelDescription} />
       <LinksTabs org={org} site={siteSlug} />
 
       <section aria-labelledby="pixel-snippet" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
@@ -113,6 +112,6 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
           </>
         ) : null}
       </section>
-    </div>
+    </PageContainer>
   )
 }

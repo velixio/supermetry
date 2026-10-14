@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useDeferredValue, useEffect, useId, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -29,6 +31,7 @@ import { InstallStatusView } from './InstallStatus'
 import type { SitesOverviewSort, SitesOverviewView } from './overviewSearch'
 import { privateRequest } from '@/features/settings/privateApi'
 import { activeLocale } from '@/lib/i18n/intl'
+import { defaultSearch } from '@/lib/search'
 
 export type { OverviewSite } from './api'
 export type { SitesOverviewSort, SitesOverviewView } from './overviewSearch'
@@ -82,9 +85,9 @@ function SiteActions({ site, onDelete }: { site: OverviewSite; onDelete(site: Ov
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild><Link to="/app/$org/$site" params={{ org: site.organization.slug, site: site.public_id }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}>Open dashboard</Link></DropdownMenuItem>
-          {canEdit ? <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/general" params={{ org: site.organization.slug, site: site.public_id }}>Site settings</Link></DropdownMenuItem> : null}
-          <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/installation" params={{ org: site.organization.slug, site: site.public_id }}>Installation</Link></DropdownMenuItem>
+          <DropdownMenuItem asChild><Link to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={defaultSearch()}>Open dashboard</Link></DropdownMenuItem>
+          {canEdit ? <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/general" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }}>Site settings</Link></DropdownMenuItem> : null}
+          <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/installation" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }}>Installation</Link></DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void copyText(site.tracking_snippet)}>Copy tracking snippet</DropdownMenuItem>
           {canDelete ? <DropdownMenuItem variant="destructive" onSelect={() => onDelete(site)}>Delete site</DropdownMenuItem> : null}
         </DropdownMenuGroup>
@@ -100,7 +103,7 @@ function SiteCard({ site, multipleOrganizations, onDelete }: { site: OverviewSit
       <CardHeader className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
         <SiteIcon iconUrl={site.icon_url} name={site.name} size={40} />
         <div className="min-w-0">
-          <CardTitle className="text-base"><Link aria-label={accessibleName} className="outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.public_id }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}>{site.name}</Link></CardTitle>
+          <CardTitle className="text-base"><Link aria-label={accessibleName} className="outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={defaultSearch()}>{site.name}</Link></CardTitle>
           <p className="truncate text-sm text-muted-foreground">{site.domain}</p>
           {multipleOrganizations ? <p className="truncate text-xs text-muted-foreground">{site.organization.name} · {site.role}</p> : <p className="text-xs capitalize text-muted-foreground">{site.role}</p>}
           <p className="text-xs text-muted-foreground">Created {fmt.date(site.created_at, site.timezone)}</p>
@@ -127,7 +130,7 @@ function SitesTable({ sites, multipleOrganizations, onDelete }: { sites: Overvie
         <TableHead>Site</TableHead>{multipleOrganizations ? <TableHead>Organization</TableHead> : null}<TableHead>Created</TableHead><TableHead>Visitors</TableHead><TableHead>Change</TableHead><TableHead>Traffic</TableHead><TableHead>Live</TableHead><TableHead>Last event</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead>
       </TableRow></TableHeader><TableBody>{sites.map((site) => (
         <TableRow className="h-20" key={site.id}>
-          <TableCell><div className="flex items-center gap-3"><SiteIcon iconUrl={site.icon_url} name={site.name} size={32} /><div className="min-w-0"><Link className="font-medium hover:underline" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.public_id }} search={{ period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true }}>{site.name}</Link><p className="max-w-52 truncate text-xs text-muted-foreground">{site.domain}</p></div></div></TableCell>
+          <TableCell><div className="flex items-center gap-3"><SiteIcon iconUrl={site.icon_url} name={site.name} size={32} /><div className="min-w-0"><Link className="font-medium hover:underline" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={defaultSearch()}>{site.name}</Link><p className="max-w-52 truncate text-xs text-muted-foreground">{site.domain}</p></div></div></TableCell>
           {multipleOrganizations ? <TableCell>{site.organization.name}<p className="text-xs capitalize text-muted-foreground">{site.role}</p></TableCell> : null}
           <TableCell>{fmt.date(site.created_at, site.timezone)}</TableCell><TableCell className="tabular-nums">{fmt.number(site.visitors)}</TableCell><TableCell><ChangeBadge site={site} /></TableCell><TableCell className="w-36"><Sparkline site={site} /></TableCell><TableCell className="tabular-nums">{fmt.number(site.live_visitors)}</TableCell><TableCell>{lastEvent(site)}</TableCell><TableCell><InstallStatusView status={site.install_status} lastSeenAt={site.last_event_at} /></TableCell><TableCell><SiteActions site={site} onDelete={onDelete} /></TableCell>
         </TableRow>
@@ -181,8 +184,12 @@ export function SitesOverview({ canAdd, orgs, org = '', period, query, sort, vie
   const addOrg = orgs.find((item) => item.slug === org && item.canCreate !== false) ?? orgs.find((item) => item.canCreate !== false)
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-tight">{en.sitesOverview.title}</h1><p className="text-sm text-muted-foreground">{en.sitesOverview.description}</p></div>{canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}><PlusIcon data-icon="inline-start" />Add site</Link></Button> : null}</header>
+    <PageContainer>
+      <PageHeader
+        title={en.sitesOverview.title}
+        description={en.sitesOverview.description}
+        actions={canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}><PlusIcon data-icon="inline-start" />Add site</Link></Button> : undefined}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <Input className="min-w-48 flex-1 sm:max-w-xs" aria-label="Search sites" type="search" placeholder="Search name or domain" value={query} onChange={(event) => onSearchChange(event.target.value)} />
         {orgs.length > 1 ? <Select value={org || 'all'} onValueChange={(value) => onOrgChange(value === 'all' ? '' : value)}><SelectTrigger aria-label="Organization"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">All organizations</SelectItem>{orgs.map((item) => <SelectItem key={item.id} value={item.slug}>{item.name}</SelectItem>)}</SelectGroup></SelectContent></Select> : null}
@@ -197,6 +204,6 @@ export function SitesOverview({ canAdd, orgs, org = '', period, query, sort, vie
               : view === 'cards' ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{filtered.map((site) => <SiteCard key={site.id} site={site} multipleOrganizations={multipleOrganizations} onDelete={setPendingDelete} />)}</div>
                 : <SitesTable sites={filtered} multipleOrganizations={multipleOrganizations} onDelete={setPendingDelete} />}
       <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(undefined) }}><DialogContent role="alertdialog"><DialogHeader><DialogTitle>Delete {pendingDelete?.name}?</DialogTitle><DialogDescription>The site stops collecting data now. You can restore it for 7 days.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" disabled={deletion.isPending} onClick={async () => { if (!pendingDelete) return; await deletion.mutateAsync(pendingDelete); setPendingDelete(undefined) }}>Delete site</Button></DialogFooter></DialogContent></Dialog>
-    </div>
+    </PageContainer>
   )
 }

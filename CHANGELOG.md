@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to Supermetry are listed here. This is the draft for **v0.1.0**, the first release; it is not tagged yet.
+All notable changes to Supermetry are listed here, newest release first.
 
 Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL, no ClickHouse, no Kafka, no Node in production.
 
-## v0.1.0 (unreleased)
+## v0.1.0 (2026-10-14)
 
 ### Analytics and metrics
 - Visitors, pageviews, bounce rate, visit duration, time on page and exit rate, with comparison against the previous period or year and periods from today to 12 months.
@@ -53,7 +53,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Installer and operations
 - A guided installer for Linux, macOS and Windows (`install.sh`, `install.ps1`) for Docker or binary installs, with a dry-run plan, PostgreSQL checks, nginx or Caddy configuration and a systemd unit.
-- Release binaries for six OS and architecture targets with `SHA256SUMS`, a multi-arch container image, backup and restore commands, retention by partition drop, and a Prometheus metrics endpoint.
+- Release binaries for eight OS and architecture targets with `SHA256SUMS`, a multi-arch container image, backup and restore commands, retention by partition drop, and a Prometheus metrics endpoint.
+- Update notifications for instance admins, and admin-approved one-click updates for binary and Docker installs, verified against an Ed25519-signed release manifest.
 
 ### Localization
 - English, plus machine-assisted first translations in Spanish and German (marked as such in the language picker). Dates, numbers, relative time and the first day of the week follow the language. Some text is not translated yet.

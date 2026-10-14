@@ -1,0 +1,19 @@
+[Unit]
+Description=Supermetry privileged update helper
+Requires=supermetry-updater.socket
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/opt/supermetry/updater/supermetry updater-helper
+UMask=0077
+NoNewPrivileges=true
+ProtectHome=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/supermetry /var/lib/supermetry-updater
+
+[Install]
+WantedBy=multi-user.target

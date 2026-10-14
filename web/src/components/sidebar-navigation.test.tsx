@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Site } from '@/lib/me'
-import { visibleNavigation } from './Sidebar'
+import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
+import { settingsDestinations, settingsIsActive, visibleNavigation } from './Sidebar'
+import { accountDestinationIsActive, accountDestinations } from './AccountSidebar'
 
 describe('primary sidebar navigation', () => {
   it('keeps settings out of analytics navigation for every role and site state', () => {
@@ -24,4 +26,47 @@ describe('primary sidebar navigation', () => {
     expect(suffixes).not.toContain('/map')
   })
 
+  it('offers site settings to every role but viewers, and organisation settings to all', () => {
+    const site: Site = { id: 7, name: 'Docs', slug: 'docs' }
+    for (const role of ['owner', 'admin', 'editor'] as const) expect(settingsDestinations(role, site)).toEqual(['site', 'org'])
+    expect(settingsDestinations('viewer', site)).toEqual(['org'])
+    expect(settingsDestinations('owner', undefined)).toEqual(['org'])
+  })
+
+  it('marks the settings destination active for its own section, by any site alias', () => {
+    const site: Site = { id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public' }
+    expect(settingsIsActive('org', '/app/acme/settings/members', 'acme', site)).toBe(true)
+    expect(settingsIsActive('org', '/app/acme/docs/settings/general', 'acme', site)).toBe(false)
+    expect(settingsIsActive('org', '/app/other/settings', 'acme', site)).toBe(false)
+    for (const alias of ['docs', 'docs-public', '7']) {
+      expect(settingsIsActive('site', `/app/acme/${alias}/settings/general`, 'acme', site)).toBe(true)
+    }
+    expect(settingsIsActive('site', '/app/acme/docs', 'acme', site)).toBe(false)
+    expect(settingsIsActive('site', '/app/acme/settings', 'acme', site)).toBe(false)
+    expect(settingsIsActive('site', '/app/acme/docs/settings/general', 'acme', undefined)).toBe(false)
+  })
+
+  it('links site settings to a page that anonymous tracking does not block', () => {
+    expect(anonymousRouteRestricted('/app/acme/docs/settings/general')).toBe(false)
+  })
+
+  it('offers account settings to everyone and instance administration only to instance admins', () => {
+    const user = { id: 1, name: 'Owner', email: 'owner@example.test' }
+    expect(accountDestinations({ user, memberships: [] })).toEqual(['account'])
+    expect(accountDestinations({ user: { ...user, instance_admin: false }, memberships: [] })).toEqual(['account'])
+    expect(accountDestinations({ user: { ...user, instance_admin: true }, memberships: [] })).toEqual(['account', 'admin'])
+  })
+
+  it('marks an account destination active only inside its own section', () => {
+    for (const path of ['/app/account/profile', '/app/account/security', '/app/account/sessions']) {
+      expect(accountDestinationIsActive('account', path)).toBe(true)
+      expect(accountDestinationIsActive('admin', path)).toBe(false)
+    }
+    expect(accountDestinationIsActive('account', '/app/account/organizations/new')).toBe(false)
+    expect(accountDestinationIsActive('account', '/app/accounting')).toBe(false)
+    expect(accountDestinationIsActive('admin', '/app/admin/users')).toBe(true)
+    expect(accountDestinationIsActive('admin', '/app/admin')).toBe(true)
+    expect(accountDestinationIsActive('admin', '/app/administrator')).toBe(false)
+    expect(accountDestinationIsActive('admin', '/app/acme/settings')).toBe(false)
+  })
 })

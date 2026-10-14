@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { isAnonymousTracking, trackingPolicyKnown } from '@/lib/tracking-policy'
 import type { Site } from '@/lib/me'
@@ -41,10 +43,9 @@ export function AnalyticsPrivacyBoundary({
 
   const known = trackingPolicyKnown(site)
   return (
-    <section aria-label="Tracking privacy restriction" className="flex max-w-2xl flex-col items-start gap-4 py-6" role="status">
-      <h1 className="text-xl font-semibold tracking-tight">
-        {known ? 'Unavailable in anonymous tracking mode' : 'Tracking policy is unavailable'}
-      </h1>
+    <PageContainer width="narrow" className="py-6">
+    <section aria-label="Tracking privacy restriction" className="flex max-w-2xl flex-col items-start gap-4" role="status">
+      <PageHeader title={known ? 'Unavailable in anonymous tracking mode' : 'Tracking policy is unavailable'} />
       <p className="text-sm leading-relaxed text-muted-foreground">
         {known
           ? 'This view uses detailed visitor records or historical data that anonymous tracking keeps restricted. Existing data is retained; changing tracking mode does not delete it.'
@@ -59,5 +60,6 @@ export function AnalyticsPrivacyBoundary({
         </Link>
       </Button> : null}
     </section>
+    </PageContainer>
   )
 }

@@ -128,6 +128,9 @@ function inferTag(path: string): string {
     segments: "Segments",
     events: "Events",
     mcp: "MCP",
+    "api-keys": "API keys",
+    l: "Short links",
+    px: "Tracking pixel",
   };
   return (
     labels[resource] ??

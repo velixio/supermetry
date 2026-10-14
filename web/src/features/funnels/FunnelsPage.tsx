@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -34,11 +36,8 @@ export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
   }, [selected])
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Funnels</h1>
-        <p className="text-sm text-muted-foreground">See where sessions or visitors continue and where they leave.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Funnels" description="See where sessions or visitors continue and where they leave." />
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.5fr)]">
         <section className="flex flex-col gap-4 rounded-xl border bg-card p-4">
           <h2 className="font-medium">Saved funnels</h2>
@@ -122,6 +121,6 @@ export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
           ) : null}
         </section>
       </div>
-    </div>
+    </PageContainer>
   )
 }

@@ -84,8 +84,37 @@ func TestRichSnapshotLiveCountUsesAcceptedActivityNotSessionLifetime(t *testing.
 	if snapshot.ActiveVisitors != 2 {
 		t.Fatalf("ActiveVisitors=%d, want 2 exact distinct accepted-event visitors", snapshot.ActiveVisitors)
 	}
+	if snapshot.VisitorsLast30m != 4 {
+		t.Fatalf("VisitorsLast30m=%d, want 4 distinct accepted-event visitors", snapshot.VisitorsLast30m)
+	}
+}
+
+// The 30-minute count uses the same definition as the live count: a visitor
+// counts when a pageview or custom event arrived in the window. An open tab that
+// only sends engagement beacons extends the session but is not counted.
+func TestRichSnapshotLast30mIgnoresEngagementOnlyVisitors(t *testing.T) {
+	now := time.Date(2026, 10, 12, 12, 0, 1, 0, time.UTC)
+	store := session.NewMemory(2, nil)
+	// Visitor 1 viewed a page 40 minutes ago and has only sent beacons since.
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-40 * time.Minute), LocalDay: now, VisitorID: 1, Kind: 0})
+	store.RecordActivity(session.Activity{SiteID: 1, Timestamp: now.Add(-40 * time.Minute), VisitorID: 1, Kind: 0})
+	for _, ago := range []time.Duration{25, 10, 1} {
+		store.Touch(session.Hit{SiteID: 1, TS: now.Add(-ago * time.Minute), LocalDay: now, VisitorID: 1, Kind: 2, JoinOnly: true})
+	}
+	// Visitor 2 viewed a page 20 minutes ago and has only sent beacons since.
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-20 * time.Minute), LocalDay: now, VisitorID: 2, Kind: 0})
+	store.RecordActivity(session.Activity{SiteID: 1, Timestamp: now.Add(-20 * time.Minute), VisitorID: 2, Kind: 0})
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-time.Minute), LocalDay: now, VisitorID: 2, Kind: 2, JoinOnly: true})
+	// Visitor 3 sent a custom event 3 minutes ago.
+	store.Touch(session.Hit{SiteID: 1, TS: now.Add(-3 * time.Minute), LocalDay: now, VisitorID: 3, Kind: 1})
+	store.RecordActivity(session.Activity{SiteID: 1, Timestamp: now.Add(-3 * time.Minute), VisitorID: 3, Kind: 1})
+
+	snapshot := realtime.RichSnapshot(store, 1, now)
 	if snapshot.VisitorsLast30m != 2 {
-		t.Fatalf("VisitorsLast30m=%d, want 2 live sessions", snapshot.VisitorsLast30m)
+		t.Fatalf("VisitorsLast30m=%d, want 2 (visitors 2 and 3; visitor 1 only sent beacons)", snapshot.VisitorsLast30m)
+	}
+	if snapshot.ActiveVisitors != 1 {
+		t.Fatalf("ActiveVisitors=%d, want 1 (visitor 3)", snapshot.ActiveVisitors)
 	}
 }
 

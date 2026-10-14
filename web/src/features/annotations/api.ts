@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
+import { apiProblem } from '@/lib/apiProblem'
 
 import type { Annotation, AnnotationInput } from './types'
 
@@ -33,8 +34,8 @@ export const annotationKeys = {
     [...annotationKeys.all(siteId), { from, to }] as const,
 }
 
-function requireData<T>(result: { data?: T; error?: Problem }, message: string): T {
-  if (result.error) throw new Error(result.error.detail ?? message)
+function requireData<T>(result: { data?: T; error?: Problem; response?: Response }, message: string): T {
+  if (result.error) throw result.response ? apiProblem(result.response, result.error, message) : new Error(result.error.detail ?? message)
   if (result.data === undefined) throw new Error(message)
   return result.data
 }
@@ -91,9 +92,7 @@ export function useDeleteAnnotation(siteId: number) {
       const result = await annotationApi.DELETE('/api/private/annotations/{id}', {
         params: { path: { id } },
       })
-      if (result.error) {
-        throw new Error(result.error.detail ?? 'Could not delete the annotation.')
-      }
+      if (result.error) throw apiProblem(result.response, result.error, 'Could not delete the annotation.')
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: annotationKeys.all(siteId) })

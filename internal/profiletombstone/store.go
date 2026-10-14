@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"log/slog"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -58,22 +57,20 @@ type Store struct {
 }
 
 func New(pool *pgxpool.Pool, clock Clock) *Store {
+	return NewWithPollInterval(pool, clock, 0)
+}
+
+func NewWithPollInterval(pool *pgxpool.Pool, clock Clock, interval time.Duration) *Store {
 	if clock == nil {
 		clock = wallClock{}
 	}
+	if interval <= 0 {
+		interval = defaultPollInterval
+	}
 	return &Store{
-		pool: pool, clock: clock, pollInterval: configuredPollInterval(),
+		pool: pool, clock: clock, pollInterval: interval,
 		items: make(map[key]item),
 	}
-}
-
-func configuredPollInterval() time.Duration {
-	if value := os.Getenv("SUPERMETRY_TOMBSTONE_POLL"); value != "" {
-		if interval, err := time.ParseDuration(value); err == nil && interval > 0 {
-			return interval
-		}
-	}
-	return defaultPollInterval
 }
 
 func identityKey(siteID int32, externalID string) key {

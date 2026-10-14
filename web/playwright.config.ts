@@ -31,13 +31,13 @@ psql "$SUPERMETRY_TEST_DSN" -v ON_ERROR_STOP=1 \
   -c "drop schema if exists \"$SUPERMETRY_E2E_SCHEMA\" cascade" \
   -c "create schema \"$SUPERMETRY_E2E_SCHEMA\""
 bun -e 'const fs=require("node:fs");const rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));fs.writeFileSync(process.argv[2],JSON.stringify(rows.map(({id,host,timezone})=>({id,org_id:1,public_id:host,timezone,retention_days:30,allowed_hosts:[host],revenue_currency:"USD",revenue_currency_state:"configured"}))))' \
-  ../bench/gen/testdata/tiny.sites.json "$SUPERMETRY_E2E_SITES_FILE"
+  ../test/golden/testdata/tiny.sites.json "$SUPERMETRY_E2E_SITES_FILE"
 export SUPERMETRY_DATABASE_URL="$SUPERMETRY_E2E_DSN"
 export SUPERMETRY_BASE_URL="$SUPERMETRY_E2E_BASE_URL"
 export SUPERMETRY_SECRET_KEY="$SUPERMETRY_E2E_SECRET_KEY"
 export SUPERMETRY_SITES_FILE="$SUPERMETRY_E2E_SITES_FILE"
 ../bin/supermetry migrate
-../bin/supermetry load < ../bench/gen/testdata/tiny.ndjson
+../bin/supermetry load < ../test/golden/testdata/tiny.ndjson
 for site in $(seq 1 100); do
   ../bin/supermetry close-days --site "$site" --from 2026-09-28 --to 2026-09-30 >/dev/null
 done

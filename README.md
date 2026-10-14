@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/aurora/svg/supermetry-logo-on-dark.svg">
-    <img src="brand/aurora/svg/supermetry-logo-on-light.svg" alt="Supermetry" width="280">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/aurora/svg/supermetry-logo-on-dark.svg">
+    <img src="docs/brand/aurora/svg/supermetry-logo-on-light.svg" alt="Supermetry" width="280">
   </picture>
 </p>
 
@@ -81,6 +81,8 @@ Set `SUPERMETRY_TRACKING_MODE=anonymous` on the server to choose the strictest m
 
 - PostgreSQL (18 is what CI runs).
 - Redis is not needed. A single instance runs without it.
+- Release binaries support Linux, macOS and Windows on amd64 and arm64, plus
+  32-bit Linux armv6/armv7 for Raspberry Pi.
 
 ## Quick start
 
@@ -155,7 +157,9 @@ You need Go, [Bun](https://bun.sh) and Docker. No database settings are needed: 
 port 5433 and uses it. `make dev-db-down` stops it; its data is kept.
 
 ```sh
-make dev     # build and run the server
+make dev     # watch mode: open http://localhost:8787 (UI hot reload, Go restarts on change; listens on 127.0.0.1 only)
+make run     # embedded build served on :8787
+make dev-embedded  # one-shot embedded UI build and run, no watching
 make test    # Go tests
 make lint    # go vet and gofmt
 ```

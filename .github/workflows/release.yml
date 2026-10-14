@@ -14,35 +14,36 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
       - uses: oven-sh/setup-bun@v2
       - run: cd web && bun install --frozen-lockfile
-      - run: scripts/release.sh
-      - uses: actions/upload-artifact@v4
+      - name: Build release archives
+        env:
+          RELEASE_SIGNING_PUBLIC_KEY: ${{ vars.RELEASE_SIGNING_PUBLIC_KEY }}
+          RELEASE_TRUSTED_PUBLIC_KEYS: ${{ vars.RELEASE_TRUSTED_PUBLIC_KEYS }}
+        run: scripts/release.sh
+      - uses: actions/upload-artifact@v7
         with:
           name: supermetry-release
           path: dist/*
           if-no-files-found: error
-      - name: Create GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*
 
   image:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: release
     runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -51,11 +52,82 @@ jobs:
       - name: Resolve image version
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
+        id: push
         with:
           context: .
+          file: deploy/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            RELEASE_TRUSTED_PUBLIC_KEYS=${{ vars.RELEASE_TRUSTED_PUBLIC_KEYS || vars.RELEASE_SIGNING_PUBLIC_KEY }}
           tags: |
             ghcr.io/velixio/supermetry:${{ steps.version.outputs.version }}
             ghcr.io/velixio/supermetry:latest
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [release, image]
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: supermetry-release
+          path: dist
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve immutable image manifests
+        env:
+          IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/velixio/supermetry"
+          docker buildx imagetools inspect --raw "$image@$IMAGE_DIGEST" > image-index.json
+          jq -r '.manifests[] | select(.platform.os == "linux" and (.platform.architecture == "amd64" or .platform.architecture == "arm64")) | "\(.platform.os)/\(.platform.architecture)=\(.digest)"' image-index.json | sort -u > image-platforms.txt
+          test "$(wc -l < image-platforms.txt)" -eq 2
+          grep -Eq '^linux/amd64=sha256:[0-9a-f]{64}$' image-platforms.txt
+          grep -Eq '^linux/arm64=sha256:[0-9a-f]{64}$' image-platforms.txt
+      - name: Sign release manifest
+        env:
+          IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_SIGNING_PUBLIC_KEY: ${{ vars.RELEASE_SIGNING_PUBLIC_KEY }}
+          RELEASE_MINIMUM_VERSION: ${{ vars.RELEASE_MINIMUM_VERSION }}
+        run: |
+          set -euo pipefail
+          minimum_version="${RELEASE_MINIMUM_VERSION:-v0.1.0}"
+          platform_args=()
+          while IFS= read -r platform; do
+            platform_args+=(--container-platform "$platform")
+          done < image-platforms.txt
+          go run ./cmd/release-manifest \
+            --dist dist \
+            --version "$GITHUB_REF_NAME" \
+            --minimum-version "$minimum_version" \
+            --commit "$GITHUB_SHA" \
+            --published-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --container-digest "$IMAGE_DIGEST" \
+            "${platform_args[@]}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: supermetry-signed-release-metadata
+          path: |
+            dist/release-manifest.json
+            dist/release-manifest.json.sig
+          if-no-files-found: error
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag

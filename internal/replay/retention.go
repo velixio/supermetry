@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -201,22 +200,22 @@ func collectReplayCSSReferences(ctx context.Context, store BlobStore, key string
 		return err
 	}
 	defer reader.Close()
-	compressed, err := gzip.NewReader(reader)
-	if err != nil {
-		return err
-	}
-	decoder := json.NewDecoder(compressed)
+	// Read the recording the way playback does: up to the first chunk that cannot
+	// be read. A damaged tail (zero padding after an unclean stop, or a cut-off
+	// last chunk) then ends the recording instead of failing retention for the
+	// whole site on every run. CSS referenced only beyond the damage is not
+	// playable either, so it is safe to treat as unreferenced.
+	decoder := json.NewDecoder(NewConcatReader(reader))
 	for {
 		var value any
-		if err := decoder.Decode(&value); errors.Is(err, io.EOF) {
+		if err := decoder.Decode(&value); errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 			break
 		} else if err != nil {
-			_ = compressed.Close()
 			return err
 		}
 		collectCSSReferences(value, references)
 	}
-	return compressed.Close()
+	return nil
 }
 
 func collectCSSReferences(value any, references map[string]struct{}) {

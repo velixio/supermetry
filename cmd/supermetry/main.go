@@ -33,6 +33,16 @@ func commandName(args []string) string {
 }
 
 func main() {
+	command := commandName(os.Args)
+	if command == "updater-helper" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		if err := updaterHelperCommand(ctx); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	// Read ./.env (or SUPERMETRY_ENV_FILE); variables already in the environment win.
 	envFile := os.Getenv("SUPERMETRY_ENV_FILE")
 	if envFile == "" {
@@ -42,7 +52,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	command := commandName(os.Args)
 	if command == "help" {
 		fmt.Println(usage)
 		return

@@ -79,6 +79,14 @@ describe('sites overview', () => {
     expect(screen.getByText('Receiving')).toBeVisible()
   })
 
+  it('links to the readable slug and still uses the public id when a site has none', async () => {
+    privateRequest.mockResolvedValue({ data: [{ ...site, slug: 'docs-example-com' }, { ...site, id: 8, public_id: 'shop-public', name: 'Shop' }] })
+    renderOverview()
+
+    expect((await screen.findByRole('link', { name: /Docs.*120 visitors/i })).getAttribute('href')).toMatch(/^\/app\/acme\/docs-example-com/)
+    expect(screen.getByRole('link', { name: /Shop.*120 visitors/i }).getAttribute('href')).toMatch(/^\/app\/acme\/shop-public/)
+  })
+
   it('shows loading, error, and filtered-empty states', async () => {
     privateRequest.mockImplementation(() => new Promise(() => undefined))
     const loading = renderOverview()

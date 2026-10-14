@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { canCreateSites } from '@/components/Sidebar'
 import { DemoChoice } from '@/features/demo/DemoChoice'
@@ -23,24 +25,31 @@ export function Onboarding({ me, createSite, navigate }: {
     else if (!canCreateSites(membership.role)) navigate(`/app/${membership.org.slug}/settings`, true)
   }, [existingSite, membership, navigate])
 
-  if (!membership) return <section className="mx-auto max-w-lg py-12"><h1 className="text-2xl font-semibold">No organization access</h1><p className="mt-2 text-muted-foreground">Ask an organization owner for an invitation. Your account settings are available from the Account menu.</p></section>
+  if (!membership) {
+    return (
+      <PageContainer width="narrow">
+        <PageHeader title="No organization access" description="Ask an organization owner for an invitation. Your account settings are available from the Account menu." />
+      </PageContainer>
+    )
+  }
 
-  if (existingSite || !canCreateSites(membership.role)) return <main className="grid min-h-dvh place-items-center px-6"><p className="text-sm text-muted-foreground">{en.loadingDashboard}</p></main>
+  if (existingSite || !canCreateSites(membership.role)) return <p className="text-sm text-muted-foreground" role="status">{en.loadingDashboard}</p>
 
+  // Inside the shell's main: no viewport-height math, the card sits centred below the 44px header.
   return (
-    <main className="grid min-h-dvh place-items-center px-6 py-10">
-      <section className="flex w-full max-w-md flex-col gap-5 border-l-2 border-accent pl-5">
+    <div className="flex justify-center py-6 md:py-10">
+      <section className="flex w-full max-w-md flex-col gap-5 rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
         {me.demo_prompt_dismissed === false ? <DemoChoice org={{ id: membership.org.id, slug: membership.org.slug }} onDismissed={() => navigate(`/app/${membership.org.slug}/sites`)} /> : null}
-        <div className="flex flex-col gap-1"><h1 className="text-2xl font-semibold tracking-tight">Create your first site</h1><p className="text-sm text-muted-foreground">Add the website where Supermetry should collect analytics.</p></div>
+        <PageHeader title="Create your first site" description="Add the website where Supermetry should collect analytics." />
         <SiteForm
           submitLabel="Create site"
           onSubmit={async (input) => {
             const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
-            navigate(`/app/${membership.org.slug}/${site.public_id}/settings/installation`)
+            navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/installation`)
           }}
           secondaryAction={me.demo_prompt_dismissed !== false ? <Button type="button" variant="ghost" onClick={() => navigate(`/app/${membership.org.slug}/sites`)}>Skip for now</Button> : undefined}
         />
       </section>
-    </main>
+    </div>
   )
 }

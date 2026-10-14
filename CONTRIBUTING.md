@@ -7,6 +7,10 @@ Thanks for helping. Please open an issue before starting large changes so we can
 - Go (see `go.mod` for the version), [Bun](https://bun.sh) for the dashboard, and Docker.
 - No database setup: `make dev` and `make test` start PostgreSQL in Docker on port 5433 and use it. To use your own server instead, set `SUPERMETRY_DATABASE_URL` (app) or `SUPERMETRY_TEST_DSN` (tests, a disposable database; tests create their own temporary schemas).
 
+`make dev` is the watch mode: open <http://localhost:8787>, the Go server, exactly as in production (it listens on 127.0.0.1 only). It reverse-proxies the UI to a Vite dev server on :5173, so hot reload works and login, CSRF and cookies behave as usual. The server is rebuilt and restarted when Go files, `go.mod`/`go.sum` or embedded assets under `cmd/` and `internal/` (and `web/*.go`) change; a compile error is printed and the old server keeps running. Ctrl+C (or `make kill`) stops everything. `make run` serves the embedded production-like build on :8787, and `make dev-embedded` builds the UI once and runs it without watching. `make test-dev` smoke-tests the watcher script.
+
+Behind a domain or reverse proxy, set `SUPERMETRY_BASE_URL=https://your.domain` in `.env`: its hostname is allowed for the Vite dev server automatically (the banner shows it), and `make dev` prints that URL to open. Use `SUPERMETRY_DEV_ALLOWED_HOSTS=a.example.com,.example.org` for extra names (`.example.org` covers subdomains; `true` and `*` are ignored, the host check is never disabled). The proxy must forward the `Host` header and WebSocket upgrades (hot reload). `make dev` listens on 127.0.0.1 unless `SUPERMETRY_LISTEN` is set, so a proxy on another machine needs `SUPERMETRY_LISTEN` set explicitly.
+
 ```sh
 make build
 make test

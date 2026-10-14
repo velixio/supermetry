@@ -106,6 +106,8 @@ describe('locale helpers', () => {
 
   it('detects the first shipped browser language', () => {
     expect(detectBrowserLocale(['fr-FR', 'de-AT', 'en'])).toBe('de')
+    expect(detectBrowserLocale(['bn-BD', 'en'])).toBe('bn')
+    expect(detectBrowserLocale(['bn-IN'])).toBe('bn')
     expect(detectBrowserLocale(['ja'])).toBe('en')
   })
 
@@ -117,6 +119,9 @@ describe('locale helpers', () => {
     expect(formatRelativeTime(-2, 'day')).toBe('vor 2 Tagen')
     setActiveLocaleCode('en')
     expect(formatNumber(1234.5)).toBe('1,234.5')
+    setActiveLocaleCode('bn')
+    expect(activeLocale()).toBe('bn-u-nu-latn')
+    expect(formatNumber(1234567)).toBe('12,34,567')
   })
 
   it('knows the first day of the week per locale', () => {

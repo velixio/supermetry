@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { fmt } from '@/lib/format'
 import { useStats, type StatsQuery } from '@/lib/stats'
@@ -35,11 +37,8 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
   const visits = conversions.data?.totals?.visits
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Goals</h1>
-        <p className="text-sm text-muted-foreground">Track the pages and events that matter.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Goals" description="Track the pages and events that matter." />
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
         <section className="overflow-hidden rounded-xl border bg-card">
           <table className="w-full text-sm">
@@ -74,7 +73,7 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
           }}
         />
       </div>
-    </div>
+    </PageContainer>
   )
 }
 

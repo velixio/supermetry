@@ -21,6 +21,7 @@ export type Owner = {
   orgId: number;
   orgSlug: string;
   siteId: number;
+  sitePublicID: string;
   siteSlug: string;
   shareSlug: string;
   apiHeaders: Record<string, string>;
@@ -125,7 +126,8 @@ export default async function globalSetup(config: FullConfig) {
   });
   const site = await responseJSON<Record<string, unknown>>(createdSite);
   const siteId = value<number>(site, "id", "ID");
-  const siteSlug = value<string>(site, "public_id", "PublicID");
+  const sitePublicID = value<string>(site, "public_id", "PublicID");
+  const siteSlug = value<string>(site, "slug", "Slug");
 
   const createdShare = await api.post(`/api/private/sites/${siteId}/shares`, {
     headers: apiHeaders,
@@ -150,6 +152,7 @@ export default async function globalSetup(config: FullConfig) {
     orgId,
     orgSlug,
     siteId,
+    sitePublicID,
     siteSlug,
     shareSlug,
     apiHeaders,
@@ -234,9 +237,32 @@ export const test = base.extend<{ owner: Owner }, { workerOwner: WorkerOwner }>(
       },
       { scope: "worker" },
     ],
-    owner: async ({ workerOwner }, use) => {
+    owner: async ({ workerOwner, playwright }, use, testInfo) => {
+      const baseURL = String(testInfo.project.use.baseURL);
+      const api = await playwright.request.newContext({
+        baseURL,
+        extraHTTPHeaders: { Origin: baseURL },
+      });
+      const response = await api.post("/api/private/auth/login", {
+        data: {
+          email: workerOwner.email,
+          password: workerOwner.password,
+          device_label: `Playwright test ${testInfo.title}`,
+        },
+      });
+      expect(response.ok(), await response.text()).toBe(true);
+      const storageState = await api.storageState();
+      const csrf = storageState.cookies.find(
+        (cookie) => cookie.name === "supermetry_csrf",
+      )?.value;
+      if (!csrf) throw new Error("test API login did not set the CSRF cookie");
+      const cookie = storageState.cookies
+        .map((item) => `${item.name}=${item.value}`)
+        .join("; ");
       await use({
         ...workerOwner,
+        apiHeaders: { Cookie: cookie, "X-CSRF-Token": csrf },
+        storageState,
         async login(page, next = "/") {
           const destination = new URL(next, "http://supermetry.test");
           const reachedDestination = (url: URL) =>
@@ -246,11 +272,12 @@ export const test = base.extend<{ owner: Owner }, { workerOwner: WorkerOwner }>(
                 [...destination.searchParams].every(
                   ([name, value]) => url.searchParams.get(name) === value,
                 );
-          await page.context().addCookies(workerOwner.storageState.cookies);
+          await page.context().addCookies(storageState.cookies);
           await page.goto(next);
           await page.waitForURL(reachedDestination);
         },
       });
+      await api.dispose();
     },
   },
 );

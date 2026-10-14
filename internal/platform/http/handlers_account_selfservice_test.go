@@ -110,7 +110,7 @@ func TestAccountSelfServiceHTTP(t *testing.T) {
 
 	t.Run("locale preference is stored, merged and cleared", func(t *testing.T) {
 		fixture := newAccountHTTPFixture(t, &mail.Fake{})
-		for _, locale := range []string{"es", "de", "en-XA", ""} {
+		for _, locale := range []string{"es", "de", "bn", "en-XA", ""} {
 			got := fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"locale":"`+locale+`"}}`, true)
 			if got.Code != http.StatusOK {
 				t.Fatalf("locale %q status=%d body=%s", locale, got.Code, got.Body.String())
@@ -152,7 +152,7 @@ func TestAccountSelfServiceHTTP(t *testing.T) {
 			`{"preferences":{"landing_page":"invalid"}}`,
 			`{"preferences":{"sites_view":"invalid"}}`,
 			`{"preferences":{"last_site_id":999999}}`,
-			`{"preferences":{"locale":"fr"}}`,
+			`{"preferences":{"locale":"xx"}}`,
 			`{"preferences":{"locale":"EN"}}`,
 		} {
 			if got := fixture.request(t, http.MethodPatch, "/api/private/me", body, true); got.Code != http.StatusBadRequest {

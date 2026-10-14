@@ -160,6 +160,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check whether a newer stable Supermetry release is available
+         * @description Performs a bounded, cached, read-only check of the official GitHub latest stable release. It never downloads or applies an update.
+         */
+        get: operations["adminGetUpdateStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/update/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a verified stable release
+         * @description Re-authenticates an instance administrator, creates an idempotent update job, and dispatches it to the narrow privileged updater helper. The helper takes and verifies a full database backup before activation.
+         */
+        post: operations["adminApplyUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/setup/status": {
         parameters: {
             query?: never;
@@ -2378,6 +2418,45 @@ export interface components {
         AdminAuditResponse: {
             data: components["schemas"]["AdminAuditEntry"][];
         };
+        AdminUpdateStatus: {
+            current_version: string;
+            latest_version: string | null;
+            update_available: boolean;
+            /** Format: uri */
+            release_url: string | null;
+            /** Format: date-time */
+            published_at: string | null;
+            /** Format: date-time */
+            checked_at: string | null;
+            check_error: string | null;
+            update_supported: boolean;
+            /** @enum {string} */
+            deployment_mode?: "binary" | "docker";
+            job?: components["schemas"]["AdminUpdateJob"] | null;
+        };
+        AdminApplyUpdateRequest: {
+            target_version: string;
+            idempotency_key: string;
+            /** Format: password */
+            password: string;
+            totp_code?: string;
+        };
+        AdminUpdateJob: {
+            /** Format: int64 */
+            id: number;
+            from_version: string;
+            target_version: string;
+            /** @enum {string} */
+            deployment_mode: "binary" | "docker";
+            /** @enum {string} */
+            status: "requested" | "preflight" | "downloading" | "verifying" | "stopping" | "backing_up" | "activating" | "restarting" | "verifying_health" | "complete" | "failed" | "recovery_required";
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            finished_at?: string | null;
+        };
         Organization: {
             /** Format: int64 */
             id: number;
@@ -2472,10 +2551,10 @@ export interface components {
             /** Format: int32 */
             last_site_id?: number | null;
             /**
-             * @description Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+             * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
              * @enum {string}
              */
-            locale?: "" | "en" | "es" | "de" | "en-XA";
+            locale?: "" | "en" | "es" | "de" | "bn" | "en-XA";
         };
         UpdateCurrentUserRequest: {
             name?: string;
@@ -2487,10 +2566,10 @@ export interface components {
                 /** Format: int32 */
                 last_site_id?: number | null;
                 /**
-                 * @description Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.
+                 * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
                  * @enum {string}
                  */
-                locale?: "" | "en" | "es" | "de" | "en-XA";
+                locale?: "" | "en" | "es" | "de" | "bn" | "en-XA";
             };
         };
         SitesOverviewResponse: {
@@ -2503,6 +2582,8 @@ export interface components {
             /** Format: int64 */
             org_id: number;
             public_id: string;
+            /** @description Readable per-organization URL segment; public_id resolves too. */
+            slug: string;
             name: string;
             domain: string;
             timezone: string;
@@ -2750,6 +2831,8 @@ export interface components {
             /** Format: int64 */
             org_id: number;
             public_id: string;
+            /** @description Readable per-organization URL segment; public_id resolves too. */
+            slug: string;
             name: string;
             timezone: string;
             retention_days: number;
@@ -2811,6 +2894,8 @@ export interface components {
         UpdateSiteRequest: {
             profiles_enabled?: boolean;
             name?: string;
+            /** @description Readable URL segment, unique per organization. Reserved words (sites, settings, health, new) and twelve-character ids are rejected; a taken slug returns 409. */
+            slug?: string;
             hosts?: string[];
             timezone?: string;
             /** @enum {integer} */
@@ -4351,6 +4436,67 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetUpdateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Update availability. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUpdateStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminApplyUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminApplyUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Update accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUpdateJob"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description An update is already active or this deployment is not managed by the updater. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getSetupStatus: {

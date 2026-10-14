@@ -39,9 +39,9 @@ type UserPreferences struct {
 	Locale string `json:"locale,omitempty"`
 }
 
-// SupportedLocales lists the interface languages a user may choose. en-XA is a
-// pseudo-locale with longer strings, used to test layouts.
-var SupportedLocales = map[string]bool{"": true, "en": true, "es": true, "de": true, "en-XA": true}
+// SupportedLocales lists the English, Spanish, German and Bengali interface
+// languages a user may choose. en-XA is a pseudo-locale used to test layouts.
+var SupportedLocales = map[string]bool{"": true, "en": true, "es": true, "de": true, "bn": true, "en-XA": true}
 
 type DBTX interface {
 	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)

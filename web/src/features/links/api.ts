@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
+import { apiProblem } from '@/lib/apiProblem'
 
 import type { LinkInput, LinkStats, PixelSnippet, PixelStats, ShortLink } from './types'
 
@@ -48,8 +49,8 @@ export const linkKeys = {
   pixelStats: (siteId: number, range: Range) => ['links', siteId, 'pixel-stats', range] as const,
 }
 
-function requireData<T>(result: { data?: T; error?: Problem }, message: string): T {
-  if (result.error) throw new Error(result.error.detail ?? message)
+function requireData<T>(result: { data?: T; error?: Problem; response: Response }, message: string): T {
+  if (result.error) throw apiProblem(result.response, result.error, message)
   if (result.data === undefined) throw new Error(message)
   return result.data
 }
@@ -139,7 +140,7 @@ export function useDeleteLink(siteId: number) {
   return useMutation<void, Error, number>({
     mutationFn: async (id) => {
       const result = await linksApi.DELETE('/api/private/links/{link}', { params: { path: { link: id } } })
-      if (result.error) throw new Error(result.error.detail ?? 'Could not delete the link.')
+      if (result.error) throw apiProblem(result.response, result.error, 'Could not delete the link.')
     },
     onSuccess: () => client.invalidateQueries({ queryKey: linkKeys.all(siteId) }),
   })

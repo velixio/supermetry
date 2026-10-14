@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 
 import { expect, test } from './fixtures'
 
-test('explains the live definition at every required viewport', async ({ page, owner }) => {
+test('describes the live definition for assistive tech at every required viewport', async ({ page, owner }) => {
   const output = 'e2e/screenshots/accuracy-live'
   mkdirSync(output, { recursive: true })
   const realtime = `/app/${owner.orgSlug}/${owner.siteSlug}/realtime`
@@ -11,8 +11,10 @@ test('explains the live definition at every required viewport', async ({ page, o
   await page.setViewportSize({ width: 1440, height: 900 })
   await owner.login(page, realtime)
   await expect(page.getByRole('heading', { name: 'Realtime' })).toBeVisible()
-  await expect(page.getByText('Distinct visitors with an accepted pageview or custom event in the last 5 minutes.', { exact: true })).toBeVisible()
-  await expect(page.getByText('Privacy signals, bots, and site exclusions are not counted.', { exact: true })).toBeVisible()
+  // The definition is no longer printed on the page; it stays as the accessible description of the live count.
+  await expect(page.getByRole('region', { name: 'Live now' })).toHaveAccessibleDescription(
+    'Distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted.',
+  )
   await page.screenshot({ path: `${output}/1440-light.png`, fullPage: true })
 
   await page.evaluate(() => localStorage.setItem('theme', 'dark'))

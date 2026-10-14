@@ -3,7 +3,7 @@ import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Role } from '@/components/Sidebar'
 import type { TrackingPolicy } from '@/features/sites/types'
 import { api } from '@/lib/api'
-import { en } from '@/messages/en'
+import { apiProblem } from '@/lib/apiProblem'
 
 export type Site = {
   tracking_policy?: TrackingPolicy
@@ -44,7 +44,7 @@ export type UserPreferences = {
   landing_page: 'overview' | 'last_site'
   sites_view: 'cards' | 'table'
   last_site_id?: number | null
-  locale?: '' | 'en' | 'es' | 'de' | 'en-XA'
+  locale?: '' | 'en' | 'es' | 'de' | 'bn' | 'en-XA'
 }
 
 export class AuthenticationRequired extends Error {}
@@ -58,7 +58,8 @@ function isMe(value: unknown): value is Me {
 export async function fetchMe(): Promise<Me> {
   const { data, response } = await api.GET('/api/private/me', {})
   if (response.status === 401) throw new AuthenticationRequired()
-  if (!response.ok || !isMe(data)) throw new Error(en.auth.genericError)
+  if (!response.ok) throw apiProblem(response, data)
+  if (!isMe(data)) throw new Error('The account response was invalid.')
   return data
 }
 

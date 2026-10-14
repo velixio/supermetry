@@ -63,6 +63,8 @@ type DropStatsReader interface {
 // Deps contains the services exposed by the analytics HTTP router.
 type Deps struct {
 	Config         config.Config
+	Version        string
+	SchemaVersion  int64
 	Query          queryService
 	SessionExplore sessionExploreService
 	Revenue        revenueService
@@ -142,7 +144,7 @@ func NewRouter(deps Deps) http.Handler {
 	public.HandleFunc("GET "+publicPrefix+"/realtime", realtimeHandler(deps.Sessions, deps.MinuteSource, deps.Now, deps.Dictionary))
 	public.HandleFunc("GET "+publicPrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	public.HandleFunc(publicPrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(publicPrefix+"/", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, false, trackingReads(deps.Config.Tracking.Mode, routehits.Wrap(public))))
+	mux.Handle(publicPrefix+"/", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, false, trackingReads(deps.Config.Tracking.Mode, routehits.WrapFile(public, routehits.File(deps.Config.RouteHitsFile)))))
 
 	private := http.NewServeMux()
 	registerStats(private, privatePrefix, h)
@@ -164,7 +166,7 @@ func NewRouter(deps Deps) http.Handler {
 	private.HandleFunc("GET "+privatePrefix+"/realtime/summary", realtimeSummaryHandler(deps.Sessions, deps.Now))
 	private.HandleFunc("GET "+privatePrefix+"/health", dataHealthHandler(deps.RollupBackfillProgress, deps.FailedProfileErasures, deps.DropStats, deps.Sites, now))
 	private.HandleFunc(privatePrefix+"/", func(w http.ResponseWriter, _ *http.Request) { writeProblem(w, notFound("API route not found")) })
-	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, routehits.Wrap(private)))))
+	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, routehits.WrapFile(private, routehits.File(deps.Config.RouteHitsFile))))))
 	registerPlatformRoutes(mux, deps.Platform, deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow)
 
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
@@ -223,19 +225,27 @@ func NewRouter(deps Deps) http.Handler {
 			deps.UI.ServeHTTP(w, r)
 		}))
 	}
+	healthResponse := func() HealthResponse {
+		response := HealthResponse{Status: "ok"}
+		if deps.Version != "" {
+			response.Version = &deps.Version
+			response.SchemaVersion = &deps.SchemaVersion
+		}
+		return response
+	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+		writeJSON(w, http.StatusOK, healthResponse())
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if deps.Ready != nil && !deps.Ready() {
 			writeProblem(w, newProblem(http.StatusServiceUnavailable, "https://supermetry.com/problems/not-ready", "Service unavailable", "the service is not ready"))
 			return
 		}
-		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+		writeJSON(w, http.StatusOK, healthResponse())
 	})
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
-	return requestID(recoverProblems(routehits.Wrap(mux)))
+	return requestID(recoverProblems(routehits.WrapFile(mux, routehits.File(deps.Config.RouteHitsFile))))
 }
 
 func trackerCORS(next http.Handler) http.Handler {
@@ -307,6 +317,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PUT " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"DELETE " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"GET " + privatePrefix + "/admin/audit",
+		"GET " + privatePrefix + "/admin/update",
+		"POST " + privatePrefix + "/admin/update/apply",
 		"GET " + privatePrefix + "/auth/config",
 		"POST " + privatePrefix + "/auth/login",
 		"POST " + privatePrefix + "/auth/signup",

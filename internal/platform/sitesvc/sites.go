@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"supermetry/internal/db"
 	"supermetry/internal/platform/audit"
@@ -33,6 +34,8 @@ var (
 	ErrForbidden = errors.New("forbidden")
 	ErrInvalid   = errors.New("invalid site")
 	ErrNotFound  = errors.New("site not found")
+	// ErrSlugTaken means another live site in the organization already uses the slug.
+	ErrSlugTaken = errors.New("site slug is already used")
 	// ErrSiteLimit means the organization already has the most live sites a
 	// non-admin may create or restore. ErrLimit is the same error.
 	ErrSiteLimit = errors.New("site limit reached")
@@ -57,6 +60,7 @@ type SitePatch struct {
 	StrictOrigin          *bool
 	BlockedReferrers      *[]string
 	RevenueCurrency       *string
+	Slug                  *string
 }
 
 type Sites struct {
@@ -200,6 +204,12 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 				return fmt.Errorf("encode tracker settings: %w", err)
 			}
 		}
+		if patch.Slug != nil {
+			if !coresites.ValidSlug(*patch.Slug) {
+				return fmt.Errorf("%w: slug must be 1 to 63 lowercase letters, digits or single hyphens, not a reserved word or a 12-character id", ErrInvalid)
+			}
+			current.Slug = *patch.Slug
+		}
 		if patch.ProfilesEnabled != nil {
 			current.ProfilesEnabled = *patch.ProfilesEnabled
 		}
@@ -254,6 +264,10 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		current.ExcludePaths = append([]string(nil), exclusions.PathRules...)
 		current.ExcludeCountries = append([]string(nil), exclusions.CountryRules...)
 		updated, err = store.UpdateSite(ctx, tx, current)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "sites_org_slug_key" {
+			return ErrSlugTaken
+		}
 		if err != nil {
 			return err
 		}
@@ -262,6 +276,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 			"heatmaps_enabled":        current.HeatmapsEnabled,
 			"respect_privacy_signals": current.RespectPrivacySignals,
 			"strict_origin":           current.StrictOrigin,
+		}
+		if patch.Slug != nil {
+			metadata["slug"] = current.Slug
 		}
 		if patch.ProfilesEnabled != nil {
 			metadata["profiles_enabled"] = current.ProfilesEnabled
@@ -573,7 +590,7 @@ func coreSite(row store.Site) (coresites.Site, error) {
 	}
 	tracker := ParseStoredTracker(row.ID, row.Tracker)
 	return coresites.Site{
-		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, TZ: location, Retention: retention,
+		ID: row.ID, OrgID: row.OrgID, PublicID: row.PublicID, Slug: row.Slug, TZ: location, Retention: retention,
 		AllowedHosts: append([]string(nil), row.AllowedHosts...), Exclusions: exclusions,
 		Tracker:               tracker,
 		ProfilesEnabled:       row.ProfilesEnabled,

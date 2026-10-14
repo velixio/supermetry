@@ -11,6 +11,7 @@ import (
 
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/store"
+	"supermetry/internal/query"
 	"supermetry/internal/realtime"
 	"supermetry/internal/session"
 	coresites "supermetry/internal/sites"
@@ -44,6 +45,7 @@ type OverviewSite struct {
 	ID               int32                   `json:"id"`
 	OrgID            int64                   `json:"org_id"`
 	PublicID         string                  `json:"public_id"`
+	Slug             string                  `json:"slug"`
 	Name             string                  `json:"name"`
 	Domain           string                  `json:"domain"`
 	Timezone         string                  `json:"timezone"`
@@ -146,7 +148,7 @@ func (s *Overview) List(ctx context.Context, userID int64, period OverviewPeriod
 
 func (s *Overview) readableSites(ctx context.Context, userID int64, after overviewCursor, hasAfter bool, limit int) ([]OverviewSite, error) {
 	query := `
-select s.id,s.org_id,s.public_id,s.name,s.allowed_hosts,s.timezone,
+select s.id,s.org_id,s.public_id,s.slug,s.name,s.allowed_hosts,s.timezone,
        coalesce(s.settings->>'icon_url',''),o.id,o.name,o.slug,m.role,s.created_at,
        le.last_event_at
 from memberships m
@@ -171,7 +173,7 @@ where m.user_id=$1 and (m.site_ids is null or s.id=any(m.site_ids))`
 	for rows.Next() {
 		var item OverviewSite
 		var hosts []string
-		if err := rows.Scan(&item.ID, &item.OrgID, &item.PublicID, &item.Name, &hosts, &item.Timezone,
+		if err := rows.Scan(&item.ID, &item.OrgID, &item.PublicID, &item.Slug, &item.Name, &hosts, &item.Timezone,
 			&item.IconURL, &item.Organization.ID, &item.Organization.Name, &item.Organization.Slug,
 			&item.Role, &item.CreatedAt, &item.LastEventAt); err != nil {
 			return nil, err
@@ -265,9 +267,9 @@ func (s *Overview) loadHourlyFigures(ctx context.Context, sites []OverviewSite, 
 select v.site_id,
        date_trunc('hour',v.minute at time zone st.timezone) at time zone st.timezone as bucket,
        sum(v.visitors)::bigint
-from visitors_per_minute v join sites st on st.id=v.site_id
+from visitors_per_minute v join unnest($1::int[], $3::text[]) as st(id,timezone) on st.id=v.site_id
 where v.site_id=any($1) and v.minute >= $2::timestamptz - interval '48 hours' and v.minute < $2::timestamptz + interval '1 hour'
-group by v.site_id,bucket order by v.site_id,bucket`, ids, now)
+group by v.site_id,bucket order by v.site_id,bucket`, ids, now, s.databaseZones(ctx, sites))
 	if err != nil {
 		return fmt.Errorf("query hourly overview: %w", err)
 	}
@@ -304,12 +306,12 @@ with daily as (
   select r.site_id,r.day,r.visitors::bigint from rollup_day r where r.site_id=any($1) and r.day >= ($2::date - 61)
   union all
   select v.site_id,(v.minute at time zone st.timezone)::date,sum(v.visitors)::bigint
-  from visitors_per_minute v join sites st on st.id=v.site_id
+  from visitors_per_minute v join unnest($1::int[], $3::text[]) as st(id,timezone) on st.id=v.site_id
   where v.site_id=any($1) and v.minute >= $2::timestamptz - interval '61 days'
     and not exists (select 1 from day_close dc where dc.site_id=v.site_id and dc.day=(v.minute at time zone st.timezone)::date and dc.status='done')
   group by v.site_id,(v.minute at time zone st.timezone)::date
 )
-select site_id,day,sum(visitors)::bigint from daily group by site_id,day order by site_id,day`, ids, now)
+select site_id,day,sum(visitors)::bigint from daily group by site_id,day order by site_id,day`, ids, now, s.databaseZones(ctx, sites))
 	if err != nil {
 		return fmt.Errorf("query daily overview: %w", err)
 	}
@@ -348,6 +350,21 @@ select site_id,day,sum(visitors)::bigint from daily group by site_id,day order b
 		values[siteID] = figure
 	}
 	return rows.Err()
+}
+
+// databaseZones returns each site's time zone as a name the database accepts,
+// aligned with overviewIDs. Go resolves legacy aliases such as Asia/Calcutta
+// that a PostgreSQL build without them rejects, which would fail the query.
+func (s *Overview) databaseZones(ctx context.Context, sites []OverviewSite) []string {
+	zones := make([]string, len(sites))
+	for index := range sites {
+		location, err := time.LoadLocation(sites[index].Timezone)
+		if err != nil {
+			location = time.UTC
+		}
+		zones[index] = query.PostgresZoneName(ctx, s.store.Pool, location)
+	}
+	return zones
 }
 
 func overviewIDs(sites []OverviewSite) []int32 {

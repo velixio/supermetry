@@ -119,6 +119,12 @@ func sameOffsets(a, b *time.Location, start time.Time) bool {
 	return true
 }
 
+// PostgresZoneName returns a name for location that the database behind pool
+// accepts in AT TIME ZONE, for callers outside this package that bucket in SQL.
+func PostgresZoneName(ctx context.Context, pool *pgxpool.Pool, location *time.Location) string {
+	return postgresZone(ctx, pool, location)
+}
+
 // postgresLocation returns a location with the same offsets as location whose
 // name PostgreSQL accepts, for code that derives the zone name from the location.
 func postgresLocation(ctx context.Context, pool *pgxpool.Pool, location *time.Location) *time.Location {

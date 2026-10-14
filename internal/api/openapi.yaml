@@ -156,6 +156,36 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/update:
+    get:
+      operationId: adminGetUpdateStatus
+      security: [{ cookieAuth: [] }]
+      summary: Check whether a newer stable Supermetry release is available
+      description: Performs a bounded, cached, read-only check of the official GitHub latest stable release. It never downloads or applies an update.
+      responses:
+        '200': { description: Update availability., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUpdateStatus' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/update/apply:
+    post:
+      operationId: adminApplyUpdate
+      security: [{ cookieAuth: [] }]
+      summary: Apply a verified stable release
+      description: Re-authenticates an instance administrator, creates an idempotent update job, and dispatches it to the narrow privileged updater helper. The helper takes and verifies a full database backup before activation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminApplyUpdateRequest' }
+      responses:
+        '202': { description: Update accepted., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUpdateJob' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: An update is already active or this deployment is not managed by the updater., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/private/setup/status:
     get:
       operationId: getSetupStatus
@@ -3338,6 +3368,44 @@ components:
       additionalProperties: false
       required: [data]
       properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminAuditEntry' } } }
+    AdminUpdateStatus:
+      type: object
+      additionalProperties: false
+      required: [current_version, latest_version, update_available, release_url, published_at, checked_at, check_error, update_supported]
+      properties:
+        current_version: { type: string }
+        latest_version: { type: [string, 'null'] }
+        update_available: { type: boolean }
+        release_url: { type: [string, 'null'], format: uri }
+        published_at: { type: [string, 'null'], format: date-time }
+        checked_at: { type: [string, 'null'], format: date-time }
+        check_error: { type: [string, 'null'] }
+        update_supported: { type: boolean }
+        deployment_mode: { type: string, enum: [binary, docker] }
+        job: { anyOf: [{ $ref: '#/components/schemas/AdminUpdateJob' }, { type: 'null' }] }
+    AdminApplyUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [target_version, idempotency_key, password]
+      properties:
+        target_version: { type: string, pattern: '^v?[0-9]+\.[0-9]+\.[0-9]+$' }
+        idempotency_key: { type: string, minLength: 8, maxLength: 128 }
+        password: { type: string, format: password }
+        totp_code: { type: string, pattern: '^[0-9]{6}$' }
+    AdminUpdateJob:
+      type: object
+      additionalProperties: false
+      required: [id, from_version, target_version, deployment_mode, status, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        from_version: { type: string }
+        target_version: { type: string }
+        deployment_mode: { type: string, enum: [binary, docker] }
+        status: { type: string, enum: [requested, preflight, downloading, verifying, stopping, backing_up, activating, restarting, verifying_health, complete, failed, recovery_required] }
+        error_code: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
     Organization:
       type: object
       additionalProperties: false
@@ -3460,7 +3528,7 @@ components:
         landing_page: { type: string, enum: [overview, last_site] }
         sites_view: { type: string, enum: [cards, table] }
         last_site_id: { type: [integer, 'null'], format: int32 }
-        locale: { type: string, enum: ['', en, es, de, en-XA], description: 'Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.' }
+        locale: { type: string, enum: ['', en, es, de, bn, en-XA], description: 'Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.' }
     UpdateCurrentUserRequest:
       type: object
       additionalProperties: false
@@ -3475,7 +3543,7 @@ components:
             landing_page: { type: string, enum: [overview, last_site] }
             sites_view: { type: string, enum: [cards, table] }
             last_site_id: { type: [integer, 'null'], format: int32 }
-            locale: { type: string, enum: ['', en, es, de, en-XA], description: 'Interface language; empty follows the browser. en-XA is a pseudo-locale for layout testing.' }
+            locale: { type: string, enum: ['', en, es, de, bn, en-XA], description: 'Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.' }
     SitesOverviewResponse:
       type: object
       additionalProperties: false
@@ -3489,11 +3557,12 @@ components:
     SitesOverviewItem:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, domain, timezone, organization, role, created_at, visitors, previous_visitors, change_percent, sparkline, live_visitors, last_event_at, install_status, tracking_snippet]
+      required: [id, org_id, public_id, slug, name, domain, timezone, organization, role, created_at, visitors, previous_visitors, change_percent, sparkline, live_visitors, last_event_at, install_status, tracking_snippet]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
         public_id: { type: string }
+        slug: { type: string, pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', minLength: 1, maxLength: 63, description: Readable per-organization URL segment; public_id resolves too. }
         name: { type: string }
         domain: { type: string }
         timezone: { type: string }
@@ -3835,11 +3904,12 @@ components:
     Site:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state, install_status, last_seen_at, is_demo, demo_ready]
+      required: [id, org_id, public_id, slug, name, timezone, retention_days, allowed_hosts, exclude_ips, exclude_paths, profiles_enabled, heatmaps_enabled, respect_privacy_signals, strict_origin, blocked_referrers, revenue_currency_state, install_status, last_seen_at, is_demo, demo_ready]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
         public_id: { type: string }
+        slug: { type: string, pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', minLength: 1, maxLength: 63, description: Readable per-organization URL segment; public_id resolves too. }
         name: { type: string }
         timezone: { type: string }
         retention_days: { type: integer }
@@ -3922,6 +3992,7 @@ components:
       properties:
         profiles_enabled: { type: boolean }
         name: { type: string }
+        slug: { type: string, pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', minLength: 1, maxLength: 63, description: 'Readable URL segment, unique per organization. Reserved words (sites, settings, health, new) and twelve-character ids are rejected; a taken slug returns 409.' }
         hosts:
           type: array
           minItems: 1
@@ -5470,6 +5541,12 @@ components:
       properties:
         status:
           type: string
+        version:
+          type: string
+        schema_version:
+          type: integer
+          format: int64
+          minimum: 0
     ValidationError:
       type: object
       additionalProperties: false

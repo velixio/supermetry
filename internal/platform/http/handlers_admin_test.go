@@ -62,6 +62,8 @@ func TestAdminRouteAuthorizationMatrix(t *testing.T) {
 		{http.MethodGet, fmt.Sprintf("/api/private/admin/organizations/%d", orgID), ""},
 		{http.MethodGet, "/api/private/admin/sites?limit=10", ""},
 		{http.MethodGet, "/api/private/admin/settings", ""},
+		{http.MethodGet, "/api/private/admin/update", ""},
+		{http.MethodPost, "/api/private/admin/update/apply", `{}`},
 		{http.MethodPatch, "/api/private/admin/settings", `{"signup_mode":"invite","replay_visible":false}`},
 		{http.MethodGet, "/api/private/admin/security/2fa-policy", ""},
 		{http.MethodPut, "/api/private/admin/security/2fa-policy", `{"scope":"off","grace_days":7}`},
@@ -89,7 +91,11 @@ func TestAdminRouteAuthorizationMatrix(t *testing.T) {
 						t.Fatalf("status=%d body=%s, want 401", response.Code, response.Body.String())
 					}
 				case "instance-admin":
-					if response.Code >= http.StatusBadRequest {
+					if route.path == "/api/private/admin/update/apply" {
+						if response.Code != http.StatusConflict {
+							t.Fatalf("status=%d body=%s, want 409 for unmanaged deployment", response.Code, response.Body.String())
+						}
+					} else if response.Code >= http.StatusBadRequest {
 						t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 					}
 				default:

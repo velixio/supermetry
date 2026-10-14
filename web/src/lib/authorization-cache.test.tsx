@@ -119,4 +119,11 @@ describe('authorization cache lifecycle', () => {
     ])
       expect(next).not.toBe(original)
   })
+
+  it('gives pages outside an organization their own authorization context', () => {
+    const membership = { org: { id: 1, name: 'Acme', slug: 'acme' }, role: 'owner' as const, sites: [] }
+    expect(authorizationScope(1, undefined)).toBe(authorizationScope(1, undefined))
+    expect(authorizationScope(1, undefined)).not.toBe(authorizationScope(1, membership))
+    expect(authorizationScope(1, undefined)).not.toBe(authorizationScope(2, undefined))
+  })
 })

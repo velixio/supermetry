@@ -52,7 +52,7 @@ test('the account language preference is applied after sign in', async ({ page, 
   }
 })
 
-for (const [locale, word] of [['de', /Analyse|Verhalten|Konversion/], ['es', /Análisis|Comportamiento|Conversión/]] as const) {
+for (const [locale, word] of [['de', /Analyse|Verhalten|Konversion/], ['es', /Análisis|Comportamiento|Conversión/], ['bn', /বিশ্লেষণ|আচরণ|রূপান্তর/]] as const) {
   test(`${locale} renders translated text, the right lang attribute and no overflow at 390 px`, async ({ page, owner }) => {
     await page.addInitScript((code) => window.localStorage.setItem('supermetry.locale', code), locale)
     await page.setViewportSize({ width: 1440, height: 900 })

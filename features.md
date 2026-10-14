@@ -105,7 +105,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Protected metrics endpoint | ✓ | ? | ? | ✅ (`SUPERMETRY_METRICS_TOKEN` or localhost only) |
 | Data retention / purge | ? | – | ? | ✅ (per site, partition drop) |
 | Automatic rollup backfill after upgrades | – | – | – | ✅ (progress on Data health) |
-| Docker image | ✓ | ✓ | ✓ | ✅ (`Dockerfile`, `deploy/docker-compose.yml`) |
+| Docker image | ✓ | ✓ | ✓ | ✅ (`deploy/Dockerfile`, `deploy/docker-compose.yml`) |
 | Release binaries, systemd unit, install docs | – | – | – | ✅ (`deploy/install.sh`, `deploy/supermetry.service`, `deploy/README.md`) |
 | Safe installer dry-run and compatibility checks | ? | ? | ? | ✅ (`supermetry install --dry-run`, PostgreSQL 14+) |
 | Backup and restore command | – | – | – | ✅ (`supermetry backup`, `supermetry restore`) |
@@ -157,7 +157,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 - ~~LICENSE file~~ ✅, ~~Docker image, release binaries, systemd unit, installer~~ ✅, ~~backup/restore~~ ✅
 - ~~Server-side events API docs~~ ✅ (`docs/api.md`); landing page and docs (Astro + Starlight)
 - ~~Trust fixes T1–T8~~ ✅ (see competitor-profiles/_summary.md); full security review still to do
-- ~~Accuracy check (reference, 0 mismatches)~~ ✅; real-traffic comparison with Plausible (`bench/accuracy/compare-live.py`) and product benchmark (D25) ⏳
+- ~~Accuracy check (reference, 0 mismatches)~~ ✅; real-traffic comparison with Plausible (`tools/bench/accuracy/compare_live.py`) and product benchmark (D25) ⏳
 - Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
 
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).

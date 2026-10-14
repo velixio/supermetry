@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { fmt } from '@/lib/format'
@@ -146,17 +148,14 @@ export function RevenueReport(props: RevenueReportProps) {
   }
 
   if (trend.isError) {
-    return <div className="flex min-w-0 flex-col gap-4">
-      <div><h1 className="text-xl font-semibold tracking-tight">Revenue</h1><p className="text-sm text-muted-foreground">All amounts use the project’s permanent {props.currency} currency.</p></div>
+    return <PageContainer>
+      <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} />
       <Card><ErrorState detail={trend.error?.detail} onRetry={() => void trend.refetch()} /></Card>
-    </div>
+    </PageContainer>
   }
 
-  return <div className="flex min-w-0 flex-col gap-4">
-    <div>
-      <h1 className="text-xl font-semibold tracking-tight">Revenue</h1>
-      <p className="text-sm text-muted-foreground">All amounts use the project’s permanent {props.currency} currency.</p>
-    </div>
+  return <PageContainer>
+    <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} />
     {trendLimited ? <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">Available attributed revenue only. The selected attribution filters exclude legacy closed events without event-time attribution from the headline and trend.</p> : null}
     <div className="grid gap-3 sm:grid-cols-2">
       <MetricCard label="Total revenue" value={numeric(totals?.total_revenue)} previous={numeric(comparison?.total_revenue)} formatter={formatter} compare={props.compare} />
@@ -169,5 +168,5 @@ export function RevenueReport(props: RevenueReportProps) {
       <Breakdown title="Campaign" dimension="utm_campaign" query={campaign} currency={props.currency} />
     </div>
     {props.orgId ? <RevenueBreakdown siteId={props.siteId} orgId={props.orgId} currency={props.currency} timezone={props.timezone} from={props.dateRange.from} to={props.dateRange.to} /> : null}
-  </div>
+  </PageContainer>
 }

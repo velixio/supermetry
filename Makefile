@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -48,7 +48,7 @@ test-fast:
 	cd web && bun install --frozen-lockfile && bun run test --run --maxWorkers=3
 
 test-e2e: build
-	cd bench/gen && go run . --tier tiny --seed 42 --out testdata/tiny.ndjson --sites testdata/tiny.sites.json --truth testdata/tiny.truth.json
+	go run ./tools/gen --tier tiny --seed 42 --out test/golden/testdata/tiny.ndjson --sites test/golden/testdata/tiny.sites.json --truth test/golden/testdata/tiny.truth.json
 	cd web && bunx playwright test e2e/account-navigation.spec.ts e2e/authorization.spec.ts --reporter=list --workers=1
 	cd web && bunx playwright test e2e/not-found.spec.ts e2e/privacy-navigation.spec.ts --reporter=list --workers=1
 	cd web && bunx playwright test e2e/a11y-audit.spec.ts e2e/api-docs.spec.ts e2e/dashboard.spec.ts e2e/dashboard-where-when.spec.ts e2e/navigation.spec.ts e2e/privacy.spec.ts e2e/revenue.spec.ts e2e/sessions.spec.ts e2e/settings.spec.ts e2e/vitals.spec.ts --reporter=list --workers=1
@@ -96,13 +96,29 @@ TEST_ENV := $(ENV) if [ -z "$$SUPERMETRY_TEST_DSN" ]; then $(DEV_DB_START) expor
 run: build
 	$(DB_ENV) $(CURDIR)/bin/supermetry serve
 
-# Build the dashboard once, the first time it is needed; later runs reuse web/dist
-# (run `make web` after changing the dashboard).
-web/dist/index.html:
+
+# Rebuild the dashboard when any source input changes.
+web/dist/index.html: $(shell find web/src web/packages web/public -type f 2>/dev/null) web/package.json web/index.html web/vite.config.ts
 	$(MAKE) web
 
-# Run with the dashboard, without rebuilding it on every start.
-dev: web/dist/index.html
+# make dev: watch mode. Open http://localhost:8787 (the Go server, as in production).
+# The Go server is rebuilt and restarted when .go files, go.mod/go.sum or the assets
+# embedded from cmd/ and internal/ change; a compile error keeps the old server running.
+# The UI comes from the Vite dev server (hot reload) on :5173, which the Go server
+# reverse-proxies (SUPERMETRY_DEV_UI_URL), so the browser only uses :8787 and login,
+# CSRF and cookies behave as usual. The server listens on 127.0.0.1 only (unless
+# SUPERMETRY_LISTEN is set), since it forwards to the Vite dev server. Ctrl+C stops both.
+dev:
+	$(ENV) if [ -z "$$SUPERMETRY_DEV_UI_URL" ]; then export SUPERMETRY_DEV_UI_URL=http://localhost:5173; fi; \
+		if [ -z "$$SUPERMETRY_LISTEN" ]; then export SUPERMETRY_LISTEN=127.0.0.1:8787; fi; \
+		$(DB_ENV) exec sh $(CURDIR)/scripts/dev.sh
+
+# Smoke test of the make dev supervisor (fake build, server and Vite; no database needed).
+test-dev:
+	sh scripts/test-dev-sh.sh
+
+# One-shot embedded build served by Go on :8787 (the old make dev). No watching.
+dev-embedded: web/dist/index.html
 	mkdir -p bin
 	go build -tags embedui -o bin/supermetry ./cmd/supermetry
 	$(DB_ENV) $(CURDIR)/bin/supermetry serve
@@ -111,7 +127,10 @@ migrate: build-go
 	$(DB_ENV) $(CURDIR)/bin/supermetry migrate
 
 # Stop the supermetry server started by make run/dev from this checkout (anchored, so it never matches itself or worktree servers).
+# Also stops the make dev supervisor and its Vite dev server from this checkout.
 kill:
+	-pkill -f '^sh $(CURDIR)/scripts/dev.sh' && echo "stopped dev watcher" || true
+	-pkill -f '^[^ ]*(node|bun) .*$(CURDIR)/web/node_modules/\.bin/vite' && echo "stopped vite" || true
 	-pkill -f '^$(CURDIR)/bin/supermetry serve' && echo "stopped supermetry" || echo "no supermetry running"
 
 # The dev database also starts on its own with run/dev/migrate/test; these are for manual use.

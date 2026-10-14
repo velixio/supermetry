@@ -27,6 +27,7 @@ func (f *forgetRecorder) Forget(slugs ...string) { f.slugs = append(f.slugs, slu
 type linkFixture struct {
 	handler     http.Handler
 	pool        *pgxpool.Pool
+	now         time.Time
 	siteID      int32
 	otherSite   int32
 	foreignSite int32
@@ -36,6 +37,7 @@ type linkFixture struct {
 
 func newLinkFixture(t *testing.T) linkFixture {
 	t.Helper()
+	now := time.Date(2026, 10, 12, 20, 30, 0, 0, time.UTC)
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
 	if err := db.Migrate(ctx, pool); err != nil {
@@ -77,9 +79,9 @@ func newLinkFixture(t *testing.T) linkFixture {
 		handler: platformhttp.New(platformhttp.Deps{
 			Authenticator: authenticator, Sites: registry, Store: data, LinkCache: cache,
 			BaseURL: "https://sm.example.test",
-			Now:     func() time.Time { return time.Date(2026, 10, 12, 20, 30, 0, 0, time.UTC) },
+			Now:     func() time.Time { return now },
 		}),
-		pool: pool, siteID: siteID, otherSite: otherSite, foreignSite: foreignSite, userID: userID, cache: cache,
+		pool: pool, now: now, siteID: siteID, otherSite: otherSite, foreignSite: foreignSite, userID: userID, cache: cache,
 	}
 }
 
@@ -136,7 +138,7 @@ func TestLinksCRUDAuditAndCacheInvalidation(t *testing.T) {
 		t.Fatalf("list = %v, %v", listed, err)
 	}
 
-	future := time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339)
+	future := f.now.Add(48 * time.Hour).Format(time.RFC3339)
 	patched := f.request(t, "editor", http.MethodPatch, path, `{"slug":"renamed","enabled":false,"expires_at":"`+future+`","utm_source":""}`)
 	if patched.Code != http.StatusOK || !strings.Contains(patched.Body.String(), `"slug":"renamed"`) || !strings.Contains(patched.Body.String(), `"status":"disabled"`) || !strings.Contains(patched.Body.String(), `"utm_source":""`) {
 		t.Fatalf("PATCH status=%d body=%s", patched.Code, patched.Body.String())
@@ -265,7 +267,7 @@ func TestLinksValidationRejectsUnsafeInput(t *testing.T) {
 	f := newLinkFixture(t)
 	path := fmt.Sprintf("/api/private/sites/%d/links", f.siteID)
 	id, _ := f.create(t, "owner", f.siteID, `{"slug":"existing","name":"Existing","destination":"https://a.example"}`)
-	past := time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)
+	past := f.now.Add(-time.Hour).Format(time.RFC3339)
 	bad := map[string]string{
 		"javascript destination": `{"name":"x","destination":"javascript:alert(1)"}`,
 		"data destination":       `{"name":"x","destination":"data:text/html;base64,PHNjcmlwdD4="}`,

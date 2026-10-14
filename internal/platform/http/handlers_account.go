@@ -93,7 +93,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		items = append(items, item)
 		totalSites += len(sites)
 	}
-	preferences := effectiveUserPreferences(user.Preferences, totalSites)
+	preferences := effectiveUserPreferences(user.Preferences)
 	var twoFactorSetupRequired bool
 	var twoFactorGraceUntil *time.Time
 	if h.deps.Admin != nil {
@@ -140,12 +140,9 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func effectiveUserPreferences(preferences store.UserPreferences, siteCount int) store.UserPreferences {
+func effectiveUserPreferences(preferences store.UserPreferences) store.UserPreferences {
 	if preferences.LandingPage == "" {
 		preferences.LandingPage = "last_site"
-		if siteCount >= 2 {
-			preferences.LandingPage = "overview"
-		}
 	}
 	if preferences.SitesView == "" {
 		preferences.SitesView = "cards"
@@ -155,7 +152,7 @@ func effectiveUserPreferences(preferences store.UserPreferences, siteCount int) 
 
 func (h *handler) membershipSites(ctx context.Context, membership orgs.Membership) ([]siteResponse, error) {
 	rows, err := h.deps.Store.Pool.Query(ctx, `
-		select id,org_id,public_id,name,timezone,retention_class,allowed_hosts,
+		select id,org_id,public_id,slug,name,timezone,retention_class,allowed_hosts,
 		       coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 		       coalesce(settings->>'icon_url',''),coalesce(settings->'profiles_enabled'='true'::jsonb,false),
 		       coalesce(revenue_currency::text,''),revenue_currency_state,
@@ -174,7 +171,7 @@ func (h *handler) membershipSites(ctx context.Context, membership orgs.Membershi
 	for rows.Next() {
 		var site siteResponse
 		var retention int16
-		if err := rows.Scan(&site.ID, &site.OrgID, &site.PublicID, &site.Name, &site.Timezone, &retention,
+		if err := rows.Scan(&site.ID, &site.OrgID, &site.PublicID, &site.Slug, &site.Name, &site.Timezone, &retention,
 			&site.AllowedHosts, &site.ExcludeIPs, &site.ExcludePaths, &site.IconURL, &site.ProfilesEnabled,
 			&site.RevenueCurrency, &site.RevenueCurrencyState, &site.IsDemo, &site.DemoReady, &site.LastSeenAt); err != nil {
 			return nil, err

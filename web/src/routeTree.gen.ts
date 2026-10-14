@@ -31,6 +31,7 @@ import { Route as AppAdminOrganizationsRouteImport } from './routes/app.admin.or
 import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
 import { Route as AppAdminSettingsRouteImport } from './routes/app.admin.settings'
 import { Route as AppAdminSitesRouteImport } from './routes/app.admin.sites'
+import { Route as AppAdminUpdateRouteImport } from './routes/app.admin.update'
 import { Route as AppAdminUsersRouteImport } from './routes/app.admin.users'
 import { Route as AppOrgSiteIndexRouteImport } from './routes/app.$org.$site.index'
 import { Route as AppOrgSiteCohortsRouteImport } from './routes/app.$org.$site.cohorts'
@@ -185,6 +186,11 @@ const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
 const AppAdminSitesRoute = AppAdminSitesRouteImport.update({
   id: '/sites',
   path: '/sites',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminUpdateRoute = AppAdminUpdateRouteImport.update({
+  id: '/update',
+  path: '/update',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
@@ -450,6 +456,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -517,6 +524,7 @@ export interface FileRoutesByTo {
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -587,6 +595,7 @@ export interface FileRoutesById {
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -658,6 +667,7 @@ export interface FileRouteTypes {
     | '/app/admin/security'
     | '/app/admin/settings'
     | '/app/admin/sites'
+    | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/events'
@@ -725,6 +735,7 @@ export interface FileRouteTypes {
     | '/app/admin/security'
     | '/app/admin/settings'
     | '/app/admin/sites'
+    | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/events'
@@ -794,6 +805,7 @@ export interface FileRouteTypes {
     | '/app/admin/security'
     | '/app/admin/settings'
     | '/app/admin/sites'
+    | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/events'
@@ -1007,6 +1019,13 @@ declare module '@tanstack/react-router' {
       path: '/sites'
       fullPath: '/app/admin/sites'
       preLoaderRoute: typeof AppAdminSitesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/update': {
+      id: '/app/admin/update'
+      path: '/update'
+      fullPath: '/app/admin/update'
+      preLoaderRoute: typeof AppAdminUpdateRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/app/admin/users': {
@@ -1469,6 +1488,7 @@ interface AppAdminRouteChildren {
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSitesRoute: typeof AppAdminSitesRoute
+  AppAdminUpdateRoute: typeof AppAdminUpdateRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
 }
 
@@ -1477,6 +1497,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSitesRoute: AppAdminSitesRoute,
+  AppAdminUpdateRoute: AppAdminUpdateRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
 }
 

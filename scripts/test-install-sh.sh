@@ -118,6 +118,9 @@ assert_arch x86_64 amd64
 assert_arch amd64 amd64
 assert_arch aarch64 arm64
 assert_arch arm64 arm64
+assert_arch armv6l armv6
+assert_arch armv7l armv7
+assert_arch armv8l armv7
 
 : >"$test_root/download.log"
 TEST_UNAME_S=Linux \

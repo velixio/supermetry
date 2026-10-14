@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import type { TrackingPolicy } from "@/features/sites/types";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { copyText } from "@/lib/clipboard";
@@ -72,6 +74,7 @@ import { activeLocale } from '@/lib/i18n/intl'
 type Site = {
   id: number;
   public_id: string;
+  slug?: string;
   name: string;
   allowed_hosts: string[];
   timezone: string;
@@ -169,13 +172,10 @@ function Page({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title={title} description={description} />
       {children}
-    </div>
+    </PageContainer>
   );
 }
 
@@ -199,10 +199,13 @@ export function SiteGeneralPage({
   siteId,
   orgId,
   role,
+  onSlugChange,
 }: {
   siteId: number;
   orgId: number;
   role: Role;
+  /** Called after a save changed the slug, so the page can move to the new URL. */
+  onSlugChange?: (slug: string) => void;
 }) {
   const queryClient = useQueryClient();
   const site = useQuery({
@@ -216,7 +219,14 @@ export function SiteGeneralPage({
         orgId,
         body,
       }),
-    onSuccess: (value) => queryClient.setQueryData(["site", siteId], value),
+    onSuccess: (value) => {
+      const previous = queryClient.getQueryData<Site>(["site", siteId])?.slug;
+      queryClient.setQueryData(["site", siteId], value);
+      if (value.slug && previous && value.slug !== previous) {
+        void queryClient.invalidateQueries({ queryKey: ["me"] });
+        onSlugChange?.(value.slug);
+      }
+    },
   });
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -226,6 +236,7 @@ export function SiteGeneralPage({
       .toUpperCase();
     save.mutate({
       name: String(data.get("name") ?? ""),
+      ...(data.get("slug") !== null ? { slug: String(data.get("slug")).trim() } : {}),
       hosts: String(data.get("hosts") ?? "")
         .split(",")
         .map((host) => host.trim())
@@ -260,6 +271,24 @@ export function SiteGeneralPage({
                     defaultValue={site.data.name}
                   />
                 </Field>
+                {site.data.slug !== undefined ? (
+                  <Field>
+                    <FieldLabel htmlFor="site-slug">URL name</FieldLabel>
+                    <Input
+                      id="site-slug"
+                      name="slug"
+                      defaultValue={site.data.slug}
+                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                      maxLength={63}
+                      autoCapitalize="none"
+                      spellCheck={false}
+                    />
+                    <FieldDescription>
+                      Used in this site's address. Lowercase letters, digits and single hyphens. Changing it
+                      does not break older links that use the site id.
+                    </FieldDescription>
+                  </Field>
+                ) : null}
                 <RevenueCurrencySettings site={site.data} role={role} />
                 <Field>
                   <FieldLabel htmlFor="site-hosts">Allowed hosts</FieldLabel>
@@ -732,7 +761,7 @@ export function SharesPage({
           ))}
         </ul>
       </Surface>
-      <aside className="h-fit rounded-xl border bg-muted/30 p-5 lg:sticky lg:top-6">
+      <aside className="h-fit rounded-xl border bg-muted/30 p-5 lg:sticky lg:top-17">
         <h2 className="text-lg font-semibold">{en.shares.preview}</h2>
         <p className="mt-1 text-sm text-muted-foreground">Read-only · {dateMode === "rolling" ? `Last ${rollingDays} days` : `${fixedFrom || "From"} to ${fixedTo || "To"}`}</p>
         <div className="mt-4 flex flex-wrap gap-2"><Badge variant="secondary">{theme} theme</Badge>{country ? <Badge variant="secondary">Country: {country.toUpperCase()}</Badge> : null}{segmentId !== null ? <Badge variant="secondary">Saved segment</Badge> : null}{embedding ? <Badge variant="secondary">Embeddable</Badge> : null}</div>

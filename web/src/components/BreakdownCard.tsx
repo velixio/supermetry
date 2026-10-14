@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button'
 import { en } from '@/messages/en'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countryLabel } from '@/lib/country'
+import { breakdownLabel } from '@/lib/breakdown-labels'
+import { inspectTargetFor, sameInspect, type InspectControl } from '@/lib/inspect'
+import { InspectButton } from './InspectButton'
 import { formatBreakdownMetric, metricLabel } from '@/lib/breakdown-metrics'
 import { fmt } from '@/lib/format'
 import type { Filter } from '@/lib/search'
@@ -34,21 +37,7 @@ type BreakdownCardProps = {
   allowFilter?: boolean
   verifiedPaths?: boolean
   description?: string
-}
-
-function screenSizeLabel(value: string): string | undefined {
-  const labels: Record<string, string> = {
-    mobile: ui.breakdown.mobile, tablet: ui.breakdown.tablet, laptop: ui.breakdown.laptop,
-    desktop: ui.breakdown.desktop, large: ui.breakdown.large,
-  }
-  return labels[value]
-}
-
-function breakdownLabel(dimension: string, value: string): string {
-  if (value === '') return ui.breakdown.unknown
-  if (dimension === 'country') return countryLabel(value)
-  if (dimension === 'screen_size') return screenSizeLabel(value) ?? value
-  return value
+  inspect?: InspectControl
 }
 
 function filterAccessibleLabel(dimension: string, label: string, display: string, country: string): string {
@@ -57,7 +46,7 @@ function filterAccessibleLabel(dimension: string, label: string, display: string
   return label
 }
 
-export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true, allowFilter = true, verifiedPaths = false, description }: BreakdownCardProps) {
+export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true, allowFilter = true, verifiedPaths = false, description, inspect }: BreakdownCardProps) {
   const filterDescriptionId = useId()
   const fullReportRef = useRef<HTMLButtonElement>(null)
   const [fullReportOpen, setFullReportOpen] = useState(false)
@@ -86,6 +75,11 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
     const value = activeTab ? Number(row[activeTab.metric] ?? 0) : 0
     return Math.max(largest, Number.isFinite(value) ? value : 0)
   }, 0)
+  const inspectControl = (dimension: string, label: string, country: string, accessibleLabel: string) => {
+    const target = inspectTargetFor(dimension, dimension === 'region' || dimension === 'city' ? [label, country] : [label])
+    if (!inspect || !target || !inspect.can(target)) return null
+    return <InspectButton label={ui.inspector.inspectValue(accessibleLabel)} pressed={sameInspect(inspect.selected, target)} onInspect={(origin) => inspect.open(target, origin)} />
+  }
 
   return (
     <section aria-label={title} className="min-w-0 rounded-xl border bg-card text-card-foreground" role="region">
@@ -155,20 +149,23 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                         <span className="sr-only" id={`${filterDescriptionId}-${index}`}>
                           {ui.breakdown.filterBy(activeTab.dimension, filterAccessibleLabel(activeTab.dimension, label, display, placeCountry))}
                         </span>
-                        <button
-                          aria-describedby={`${filterDescriptionId}-${index}`}
-                          className="w-full min-w-0 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-                          type="button"
-                          onClick={() => onFilter({
-                            dimension: activeTab.dimension,
-                            operator: 'is',
-                            values: activeTab.dimension === 'region' || activeTab.dimension === 'city'
-                              ? [label, placeCountry]
-                              : [label],
-                          })}
-                        >
-                          <span className="block min-w-0 truncate font-medium" title={display}>{display}</span>
-                        </button>
+                        <div className="flex min-w-0 items-center gap-1">
+                          <button
+                            aria-describedby={`${filterDescriptionId}-${index}`}
+                            className="min-w-0 flex-1 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                            type="button"
+                            onClick={() => onFilter({
+                              dimension: activeTab.dimension,
+                              operator: 'is',
+                              values: activeTab.dimension === 'region' || activeTab.dimension === 'city'
+                                ? [label, placeCountry]
+                                : [label],
+                            })}
+                          >
+                            <span className="block min-w-0 truncate font-medium" title={display}>{display}</span>
+                          </button>
+                          {inspectControl(activeTab.dimension, label, placeCountry, filterAccessibleLabel(activeTab.dimension, label, display, placeCountry))}
+                        </div>
                         </>
                       )}
                     </td>
@@ -197,7 +194,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
               <li key={`${label}:${index}`} className="min-w-0">
                 {label === '' || !allowFilter || placeWithoutCountry ? (
                   <div className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-foreground">
-                    <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
+                    <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" style={{ width }} />
                     <span className="relative min-w-0 truncate text-sm text-foreground" title={display}>{display}</span>
                     <span className="relative text-sm tabular-nums">{fmt.number(value)}</span>
                   </div>
@@ -206,31 +203,34 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                   <span className="sr-only" id={`${filterDescriptionId}-${index}`}>
                     {ui.breakdown.filterBy(activeTab.dimension, filterAccessibleLabel(activeTab.dimension, label, display, country))}
                   </span>
-                  <button
-                    aria-describedby={`${filterDescriptionId}-${index}`}
-                    className="relative grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-                    type="button"
-                    onClick={() =>
-                      onFilter({
-                        dimension: activeTab.dimension,
-                        operator: 'is',
-                        values: activeTab.dimension === 'region' || activeTab.dimension === 'city'
-                          ? [label, country]
-                          : [label],
-                      })
-                    }
-                  >
-                    <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-md bg-accent/10" style={{ width }} />
-                    <span className="relative flex min-w-0 items-center gap-2 text-sm">
-                      {activeTab.dimension === 'country' || activeTab.dimension === 'region' || activeTab.dimension === 'city'
-                        ? <Flag code={country} />
-                        : null}
-                      <span className="min-w-0 truncate" title={display}>{display}</span>
-                    </span>
-                    <span className="relative text-sm tabular-nums text-foreground">
-                      {fmt.number(value)}
-                    </span>
-                  </button>
+                  <div className="flex min-w-0 items-center gap-1">
+                    <button
+                      aria-describedby={`${filterDescriptionId}-${index}`}
+                      className="relative grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+                      type="button"
+                      onClick={() =>
+                        onFilter({
+                          dimension: activeTab.dimension,
+                          operator: 'is',
+                          values: activeTab.dimension === 'region' || activeTab.dimension === 'city'
+                            ? [label, country]
+                            : [label],
+                        })
+                      }
+                    >
+                      <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" style={{ width }} />
+                      <span className="relative flex min-w-0 items-center gap-2 text-sm">
+                        {activeTab.dimension === 'country' || activeTab.dimension === 'region' || activeTab.dimension === 'city'
+                          ? <Flag code={country} />
+                          : null}
+                        <span className="min-w-0 truncate" title={display}>{display}</span>
+                      </span>
+                      <span className="relative text-sm tabular-nums text-foreground">
+                        {fmt.number(value)}
+                      </span>
+                    </button>
+                    {inspectControl(activeTab.dimension, label, country, filterAccessibleLabel(activeTab.dimension, label, display, country))}
+                  </div>
                   </>
                 )}
               </li>

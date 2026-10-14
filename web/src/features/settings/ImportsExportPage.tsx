@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useCapability } from '@/lib/authorization'
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -176,13 +178,8 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Imports &amp; export</h1>
-        <p className="text-sm text-muted-foreground">
-          Bring historical aggregate data into this site or download a portable ZIP.
-        </p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title="Imports &amp; export" description="Bring historical aggregate data into this site or download a portable ZIP." />
 
       <Surface
         title="Import historical data"
@@ -366,6 +363,6 @@ export function ImportsExportPage({ siteId, orgId }: { siteId: number; orgId: nu
           {exportData.error ? <p role="alert" className="text-sm text-destructive">{exportData.error.message}</p> : null}
         </form>
       </Surface> : null}
-    </div>
+    </PageContainer>
   )
 }

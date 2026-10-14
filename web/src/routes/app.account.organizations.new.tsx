@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
@@ -32,11 +34,8 @@ function NewOrganizationRoute() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Add organization</h1>
-        <p className="text-sm text-muted-foreground">You will be its owner. Add its first site next.</p>
-      </header>
+    <PageContainer width="narrow">
+      <PageHeader title="Add organization" description="You will be its owner. Add its first site next." />
       <section className="rounded-xl border bg-card p-5">
         <form className="flex flex-col gap-5" onSubmit={(event) => void submit(event)}>
           <FieldGroup>
@@ -51,6 +50,6 @@ function NewOrganizationRoute() {
           </Button>
         </form>
       </section>
-    </div>
+    </PageContainer>
   )
 }

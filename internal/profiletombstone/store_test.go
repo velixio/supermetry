@@ -416,13 +416,12 @@ func TestRememberTxRollbackDoesNotPublishOrForgetMemory(t *testing.T) {
 }
 
 func TestStoreRunHonorsConfiguredIntervalAndCancellation(t *testing.T) {
-	t.Setenv("SUPERMETRY_TOMBSTONE_POLL", "10ms")
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
 	if err := db.Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
-	store := New(pool, nil)
+	store := NewWithPollInterval(pool, nil, 10*time.Millisecond)
 	if got := store.PollInterval(); got != 10*time.Millisecond {
 		t.Fatalf("poll interval = %s, want 10ms", got)
 	}

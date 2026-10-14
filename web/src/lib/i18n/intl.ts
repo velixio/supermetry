@@ -2,10 +2,10 @@
 // formatters created at module scope already use it. The message catalogue itself
 // loads lazily (see ./index.ts).
 
-export type LocaleCode = 'en' | 'es' | 'de' | 'en-XA'
+export type LocaleCode = 'en' | 'es' | 'de' | 'bn' | 'en-XA'
 
 export const storageKey = 'supermetry.locale'
-export const supportedLocales: readonly LocaleCode[] = ['en', 'es', 'de', 'en-XA']
+export const supportedLocales: readonly LocaleCode[] = ['en', 'es', 'de', 'bn', 'en-XA']
 
 export function isLocaleCode(value: unknown): value is LocaleCode {
   return typeof value === 'string' && (supportedLocales as readonly string[]).includes(value)
@@ -24,7 +24,7 @@ function readStored(): LocaleCode | undefined {
 export function detectBrowserLocale(languages: readonly string[] = typeof navigator === 'undefined' ? [] : navigator.languages): LocaleCode {
   for (const tag of languages) {
     const base = tag.toLowerCase().split('-')[0]
-    if (base === 'es' || base === 'de' || base === 'en') return base
+    if (base === 'es' || base === 'de' || base === 'bn' || base === 'en') return base
   }
   return 'en'
 }
@@ -41,7 +41,8 @@ export function setActiveLocaleCode(code: LocaleCode): void {
 
 /** BCP 47 tag handed to Intl. The pseudo-locale formats like English. */
 export function activeLocale(): string {
-  return current === 'en-XA' ? 'en' : current === 'en' ? 'en-US' : current
+  // Analytics numbers stay in ASCII 0-9 in Bengali charts, tables and tests.
+  return current === 'en-XA' ? 'en' : current === 'en' ? 'en-US' : current === 'bn' ? 'bn-u-nu-latn' : current
 }
 
 type WeekInfo = { firstDay?: number }

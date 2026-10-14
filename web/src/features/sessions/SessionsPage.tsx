@@ -1,4 +1,6 @@
 import { useCapability } from '@/lib/authorization'
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ListPager } from '@/components/ListPager'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -172,11 +174,8 @@ export function SessionsPage({
     })) ?? []
 
   return (
-    <main className="flex min-w-0 max-w-full flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Sessions</h1>
-        <p className="text-sm text-muted-foreground">Inspect anonymous visits without linking people across days.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Sessions" description="Inspect anonymous visits without linking people across days." />
       {sessions.isError ? (
         <ErrorState detail={sessions.error?.detail} onRetry={() => void sessions.refetch()} />
       ) : sessions.isPending ? (
@@ -297,6 +296,6 @@ export function SessionsPage({
           onSessionChange={(id) => onReplayChange(id, { replace: true })}
         />
       ) : null}
-    </main>
+    </PageContainer>
   )
 }

@@ -114,6 +114,25 @@ func TestBackupArchiveLayoutAndManifest(t *testing.T) {
 	}
 }
 
+func TestBackupUsesSplitDockerDatabaseSettings(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "docker-backup.tar.gz")
+	rt := fakeRuntime(t, dir)
+	env := map[string]string{
+		"SUPERMETRY_DATABASE_HOST":     "postgres",
+		"SUPERMETRY_DATABASE_USER":     "supermetry",
+		"SUPERMETRY_DATABASE_PASSWORD": "docker-secret",
+		"SUPERMETRY_DATABASE_NAME":     "supermetry",
+		"SUPERMETRY_DATABASE_SSLMODE":  "disable",
+	}
+	if err := backupCommandWithRuntime(context.Background(), []string{"--out", out}, io.Discard, func(key string) string { return env[key] }, rt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRestoreRefusals(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -334,6 +353,7 @@ printf 'restore argv=%s password=%s database=%s\n' "$*" "$PGPASSWORD" "$PGDATABA
 	}
 	rt := defaultBackupRuntime()
 	rt.schemaVersion = func(context.Context, string) (int, error) { return latestMigrationVersion, nil }
+	rt.databaseSize = func(context.Context, string) (int64, error) { return 1024, nil }
 	rt.reachable = func(context.Context, string) error { return nil }
 	rt.targetSchema = func(context.Context, string) (string, error) { return "public", nil }
 	rt.prepareRestore = func(context.Context, string) error { return nil }
@@ -417,11 +437,15 @@ func fakeRuntime(t *testing.T, dir string) backupRuntime {
 	latestMigrationVersion := latestEmbeddedMigrationVersion(t)
 	client := filepath.Join(dir, "fake-client")
 	writeFakeClient(t, dir, "fake-client", `
-if [ "$1" = "--version" ]; then echo 'pg_dump (PostgreSQL) 17.2'; else echo 'fake database dump'; fi
+if [ "$1" = "--version" ]; then echo 'pg_dump (PostgreSQL) 17.2'; exit 0; fi
+if [ "$1" = "--list" ]; then echo '1; 1259 1 TABLE public schema_migrations owner'; exit 0; fi
+if [ "$1" = "--file" ]; then exit 0; fi
+echo 'fake database dump'
 `)
 	rt := defaultBackupRuntime()
 	rt.lookupPath = func(string) (string, error) { return client, nil }
 	rt.schemaVersion = func(context.Context, string) (int, error) { return latestMigrationVersion, nil }
+	rt.databaseSize = func(context.Context, string) (int64, error) { return 1024, nil }
 	rt.reachable = func(context.Context, string) error { return nil }
 	rt.targetSchema = func(context.Context, string) (string, error) { return "public", nil }
 	rt.prepareRestore = func(context.Context, string) error { return nil }

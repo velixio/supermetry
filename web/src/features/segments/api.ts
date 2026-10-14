@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '@/lib/api'
 import type { components } from '@/lib/api.gen'
+import { apiProblem } from '@/lib/apiProblem'
 
 import type { Segment, SegmentInput } from './types'
 
@@ -32,18 +33,18 @@ export const segmentKeys = {
   site: (siteId: number) => ['sites', siteId, 'segments'] as const,
 }
 
-function apiError(error: Problem | undefined, fallback: string): Error {
-  return new Error(error?.detail ?? fallback)
+function apiError(error: Problem | undefined, fallback: string, response?: Response): Error {
+  return response ? apiProblem(response, error, fallback) : new Error(error?.detail ?? fallback)
 }
 
 export function useSegments(siteId: number) {
   return useQuery<Segment[], Error>({
     queryKey: segmentKeys.site(siteId),
     queryFn: async () => {
-      const { data, error } = await segmentApi.GET('/api/private/sites/{site_id}/segments', {
+      const { data, error, response } = await segmentApi.GET('/api/private/sites/{site_id}/segments', {
         params: { path: { site_id: siteId } },
       })
-      if (error) throw apiError(error, 'Could not load segments.')
+      if (error) throw apiError(error, 'Could not load segments.', response)
       return Array.isArray(data) ? data : []
     },
   })
@@ -62,7 +63,7 @@ export function useSaveSegment(siteId: number) {
             params: { path: { segment_id: id } },
             body: input,
           })
-      if (result.error) throw apiError(result.error, 'Could not save the segment.')
+      if (result.error) throw apiError(result.error, 'Could not save the segment.', result.response)
       if (!result.data) throw new Error('The segment response was empty.')
       return result.data
     },
@@ -76,10 +77,10 @@ export function useDeleteSegment(siteId: number) {
   const client = useQueryClient()
   return useMutation<void, Error, number>({
     mutationFn: async (segmentId) => {
-      const { error } = await segmentApi.DELETE('/api/private/segments/{segment_id}', {
+      const { error, response } = await segmentApi.DELETE('/api/private/segments/{segment_id}', {
         params: { path: { segment_id: segmentId } },
       })
-      if (error) throw apiError(error, 'Could not delete the segment.')
+      if (error) throw apiError(error, 'Could not delete the segment.', response)
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: segmentKeys.site(siteId), exact: true })

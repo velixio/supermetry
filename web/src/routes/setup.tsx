@@ -19,7 +19,8 @@ export const Route = createFileRoute('/setup')({
   validateSearch: parseSetupSearch,
   beforeLoad: async ({ search }) => {
     const destination = await setupRouteDestination(search.token)
-    if (destination) throw redirect({ href: destination, replace: true })
+    if (destination === '/app' || destination === '/login') throw redirect({ href: destination, replace: true })
+    return { invalid: destination === 'invalid' }
   },
   component: SetupPage,
 })
@@ -27,25 +28,28 @@ export const Route = createFileRoute('/setup')({
 export async function setupRouteDestination(
   token: string | undefined,
   fetch: typeof globalThis.fetch = (...args) => globalThis.fetch(...args),
-): Promise<'/app' | '/login' | null> {
+): Promise<'/app' | '/login' | 'invalid' | null> {
   const signedIn = await signedInRedirect('/app', fetch)
   if (signedIn) return '/app'
-  if (!token) return '/login'
+  if (!token) return 'invalid'
   try {
     const response = await fetch('/api/private/setup/status', {
       credentials: 'same-origin',
       headers: { Accept: 'application/json' },
     })
-    if (!response.ok) return '/login'
+    if (!response.ok) return 'invalid'
     const status = (await response.json()) as { available?: unknown }
-    return status.available === true ? null : '/login'
+    return status.available === true ? null : 'invalid'
   } catch {
-    return '/login'
+    return 'invalid'
   }
 }
 
 function SetupPage() {
   const { token = '' } = Route.useSearch()
+  const { invalid } = Route.useRouteContext()
+
+  if (invalid || !token) return <AuthScreen title={en.auth.setupHeading} description={en.auth.setupDescription}><p role="alert">{en.auth.invalidToken}</p></AuthScreen>
 
   return <SetupForm token={token} />
 }
@@ -56,17 +60,17 @@ export function SetupForm({ token }: { token: string }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    setMessage(
-      await authResultMessage(() =>
-        postPrivate('/api/private/setup', {
-          token,
-          email: String(form.get('email') ?? ''),
-          name: String(form.get('name') ?? ''),
-          password: String(form.get('password') ?? ''),
-          org_name: String(form.get('org_name') ?? ''),
-        }),
-      ),
+    const result = await authResultMessage(() =>
+      postPrivate('/api/private/setup', {
+        token,
+        email: String(form.get('email') ?? ''),
+        name: String(form.get('name') ?? ''),
+        password: String(form.get('password') ?? ''),
+        org_name: String(form.get('org_name') ?? ''),
+      }),
     )
+    setMessage(result)
+    if (result === en.auth.success) window.location.assign('/login')
   }
 
   return (
@@ -90,7 +94,7 @@ export function SetupForm({ token }: { token: string }) {
 			<Input id="password" name="password" type="password" minLength={6} required />
 			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
-          {message ? <FieldError>{message}</FieldError> : null}
+          {message ? message === en.auth.success ? <p role="status" className="text-sm text-muted-foreground">{message}</p> : <FieldError>{message}</FieldError> : null}
           <Button type="submit">{en.auth.completeSetup}</Button>
         </FieldGroup>
       </form>

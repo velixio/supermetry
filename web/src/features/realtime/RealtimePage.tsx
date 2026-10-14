@@ -9,6 +9,8 @@ import {
   TabletIcon,
 } from 'lucide-react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { Flag } from '@/components/Flag'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,7 +38,7 @@ function RankedList({ items, empty = 'No activity yet.' }: { items: RankedItem[]
     <ol className="flex flex-col gap-1">
       {items.slice(0, 10).map((item, index) => (
         <li className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md px-2 py-1.5 text-sm" key={`${item.label}:${index}`}>
-          <span aria-hidden="true" className="absolute inset-y-1 left-0 rounded-sm bg-accent/10" style={{ width: `${Math.max(2, (item.value / maximum) * 100)}%` }} />
+          <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" style={{ width: `${Math.max(2, (item.value / maximum) * 100)}%` }} />
           <span className="relative flex min-w-0 items-center gap-2 truncate" title={item.label}>
             {item.countryCode ? <Flag code={item.countryCode} /> : null}
             <span className="truncate">{item.label}</span>
@@ -163,41 +165,36 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
   }))
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Realtime</h1>
-        <p className="text-sm text-muted-foreground">A live view of the last 30 minutes. Updates every 5 seconds.</p>
-      </header>
+    <PageContainer>
+      <PageHeader title="Realtime" description="A live view of the last 30 minutes. Updates every 5 seconds." />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
-        <Card className="overflow-hidden border-accent/30 bg-accent/[0.025]">
+        <Card className="overflow-hidden border-primary/30 bg-primary/[0.03]">
           <CardHeader className="sr-only">
             <CardTitle>Live visitors</CardTitle>
             <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
-              <section className="flex flex-col gap-2" aria-labelledby="live-now-title">
+              <section className="flex flex-col gap-2" aria-labelledby="live-now-title" aria-describedby="live-now-note">
                 <h2 className="flex items-center gap-2 text-sm font-medium" id="live-now-title">
                   <span className="relative flex size-2" aria-hidden="true">
-                    <span className="absolute inline-flex size-full rounded-full bg-accent opacity-50 motion-safe:animate-ping" />
-                    <span className="relative inline-flex size-2 rounded-full bg-accent" />
+                    <span className="absolute inline-flex size-full rounded-full bg-primary opacity-50 motion-safe:animate-ping" />
+                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
                   </span>
                   Live now
                 </h2>
-                <p className="max-w-sm text-sm text-muted-foreground">{en.liveAccuracy.definition}</p>
                 <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.active_visitors)}</output>
+                {/* How "live" is counted: kept for screen readers, not printed on the page. */}
+                <p className="sr-only" id="live-now-note">{en.liveAccuracy.definition} {en.liveAccuracy.exclusions}</p>
               </section>
               <section className="flex flex-col gap-2" aria-labelledby="last-thirty-title">
                 <h2 className="text-sm font-medium" id="last-thirty-title">Last 30 minutes</h2>
                 <p className="text-sm text-muted-foreground">Visitors</p>
                 <output aria-live="polite" className="text-6xl font-semibold tracking-tight tabular-nums">{fmt.number(data.visitors_last_30m)}</output>
+                <p className="text-sm text-muted-foreground">{fmt.number(data.pageviews_last_30m)} pageviews</p>
               </section>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {fmt.number(data.pageviews_last_30m)} pageviews in the last 30 minutes
-            </p>
-            <p className="text-sm text-muted-foreground">{en.liveAccuracy.exclusions}</p>
           </CardContent>
         </Card>
 
@@ -252,6 +249,6 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
       </div>
 
       <ActivityFeed items={data.recent_activity} />
-    </div>
+    </PageContainer>
   )
 }

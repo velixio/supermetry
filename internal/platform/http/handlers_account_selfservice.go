@@ -65,7 +65,7 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 		}
 		if request.Preferences.Locale != nil {
 			if !store.SupportedLocales[*request.Preferences.Locale] {
-				writeProblem(w, http.StatusBadRequest, "Bad request", "locale must be empty, en, es, de or en-XA")
+				writeProblem(w, http.StatusBadRequest, "Bad request", "locale must be empty, en, es, de, bn or en-XA")
 				return
 			}
 			merged.Locale = *request.Preferences.Locale
@@ -97,7 +97,7 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"name": user.Name, "email": user.Email, "preferences": effectiveUserPreferences(user.Preferences, h.readableSiteCount(r, principal.UserID))})
+	writeJSON(w, http.StatusOK, map[string]any{"name": user.Name, "email": user.Email, "preferences": effectiveUserPreferences(user.Preferences)})
 }
 
 func (h *handler) userCanReadSite(r *http.Request, userID int64, siteID int32) bool {
@@ -109,15 +109,6 @@ func (h *handler) userCanReadSite(r *http.Request, userID int64, siteID int32) b
 		  where m.user_id=$1 and s.id=$2 and (m.site_ids is null or s.id=any(m.site_ids))
 		)`, userID, siteID).Scan(&allowed)
 	return err == nil && allowed
-}
-
-func (h *handler) readableSiteCount(r *http.Request, userID int64) int {
-	var count int
-	_ = h.deps.Store.Pool.QueryRow(r.Context(), `
-		select count(*) from memberships m join orgs o on o.id=m.org_id and o.deleted_at is null
-		join sites s on s.org_id=m.org_id and s.deleted_at is null
-		where m.user_id=$1 and (m.site_ids is null or s.id=any(m.site_ids))`, userID).Scan(&count)
-	return count
 }
 
 func (h *handler) startEmailChange(w http.ResponseWriter, r *http.Request) {

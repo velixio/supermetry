@@ -1,3 +1,5 @@
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOrganization } from '@/features/settings/routeContext'
@@ -17,15 +19,11 @@ function OrganizationOverview() {
   const queryClient = useQueryClient()
   if (!membership) return null
   return (
-    <section className="flex max-w-2xl flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold">{membership.org.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your organization access
-        </p>
-      </header>
-      <p className="text-sm">
-        Role: <span className="capitalize">{membership.role}</span>
+    <PageContainer width="narrow">
+      <PageHeader title={membership.org.name} description="Your organization access" />
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border bg-card px-4 py-3 text-sm">
+      <p>
+        Role: <span className="font-medium capitalize">{membership.role}</span>
       </p>
       {!membership.sites.length ? (
         <p className="text-sm text-muted-foreground">
@@ -33,13 +31,14 @@ function OrganizationOverview() {
           sites to your membership.
         </p>
       ) : (
-        <Link className="text-sm underline" to="/app/$org/sites" params={{ org }}>
+        <Link className="text-primary underline-offset-4 hover:underline" to="/app/$org/sites" params={{ org }}>
           View your sites
         </Link>
       )}
-      <Link className="text-sm underline" to="/app/account/profile">
+      <Link className="text-primary underline-offset-4 hover:underline" to="/app/account/profile">
         Account settings
       </Link>
+      </div>
       <OrgNameForm
         orgId={membership.org.id}
         name={membership.org.name}
@@ -57,6 +56,6 @@ function OrganizationOverview() {
           }}
         />
       ) : null}
-    </section>
+    </PageContainer>
   )
 }

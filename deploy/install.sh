@@ -47,6 +47,8 @@ esac
 case "$(uname -m)" in
     x86_64|amd64) arch=amd64 ;;
     aarch64|arm64) arch=arm64 ;;
+    armv6l) arch=armv6 ;;
+    armv7l|armv8l) arch=armv7 ;;
     *) die "unsupported architecture: $(uname -m)" ;;
 esac
 

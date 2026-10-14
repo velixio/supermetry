@@ -94,7 +94,7 @@ export function JourneyFlow({ nodes, links }: { nodes: JourneyNode[]; links: Jou
           <g key={nodeKey(node.step, node.path)}>
             <title>{displayPath(node.path)}: {t.visitors(fmt.number(node.visitors))}</title>
             <rect
-              className={node.path.toLowerCase() === 'exit' ? 'fill-muted stroke-border' : 'fill-primary/10 stroke-primary/40'}
+              className={node.path.toLowerCase() === 'exit' ? 'fill-muted stroke-border' : 'fill-primary/15 stroke-primary/40'}
               height={node.height}
               rx="8"
               width={nodeWidth}

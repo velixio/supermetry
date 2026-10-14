@@ -302,6 +302,8 @@ func adminError(w http.ResponseWriter, err error) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "instance administration is required")
 	case errors.Is(err, admin.ErrNotFound):
 		writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+	case errors.Is(err, admin.ErrUpdateActive):
+		writeProblem(w, http.StatusConflict, "Update already active", err.Error())
 	case errors.Is(err, admin.ErrInvalid), errors.Is(err, admin.ErrLastAdmin), errors.Is(err, admin.ErrWouldLockOut):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 	default:

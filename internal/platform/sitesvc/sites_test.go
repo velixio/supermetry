@@ -1103,3 +1103,48 @@ func TestSiteLimitAppliesToEveryoneExceptInstanceAdmins(t *testing.T) {
 		t.Fatalf("instance admin was limited: %v", err)
 	}
 }
+
+func TestSiteSlugIsDerivedFromTheHostAndEditable(t *testing.T) {
+	service, registry, principal, _ := newSites(t)
+	ctx := context.Background()
+
+	first, err := service.Create(ctx, principal, "Blog", []string{"www.blog.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.Create(ctx, principal, "Blog copy", []string{"blog.example.com"}, "UTC", 30, "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Slug != "blog-example-com" || second.Slug != "blog-example-com-2" {
+		t.Fatalf("slugs = %q, %q", first.Slug, second.Slug)
+	}
+	if got, ok := registry.ByPublicID(first.PublicID); !ok || got.Slug != "blog-example-com" {
+		t.Fatalf("registry slug = %q (found %t)", got.Slug, ok)
+	}
+
+	slug := "my-blog"
+	updated, err := service.Update(ctx, principal, first.ID, SitePatch{Slug: &slug})
+	if err != nil || updated.Slug != "my-blog" {
+		t.Fatalf("update slug = %q, %v", updated.Slug, err)
+	}
+	if got, _ := registry.ByPublicID(first.PublicID); got.Slug != "my-blog" {
+		t.Fatalf("registry kept the old slug %q", got.Slug)
+	}
+	for _, bad := range []string{"", "Upper", "has space", "settings", "sites", "health", "new", "abcdefghijkl", "-lead", "trail-", "a--b", strings.Repeat("a", 64)} {
+		bad := bad
+		if _, err := service.Update(ctx, principal, first.ID, SitePatch{Slug: &bad}); !errors.Is(err, ErrInvalid) {
+			t.Errorf("slug %q error = %v, want invalid", bad, err)
+		}
+	}
+	taken := "blog-example-com-2"
+	if _, err := service.Update(ctx, principal, first.ID, SitePatch{Slug: &taken}); !errors.Is(err, ErrSlugTaken) {
+		t.Fatalf("taken slug error = %v, want ErrSlugTaken", err)
+	}
+	// Renaming the site or changing its host leaves the slug, and so every saved link, alone.
+	name, hosts := "Renamed", []string{"other.example.org"}
+	renamed, err := service.Update(ctx, principal, first.ID, SitePatch{Name: &name, Hosts: &hosts})
+	if err != nil || renamed.Slug != "my-blog" {
+		t.Fatalf("rename kept slug = %q, %v", renamed.Slug, err)
+	}
+}

@@ -49,6 +49,9 @@ func (g *Gauge) Load() float64 { return math.Float64frombits(g.bits.Load()) }
 
 var (
 	IngestAccepted           Counter
+	WriterPoisonDropped      Counter
+	WriterQueueFullDropped   Counter
+	WriterShutdownAbandoned  Counter
 	IngestInvalid            Counter
 	IngestRevenueInvalid     Counter
 	IngestPropsTruncated     Counter
@@ -209,6 +212,9 @@ func Snapshot() map[string]float64 {
 		"ingest_privacy_dropped_total":               float64(PrivacySignalsDropped.Load()),
 		"ingest_origin_rejected_total":               float64(IngestOriginRejected.Load()),
 		"writer_queue_depth":                         WriterQueueDepth.Load(),
+		"writer_poison_dropped_total":                float64(WriterPoisonDropped.Load()),
+		"writer_queue_full_dropped_total":            float64(WriterQueueFullDropped.Load()),
+		"writer_shutdown_abandoned_total":            float64(WriterShutdownAbandoned.Load()),
 		"copy_seconds":                               CopySeconds.Load(),
 		"close_lag_seconds":                          CloseLagSeconds.Load(),
 		"close_duration_seconds":                     CloseDurationSeconds.Load(),
@@ -269,6 +275,9 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "bots_filtered_total", "counter")
 	writeFamily(w, snapshot, "ingest_excluded_total", "counter")
 	writeFamily(w, snapshot, "writer_queue_depth", "gauge")
+	writeFamily(w, snapshot, "writer_poison_dropped_total", "counter")
+	writeFamily(w, snapshot, "writer_queue_full_dropped_total", "counter")
+	writeFamily(w, snapshot, "writer_shutdown_abandoned_total", "counter")
 	writeFamily(w, snapshot, "copy_seconds", "gauge")
 	writeFamily(w, snapshot, "close_lag_seconds", "gauge")
 	writeFamily(w, snapshot, "close_duration_seconds", "gauge")

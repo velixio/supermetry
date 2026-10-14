@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
 import { createDemo, dismissDemoPrompt } from './api'
+import { defaultSearch } from '@/lib/search'
 
 export type DemoOrganization = { id: number; slug: string }
 
@@ -18,8 +19,8 @@ export function useCreateDemo(org: DemoOrganization) {
       void queryClient.invalidateQueries({ queryKey: ['me'] })
       await navigate({
         to: '/app/$org/$site',
-        params: { org: org.slug, site: site.public_id },
-        search: { period: '30d', compare: 'off', f: [], metric: 'visitors', include_imported: true },
+        params: { org: org.slug, site: site.slug ?? site.public_id },
+        search: defaultSearch(),
       })
     },
   })

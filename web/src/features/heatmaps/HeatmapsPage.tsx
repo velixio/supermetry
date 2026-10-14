@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { ErrorState } from '@/components/ErrorState'
 import { Button } from '@/components/ui/button'
@@ -224,21 +226,21 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
   const host = site.data?.allowed_hosts[0] ?? ''
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <header>
-          <h1 className="text-xl font-semibold tracking-tight">Heatmaps</h1>
-          <p className="text-sm text-muted-foreground">See aggregated clicks and how far visitors scroll, without recording sessions.</p>
-        </header>
-        <Button
-          type="button"
-          variant={showScroll ? 'secondary' : 'outline'}
-          aria-pressed={showScroll}
-          onClick={() => setShowScroll((current) => !current)}
-        >
-          Scroll map
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Heatmaps"
+        description="See aggregated clicks and how far visitors scroll, without recording sessions."
+        actions={
+          <Button
+            type="button"
+            variant={showScroll ? 'secondary' : 'outline'}
+            aria-pressed={showScroll}
+            onClick={() => setShowScroll((current) => !current)}
+          >
+            Scroll map
+          </Button>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Page preview</CardTitle>
@@ -287,6 +289,6 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
           showScroll={showScroll}
         />
       )}
-    </div>
+    </PageContainer>
   )
 }

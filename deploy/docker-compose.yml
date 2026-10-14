@@ -22,7 +22,7 @@ services:
     container_name: supermetry
     build:
       context: ..
-      dockerfile: Dockerfile
+      dockerfile: deploy/Dockerfile
     env_file:
       # Start with: cp .env.example .env   (in the repository root)
       - ../.env
