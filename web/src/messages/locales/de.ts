@@ -3,6 +3,17 @@ import type { MessageTree } from '@/lib/i18n/catalogue'
 // DE translation of messages/en.ts. Machine-assisted first translation (reviewed: false in the manifest).
 // Keys, placeholders and function arguments must match English exactly; the catalogue test enforces it.
 const messages: MessageTree = {
+  pixels: {
+    measureTitle: 'Was möchtest du messen?',
+    website: 'Website',
+    websiteHint: 'Webanalyse mit einem Skript auf deiner Website.',
+    anywhere: 'Aufrufe überall',
+    anywhereHint: 'Pixelanalyse für GitHub, READMEs und Dokumentation.',
+    projectName: 'Projektname',
+    createProject: 'Projekt erstellen',
+    viewsNote: 'Aufrufe, keine eindeutigen Besucher',
+    noCountryNote: 'GitHub und andere Bild-Proxys verbergen das Land, daher haben ihre Aufrufe keine Länderangabe.',
+  },
   appName: 'Supermetry',
   loadingDashboard: 'Dashboard wird geladen…',
   auth: {

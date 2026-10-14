@@ -3,7 +3,7 @@
 Supermetry compared with Plausible, Umami and OpenPanel, feature by feature.
 ✓ has it · – lacks it · ? not verified yet (check `knowledge/` before relying on it).
 **Supermetry**: ✅ done · ⏳ in progress · ❌ not started · ⏸ deferred.
-Evidence for the other products: [findings.md](findings.md). Last updated 2026-10-12. Comparison cells marked `?` have not been checked against the other product yet.
+Evidence for the other products: [findings.md](findings.md). Last updated 2026-10-14. Comparison cells marked `?` have not been checked against the other product yet.
 
 ## Analytics
 
@@ -43,6 +43,7 @@ Evidence for the other products: [findings.md](findings.md). Last updated 2026-1
 | Custom dashboards | ? | ? | ? | ✅ (saved per-site layouts of nine widget kinds, switcher, editor with reorder and resize, per-dashboard period and filters, default dashboard) |
 | "View full report" dialog for breakdown cards | ? | ? | ? | ✅ (search, sort, keyboard operable; export to CSV or JSON with column choice) |
 | Short links and tracking pixels | ? | ✓ | ? | ✅ (`/l/{slug}`, `/px/{id}.gif`, default UTM tags, expiry, click limits, QR code, per-link stats) |
+| Pixel analytics projects and open GitHub counters | ? | ? | ? | ✅ (aggregate-only GIF pixels, branded SVG badges, snippets and a dedicated dashboard; open counters are opt-in) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
@@ -151,6 +152,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 30. ~~Instance admin console and two-factor policy~~ ✅
 31. ~~Install recipes, full report dialog and exports~~ ✅
 32. ~~Interface languages (Spanish and German first translations)~~ ✅
+33. ~~Pixel analytics projects and opt-in open GitHub counters~~ ✅
 
 ### Later
 
@@ -162,4 +164,4 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 
 Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
 
-Deferred: AI insights, mobile SDKs, SSO/OIDC.
+Deferred: AI insights, mobile SDKs, SSO/OIDC, Camo IP-range verification, and more open-counter hosts.

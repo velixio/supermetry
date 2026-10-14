@@ -115,7 +115,7 @@ describe('one shell for every /app route', () => {
 
   it('renders first-site onboarding inside the shell', async () => {
     renderRoute('/app', { ...me, memberships: [{ ...acme, sites: [] }] })
-    expect(await screen.findByRole('heading', { level: 1, name: 'Create your first site' })).toBeVisible()
+    expect(await screen.findByRole('heading', { level: 1, name: 'What do you want to measure?' })).toBeVisible()
     await expectShell()
   })
 })

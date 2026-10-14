@@ -1,6 +1,17 @@
 import { registerCatalogue } from '@/lib/i18n'
 
 export const en = {
+  pixels: {
+    measureTitle: 'What do you want to measure?',
+    website: 'Website',
+    websiteHint: 'Web analytics with a script on your site.',
+    anywhere: 'Views anywhere',
+    anywhereHint: 'Pixel analytics for GitHub, READMEs and docs.',
+    projectName: 'Project name',
+    createProject: 'Create project',
+    viewsNote: 'views, not unique visitors',
+    noCountryNote: 'GitHub and other image proxies hide the country, so their views have none.',
+  },
   appName: 'Supermetry',
   loadingDashboard: 'Loading dashboard…',
   auth: {

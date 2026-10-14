@@ -5,6 +5,11 @@ import { settingsDestinations, settingsIsActive, visibleNavigation } from './Sid
 import { accountDestinationIsActive, accountDestinations } from './AccountSidebar'
 
 describe('primary sidebar navigation', () => {
+  it('hides web-only pages for pixel projects', () => {
+    const items = visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site)
+    expect(items.map((item) => item.suffix)).toEqual(['', '/sites', '/health'])
+  })
+
   it('keeps settings out of analytics navigation for every role and site state', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
       for (const hasSite of [true, false]) {

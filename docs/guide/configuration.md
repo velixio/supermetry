@@ -18,6 +18,9 @@ Invalid values stop startup with an error naming the variable (`internal/config/
 | `SUPERMETRY_SECRET_KEY` | Base64 (standard encoding) of at least 32 random bytes. Encrypts stored TOTP secrets and alert secrets. | none (required) | output of `openssl rand -base64 32` |
 | `SUPERMETRY_BASE_URL` | Public URL of the install, `http` or `https`. Used to build the tracking snippet (absolute script and event URLs). | none (required) | `https://analytics.example.com` |
 | `SUPERMETRY_HOMEPAGE_URL` | Public brand link used by “Powered by Supermetry”. It never changes auth, API, tracker, email-link, or cookie origins. | `https://supermetry.com` | `https://company.example/analytics` |
+| `SUPERMETRY_BADGE_BRANDING` | Show the small Supermetry mark on pixel and open-counter SVG badges. | `true` | `false` |
+| `SUPERMETRY_OPEN_COUNTERS` | Enable account-free GitHub-shaped counters under `/c/github.com/…`. Direct browser requests do not count. | `false` | `true` |
+| `SUPERMETRY_OPEN_COUNTER_BLOCKLIST` | Optional path to a file containing one blocked open-counter key per line. | empty | `/etc/supermetry/counter-blocklist.txt` |
 
 Gotchas:
 

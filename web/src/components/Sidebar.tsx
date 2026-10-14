@@ -82,6 +82,8 @@ const managementNavigation = [
   { get label() { return en.linksUi.nav }, suffix: '/links', icon: Link2Icon, scope: 'site' },
 ] as const
 
+export const PIXEL_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health']
+
 export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
@@ -97,12 +99,13 @@ export function visibleNavigation(role: Role, hasSite = true, authorization?: Au
   const items: NavigationItem[] = [...coreNavigation, managementNavigation[0], managementNavigation[2]]
   if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
   return items.filter((item) => (hasSite || item.scope === 'org') &&
+    (site?.kind !== 'pixel' || PIXEL_NAV_SUFFIXES.includes(item.suffix)) &&
     (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && ((item.suffix !== '/profiles' && item.suffix !== '/cohorts') || hasCapability(authorization, 'profiles.read')))
 }
 
 /** Replays need a site that is not anonymous-tracking and the replay.read capability. */
 export function replaysAvailable(authorization: Authorization | undefined, site: Site | undefined): boolean {
-  return Boolean(site && !isAnonymousTracking(site) && hasCapability(authorization, 'replay.read'))
+  return Boolean(site && site.kind !== 'pixel' && !isAnonymousTracking(site) && hasCapability(authorization, 'replay.read'))
 }
 
 export function canCreateSites(role: Role): boolean {
@@ -355,20 +358,23 @@ export function SupermetrySidebar({
   me,
   membership,
   requestedSite,
+  resolvedSite,
 }: {
   me: Me
   membership: Membership
   requestedSite?: string
+  resolvedSite?: Site
 }) {
   const site = activeSite(membership, requestedSite)
+  const navigationSite = resolvedSite ?? site
   const currentSite = site ? siteSlug(site) : ''
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const { setOpenMobile } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
-  const visibleItems = visibleNavigation(membership.role, Boolean(site), membership, site)
-  const showReplays = replaysAvailable(membership, site)
+  const visibleItems = visibleNavigation(membership.role, Boolean(navigationSite), membership, navigationSite)
+  const showReplays = replaysAvailable(membership, navigationSite)
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
