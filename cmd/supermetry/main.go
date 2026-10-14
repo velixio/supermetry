@@ -157,6 +157,7 @@ Examples:
   supermetry install --dry-run --mode docker --base-url https://analytics.example.com`)
 	}
 	var opts installer.Options
+	opts.DotEnv = envFileName()
 	flags.StringVar(&opts.Mode, "mode", "", "installation mode: docker or binary")
 	flags.StringVar(&opts.BaseURL, "base-url", "", "public http(s) URL")
 	flags.StringVar(&opts.DB.URL, "database-url", "", "complete PostgreSQL connection URL")
@@ -197,4 +198,12 @@ func migrate(ctx context.Context) error {
 	}
 	defer pool.Close()
 	return db.Migrate(ctx, pool)
+}
+
+// envFileName is the dotenv file main loads at startup.
+func envFileName() string {
+	if name := os.Getenv("SUPERMETRY_ENV_FILE"); name != "" {
+		return name
+	}
+	return ".env"
 }
