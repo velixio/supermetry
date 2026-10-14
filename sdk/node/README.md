@@ -1,6 +1,6 @@
 # `@supermetry/node`
 
-Server-side SDK for [Supermetry](../SPEC.md) self-hosted analytics. Zero runtime dependencies; uses the global `fetch` (Node.js 18+).
+Server-side SDK for [Supermetry](https://github.com/velixio/supermetry) self-hosted analytics. Zero runtime dependencies; uses the global `fetch` (Node.js 18+). See the [event contract](https://github.com/velixio/supermetry/blob/main/sdk/SPEC.md) for payload details.
 
 ## Install
 

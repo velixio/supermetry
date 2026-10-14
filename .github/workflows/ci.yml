@@ -15,6 +15,41 @@ permissions:
   contents: read
 
 jobs:
+  sdk:
+    name: SDK packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install SDK dependencies
+        working-directory: sdk
+        run: bun install --frozen-lockfile
+
+      - name: Build SDK packages
+        working-directory: sdk
+        run: bun run build
+
+      - name: Typecheck SDK packages
+        working-directory: sdk
+        run: bun run typecheck
+
+      - name: Test SDK packages
+        working-directory: sdk
+        run: bun run test
+
+      - name: Verify packed Node SDK
+        working-directory: sdk/node
+        run: bun run package:check
+
   test:
     runs-on: ubuntu-latest
     services:

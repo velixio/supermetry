@@ -3,6 +3,19 @@
   "version": "0.1.0",
   "description": "Server-side Node.js SDK for Supermetry self-hosted web analytics",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velixio/supermetry.git",
+    "directory": "sdk/node"
+  },
+  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/node#readme",
+  "bugs": {
+    "url": "https://github.com/velixio/supermetry/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -15,7 +28,7 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "LICENSE", "NOTICE"],
   "sideEffects": false,
   "engines": {
     "node": ">=18"
@@ -23,6 +36,8 @@
   "keywords": ["analytics", "supermetry", "server-side", "tracking"],
   "scripts": {
     "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --format esm --target node --packages external && bun build src/index.ts --outfile dist/index.cjs --format cjs --target node --packages external && tsc -p tsconfig.build.json",
+    "package:check": "bun run scripts/smoke-package.mjs",
+    "prepack": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

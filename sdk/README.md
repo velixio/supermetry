@@ -67,3 +67,19 @@ bun run build       # dependency order: tracker and node first
 bun run typecheck
 bun run test
 ```
+
+CI runs those checks for every pull request and every push to `main`. It also packs
+`@supermetry/node` from a clean build and verifies its ESM, CommonJS and TypeScript
+entry points.
+
+### Publishing `@supermetry/node`
+
+1. Set `sdk/node/package.json` to the release version and merge the verified change.
+2. Push the matching `sdk-node-v<version>` tag, for example `sdk-node-v0.1.0`.
+3. The `publish-node-sdk.yml` workflow rebuilds and verifies the package, checks the
+   tag against `package.json`, and publishes it publicly to npm with provenance.
+
+The first publication needs an `NPM_TOKEN` secret in the `npm` GitHub environment.
+After the package exists, configure npm trusted publishing for this repository,
+`publish-node-sdk.yml`, and the `npm` environment; the npm CLI will then use OIDC
+instead of the long-lived token, which can be removed.

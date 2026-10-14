@@ -13,7 +13,10 @@
     "react-native"
   ],
   "scripts": {
-    "build": "bun run --filter '*' build",
+    "build": "bun run build:base && bun run build:adapters && bun run build:frameworks",
+    "build:base": "bun run --filter @supermetry/tracker build && bun run --filter @supermetry/node build && bun run --filter @supermetry/react-native build",
+    "build:adapters": "bun run --filter @supermetry/react build && bun run --filter @supermetry/vue build && bun run --filter @supermetry/astro build && bun run --filter @supermetry/express build",
+    "build:frameworks": "bun run --filter @supermetry/nextjs build && bun run --filter @supermetry/remix build",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test"
   }
