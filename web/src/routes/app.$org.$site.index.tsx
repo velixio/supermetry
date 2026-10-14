@@ -1,5 +1,6 @@
 import { isAnonymousTracking, isAnonymousFilterAllowed, trackingPolicyKnown } from '@/lib/tracking-policy'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react'
 
 import { DashboardChart } from '../components/DashboardChart'
@@ -31,6 +32,10 @@ import { activeInspectTarget, inspectAllowed, nextInspect, parseInspectSearch, s
 import { DashboardPanels } from '@/components/DashboardPanels'
 import { Inspector, inspectorDimensionLabel, inspectorTitle } from '@/components/Inspector'
 import { en } from '../messages/en'
+import { createAuthConfigApi } from '@/features/auth/api'
+import { PixelDashboard } from '@/features/pixels/PixelDashboard'
+import { getSite } from '@/features/sites/api'
+import type { Site } from '@/lib/me'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import type { Dashboard } from '../features/dashboards/api'
@@ -75,6 +80,27 @@ export const Route = createFileRoute('/app/$org/$site/')({
 })
 
 function DashboardStateRoute() {
+  const { org, site: requestedSite } = Route.useParams()
+  const me = useMe()
+  const membership = me.data?.memberships.find((item) => item.org.slug === org)
+  const site = membership?.sites.find((item) => item.slug === requestedSite || item.public_id === requestedSite || String(item.id) === requestedSite)
+  const siteDetails = useQuery({
+    queryKey: ['site', site?.id],
+    queryFn: () => getSite(site!.id, membership!.org.id),
+    enabled: Boolean(site && membership && site.kind !== 'web' && site.kind !== 'pixel'),
+  })
+  const resolvedSite = siteDetails.data?.id === site?.id ? siteDetails.data : site
+  if (site && site.kind !== 'web' && site.kind !== 'pixel' && siteDetails.isPending) return <PageContainer><PageHeader title={en.navigation.dashboard} /><p className="sr-only">{en.loadingDashboard}</p></PageContainer>
+  if (resolvedSite?.kind === 'pixel') return <PixelDashboardRoute site={resolvedSite} />
+  return <WebDashboardStateRoute />
+}
+
+function PixelDashboardRoute({ site }: { site: Site }) {
+  const config = useQuery({ queryKey: ['auth-config'], queryFn: createAuthConfigApi(), staleTime: 300_000 })
+  return <PixelDashboard site={site} homepage={config.data?.homepage_url ?? 'https://supermetry.com'} />
+}
+
+function WebDashboardStateRoute() {
   const search = Route.useSearch()
   const { org, site: siteSlug } = Route.useParams()
   const navigate = Route.useNavigate()
