@@ -473,6 +473,10 @@ func (h *handler) pixelStats(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
+	if stats.Summary, err = links.ImpressionSummaryFor(r.Context(), h.deps.Store.Pool, site.ID, h.deps.Now().In(siteLocation(site)).Format(time.DateOnly)); err != nil {
+		serviceError(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, pixelStatsResponse{From: from, To: to, PixelStats: stats})
 }
 

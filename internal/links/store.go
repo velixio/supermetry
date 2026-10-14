@@ -250,10 +250,19 @@ type CampaignCount struct {
 }
 
 // PixelStats summarizes pixel impressions for a site.
+// ImpressionSummary counts impressions for today, the last 7 and 30 days (including today) and all time.
+type ImpressionSummary struct {
+	Today  int64 `json:"today"`
+	Last7  int64 `json:"last_7"`
+	Last30 int64 `json:"last_30"`
+	Total  int64 `json:"total"`
+}
+
 type PixelStats struct {
-	Total     int64           `json:"total"`
-	Daily     []DayCount      `json:"daily"`
-	Campaigns []CampaignCount `json:"campaigns"`
+	Summary   ImpressionSummary `json:"summary"`
+	Total     int64             `json:"total"`
+	Daily     []DayCount        `json:"daily"`
+	Campaigns []CampaignCount   `json:"campaigns"`
 }
 
 // ImpressionStats aggregates a site's pixel rows for the inclusive day range.
@@ -294,4 +303,17 @@ func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to string
 		stats.Campaigns = append(stats.Campaigns, c)
 	}
 	return stats, campaigns.Err()
+}
+
+// ImpressionSummaryFor totals a site's pixel impressions up to and including today (site-local YYYY-MM-DD).
+func ImpressionSummaryFor(ctx context.Context, db DBTX, siteID int32, today string) (ImpressionSummary, error) {
+	var s ImpressionSummary
+	err := db.QueryRow(ctx, `select
+		coalesce(sum(impressions) filter (where day = $2::date),0)::bigint,
+		coalesce(sum(impressions) filter (where day > $2::date - 7),0)::bigint,
+		coalesce(sum(impressions) filter (where day > $2::date - 30),0)::bigint,
+		coalesce(sum(impressions),0)::bigint
+		from pixel_impressions_daily where site_id=$1 and day <= $2::date`, siteID, today).
+		Scan(&s.Today, &s.Last7, &s.Last30, &s.Total)
+	return s, err
 }

@@ -237,3 +237,21 @@ func TestRecorderRunFlushesOnShutdown(t *testing.T) {
 		t.Fatalf("clicks after shutdown flush = %d", clicks)
 	}
 }
+
+func TestImpressionSummaryAgainstHandComputedFixture(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	// today is 2026-10-30: the 7-day window starts 10-24 and the 30-day window 10-01.
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_daily(site_id, day, campaign, impressions) values
+		($1,'2026-10-30','a',4), ($1,'2026-10-24','b',3), ($1,'2026-10-23','a',20),
+		($1,'2026-10-01','a',7), ($1,'2026-09-30','a',100), ($1,'2026-10-31','a',999)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ImpressionSummaryFor(ctx, pool, siteID, "2026-10-30")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (ImpressionSummary{Today: 4, Last7: 7, Last30: 34, Total: 134}); got != want {
+		t.Fatalf("summary = %+v, want %+v", got, want)
+	}
+}
