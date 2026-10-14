@@ -2,7 +2,6 @@ package platformhttp
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,15 +52,15 @@ func applyPixelInput(p *pixels.Pixel, in pixelInput) error {
 	}
 	if in.BadgeLabel != nil {
 		p.BadgeLabel = strings.TrimSpace(*in.BadgeLabel)
+		if n := len([]rune(p.BadgeLabel)); n < 1 || n > 40 {
+			return errors.New("badge_label must be 1 to 40 characters")
+		}
 	}
 	if in.Enabled != nil {
 		p.Enabled = *in.Enabled
 	}
 	if n := len([]rune(p.Name)); n < 1 || n > 120 {
 		return errors.New("name must be 1 to 120 characters")
-	}
-	if n := len([]rune(p.BadgeLabel)); p.BadgeLabel != "" && n > 40 {
-		return errors.New("badge_label must be at most 40 characters")
 	}
 	return nil
 }
@@ -117,7 +116,10 @@ func (h *handler) createPixel(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	h.reloadPixels(r)
+	if err := h.reloadPixels(r); err != nil {
+		serviceError(w, err)
+		return
+	}
 	writeJSON(w, http.StatusCreated, h.toPixelJSON(r, p, nil))
 }
 
@@ -166,7 +168,10 @@ func (h *handler) updatePixel(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		serviceError(w, err)
 	default:
-		h.reloadPixels(r)
+		if err := h.reloadPixels(r); err != nil {
+			serviceError(w, err)
+			return
+		}
 		writeJSON(w, http.StatusOK, h.toPixelJSON(r, p, nil))
 	}
 }
@@ -197,7 +202,10 @@ func (h *handler) deletePixel(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	h.reloadPixels(r)
+	if err := h.reloadPixels(r); err != nil {
+		serviceError(w, err)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -226,10 +234,8 @@ func (h *handler) pixelProjectStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"from": from, "to": to, "daily": stats.Daily, "pixels": stats.Pixels, "countries": stats.Countries})
 }
 
-func (h *handler) reloadPixels(r *http.Request) {
-	if err := h.deps.Pixels.Reload(r.Context()); err != nil {
-		slog.Warn("reload pixel registry", "err", err)
-	}
+func (h *handler) reloadPixels(r *http.Request) error {
+	return h.deps.Pixels.Reload(r.Context())
 }
 
 func siteLocation(site coresites.Site) *time.Location {

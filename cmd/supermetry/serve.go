@@ -499,6 +499,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	pixelStatsCtx, cancelPixelStats := context.WithCancel(context.Background())
 	pixelStatsDone := make(chan error, 1)
 	go func() { pixelStatsDone <- pixelRecorder.Run(pixelStatsCtx) }()
+	pixelRegistryCtx, cancelPixelRegistry := context.WithCancel(context.Background())
+	pixelRegistryDone := make(chan error, 1)
+	go func() { pixelRegistryDone <- pixelRegistry.Run(pixelRegistryCtx, 30*time.Second) }()
 	counterStatsCtx, cancelCounterStats := context.WithCancel(context.Background())
 	var counterStatsDone chan error
 	if counterRecorder != nil {
@@ -575,6 +578,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-pixelStatsDone:
 		cause = err
 		pixelStatsDone = nil
+	case err := <-pixelRegistryDone:
+		cause = err
+		pixelRegistryDone = nil
 	case err := <-counterStatsDone:
 		cause = err
 		counterStatsDone = nil
@@ -631,6 +637,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelPixelStats()
 	if pixelStatsDone != nil {
 		cause = errors.Join(cause, <-pixelStatsDone)
+	}
+	cancelPixelRegistry()
+	if pixelRegistryDone != nil {
+		cause = errors.Join(cause, <-pixelRegistryDone)
 	}
 	cancelCounterStats()
 	if counterStatsDone != nil {

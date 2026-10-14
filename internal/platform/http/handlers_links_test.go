@@ -26,16 +26,18 @@ type forgetRecorder struct{ slugs []string }
 func (f *forgetRecorder) Forget(slugs ...string) { f.slugs = append(f.slugs, slugs...) }
 
 type linkFixture struct {
-	handler     http.Handler
-	pool        *pgxpool.Pool
-	now         time.Time
-	siteID      int32
-	otherSite   int32
-	foreignSite int32
-	userID      int64
-	cache       *forgetRecorder
-	registry    *sitesvc.Registry
-	pixels      *pixels.Registry
+	handler       http.Handler
+	pool          *pgxpool.Pool
+	now           time.Time
+	siteID        int32
+	otherSite     int32
+	foreignSite   int32
+	userID        int64
+	cache         *forgetRecorder
+	registry      *sitesvc.Registry
+	pixels        *pixels.Registry
+	data          *store.Store
+	authenticator actorAuthenticator
 }
 
 func newLinkFixture(t *testing.T) linkFixture {
@@ -95,6 +97,7 @@ func newLinkFixture(t *testing.T) linkFixture {
 		}),
 		pool: pool, now: now, siteID: siteID, otherSite: otherSite, foreignSite: foreignSite, userID: userID, cache: cache,
 		registry: registry, pixels: pixelReg,
+		data: data, authenticator: authenticator,
 	}
 }
 

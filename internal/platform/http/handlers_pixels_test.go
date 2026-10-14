@@ -3,10 +3,15 @@ package platformhttp_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"supermetry/internal/pixels"
+	platformhttp "supermetry/internal/platform/http"
 )
 
 func newPixelFixture(t *testing.T) linkFixture {
@@ -19,6 +24,24 @@ func newPixelFixture(t *testing.T) linkFixture {
 		t.Fatal(err)
 	}
 	return f
+}
+
+func TestPixelWriteReportsRegistryRefreshFailure(t *testing.T) {
+	f := newPixelFixture(t)
+	failing := pixels.NewRegistry(
+		func(context.Context) ([]pixels.Pixel, error) { return nil, errors.New("reload failed") },
+		func(context.Context) (map[int64]int64, error) { return map[int64]int64{}, nil },
+		pixels.NewTotalCache(),
+	)
+	f.handler = platformhttp.New(platformhttp.Deps{
+		Authenticator: f.authenticator, Sites: f.registry, Store: f.data, Pixels: failing,
+		BaseURL: "https://sm.example.test", Now: func() time.Time { return f.now },
+	})
+	path := fmt.Sprintf("/api/private/sites/%d/pixels", f.siteID)
+	res := f.request(t, "editor", http.MethodPost, path, `{"name":"refresh failure"}`)
+	if res.Code != http.StatusInternalServerError || res.Header().Get("Content-Type") != "application/problem+json" {
+		t.Fatalf("create with refresh failure = %d %s", res.Code, res.Body.String())
+	}
 }
 
 func TestPixelsCRUDLimitAndStats(t *testing.T) {
@@ -38,6 +61,12 @@ func TestPixelsCRUDLimitAndStats(t *testing.T) {
 		t.Fatal("registry not reloaded after create")
 	}
 	id := int64(created["id"].(float64))
+	for _, label := range []string{"   ", strings.Repeat("x", 41)} {
+		res := f.request(t, "editor", http.MethodPatch, fmt.Sprintf("%s/%d", base, id), fmt.Sprintf(`{"badge_label":%q}`, label))
+		if res.Code != http.StatusBadRequest || res.Header().Get("Content-Type") != "application/problem+json" {
+			t.Fatalf("invalid badge label %q = %d %s", label, res.Code, res.Body.String())
+		}
+	}
 	if res := f.request(t, "viewer", http.MethodPost, base, `{"name":"x"}`); res.Code != http.StatusForbidden {
 		t.Fatalf("viewer create = %d", res.Code)
 	}
