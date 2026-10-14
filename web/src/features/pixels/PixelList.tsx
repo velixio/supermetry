@@ -49,6 +49,7 @@ export function PixelList({ siteId, pixels, homepage }: { siteId: number; pixels
                         <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="Copy linked Markdown badge and more">Copy <ChevronDownIcon /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onSelect={() => void copy(snippets.linkedMarkdown)}>Copy linked Markdown badge</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => void copy(snippets.statsMarkdown)}>Copy stats badge (total, today, graph)</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => void copy(snippets.markdown)}>Copy Markdown badge</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => void copy(snippets.invisibleMarkdown)}>Copy invisible Markdown pixel</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => void copy(snippets.html)}>Copy HTML &lt;img&gt;</DropdownMenuItem>

@@ -10,14 +10,17 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Site } from '@/lib/me'
-import { resolveRange } from '@/lib/search'
+import { resolveRange, type Period } from '@/lib/search'
 import { en } from '@/messages/en'
 
+import { bucketViews, type Granularity } from './buckets'
 import { useCreatePixel, usePixels, usePixelStats } from './api'
 import { formatViews } from './format'
 import { PixelList } from './PixelList'
 
 export { formatViews } from './format'
+
+const PERIODS: [Period, string][] = [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['91d', 'Last 91 days'], ['6mo', 'Last 6 months'], ['12mo', 'Last 12 months']]
 
 function CreatePixelDialog({ siteId }: { siteId: number }) {
   const create = useCreatePixel(siteId)
@@ -51,27 +54,45 @@ function CreatePixelDialog({ siteId }: { siteId: number }) {
 
 export function PixelDashboard({ site, homepage }: { site: Site; homepage: string }) {
   const [pixel, setPixel] = useState(0)
-  const range = useMemo(() => resolveRange('30d', site.timezone ?? 'UTC', new Date()), [site.timezone])
+  const [period, setPeriod] = useState<Period>('30d')
+  const [granularity, setGranularity] = useState<Granularity>('day')
+  const range = useMemo(() => resolveRange(period, site.timezone ?? 'UTC', new Date()), [period, site.timezone])
   const pixels = usePixels(site.id)
   const stats = usePixelStats(site.id, { ...range, pixel: pixel || undefined })
-  const daily = stats.data?.daily ?? []
+  const daily = useMemo(() => bucketViews(stats.data?.daily ?? [], granularity), [stats.data, granularity])
+  const summary = stats.data?.summary
   return (
     <PageContainer>
       <PageHeader title={site.name} description="Pixel analytics for badges and images." actions={<CreatePixelDialog siteId={site.id} />} />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4" aria-label="Views by period">
+        {([['Today', summary?.today], ['Last 7 days', summary?.last_7], ['Last 30 days', summary?.last_30], ['All time', summary?.total]] as const).map(([label, value]) => (
+          <Card key={label}><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-2xl tabular-nums">{value === undefined ? '–' : formatViews(value)}</CardTitle></CardHeader></Card>
+        ))}
+      </div>
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
+        <CardHeader className="flex-row flex-wrap items-start justify-between gap-4">
           <div><CardTitle>Views</CardTitle><CardDescription>{en.pixels.viewsNote}</CardDescription></div>
+          <div className="flex flex-wrap gap-2">
+          <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
+            <SelectTrigger aria-label="Period"><SelectValue /></SelectTrigger>
+            <SelectContent>{PERIODS.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={granularity} onValueChange={(value) => setGranularity(value as Granularity)}>
+            <SelectTrigger aria-label="Group by"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="day">By day</SelectItem><SelectItem value="week">By week</SelectItem><SelectItem value="month">By month</SelectItem></SelectContent>
+          </Select>
           <Select value={String(pixel)} onValueChange={(value) => setPixel(Number(value))}>
             <SelectTrigger aria-label="Pixel filter"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="0">All pixels</SelectItem>{pixels.data?.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>)}</SelectContent>
           </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {stats.isPending ? <p className="text-sm text-muted-foreground" role="status">Loading views…</p> : null}
           {stats.isError ? <p className="text-sm text-destructive" role="alert">{stats.error.message}</p> : null}
           {stats.data && daily.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No views in this period yet.</p> : null}
           {daily.length > 0 ? (
-            <div className="h-64" role="img" aria-label="Daily proxy and direct views">
+            <div className="h-64" role="img" aria-label="Proxy and direct views over time">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart accessibilityLayer data={daily} margin={{ left: 0, right: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
