@@ -296,11 +296,18 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 				return fmt.Errorf("%w: invalid revenue currency state", ErrInvalid)
 			}
 		}
+		validationHosts := current.AllowedHosts
+		if current.Kind == coresites.KindPixel {
+			validationHosts = []string{"pixel.invalid"}
+		}
 		name, hosts, location, retention, err := validateSite(
-			current.Name, current.AllowedHosts, current.Timezone, int(current.RetentionClass),
+			current.Name, validationHosts, current.Timezone, int(current.RetentionClass),
 		)
 		if err != nil {
 			return err
+		}
+		if current.Kind == coresites.KindPixel {
+			hosts = []string{}
 		}
 		current.Name, current.AllowedHosts = name, hosts
 		current.Timezone, current.RetentionClass = location.String(), int16(retention)

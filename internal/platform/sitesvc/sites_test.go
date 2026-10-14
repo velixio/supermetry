@@ -41,6 +41,25 @@ func TestCreatePixelProjectNeedsNoHostsOrCurrency(t *testing.T) {
 	}
 }
 
+func TestUpdatePixelProjectNeedsNoHosts(t *testing.T) {
+	service, _, owner, _ := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, owner, CreateInput{
+		Name: "Profile views", Kind: sites.KindPixel, Timezone: "UTC", RetentionDays: 30,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, timezone, retention := "README views", "Asia/Kathmandu", 90
+	updated, err := service.Update(ctx, owner, site.ID, SitePatch{Name: &name, TZ: &timezone, RetentionDays: &retention})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.TZ.String() != timezone || updated.Retention != db.Ret90 || len(updated.AllowedHosts) != 0 {
+		t.Fatalf("updated pixel project = %+v", updated)
+	}
+}
+
 func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 	service, registry, principal, _ := newSites(t)
 	ctx := context.Background()
