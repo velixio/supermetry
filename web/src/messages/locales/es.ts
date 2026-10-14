@@ -568,6 +568,12 @@ const messages: MessageTree = {
     campaignTitle: 'Campaña: {campaign}',
     campaignDescription: 'Impresiones del píxel con esta etiqueta de campaña.',
     campaignUntaggedDescription: 'Impresiones del píxel sin etiqueta de campaña.',
+    pixelBadgeTitle: 'Mostrar el contador en GitHub o en un README',
+    pixelBadgeNote: 'Añade una insignia con el total acumulado de este píxel en todo el proyecto, por ejemplo en el README de un perfil de GitHub. Cuenta todas las campañas juntas y cada carga suma una vista.',
+    pixelBadgePreviewTotal: 'Insignia con el total',
+    pixelBadgePreviewStats: 'Insignia con total, hoy y gráfico de 30 días',
+    pixelCopyBadge: 'Copiar insignia en Markdown',
+    pixelCopyStatsBadge: 'Copiar insignia de estadísticas (total, hoy, gráfico)',
     pixelNote: 'Los clientes de correo que bloquean o canalizan las imágenes por un proxy subestimarán o sobrestimarán los datos; trata las impresiones como una tendencia, no como una tasa de apertura precisa.',
   },
   // Cohorts and power users (F10).

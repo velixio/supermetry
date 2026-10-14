@@ -247,6 +247,12 @@ const messages: MessageTree = {
     campaignTitle: 'ক্যাম্পেইন: {campaign}',
     campaignDescription: 'এই ক্যাম্পেইন ট্যাগযুক্ত পিক্সেলের ইমপ্রেশন।',
     campaignUntaggedDescription: 'ক্যাম্পেইন ট্যাগ ছাড়া পিক্সেলের ইমপ্রেশন।',
+    pixelBadgeTitle: 'GitHub বা README-তে কাউন্ট দেখান',
+    pixelBadgeNote: 'এই পিক্সেলের পুরো প্রকল্পের মোট সংখ্যা দেখানো একটি ব্যাজ যোগ করুন, যেমন GitHub প্রোফাইলের README-তে। এটি সব ক্যাম্পেইন একসাথে গোনে এবং প্রতিবার লোড হলে একটি ভিউ যোগ হয়।',
+    pixelBadgePreviewTotal: 'মোট সংখ্যার ব্যাজ',
+    pixelBadgePreviewStats: 'মোট, আজ ও ৩০ দিনের গ্রাফসহ ব্যাজ',
+    pixelCopyBadge: 'Markdown ব্যাজ কপি করুন',
+    pixelCopyStatsBadge: 'পরিসংখ্যান ব্যাজ কপি করুন (মোট, আজ, গ্রাফ)',
   },
   cohorts: {
     title: 'কোহর্ট', description: 'মানুষ কী করেছেন তার ভিত্তিতে দর্শকগোষ্ঠী সংরক্ষণ করুন, তারপর আকার নির্ধারণ, নমুনা তালিকা ও ফিল্টার হিসেবে ব্যবহার করুন।',

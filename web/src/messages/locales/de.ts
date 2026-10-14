@@ -568,6 +568,12 @@ const messages: MessageTree = {
     campaignTitle: 'Kampagne: {campaign}',
     campaignDescription: 'Abrufe des Pixels mit dieser Kampagnen-Markierung.',
     campaignUntaggedDescription: 'Abrufe des Pixels ohne Kampagnen-Markierung.',
+    pixelBadgeTitle: 'Zähler auf GitHub oder in einer README anzeigen',
+    pixelBadgeNote: 'Füge ein Badge mit der laufenden Gesamtzahl dieses Pixels für das ganze Projekt hinzu, zum Beispiel in der README eines GitHub-Profils. Es zählt alle Kampagnen zusammen, und jeder Aufruf erhöht um eins.',
+    pixelBadgePreviewTotal: 'Badge mit der Gesamtzahl',
+    pixelBadgePreviewStats: 'Badge mit Gesamtzahl, heute und 30-Tage-Grafik',
+    pixelCopyBadge: 'Markdown-Badge kopieren',
+    pixelCopyStatsBadge: 'Statistik-Badge kopieren (gesamt, heute, Grafik)',
     pixelNote: 'E-Mail-Programme, die Bilder blockieren oder über Proxys laden, führen zu zu niedrigen oder zu hohen Werten; betrachten Sie Abrufe als Trend, nicht als genaue Öffnungsrate.',
   },
   // Cohorts and power users (F10).
