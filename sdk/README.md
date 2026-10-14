@@ -77,9 +77,12 @@ entry points.
 1. Set `sdk/node/package.json` to the release version and merge the verified change.
 2. Push the matching `sdk-node-v<version>` tag, for example `sdk-node-v0.1.0`.
 3. The `publish-node-sdk.yml` workflow rebuilds and verifies the package, checks the
-   tag against `package.json`, and publishes it publicly to npm with provenance.
+   tag against `package.json`, and stages the exact artifact on npm with provenance.
+4. A maintainer reviews the staged package on npm and approves it with 2FA.
 
-The first publication needs an `NPM_TOKEN` secret in the `npm` GitHub environment.
-After the package exists, configure npm trusted publishing for this repository,
-`publish-node-sdk.yml`, and the `npm` environment; the npm CLI will then use OIDC
-instead of the long-lived token, which can be removed.
+The first staged publication needs a granular `NPM_TOKEN` secret with stage access
+in the `npm` GitHub environment; it does not need to bypass 2FA. After the package
+exists, configure npm trusted publishing for this repository,
+`publish-node-sdk.yml`, and the `npm` environment with only `npm stage publish`
+allowed. The npm CLI will then use OIDC instead of the long-lived token, which can
+be removed.

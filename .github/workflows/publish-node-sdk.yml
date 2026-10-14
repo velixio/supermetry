@@ -74,7 +74,7 @@ jobs:
           retention-days: 1
 
   publish:
-    name: Publish @supermetry/node
+    name: Stage @supermetry/node
     needs: verify
     runs-on: ubuntu-latest
     environment: npm
@@ -93,7 +93,7 @@ jobs:
           name: supermetry-node-package
           path: node-package
 
-      - name: Publish verified package
-        run: npm publish "./node-package/${{ needs.verify.outputs.archive }}" --access public --provenance
+      - name: Stage verified package
+        run: npm stage publish "./node-package/${{ needs.verify.outputs.archive }}" --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
