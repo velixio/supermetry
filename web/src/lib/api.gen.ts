@@ -1567,6 +1567,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/c/{rest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show or render an opt-in public GitHub view counter
+         * @description Public endpoint, disabled by default. A github.com owner or repository key returns a stats page; adding .svg or .gif returns an embeddable counter image. Only recognized image-proxy fetches are counted. IP addresses and user-agent strings are never stored.
+         */
+        get: operations["openCounter"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -2987,6 +3007,13 @@ export interface components {
             from: string;
             /** Format: date */
             to: string;
+            /** @description Views for today, the last 7 and 30 days and all time in the site's time zone, independent of from and to. */
+            summary: {
+                today: number;
+                last_7: number;
+                last_30: number;
+                total: number;
+            };
             daily: {
                 /** Format: date */
                 day: string;
@@ -7296,7 +7323,7 @@ export interface operations {
         parameters: {
             query?: {
                 c?: string;
-                style?: "flat" | "flat-square";
+                style?: "flat" | "flat-square" | "stats";
                 color?: string;
             };
             header?: never;
@@ -7317,6 +7344,38 @@ export interface operations {
                     "image/svg+xml": string;
                 };
             };
+        };
+    };
+    openCounter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A counter page or image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                    "image/gif": string;
+                    "image/svg+xml": string;
+                };
+            };
+            /** @description Open counters are disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     healthz: {

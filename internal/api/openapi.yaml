@@ -2239,7 +2239,7 @@ paths:
           schema: { type: string, maxLength: 64 }
         - name: style
           in: query
-          schema: { type: string, enum: [flat, flat-square] }
+          schema: { type: string, enum: [flat, flat-square, stats], description: "stats draws the wider badge with the total, today and a 30-day sparkline (pixel projects only)." }
         - name: color
           in: query
           schema: { type: string, pattern: '^[0-9A-Fa-f]{6}$' }
@@ -4087,10 +4087,15 @@ components:
         svg_url: { type: string, format: uri }
     PixelStats:
       type: object
-      required: [from, to, daily, pixels, countries]
+      required: [from, to, summary, daily, pixels, countries]
       properties:
         from: { type: string, format: date }
         to: { type: string, format: date }
+        summary:
+          type: object
+          description: Views for today, the last 7 and 30 days and all time in the site's time zone, independent of from and to.
+          required: [today, last_7, last_30, total]
+          properties: { today: { type: integer }, last_7: { type: integer }, last_30: { type: integer }, total: { type: integer } }
         daily:
           type: array
           items: { type: object, required: [day, proxy, direct], properties: { day: { type: string, format: date }, proxy: { type: integer }, direct: { type: integer } } }

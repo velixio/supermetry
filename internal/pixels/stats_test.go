@@ -39,3 +39,31 @@ func TestStatsAgainstHandComputedFixture(t *testing.T) {
 		t.Fatalf("views30 = %v", v30)
 	}
 }
+
+func TestSummaryAgainstHandComputedFixture(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	a, _ := Create(ctx, pool, Pixel{SiteID: siteID, Name: "a", Enabled: true})
+	b, _ := Create(ctx, pool, Pixel{SiteID: siteID, Name: "b", Enabled: true})
+	// today is 2026-10-30: 7-day window starts 10-24, 30-day window starts 10-01.
+	_, err := pool.Exec(ctx, `insert into pixel_views_daily values
+		($1,'2026-10-30','','proxy',4), ($1,'2026-10-24','IN','direct',3), ($1,'2026-10-23','IN','direct',20),
+		($2,'2026-10-01','','proxy',7), ($2,'2026-09-30','','proxy',100), ($2,'2026-10-31','','proxy',999)`, a.ID, b.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, err := SummaryFor(ctx, pool, siteID, "2026-10-30", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (Summary{Today: 4, Last7: 7, Last30: 34, Total: 134}); all != want {
+		t.Fatalf("all = %+v, want %+v", all, want)
+	}
+	one, err := SummaryFor(ctx, pool, siteID, "2026-10-30", a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (Summary{Today: 4, Last7: 7, Last30: 27, Total: 27}); one != want {
+		t.Fatalf("one = %+v, want %+v", one, want)
+	}
+}

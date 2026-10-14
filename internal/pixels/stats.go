@@ -22,6 +22,14 @@ type CountryViews struct {
 	Views   int64  `json:"views"`
 }
 
+// Summary counts views for today, the last 7 and 30 days (including today) and all time.
+type Summary struct {
+	Today  int64 `json:"today"`
+	Last7  int64 `json:"last_7"`
+	Last30 int64 `json:"last_30"`
+	Total  int64 `json:"total"`
+}
+
 type Stats struct {
 	Daily     []DayViews     `json:"daily"`
 	Pixels    []PixelViews   `json:"pixels"`
@@ -90,4 +98,19 @@ func Views30(ctx context.Context, db DBTX, siteID int32, today string) (map[int6
 		out[id] = n
 	}
 	return out, rows.Err()
+}
+
+// SummaryFor totals views for a project, or for one pixel when pixelID is not 0,
+// counting days up to and including today (a site-local YYYY-MM-DD).
+func SummaryFor(ctx context.Context, db DBTX, siteID int32, today string, pixelID int64) (Summary, error) {
+	var s Summary
+	err := db.QueryRow(ctx, `select
+		coalesce(sum(v.views) filter (where v.day = $2::date),0)::bigint,
+		coalesce(sum(v.views) filter (where v.day > $2::date - 7),0)::bigint,
+		coalesce(sum(v.views) filter (where v.day > $2::date - 30),0)::bigint,
+		coalesce(sum(v.views),0)::bigint
+		from pixel_views_daily v join pixels p on p.id = v.pixel_id
+		where p.site_id = $1 and v.day <= $2::date and ($3 = 0 or v.pixel_id = $3)`, siteID, today, pixelID).
+		Scan(&s.Today, &s.Last7, &s.Last30, &s.Total)
+	return s, err
 }

@@ -231,7 +231,12 @@ func (h *handler) pixelProjectStats(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"from": from, "to": to, "daily": stats.Daily, "pixels": stats.Pixels, "countries": stats.Countries})
+	summary, err := pixels.SummaryFor(r.Context(), h.deps.Store.Pool, site.ID, h.deps.Now().In(siteLocation(site)).Format(time.DateOnly), pixelID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"from": from, "to": to, "summary": summary, "daily": stats.Daily, "pixels": stats.Pixels, "countries": stats.Countries})
 }
 
 func (h *handler) reloadPixels(r *http.Request) error {
