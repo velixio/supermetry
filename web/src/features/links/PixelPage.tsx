@@ -9,6 +9,7 @@ import { en } from '@/messages/en'
 
 import { usePixelSnippet } from './api'
 import { CopyButton } from './CopyButton'
+import { badgeUrl } from '../pixels/snippets'
 import { LinksTabs } from './LinksTabs'
 import { PixelStatsSection } from './PixelStatsSection'
 
@@ -56,6 +57,21 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
         ) : null}
         <p className="text-xs text-muted-foreground">{t.pixelNote}</p>
       </section>
+
+      {snippet.data ? (
+        <section aria-labelledby="pixel-badge" className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+          <h2 className="text-base font-medium" id="pixel-badge">{t.pixelBadgeTitle}</h2>
+          <p className="text-sm text-muted-foreground">{t.pixelBadgeNote}</p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <img alt={t.pixelBadgePreviewTotal} height={20} src={`${badgeUrl(snippet.data.url)}?preview=1`} />
+            <img alt={t.pixelBadgePreviewStats} height={20} src={`${badgeUrl(snippet.data.url)}?style=stats&preview=1`} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <CopyButton label={t.pixelCopyBadge} text={`![views](${badgeUrl(snippet.data.url)})`}>{t.pixelCopyBadge}</CopyButton>
+            <CopyButton label={t.pixelCopyStatsBadge} text={`![views](${badgeUrl(snippet.data.url)}?style=stats)`}>{t.pixelCopyStatsBadge}</CopyButton>
+          </div>
+        </section>
+      ) : null}
 
       <PixelStatsSection campaign={null} org={org} siteId={siteId} siteSlug={siteSlug} timezone={timezone} />
     </PageContainer>

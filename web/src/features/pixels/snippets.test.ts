@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pixelSnippets } from './snippets'
+import { badgeUrl, pixelSnippets } from './snippets'
 
 describe('pixelSnippets', () => {
   const p = { svg_url: 'https://sm.example/px/pAAAAAAAAAAA.svg', gif_url: 'https://sm.example/px/pAAAAAAAAAAA.gif' }
@@ -12,5 +12,11 @@ describe('pixelSnippets', () => {
     expect(s.markdown).toBe('![views](https://sm.example/px/pAAAAAAAAAAA.svg)')
     expect(s.invisibleMarkdown).toBe('![](https://sm.example/px/pAAAAAAAAAAA.gif)')
     expect(s.html).toBe('<img src="https://sm.example/px/pAAAAAAAAAAA.gif" alt="" width="1" height="1" referrerpolicy="no-referrer-when-downgrade">')
+  })
+})
+
+describe('badgeUrl', () => {
+  it('swaps .gif for .svg and drops the campaign tag', () => {
+    expect(badgeUrl('https://sm.example/px/siteAAAA0001.gif?c=spring')).toBe('https://sm.example/px/siteAAAA0001.svg')
   })
 })

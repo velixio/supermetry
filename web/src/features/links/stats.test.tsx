@@ -102,6 +102,14 @@ describe('PixelPage', () => {
     expect(screen.getAllByText('8').length).toBeGreaterThan(0)
   })
 
+  it('offers copyable badges for the whole project without the campaign tag', async () => {
+    wrap(<PixelPage org="acme" siteId={7} siteSlug="main" timezone="UTC" />)
+    expect(await screen.findByRole('heading', { name: 'Show the count on GitHub or a README' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Badge with the total' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?preview=1')
+    expect(screen.getByRole('img', { name: 'Badge with total, today and a 30-day graph' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?style=stats&preview=1')
+    expect(screen.getByRole('button', { name: 'Copy stats badge (total, today, graph)' })).toBeInTheDocument()
+  })
+
   it('links each campaign to its own page', async () => {
     wrap(<PixelPage org="acme" siteId={7} siteSlug="main" timezone="UTC" />)
     expect(await screen.findByRole('link', { name: /^spring/ })).toHaveAttribute('href', '/app/acme/main/links/pixel/spring')

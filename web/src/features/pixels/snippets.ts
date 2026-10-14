@@ -8,3 +8,11 @@ export function pixelSnippets(p: { svg_url: string; gif_url: string }, homepage:
     html: `<img src="${p.gif_url}" alt="" width="1" height="1" referrerpolicy="no-referrer-when-downgrade">`,
   }
 }
+
+/** The badge image of a site-level tracking pixel: the same ID as the .gif, without its campaign tag. */
+export function badgeUrl(gifUrl: string): string {
+  const url = new URL(gifUrl)
+  url.search = ''
+  url.pathname = url.pathname.replace(/\.gif$/, '.svg')
+  return url.toString()
+}
