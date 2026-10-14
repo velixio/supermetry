@@ -845,6 +845,29 @@ const messages: MessageTree = {
   uiFix: {
     realtimeEmpty: 'Sin visitantes en los últimos 30 minutos. La nueva actividad aparecerá aquí en cuanto llegue.',
   },
+  // Journeys page.
+  journeyUi: {
+    title: 'Recorridos de usuarios',
+    description: 'Sigue las páginas que los visitantes vieron en secuencia. Las vistas consecutivas repetidas se agrupan.',
+    direction: 'Dirección del recorrido',
+    startingAt: 'Empezando en',
+    endingAt: 'Terminando en',
+    startPage: 'Página de inicio',
+    endPage: 'Página final',
+    anyPage: 'Cualquier página',
+    steps: 'Pasos',
+    apply: 'Aplicar',
+    results: 'Resultados del recorrido',
+    diagram: 'Flujo de rutas de los recorridos de usuarios',
+    links: 'Enlaces del recorrido',
+    path: 'Ruta',
+    visitorsHeading: 'Visitantes',
+    loading: 'Cargando recorridos',
+    scrollHint: 'Desplázate hacia los lados para ver todos los pasos.',
+    exit: 'Salida',
+    other: 'Otros',
+    visitors: (count: string) => `${count} visitantes`,
+  },
 }
 
 export default messages

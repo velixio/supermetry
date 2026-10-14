@@ -116,7 +116,7 @@ func TestBuildJourneySQLRoutesClosedHotAndMixedRanges(t *testing.T) {
 				t.Errorf("closed SQL does not preserve sequence order:\n%s", querySQL)
 			}
 			if tc.wantHot {
-				for _, fragment := range []string{"e.kind=0", "lag(path_id)", "partition by e.site_id,e.session_id", "order by e.ts,e.path_id desc", "e.retention_class", "s.last <"} {
+				for _, fragment := range []string{"e.kind=0", "lag(e.path_id)", "partition by e.site_id,e.session_id", "order by e.ts,e.path_id desc", "e.retention_class", "s.last <"} {
 					if !strings.Contains(lower, fragment) {
 						t.Errorf("hot SQL missing %q:\n%s", fragment, querySQL)
 					}

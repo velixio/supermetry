@@ -902,7 +902,7 @@ export interface paths {
         put?: never;
         /**
          * Run a page journey query
-         * @description The date range must fit within the site's raw-event retention window.
+         * @description Counts distinct daily visitors across page flows in site-local sessions (consecutive repeats of a page collapse). Reads closed days and recent raw events, so ranges are limited to 366 days but not to the raw retention window. Answers 403 in anonymous tracking mode, where visitors cannot be linked across days.
          */
         post: operations["journeyQuery"];
         delete?: never;

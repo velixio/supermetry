@@ -5,11 +5,14 @@ import { ErrorState } from '@/components/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Filter } from '@/lib/search'
 import { useStats } from '@/lib/stats'
+import { en } from '@/messages/en'
 
 import { useJourneyReport } from './api'
 import { JourneyControls } from './JourneyControls'
 import { JourneyFlow } from './JourneyFlow'
 import type { JourneyDirection } from './types'
+
+const t = en.journeyUi
 
 type JourneysPageProps = {
   siteId: number
@@ -46,7 +49,7 @@ export function JourneysPage({
 
   return (
     <PageContainer>
-      <PageHeader title="User journeys" description="Follow the pages visitors viewed in sequence. Repeated consecutive pageviews are collapsed." />
+      <PageHeader title={t.title} description={t.description} />
       <JourneyControls
         direction={direction}
         path={path}
@@ -57,7 +60,7 @@ export function JourneysPage({
       {report.isError ? (
         <ErrorState detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
-        <div aria-label="Loading journeys" className="flex flex-col gap-3 rounded-xl border p-4">
+        <div aria-label={t.loading} className="flex flex-col gap-3 rounded-xl border p-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-4/5" />
           <Skeleton className="h-16 w-3/5" />

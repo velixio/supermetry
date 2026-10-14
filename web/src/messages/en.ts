@@ -858,6 +858,29 @@ export const en = {
   uiFix: {
     realtimeEmpty: 'No visitors in the last 30 minutes. New activity will appear here as it arrives.',
   },
+  // Journeys page.
+  journeyUi: {
+    title: 'User journeys',
+    description: 'Follow the pages visitors viewed in sequence. Repeated consecutive pageviews are collapsed.',
+    direction: 'Journey direction',
+    startingAt: 'Starting at',
+    endingAt: 'Ending at',
+    startPage: 'Start page',
+    endPage: 'End page',
+    anyPage: 'Any page',
+    steps: 'Steps',
+    apply: 'Apply',
+    results: 'Journey results',
+    diagram: 'User journey path flow',
+    links: 'Journey links',
+    path: 'Path',
+    visitorsHeading: 'Visitors',
+    loading: 'Loading journeys',
+    scrollHint: 'Scroll sideways to see all steps.',
+    exit: 'Exit',
+    other: 'Other',
+    visitors: (count: string) => `${count} visitors`,
+  },
 } as const
 
 registerCatalogue('main', en)

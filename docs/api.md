@@ -63,6 +63,8 @@ Weekdays are numbered `0` for Sunday through `6` for Saturday; hours run from `0
 | POST | `/heatmaps/query` | Click grid and scroll map for a page and device |
 | POST | `/vitals/query` | Web Vitals (LCP, CLS, INP) overall/breakdown p75 and ratings plus retained daily p50/p75/p95 trends and sample counts, using site-timezone buckets |
 
+Journeys follow page views in time order within one site-local session; consecutive repeats of a page collapse, and a session that ends before `steps` pages adds an `exit` node. `start_path` anchors at the first visit to a page, `end_path` at the last (steps count backwards). Each step keeps the top `limit` pages and groups the rest as `other`, so node totals match at every step. `visitors` counts distinct visitors per day, not people across days. Ranges up to 366 days read closed days plus recent raw events (not limited to raw retention). Anonymous tracking mode answers `403`; `start_path` and `end_path` are at most 2048 bytes.
+
 Funnel steps are ordered within one site-local session. Page and custom-event values support `exact`, `prefix`, and anchored `wildcard` matching. In wildcard mode only `*` expands to any characters; `%` and `_` are literal. Exact and prefix modes also treat `*` literally. The wildcard grammar does not currently provide an escape for a literal `*`. Funnel `visitors` values count sessions completing each step, not durable people across sessions or days. Step property fields are reserved but are not yet applied by funnel queries.
 
 ## Explore raw data
