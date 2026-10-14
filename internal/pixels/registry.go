@@ -7,11 +7,17 @@ import (
 	"time"
 )
 
+// RecentDays is how many days the stats badge sparkline shows.
+const RecentDays = 30
+
 type Registry struct {
 	load   func(context.Context) ([]Pixel, error)
 	seed   func(context.Context) (map[int64]int64, error)
 	totals *TotalCache
-	byID   atomic.Pointer[map[string]Pixel]
+	// SeedDays optionally loads recent per-day counts for the stats badge.
+	SeedDays func(ctx context.Context, since string) (map[int64]map[string]int64, error)
+	Now      func() time.Time
+	byID     atomic.Pointer[map[string]Pixel]
 }
 
 func (r *Registry) Run(ctx context.Context, interval time.Duration) error {
@@ -59,6 +65,18 @@ func (r *Registry) Reload(ctx context.Context) error {
 		active[p.ID] = struct{}{}
 	}
 	r.totals.Reconcile(totals, active)
+	if r.SeedDays != nil {
+		now := time.Now
+		if r.Now != nil {
+			now = r.Now
+		}
+		cutoff := now().UTC().AddDate(0, 0, -RecentDays-1).Format(time.DateOnly)
+		days, err := r.SeedDays(ctx, cutoff)
+		if err != nil {
+			return err
+		}
+		r.totals.SeedDays(days, cutoff)
+	}
 	r.byID.Store(&next)
 	return nil
 }

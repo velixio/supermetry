@@ -144,3 +144,26 @@ func Totals(ctx context.Context, db DBTX) (map[int64]int64, error) {
 	}
 	return out, rows.Err()
 }
+
+// RecentDayViews returns per-pixel view counts by day since the given date.
+func RecentDayViews(ctx context.Context, db DBTX, since string) (map[int64]map[string]int64, error) {
+	rows, err := db.Query(ctx, `select pixel_id, day::text, sum(views)::bigint from pixel_views_daily
+		where day >= $1::date group by pixel_id, day`, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]map[string]int64{}
+	for rows.Next() {
+		var id, n int64
+		var day string
+		if err := rows.Scan(&id, &day, &n); err != nil {
+			return nil, err
+		}
+		if out[id] == nil {
+			out[id] = map[string]int64{}
+		}
+		out[id][day] = n
+	}
+	return out, rows.Err()
+}

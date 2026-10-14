@@ -338,6 +338,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		func(ctx context.Context) (map[int64]int64, error) { return pixels.Totals(ctx, pool) },
 		pixelTotals,
 	)
+	pixelRegistry.SeedDays = func(ctx context.Context, since string) (map[int64]map[string]int64, error) {
+		return pixels.RecentDayViews(ctx, pool, since)
+	}
 	if err := pixelRegistry.Reload(ctx); err != nil {
 		return fmt.Errorf("load pixels: %w", err)
 	}

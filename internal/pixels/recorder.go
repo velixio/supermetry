@@ -50,6 +50,7 @@ func (r *Recorder) View(k ViewKey) {
 	r.rows[k]++
 	r.mu.Unlock()
 	r.totals.Add(k.PixelID, 1)
+	r.totals.AddDay(k.PixelID, k.Day, 1)
 }
 
 func (r *Recorder) Flush(ctx context.Context) error {

@@ -43,6 +43,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			label, total = pixel.BadgeLabel, h.Pixels.Totals().Get(pixel.ID)
 		}
 		style, color := ParseBadgeQuery(r.URL.Query())
+		if r.URL.Query().Get("style") == "stats" && known {
+			write(w, r, "image/svg+xml", h.statsBadge(pixel, color))
+			return
+		}
 		write(w, r, "image/svg+xml", RenderBadge(BadgeOptions{Label: label, Count: total, Style: style, Color: color, Branded: h.Branded}))
 		return
 	}
@@ -94,4 +98,17 @@ func location(site sites.Site) *time.Location {
 		return time.UTC
 	}
 	return site.TZ
+}
+
+// statsBadge renders the total, today's count and a 30-day sparkline from memory.
+func (h *Handler) statsBadge(pixel Pixel, color string) []byte {
+	day := h.Now().UTC().Format(time.DateOnly)
+	if site, ok := h.Sites.Site(pixel.SiteID); ok {
+		day = h.Now().In(location(site)).Format(time.DateOnly)
+	}
+	series := h.Pixels.Totals().Series(pixel.ID, day, RecentDays)
+	return RenderStatsBadge(StatsBadgeOptions{
+		Label: pixel.BadgeLabel, Total: h.Pixels.Totals().Get(pixel.ID), Today: series[len(series)-1],
+		Series: series, Style: "flat", Color: color, Branded: h.Branded,
+	})
 }

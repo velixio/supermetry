@@ -62,3 +62,33 @@ func TestParseBadgeQuery(t *testing.T) {
 		t.Fatalf("fallback %q %q", s, c)
 	}
 }
+
+func TestStatsBadgeShowsTotalTodayAndSparkline(t *testing.T) {
+	series := make([]int64, RecentDays)
+	series[RecentDays-1], series[RecentDays-2] = 5, 10
+	svg := RenderStatsBadge(StatsBadgeOptions{Label: "views", Total: 1234, Today: 5, Series: series, Style: "flat", Branded: true})
+	wellFormed(t, svg)
+	for _, want := range []string{"1.2k", "today 5", "<polyline", "sm-mark"} {
+		if !strings.Contains(string(svg), want) {
+			t.Errorf("badge lacks %q: %s", want, svg)
+		}
+	}
+	if got := sparkPoints([]int64{0, 10, 5}); got != "0,12 30,0 60,6" {
+		t.Errorf("sparkPoints = %q", got)
+	}
+	if sparkPoints([]int64{3}) != "" {
+		t.Error("a single point must not draw a line")
+	}
+}
+
+func TestSeriesCountsOnlyTheWindowOldestFirst(t *testing.T) {
+	c := NewTotalCache()
+	c.AddDay(1, "2026-10-30", 2)
+	c.AddDay(1, "2026-10-28", 1)
+	c.AddDay(1, "2026-09-01", 9)
+	c.SeedDays(map[int64]map[string]int64{1: {"2026-10-28": 4, "2026-09-01": 9}}, "2026-10-01")
+	got := c.Series(1, "2026-10-30", 3)
+	if got[0] != 4 || got[1] != 0 || got[2] != 2 {
+		t.Fatalf("series = %v, want [4 0 2]", got)
+	}
+}
