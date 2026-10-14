@@ -22,6 +22,7 @@ import (
 	"supermetry/internal/api"
 	"supermetry/internal/config"
 	"supermetry/internal/imports"
+	"supermetry/internal/links"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
@@ -112,15 +113,21 @@ type Deps struct {
 	Definitions    interface{ Invalidate() error }
 	// LinkCache drops cached short-link resolutions after a change. Optional.
 	LinkCache interface{ Forget(slugs ...string) }
-	Pixels    *pixels.Registry
-	Auth      *platformauth.Auth
-	Orgs      *orgs.Orgs
-	Keys      *keys.Keys
-	Invites   *invites.Invites
-	Shares    *shares.Shares
-	Reports   *reports.Reports
-	Alerts    AlertsService
-	Query     interface {
+	// TrackingPixelViews maintains registered per-tag badge totals. Optional.
+	TrackingPixelViews interface {
+		Register(siteID int32, tag string)
+		Unregister(siteID int32, tag string)
+		Reload(context.Context, links.DBTX) error
+	}
+	Pixels  *pixels.Registry
+	Auth    *platformauth.Auth
+	Orgs    *orgs.Orgs
+	Keys    *keys.Keys
+	Invites *invites.Invites
+	Shares  *shares.Shares
+	Reports *reports.Reports
+	Alerts  AlertsService
+	Query   interface {
 		Query(context.Context, api.QueryRequest) (api.QueryResponse, error)
 	}
 	Imports interface {
@@ -278,6 +285,11 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/private/links/{link}", h.updateLink)
 	mux.HandleFunc("DELETE /api/private/links/{link}", h.deleteLink)
 	mux.HandleFunc("GET /api/private/links/{link}/stats", h.linkStats)
+	mux.HandleFunc("GET /api/private/sites/{site}/tracking-pixels", h.listTrackingPixels)
+	mux.HandleFunc("POST /api/private/sites/{site}/tracking-pixels", h.createTrackingPixel)
+	mux.HandleFunc("GET /api/private/tracking-pixels/{id}", h.getTrackingPixel)
+	mux.HandleFunc("PATCH /api/private/tracking-pixels/{id}", h.updateTrackingPixel)
+	mux.HandleFunc("DELETE /api/private/tracking-pixels/{id}", h.deleteTrackingPixel)
 	mux.HandleFunc("GET /api/private/sites/{site}/pixels", h.listPixels)
 	mux.HandleFunc("POST /api/private/sites/{site}/pixels", h.createPixel)
 	mux.HandleFunc("GET /api/private/sites/{site}/pixels/stats", h.pixelProjectStats)

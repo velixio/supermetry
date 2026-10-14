@@ -2192,6 +2192,62 @@ paths:
       responses:
         '204': { description: Deleted with its daily views }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/tracking-pixels:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listManagedTrackingPixels
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      responses:
+        '200': { description: Managed tracking pixels, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixelInput' } } } }
+      responses:
+        '201': { description: Created tracking pixel, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: The tag is already registered for this site, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/tracking-pixels/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      responses:
+        '200': { description: Tracking pixel, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixelPatch' } } } }
+      responses:
+        '200': { description: Updated tracking pixel, content: { application/json: { schema: { $ref: '#/components/schemas/ManagedTrackingPixel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteManagedTrackingPixel
+      security: [{ cookieAuth: [] }]
+      tags: [Links]
+      responses:
+        '204': { description: Deleted registration and its impression aggregates }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /l/{slug}:
     get:
       operationId: followShortLink
@@ -4108,6 +4164,38 @@ components:
           type: array
           description: Direct views only; image proxies such as GitHub hide the country.
           items: { type: object, required: [country, views], properties: { country: { type: string }, views: { type: integer } } }
+    ManagedTrackingPixelInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        tag:
+          oneOf:
+            - { type: string, maxLength: 0 }
+            - { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$' }
+          description: Omit or send an empty string to generate an eight-character tag.
+    ManagedTrackingPixelPatch:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+    ManagedTrackingPixel:
+      type: object
+      additionalProperties: false
+      required: [id, site_id, name, tag, gif_url, svg_url, html, total, views_30d, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        name: { type: string }
+        tag: { type: string }
+        gif_url: { type: string, format: uri }
+        svg_url: { type: string, format: uri }
+        html: { type: string }
+        total: { type: integer, format: int64, minimum: 0 }
+        views_30d: { type: integer, format: int64, minimum: 0 }
+        created_at: { type: string, format: date-time }
     UpdateSiteRequest:
       type: object
       additionalProperties: false

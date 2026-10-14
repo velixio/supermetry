@@ -1661,6 +1661,7 @@ func (e McpParamsMCPProtocolVersion) Valid() bool {
 const (
 	Flat       TrackingPixelParamsStyle = "flat"
 	FlatSquare TrackingPixelParamsStyle = "flat-square"
+	Stats      TrackingPixelParamsStyle = "stats"
 )
 
 // Valid indicates whether the value is a known member of the TrackingPixelParamsStyle enum.
@@ -1669,6 +1670,8 @@ func (e TrackingPixelParamsStyle) Valid() bool {
 	case Flat:
 		return true
 	case FlatSquare:
+		return true
+	case Stats:
 		return true
 	default:
 		return false
@@ -2612,6 +2615,44 @@ type MCPResponse0 = interface{}
 // MCPResponse1 defines model for MCPResponse.1.
 type MCPResponse1 = interface{}
 
+// ManagedTrackingPixel defines model for ManagedTrackingPixel.
+type ManagedTrackingPixel struct {
+	CreatedAt time.Time `json:"created_at"`
+	GifUrl    string    `json:"gif_url"`
+	Html      string    `json:"html"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name"`
+	SiteId    int32     `json:"site_id"`
+	SvgUrl    string    `json:"svg_url"`
+	Tag       string    `json:"tag"`
+	Total     int64     `json:"total"`
+	Views30d  int64     `json:"views_30d"`
+}
+
+// ManagedTrackingPixelInput defines model for ManagedTrackingPixelInput.
+type ManagedTrackingPixelInput struct {
+	Name string `json:"name"`
+
+	// Tag Omit or send an empty string to generate an eight-character tag.
+	Tag *ManagedTrackingPixelInput_Tag `json:"tag,omitempty"`
+}
+
+// ManagedTrackingPixelInputTag0 defines model for ManagedTrackingPixelInput.Tag.0.
+type ManagedTrackingPixelInputTag0 = string
+
+// ManagedTrackingPixelInputTag1 defines model for ManagedTrackingPixelInput.Tag.1.
+type ManagedTrackingPixelInputTag1 = string
+
+// ManagedTrackingPixelInput_Tag Omit or send an empty string to generate an eight-character tag.
+type ManagedTrackingPixelInput_Tag struct {
+	union json.RawMessage
+}
+
+// ManagedTrackingPixelPatch defines model for ManagedTrackingPixelPatch.
+type ManagedTrackingPixelPatch struct {
+	Name string `json:"name"`
+}
+
 // Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 type Metric string
 
@@ -2729,6 +2770,14 @@ type PixelStats struct {
 		PixelId int64 `json:"pixel_id"`
 		Views   int   `json:"views"`
 	} `json:"pixels"`
+
+	// Summary Views for today, the last 7 and 30 days and all time in the site's time zone, independent of from and to.
+	Summary struct {
+		Last30 int `json:"last_30"`
+		Last7  int `json:"last_7"`
+		Today  int `json:"today"`
+		Total  int `json:"total"`
+	} `json:"summary"`
 	To openapi_types.Date `json:"to"`
 }
 
@@ -4180,6 +4229,12 @@ type CreatePixelJSONRequestBody = PixelInput
 // UpdatePixelJSONRequestBody defines body for UpdatePixel for application/json ContentType.
 type UpdatePixelJSONRequestBody = PixelInput
 
+// CreateManagedTrackingPixelJSONRequestBody defines body for CreateManagedTrackingPixel for application/json ContentType.
+type CreateManagedTrackingPixelJSONRequestBody = ManagedTrackingPixelInput
+
+// UpdateManagedTrackingPixelJSONRequestBody defines body for UpdateManagedTrackingPixel for application/json ContentType.
+type UpdateManagedTrackingPixelJSONRequestBody = ManagedTrackingPixelPatch
+
 // UpdateAnnotationJSONRequestBody defines body for UpdateAnnotation for application/json ContentType.
 type UpdateAnnotationJSONRequestBody = AnnotationPatch
 
@@ -4621,6 +4676,68 @@ func (t *MCPResponse_Id) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+// AsManagedTrackingPixelInputTag0 returns the union data inside the ManagedTrackingPixelInput_Tag as a ManagedTrackingPixelInputTag0
+func (t ManagedTrackingPixelInput_Tag) AsManagedTrackingPixelInputTag0() (ManagedTrackingPixelInputTag0, error) {
+	var body ManagedTrackingPixelInputTag0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromManagedTrackingPixelInputTag0 overwrites any union data inside the ManagedTrackingPixelInput_Tag as the provided ManagedTrackingPixelInputTag0
+func (t *ManagedTrackingPixelInput_Tag) FromManagedTrackingPixelInputTag0(v ManagedTrackingPixelInputTag0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeManagedTrackingPixelInputTag0 performs a merge with any union data inside the ManagedTrackingPixelInput_Tag, using the provided ManagedTrackingPixelInputTag0
+func (t *ManagedTrackingPixelInput_Tag) MergeManagedTrackingPixelInputTag0(v ManagedTrackingPixelInputTag0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsManagedTrackingPixelInputTag1 returns the union data inside the ManagedTrackingPixelInput_Tag as a ManagedTrackingPixelInputTag1
+func (t ManagedTrackingPixelInput_Tag) AsManagedTrackingPixelInputTag1() (ManagedTrackingPixelInputTag1, error) {
+	var body ManagedTrackingPixelInputTag1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromManagedTrackingPixelInputTag1 overwrites any union data inside the ManagedTrackingPixelInput_Tag as the provided ManagedTrackingPixelInputTag1
+func (t *ManagedTrackingPixelInput_Tag) FromManagedTrackingPixelInputTag1(v ManagedTrackingPixelInputTag1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeManagedTrackingPixelInputTag1 performs a merge with any union data inside the ManagedTrackingPixelInput_Tag, using the provided ManagedTrackingPixelInputTag1
+func (t *ManagedTrackingPixelInput_Tag) MergeManagedTrackingPixelInputTag1(v ManagedTrackingPixelInputTag1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ManagedTrackingPixelInput_Tag) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ManagedTrackingPixelInput_Tag) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// AdminListAudit List instance administration audit entries
@@ -4887,6 +5004,21 @@ type ServerInterface interface {
 	// GetSearchConsoleTop Top queries or pages from imported Search Console data
 	// (GET /api/private/sites/{site}/search-console/top)
 	GetSearchConsoleTop(w http.ResponseWriter, r *http.Request, site int32, params GetSearchConsoleTopParams)
+
+	// (GET /api/private/sites/{site}/tracking-pixels)
+	ListManagedTrackingPixels(w http.ResponseWriter, r *http.Request, site int32)
+
+	// (POST /api/private/sites/{site}/tracking-pixels)
+	CreateManagedTrackingPixel(w http.ResponseWriter, r *http.Request, site int32)
+
+	// (DELETE /api/private/tracking-pixels/{id})
+	DeleteManagedTrackingPixel(w http.ResponseWriter, r *http.Request, id int64)
+
+	// (GET /api/private/tracking-pixels/{id})
+	GetManagedTrackingPixel(w http.ResponseWriter, r *http.Request, id int64)
+
+	// (PATCH /api/private/tracking-pixels/{id})
+	UpdateManagedTrackingPixel(w http.ResponseWriter, r *http.Request, id int64)
 	// DeleteAnnotation Delete a chart annotation
 	// (DELETE /api/public/v1/annotations/{annotation_id})
 	DeleteAnnotation(w http.ResponseWriter, r *http.Request, annotationId int64)
@@ -5028,6 +5160,9 @@ type ServerInterface interface {
 	// VitalsQuery Query Web Vitals from raw events
 	// (POST /api/public/v1/vitals/query)
 	VitalsQuery(w http.ResponseWriter, r *http.Request)
+	// OpenCounter Show or render an opt-in public GitHub view counter
+	// (GET /c/{rest})
+	OpenCounter(w http.ResponseWriter, r *http.Request, rest string)
 	// Healthz Check process health
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
@@ -7943,6 +8078,136 @@ func (siw *ServerInterfaceWrapper) GetSearchConsoleTop(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ListManagedTrackingPixels operation middleware
+func (siw *ServerInterfaceWrapper) ListManagedTrackingPixels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListManagedTrackingPixels(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) CreateManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateManagedTrackingPixel(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) DeleteManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteManagedTrackingPixel(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) GetManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetManagedTrackingPixel(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateManagedTrackingPixel operation middleware
+func (siw *ServerInterfaceWrapper) UpdateManagedTrackingPixel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateManagedTrackingPixel(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteAnnotation operation middleware
 func (siw *ServerInterfaceWrapper) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
 
@@ -10022,6 +10287,32 @@ func (siw *ServerInterfaceWrapper) VitalsQuery(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// OpenCounter operation middleware
+func (siw *ServerInterfaceWrapper) OpenCounter(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "rest" -------------
+	var rest string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rest", r.PathValue("rest"), &rest, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rest", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenCounter(w, r, rest)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Healthz operation middleware
 func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
 
@@ -10379,8 +10670,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels/stats", wrapper.PixelStats)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/pixels/{id}", wrapper.DeletePixel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/pixels/{id}", wrapper.UpdatePixel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/tracking-pixels", wrapper.ListManagedTrackingPixels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/tracking-pixels", wrapper.CreateManagedTrackingPixel)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/tracking-pixels/{id}", wrapper.DeleteManagedTrackingPixel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/tracking-pixels/{id}", wrapper.GetManagedTrackingPixel)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/tracking-pixels/{id}", wrapper.UpdateManagedTrackingPixel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/l/{slug}", wrapper.FollowShortLink)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/px/{file}", wrapper.TrackingPixel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/c/{rest}", wrapper.OpenCounter)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)

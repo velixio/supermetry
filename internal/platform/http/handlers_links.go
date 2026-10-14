@@ -468,17 +468,10 @@ func (h *handler) pixelStats(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "link")
 		return
 	}
-	var campaign *string
-	if raw, present := r.URL.Query()["campaign"]; present && len(raw) > 0 {
-		if len(raw[0]) > 64 {
-			writeProblem(w, http.StatusBadRequest, "Bad request", "campaign must be at most 64 characters")
-			return
-		}
-		value := raw[0]
-		if value == links.UntaggedCampaign {
-			value = ""
-		}
-		campaign = &value
+	campaign := links.NormalizeCampaign(r.URL.Query().Get("campaign"))
+	if campaign == "" {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "campaign must be 1 to 64 letters, digits, dot, underscore, colon or hyphen")
+		return
 	}
 	stats, err := links.ImpressionStats(r.Context(), h.deps.Store.Pool, site.ID, from, to, campaign)
 	if err != nil {
