@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -73,7 +73,17 @@ web:
 web-test:
 	cd web && bun install --frozen-lockfile && bun run typecheck && bun run test --run
 
-release: build
+# Tag and push a release (asks for the version, defaulting to the next patch).
+# Options: VERSION=0.2.0, BUMP=patch|minor|major, YES=1 (no confirmation), DRY_RUN=1.
+release:
+	@scripts/tag-release.sh $(if $(VERSION),--version $(VERSION)) $(if $(BUMP),--bump $(BUMP)) $(if $(YES),--yes) $(if $(DRY_RUN),--dry-run)
+
+# Test the release tagging script against throwaway repositories.
+test-release:
+	@bash scripts/test-tag-release.sh
+
+# Build the release binary locally without tagging anything (what `release` used to do).
+release-build: build
 
 # Load .env (if present) into the environment of the recipes below.
 ENV := set -a; [ -f .env ] && . ./.env; set +a;
