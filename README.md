@@ -8,26 +8,25 @@
 <h1 align="center">Find the bottleneck. Own every event.</h1>
 
 <p align="center">
-  <b>Open-source, privacy-first web and product analytics.</b><br>
-  Traffic, funnels, sessions, replays and revenue in one dashboard.<br>
-  One Go binary and PostgreSQL. No cookies, no ClickHouse, no Kafka.
+  Open-source, privacy-first web and product analytics.<br>
+  <b>One Go binary + PostgreSQL. No cookies.</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/velixio/supermetry/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/velixio/supermetry?color=6d5dfc&label=release"></a>
-  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
-  <img alt="Built with Go and PostgreSQL" src="https://img.shields.io/badge/Go%20%2B%20PostgreSQL-only-00ADD8">
-  <img alt="Tracker about 1.2 KB gzipped" src="https://img.shields.io/badge/tracker-~1.2%20KB-2ea44f">
-  <a href="https://github.com/velixio/supermetry/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/velixio/supermetry?style=flat&color=f5b301"></a>
+  <a href="https://github.com/velixio/supermetry/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/velixio/supermetry?style=flat-square&logo=github&label=release&color=6d5dfc"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-3b82f6?style=flat-square"></a>
+  <img alt="Go and PostgreSQL" src="https://img.shields.io/badge/Go%20%2B%20PostgreSQL-00ADD8?style=flat-square&logo=go&logoColor=white">
+  <img alt="Tracker about 1.2 KB gzipped" src="https://img.shields.io/badge/tracker-~1.2%20KB-22c55e?style=flat-square">
+  <a href="https://github.com/velixio/supermetry/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/velixio/supermetry?style=flat-square&logo=github&color=f5b301"></a>
 </p>
 
 <p align="center">
-  <a href="https://supermetry.com"><b>Website</b></a> ·
-  <a href="https://supermetry.com/docs/"><b>Docs</b></a> ·
-  <a href="#quick-start"><b>Self-host in 1 minute</b></a> ·
-  <a href="#supermetry-vs-plausible-umami-and-google-analytics"><b>Compare</b></a> ·
-  <a href="https://supermetry.com/early-access/"><b>EU Cloud early access</b></a> ·
-  <a href="https://github.com/velixio/supermetry/releases/latest"><b>Download</b></a>
+  <a href="#quick-start"><img alt="Self-host" src="https://img.shields.io/badge/Self--host-6d5dfc?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iOCIgeD0iMiIgeT0iMiIgcng9IjIiIHJ5PSIyIi8%2BPHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjgiIHg9IjIiIHk9IjE0IiByeD0iMiIgcnk9IjIiLz48cGF0aCBkPSJNNiA2aC4wMU02IDE4aC4wMSIvPjwvZz48L3N2Zz4%3D&logoColor=white"></a>
+  <a href="https://supermetry.com/docs/"><img alt="Docs" src="https://img.shields.io/badge/Docs-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTIgNXYxNm04LjAwMS0yQTIgMiAwIDAgMCAyMiAxN1Y1YTIgMiAwIDAgMC0xLjk5OS0yTDE2IDMuMDAyQTUgNSAwIDAgMCAxMiA1YTUgNSAwIDAgMC00LTJINGEyIDIgMCAwIDAtMiAydjEyYTIgMiAwIDAgMCAxLjk5OSAySDhhNSA1IDAgMCAxIDQgMmE1IDUgMCAwIDEgNC0yeiIvPjwvc3ZnPg%3D%3D&logoColor=white"></a>
+  <a href="https://supermetry.com"><img alt="Website" src="https://img.shields.io/badge/Website-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxwYXRoIGQ9Ik0xMiAyYTE0LjUgMTQuNSAwIDAgMCAwIDIwYTE0LjUgMTQuNSAwIDAgMCAwLTIwTTIgMTJoMjAiLz48L2c%2BPC9zdmc%2B&logoColor=white"></a>
+  <a href="#supermetry-vs-plausible-umami-and-google-analytics"><img alt="Compare" src="https://img.shields.io/badge/Compare-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48cGF0aCBkPSJNMTIgM3YxOG03LTEzbDMgOGE1IDUgMCAwIDEtNiAwelY3Ii8%2BPHBhdGggZD0iTTMgN2gxYTE3IDE3IDAgMCAwIDgtMmExNyAxNyAwIDAgMCA4IDJoMU01IDhsMyA4YTUgNSAwIDAgMS02IDB6VjdtMiAxNGgxMCIvPjwvZz48L3N2Zz4%3D&logoColor=white"></a>
+  <a href="https://supermetry.com/early-access/"><img alt="EU Cloud early access" src="https://img.shields.io/badge/EU%20Cloud-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTcuNSAxOUg5YTcgNyAwIDEgMSA2LjcxLTloMS43OWE0LjUgNC41IDAgMSAxIDAgOSIvPjwvc3ZnPg%3D%3D&logoColor=white"></a>
+  <a href="https://github.com/velixio/supermetry/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48cGF0aCBkPSJNMTIgMTVWM205IDEydjRhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ2LTQiLz48cGF0aCBkPSJtNyAxMGw1IDVsNS01Ii8%2BPC9nPjwvc3ZnPg%3D%3D&logoColor=white"></a>
 </p>
 
 <p align="center">
