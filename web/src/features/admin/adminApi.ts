@@ -134,6 +134,14 @@ export function useUpdateStatus(enabled: boolean) {
   })
 }
 
+export function useCheckUpdate() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () => privateRequest<AdminUpdateStatus>('POST', `${base}/update/check`),
+    onSuccess: (status) => client.setQueryData<AdminUpdateStatus>(adminKeys.update, status),
+  })
+}
+
 export function useApplyUpdate() {
   const client = useQueryClient()
   return useMutation({

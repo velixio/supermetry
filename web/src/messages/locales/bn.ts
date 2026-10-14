@@ -159,7 +159,7 @@ const messages: MessageTree = {
     update: 'সিস্টেম আপডেট', updateAvailable: 'আপডেট পাওয়া গেছে', updateDescription: 'ইনস্টল করা সংস্করণ এবং সর্বশেষ প্রকাশিত সংস্করণ দেখুন।',
     versionStatus: 'সংস্করণের অবস্থা', newRelease: 'Supermetry-এর একটি নতুন সংস্করণ পাওয়া গেছে।', updateCheckFailed: 'আপডেট পরীক্ষা সম্পন্ন করা যায়নি',
     updateUnknown: 'সর্বশেষ সংস্করণ নির্ধারণ করা যায়নি।', currentVersion: 'ইনস্টল করা সংস্করণ', latestVersion: 'সর্বশেষ সংস্করণ', published: 'প্রকাশিত',
-    checked: 'সর্বশেষ পরীক্ষা', viewRelease: 'রিলিজ নোট দেখুন', upToDate: 'Supermetry হালনাগাদ আছে।',
+    checked: 'সর্বশেষ পরীক্ষা', viewRelease: 'রিলিজ নোট দেখুন', checkForUpdates: 'আপডেট পরীক্ষা করুন', checkingForUpdates: 'পরীক্ষা করা হচ্ছে…', upToDate: 'Supermetry হালনাগাদ আছে।',
     installUnavailable: 'এই ইনস্টলেশন আপডেট পরিচালনা করে না।', installUnavailableDescription: 'আপনার বর্তমান ডেপ্লয়মেন্ট প্রক্রিয়ায় রিলিজটি ইনস্টল করুন অথবা Supermetry আপডেটার কনফিগার করুন।',
     unknownVersion: 'পাওয়া যায়নি', searchLabel: 'খুঁজুন', searchPlaceholder: 'নাম, ইমেইল, স্লাগ বা ডোমেইন',
     binaryInstallation: 'বাইনারি ইনস্টলেশন', dockerInstallation: 'Docker ইনস্টলেশন', unknownInstallation: 'ইনস্টলেশনের ধরন পাওয়া যায়নি',

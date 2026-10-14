@@ -9,6 +9,7 @@ import (
 
 	"supermetry/internal/platform/admin"
 	platformauth "supermetry/internal/platform/auth"
+	"supermetry/internal/platform/authz"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/updateclient"
 	"supermetry/internal/updatehelper"
@@ -26,8 +27,22 @@ func (h *handler) adminUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.writeUpdateStatus(w, r, principal, h.deps.UpdateChecker.Check(r.Context()))
+}
+
+// adminCheckUpdate forces a fresh release check; it never downloads or applies
+// anything.
+func (h *handler) adminCheckUpdate(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	h.writeUpdateStatus(w, r, principal, h.deps.UpdateChecker.Refresh(r.Context()))
+}
+
+func (h *handler) writeUpdateStatus(w http.ResponseWriter, r *http.Request, principal authz.Principal, checked updatecheck.Status) {
 	response := adminUpdateStatusResponse{
-		Status:          h.deps.UpdateChecker.Check(r.Context()),
+		Status:          checked,
 		UpdateSupported: h.deps.UpdateStarter != nil && (h.deps.UpdateMode == updatehelper.DeploymentBinary || h.deps.UpdateMode == updatehelper.DeploymentDocker),
 		DeploymentMode:  string(h.deps.UpdateMode),
 	}

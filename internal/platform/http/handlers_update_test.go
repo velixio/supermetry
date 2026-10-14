@@ -63,6 +63,41 @@ func TestAdminUpdateStatus(t *testing.T) {
 	}
 }
 
+func TestAdminCheckUpdateForcesRefresh(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var userID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash,is_admin) values ('update-check@example.test','Admin','hash',true) returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	latest := "v1.3.0"
+	checker := &fakeUpdateChecker{status: updatecheck.Status{CurrentVersion: "1.2.0", LatestVersion: &latest, UpdateAvailable: true}}
+	data := &store.Store{Pool: pool}
+	handler := platformhttp.New(platformhttp.Deps{
+		Version: "1.2.0", Authenticator: actorAuthenticator{"admin": {UserID: userID, SiteIDs: []int32{}}},
+		Store: data, Admin: admin.New(data), UpdateChecker: checker,
+	})
+	r := httptest.NewRequest(http.MethodPost, "/api/private/admin/update/check", nil)
+	r.Header.Set("X-Test-Actor", "admin")
+	r.Header.Set("X-CSRF-Token", "token")
+	r.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	var got updatecheck.Status
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || got.LatestVersion == nil || *got.LatestVersion != latest || !got.UpdateAvailable {
+		t.Fatalf("response=%+v err=%v", got, err)
+	}
+	if checker.refreshes != 1 || checker.calls != 0 {
+		t.Fatalf("refreshes=%d calls=%d, want 1 and 0", checker.refreshes, checker.calls)
+	}
+}
+
 func TestAdminApplyUpdateRequiresReauthenticationAndDispatches(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
@@ -134,8 +169,14 @@ func (f *fakeUpdateStarter) Status(_ context.Context, jobID string) (updatehelpe
 }
 
 type fakeUpdateChecker struct {
-	status updatecheck.Status
-	calls  int
+	status    updatecheck.Status
+	calls     int
+	refreshes int
+}
+
+func (f *fakeUpdateChecker) Refresh(context.Context) updatecheck.Status {
+	f.refreshes++
+	return f.status
 }
 
 func (f *fakeUpdateChecker) Check(context.Context) updatecheck.Status {

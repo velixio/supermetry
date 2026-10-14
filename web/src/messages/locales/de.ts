@@ -349,6 +349,8 @@ const messages: MessageTree = {
     published: 'Veröffentlicht',
     checked: 'Zuletzt geprüft',
     viewRelease: 'Versionshinweise ansehen',
+    checkForUpdates: 'Nach Updates suchen',
+    checkingForUpdates: 'Suche läuft…',
     upToDate: 'Supermetry ist aktuell.',
     installUnavailable: 'Aktualisierungen werden von dieser Installation nicht verwaltet.',
     installUnavailableDescription: 'Installieren Sie die Version mit Ihrem bestehenden Bereitstellungsprozess oder konfigurieren Sie den Supermetry-Updater.',

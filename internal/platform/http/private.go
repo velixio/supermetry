@@ -75,6 +75,7 @@ type DemoService interface {
 
 type UpdateChecker interface {
 	Check(context.Context) updatecheck.Status
+	Refresh(context.Context) updatecheck.Status
 }
 
 type UpdateStarter interface {
@@ -252,6 +253,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/admin/security/2fa-exemptions/{user}", h.adminDeleteTwoFactorExemption)
 	mux.HandleFunc("GET /api/private/admin/audit", h.adminListAudit)
 	mux.HandleFunc("GET /api/private/admin/update", h.adminUpdateStatus)
+	mux.HandleFunc("POST /api/private/admin/update/check", h.adminCheckUpdate)
 	mux.HandleFunc("POST /api/private/admin/update/apply", h.adminApplyUpdate)
 	mux.HandleFunc("GET /api/private/sites", h.listSites)
 	mux.HandleFunc("GET /api/private/sites/overview", h.sitesOverview)
