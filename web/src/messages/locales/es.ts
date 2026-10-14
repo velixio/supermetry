@@ -563,6 +563,9 @@ const messages: MessageTree = {
     pixelToday: 'Hoy',
     pixelAllTime: 'Todo el tiempo',
     pixelPeriodCards: 'Impresiones por periodo',
+    pixelCampaignFilter: 'Mostrando la campaña: {campaign}',
+    pixelClearCampaign: 'Mostrar todas las campañas',
+    pixelCampaignHintClick: 'Selecciona una campaña para ver solo sus cifras.',
     pixelNote: 'Los clientes de correo que bloquean o canalizan las imágenes por un proxy subestimarán o sobrestimarán los datos; trata las impresiones como una tendencia, no como una tasa de apertura precisa.',
   },
   // Cohorts and power users (F10).

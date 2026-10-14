@@ -563,6 +563,9 @@ const messages: MessageTree = {
     pixelToday: 'Heute',
     pixelAllTime: 'Gesamt',
     pixelPeriodCards: 'Abrufe nach Zeitraum',
+    pixelCampaignFilter: 'Kampagne: {campaign}',
+    pixelClearCampaign: 'Alle Kampagnen anzeigen',
+    pixelCampaignHintClick: 'Wähle eine Kampagne, um nur ihre Zahlen zu sehen.',
     pixelNote: 'E-Mail-Programme, die Bilder blockieren oder über Proxys laden, führen zu zu niedrigen oder zu hohen Werten; betrachten Sie Abrufe als Trend, nicht als genaue Öffnungsrate.',
   },
   // Cohorts and power users (F10).

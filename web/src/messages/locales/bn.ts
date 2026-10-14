@@ -242,6 +242,9 @@ const messages: MessageTree = {
     pixelCopySnippet: 'স্নিপেট কপি করুন', pixelCopyUrl: 'URL কপি করুন', pixelStatsTitle: 'ইমপ্রেশন', pixelCampaigns: 'প্রচারণা', pixelUntagged: 'ট্যাগবিহীন',
     pixelImpressions: 'সময়কালের ইমপ্রেশন', pixelNote: 'ছবি ব্লক বা প্রক্সি করা ইমেইল ক্লায়েন্টে কম বা বেশি গণনা হতে পারে; ইমপ্রেশনকে প্রবণতা হিসেবে দেখুন, নির্ভুল ওপেন রেট হিসেবে নয়।',
     last6mo: 'গত ৬ মাস', last12mo: 'গত ১২ মাস', groupBy: 'গ্রুপ করুন', byDay: 'দিন অনুযায়ী', byWeek: 'সপ্তাহ অনুযায়ী', byMonth: 'মাস অনুযায়ী', pixelToday: 'আজ', pixelAllTime: 'সব সময়', pixelPeriodCards: 'সময়কাল অনুযায়ী ইমপ্রেশন',
+    pixelCampaignFilter: 'ক্যাম্পেইন দেখানো হচ্ছে: {campaign}',
+    pixelClearCampaign: 'সব ক্যাম্পেইন দেখান',
+    pixelCampaignHintClick: 'শুধু এর সংখ্যা দেখতে একটি ক্যাম্পেইন বেছে নিন।',
   },
   cohorts: {
     title: 'কোহর্ট', description: 'মানুষ কী করেছেন তার ভিত্তিতে দর্শকগোষ্ঠী সংরক্ষণ করুন, তারপর আকার নির্ধারণ, নমুনা তালিকা ও ফিল্টার হিসেবে ব্যবহার করুন।',
