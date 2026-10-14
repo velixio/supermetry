@@ -69,20 +69,29 @@ bun run test
 ```
 
 CI runs those checks for every pull request and every push to `main`. It also packs
-`@supermetry/node` from a clean build and verifies its ESM, CommonJS and TypeScript
-entry points.
+every npm SDK, installs the tarballs with npm in a clean project, checks their
+metadata and entry points, and runs the deeper ESM, CommonJS and TypeScript smoke
+test for `@supermetry/node`.
 
-### Publishing `@supermetry/node`
+### Publishing npm packages
 
-1. Set `sdk/node/package.json` to the release version and merge the verified change.
-2. Push the matching `sdk-node-v<version>` tag, for example `sdk-node-v0.1.0`.
+1. Set the package version and all internal dependency versions, then merge the
+   verified change to `main`.
+2. Push its matching tag. The accepted prefixes are `sdk-tracker-v`, `sdk-node-v`,
+   `sdk-react-native-v`, `sdk-react-v`, `sdk-vue-v`, `sdk-astro-v`, `sdk-express-v`,
+   `sdk-nextjs-v`, and `sdk-remix-v`.
 3. The `publish-node-sdk.yml` workflow rebuilds and verifies the package, checks the
-   tag against `package.json`, and stages the exact artifact on npm with provenance.
+   tag against `package.json`, and stages that exact artifact on npm with provenance.
 4. A maintainer reviews the staged package on npm and approves it with 2FA.
+
+Stage releases in dependency order: tracker, Node and React Native first; React,
+Vue, Astro and Express second; Next.js and Remix last. A dependency must be public
+before a dependent package is staged. Stable versions use npm's `latest` tag;
+prerelease versions use `next`.
 
 The first staged publication needs a granular `NPM_TOKEN` secret with stage access
 in the `npm` GitHub environment; it does not need to bypass 2FA. After the package
-exists, configure npm trusted publishing for this repository,
-`publish-node-sdk.yml`, and the `npm` environment with only `npm stage publish`
-allowed. The npm CLI will then use OIDC instead of the long-lived token, which can
-be removed.
+exists, configure npm trusted publishing separately for each package, using this
+repository, `publish-node-sdk.yml`, and the `npm` environment, with only
+`npm stage publish` allowed. The npm CLI will then use OIDC instead of the
+long-lived token. Remove `NPM_TOKEN` after every package has a trusted publisher.
