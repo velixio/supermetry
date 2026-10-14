@@ -3,6 +3,19 @@
   "version": "0.1.0",
   "description": "React Native SDK for Supermetry self-hosted analytics",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velixio/supermetry.git",
+    "directory": "sdk/react-native"
+  },
+  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/react-native#readme",
+  "bugs": {
+    "url": "https://github.com/velixio/supermetry/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -19,7 +32,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "sideEffects": false,
   "keywords": [
@@ -30,6 +45,8 @@
   ],
   "scripts": {
     "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --format esm --target browser --packages external && bun build src/index.ts --outfile dist/index.cjs --format cjs --target browser --packages external && tsc -p tsconfig.build.json",
+    "package:check": "node ../scripts/check-packages.mjs react-native",
+    "prepack": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

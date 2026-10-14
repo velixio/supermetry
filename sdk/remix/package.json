@@ -3,6 +3,19 @@
   "version": "0.1.0",
   "description": "Supermetry analytics for Remix and React Router 7, with a first-party proxy",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velixio/supermetry.git",
+    "directory": "sdk/remix"
+  },
+  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/remix#readme",
+  "bugs": {
+    "url": "https://github.com/velixio/supermetry/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -20,9 +33,12 @@
     }
   },
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": ["dist", "README.md", "LICENSE", "NOTICE"],
+  "keywords": ["analytics", "supermetry", "remix", "react-router", "privacy", "tracking"],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "package:check": "node ../scripts/check-packages.mjs remix",
+    "prepack": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

@@ -1,6 +1,6 @@
 # `@supermetry/express`
 
-Express middleware for [Supermetry](../SPEC.md). Attaches `req.supermetry`, bound to the visitor's User-Agent, IP, URL and referrer. Built on [`@supermetry/node`](../node).
+Express middleware for [Supermetry](https://github.com/velixio/supermetry/blob/main/sdk/SPEC.md). Attaches `req.supermetry`, bound to the visitor's User-Agent, IP, URL and referrer. Built on [`@supermetry/node`](https://www.npmjs.com/package/@supermetry/node).
 
 ## Install
 

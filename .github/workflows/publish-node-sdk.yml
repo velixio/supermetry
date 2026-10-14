@@ -1,26 +1,32 @@
-name: Publish Node SDK
+name: Stage npm SDK package
 
 "on":
   push:
     tags:
-      - "sdk-node-v*"
+      - "sdk-*-v*"
 
 permissions:
   contents: read
 
 jobs:
   verify:
-    name: Verify @supermetry/node
+    name: Verify npm package
     runs-on: ubuntu-latest
     outputs:
       archive: ${{ steps.package.outputs.archive }}
+      artifact: ${{ steps.package.outputs.artifact }}
+      dist-tag: ${{ steps.resolve.outputs.dist-tag }}
+      package-name: ${{ steps.resolve.outputs.package-name }}
+      version: ${{ steps.resolve.outputs.version }}
+      sha256: ${{ steps.package.outputs.sha256 }}
+      sha512: ${{ steps.package.outputs.sha512 }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.0.0
         with:
           node-version: "24"
           package-manager-cache: false
@@ -31,50 +37,103 @@ jobs:
         shell: bash
         run: git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
 
+      - name: Resolve and verify release tag
+        id: resolve
+        working-directory: sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            sdk-tracker-v*) package_dir="js"; package_name="@supermetry/tracker"; prefix="sdk-tracker-v" ;;
+            sdk-node-v*) package_dir="node"; package_name="@supermetry/node"; prefix="sdk-node-v" ;;
+            sdk-react-native-v*) package_dir="react-native"; package_name="@supermetry/react-native"; prefix="sdk-react-native-v" ;;
+            sdk-react-v*) package_dir="react"; package_name="@supermetry/react"; prefix="sdk-react-v" ;;
+            sdk-vue-v*) package_dir="vue"; package_name="@supermetry/vue"; prefix="sdk-vue-v" ;;
+            sdk-astro-v*) package_dir="astro"; package_name="@supermetry/astro"; prefix="sdk-astro-v" ;;
+            sdk-express-v*) package_dir="express"; package_name="@supermetry/express"; prefix="sdk-express-v" ;;
+            sdk-nextjs-v*) package_dir="nextjs"; package_name="@supermetry/nextjs"; prefix="sdk-nextjs-v" ;;
+            sdk-remix-v*) package_dir="remix"; package_name="@supermetry/remix"; prefix="sdk-remix-v" ;;
+            *) echo "Unsupported SDK tag: $GITHUB_REF_NAME" >&2; exit 1 ;;
+          esac
+          actual_name="$(node --print "require('./$package_dir/package.json').name")"
+          version="$(node --print "require('./$package_dir/package.json').version")"
+          test "$actual_name" = "$package_name"
+          test "$GITHUB_REF_NAME" = "$prefix$version"
+          node --input-type=module --eval '
+            const version = process.argv[1];
+            if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) process.exit(1);
+          ' "$version"
+          if [[ "$version" == *-* ]]; then dist_tag="next"; else dist_tag="latest"; fi
+          {
+            echo "package-dir=$package_dir"
+            echo "package-name=$package_name"
+            echo "version=$version"
+            echo "dist-tag=$dist_tag"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Install SDK dependencies
         working-directory: sdk
         run: bun install --frozen-lockfile
 
-      - name: Verify tag matches package version
-        working-directory: sdk/node
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(node --print "require('./package.json').version")"
-          test "$GITHUB_REF_NAME" = "sdk-node-v$version"
+      - name: Build SDK workspace
+        working-directory: sdk
+        run: bun run build
 
-      - name: Test and typecheck Node SDK
-        working-directory: sdk/node
+      - name: Test and typecheck package
+        working-directory: sdk
+        env:
+          PACKAGE_NAME: ${{ steps.resolve.outputs.package-name }}
         run: |
-          bun run typecheck
-          bun run test
+          bun run --filter "$PACKAGE_NAME" typecheck
+          bun run --filter "$PACKAGE_NAME" test
 
-      - name: Pack Node SDK
+      - name: Pack package
         id: package
-        working-directory: sdk/node
+        working-directory: sdk
+        env:
+          PACKAGE_DIR: ${{ steps.resolve.outputs.package-dir }}
+          PACKAGE_NAME: ${{ steps.resolve.outputs.package-name }}
+          PACKAGE_VERSION: ${{ steps.resolve.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          version="$(node --print "require('./package.json').version")"
-          mkdir -p "$RUNNER_TEMP/node-package"
-          npm pack --pack-destination "$RUNNER_TEMP/node-package" --silent
-          archive="supermetry-node-$version.tgz"
-          test -f "$RUNNER_TEMP/node-package/$archive"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          package_root="$PWD/$PACKAGE_DIR"
+          package_output="$RUNNER_TEMP/sdk-package"
+          archive="${PACKAGE_NAME#@}"
+          archive="${archive//\//-}-$PACKAGE_VERSION.tgz"
+          mkdir -p "$package_output"
+          cd "$package_root"
+          bun pm pack --filename "$package_output/$archive" --quiet
+          test -f "$package_output/$archive"
+          sha256="$(sha256sum "$package_output/$archive" | cut -d ' ' -f 1)"
+          sha512="$(sha512sum "$package_output/$archive" | cut -d ' ' -f 1)"
+          {
+            echo "archive=$archive"
+            echo "artifact=supermetry-sdk-${PACKAGE_DIR}-${GITHUB_RUN_ID}"
+            echo "sha256=$sha256"
+            echo "sha512=$sha512"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Verify package contents and entry points
+      - name: Verify exact package artifact
+        working-directory: sdk
+        env:
+          PACKAGE_DIR: ${{ steps.resolve.outputs.package-dir }}
+        run: node scripts/check-packages.mjs --archive "$RUNNER_TEMP/sdk-package/${{ steps.package.outputs.archive }}" "$PACKAGE_DIR"
+
+      - name: Verify Node entry points
+        if: steps.resolve.outputs.package-name == '@supermetry/node'
         working-directory: sdk/node
-        run: bun run scripts/smoke-package.mjs "$RUNNER_TEMP/node-package/${{ steps.package.outputs.archive }}"
+        run: bun run scripts/smoke-package.mjs "$RUNNER_TEMP/sdk-package/${{ steps.package.outputs.archive }}"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.0
         with:
-          name: supermetry-node-package
-          path: ${{ runner.temp }}/node-package/${{ steps.package.outputs.archive }}
+          name: ${{ steps.package.outputs.artifact }}
+          path: ${{ runner.temp }}/sdk-package/${{ steps.package.outputs.archive }}
           if-no-files-found: error
           retention-days: 1
 
   publish:
-    name: Stage @supermetry/node
+    name: Stage ${{ needs.verify.outputs.package-name }}
     needs: verify
     runs-on: ubuntu-latest
     environment: npm
@@ -82,18 +141,37 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.0.0
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.0
         with:
-          name: supermetry-node-package
-          path: node-package
+          name: ${{ needs.verify.outputs.artifact }}
+          path: sdk-package
+
+      - name: Verify downloaded artifact
+        env:
+          ARCHIVE: ${{ needs.verify.outputs.archive }}
+          EXPECTED_NAME: ${{ needs.verify.outputs.package-name }}
+          EXPECTED_VERSION: ${{ needs.verify.outputs.version }}
+          EXPECTED_SHA256: ${{ needs.verify.outputs.sha256 }}
+          EXPECTED_SHA512: ${{ needs.verify.outputs.sha512 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum "sdk-package/$ARCHIVE" | cut -d ' ' -f 1)" = "$EXPECTED_SHA256"
+          test "$(sha512sum "sdk-package/$ARCHIVE" | cut -d ' ' -f 1)" = "$EXPECTED_SHA512"
+          actual_name="$(tar -xOzf "sdk-package/$ARCHIVE" package/package.json | node -e "let s=''; process.stdin.on('data',c=>s+=c); process.stdin.on('end',()=>console.log(JSON.parse(s).name))")"
+          actual_version="$(tar -xOzf "sdk-package/$ARCHIVE" package/package.json | node -e "let s=''; process.stdin.on('data',c=>s+=c); process.stdin.on('end',()=>console.log(JSON.parse(s).version))")"
+          test "$actual_name" = "$EXPECTED_NAME"
+          test "$actual_version" = "$EXPECTED_VERSION"
 
       - name: Stage verified package
-        run: npm stage publish "./node-package/${{ needs.verify.outputs.archive }}" --access public --provenance
         env:
+          ARCHIVE: ${{ needs.verify.outputs.archive }}
+          DIST_TAG: ${{ needs.verify.outputs.dist-tag }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm stage publish "./sdk-package/$ARCHIVE" --access public --tag "$DIST_TAG" --provenance --ignore-scripts

@@ -46,7 +46,11 @@ jobs:
         working-directory: sdk
         run: bun run test
 
-      - name: Verify packed Node SDK
+      - name: Verify packed SDK packages
+        working-directory: sdk
+        run: bun run package:check
+
+      - name: Verify Node SDK entry points
         working-directory: sdk/node
         run: bun run package:check
 

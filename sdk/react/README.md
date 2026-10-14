@@ -1,6 +1,6 @@
 # `@supermetry/react`
 
-React bindings for [Supermetry](https://github.com/supermetry) analytics: a provider that loads the tracker and a hook that returns it.
+React bindings for [Supermetry](https://github.com/velixio/supermetry) analytics: a provider that loads the tracker and a hook that returns it.
 
 ```sh
 npm install @supermetry/react
@@ -33,7 +33,7 @@ function Checkout() {
 }
 ```
 
-`SupermetryProvider` accepts every [`@supermetry/tracker` option](../js/README.md) (`site` plus `host` or `src`, `manual`, `hash`, `consent`, `beforeSend`, …) and injects the script once, after mount.
+`SupermetryProvider` accepts every [`@supermetry/tracker` option](https://github.com/velixio/supermetry/blob/main/sdk/js/README.md) (`site` plus `host` or `src`, `manual`, `hash`, `consent`, `beforeSend`, …) and injects the script once, after mount.
 
 `useSupermetry()` returns the tracker: `pageview`, `track`, `identify`, `consent`, `optIn`, `optOut`. It works anywhere, with or without the provider in the tree; calls made before the script loads are queued, and during server rendering every method is a no-op.
 

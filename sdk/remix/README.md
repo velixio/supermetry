@@ -1,6 +1,6 @@
 # `@supermetry/remix`
 
-[Supermetry](https://github.com/supermetry) analytics for Remix 2 (and React Router 7 framework mode): route-aware pageviews plus a first-party proxy.
+[Supermetry](https://github.com/velixio/supermetry) analytics for Remix 2 (and React Router 7 framework mode): route-aware pageviews plus a first-party proxy.
 
 ```sh
 npm install @supermetry/remix
@@ -30,7 +30,7 @@ export default function App() {
 }
 ```
 
-`<Supermetry />` loads the tracker in manual mode and sends a pageview for the first route and every change of `pathname` or `search` (and `hash` with `hash`). It accepts every [`@supermetry/tracker` option](../js/README.md) except `manual`.
+`<Supermetry />` loads the tracker in manual mode and sends a pageview for the first route and every change of `pathname` or `search` (and `hash` with `hash`). It accepts every [`@supermetry/tracker` option](https://github.com/velixio/supermetry/blob/main/sdk/js/README.md) except `manual`.
 
 ```tsx
 import { useSupermetry } from "@supermetry/remix";
@@ -79,4 +79,4 @@ export const action = proxy.action;
 
 The proxy forwards the visitor's `User-Agent`, `Origin`, `Referer`, `DNT` and `Sec-GPC`, sends the client IP (first `X-Forwarded-For` hop, or `X-Real-IP`) as `X-Forwarded-For`, and answers events with `Cache-Control: no-store`. Add your server's address to `SUPERMETRY_TRUSTED_PROXIES`. Pass `getClientIp: (request) => …` if your adapter exposes the IP elsewhere.
 
-For server-side events use [`@supermetry/node`](../node/README.md).
+For server-side events use [`@supermetry/node`](https://www.npmjs.com/package/@supermetry/node).
