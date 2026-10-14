@@ -1,0 +1,99 @@
+name: Publish Node SDK
+
+"on":
+  push:
+    tags:
+      - "sdk-node-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify @supermetry/node
+    runs-on: ubuntu-latest
+    outputs:
+      archive: ${{ steps.package.outputs.archive }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Require a merged main commit
+        shell: bash
+        run: git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
+
+      - name: Install SDK dependencies
+        working-directory: sdk
+        run: bun install --frozen-lockfile
+
+      - name: Verify tag matches package version
+        working-directory: sdk/node
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node --print "require('./package.json').version")"
+          test "$GITHUB_REF_NAME" = "sdk-node-v$version"
+
+      - name: Test and typecheck Node SDK
+        working-directory: sdk/node
+        run: |
+          bun run typecheck
+          bun run test
+
+      - name: Pack Node SDK
+        id: package
+        working-directory: sdk/node
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node --print "require('./package.json').version")"
+          mkdir -p "$RUNNER_TEMP/node-package"
+          npm pack --pack-destination "$RUNNER_TEMP/node-package" --silent
+          archive="supermetry-node-$version.tgz"
+          test -f "$RUNNER_TEMP/node-package/$archive"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package contents and entry points
+        working-directory: sdk/node
+        run: bun run scripts/smoke-package.mjs "$RUNNER_TEMP/node-package/${{ steps.package.outputs.archive }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: supermetry-node-package
+          path: ${{ runner.temp }}/node-package/${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish @supermetry/node
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: supermetry-node-package
+          path: node-package
+
+      - name: Publish verified package
+        run: npm publish "node-package/${{ needs.verify.outputs.archive }}" --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
