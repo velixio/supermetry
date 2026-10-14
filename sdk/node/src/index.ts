@@ -14,10 +14,10 @@ import {
   type Props,
   type Revenue,
   type Traits,
-} from "./validate";
+} from "./validate.js";
 
-export type { PropValue, Props, Revenue, Traits } from "./validate";
-export { sanitizeProps, sanitizeRevenue, sanitizeTraits } from "./validate";
+export type { PropValue, Props, Revenue, Traits } from "./validate.js";
+export { sanitizeProps, sanitizeRevenue, sanitizeTraits } from "./validate.js";
 
 export const VERSION = "0.1.0";
 export const DEFAULT_USER_AGENT = `supermetry-node/${VERSION}`;

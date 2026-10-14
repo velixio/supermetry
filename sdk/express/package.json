@@ -23,6 +23,7 @@
   "keywords": ["analytics", "supermetry", "express", "middleware"],
   "scripts": {
     "build": "rm -rf dist && bun build src/index.ts --outfile dist/index.js --format esm --target node --packages external && bun build src/index.ts --outfile dist/index.cjs --format cjs --target node --packages external && tsc -p tsconfig.build.json",
+    "prepack": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
