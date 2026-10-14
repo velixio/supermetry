@@ -34,6 +34,17 @@ imports/exports -> আমদানি/রপ্তানি
 // BN translation of messages/en.ts. Machine-assisted first translation (reviewed: false in the manifest).
 // Keys, placeholders and function arguments must match English exactly; the catalogue test enforces it.
 const messages: MessageTree = {
+  pixels: {
+    measureTitle: 'আপনি কী পরিমাপ করতে চান?',
+    website: 'ওয়েবসাইট',
+    websiteHint: 'আপনার সাইটে একটি স্ক্রিপ্ট দিয়ে ওয়েব অ্যানালিটিক্স।',
+    anywhere: 'যেকোনো জায়গায় ভিউ',
+    anywhereHint: 'GitHub, README এবং ডকুমেন্টেশনের জন্য পিক্সেল অ্যানালিটিক্স।',
+    projectName: 'প্রকল্পের নাম',
+    createProject: 'প্রকল্প তৈরি করুন',
+    viewsNote: 'ভিউ, স্বতন্ত্র দর্শনার্থী নয়',
+    noCountryNote: 'GitHub এবং অন্যান্য ইমেজ প্রক্সি দেশ গোপন করে, তাই তাদের ভিউতে দেশের তথ্য থাকে না।',
+  },
   appName: 'Supermetry',
   loadingDashboard: 'ড্যাশবোর্ড লোড হচ্ছে…',
   auth: {

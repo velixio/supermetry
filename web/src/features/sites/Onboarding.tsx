@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { canCreateSites } from '@/components/Sidebar'
 import { DemoChoice } from '@/features/demo/DemoChoice'
 import { createSite as createManagedSite } from '@/features/sites/api'
+import { KindChoice } from '@/features/sites/KindChoice'
+import { PixelProjectForm } from '@/features/sites/PixelProjectForm'
 import { SiteForm } from '@/features/sites/SiteForm'
-import type { ManagedSite, SiteInput } from '@/features/sites/types'
+import type { ManagedSite, SiteInput, SiteKind } from '@/features/sites/types'
 import { en } from '@/messages/en'
 import type { Me } from '@/routes/app.$org'
 
@@ -16,6 +18,7 @@ export function Onboarding({ me, createSite, navigate }: {
   createSite?: (input: SiteInput) => Promise<ManagedSite>
   navigate: (path: string, replace?: boolean) => void
 }) {
+  const [kind, setKind] = useState<SiteKind>('web')
   const membership = me.memberships[0]
   const existingSite = membership?.sites[0]
 
@@ -40,15 +43,26 @@ export function Onboarding({ me, createSite, navigate }: {
     <div className="flex justify-center py-6 md:py-10">
       <section className="flex w-full max-w-md flex-col gap-5 rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
         {me.demo_prompt_dismissed === false ? <DemoChoice org={{ id: membership.org.id, slug: membership.org.slug }} onDismissed={() => navigate(`/app/${membership.org.slug}/sites`)} /> : null}
-        <PageHeader title="Create your first site" description="Add the website where Supermetry should collect analytics." />
-        <SiteForm
-          submitLabel="Create site"
-          onSubmit={async (input) => {
-            const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
-            navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/installation`)
-          }}
-          secondaryAction={me.demo_prompt_dismissed !== false ? <Button type="button" variant="ghost" onClick={() => navigate(`/app/${membership.org.slug}/sites`)}>Skip for now</Button> : undefined}
-        />
+        <PageHeader title={en.pixels.measureTitle} description="Choose web analytics or count views where JavaScript cannot run." />
+        <KindChoice value={kind} onChange={setKind} />
+        {kind === 'pixel' ? (
+          <PixelProjectForm
+            submitLabel={en.pixels.createProject}
+            onSubmit={async (input) => {
+              const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
+              navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}`)
+            }}
+          />
+        ) : (
+          <SiteForm
+            submitLabel="Create site"
+            onSubmit={async (input) => {
+              const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
+              navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/installation`)
+            }}
+            secondaryAction={me.demo_prompt_dismissed !== false ? <Button type="button" variant="ghost" onClick={() => navigate(`/app/${membership.org.slug}/sites`)}>Skip for now</Button> : undefined}
+          />
+        )}
       </section>
     </div>
   )

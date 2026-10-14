@@ -109,5 +109,5 @@ export async function refetchSiteIcon(siteId: number, orgId: number): Promise<Ma
       response.status,
     )
   }
-  return data
+  return data as ManagedSite
 }
