@@ -119,6 +119,36 @@ func TestRunDeletesExpiredPixelViews(t *testing.T) {
 	}
 }
 
+func TestRunKeepsPixelViewsForForeverRetention(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Forever','forever-px') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class,kind) values ($1,'foreverpx001','Forever','UTC',0,'pixel') returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	var pixelID int64
+	if err := pool.QueryRow(ctx, `insert into pixels(site_id,public_id,name) values ($1,'pFOREVER0001','forever') returning id`, siteID).Scan(&pixelID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into pixel_views_daily values ($1,'2020-01-01','','proxy',7)`, pixelID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := retention.Run(ctx, pool, time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	var views int64
+	if err := pool.QueryRow(ctx, `select coalesce(sum(views),0) from pixel_views_daily where pixel_id=$1`, pixelID).Scan(&views); err != nil || views != 7 {
+		t.Fatalf("forever-retention views = %d, err %v", views, err)
+	}
+}
+
 func TestRunUsesEachSitesLocalDayForDropStatsRetention(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()

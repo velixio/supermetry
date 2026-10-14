@@ -161,6 +161,7 @@ func deleteExpiredPixelViews(ctx context.Context, pool *pgxpool.Pool, now time.T
 	_, err := pool.Exec(ctx, `
 		delete from pixel_views_daily v using pixels p, sites s
 		where v.pixel_id = p.id and p.site_id = s.id
+		  and s.retention_class <> 0
 		  and v.day < (($1::timestamptz at time zone s.timezone)::date - s.retention_class - 1)`, now)
 	if err != nil {
 		return fmt.Errorf("delete expired pixel views: %w", err)
