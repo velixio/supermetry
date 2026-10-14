@@ -174,24 +174,27 @@ func TestLegacySiteBadgeIsServedForTheEmailPixelID(t *testing.T) {
 		seen = append(seen, id)
 		series := make([]int64, n)
 		series[n-1] = 3
-		return 40, series, id == "siteLegacy01"
+		return 40, series, id == "siteLegacy01" && r.URL.Query().Get("c") == "registered"
 	}
-	rec := f.get(t, http.MethodGet, "/px/siteLegacy01.svg?style=stats", chromeUA)
+	rec := f.get(t, http.MethodGet, "/px/siteLegacy01.svg?c=registered&style=stats", chromeUA)
 	body := rec.Body.String()
 	if rec.Code != http.StatusOK || !strings.Contains(body, "<polyline") || !strings.Contains(body, "today 3") || !strings.Contains(body, "40") {
 		t.Fatalf("stats badge = %d %s", rec.Code, body)
 	}
-	flat := f.get(t, http.MethodGet, "/px/siteLegacy01.svg", chromeUA).Body.String()
+	flat := f.get(t, http.MethodGet, "/px/siteLegacy01.svg?c=registered", chromeUA).Body.String()
 	if strings.Contains(flat, "<polyline") || !strings.Contains(flat, "40") {
 		t.Fatalf("flat badge = %s", flat)
 	}
 	if unknown := f.get(t, http.MethodGet, "/px/nosuchsite00.svg", chromeUA).Body.String(); !strings.Contains(unknown, ">0<") {
 		t.Fatalf("unknown id must show an empty badge: %s", unknown)
 	}
-	if len(seen) != 3 {
+	if unregistered := f.get(t, http.MethodGet, "/px/siteLegacy01.svg?c=arbitrary&style=stats", chromeUA).Body.String(); strings.Contains(unregistered, "<polyline") || !strings.Contains(unregistered, ">0<") {
+		t.Fatalf("unregistered tag must show a plain empty badge: %s", unregistered)
+	}
+	if len(seen) != 4 {
 		t.Fatalf("legacy lookups = %v", seen)
 	}
-	if f.get(t, http.MethodGet, "/px/pAAAAAAAAAAA.svg", camoUA); len(seen) != 3 {
+	if f.get(t, http.MethodGet, "/px/pAAAAAAAAAAA.svg", camoUA); len(seen) != 4 {
 		t.Fatal("a pixel-project id must not use the legacy lookup")
 	}
 }

@@ -325,7 +325,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	overviewService.SetClock(settings.clock.Now)
 	linkRecorder := links.NewRecorder(pool, links.RecorderOptions{})
 	linkRecorder.Views = links.NewSiteViews()
-	if err := linkRecorder.Views.Seed(ctx, pool, settings.clock.Now().UTC().AddDate(0, 0, -pixels.RecentDays-1).Format(time.DateOnly)); err != nil {
+	if err := linkRecorder.Views.Reload(ctx, pool); err != nil {
 		return fmt.Errorf("load pixel impressions: %w", err)
 	}
 	linkHandler := &links.Handler{
@@ -371,16 +371,17 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
-		LinkCache:      linkHandler,
-		Pixels:         pixelRegistry,
-		Version:        version,
-		UpdateChecker:  updatecheck.New(version),
-		UpdateStarter:  updateController,
-		UpdateMode:     updateMode,
-		TrackingMode:   cfg.Tracking.Mode,
-		MaxOrgsPerUser: cfg.MaxOrgsPerUser,
-		MaxSitesPerOrg: cfg.MaxSitesPerOrg,
-		BaseURL:        cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
+		LinkCache:          linkHandler,
+		TrackingPixelViews: linkRecorder.Views,
+		Pixels:             pixelRegistry,
+		Version:            version,
+		UpdateChecker:      updatecheck.New(version),
+		UpdateStarter:      updateController,
+		UpdateMode:         updateMode,
+		TrackingMode:       cfg.Tracking.Mode,
+		MaxOrgsPerUser:     cfg.MaxOrgsPerUser,
+		MaxSitesPerOrg:     cfg.MaxSitesPerOrg,
+		BaseURL:            cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
 		},

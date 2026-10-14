@@ -227,9 +227,8 @@ func (h *Handler) ServePixel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// BadgeStats counts the request like ServePixel and returns the site's all-time total and its
-// last n days (oldest first) for a badge. ok is false when the site is unknown or no
-// in-memory counts are configured.
+// BadgeStats counts the request like ServePixel and returns one registered tag's
+// all-time total and last n days. Unregistered tags never allocate badge state.
 func (h *Handler) BadgeStats(r *http.Request, publicID string, n int) (total int64, series []int64, ok bool) {
 	if h.Recorder == nil || h.Recorder.Views == nil {
 		return 0, nil, false
@@ -238,8 +237,11 @@ func (h *Handler) BadgeStats(r *http.Request, publicID string, n int) (total int
 	if !found {
 		return 0, nil, false
 	}
-	total, series = h.Recorder.Views.Snapshot(site.ID, localDay(h.now(), site), n)
-	return total, series, true
+	tag := NormalizeCampaign(r.URL.Query().Get("c"))
+	if tag == "" {
+		return 0, nil, false
+	}
+	return h.Recorder.Views.Snapshot(site.ID, tag, localDay(h.now(), site), n)
 }
 
 // countPixel records one impression when the request is allowed to count, and reports
@@ -256,6 +258,10 @@ func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool
 	if r.Method != http.MethodGet || r.URL.Query().Get("preview") == "1" {
 		return site, true
 	}
+	tag := NormalizeCampaign(r.URL.Query().Get("c"))
+	if tag == "" || h.Recorder == nil || h.Recorder.Views == nil || !h.Recorder.Views.Registered(site.ID, tag) {
+		return site, true
+	}
 	key, ip := h.clientKey(r)
 	if h.Limiter != nil && !h.Limiter.Allow("px:"+key) {
 		return site, true
@@ -266,7 +272,7 @@ func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool
 	if site.RespectPrivacySignals && privacySignal(r) {
 		return site, true
 	}
-	h.Recorder.Impression(site.ID, localDay(h.now(), site), NormalizeCampaign(r.URL.Query().Get("c")), h.Enricher.Country(ip))
+	h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, h.Enricher.Country(ip))
 	return site, true
 }
 
