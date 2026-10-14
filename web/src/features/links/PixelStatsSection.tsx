@@ -9,6 +9,7 @@ import { en } from '@/messages/en'
 import { type Granularity } from '../pixels/buckets'
 import { usePixelStats } from './api'
 import { DailyBars } from './DailyBars'
+import { PixelPlaces } from './PixelPlaces'
 
 const t = en.linksUi
 
@@ -89,6 +90,7 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
             to={stats.data.to}
             unit={t.pixelStatsTitle}
           />
+          <PixelPlaces stats={stats.data} />
         </>
       ) : null}
     </section>
