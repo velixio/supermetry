@@ -77,7 +77,7 @@ import { Route as AppOrgSiteSettingsReplayRouteImport } from './routes/app.$org.
 import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org.$site.settings.reports'
 import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.$site.settings.shares'
 import { Route as AppOrgSiteSettingsTrackingRouteImport } from './routes/app.$org.$site.settings.tracking'
-import { Route as AppOrgSiteLinksPixelCampaignRouteImport } from './routes/app.$org.$site.links.pixel_.$campaign'
+import { Route as AppOrgSiteLinksPixelIdRouteImport } from './routes/app.$org.$site.links.pixel_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -433,12 +433,11 @@ const AppOrgSiteSettingsTrackingRoute =
     path: '/tracking',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
-const AppOrgSiteLinksPixelCampaignRoute =
-  AppOrgSiteLinksPixelCampaignRouteImport.update({
-    id: '/$site/links/pixel_/$campaign',
-    path: '/$site/links/pixel/$campaign',
-    getParentRoute: () => AppOrgRoute,
-  } as any)
+const AppOrgSiteLinksPixelIdRoute = AppOrgSiteLinksPixelIdRouteImport.update({
+  id: '/$site/links/pixel_/$id',
+  path: '/$site/links/pixel/$id',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -509,7 +508,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
-  '/app/$org/$site/links/pixel/$campaign': typeof AppOrgSiteLinksPixelCampaignRoute
+  '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -578,7 +577,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/links': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
-  '/app/$org/$site/links/pixel/$campaign': typeof AppOrgSiteLinksPixelCampaignRoute
+  '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -650,7 +649,7 @@ export interface FileRoutesById {
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
-  '/app/$org/$site/links/pixel_/$campaign': typeof AppOrgSiteLinksPixelCampaignRoute
+  '/app/$org/$site/links/pixel_/$id': typeof AppOrgSiteLinksPixelIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -723,7 +722,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
-    | '/app/$org/$site/links/pixel/$campaign'
+    | '/app/$org/$site/links/pixel/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -792,7 +791,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/links'
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
-    | '/app/$org/$site/links/pixel/$campaign'
+    | '/app/$org/$site/links/pixel/$id'
   id:
     | '__root__'
     | '/'
@@ -863,7 +862,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
-    | '/app/$org/$site/links/pixel_/$campaign'
+    | '/app/$org/$site/links/pixel_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1356,11 +1355,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsTrackingRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
-    '/app/$org/$site/links/pixel_/$campaign': {
-      id: '/app/$org/$site/links/pixel_/$campaign'
-      path: '/$site/links/pixel/$campaign'
-      fullPath: '/app/$org/$site/links/pixel/$campaign'
-      preLoaderRoute: typeof AppOrgSiteLinksPixelCampaignRouteImport
+    '/app/$org/$site/links/pixel_/$id': {
+      id: '/app/$org/$site/links/pixel_/$id'
+      path: '/$site/links/pixel/$id'
+      fullPath: '/app/$org/$site/links/pixel/$id'
+      preLoaderRoute: typeof AppOrgSiteLinksPixelIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
   }
@@ -1452,7 +1451,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteLinksIndexRoute: typeof AppOrgSiteLinksIndexRoute
   AppOrgSiteProfilesIndexRoute: typeof AppOrgSiteProfilesIndexRoute
   AppOrgSiteReplaysIndexRoute: typeof AppOrgSiteReplaysIndexRoute
-  AppOrgSiteLinksPixelCampaignRoute: typeof AppOrgSiteLinksPixelCampaignRoute
+  AppOrgSiteLinksPixelIdRoute: typeof AppOrgSiteLinksPixelIdRoute
 }
 
 const AppOrgRouteChildren: AppOrgRouteChildren = {
@@ -1481,7 +1480,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteLinksIndexRoute: AppOrgSiteLinksIndexRoute,
   AppOrgSiteProfilesIndexRoute: AppOrgSiteProfilesIndexRoute,
   AppOrgSiteReplaysIndexRoute: AppOrgSiteReplaysIndexRoute,
-  AppOrgSiteLinksPixelCampaignRoute: AppOrgSiteLinksPixelCampaignRoute,
+  AppOrgSiteLinksPixelIdRoute: AppOrgSiteLinksPixelIdRoute,
 }
 
 const AppOrgRouteWithChildren =

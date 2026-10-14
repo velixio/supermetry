@@ -74,6 +74,12 @@ test('short links: create, redirect safely, count clicks, show statistics and pi
   const me = await (await page.request.get('/api/private/me')).json()
   const publicId = me.memberships.flatMap((item: { sites: { id: number; public_id: string }[] }) => item.sites)
     .find((item: { id: number }) => item.id === owner.siteId).public_id as string
+  const trackingPixel = await page.request.post(`/api/private/sites/${owner.siteId}/tracking-pixels`, {
+    headers: owner.apiHeaders,
+    data: { name: 'Autumn pixel', tag: 'autumn' },
+  })
+  expect(trackingPixel.status(), await trackingPixel.text()).toBe(201)
+  const trackingPixelId = (await trackingPixel.json()).id as number
   for (let index = 0; index < 3; index += 1) {
     const pixel = await page.request.get(`/px/${publicId}.gif?c=autumn`, { headers: { 'User-Agent': desktopUA } })
     expect(pixel.status()).toBe(200)
@@ -124,7 +130,9 @@ test('short links: create, redirect safely, count clicks, show statistics and pi
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto(`${base}/pixel`)
   await expect(page.getByRole('heading', { level: 1, name: 'Links and pixels' })).toBeVisible()
-  await page.getByLabel('Campaign tag').fill('autumn')
+  await expect(page.getByRole('heading', { level: 2, name: 'Autumn pixel' })).toBeVisible()
+  await page.getByRole('link', { name: 'Open Autumn pixel' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Autumn pixel' })).toBeVisible()
   await expect(page.locator('#pixel-html')).toContainText(`/px/${publicId}.gif?c=autumn`)
   await expect(page.getByText('Impressions in period').locator('xpath=following-sibling::dd')).toHaveText('3', { timeout: 20_000 })
   await expectNoHorizontalOverflow(page)
@@ -149,6 +157,7 @@ test('short links: create, redirect safely, count clicks, show statistics and pi
   for (const id of seedIDs) {
     expect((await page.request.delete(`/api/private/links/${id}`, { headers: owner.apiHeaders })).status()).toBe(204)
   }
+  expect((await page.request.delete(`/api/private/tracking-pixels/${trackingPixelId}`, { headers: owner.apiHeaders })).status()).toBe(204)
   await page.reload()
   await expect(page.getByText('No short links yet.')).toBeVisible()
 

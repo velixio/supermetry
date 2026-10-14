@@ -1,79 +1,109 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
+import { ArrowRightIcon, PlusIcon } from 'lucide-react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 
-import { usePixelSnippet } from './api'
+import { useSaveTrackingPixel, useTrackingPixels } from './api'
 import { CopyButton } from './CopyButton'
-import { badgeUrl } from '../pixels/snippets'
 import { LinksTabs } from './LinksTabs'
-import { PixelStatsSection } from './PixelStatsSection'
+import { PixelDialog } from './PixelDialog'
 
 const t = en.linksUi
-const campaignPattern = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/
 
-type Props = { org: string; siteSlug: string; siteId: number; timezone: string }
+type Props = { org: string; siteSlug: string; siteId: number; canManage: boolean }
 
-export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
-  const [campaign, setCampaign] = useState('')
-  const trimmed = campaign.trim()
-  const valid = trimmed === '' || campaignPattern.test(trimmed)
-  const snippet = usePixelSnippet(siteId, valid ? trimmed : '', valid)
+export function PixelPage({ org, siteSlug, siteId, canManage }: Props) {
+  const pixels = useTrackingPixels(siteId)
+  const save = useSaveTrackingPixel(siteId)
+  const [creating, setCreating] = useState(false)
 
   return (
     <PageContainer width="narrow">
-      <PageHeader title={t.title} description={t.pixelDescription} />
-      <LinksTabs org={org} site={siteSlug} />
-
-      <section aria-labelledby="pixel-snippet" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
-        <h2 className="text-base font-medium" id="pixel-snippet">{t.pixelTitle}</h2>
-        <Field data-invalid={!valid}>
-          <FieldLabel htmlFor="pixel-campaign">{t.pixelCampaign}</FieldLabel>
-          <Input
-            id="pixel-campaign" aria-invalid={!valid} autoCapitalize="none" autoComplete="off" className="min-h-11 max-w-sm"
-            maxLength={64} spellCheck={false} value={campaign} onChange={(event) => setCampaign(event.target.value)}
-          />
-          <FieldDescription>{t.pixelCampaignHint}</FieldDescription>
-          {!valid ? <FieldError>{t.pixelCampaignInvalid}</FieldError> : null}
-        </Field>
-        {snippet.isError ? <p role="alert" className="text-sm text-destructive">{snippet.error.message}</p> : null}
-        {snippet.data && valid ? (
-          <div className="flex flex-col gap-4">
-            <div>
-              <Label htmlFor="pixel-html">{t.pixelSnippet}</Label>
-              <pre className="mt-1 overflow-x-auto rounded-lg border bg-muted/40 p-3 text-sm" id="pixel-html" tabIndex={0}><code>{snippet.data.html}</code></pre>
-              <div className="mt-2"><CopyButton label={t.pixelCopySnippet} text={snippet.data.html}>{t.pixelCopySnippet}</CopyButton></div>
-            </div>
-            <div>
-              <Label htmlFor="pixel-url">{t.pixelUrl}</Label>
-              <p className="mt-1 break-all rounded-lg border bg-muted/40 p-3 font-mono text-sm" id="pixel-url">{snippet.data.url}</p>
-              <div className="mt-2"><CopyButton label={t.pixelCopyUrl} text={snippet.data.url}>{t.pixelCopyUrl}</CopyButton></div>
-            </div>
-          </div>
+      <PageHeader
+        title={t.title}
+        description={t.pixelDescription}
+        actions={canManage ? (
+          <Button className="min-h-11" onClick={() => { save.reset(); setCreating(true) }}>
+            <PlusIcon data-icon="inline-start" />
+            {t.pixelCreate}
+          </Button>
         ) : null}
-        <p className="text-xs text-muted-foreground">{t.pixelNote}</p>
-      </section>
+      />
+      <LinksTabs org={org} site={siteSlug} />
+      {!canManage ? <p className="text-sm text-muted-foreground">{t.pixelViewerNote}</p> : null}
 
-      {snippet.data ? (
-        <section aria-labelledby="pixel-badge" className="flex flex-col gap-3 rounded-xl border bg-card p-4">
-          <h2 className="text-base font-medium" id="pixel-badge">{t.pixelBadgeTitle}</h2>
-          <p className="text-sm text-muted-foreground">{t.pixelBadgeNote}</p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <img alt={t.pixelBadgePreviewTotal} height={20} src={`${badgeUrl(snippet.data.url)}?preview=1`} />
-            <img alt={t.pixelBadgePreviewStats} height={20} src={`${badgeUrl(snippet.data.url)}?style=stats&preview=1`} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <CopyButton label={t.pixelCopyBadge} text={`![views](${badgeUrl(snippet.data.url)})`}>{t.pixelCopyBadge}</CopyButton>
-            <CopyButton label={t.pixelCopyStatsBadge} text={`![views](${badgeUrl(snippet.data.url)}?style=stats)`}>{t.pixelCopyStatsBadge}</CopyButton>
-          </div>
-        </section>
+      {pixels.isPending ? <p className="text-sm text-muted-foreground" role="status">{t.pixelLoading}</p> : null}
+      {pixels.isError ? (
+        <div className="flex items-center gap-3 text-sm" role="alert">
+          {t.pixelLoadError}
+          <Button className="min-h-11" variant="outline" onClick={() => void pixels.refetch()}>{t.retry}</Button>
+        </div>
+      ) : null}
+      {pixels.data?.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>{t.pixelEmpty}</EmptyTitle>
+            <EmptyDescription>{t.pixelEmptyHint}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : null}
+      {pixels.data && pixels.data.length > 0 ? (
+        <ul className="flex flex-col gap-3">
+          {pixels.data.map((pixel) => (
+            <li className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4" key={pixel.id}>
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-medium">{pixel.name}</h2>
+                  <Badge className="mt-1" variant="secondary"><code>{pixel.tag}</code></Badge>
+                </div>
+                <dl className="flex gap-6 text-right">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t.pixelLast30Total}</dt>
+                    <dd className="text-2xl font-semibold tabular-nums">{fmt.number(pixel.views_30d)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t.pixelAllTime}</dt>
+                    <dd className="text-2xl font-semibold tabular-nums">{fmt.number(pixel.total)}</dd>
+                  </div>
+                </dl>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild className="min-h-11" variant="outline">
+                  <Link
+                    aria-label={t.pixelOpenLabel.replace('{name}', pixel.name)}
+                    params={{ org, site: siteSlug, id: String(pixel.id) }}
+                    to="/app/$org/$site/links/pixel/$id"
+                  >
+                    {t.pixelOpen}
+                    <ArrowRightIcon data-icon="inline-end" />
+                  </Link>
+                </Button>
+                <CopyButton label={t.pixelCopyImageUrl.replace('{name}', pixel.name)} text={pixel.gif_url}>
+                  {t.pixelCopyUrl}
+                </CopyButton>
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
-      <PixelStatsSection campaign={null} org={org} siteId={siteId} siteSlug={siteSlug} timezone={timezone} />
+      <PixelDialog
+        error={save.error}
+        pending={save.isPending}
+        pixel={creating ? null : undefined}
+        onClose={() => setCreating(false)}
+        onSave={async (input) => {
+          await save.mutateAsync({ input })
+          setCreating(false)
+        }}
+      />
     </PageContainer>
   )
 }
