@@ -25,6 +25,7 @@
   <a href="https://supermetry.com"><b>Website</b></a> ·
   <a href="https://supermetry.com/docs/"><b>Docs</b></a> ·
   <a href="#quick-start"><b>Self-host in 1 minute</b></a> ·
+  <a href="#supermetry-vs-plausible-umami-and-google-analytics"><b>Compare</b></a> ·
   <a href="https://supermetry.com/early-access/"><b>EU Cloud early access</b></a> ·
   <a href="https://github.com/velixio/supermetry/releases/latest"><b>Download</b></a>
 </p>
@@ -35,6 +36,8 @@
     <img src="docs/assets/readme/hero-light.webp" alt="The Supermetry dashboard showing visitors, visits, pageviews, bounce rate, visit duration, a 30-day traffic chart, top pages and traffic sources for a sample website" width="960">
   </picture>
 </p>
+
+Supermetry is an open-source, self-hosted web analytics platform and a privacy-friendly alternative to Google Analytics. It counts visitors, pageviews, traffic sources, goals and conversions without cookies, and keeps every number in your own PostgreSQL database. Funnels, retention, user journeys, Web Vitals, heatmaps and session replay are included in the open-source release.
 
 ---
 
@@ -49,7 +52,7 @@ Most analytics tools make you pick two: **privacy**, **depth**, or **easy hostin
 | ⚡ **Light on servers and pages** | The tracker is about 1.2 KB gzipped. In a 4-hour test one process ingested 200 events per second, 2.88 million events in all, with no loss, no errors, a worst-case p99 latency of 23 ms and under 190 MiB of memory ([details](tools/bench/soak/README.md)). |
 | ✅ **Numbers you can check** | Side by side with Plausible Community Edition on identical real-browser traffic, every metric and breakdown matched, in both products and against hand-computed truth ([details](tools/bench/accuracy/ab/README.md)). |
 | 🧭 **More than pageviews** | Goals, funnels, revenue, retention, user journeys, Web Vitals, heatmaps and session replay, all in the open-source release. No feature locks. |
-| 🔓 **Yours to leave** | Apache-2.0, a REST API, an MCP endpoint for AI assistants, CSV export and imports from Plausible and Umami. |
+| 🔓 **Yours to leave** | Apache-2.0, a REST API, an MCP endpoint for AI assistants, CSV export and imports from Google Analytics 4, Plausible, Umami, Mixpanel and Amplitude. |
 
 ## A quick tour
 
@@ -100,7 +103,7 @@ Most analytics tools make you pick two: **privacy**, **depth**, or **easy hostin
 **Teams and integrations**
 - Organizations and projects, roles, two-factor sign-in, shareable links and API keys.
 - Alerts with email, webhook, Slack, Discord and Telegram delivery, and scheduled email reports.
-- A REST API and an MCP endpoint, CSV export, and imports from Plausible and Umami.
+- A REST API and an MCP endpoint, CSV export, and imports from Google Analytics 4, Plausible, Umami, Mixpanel and Amplitude.
 
 **Operations**
 - PostgreSQL only, with time partitions that are dropped for retention instead of bulk deletes.
@@ -121,7 +124,15 @@ Windows PowerShell:
 irm https://github.com/velixio/supermetry/releases/latest/download/install.ps1 | iex
 ```
 
-To see what the installer would do first, add `--dry-run`, for example `curl -fsSL https://github.com/velixio/supermetry/releases/latest/download/install.sh | sh -s -- --dry-run`. Prefer containers? See [Docker Compose](deploy/README.md#docker-compose-by-hand).
+To see what the installer would do first, add `--dry-run`, for example `curl -fsSL https://github.com/velixio/supermetry/releases/latest/download/install.sh | sh -s -- --dry-run`. **Docker Compose**, with a bundled PostgreSQL:
+
+```sh
+git clone https://github.com/velixio/supermetry.git && cd supermetry
+cp .env.example .env    # set SUPERMETRY_SECRET_KEY and POSTGRES_PASSWORD
+docker compose -f deploy/docker-compose.yml --profile bundled-db up -d --build
+```
+
+Docker serves the dashboard on `http://localhost:8787/app`; see [Docker Compose](deploy/README.md#docker-compose-by-hand) for an external database.
 
 Open `<your URL>/app` and create your admin account. Then add the tracking script to your site. Copy the exact snippet from **Settings, Installation** in the dashboard. It looks like this:
 
@@ -137,6 +148,19 @@ See [deploy/README.md](deploy/README.md) for unattended installs, manual deploym
 
 - PostgreSQL (18 is what CI runs). Redis is not needed; a single instance runs without it.
 - Release binaries for Linux, macOS and Windows on amd64 and arm64, plus 32-bit Linux armv6/armv7 for Raspberry Pi.
+
+## Supermetry vs Plausible, Umami and Google Analytics
+
+| | Supermetry | Plausible CE (self-hosted) | Umami | Google Analytics |
+|---|---|---|---|---|
+| Self-hosted | Yes | Yes | Yes | No |
+| License | Apache-2.0 | AGPL-3.0 | MIT | Proprietary |
+| What you run | One Go binary + PostgreSQL | Elixir app + PostgreSQL + ClickHouse | Node.js app + PostgreSQL | Nothing; Google hosts it |
+| Cookies | None | None | None | Yes |
+| Funnels, journeys and revenue | Yes | No (Plausible Cloud only) | Yes | Yes |
+| Session replay and heatmaps | Yes | No | Yes | No |
+
+<sub>Checked against the Plausible Community Edition and Umami 3.4 source code in October 2026. Corrections are welcome in an issue.</sub>
 
 ## Privacy modes
 
@@ -181,7 +205,7 @@ That depends on the laws that apply to you and on what else your site runs, so a
 <details>
 <summary><b>Can I move my existing data in?</b></summary>
 
-Yes. Import from Plausible or Umami in the project settings, then export to CSV whenever you like.
+Yes. Import from Google Analytics 4, Plausible, Umami, Mixpanel or Amplitude in the project settings, then export to CSV whenever you like.
 </details>
 
 <details>
