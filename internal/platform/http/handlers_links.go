@@ -468,12 +468,24 @@ func (h *handler) pixelStats(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "link")
 		return
 	}
-	stats, err := links.ImpressionStats(r.Context(), h.deps.Store.Pool, site.ID, from, to)
+	var campaign *string
+	if raw, present := r.URL.Query()["campaign"]; present && len(raw) > 0 {
+		if len(raw[0]) > 64 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "campaign must be at most 64 characters")
+			return
+		}
+		value := raw[0]
+		if value == links.UntaggedCampaign {
+			value = ""
+		}
+		campaign = &value
+	}
+	stats, err := links.ImpressionStats(r.Context(), h.deps.Store.Pool, site.ID, from, to, campaign)
 	if err != nil {
 		serviceError(w, err)
 		return
 	}
-	if stats.Summary, err = links.ImpressionSummaryFor(r.Context(), h.deps.Store.Pool, site.ID, h.deps.Now().In(siteLocation(site)).Format(time.DateOnly)); err != nil {
+	if stats.Summary, err = links.ImpressionSummaryFor(r.Context(), h.deps.Store.Pool, site.ID, h.deps.Now().In(siteLocation(site)).Format(time.DateOnly), campaign); err != nil {
 		serviceError(w, err)
 		return
 	}

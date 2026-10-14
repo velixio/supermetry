@@ -265,12 +265,18 @@ type PixelStats struct {
 	Campaigns []CampaignCount   `json:"campaigns"`
 }
 
-// ImpressionStats aggregates a site's pixel rows for the inclusive day range.
-func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to string) (PixelStats, error) {
+// UntaggedCampaign is the campaign filter value that selects impressions with no campaign tag.
+const UntaggedCampaign = "(none)"
+
+// ImpressionStats aggregates a site's pixel rows for the inclusive day range. A non-nil
+// campaign narrows the daily series and total to that tag ("" is untagged); the campaign
+// breakdown always lists every tag so the caller can switch between them.
+func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to string, campaign *string) (PixelStats, error) {
 	stats := PixelStats{Daily: []DayCount{}, Campaigns: []CampaignCount{}}
 	rows, err := db.Query(ctx, `
 		select day::text, sum(impressions)::bigint from pixel_impressions_daily
-		where site_id=$1 and day between $2::date and $3::date group by day order by day`, siteID, from, to)
+		where site_id=$1 and day between $2::date and $3::date and ($4::text is null or campaign = $4)
+		group by day order by day`, siteID, from, to, campaign)
 	if err != nil {
 		return PixelStats{}, err
 	}
@@ -305,15 +311,16 @@ func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to string
 	return stats, campaigns.Err()
 }
 
-// ImpressionSummaryFor totals a site's pixel impressions up to and including today (site-local YYYY-MM-DD).
-func ImpressionSummaryFor(ctx context.Context, db DBTX, siteID int32, today string) (ImpressionSummary, error) {
+// ImpressionSummaryFor totals a site's pixel impressions up to and including today (site-local YYYY-MM-DD),
+// optionally for one campaign tag.
+func ImpressionSummaryFor(ctx context.Context, db DBTX, siteID int32, today string, campaign *string) (ImpressionSummary, error) {
 	var s ImpressionSummary
 	err := db.QueryRow(ctx, `select
 		coalesce(sum(impressions) filter (where day = $2::date),0)::bigint,
 		coalesce(sum(impressions) filter (where day > $2::date - 7),0)::bigint,
 		coalesce(sum(impressions) filter (where day > $2::date - 30),0)::bigint,
 		coalesce(sum(impressions),0)::bigint
-		from pixel_impressions_daily where site_id=$1 and day <= $2::date`, siteID, today).
+		from pixel_impressions_daily where site_id=$1 and day <= $2::date and ($3::text is null or campaign = $3)`, siteID, today, campaign).
 		Scan(&s.Today, &s.Last7, &s.Last30, &s.Total)
 	return s, err
 }

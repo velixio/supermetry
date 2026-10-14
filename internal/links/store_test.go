@@ -162,7 +162,7 @@ func TestRecorderFlushPersistsBatchesAndStatsMatchFixture(t *testing.T) {
 	if reloaded.Clicks != 9 {
 		t.Fatalf("links.clicks = %d, want 9", reloaded.Clicks)
 	}
-	pixel, err := ImpressionStats(ctx, pool, siteID, "2026-10-10", "2026-10-12")
+	pixel, err := ImpressionStats(ctx, pool, siteID, "2026-10-10", "2026-10-12", nil)
 	if err != nil || pixel.Total != 3 || len(pixel.Campaigns) != 2 || pixel.Campaigns[0] != (CampaignCount{"spring", 2}) {
 		t.Fatalf("pixel = %+v, %v", pixel, err)
 	}
@@ -247,11 +247,37 @@ func TestImpressionSummaryAgainstHandComputedFixture(t *testing.T) {
 		($1,'2026-10-01','a',7), ($1,'2026-09-30','a',100), ($1,'2026-10-31','a',999)`, siteID); err != nil {
 		t.Fatal(err)
 	}
-	got, err := ImpressionSummaryFor(ctx, pool, siteID, "2026-10-30")
+	got, err := ImpressionSummaryFor(ctx, pool, siteID, "2026-10-30", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := (ImpressionSummary{Today: 4, Last7: 7, Last30: 34, Total: 134}); got != want {
 		t.Fatalf("summary = %+v, want %+v", got, want)
+	}
+}
+
+func TestImpressionStatsForOneCampaign(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_daily(site_id, day, campaign, impressions) values
+		($1,'2026-10-30','spring',4), ($1,'2026-10-29','spring',3), ($1,'2026-10-30','',5), ($1,'2026-10-30','summer',9),
+		($1,'2026-10-01','spring',20)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	spring, untagged := "spring", ""
+	stats, err := ImpressionStats(ctx, pool, siteID, "2026-10-29", "2026-10-30", &spring)
+	if err != nil || stats.Total != 7 || len(stats.Daily) != 2 || len(stats.Campaigns) != 3 {
+		t.Fatalf("spring = %+v, %v (the breakdown must keep every tag in range)", stats, err)
+	}
+	stats, err = ImpressionStats(ctx, pool, siteID, "2026-10-29", "2026-10-30", &untagged)
+	if err != nil || stats.Total != 5 {
+		t.Fatalf("untagged = %+v, %v", stats, err)
+	}
+	summary, err := ImpressionSummaryFor(ctx, pool, siteID, "2026-10-30", &spring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (ImpressionSummary{Today: 4, Last7: 7, Last30: 27, Total: 27}); summary != want {
+		t.Fatalf("summary = %+v, want %+v", summary, want)
 	}
 }
