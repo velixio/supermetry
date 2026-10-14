@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useMe } from '@/lib/me'
 import { en } from '@/messages/en'
 import { AdminPage, formatDate } from './AdminCommon'
-import { useApplyUpdate, useUpdateStatus, type AdminUpdateJob } from './adminApi'
+import { useApplyUpdate, useCheckUpdate, useUpdateStatus, type AdminUpdateJob } from './adminApi'
 
 const terminalStates = new Set<AdminUpdateJob['status']>(['complete', 'failed', 'recovery_required'])
 
@@ -157,8 +157,9 @@ function ApplyUpdateDialog({ targetVersion, totpEnabled }: { targetVersion: stri
 
 export function AdminUpdatePage() {
   const status = useUpdateStatus(true)
+  const check = useCheckUpdate()
   const me = useMe()
-  const errors = [status.error instanceof Error ? status.error.message : status.error, status.data?.check_error]
+  const errors = [status.error instanceof Error ? status.error.message : status.error, check.error instanceof Error ? check.error.message : undefined, status.data?.check_error]
     .filter((error): error is string => typeof error === 'string' && error.length > 0)
   const job = status.data?.job
   const activeJob = Boolean(job && !terminalStates.has(job.status))
@@ -186,12 +187,14 @@ export function AdminUpdatePage() {
               <div className="flex min-w-0 flex-col gap-1"><dt className="text-sm text-muted-foreground">{en.admin.checked}</dt><VersionValue value={status.data.checked_at ? formatDate(status.data.checked_at) : null} /></div>
             </dl>
           </CardContent>
-          {status.data.release_url || canApply ? (
-            <CardFooter className="flex flex-wrap gap-2">
-              {canApply && status.data.latest_version ? <ApplyUpdateDialog targetVersion={status.data.latest_version} totpEnabled={Boolean(me.data?.user.totp_enabled)} /> : null}
-              {status.data.release_url ? <Button asChild variant="outline"><a href={status.data.release_url} target="_blank" rel="noreferrer">{en.admin.viewRelease}<ExternalLinkIcon data-icon="inline-end" aria-hidden="true" /></a></Button> : null}
-            </CardFooter>
-          ) : null}
+          <CardFooter className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={check.isPending} onClick={() => check.mutate()}>
+              {check.isPending ? <LoaderCircleIcon data-icon="inline-start" aria-hidden="true" className="animate-spin" /> : <RefreshCwIcon data-icon="inline-start" aria-hidden="true" />}
+              {check.isPending ? en.admin.checkingForUpdates : en.admin.checkForUpdates}
+            </Button>
+            {canApply && status.data.latest_version ? <ApplyUpdateDialog targetVersion={status.data.latest_version} totpEnabled={Boolean(me.data?.user.totp_enabled)} /> : null}
+            {status.data.release_url ? <Button asChild variant="outline"><a href={status.data.release_url} target="_blank" rel="noreferrer">{en.admin.viewRelease}<ExternalLinkIcon data-icon="inline-end" aria-hidden="true" /></a></Button> : null}
+          </CardFooter>
         </Card>
       ) : null}
       {status.data && !status.data.update_supported ? (

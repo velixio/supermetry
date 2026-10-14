@@ -4776,6 +4776,9 @@ type ServerInterface interface {
 	// AdminApplyUpdate Apply a verified stable release
 	// (POST /api/private/admin/update/apply)
 	AdminApplyUpdate(w http.ResponseWriter, r *http.Request)
+	// AdminCheckUpdate Check for a newer stable release now
+	// (POST /api/private/admin/update/check)
+	AdminCheckUpdate(w http.ResponseWriter, r *http.Request)
 	// AdminListUsers List and search instance users
 	// (GET /api/private/admin/users)
 	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
@@ -5467,6 +5470,20 @@ func (siw *ServerInterfaceWrapper) AdminApplyUpdate(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminApplyUpdate(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCheckUpdate operation middleware
+func (siw *ServerInterfaceWrapper) AdminCheckUpdate(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCheckUpdate(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10582,6 +10599,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminSetTwoFactorExemption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/audit", wrapper.AdminListAudit)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/update", wrapper.AdminGetUpdateStatus)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/update/check", wrapper.AdminCheckUpdate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/update/apply", wrapper.AdminApplyUpdate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/setup/status", wrapper.GetSetupStatus)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/me", wrapper.DeleteCurrentUser)

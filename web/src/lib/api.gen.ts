@@ -180,6 +180,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/update/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check for a newer stable release now
+         * @description Asks the official GitHub latest stable release again instead of using the six-hour cache. Results younger than 15 seconds are reused so repeated clicks cannot exhaust GitHub's rate limit. It never downloads or applies an update.
+         */
+        post: operations["adminCheckUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/admin/update/apply": {
         parameters: {
             query?: never;
@@ -4654,6 +4674,29 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Update availability. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUpdateStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCheckUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fresh update availability. */
             200: {
                 headers: {
                     [name: string]: unknown;

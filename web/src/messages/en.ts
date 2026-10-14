@@ -347,6 +347,8 @@ export const en = {
     published: 'Published',
     checked: 'Last checked',
     viewRelease: 'View release notes',
+    checkForUpdates: 'Check for updates',
+    checkingForUpdates: 'Checking…',
     upToDate: 'Supermetry is up to date.',
     installUnavailable: 'Updates are not managed by this installation.',
     installUnavailableDescription: 'Install the release with your existing deployment process, or configure the Supermetry updater helper.',

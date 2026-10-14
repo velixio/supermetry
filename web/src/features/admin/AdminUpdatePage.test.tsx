@@ -1,15 +1,19 @@
 import '@testing-library/jest-dom/vitest'
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useUpdateStatus, useApplyUpdate, useMe, mutate } = vi.hoisted(() => ({
-  useUpdateStatus: vi.fn(), useApplyUpdate: vi.fn(), useMe: vi.fn(), mutate: vi.fn(),
+const { useUpdateStatus, useApplyUpdate, useCheckUpdate, useMe, mutate, checkMutate } = vi.hoisted(() => ({
+  useUpdateStatus: vi.fn(), useApplyUpdate: vi.fn(), useCheckUpdate: vi.fn(), useMe: vi.fn(), mutate: vi.fn(), checkMutate: vi.fn(),
 }))
-vi.mock('./adminApi', () => ({ useUpdateStatus, useApplyUpdate }))
+vi.mock('./adminApi', () => ({ useUpdateStatus, useApplyUpdate, useCheckUpdate }))
 vi.mock('@/lib/me', () => ({ useMe }))
 
 import { AdminUpdatePage } from './AdminUpdatePage'
+
+beforeEach(() => {
+  useCheckUpdate.mockReturnValue({ mutate: checkMutate, isPending: false, error: null })
+})
 
 afterEach(() => {
   cleanup()
@@ -44,6 +48,18 @@ describe('AdminUpdatePage', () => {
     )
     expect(screen.getByText('Binary installation')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Update to 1.3.0' })).toBeVisible()
+  })
+
+  it('checks for a new release on demand, showing progress while it runs', () => {
+    available({ update_available: false, latest_version: '1.2.0' })
+    const { rerender } = render(<AdminUpdatePage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }))
+    expect(checkMutate).toHaveBeenCalledOnce()
+
+    useCheckUpdate.mockReturnValue({ mutate: checkMutate, isPending: true, error: null })
+    rerender(<AdminUpdatePage />)
+    expect(screen.getByRole('button', { name: 'Checking…' })).toBeDisabled()
   })
 
   it('requires the exact version, password and TOTP before dispatching once', async () => {

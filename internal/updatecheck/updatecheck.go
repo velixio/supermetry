@@ -22,6 +22,7 @@ const (
 	githubJSONMediaType = "application/vnd.github+json"
 	cacheTTL            = 6 * time.Hour
 	requestTimeout      = 10 * time.Second
+	refreshCooldown     = 15 * time.Second
 	maxResponseBytes    = 64 << 10
 )
 
@@ -80,16 +81,28 @@ func newChecker(currentVersion string, client *http.Client, now func() time.Time
 // requestTimeout even if the caller disconnects; callers may stop waiting via
 // ctx without canceling the one shared request needed by other callers.
 func (c *Checker) Check(ctx context.Context) Status {
+	return c.check(ctx, cacheTTL, "latest-stable")
+}
+
+// Refresh asks GitHub again even when a fresh result is cached, so an
+// administrator can see a release published moments ago. Results younger than
+// refreshCooldown are reused to keep repeated clicks from exhausting GitHub's
+// unauthenticated rate limit.
+func (c *Checker) Refresh(ctx context.Context) Status {
+	return c.check(ctx, refreshCooldown, "latest-stable-refresh")
+}
+
+func (c *Checker) check(ctx context.Context, maxAge time.Duration, key string) Status {
 	if c.currentSemver == "" {
 		return Status{CurrentVersion: c.currentVersion}
 	}
-	if cached, ok := c.cachedStatus(c.now()); ok {
+	if cached, ok := c.cachedStatus(c.now(), maxAge); ok {
 		return cached
 	}
 
-	result := c.group.DoChan("latest-stable", func() (any, error) {
+	result := c.group.DoChan(key, func() (any, error) {
 		now := c.now()
-		if cached, ok := c.cachedStatus(now); ok {
+		if cached, ok := c.cachedStatus(now, maxAge); ok {
 			return cached, nil
 		}
 		status := c.fetch(now)
@@ -107,10 +120,10 @@ func (c *Checker) Check(ctx context.Context) Status {
 	}
 }
 
-func (c *Checker) cachedStatus(now time.Time) (Status, bool) {
+func (c *Checker) cachedStatus(now time.Time, maxAge time.Duration) (Status, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.cached, c.cached.CheckedAt != nil && now.Before(c.cached.CheckedAt.Add(cacheTTL))
+	return c.cached, c.cached.CheckedAt != nil && now.Before(c.cached.CheckedAt.Add(maxAge))
 }
 
 func (c *Checker) fetch(checkedAt time.Time) Status {

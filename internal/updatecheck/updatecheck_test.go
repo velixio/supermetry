@@ -184,3 +184,45 @@ func value(value *string) string {
 	}
 	return *value
 }
+
+func TestChecker_RefreshBypassesCacheWithCooldown(t *testing.T) {
+	now := time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)
+	tag := "v1.1.0"
+	var requests atomic.Int32
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		requests.Add(1)
+		body := `{"tag_name":"` + tag + `"}`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}
+	checker := newChecker("v1.0.0", client, func() time.Time { return now })
+
+	if got := checker.Check(context.Background()); got.LatestVersion == nil || *got.LatestVersion != "v1.1.0" {
+		t.Fatalf("first check=%+v", got)
+	}
+	// A new release appears while the six-hour cache is still fresh.
+	tag = "v1.2.0"
+	now = now.Add(refreshCooldown - time.Nanosecond)
+	if got := checker.Refresh(context.Background()); requests.Load() != 1 || *got.LatestVersion != "v1.1.0" {
+		t.Fatalf("refresh inside cooldown requests=%d status=%+v", requests.Load(), got)
+	}
+	now = now.Add(time.Nanosecond)
+	got := checker.Refresh(context.Background())
+	if requests.Load() != 2 || got.LatestVersion == nil || *got.LatestVersion != "v1.2.0" || !got.UpdateAvailable {
+		t.Fatalf("refresh after cooldown requests=%d status=%+v", requests.Load(), got)
+	}
+	// The refreshed result becomes the cached one for ordinary checks.
+	if again := checker.Check(context.Background()); requests.Load() != 2 || *again.LatestVersion != "v1.2.0" {
+		t.Fatalf("check after refresh requests=%d status=%+v", requests.Load(), again)
+	}
+}
+
+func TestChecker_RefreshSkipsDevelopmentBuilds(t *testing.T) {
+	var requests atomic.Int32
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		requests.Add(1)
+		return nil, io.EOF
+	})}
+	if got := newChecker("dev", client, time.Now).Refresh(context.Background()); requests.Load() != 0 || got.CheckedAt != nil {
+		t.Fatalf("requests=%d status=%+v", requests.Load(), got)
+	}
+}
