@@ -2251,6 +2251,29 @@ paths:
               schema: { type: string, format: binary }
             image/svg+xml:
               schema: { type: string, format: binary }
+  /c/{rest}:
+    get:
+      operationId: openCounter
+      security: []
+      summary: Show or render an opt-in public GitHub view counter
+      description: >-
+        Public endpoint, disabled by default. A github.com owner or repository key returns a stats page;
+        adding .svg or .gif returns an embeddable counter image. Only recognized image-proxy fetches are
+        counted. IP addresses and user-agent strings are never stored.
+      parameters:
+        - name: rest
+          in: path
+          required: true
+          schema: { type: string, maxLength: 160 }
+      responses:
+        '200':
+          description: A counter page or image.
+          content:
+            text/html: { schema: { type: string } }
+            image/gif: { schema: { type: string, format: binary } }
+            image/svg+xml: { schema: { type: string, format: binary } }
+        '404': { description: Open counters are disabled, blocked, or the key is invalid. }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /healthz:
     get:
       operationId: healthz

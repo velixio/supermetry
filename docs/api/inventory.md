@@ -2,9 +2,9 @@
 
 | Measure | Total |
 |---|---:|
-| Registered routes | 251 |
-| Documented routes | 139 |
-| Routes hit by tests | 249 |
+| Registered routes | 252 |
+| Documented routes | 140 |
+| Routes hit by tests | 250 |
 
 ## Routes not hit by tests
 

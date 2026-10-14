@@ -2962,6 +2962,17 @@
   },
   {
     "method": "GET",
+    "pattern": "/c/{rest...}",
+    "group": "/c/{rest...}",
+    "handler": "deps.OpenCounters",
+    "auth": "none",
+    "in_openapi": true,
+    "hit_by_tests": [
+      "(unnamed test)"
+    ]
+  },
+  {
+    "method": "GET",
     "pattern": "/healthz",
     "group": "/healthz",
     "handler": "func",

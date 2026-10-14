@@ -26,6 +26,7 @@ import (
 	"supermetry/internal/dropstats"
 	"supermetry/internal/ingest"
 	"supermetry/internal/links"
+	"supermetry/internal/opencounters"
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
 	"supermetry/internal/replay"
@@ -72,18 +73,20 @@ type Deps struct {
 	Heatmaps       heatmapService
 	Ingest         http.Handler
 	// Links serves the public short-link redirect and tracking pixel. Optional.
-	Links        *links.Handler
-	Pixels       http.Handler
-	Replay       http.Handler
-	ReplayCSS    http.Handler
-	PublicAuth   Authenticator
-	PrivateAuth  Authenticator
-	Sites        sites.Registry // resolves site ownership for every site-scoped request
-	UI           http.Handler   // the embedded dashboard; serves every GET that no API route claims
-	RateLimiter  ingest.RateLimiter
-	Sessions     session.Store
-	MinuteSource realtime.MinuteSource
-	Dictionary   dictionaryResolver
+	Links               *links.Handler
+	Pixels              http.Handler
+	OpenCounters        *opencounters.Handler
+	OpenCountersEnabled bool
+	Replay              http.Handler
+	ReplayCSS           http.Handler
+	PublicAuth          Authenticator
+	PrivateAuth         Authenticator
+	Sites               sites.Registry // resolves site ownership for every site-scoped request
+	UI                  http.Handler   // the embedded dashboard; serves every GET that no API route claims
+	RateLimiter         ingest.RateLimiter
+	Sessions            session.Store
+	MinuteSource        realtime.MinuteSource
+	Dictionary          dictionaryResolver
 	// Platform serves the application routes implemented under
 	// internal/platform/http. Those handlers resolve the complete platform
 	// principal required by authz.Can and transactional audit records.
@@ -182,6 +185,11 @@ func NewRouter(deps Deps) http.Handler {
 		} else {
 			mux.HandleFunc("GET /px/{file}", deps.Links.ServePixel)
 		}
+	}
+	if deps.OpenCounters != nil && deps.OpenCountersEnabled {
+		mux.Handle("GET /c/{rest...}", deps.OpenCounters)
+	} else {
+		mux.HandleFunc("GET /c/{rest...}", http.NotFound)
 	}
 	if deps.Config.Replay.Enabled && deps.Replay != nil {
 		mux.Handle("POST /api/replay/start", deps.Replay)
