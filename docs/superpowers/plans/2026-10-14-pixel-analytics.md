@@ -829,3 +829,898 @@ Expected: `ok`.
 git add internal/pixels/registry.go internal/pixels/totals.go internal/pixels/registry_test.go
 git commit -m "feat(pixels): add in-memory pixel registry and total cache"
 ```
+
+### Task 5: Proxy detection, proxy limiter and view recorder
+
+**Files:**
+- Create: `internal/pixels/proxy.go`, `internal/pixels/proxy_test.go`, `internal/pixels/recorder.go`, `internal/pixels/recorder_test.go`
+
+**Interfaces:**
+- Consumes: `ingest.NewTokenBuckets(rate float64, burst int) ingest.RateLimiter` (`internal/ingest/ratelimit.go:54`), `TotalCache` (Task 4).
+- Produces:
+  - `func DetectProxy(ua string) (name string, ok bool)` — `"camo"` for UAs containing `github-camo`, `"google"` for `GoogleImageProxy`
+  - `type ProxyLimiter struct`; `NewProxyLimiter() *ProxyLimiter` (20/s, burst 200); `Allow(key int64, proxy string) bool` — `key` is a pixel id (or counter id in Task 11)
+  - `type ViewKey struct { PixelID int64; Day, Country, Via string }`
+  - `type Recorder struct`; `NewRecorder(write WriteFunc, totals *TotalCache) *Recorder`; `type WriteFunc func(ctx context.Context, rows map[ViewKey]int64) error`; `PoolWriter(pool *pgxpool.Pool) WriteFunc`; `(*Recorder).View(k ViewKey)`; `Flush(ctx) error`; `Run(ctx) error` (flush every 10 s and on shutdown); `Dropped() int64`
+
+- [ ] **Step 1: Write the failing tests**
+
+`proxy_test.go`:
+
+```go
+package pixels
+
+import "testing"
+
+func TestDetectProxy(t *testing.T) {
+	cases := map[string]string{
+		"github-camo (876de43e)": "camo",
+		"Mozilla/5.0 (Windows NT 5.1; rv:11.0) Gecko Firefox/11.0 (via ggpht.com GoogleImageProxy)": "google",
+		"Mozilla/5.0 (X11; Linux x86_64) Chrome/124.0": "",
+		"": "",
+		"curl/8.5.0": "",
+	}
+	for ua, want := range cases {
+		got, ok := DetectProxy(ua)
+		if got != want || ok != (want != "") {
+			t.Errorf("DetectProxy(%q) = %q,%v want %q", ua, got, ok, want)
+		}
+	}
+}
+
+func TestProxyLimiterIsPerPixelAndProxy(t *testing.T) {
+	l := NewProxyLimiter()
+	allowed := 0
+	for range 500 {
+		if l.Allow(1, "camo") {
+			allowed++
+		}
+	}
+	if allowed < 200 || allowed > 210 {
+		t.Fatalf("burst allowed %d, want about 200", allowed)
+	}
+	if !l.Allow(2, "camo") || !l.Allow(1, "google") {
+		t.Fatal("one busy pixel starved another key")
+	}
+}
+```
+
+`recorder_test.go`:
+
+```go
+package pixels
+
+import (
+	"context"
+	"errors"
+	"maps"
+	"testing"
+)
+
+func TestRecorderAggregatesAndUpdatesTotals(t *testing.T) {
+	var written map[ViewKey]int64
+	totals := NewTotalCache()
+	r := NewRecorder(func(_ context.Context, rows map[ViewKey]int64) error { written = maps.Clone(rows); return nil }, totals)
+	k := ViewKey{PixelID: 1, Day: "2026-10-14", Via: "proxy"}
+	r.View(k)
+	r.View(k)
+	r.View(ViewKey{PixelID: 1, Day: "2026-10-14", Country: "NP", Via: "direct"})
+	if totals.Get(1) != 3 {
+		t.Fatalf("total = %d", totals.Get(1))
+	}
+	if err := r.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if written[k] != 2 || len(written) != 2 {
+		t.Fatalf("written = %v", written)
+	}
+}
+
+func TestFlushFailureKeepsCountsAndTotals(t *testing.T) {
+	fail := true
+	var sum int64
+	totals := NewTotalCache()
+	r := NewRecorder(func(_ context.Context, rows map[ViewKey]int64) error {
+		if fail {
+			return errors.New("db down")
+		}
+		for _, n := range rows {
+			sum += n
+		}
+		return nil
+	}, totals)
+	for range 3 {
+		r.View(ViewKey{PixelID: 9, Day: "2026-10-14", Via: "proxy"})
+	}
+	if err := r.Flush(context.Background()); err == nil {
+		t.Fatal("want error")
+	}
+	r.View(ViewKey{PixelID: 9, Day: "2026-10-14", Via: "proxy"})
+	fail = false
+	if err := r.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if sum != 4 || totals.Get(9) != 4 {
+		t.Fatalf("sum=%d total=%d, want 4/4", sum, totals.Get(9))
+	}
+}
+```
+
+Add a DB round-trip test to `store_test.go`:
+
+```go
+func TestPoolWriterUpsertsAndSkipsDeletedPixels(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	p, err := Create(ctx, pool, Pixel{SiteID: siteID, Name: "a", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	write := PoolWriter(pool)
+	rows := map[ViewKey]int64{{PixelID: p.ID, Day: "2026-10-14", Via: "proxy"}: 2, {PixelID: 999999, Day: "2026-10-14", Via: "proxy"}: 1}
+	for range 2 {
+		if err := write(ctx, rows); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var views int64
+	_ = pool.QueryRow(ctx, `select coalesce(sum(views),0) from pixel_views_daily`).Scan(&views)
+	if views != 4 {
+		t.Fatalf("views = %d, want 4", views)
+	}
+}
+```
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `go test ./internal/pixels -count=1`
+Expected: FAIL to compile, `undefined: DetectProxy`.
+
+- [ ] **Step 3: Implement `proxy.go`**
+
+```go
+package pixels
+
+import (
+	"strconv"
+	"strings"
+
+	"supermetry/internal/ingest"
+)
+
+// Known image proxies, matched by user agent. They fetch on behalf of many
+// viewers, so their requests skip the bot list and get their own limiter.
+var proxies = []struct{ needle, name string }{
+	{"github-camo", "camo"},
+	{"GoogleImageProxy", "google"},
+}
+
+func DetectProxy(ua string) (string, bool) {
+	for _, p := range proxies {
+		if strings.Contains(ua, p.needle) {
+			return p.name, true
+		}
+	}
+	return "", false
+}
+
+// ProxyLimiter caps counted proxy fetches per pixel and proxy (20/s, burst
+// 200), separately from the per-IP limiter.
+type ProxyLimiter struct{ buckets ingest.RateLimiter }
+
+func NewProxyLimiter() *ProxyLimiter { return &ProxyLimiter{buckets: ingest.NewTokenBuckets(20, 200)} }
+
+func (l *ProxyLimiter) Allow(key int64, proxy string) bool {
+	return l.buckets.Allow(strconv.FormatInt(key, 10) + ":" + proxy)
+}
+```
+
+- [ ] **Step 4: Implement `recorder.go`**
+
+```go
+package pixels
+
+import (
+	"context"
+	"log/slog"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const (
+	flushEvery = 10 * time.Second
+	maxKeys    = 100_000
+)
+
+type ViewKey struct {
+	PixelID int64
+	Day     string
+	Country string
+	Via     string
+}
+
+type WriteFunc func(ctx context.Context, rows map[ViewKey]int64) error
+
+// Recorder buffers views in memory; request goroutines never touch the DB.
+// Totals are bumped at record time, so a failed flush does not change badges.
+type Recorder struct {
+	write   WriteFunc
+	totals  *TotalCache
+	mu      sync.Mutex
+	rows    map[ViewKey]int64
+	flushMu sync.Mutex
+	dropped atomic.Int64
+}
+
+func NewRecorder(write WriteFunc, totals *TotalCache) *Recorder {
+	return &Recorder{write: write, totals: totals, rows: map[ViewKey]int64{}}
+}
+
+func (r *Recorder) Dropped() int64 { return r.dropped.Load() }
+
+func (r *Recorder) View(k ViewKey) {
+	r.mu.Lock()
+	if _, ok := r.rows[k]; !ok && len(r.rows) >= maxKeys {
+		r.mu.Unlock()
+		r.dropped.Add(1)
+		return
+	}
+	r.rows[k]++
+	r.mu.Unlock()
+	r.totals.Add(k.PixelID, 1)
+}
+
+func (r *Recorder) Flush(ctx context.Context) error {
+	r.flushMu.Lock()
+	defer r.flushMu.Unlock()
+	r.mu.Lock()
+	rows := r.rows
+	r.rows = map[ViewKey]int64{}
+	r.mu.Unlock()
+	if len(rows) == 0 {
+		return nil
+	}
+	if err := r.write(ctx, rows); err != nil {
+		r.mu.Lock()
+		for k, n := range rows {
+			if _, ok := r.rows[k]; ok || len(r.rows) < maxKeys {
+				r.rows[k] += n
+			} else {
+				r.dropped.Add(n)
+			}
+		}
+		r.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+func (r *Recorder) Run(ctx context.Context) error {
+	ticker := time.NewTicker(flushEvery)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			flushCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			return r.Flush(flushCtx)
+		case <-ticker.C:
+			if err := r.Flush(ctx); err != nil {
+				slog.Warn("pixel view flush failed", "err", err)
+			}
+		}
+	}
+}
+
+// PoolWriter upserts rows in one transaction; rows for deleted pixels are
+// skipped by the existence guard.
+func PoolWriter(pool *pgxpool.Pool) WriteFunc {
+	return func(ctx context.Context, rows map[ViewKey]int64) error {
+		batch := &pgx.Batch{}
+		for k, n := range rows {
+			batch.Queue(`
+				insert into pixel_views_daily(pixel_id, day, country, via, views)
+				select $1, $2::date, $3, $4, $5 where exists (select 1 from pixels where id=$1)
+				on conflict (pixel_id, day, country, via)
+				do update set views = pixel_views_daily.views + excluded.views`,
+				k.PixelID, k.Day, k.Country, k.Via, n)
+		}
+		return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			return tx.SendBatch(ctx, batch).Close()
+		})
+	}
+}
+```
+
+- [ ] **Step 5: Run tests**
+
+Run: `go vet ./internal/pixels && go test -race ./internal/pixels -count=1`
+Expected: `ok supermetry/internal/pixels`.
+
+- [ ] **Step 6: Commit (two commits)**
+
+```bash
+git add internal/pixels/proxy.go internal/pixels/proxy_test.go
+git commit -m "feat(pixels): detect image proxies and limit them per pixel"
+git add internal/pixels/recorder.go internal/pixels/recorder_test.go internal/pixels/store_test.go
+git commit -m "feat(pixels): buffer pixel views and flush daily aggregates"
+```
+
+### Task 6: SVG badge renderer and branding config
+
+**Files:**
+- Create: `internal/pixels/badge.go`, `internal/pixels/badge_test.go`
+- Modify: `internal/config/config.go` (`BadgeBranding bool`), `internal/config/config_test.go`
+
+**Interfaces:**
+- Produces:
+  - `func FormatCount(n int64) string`
+  - `type BadgeOptions struct { Label string; Count int64; Style string; Color string; Branded bool }`
+  - `func ParseBadgeQuery(q url.Values) (style, color string)` — invalid values fall back to `"flat"` / `""`
+  - `func RenderBadge(o BadgeOptions) []byte`
+  - `config.Config.BadgeBranding bool` from `SUPERMETRY_BADGE_BRANDING`, default `true`
+
+- [ ] **Step 1: Write the failing tests**
+
+```go
+package pixels
+
+import (
+	"encoding/xml"
+	"net/url"
+	"strings"
+	"testing"
+)
+
+func TestFormatCount(t *testing.T) {
+	cases := map[int64]string{0: "0", 999: "999", 1000: "1k", 1234: "1.2k", 12_345: "12.3k", 999_949: "999.9k",
+		999_950: "1M", 3_400_000: "3.4M", 1_234_567_890: "1.2B"}
+	for n, want := range cases {
+		if got := FormatCount(n); got != want {
+			t.Errorf("FormatCount(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
+func wellFormed(t *testing.T, svg []byte) {
+	t.Helper()
+	d := xml.NewDecoder(strings.NewReader(string(svg)))
+	for {
+		if _, err := d.Token(); err != nil {
+			if err.Error() == "EOF" {
+				return
+			}
+			t.Fatalf("invalid SVG: %v\n%s", err, svg)
+		}
+	}
+}
+
+func TestRenderEscapesLabel(t *testing.T) {
+	svg := RenderBadge(BadgeOptions{Label: `<script>&"x"`, Count: 1234, Style: "flat"})
+	wellFormed(t, svg)
+	if strings.Contains(string(svg), "<script>") || !strings.Contains(string(svg), "1.2k") {
+		t.Fatalf("svg = %s", svg)
+	}
+}
+
+func TestRenderBrandingAndStyle(t *testing.T) {
+	branded := string(RenderBadge(BadgeOptions{Label: "views", Count: 5, Style: "flat", Branded: true}))
+	plain := string(RenderBadge(BadgeOptions{Label: "views", Count: 5, Style: "flat-square", Color: "ff0000"}))
+	if !strings.Contains(branded, `id="sm-mark"`) || strings.Contains(plain, `id="sm-mark"`) {
+		t.Fatal("branding mark toggle broken")
+	}
+	if !strings.Contains(plain, `#ff0000`) || strings.Contains(plain, `rx="3"`) || !strings.Contains(branded, `rx="3"`) {
+		t.Fatal("style/color not applied")
+	}
+	if !strings.Contains(branded, `height="20"`) {
+		t.Fatal("badge must be 20px high")
+	}
+}
+
+func TestParseBadgeQuery(t *testing.T) {
+	s, c := ParseBadgeQuery(url.Values{"style": {"flat-square"}, "color": {"0a0B0c"}})
+	if s != "flat-square" || c != "0a0b0c" {
+		t.Fatalf("%q %q", s, c)
+	}
+	s, c = ParseBadgeQuery(url.Values{"style": {"plastic"}, "color": {"red;}<"}})
+	if s != "flat" || c != "" {
+		t.Fatalf("fallback %q %q", s, c)
+	}
+}
+```
+
+Config test (append to `internal/config/config_test.go`, using that file's `values` map helper as in `TestLoadHomepageURL`):
+
+```go
+func TestLoadBadgeBranding(t *testing.T) {
+	values := baseValues() // the helper TestLoadHomepageURL uses; match its name
+	c, err := Load(mapGetenv(values))
+	if err != nil || !c.BadgeBranding {
+		t.Fatalf("default BadgeBranding = %v, %v", c.BadgeBranding, err)
+	}
+	values["SUPERMETRY_BADGE_BRANDING"] = "false"
+	c, err = Load(mapGetenv(values))
+	if err != nil || c.BadgeBranding {
+		t.Fatalf("BadgeBranding = %v, %v", c.BadgeBranding, err)
+	}
+}
+```
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `go test ./internal/pixels ./internal/config -count=1`
+Expected: FAIL to compile, `undefined: FormatCount` / `c.BadgeBranding undefined`.
+
+- [ ] **Step 3: Implement `badge.go`**
+
+Colours come from `web/packages/tokens/tokens.json` (light theme): label = `text.default` `oklch(0.18 0.03 285)` ≈ `#1c1a2b`, value = `accent.default` `oklch(0.51 0.25 281)` ≈ `#5b3cf0`. The mark is our own: three rising bars.
+
+```go
+package pixels
+
+import (
+	"bytes"
+	"fmt"
+	"html"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+const (
+	labelColor   = "#1c1a2b"
+	defaultColor = "#5b3cf0"
+	charWidth    = 7 // px per character at 11px Verdana-ish; badges need not be exact
+	padding      = 6
+	markWidth    = 14
+)
+
+var hexColor = regexp.MustCompile(`^[0-9a-fA-F]{6}$`)
+
+func FormatCount(n int64) string {
+	units := []struct {
+		div    float64
+		suffix string
+	}{{1e9, "B"}, {1e6, "M"}, {1e3, "k"}}
+	f := float64(n)
+	for i, u := range units {
+		if f >= u.div*0.99995 || (i > 0 && f >= u.div && f < units[i-1].div) {
+			v := f / u.div
+			if s := strconv.FormatFloat(v, 'f', 1, 64); s != "1000.0" {
+				return strings.TrimSuffix(s, ".0") + u.suffix
+			}
+			return "1" + units[i-1].suffix
+		}
+	}
+	return strconv.FormatInt(n, 10)
+}
+
+func ParseBadgeQuery(q url.Values) (style, color string) {
+	style = q.Get("style")
+	if style != "flat-square" {
+		style = "flat"
+	}
+	if c := q.Get("color"); hexColor.MatchString(c) {
+		color = strings.ToLower(c)
+	}
+	return style, color
+}
+
+type BadgeOptions struct {
+	Label   string
+	Count   int64
+	Style   string
+	Color   string
+	Branded bool
+}
+
+func RenderBadge(o BadgeOptions) []byte {
+	value := FormatCount(o.Count)
+	label := html.EscapeString(o.Label)
+	left := len([]rune(o.Label))*charWidth + 2*padding
+	textX := padding
+	if o.Branded {
+		left += markWidth + 2
+		textX += markWidth + 2
+	}
+	right := len(value)*charWidth + 2*padding
+	width := left + right
+	fill := defaultColor
+	if o.Color != "" {
+		fill = "#" + o.Color
+	}
+	rx := ""
+	if o.Style != "flat-square" {
+		rx = ` rx="3"`
+	}
+	var b bytes.Buffer
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="20" role="img" aria-label="%s: %s">`, width, label, value)
+	fmt.Fprintf(&b, `<title>%s: %s</title><clipPath id="r"><rect width="%d" height="20"%s/></clipPath><g clip-path="url(#r)">`, label, value, width, rx)
+	fmt.Fprintf(&b, `<rect width="%d" height="20" fill="%s"/><rect x="%d" width="%d" height="20" fill="%s"/></g>`, left, labelColor, left, right, fill)
+	if o.Branded {
+		b.WriteString(`<g id="sm-mark" fill="#fff"><rect x="6" y="11" width="3" height="4"/><rect x="10" y="8" width="3" height="7"/><rect x="14" y="5" width="3" height="10"/></g>`)
+	}
+	fmt.Fprintf(&b, `<g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="%d" y="14">%s</text><text x="%d" y="14">%s</text></g></svg>`,
+		textX, label, left+padding, value)
+	return b.Bytes()
+}
+```
+
+If `TestFormatCount` shows the 999_950 edge failing, simplify `FormatCount` to: pick the largest unit with `n >= div`, format with one decimal, and if the rounded string is `"1000.0"` promote to the next unit as `"1"+nextSuffix`. The test is the contract; keep the code that passes it.
+
+- [ ] **Step 4: Config**
+
+In `internal/config/config.go`: add `BadgeBranding bool` to `Config`, set `BadgeBranding: true` in the literal next to `HomepageURL`, and after the replay parsing add:
+
+```go
+	parseOptionalBool(getenv("SUPERMETRY_BADGE_BRANDING"), "SUPERMETRY_BADGE_BRANDING", &c.BadgeBranding, &errs)
+```
+
+- [ ] **Step 5: Run tests**
+
+Run: `go vet ./internal/pixels ./internal/config && go test ./internal/pixels ./internal/config -count=1`
+Expected: both `ok`.
+
+- [ ] **Step 6: Commit (two commits)**
+
+```bash
+git add internal/pixels/badge.go internal/pixels/badge_test.go
+git commit -m "feat(pixels): render view-count SVG badges"
+git add internal/config/config.go internal/config/config_test.go
+git commit -m "feat(config): add SUPERMETRY_BADGE_BRANDING"
+```
+
+### Task 7: Pixel image handler (`.gif` and `.svg`) and wiring
+
+**Files:**
+- Create: `internal/pixels/handler.go`, `internal/pixels/handler_test.go`
+- Modify: `internal/links/handler.go:209` (export `TransparentGIF` var; keep `ServePixel` unchanged otherwise)
+- Modify: `internal/api/router.go:75,177-180` (`Pixels http.HandlerFunc` dep; route `GET /px/{file}` to it when set)
+- Modify: `cmd/supermetry/serve.go:~325` (build registry, recorder, handler; reload registry at start; run recorder)
+
+**Interfaces:**
+- Consumes: `Registry`, `Recorder`, `ProxyLimiter`, `DetectProxy`, `RenderBadge`, `ParseBadgeQuery` (Tasks 4–6); `sites.Registry.Site(id)`; `links.Enricher` interface (`BotWithBlockedReferrers`, `Country`).
+- Produces: `type Handler struct { Pixels *Registry; Recorder *Recorder; Sites sites.Registry; Enricher links.Enricher; IPLimiter ingest.RateLimiter; ProxyLimiter *ProxyLimiter; Fallback http.HandlerFunc; ClientIP func(*http.Request) (key string, ip netip.Addr); Branded bool; Now func() time.Time }`; `(*Handler).ServeHTTP`.
+
+- [ ] **Step 1: Write the failing test**
+
+```go
+package pixels
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"strings"
+	"testing"
+	"time"
+
+	"supermetry/internal/enrich"
+	"supermetry/internal/sites"
+)
+
+type siteReg map[int32]sites.Site
+
+func (r siteReg) ByPublicID(string) (sites.Site, bool) { return sites.Site{}, false }
+func (r siteReg) Site(id int32) (sites.Site, bool)    { s, ok := r[id]; return s, ok }
+func (r siteReg) All() []sites.Site                    { return nil }
+
+const (
+	camoUA   = "github-camo (876de43e)"
+	chromeUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+	botUA    = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+)
+
+type pxFixture struct {
+	h        *Handler
+	rows     map[ViewKey]int64
+	fallback int
+}
+
+func newPxFixture(t *testing.T) *pxFixture {
+	t.Helper()
+	enricher, err := enrich.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &pxFixture{rows: map[ViewKey]int64{}}
+	reg := NewRegistry(func(context.Context) ([]Pixel, error) {
+		return []Pixel{
+			{ID: 1, SiteID: 1, PublicID: "pAAAAAAAAAAA", BadgeLabel: "views", Enabled: true},
+			{ID: 2, SiteID: 1, PublicID: "pDISABLED000", BadgeLabel: "views", Enabled: false},
+		}, nil
+	}, func(context.Context) (map[int64]int64, error) { return map[int64]int64{1: 1233}, nil }, NewTotalCache())
+	if err := reg.Reload(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	f.h = &Handler{
+		Pixels:       reg,
+		Recorder:     NewRecorder(func(_ context.Context, r map[ViewKey]int64) error { for k, n := range r { f.rows[k] += n }; return nil }, reg.Totals()),
+		Sites:        siteReg{1: {ID: 1, Kind: sites.KindPixel, RespectPrivacySignals: true}},
+		Enricher:     enricher,
+		ProxyLimiter: NewProxyLimiter(),
+		Fallback:     func(w http.ResponseWriter, r *http.Request) { f.fallback++; w.WriteHeader(http.StatusOK) },
+		ClientIP:     func(*http.Request) (string, netip.Addr) { return "k", netip.MustParseAddr("203.0.113.9") },
+		Branded:      true,
+		Now:          func() time.Time { return time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC) },
+	}
+	return f
+}
+
+func (f *pxFixture) get(t *testing.T, method, path, ua string, headers ...string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, nil)
+	req.Header.Set("User-Agent", ua)
+	for i := 0; i+1 < len(headers); i += 2 {
+		req.Header.Set(headers[i], headers[i+1])
+	}
+	mux := http.NewServeMux()
+	mux.Handle("GET /px/{file}", f.h)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	_ = f.h.Recorder.Flush(context.Background())
+	return rec
+}
+
+func (f *pxFixture) total() (n int64) {
+	for _, v := range f.rows {
+		n += v
+	}
+	return n
+}
+
+func TestCamoIsCountedAsProxyAndBadgeShowsTotal(t *testing.T) {
+	f := newPxFixture(t)
+	res := f.get(t, http.MethodGet, "/px/pAAAAAAAAAAA.svg", camoUA)
+	if res.Code != 200 || res.Header().Get("Content-Type") != "image/svg+xml" || res.Header().Get("Cache-Control") != "no-store, max-age=0" {
+		t.Fatalf("status=%d headers=%v", res.Code, res.Header())
+	}
+	if !strings.Contains(res.Body.String(), "1.2k") {
+		t.Fatalf("badge = %s", res.Body)
+	}
+	if f.rows[ViewKey{PixelID: 1, Day: "2026-10-14", Via: "proxy"}] != 1 {
+		t.Fatalf("rows = %v", f.rows)
+	}
+}
+
+func TestDirectViewGetsCountryAndGIF(t *testing.T) {
+	f := newPxFixture(t)
+	res := f.get(t, http.MethodGet, "/px/pAAAAAAAAAAA.gif", chromeUA)
+	if res.Code != 200 || res.Header().Get("Content-Type") != "image/gif" || res.Body.Len() != 43 {
+		t.Fatalf("gif: %d %v %d", res.Code, res.Header(), res.Body.Len())
+	}
+	for k := range f.rows {
+		if k.Via != "direct" {
+			t.Fatalf("row = %+v", k)
+		}
+	}
+	if f.total() != 1 {
+		t.Fatalf("total = %d", f.total())
+	}
+}
+
+func TestNotCountedButImageServed(t *testing.T) {
+	f := newPxFixture(t)
+	for _, tc := range []struct{ path, ua string; h []string }{
+		{"/px/pAAAAAAAAAAA.svg", botUA, nil},
+		{"/px/pDISABLED000.svg", camoUA, nil},
+		{"/px/pUNKNOWN0000.svg", camoUA, nil},
+		{"/px/pAAAAAAAAAAA.gif", chromeUA, []string{"Sec-GPC", "1"}},
+	} {
+		res := f.get(t, http.MethodGet, tc.path, tc.ua, tc.h...)
+		if res.Code != 200 || res.Body.Len() == 0 {
+			t.Errorf("%s: status %d", tc.path, res.Code)
+		}
+	}
+	if f.total() != 0 {
+		t.Fatalf("counted %v", f.rows)
+	}
+}
+
+func TestOddFileNamesServeImageWithoutCounting(t *testing.T) {
+	f := newPxFixture(t)
+	for _, path := range []string{"/px/pAAAAAAAAAAA.svg.gif", "/px/.svg", "/px/p" + strings.Repeat("A", 200) + ".svg"} {
+		if res := f.get(t, http.MethodGet, path, camoUA); res.Code != 200 {
+			t.Errorf("%s: %d", path, res.Code)
+		}
+	}
+	if res := f.get(t, http.MethodHead, "/px/pAAAAAAAAAAA.svg", camoUA); res.Code != 200 || res.Body.Len() != 0 {
+		t.Errorf("HEAD: %d len %d", res.Code, res.Body.Len())
+	}
+	if f.total() != 0 {
+		t.Fatalf("counted %v", f.rows)
+	}
+}
+
+func TestWebPixelStillServedForSiteIDStartingWithP(t *testing.T) {
+	f := newPxFixture(t)
+	f.get(t, http.MethodGet, "/px/pubsite00001.gif?c=spring", chromeUA)
+	if f.fallback != 1 || f.total() != 0 {
+		t.Fatalf("fallback=%d rows=%v", f.fallback, f.rows)
+	}
+}
+```
+
+Note the mux in the test registers `GET`, which also serves `HEAD`; the handler must treat HEAD as "serve, don't count, no body".
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `go test ./internal/pixels -run 'Camo|Direct|NotCounted|Odd|WebPixel' -count=1`
+Expected: FAIL to compile, `undefined: Handler`.
+
+- [ ] **Step 3: Export the GIF bytes in links**
+
+In `internal/links/handler.go` rename `transparentGIF` to `TransparentGIF` (all uses; `grep -n transparentGIF internal/links`).
+
+- [ ] **Step 4: Implement `internal/pixels/handler.go`**
+
+```go
+package pixels
+
+import (
+	"net/http"
+	"net/netip"
+	"strconv"
+	"strings"
+	"time"
+
+	"supermetry/internal/enrich"
+	"supermetry/internal/ingest"
+	"supermetry/internal/links"
+	"supermetry/internal/sites"
+)
+
+type Handler struct {
+	Pixels       *Registry
+	Recorder     *Recorder
+	Sites        sites.Registry
+	Enricher     links.Enricher
+	IPLimiter    ingest.RateLimiter
+	ProxyLimiter *ProxyLimiter
+	Fallback     http.HandlerFunc // web-project pixels (/px/<site id>.gif)
+	ClientIP     func(*http.Request) (string, netip.Addr)
+	Branded      bool
+	Now          func() time.Time
+}
+
+// ServeHTTP answers GET/HEAD /px/{file}. Pixel ids win; anything else that
+// ends in .gif goes to the web-project pixel. It never returns an error status.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	file := r.PathValue("file")
+	id, ext, _ := strings.Cut(file, ".")
+	pixel, known := h.Pixels.ByPublicID(id)
+	if !known && ext == "gif" && h.Fallback != nil {
+		h.Fallback(w, r)
+		return
+	}
+	if known && (ext == "gif" || ext == "svg") {
+		h.count(r, pixel)
+	}
+	if ext == "svg" {
+		label, total := "views", int64(0)
+		if known {
+			label, total = pixel.BadgeLabel, h.Pixels.Totals().Get(pixel.ID)
+		}
+		style, color := ParseBadgeQuery(r.URL.Query())
+		write(w, r, "image/svg+xml", RenderBadge(BadgeOptions{Label: label, Count: total, Style: style, Color: color, Branded: h.Branded}))
+		return
+	}
+	write(w, r, "image/gif", links.TransparentGIF)
+}
+
+func write(w http.ResponseWriter, r *http.Request, contentType string, body []byte) {
+	header := w.Header()
+	header.Set("Content-Type", contentType)
+	header.Set("Cache-Control", "no-store, max-age=0")
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(http.StatusOK)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write(body)
+	}
+}
+
+func (h *Handler) count(r *http.Request, pixel Pixel) {
+	if r.Method != http.MethodGet || !pixel.Enabled {
+		return
+	}
+	site, ok := h.Sites.Site(pixel.SiteID)
+	if !ok || site.Kind != sites.KindPixel {
+		return
+	}
+	day := h.Now().In(location(site)).Format(time.DateOnly)
+	if proxy, ok := DetectProxy(r.UserAgent()); ok {
+		if h.ProxyLimiter.Allow(pixel.ID, proxy) {
+			h.Recorder.View(ViewKey{PixelID: pixel.ID, Day: day, Via: "proxy"})
+		}
+		return
+	}
+	key, ip := h.ClientIP(r)
+	if h.IPLimiter != nil && !h.IPLimiter.Allow("pxv:"+key) {
+		return
+	}
+	if h.Enricher.BotWithBlockedReferrers(r.UserAgent(), ip, "", site.BlockedReferrers) != enrich.BotNone {
+		return
+	}
+	if site.RespectPrivacySignals && (r.Header.Get("DNT") == "1" || r.Header.Get("Sec-GPC") == "1") {
+		return
+	}
+	h.Recorder.View(ViewKey{PixelID: pixel.ID, Day: day, Country: h.Enricher.Country(ip), Via: "direct"})
+}
+
+func location(site sites.Site) *time.Location {
+	if site.TZ == nil {
+		return time.UTC
+	}
+	return site.TZ
+}
+```
+
+If `links.Enricher` lacks `Country(netip.Addr) string`, check `internal/links/handler.go:34` and use the method it declares.
+
+- [ ] **Step 5: Run handler tests**
+
+Run: `go vet ./internal/pixels ./internal/links && go test ./internal/pixels ./internal/links -count=1`
+Expected: both `ok`.
+
+- [ ] **Step 6: Commit the handler**
+
+```bash
+git add internal/pixels/handler.go internal/pixels/handler_test.go internal/links/handler.go
+git commit -m "feat(pixels): serve pixel GIFs and SVG badges"
+```
+
+- [ ] **Step 7: Wire into the server**
+
+`internal/api/router.go`: add to deps `Pixels http.Handler // pixel projects; wraps Links.ServePixel. Optional.` and in the routes block:
+
+```go
+	if deps.Links != nil {
+		mux.HandleFunc("GET /l/{slug}", deps.Links.ServeRedirect)
+		if deps.Pixels != nil {
+			mux.Handle("GET /px/{file}", deps.Pixels)
+		} else {
+			mux.HandleFunc("GET /px/{file}", deps.Links.ServePixel)
+		}
+	}
+```
+
+`internal/links/handler.go`: export `func (h *Handler) ClientKey(r *http.Request) (string, netip.Addr) { return h.clientKey(r) }`.
+
+`cmd/supermetry/serve.go` after `linkHandler` (around line 333):
+
+```go
+	pixelTotals := pixels.NewTotalCache()
+	pixelRegistry := pixels.NewRegistry(
+		func(ctx context.Context) ([]pixels.Pixel, error) { return pixels.All(ctx, pool) },
+		func(ctx context.Context) (map[int64]int64, error) { return pixels.Totals(ctx, pool) },
+		pixelTotals)
+	if err := pixelRegistry.Reload(ctx); err != nil {
+		return fmt.Errorf("load pixels: %w", err)
+	}
+	pixelRecorder := pixels.NewRecorder(pixels.PoolWriter(pool), pixelTotals)
+	pixelHandler := &pixels.Handler{
+		Pixels: pixelRegistry, Recorder: pixelRecorder, Sites: registry, Enricher: enricher,
+		IPLimiter: ingest.NewTokenBuckets(10, 60), ProxyLimiter: pixels.NewProxyLimiter(),
+		Fallback: linkHandler.ServePixel, ClientIP: linkHandler.ClientKey,
+		Branded: cfg.BadgeBranding, Now: settings.clock.Now,
+	}
+```
+
+Pass `Pixels: pixelHandler` in the router deps (line ~433) and start `pixelRecorder.Run` exactly where `linkRecorder.Run` is started (`grep -n "linkRecorder.Run" cmd/supermetry/serve.go`), so it shares the shutdown flush. Keep `pixelRegistry` in scope for Task 8.
+
+- [ ] **Step 8: Verify and commit wiring**
+
+Run: `go build ./... && go vet ./... && go test ./internal/api ./cmd/supermetry -count=1`
+Expected: `ok` for both.
+
+```bash
+git add internal/api/router.go internal/links/handler.go cmd/supermetry/serve.go
+git commit -m "feat(server): route pixel project images"
+```
