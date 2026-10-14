@@ -37,7 +37,8 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
   const trimmed = campaign.trim()
   const valid = trimmed === '' || campaignPattern.test(trimmed)
   const snippet = usePixelSnippet(siteId, valid ? trimmed : '', valid)
-  const stats = usePixelStats(siteId, range)
+  const [selected, setSelected] = useState<string | null>(null)
+  const stats = usePixelStats(siteId, range, selected)
 
   return (
     <PageContainer width="narrow">
@@ -116,16 +117,30 @@ export function PixelPage({ org, siteSlug, siteId, timezone }: Props) {
                 </div>
               ))}
             </dl>
+            {selected !== null ? (
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <span>{t.pixelCampaignFilter.replace('{campaign}', selected || t.pixelUntagged)}</span>
+                <Button className="min-h-11" variant="outline" onClick={() => setSelected(null)}>{t.pixelClearCampaign}</Button>
+              </p>
+            ) : null}
             <p className="text-xs text-muted-foreground">{t.pixelImpressions}: {fmt.number(stats.data.total)}</p>
             <DailyBars granularity={granularity} daily={stats.data.daily} from={stats.data.from} title={t.pixelStatsTitle} to={stats.data.to} unit={t.pixelStatsTitle} />
             {stats.data.campaigns.length > 0 ? (
               <div>
                 <h3 className="mb-2 text-sm font-medium">{t.pixelCampaigns}</h3>
+                <p className="mb-2 text-xs text-muted-foreground">{t.pixelCampaignHintClick}</p>
                 <ul className="flex flex-col gap-1 text-sm">
                   {stats.data.campaigns.map((item) => (
-                    <li className="flex items-baseline justify-between gap-3 border-b py-1.5 last:border-0" key={item.campaign || '(none)'}>
-                      <span className="min-w-0 truncate">{item.campaign || t.pixelUntagged}</span>
-                      <span className="tabular-nums">{fmt.number(item.impressions)}</span>
+                    <li className="border-b last:border-0" key={item.campaign || '(none)'}>
+                      <button
+                        aria-pressed={selected === item.campaign}
+                        className="flex min-h-11 w-full items-baseline justify-between gap-3 rounded-md px-1 py-1.5 text-left hover:bg-muted/50 aria-pressed:bg-muted aria-pressed:font-medium"
+                        type="button"
+                        onClick={() => setSelected(selected === item.campaign ? null : item.campaign)}
+                      >
+                        <span className="min-w-0 truncate">{item.campaign || t.pixelUntagged}</span>
+                        <span className="tabular-nums">{fmt.number(item.impressions)}</span>
+                      </button>
                     </li>
                   ))}
                 </ul>

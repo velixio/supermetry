@@ -22,7 +22,7 @@ type LinksApi = {
     ): ApiResult<PixelSnippet>
     (
       path: '/api/private/sites/{site}/pixel/stats',
-      options: { params: { path: { site: number }; query: Range } },
+      options: { params: { path: { site: number }; query: Range & { campaign?: string } } },
     ): ApiResult<PixelStats>
   }
   POST: (
@@ -46,7 +46,7 @@ export const linkKeys = {
   one: (siteId: number, id: number) => ['links', siteId, 'one', id] as const,
   stats: (id: number, range: Range) => ['links', 'stats', id, range] as const,
   pixel: (siteId: number, campaign: string) => ['links', siteId, 'pixel', campaign] as const,
-  pixelStats: (siteId: number, range: Range) => ['links', siteId, 'pixel-stats', range] as const,
+  pixelStats: (siteId: number, range: Range, campaign: string | null) => ['links', siteId, 'pixel-stats', range, campaign] as const,
 }
 
 function requireData<T>(result: { data?: T; error?: Problem; response: Response }, message: string): T {
@@ -102,13 +102,14 @@ export function usePixelSnippet(siteId: number, campaign: string, enabled = true
   })
 }
 
-export function usePixelStats(siteId: number, range: Range) {
+/** campaign: null for every tag, '' for untagged impressions, otherwise one tag. */
+export function usePixelStats(siteId: number, range: Range, campaign: string | null = null) {
   return useQuery<PixelStats, Error>({
-    queryKey: linkKeys.pixelStats(siteId, range),
+    queryKey: linkKeys.pixelStats(siteId, range, campaign),
     queryFn: async () =>
       requireData(
         await linksApi.GET('/api/private/sites/{site}/pixel/stats', {
-          params: { path: { site: siteId }, query: range },
+          params: { path: { site: siteId }, query: campaign === null ? range : { ...range, campaign: campaign === '' ? '(none)' : campaign } },
         }),
         'Could not load impression statistics.',
       ),

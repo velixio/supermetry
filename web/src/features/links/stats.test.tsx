@@ -100,4 +100,17 @@ describe('PixelPage', () => {
     expect(await screen.findByText('Untagged')).toBeInTheDocument()
     expect(screen.getAllByText('8').length).toBeGreaterThan(0)
   })
+
+  it('narrows the stats to one campaign and clears the filter', async () => {
+    wrap(<PixelPage org="acme" siteId={7} siteSlug="main" timezone="UTC" />)
+    fireEvent.click(await screen.findByRole('button', { name: /spring/ }))
+    expect(await screen.findByText('Showing campaign: spring')).toBeInTheDocument()
+    const statsCalls = () => get.mock.calls.filter(([path]) => path === '/api/private/sites/{site}/pixel/stats')
+    expect(statsCalls().at(-1)?.[1].params.query.campaign).toBe('spring')
+    fireEvent.click(screen.getByRole('button', { name: /^Untagged/ }))
+    expect(await screen.findByText('Showing campaign: Untagged')).toBeInTheDocument()
+    expect(statsCalls().at(-1)?.[1].params.query.campaign).toBe('(none)')
+    fireEvent.click(screen.getByRole('button', { name: 'Show all campaigns' }))
+    await waitFor(() => expect(statsCalls().at(-1)?.[1].params.query.campaign).toBeUndefined())
+  })
 })
