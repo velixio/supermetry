@@ -2,7 +2,9 @@ package pixels
 
 import (
 	"context"
+	"log/slog"
 	"sync/atomic"
+	"time"
 )
 
 type Registry struct {
@@ -10,7 +12,21 @@ type Registry struct {
 	seed   func(context.Context) (map[int64]int64, error)
 	totals *TotalCache
 	byID   atomic.Pointer[map[string]Pixel]
-	seeded atomic.Bool
+}
+
+func (r *Registry) Run(ctx context.Context, interval time.Duration) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if err := r.Reload(ctx); err != nil {
+				slog.Warn("reload pixel registry", "err", err)
+			}
+		}
+	}
 }
 
 func NewRegistry(load func(context.Context) ([]Pixel, error), seed func(context.Context) (map[int64]int64, error), totals *TotalCache) *Registry {
@@ -32,18 +48,17 @@ func (r *Registry) Reload(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !r.seeded.Load() {
-		totals, err := r.seed(ctx)
-		if err != nil {
-			return err
-		}
-		r.totals.Seed(totals)
-		r.seeded.Store(true)
+	totals, err := r.seed(ctx)
+	if err != nil {
+		return err
 	}
 	next := make(map[string]Pixel, len(list))
+	active := make(map[int64]struct{}, len(list))
 	for _, p := range list {
 		next[p.PublicID] = p
+		active[p.ID] = struct{}{}
 	}
+	r.totals.Reconcile(totals, active)
 	r.byID.Store(&next)
 	return nil
 }

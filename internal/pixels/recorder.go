@@ -99,8 +99,11 @@ func PoolWriter(pool *pgxpool.Pool) WriteFunc {
 		batch := &pgx.Batch{}
 		for k, n := range rows {
 			batch.Queue(`
+				with counted as (
+					update pixels set total_views = total_views + $5 where id=$1 returning id
+				)
 				insert into pixel_views_daily(pixel_id, day, country, via, views)
-				select $1, $2::date, $3, $4, $5 where exists (select 1 from pixels where id=$1)
+				select id, $2::date, $3, $4, $5 from counted
 				on conflict (pixel_id, day, country, via)
 				do update set views = pixel_views_daily.views + excluded.views`,
 				k.PixelID, k.Day, k.Country, k.Via, n)

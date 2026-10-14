@@ -53,7 +53,10 @@ func TestStoreCRUDLimitAndTotals(t *testing.T) {
 	if err != nil || updated.BadgeLabel != "hits" || updated.Enabled {
 		t.Fatalf("updated = %+v, %v", updated, err)
 	}
-	if _, err := pool.Exec(ctx, `insert into pixel_views_daily values ($1,'2026-10-13','','proxy',5),($1,'2026-10-14','NP','direct',2)`, created.ID); err != nil {
+	if err := PoolWriter(pool)(ctx, map[ViewKey]int64{
+		{PixelID: created.ID, Day: "2026-10-13", Via: "proxy"}:                 5,
+		{PixelID: created.ID, Day: "2026-10-14", Country: "NP", Via: "direct"}: 2,
+	}); err != nil {
 		t.Fatal(err)
 	}
 	totals, err := Totals(ctx, pool)
@@ -94,9 +97,28 @@ func TestPoolWriterUpsertsAndSkipsDeletedPixels(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	var views int64
-	_ = pool.QueryRow(ctx, `select coalesce(sum(views),0) from pixel_views_daily`).Scan(&views)
-	if views != 4 {
-		t.Fatalf("views = %d, want 4", views)
+	var views, total int64
+	_ = pool.QueryRow(ctx, `select coalesce(sum(v.views),0),p.total_views from pixels p left join pixel_views_daily v on v.pixel_id=p.id where p.id=$1 group by p.id`, p.ID).Scan(&views, &total)
+	if views != 4 || total != 4 {
+		t.Fatalf("daily/all-time views = %d/%d, want 4/4", views, total)
+	}
+}
+
+func TestTotalsSurviveDailyRetention(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	p, err := Create(ctx, pool, Pixel{SiteID: siteID, Name: "durable", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := PoolWriter(pool)(ctx, map[ViewKey]int64{{PixelID: p.ID, Day: "2025-01-01", Via: "proxy"}: 7}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `delete from pixel_views_daily where pixel_id=$1`, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	totals, err := Totals(ctx, pool)
+	if err != nil || totals[p.ID] != 7 {
+		t.Fatalf("totals after daily retention = %v, %v", totals, err)
 	}
 }

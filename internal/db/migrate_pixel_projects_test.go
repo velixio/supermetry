@@ -31,11 +31,15 @@ func TestPixelProjectsMigration(t *testing.T) {
 	}
 	var pixelID int64
 	var label string
-	if err := pool.QueryRow(ctx, `insert into pixels(site_id,public_id,name) values ($1,'pAbCdEfGhIjK','GitHub profile') returning id, badge_label`, siteID).Scan(&pixelID, &label); err != nil {
+	var total int64
+	if err := pool.QueryRow(ctx, `insert into pixels(site_id,public_id,name) values ($1,'pAbCdEfGhIjK','GitHub profile') returning id, badge_label, total_views`, siteID).Scan(&pixelID, &label, &total); err != nil {
 		t.Fatal(err)
 	}
-	if label != "views" {
-		t.Fatalf("badge_label default = %q", label)
+	if label != "views" || total != 0 {
+		t.Fatalf("defaults badge_label=%q total_views=%d", label, total)
+	}
+	if _, err := pool.Exec(ctx, `update pixels set total_views=-1 where id=$1`, pixelID); err == nil {
+		t.Fatal("negative total_views accepted")
 	}
 	for _, bad := range []string{
 		`insert into pixels(site_id,public_id,name) values ($1,'short','x')`,

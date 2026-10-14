@@ -8,7 +8,8 @@ CREATE TABLE pixels (
     site_id integer NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     public_id text NOT NULL UNIQUE CHECK (public_id ~ '^p[A-Za-z0-9]{11}$'),
     name text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
-    badge_label text NOT NULL DEFAULT 'views' CHECK (char_length(badge_label) BETWEEN 1 AND 40),
+    badge_label text NOT NULL DEFAULT 'views' CHECK (char_length(btrim(badge_label)) BETWEEN 1 AND 40),
+    total_views bigint NOT NULL DEFAULT 0 CHECK (total_views >= 0),
     enabled boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now()
 );

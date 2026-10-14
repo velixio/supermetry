@@ -30,3 +30,18 @@ func (c *TotalCache) Seed(persisted map[int64]int64) {
 		}
 	}
 }
+
+func (c *TotalCache) Reconcile(persisted map[int64]int64, active map[int64]struct{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for id := range c.totals {
+		if _, ok := active[id]; !ok {
+			delete(c.totals, id)
+		}
+	}
+	for id, n := range persisted {
+		if _, ok := active[id]; ok && n > c.totals[id] {
+			c.totals[id] = n
+		}
+	}
+}

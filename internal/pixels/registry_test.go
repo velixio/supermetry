@@ -3,7 +3,9 @@ package pixels
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestTotalCacheAddGetSeed(t *testing.T) {
@@ -28,6 +30,35 @@ func TestTotalCacheAddGetSeed(t *testing.T) {
 	}
 }
 
+func TestRegistryRunRefreshesPeriodically(t *testing.T) {
+	var calls atomic.Int32
+	r := NewRegistry(
+		func(context.Context) ([]Pixel, error) {
+			id := calls.Add(1)
+			return []Pixel{{ID: int64(id), PublicID: "pAAAAAAAAAAA"}}, nil
+		},
+		func(context.Context) (map[int64]int64, error) { return map[int64]int64{}, nil },
+		NewTotalCache(),
+	)
+	if err := r.Reload(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- r.Run(ctx, time.Millisecond) }()
+	deadline := time.Now().Add(time.Second)
+	for calls.Load() < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() < 2 {
+		t.Fatalf("reload calls = %d, want periodic refresh", calls.Load())
+	}
+}
+
 func TestRegistryReloadAndLookup(t *testing.T) {
 	loaded := []Pixel{{ID: 1, SiteID: 7, PublicID: "pAAAAAAAAAAA", Enabled: true}}
 	r := NewRegistry(
@@ -49,5 +80,8 @@ func TestRegistryReloadAndLookup(t *testing.T) {
 	_ = r.Reload(context.Background())
 	if _, ok := r.ByPublicID("pAAAAAAAAAAA"); ok {
 		t.Fatal("deleted pixel still resolves")
+	}
+	if total := r.Totals().Get(1); total != 0 {
+		t.Fatalf("deleted pixel total remains cached: %d", total)
 	}
 }

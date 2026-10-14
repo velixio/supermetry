@@ -129,7 +129,7 @@ func All(ctx context.Context, db DBTX) ([]Pixel, error) {
 }
 
 func Totals(ctx context.Context, db DBTX) (map[int64]int64, error) {
-	rows, err := db.Query(ctx, `select pixel_id, sum(views)::bigint from pixel_views_daily group by pixel_id`)
+	rows, err := db.Query(ctx, `select id, total_views from pixels`)
 	if err != nil {
 		return nil, err
 	}
