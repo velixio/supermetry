@@ -1282,20 +1282,25 @@ const (
 
 var hexColor = regexp.MustCompile(`^[0-9a-fA-F]{6}$`)
 
+// FormatCount rounds to one decimal with integer maths (no float edge cases):
+// 1234 -> 1.2k, 999_950 -> 1M, 1_234_567_890 -> 1.2B.
 func FormatCount(n int64) string {
 	units := []struct {
-		div    float64
+		div    int64
 		suffix string
-	}{{1e9, "B"}, {1e6, "M"}, {1e3, "k"}}
-	f := float64(n)
+	}{{1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "k"}}
 	for i, u := range units {
-		if f >= u.div*0.99995 || (i > 0 && f >= u.div && f < units[i-1].div) {
-			v := f / u.div
-			if s := strconv.FormatFloat(v, 'f', 1, 64); s != "1000.0" {
-				return strings.TrimSuffix(s, ".0") + u.suffix
-			}
+		if n < u.div {
+			continue
+		}
+		tenths := (n*10 + u.div/2) / u.div
+		if tenths >= 10_000 && i > 0 {
 			return "1" + units[i-1].suffix
 		}
+		if tenths%10 == 0 {
+			return strconv.FormatInt(tenths/10, 10) + u.suffix
+		}
+		return strconv.FormatInt(tenths/10, 10) + "." + strconv.FormatInt(tenths%10, 10) + u.suffix
 	}
 	return strconv.FormatInt(n, 10)
 }
@@ -1351,7 +1356,7 @@ func RenderBadge(o BadgeOptions) []byte {
 }
 ```
 
-If `TestFormatCount` shows the 999_950 edge failing, simplify `FormatCount` to: pick the largest unit with `n >= div`, format with one decimal, and if the rounded string is `"1000.0"` promote to the next unit as `"1"+nextSuffix`. The test is the contract; keep the code that passes it.
+`n*10` overflows only above 9.2e17 views, far beyond any real counter.
 
 - [ ] **Step 4: Config**
 
