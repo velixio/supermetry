@@ -31,3 +31,23 @@ func TestProxyLimiterIsPerPixelAndProxy(t *testing.T) {
 		t.Fatal("one busy pixel starved another key")
 	}
 }
+
+func TestProxyLimiterEvictionCreatesFreshIndependentBucket(t *testing.T) {
+	l := NewProxyLimiter()
+	for range 200 {
+		if !l.Allow(1, "camo") {
+			t.Fatal("initial bucket exhausted before its configured burst")
+		}
+	}
+	if l.Allow(1, "camo") {
+		t.Fatal("saturated bucket unexpectedly allowed another request")
+	}
+	for key := int64(2); key <= 10_002; key++ {
+		if !l.Allow(key, "camo") {
+			t.Fatalf("new counter %d shared a saturated overflow bucket", key)
+		}
+	}
+	if !l.Allow(1, "camo") {
+		t.Fatal("evicted counter did not receive a fresh bucket")
+	}
+}
