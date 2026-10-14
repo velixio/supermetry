@@ -90,6 +90,7 @@ type Site struct {
 	ID                    int32
 	OrgID                 int64
 	PublicID              string
+	Kind                  string
 	Slug                  string
 	Name                  string
 	AllowedHosts          []string
@@ -131,12 +132,18 @@ type DeletedSite struct {
 }
 
 func CreateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
+	if site.Kind == "" {
+		site.Kind = "web"
+	}
+	if site.RevenueCurrencyState == "" {
+		site.RevenueCurrencyState = "configured"
+	}
 	err := tx.QueryRow(ctx, `
-		insert into sites (org_id, public_id, name, allowed_hosts, timezone, retention_class, revenue_currency, revenue_currency_state, settings)
-		values ($1, $2, $3, $4, $5, $6, $7, 'configured', '{"profiles_enabled": true}'::jsonb)
+		insert into sites (org_id, public_id, name, allowed_hosts, timezone, retention_class, revenue_currency, revenue_currency_state, settings, kind)
+		values ($1, $2, $3, $4, $5, $6, nullif($7, ''), $8, '{"profiles_enabled": true}'::jsonb, $9)
 		on conflict (public_id) do nothing
 		returning id, slug, created_at`,
-		site.OrgID, site.PublicID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass, site.RevenueCurrency,
+		site.OrgID, site.PublicID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass, site.RevenueCurrency, site.RevenueCurrencyState, site.Kind,
 	).Scan(&site.ID, &site.Slug, &site.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -161,7 +168,7 @@ func SiteForUpdate(ctx context.Context, tx pgx.Tx, orgID int64, id int32) (Site,
 		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
-		       is_demo, demo_seeded_at, demo_started_at
+		       is_demo, demo_seeded_at, demo_started_at, kind
 		from sites
 		where id = $1 and org_id = $2 and deleted_at is null
 		for update`, id, orgID)
@@ -200,7 +207,7 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		          coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
-		          is_demo, demo_seeded_at, demo_started_at`,
+		          is_demo, demo_seeded_at, demo_started_at, kind`,
 		site.ID, site.OrgID, site.Name, site.AllowedHosts, site.Timezone, site.RetentionClass,
 		site.ExcludeIPs, site.ExcludePaths, site.ExcludeCountries, string(site.Tracker), site.ProfilesEnabled, site.HeatmapsEnabled,
 		site.RespectPrivacySignals, site.StrictOrigin, site.BlockedReferrers, site.Slug,
@@ -209,7 +216,7 @@ func UpdateSite(ctx context.Context, tx pgx.Tx, site Site) (Site, error) {
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
-		&site.CreatedAt, &site.DeletedAt, &site.IsDemo, &site.DemoSeededAt, &site.DemoStartedAt,
+		&site.CreatedAt, &site.DeletedAt, &site.IsDemo, &site.DemoSeededAt, &site.DemoStartedAt, &site.Kind,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -373,7 +380,7 @@ func ActiveSites(ctx context.Context, data *Store) ([]Site, error) {
 		       coalesce(s.settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(s.settings->>'icon_url', ''), coalesce(s.settings->>'icon_checked_at', ''),
 		       coalesce(s.revenue_currency::text, ''), s.revenue_currency_state, s.created_at, s.deleted_at,
-		       s.is_demo, s.demo_seeded_at, s.demo_started_at
+		       s.is_demo, s.demo_seeded_at, s.demo_started_at, s.kind
 		from sites s
 		join orgs o on o.id = s.org_id
 		where s.deleted_at is null and o.deleted_at is null
@@ -399,7 +406,7 @@ func ListSites(ctx context.Context, data *Store, orgID int64, siteIDs []int32, a
 		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
-		       is_demo, demo_seeded_at, demo_started_at
+		       is_demo, demo_seeded_at, demo_started_at, kind
 		from sites
 		where org_id = $1 and deleted_at is null and id > $2
 		  and ($3::integer[] is null or id = any($3))
@@ -423,7 +430,7 @@ func scanSite(row siteScanner) (Site, error) {
 		&site.Timezone, &site.RetentionClass, &site.ExcludeIPs, &site.ExcludePaths, &site.ExcludeCountries, &site.Tracker, &site.ProfilesEnabled,
 		&site.HeatmapsEnabled, &site.RespectPrivacySignals, &site.StrictOrigin, &site.BlockedReferrers, &site.IconURL, &site.IconCheckedAt,
 		&site.RevenueCurrency, &site.RevenueCurrencyState,
-		&site.CreatedAt, &site.DeletedAt, &site.IsDemo, &site.DemoSeededAt, &site.DemoStartedAt,
+		&site.CreatedAt, &site.DeletedAt, &site.IsDemo, &site.DemoSeededAt, &site.DemoStartedAt, &site.Kind,
 	); err != nil {
 		return Site{}, err
 	}
@@ -449,7 +456,7 @@ func SetSiteIcon(ctx context.Context, data *Store, orgID int64, id int32, iconUR
 		          coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		          coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		          coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
-		          is_demo, demo_seeded_at, demo_started_at`,
+		          is_demo, demo_seeded_at, demo_started_at, kind`,
 		id, orgID, iconURL, checkedAt.UTC().Format(time.RFC3339),
 	)
 	site, err := scanSite(row)
@@ -543,7 +550,7 @@ func DemoSiteForOrg(ctx context.Context, q DBTX, orgID int64) (Site, bool, error
 		       coalesce(settings->'blocked_referrers', '[]'::jsonb),
 		       coalesce(settings->>'icon_url', ''), coalesce(settings->>'icon_checked_at', ''),
 		       coalesce(revenue_currency::text, ''), revenue_currency_state, created_at, deleted_at,
-		       is_demo, demo_seeded_at, demo_started_at
+		       is_demo, demo_seeded_at, demo_started_at, kind
 		from sites
 		where org_id=$1 and is_demo and deleted_at is null`, orgID)
 	site, err := scanSite(row)

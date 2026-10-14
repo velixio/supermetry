@@ -105,7 +105,7 @@ func (f lifecycleHTTPFixture) request(t *testing.T, actor, method, path, body st
 
 func (f lifecycleHTTPFixture) createSite(t *testing.T, name string) int32 {
 	t.Helper()
-	site, err := f.sites.Create(context.Background(), authz.Principal{UserID: f.ownerID, OrgID: f.orgID, Role: authz.RoleOwner}, name, []string{strings.ToLower(name) + ".example.test"}, "UTC", 30, "USD")
+	site, err := f.sites.Create(context.Background(), authz.Principal{UserID: f.ownerID, OrgID: f.orgID, Role: authz.RoleOwner}, sitesvc.CreateInput{Name: name, Hosts: []string{strings.ToLower(name) + ".example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}

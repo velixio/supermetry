@@ -24,6 +24,39 @@ import (
 	"supermetry/internal/testpg"
 )
 
+func TestCreateSiteAcceptsPixelKind(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('you@example.com','Owner','hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Pixels','pixel-create') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	registry := sitesvc.NewRegistry(data, 0)
+	t.Cleanup(registry.Close)
+	service := sitesvc.New(data, registry)
+	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
+		Mutations: platformhttp.Services{Sites: service}, Store: data,
+	})
+	request := authenticatedRequest(http.MethodPost, "/api/private/sites", `{"name":"Views","kind":"pixel","timezone":"UTC","retention_days":365}`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated || !strings.Contains(response.Body.String(), `"kind":"pixel"`) {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body)
+	}
+}
+
 func TestSiteExclusionAPI(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
@@ -45,7 +78,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, principal, "Example", []string{"example.test"}, "UTC", 30, "USD")
+	site, err := sites.Create(ctx, principal, sitesvc.CreateInput{Name: "Example", Hosts: []string{"example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +211,7 @@ func TestSiteResponseDerivesInstallStatusFromLastAcceptedEvent(t *testing.T) {
 	t.Cleanup(registry.Close)
 	service := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := service.Create(ctx, principal, "Status", []string{"status.example.test"}, "Asia/Kathmandu", 30, "USD")
+	site, err := service.Create(ctx, principal, sitesvc.CreateInput{Name: "Status", Hosts: []string{"status.example.test"}, Timezone: "Asia/Kathmandu", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +315,7 @@ func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 	t.Cleanup(registry.Close)
 	sites := sitesvc.New(data, registry, privacy.Identified)
 	owner := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	site, err := sites.Create(ctx, owner, "Example", []string{"example.test"}, "UTC", 30, "USD")
+	site, err := sites.Create(ctx, owner, sitesvc.CreateInput{Name: "Example", Hosts: []string{"example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
