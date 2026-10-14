@@ -130,4 +130,12 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag
+        run: |
+          set -euo pipefail
+          # A release created in the GitHub UI already exists by the time this
+          # runs, so attach the assets to it instead of failing.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --verify-tag
+          fi
