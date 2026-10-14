@@ -47,3 +47,6 @@ tools/bench/replay/node_modules/
 
 # Dependencies of the accuracy driver and other tools
 tools/**/node_modules/
+
+# TypeScript incremental build state
+*.tsbuildinfo
