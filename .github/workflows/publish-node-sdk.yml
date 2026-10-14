@@ -94,6 +94,6 @@ jobs:
           path: node-package
 
       - name: Publish verified package
-        run: npm publish "node-package/${{ needs.verify.outputs.archive }}" --access public --provenance
+        run: npm publish "./node-package/${{ needs.verify.outputs.archive }}" --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
