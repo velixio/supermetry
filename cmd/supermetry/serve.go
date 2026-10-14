@@ -335,6 +335,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Recorder: linkRecorder, Sites: registry, Enricher: enricher,
 		Limiter: ingest.NewTokenBuckets(10, 60), MissLimiter: ingest.NewTokenBuckets(1, 20),
 		TrustedProxies: cfg.TrustedProxies, Now: settings.clock.Now,
+		DetectProxy: pixels.DetectProxy, ProxyLimiter: pixels.NewProxyLimiter(),
 	}
 	pixelTotals := pixels.NewTotalCache()
 	pixelRegistry := pixels.NewRegistry(

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -400,5 +401,28 @@ func TestBadgeStatsCountsAndReportsSiteViews(t *testing.T) {
 	}
 	if arbitrary != 0 {
 		t.Fatalf("unregistered impression was buffered: %v", impressions)
+	}
+}
+
+type fakeProxyLimiter struct{ allow bool }
+
+func (l fakeProxyLimiter) Allow(int64, string) bool { return l.allow }
+
+func TestPixelCountsImageProxyHitsForRegisteredTags(t *testing.T) {
+	f := newFixture(t)
+	f.recorder.Views.Register(1, "readme")
+	f.handler.DetectProxy = func(ua string) (string, bool) { return "camo", strings.Contains(ua, "github-camo") }
+	f.handler.ProxyLimiter = fakeProxyLimiter{allow: true}
+	camo := []string{"User-Agent", "github-camo (876de43e)"}
+	// GitHub's image proxy is not a bot: it counts, with no country, on a registered tag only.
+	f.get("/px/pubsite0001.gif?c=readme", camo...)
+	f.get("/px/pubsite0001.gif?c=readme", camo...)
+	f.get("/px/pubsite0001.gif?c=other", camo...)
+	f.get("/px/pubsite0001.gif", camo...)
+	f.handler.ProxyLimiter = fakeProxyLimiter{allow: false}
+	f.get("/px/pubsite0001.gif?c=readme", camo...) // over the proxy limit: served, not counted
+	_, impressions := f.recorder.snapshot()
+	if len(impressions) != 1 || impressions[impressionKey{1, "2026-10-13", "readme", ""}] != 2 {
+		t.Fatalf("impressions = %v, want 2 for readme", impressions)
 	}
 }

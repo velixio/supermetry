@@ -60,6 +60,13 @@ type Handler struct {
 	MissLimiter    ingest.RateLimiter // per client, cache misses that reach the database
 	TrustedProxies []netip.Prefix
 	Now            func() time.Time
+	// DetectProxy names image proxies (GitHub's, Google's) that fetch on behalf of a reader.
+	// Their requests share the proxy's address and user agent, so they skip the per-client
+	// limiter and the bot check and use ProxyLimiter instead.
+	DetectProxy  func(userAgent string) (string, bool)
+	ProxyLimiter interface {
+		Allow(key int64, proxy string) bool
+	}
 
 	mu    sync.Mutex
 	cache map[string]*cacheEntry
@@ -261,6 +268,14 @@ func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool
 	tag := NormalizeCampaign(r.URL.Query().Get("c"))
 	if tag == "" || h.Recorder == nil || h.Recorder.Views == nil || !h.Recorder.Views.Registered(site.ID, tag) {
 		return site, true
+	}
+	if h.DetectProxy != nil {
+		if proxy, ok := h.DetectProxy(r.UserAgent()); ok {
+			if h.ProxyLimiter == nil || h.ProxyLimiter.Allow(int64(site.ID), proxy) {
+				h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, "")
+			}
+			return site, true
+		}
 	}
 	key, ip := h.clientKey(r)
 	if h.Limiter != nil && !h.Limiter.Allow("px:"+key) {
