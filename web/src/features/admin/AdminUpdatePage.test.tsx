@@ -62,18 +62,15 @@ describe('AdminUpdatePage', () => {
     expect(screen.getByRole('button', { name: 'Checking…' })).toBeDisabled()
   })
 
-  it('requires the exact version, password and TOTP before dispatching once', async () => {
+  it('requires the password and TOTP before dispatching once', async () => {
     available()
     render(<AdminUpdatePage />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Update to 1.3.0' }))
     expect(screen.getByRole('dialog', { name: 'Update Supermetry to 1.3.0?' })).toBeVisible()
-    fireEvent.change(screen.getByLabelText('Type 1.3.0 to confirm'), { target: { value: '1.3' } })
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'pw-123456789' } })
     fireEvent.change(screen.getByLabelText('Authentication code'), { target: { value: '123456' } })
-    expect(screen.getByRole('button', { name: 'Start update' })).toBeDisabled()
-
-    fireEvent.change(screen.getByLabelText('Type 1.3.0 to confirm'), { target: { value: '1.3.0' } })
+    expect(screen.getByRole('button', { name: 'Start update' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Start update' }))
 
     await waitFor(() => expect(mutate).toHaveBeenCalledOnce())
@@ -89,7 +86,6 @@ describe('AdminUpdatePage', () => {
     render(<AdminUpdatePage />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Update to 1.3.0' }))
-    fireEvent.change(screen.getByLabelText('Type 1.3.0 to confirm'), { target: { value: '1.3.0' } })
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'pw-123456789' } })
     expect(screen.queryByLabelText('Authentication code')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start update' }))
