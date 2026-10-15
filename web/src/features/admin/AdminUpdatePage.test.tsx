@@ -50,6 +50,13 @@ describe('AdminUpdatePage', () => {
     expect(screen.getByRole('button', { name: 'Update to 1.3.0' })).toBeVisible()
   })
 
+  it('warns about the brief offline period before the update starts', () => {
+    available()
+    render(<AdminUpdatePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Update to 1.3.0' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Supermetry will be offline for a few seconds')
+  })
+
   it('checks for a new release on demand, showing progress while it runs', () => {
     available({ update_available: false, latest_version: '1.2.0' })
     const { rerender } = render(<AdminUpdatePage />)
