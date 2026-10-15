@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { useUpdateStatus, useApplyUpdate, useCheckUpdate, useMe, mutate, checkMutate } = vi.hoisted(() => ({
@@ -48,6 +48,30 @@ describe('AdminUpdatePage', () => {
     )
     expect(screen.getByText('Binary installation')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Update to 1.3.0' })).toBeVisible()
+  })
+
+  it('lists recent updates below the update card, newest first', () => {
+    available({
+      history: [
+        { id: 3, from_version: 'v1.1.0', target_version: 'v1.2.0', deployment_mode: 'binary', status: 'failed', created_at: '2026-10-13T09:00:00Z', updated_at: '2026-10-13T09:02:00Z', finished_at: '2026-10-13T09:02:00Z' },
+        { id: 2, from_version: 'v1.0.0', target_version: 'v1.1.0', deployment_mode: 'binary', status: 'complete', created_at: '2026-10-12T09:00:00Z', updated_at: '2026-10-12T09:01:00Z', finished_at: '2026-10-12T09:01:00Z' },
+      ],
+    })
+    render(<AdminUpdatePage />)
+    const table = screen.getByRole('table', { name: 'Update history' })
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows[0]).toHaveTextContent('v1.1.0 → v1.2.0')
+    expect(rows[0]).toHaveTextContent('Failed')
+    expect(rows[1]).toHaveTextContent('v1.0.0 → v1.1.0')
+    expect(rows[1]).toHaveTextContent('Complete')
+    const card = screen.getByRole('button', { name: 'Update to 1.3.0' })
+    expect(card.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('says so when no update has been run', () => {
+    available({ history: [] })
+    render(<AdminUpdatePage />)
+    expect(screen.getByText('No updates have been run yet.')).toBeVisible()
   })
 
   it('warns about the brief offline period before the update starts', () => {
