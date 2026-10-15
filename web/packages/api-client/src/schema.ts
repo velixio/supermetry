@@ -2564,6 +2564,8 @@ export interface components {
             /** @enum {string} */
             deployment_mode?: "binary" | "docker";
             job?: components["schemas"]["AdminUpdateJob"] | null;
+            /** @description The ten most recent update jobs, newest first. */
+            history?: components["schemas"]["AdminUpdateJob"][];
         };
         AdminApplyUpdateRequest: {
             target_version: string;

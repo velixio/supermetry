@@ -3529,6 +3529,10 @@ components:
         update_supported: { type: boolean }
         deployment_mode: { type: string, enum: [binary, docker] }
         job: { anyOf: [{ $ref: '#/components/schemas/AdminUpdateJob' }, { type: 'null' }] }
+        history:
+          type: array
+          description: The ten most recent update jobs, newest first.
+          items: { $ref: '#/components/schemas/AdminUpdateJob' }
     AdminApplyUpdateRequest:
       type: object
       additionalProperties: false
