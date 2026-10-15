@@ -150,6 +150,34 @@ describe('MainChart', () => {
     expect(useTimeseries).toHaveBeenCalledWith(expect.anything(), 'week', true)
   })
 
+  it('lets the reader switch the default 30-day range to hourly buckets', () => {
+    const thirtyDays = {
+      ...query,
+      dateRange: { from: '2026-09-03', to: '2026-10-02' },
+    }
+    render(<MainChart query={thirtyDays} metric="visitors" compare="off" />)
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chart interval' }))
+    const hour = screen.getByRole('option', { name: 'Hour' })
+    expect(hour).toBeEnabled()
+    fireEvent.click(hour)
+
+    expect(useTimeseries).toHaveBeenCalledWith(expect.anything(), 'hour', true)
+  })
+
+  it('keeps hourly buckets disabled beyond 30 days', () => {
+    render(
+      <MainChart
+        query={{ ...query, dateRange: { from: '2026-07-04', to: '2026-10-02' } }}
+        metric="visitors"
+        compare="off"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chart interval' }))
+    expect(screen.getByRole('option', { name: 'Hour' })).toHaveAttribute('data-disabled')
+  })
+
   it('follows interval prop changes after the chart is mounted', () => {
     const { rerender } = render(<MainChart query={query} metric="visitors" compare="off" interval="day" />)
     expect(screen.getByRole('combobox', { name: 'Chart interval' })).toHaveTextContent('Day')

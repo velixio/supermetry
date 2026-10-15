@@ -1103,6 +1103,7 @@ paths:
             default: true
         - name: interval
           in: query
+          description: Hourly buckets support ranges of up to 30 days.
           schema:
             type: string
             pattern: '^(hour|day|week|month)$'
