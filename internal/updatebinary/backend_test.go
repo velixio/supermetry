@@ -386,3 +386,26 @@ func TestBackendVersionSlotIsEnterableUnderRestrictiveUmask(t *testing.T) {
 		t.Fatalf("version slot mode = %o, want 755", got)
 	}
 }
+
+func TestPreflightChecksFreeDiskSpace(t *testing.T) {
+	t.Parallel()
+	job := updatehelper.Job{ID: "12345678", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
+	for _, tt := range []struct {
+		name    string
+		free    uint64
+		wantErr bool
+	}{
+		{name: "enough space", free: minFreeBytes},
+		{name: "one byte short", free: minFreeBytes - 1, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			backend, _ := newFixture(t, release.Schema{Version: 150})
+			backend.freeBytes = func(string) (uint64, error) { return tt.free, nil }
+			err := backend.RunStep(context.Background(), updatehelper.StatePreflight, job)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("preflight error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
