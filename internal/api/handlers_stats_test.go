@@ -144,9 +144,11 @@ func TestStatsBreakdownAcceptsTrafficGridDimensionsForThirtyDays(t *testing.T) {
 	hourlyRequest.Header.Set("Authorization", "Bearer test-key")
 	hourlyResponse := httptest.NewRecorder()
 	router.ServeHTTP(hourlyResponse, hourlyRequest)
-	assertRecorderProblem(t, hourlyResponse, http.StatusBadRequest)
-	if !strings.Contains(hourlyResponse.Body.String(), "hour interval is limited to seven days") {
-		t.Fatalf("hourly body=%s", hourlyResponse.Body.String())
+	if hourlyResponse.Code != http.StatusOK {
+		t.Fatalf("hourly status=%d body=%s", hourlyResponse.Code, hourlyResponse.Body.String())
+	}
+	if got.Dimensions == nil || !reflect.DeepEqual(*got.Dimensions, []string{"hour"}) {
+		t.Fatalf("hourly dimensions=%v", got.Dimensions)
 	}
 }
 
@@ -326,7 +328,7 @@ func TestStatsGETRejectsInvalidParametersAsProblems(t *testing.T) {
 		{name: "compare is known", path: "/api/public/v1/stats/summary?site_id=1&period=7d&compare=year"},
 		{name: "breakdown limit is bounded", path: "/api/public/v1/stats/breakdown?site_id=1&period=7d&dimension=page&limit=1001"},
 		{name: "all limit needs CSV", path: "/api/public/v1/stats/breakdown?site_id=1&period=7d&dimension=page&limit=all"},
-		{name: "hour is at most seven days", path: "/api/public/v1/stats/timeseries?site_id=1&period=30d&interval=hour"},
+		{name: "hour is at most thirty days", path: "/api/public/v1/stats/timeseries?site_id=1&period=91d&interval=hour"},
 		{name: "format is known", path: "/api/public/v1/stats/summary?site_id=1&period=7d&format=xml"},
 	}
 	for _, tt := range tests {
@@ -511,6 +513,29 @@ func TestStatsTimeseriesHourUsesEngineDimensionAndZeroFills(t *testing.T) {
 	}
 	if body.Rows[0]["time"] != "2026-10-08T00:00:00" || body.Rows[0]["visitors"] != float64(0) || body.Rows[10]["time"] != "2026-10-08T10:00:00" || body.Rows[10]["visitors"] != float64(2) || body.Rows[23]["time"] != "2026-10-08T23:00:00" {
 		t.Fatalf("hour rows=%#v", body.Rows)
+	}
+}
+
+func TestStatsTimeseriesAllowsThirtyDaysOfHourlyBuckets(t *testing.T) {
+	router := statsTestRouter(queryFunc{query: func(request api.QueryRequest) (api.QueryResponse, error) {
+		if request.Dimensions == nil || fmt.Sprint(*request.Dimensions) != "[hour]" {
+			t.Fatalf("dimensions=%v", request.Dimensions)
+		}
+		return api.QueryResponse{Columns: []string{"hour", "visitors"}, Totals: map[string]float64{}, Meta: api.QueryMeta{}}, nil
+	}}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/public/v1/stats/timeseries?site_id=1&period=30d&interval=hour&metrics=visitors", nil)
+	request.Header.Set("Authorization", "Bearer test-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body api.QueryResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Rows) != 30*24 {
+		t.Fatalf("rows=%d, want %d", len(body.Rows), 30*24)
 	}
 }
 

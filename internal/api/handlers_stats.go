@@ -28,6 +28,8 @@ type statsRange struct {
 	toText   string
 }
 
+const maxHourlyTimeseriesDays = 30
+
 func (h *handlers) statsSummary(w http.ResponseWriter, r *http.Request) {
 	h.runStats(w, r, "summary", []Metric{Visitors, Visits, Pageviews, BounceRate, VisitDuration}, nil, "")
 }
@@ -92,8 +94,8 @@ func (h *handlers) runStats(w http.ResponseWriter, r *http.Request, endpoint str
 		writeProblem(w, *problem)
 		return
 	}
-	if interval == "hour" && (dateRange.from.IsZero() || dateRange.to.Sub(dateRange.from) >= 7*24*time.Hour) {
-		writeProblem(w, badRequest("hour interval is limited to seven days"))
+	if interval == "hour" && (dateRange.from.IsZero() || dateRange.to.Sub(dateRange.from) >= maxHourlyTimeseriesDays*24*time.Hour) {
+		writeProblem(w, badRequest("hour interval is limited to 30 days"))
 		return
 	}
 	if !authorizeRequest(w, r, request.SiteId, "stats:read") {

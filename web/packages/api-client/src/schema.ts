@@ -6049,6 +6049,7 @@ export interface operations {
                 format?: components["parameters"]["Format"];
                 /** @description Include imported analytics rows when available. */
                 include_imported?: boolean;
+                /** @description Hourly buckets support ranges of up to 30 days. */
                 interval?: string;
             };
             header?: never;

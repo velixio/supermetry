@@ -27,7 +27,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { Annotation } from '@/features/annotations/types'
-import { autoInterval, type ChartInterval } from '@/lib/chart'
+import { autoInterval, maxHourlyRangeDays, type ChartInterval } from '@/lib/chart'
 import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useTimeseries, type StatsQuery } from '../lib/stats'
@@ -289,7 +289,7 @@ export function MainChart({
     : metric
   const automaticInterval = autoInterval(query.dateRange.from, query.dateRange.to)
   const requestedInterval = selectedInterval ?? automaticInterval
-  const resolvedInterval = requestedInterval === 'hour' && rangeDays(query.dateRange.from, query.dateRange.to) > 7
+  const resolvedInterval = requestedInterval === 'hour' && rangeDays(query.dateRange.from, query.dateRange.to) > maxHourlyRangeDays
     ? automaticInterval
     : requestedInterval
   const currentQuery: StatsQuery = {
@@ -348,7 +348,7 @@ export function MainChart({
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem disabled={rangeDays(query.dateRange.from, query.dateRange.to) > 7} value="hour">Hour</SelectItem>
+              <SelectItem disabled={rangeDays(query.dateRange.from, query.dateRange.to) > maxHourlyRangeDays} value="hour">Hour</SelectItem>
               <SelectItem value="day">Day</SelectItem>
               <SelectItem value="week">Week</SelectItem>
               <SelectItem value="month">Month</SelectItem>

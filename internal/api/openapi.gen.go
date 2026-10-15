@@ -4125,8 +4125,10 @@ type StatsTimeseriesParams struct {
 	Format  *Format  `form:"format,omitempty" json:"format,omitempty"`
 
 	// IncludeImported Include imported analytics rows when available.
-	IncludeImported *bool   `form:"include_imported,omitempty" json:"include_imported,omitempty"`
-	Interval        *string `form:"interval,omitempty" json:"interval,omitempty"`
+	IncludeImported *bool `form:"include_imported,omitempty" json:"include_imported,omitempty"`
+
+	// Interval Hourly buckets support ranges of up to 30 days.
+	Interval *string `form:"interval,omitempty" json:"interval,omitempty"`
 }
 
 // TrackingPixelParams defines parameters for TrackingPixel.
