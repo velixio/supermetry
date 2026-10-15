@@ -109,6 +109,8 @@ type Config struct {
 	HealthTimeout  time.Duration
 	Now            func() time.Time
 	Sleep          func(context.Context, time.Duration) error
+	// FreeBytes reports available space for a path; when nil the disk-space check is skipped.
+	FreeBytes func(string) (uint64, error)
 }
 
 type Backend struct {
@@ -129,6 +131,7 @@ type Backend struct {
 	healthTimeout  time.Duration
 	now            func() time.Time
 	sleep          func(context.Context, time.Duration) error
+	freeBytes      func(string) (uint64, error)
 }
 
 func New(config Config) (*Backend, error) {
@@ -163,7 +166,7 @@ func New(config Config) (*Backend, error) {
 		return nil, errors.New("staging directory must be an absolute clean path")
 	}
 	if config.PollInterval <= 0 {
-		config.PollInterval = time.Second
+		config.PollInterval = 250 * time.Millisecond
 	}
 	if config.HealthTimeout <= 0 {
 		config.HealthTimeout = 30 * time.Second
@@ -180,7 +183,7 @@ func New(config Config) (*Backend, error) {
 		currentVersion: config.CurrentVersion, currentSchema: config.CurrentSchema,
 		environment: append([]string(nil), config.Environment...), goos: config.GOOS, goarch: config.GOARCH,
 		stagingDir: config.StagingDir, pollInterval: config.PollInterval, healthTimeout: config.HealthTimeout,
-		now: config.Now, sleep: config.Sleep,
+		now: config.Now, sleep: config.Sleep, freeBytes: config.FreeBytes,
 	}, nil
 }
 
@@ -286,7 +289,30 @@ func (b *Backend) preflight(job updatehelper.Job) error {
 	if !binaryInfo.Mode().IsRegular() || binaryInfo.Mode().Perm()&0o111 == 0 {
 		return errors.New("current binary is not a regular executable file")
 	}
+	if err := b.requireFreeSpace(); err != nil {
+		return err
+	}
 	return b.saveState(job, persistedState{CurrentVersion: b.currentVersion, CurrentSchema: b.currentSchema, OldTarget: target})
+}
+
+// minFreeBytes covers the downloaded archive, its extracted binary and the new version slot
+// with generous headroom; the database backup is checked separately by the backup creator.
+const minFreeBytes = 512 << 20
+
+func (b *Backend) requireFreeSpace() error {
+	if b.freeBytes == nil {
+		return nil
+	}
+	for _, dir := range []string{b.descriptor.VersionsDir, b.stagingDir} {
+		free, err := b.freeBytes(dir)
+		if err != nil {
+			return fmt.Errorf("check free disk space: %w", err)
+		}
+		if free < minFreeBytes {
+			return fmt.Errorf("not enough free disk space in %s: %d MiB available, %d MiB required", dir, free>>20, uint64(minFreeBytes)>>20)
+		}
+	}
+	return nil
 }
 
 func (b *Backend) download(ctx context.Context, job updatehelper.Job) error {

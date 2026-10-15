@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CircleAlertIcon, ExternalLinkIcon, InfoIcon, LoaderCircleIcon, RefreshCwIcon } from 'lucide-react'
+import { CircleAlertIcon, ExternalLinkIcon, InfoIcon, LoaderCircleIcon, RefreshCwIcon, WifiOffIcon } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useMe } from '@/lib/me'
 import { en } from '@/messages/en'
 import { AdminPage, formatDate } from './AdminCommon'
+import { UpdateProgress } from './UpdateProgress'
 import { useApplyUpdate, useCheckUpdate, useUpdateStatus, type AdminUpdateJob } from './adminApi'
 
 const terminalStates = new Set<AdminUpdateJob['status']>(['complete', 'failed', 'recovery_required'])
@@ -31,7 +32,7 @@ function deploymentLabel(mode: AdminUpdateJob['deployment_mode'] | undefined) {
   return en.admin.unknownInstallation
 }
 
-function UpdateJobStatus({ job }: { job: AdminUpdateJob }) {
+function UpdateJobStatus({ job, reconnecting }: { job: AdminUpdateJob; reconnecting: boolean }) {
   const active = !terminalStates.has(job.status)
   if (job.status === 'recovery_required') {
     return (
@@ -63,7 +64,8 @@ function UpdateJobStatus({ job }: { job: AdminUpdateJob }) {
         </div>
         <CardDescription>{active ? en.admin.updateInProgressDescription : en.admin.updateCompleteDescription}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-6">
+        {active ? <UpdateProgress job={job} reconnecting={reconnecting} /> : null}
         <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-1"><dt className="text-sm text-muted-foreground">{en.admin.targetVersion}</dt><VersionValue value={job.target_version} /></div>
           <div className="flex min-w-0 flex-col gap-1"><dt className="text-sm text-muted-foreground">{en.admin.installationType}</dt><VersionValue value={deploymentLabel(job.deployment_mode)} /></div>
@@ -121,6 +123,11 @@ function ApplyUpdateDialog({ targetVersion, totpEnabled }: { targetVersion: stri
           <AlertTitle>{en.admin.backupBeforeUpdate}</AlertTitle>
           <AlertDescription>{en.admin.backupBeforeUpdateDescription}</AlertDescription>
         </Alert>
+        <Alert>
+          <WifiOffIcon aria-hidden="true" />
+          <AlertTitle>{en.admin.offlineWarningTitle}</AlertTitle>
+          <AlertDescription>{en.admin.offlineWarningDescription}</AlertDescription>
+        </Alert>
         <form className="flex flex-col gap-4" onSubmit={submit}>
           <FieldGroup>
             <Field data-invalid={apply.isError ? true : undefined}>
@@ -152,17 +159,18 @@ export function AdminUpdatePage() {
   const status = useUpdateStatus(true)
   const check = useCheckUpdate()
   const me = useMe()
-  const errors = [status.error instanceof Error ? status.error.message : status.error, check.error instanceof Error ? check.error.message : undefined, status.data?.check_error]
-    .filter((error): error is string => typeof error === 'string' && error.length > 0)
   const job = status.data?.job
   const activeJob = Boolean(job && !terminalStates.has(job.status))
+  // While an update restarts the service, failed status polls are expected, not an error.
+  const errors = [activeJob ? undefined : status.error instanceof Error ? status.error.message : status.error, check.error instanceof Error ? check.error.message : undefined, status.data?.check_error]
+    .filter((error): error is string => typeof error === 'string' && error.length > 0)
   const canApply = Boolean(status.data?.update_supported && status.data.update_available && status.data.latest_version && !activeJob && job?.status !== 'recovery_required')
 
   return (
     <AdminPage title={en.admin.update} description={en.admin.updateDescription}>
       {errors.length > 0 ? <Alert variant="destructive"><AlertTitle>{en.admin.updateCheckFailed}</AlertTitle><AlertDescription>{errors.join(' ')}</AlertDescription></Alert> : null}
       {status.isPending ? <div role="status" aria-label={en.admin.loading} className="flex max-w-xl flex-col gap-3"><Skeleton className="h-32 w-full" /><Skeleton className="h-20 w-full" /></div> : null}
-      {job ? <div className="max-w-xl"><UpdateJobStatus job={job} /></div> : null}
+      {job ? <div className="max-w-xl"><UpdateJobStatus job={job} reconnecting={status.isError} /></div> : null}
       {status.data ? (
         <Card className="max-w-xl">
           <CardHeader>

@@ -143,7 +143,7 @@ func NewBackendFactory(_ context.Context, config ProductionConfig) (BackendFacto
 				Backup: updatebinary.NewBinaryBackupCreator(config.Runner), Probe: probe,
 				CurrentVersion: parseVersion(versionResult.Stdout), CurrentSchema: currentSchema,
 				Environment: append([]string(nil), config.Environment...),
-				GOARCH:      config.ArtifactArch,
+				GOARCH:      config.ArtifactArch, FreeBytes: updatebinary.OSFreeBytes,
 			})
 		}, nil
 	case updatehelper.DeploymentDocker:

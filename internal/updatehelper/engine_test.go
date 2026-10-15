@@ -73,7 +73,7 @@ func TestEnginePersistsEverySuccessfulStep(t *testing.T) {
 	if got.State != StateComplete || store.job.State != StateComplete {
 		t.Fatalf("final state = %q, persisted = %q", got.State, store.job.State)
 	}
-	want := []State{StatePreflight, StateDownload, StateArtifactVerified, StateStopping, StateBackup, StateActivating, StateRestarting, StateHealthCheck, StateComplete}
+	want := []State{StatePreflight, StateDownload, StateArtifactVerified, StateBackup, StateStopping, StateActivating, StateRestarting, StateHealthCheck, StateComplete}
 	if len(store.saves) != len(want) {
 		t.Fatalf("persisted %d transitions, want %d: %v", len(store.saves), len(want), store.saves)
 	}
@@ -93,7 +93,8 @@ func TestEngineClassifiesFailureByActivationBoundary(t *testing.T) {
 		wantRecovery bool
 	}{
 		{name: "download fails safely", failAt: StateDownload, want: StateFailed},
-		{name: "backup restarts old deployment", failAt: StateBackup, want: StateFailed, wantRecovery: true},
+		{name: "backup fails before the service is stopped", failAt: StateBackup, want: StateFailed},
+		{name: "stop restarts old deployment", failAt: StateStopping, want: StateFailed, wantRecovery: true},
 		{name: "activation needs recovery", failAt: StateActivating, want: StateRecoveryRequired},
 		{name: "health needs recovery", failAt: StateHealthCheck, want: StateRecoveryRequired},
 	}

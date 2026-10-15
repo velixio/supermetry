@@ -6,12 +6,12 @@ func TestJobAdvanceAllowsOnlyExplicitMonotonicTransitions(t *testing.T) {
 	t.Parallel()
 
 	job := Job{ID: "42", TargetVersion: "v1.2.3", State: StateRequested}
-	for _, next := range []State{StatePreflight, StateDownload, StateArtifactVerified, StateStopping, StateBackup, StateActivating, StateRestarting, StateHealthCheck, StateComplete} {
+	for _, next := range []State{StatePreflight, StateDownload, StateArtifactVerified, StateBackup, StateStopping, StateActivating, StateRestarting, StateHealthCheck, StateComplete} {
 		if err := job.Advance(next); err != nil {
 			t.Fatalf("advance to %q: %v", next, err)
 		}
 	}
-	if err := job.Advance(StateBackup); err == nil {
+	if err := job.Advance(StateStopping); err == nil {
 		t.Fatal("accepted backwards transition")
 	}
 	if err := job.Advance(StateFailed); err == nil {

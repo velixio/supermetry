@@ -30,7 +30,7 @@ func TestBackendRunsVerifiedBinaryUpdate(t *testing.T) {
 	job := updatehelper.Job{ID: "12345678", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
 	steps := []updatehelper.State{
 		updatehelper.StatePreflight, updatehelper.StateDownload, updatehelper.StateArtifactVerified,
-		updatehelper.StateStopping, updatehelper.StateBackup, updatehelper.StateActivating,
+		updatehelper.StateBackup, updatehelper.StateStopping, updatehelper.StateActivating,
 		updatehelper.StateRestarting, updatehelper.StateHealthCheck,
 	}
 	for _, step := range steps {
@@ -108,7 +108,7 @@ func TestBackendRecoveryRestoresOldVersionOnlyWhenSchemaAllows(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			backend, fixture := newFixture(t, tt.schema)
 			job := updatehelper.Job{ID: "12345680", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
-			for _, step := range []updatehelper.State{updatehelper.StatePreflight, updatehelper.StateDownload, updatehelper.StateArtifactVerified, updatehelper.StateStopping, updatehelper.StateBackup, updatehelper.StateActivating} {
+			for _, step := range []updatehelper.State{updatehelper.StatePreflight, updatehelper.StateDownload, updatehelper.StateArtifactVerified, updatehelper.StateBackup, updatehelper.StateStopping, updatehelper.StateActivating} {
 				if err := backend.RunStep(context.Background(), step, job); err != nil {
 					t.Fatalf("RunStep(%s): %v", step, err)
 				}
@@ -143,7 +143,7 @@ func TestBackendHealthRequiresExactTargetVersion(t *testing.T) {
 	backend.healthTimeout = time.Millisecond
 	backend.pollInterval = time.Millisecond
 	job := updatehelper.Job{ID: "12345681", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
-	for _, step := range []updatehelper.State{updatehelper.StatePreflight, updatehelper.StateDownload, updatehelper.StateArtifactVerified, updatehelper.StateStopping, updatehelper.StateBackup, updatehelper.StateActivating, updatehelper.StateRestarting} {
+	for _, step := range []updatehelper.State{updatehelper.StatePreflight, updatehelper.StateDownload, updatehelper.StateArtifactVerified, updatehelper.StateBackup, updatehelper.StateStopping, updatehelper.StateActivating, updatehelper.StateRestarting} {
 		if err := backend.RunStep(context.Background(), step, job); err != nil {
 			t.Fatal(err)
 		}
@@ -372,7 +372,7 @@ func TestBackendVersionSlotIsEnterableUnderRestrictiveUmask(t *testing.T) {
 	job := updatehelper.Job{ID: "12345678", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
 	for _, step := range []updatehelper.State{
 		updatehelper.StatePreflight, updatehelper.StateDownload, updatehelper.StateArtifactVerified,
-		updatehelper.StateStopping, updatehelper.StateBackup, updatehelper.StateActivating,
+		updatehelper.StateBackup, updatehelper.StateStopping, updatehelper.StateActivating,
 	} {
 		if err := backend.RunStep(context.Background(), step, job); err != nil {
 			t.Fatalf("RunStep(%s): %v", step, err)
@@ -384,5 +384,28 @@ func TestBackendVersionSlotIsEnterableUnderRestrictiveUmask(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0o755 {
 		t.Fatalf("version slot mode = %o, want 755", got)
+	}
+}
+
+func TestPreflightChecksFreeDiskSpace(t *testing.T) {
+	t.Parallel()
+	job := updatehelper.Job{ID: "12345678", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
+	for _, tt := range []struct {
+		name    string
+		free    uint64
+		wantErr bool
+	}{
+		{name: "enough space", free: minFreeBytes},
+		{name: "one byte short", free: minFreeBytes - 1, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			backend, _ := newFixture(t, release.Schema{Version: 150})
+			backend.freeBytes = func(string) (uint64, error) { return tt.free, nil }
+			err := backend.RunStep(context.Background(), updatehelper.StatePreflight, job)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("preflight error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
