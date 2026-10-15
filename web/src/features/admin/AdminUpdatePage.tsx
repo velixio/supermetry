@@ -78,11 +78,10 @@ function UpdateJobStatus({ job }: { job: AdminUpdateJob }) {
 function ApplyUpdateDialog({ targetVersion, totpEnabled }: { targetVersion: string; totpEnabled: boolean }) {
   const apply = useApplyUpdate()
   const [open, setOpen] = useState(false)
-  const [confirmation, setConfirmation] = useState('')
   const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [idempotencyKey, setIdempotencyKey] = useState('')
-  const confirmed = confirmation === targetVersion && password.length > 0 && (!totpEnabled || /^\d{6}$/.test(totpCode))
+  const confirmed = password.length > 0 && (!totpEnabled || /^\d{6}$/.test(totpCode))
 
   function changeOpen(next: boolean) {
     setOpen(next)
@@ -90,7 +89,6 @@ function ApplyUpdateDialog({ targetVersion, totpEnabled }: { targetVersion: stri
       setIdempotencyKey(newIdempotencyKey())
       return
     }
-    setConfirmation('')
     setPassword('')
     setTotpCode('')
     setIdempotencyKey('')
@@ -125,11 +123,6 @@ function ApplyUpdateDialog({ targetVersion, totpEnabled }: { targetVersion: stri
         </Alert>
         <form className="flex flex-col gap-4" onSubmit={submit}>
           <FieldGroup>
-            <Field data-invalid={confirmation.length > 0 && confirmation !== targetVersion ? true : undefined}>
-              <FieldLabel htmlFor="update-version-confirmation">{en.admin.confirmVersion.replace('{version}', targetVersion)}</FieldLabel>
-              <Input id="update-version-confirmation" autoComplete="off" value={confirmation} aria-invalid={confirmation.length > 0 && confirmation !== targetVersion ? true : undefined} onChange={(event) => setConfirmation(event.currentTarget.value)} required />
-              <FieldDescription>{en.admin.confirmVersionDescription}</FieldDescription>
-            </Field>
             <Field data-invalid={apply.isError ? true : undefined}>
               <FieldLabel htmlFor="update-password">{en.admin.currentPassword}</FieldLabel>
               <Input id="update-password" type="password" autoComplete="current-password" value={password} aria-invalid={apply.isError ? true : undefined} onChange={(event) => setPassword(event.currentTarget.value)} required />
