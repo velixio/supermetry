@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 
@@ -360,4 +361,28 @@ func (f *rootedFS) SyncDir(name string) error {
 	}
 	defer directory.Close()
 	return directory.Sync()
+}
+
+// The helper runs with a restrictive umask. The new version directory must stay enterable by
+// the service user, or the restarted service cannot execute the binary and the update rolls back.
+func TestBackendVersionSlotIsEnterableUnderRestrictiveUmask(t *testing.T) {
+	previous := syscall.Umask(0o077)
+	defer syscall.Umask(previous)
+	backend, fixture := newFixture(t, release.Schema{Version: 150, RollbackCompatible: false})
+	job := updatehelper.Job{ID: "12345678", TargetVersion: "v1.2.0", State: updatehelper.StateRequested}
+	for _, step := range []updatehelper.State{
+		updatehelper.StatePreflight, updatehelper.StateDownload, updatehelper.StateArtifactVerified,
+		updatehelper.StateStopping, updatehelper.StateBackup, updatehelper.StateActivating,
+	} {
+		if err := backend.RunStep(context.Background(), step, job); err != nil {
+			t.Fatalf("RunStep(%s): %v", step, err)
+		}
+	}
+	info, err := fixture.fs.Stat("/opt/supermetry/versions/v1.2.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o755 {
+		t.Fatalf("version slot mode = %o, want 755", got)
+	}
 }

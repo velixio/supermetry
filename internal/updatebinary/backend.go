@@ -430,6 +430,11 @@ func (b *Backend) activate(ctx context.Context, job updatehelper.Job) error {
 		if err := b.fs.MkdirAll(temporary, 0o755); err != nil {
 			return fmt.Errorf("create version slot: %w", err)
 		}
+		// The helper runs with a restrictive umask, which MkdirAll applies; the service user
+		// must be able to enter the slot to run the new binary.
+		if err := b.fs.Chmod(temporary, 0o755); err != nil {
+			return fmt.Errorf("set version slot mode: %w", err)
+		}
 		if err := b.fs.Chown(temporary, 0, 0); err != nil {
 			return fmt.Errorf("own version slot: %w", err)
 		}
