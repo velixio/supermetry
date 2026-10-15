@@ -283,7 +283,7 @@ export function MainChart({
 
   useEffect(() => {
     setSelectedInterval(interval)
-  }, [interval])
+  }, [interval, query.dateRange.from, query.dateRange.to])
   const chartMetric: ChartMetric = metric === 'exit_rate' || metric === 'time_on_page'
     ? 'visitors'
     : metric
