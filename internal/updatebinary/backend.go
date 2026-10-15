@@ -163,7 +163,7 @@ func New(config Config) (*Backend, error) {
 		return nil, errors.New("staging directory must be an absolute clean path")
 	}
 	if config.PollInterval <= 0 {
-		config.PollInterval = time.Second
+		config.PollInterval = 250 * time.Millisecond
 	}
 	if config.HealthTimeout <= 0 {
 		config.HealthTimeout = 30 * time.Second
