@@ -160,6 +160,25 @@ describe('MainChart', () => {
     expect(useTimeseries).toHaveBeenCalledWith(expect.anything(), 'week', true)
   })
 
+  it('returns to the automatic hourly interval when the date range changes to today', () => {
+    const { rerender } = render(<MainChart query={query} metric="visitors" compare="off" />)
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chart interval' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Day' }))
+    expect(screen.getByRole('combobox', { name: 'Chart interval' })).toHaveTextContent('Day')
+
+    rerender(
+      <MainChart
+        query={{ ...query, dateRange: { from: '2026-10-02', to: '2026-10-02' } }}
+        metric="visitors"
+        compare="off"
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Chart interval' })).toHaveTextContent('Hour')
+    expect(useTimeseries).toHaveBeenCalledWith(expect.anything(), 'hour', true)
+  })
+
   it.each(['exit_rate', 'time_on_page'] as const)(
     'falls back from the page-only %s URL metric to a supported chart metric',
     (metric) => {
