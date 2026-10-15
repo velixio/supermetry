@@ -61,6 +61,17 @@ func TestAdminUpdateStatus(t *testing.T) {
 	if checker.calls != 1 {
 		t.Fatalf("checker calls=%d, want 1", checker.calls)
 	}
+	var history struct {
+		History []struct {
+			TargetVersion string `json:"target_version"`
+		} `json:"history"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &history); err != nil {
+		t.Fatal(err)
+	}
+	if history.History == nil || len(history.History) != 0 {
+		t.Fatalf("history = %#v, want an empty list in the JSON", history.History)
+	}
 }
 
 func TestAdminCheckUpdateForcesRefresh(t *testing.T) {

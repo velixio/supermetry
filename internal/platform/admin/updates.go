@@ -111,6 +111,27 @@ func (s *Service) LatestUpdateJob(ctx context.Context) (*UpdateJob, error) {
 	return &job, err
 }
 
+// RecentUpdateJobs lists the newest update jobs first, for the update history.
+func (s *Service) RecentUpdateJobs(ctx context.Context, limit int) ([]UpdateJob, error) {
+	rows, err := s.store.Pool.Query(ctx, `
+		select id,from_version,target_version,deployment_mode,status,coalesce(error_code,''),created_at,updated_at,finished_at
+		from instance_update_jobs order by id desc limit $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	jobs := []UpdateJob{}
+	for rows.Next() {
+		var job UpdateJob
+		if err := rows.Scan(&job.ID, &job.FromVersion, &job.TargetVersion, &job.DeploymentMode,
+			&job.Status, &job.ErrorCode, &job.CreatedAt, &job.UpdatedAt, &job.FinishedAt); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
 func (s *Service) FailUndispatchedUpdate(ctx context.Context, actorID, jobID int64, code string) error {
 	if !errorCodePattern.MatchString(code) {
 		return ErrInvalid

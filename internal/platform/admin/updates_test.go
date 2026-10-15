@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"supermetry/internal/db"
@@ -87,5 +88,41 @@ func TestService_RequestUpdateValidatesExactUpgrade(t *testing.T) {
 				t.Fatalf("error = %v, want ErrInvalid", err)
 			}
 		})
+	}
+}
+
+func TestService_RecentUpdateJobsListsNewestFirstWithinTheLimit(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	service := New(&store.Store{Pool: pool})
+
+	empty, err := service.RecentUpdateJobs(ctx, 10)
+	if err != nil || empty == nil || len(empty) != 0 {
+		t.Fatalf("empty history = %#v, %v; want an empty non-nil list", empty, err)
+	}
+	for index := 1; index <= 12; index++ {
+		status := "complete"
+		if index%4 == 0 {
+			status = "failed"
+		}
+		if _, err := pool.Exec(ctx, `
+			insert into instance_update_jobs(idempotency_key,from_version,target_version,deployment_mode,status,finished_at)
+			values ($1,'v1.0.0',$2,'binary',$3,now())`,
+			fmt.Sprintf("history-key-%02d", index), fmt.Sprintf("v1.0.%d", index), status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	jobs, err := service.RecentUpdateJobs(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 10 {
+		t.Fatalf("history length = %d, want 10", len(jobs))
+	}
+	if jobs[0].TargetVersion != "v1.0.12" || jobs[0].Status != "failed" || jobs[9].TargetVersion != "v1.0.3" {
+		t.Fatalf("history order = %s (%s) ... %s, want v1.0.12 (failed) down to v1.0.3", jobs[0].TargetVersion, jobs[0].Status, jobs[9].TargetVersion)
 	}
 }

@@ -1832,16 +1832,19 @@ type AdminUpdateJobStatus string
 
 // AdminUpdateStatus defines model for AdminUpdateStatus.
 type AdminUpdateStatus struct {
-	CheckError      *string                          `json:"check_error"`
-	CheckedAt       *time.Time                       `json:"checked_at"`
-	CurrentVersion  string                           `json:"current_version"`
-	DeploymentMode  *AdminUpdateStatusDeploymentMode `json:"deployment_mode,omitempty"`
-	Job             *AdminUpdateJob                  `json:"job,omitempty"`
-	LatestVersion   *string                          `json:"latest_version"`
-	PublishedAt     *time.Time                       `json:"published_at"`
-	ReleaseUrl      *string                          `json:"release_url"`
-	UpdateAvailable bool                             `json:"update_available"`
-	UpdateSupported bool                             `json:"update_supported"`
+	CheckError     *string                          `json:"check_error"`
+	CheckedAt      *time.Time                       `json:"checked_at"`
+	CurrentVersion string                           `json:"current_version"`
+	DeploymentMode *AdminUpdateStatusDeploymentMode `json:"deployment_mode,omitempty"`
+
+	// History The ten most recent update jobs, newest first.
+	History         *[]AdminUpdateJob `json:"history,omitempty"`
+	Job             *AdminUpdateJob   `json:"job,omitempty"`
+	LatestVersion   *string           `json:"latest_version"`
+	PublishedAt     *time.Time        `json:"published_at"`
+	ReleaseUrl      *string           `json:"release_url"`
+	UpdateAvailable bool              `json:"update_available"`
+	UpdateSupported bool              `json:"update_supported"`
 }
 
 // AdminUpdateStatusDeploymentMode defines model for AdminUpdateStatus.DeploymentMode.

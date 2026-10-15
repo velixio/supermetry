@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useMe } from '@/lib/me'
 import { en } from '@/messages/en'
 import { AdminPage, formatDate } from './AdminCommon'
+import { UpdateHistory } from './UpdateHistory'
 import { UpdateProgress } from './UpdateProgress'
 import { useApplyUpdate, useCheckUpdate, useUpdateStatus, type AdminUpdateJob } from './adminApi'
 
@@ -198,6 +199,7 @@ export function AdminUpdatePage() {
           </CardFooter>
         </Card>
       ) : null}
+      {status.data ? <UpdateHistory jobs={status.data.history ?? []} /> : null}
       {status.data && !status.data.update_supported ? (
         <Alert role="status" className="max-w-xl"><InfoIcon aria-hidden="true" /><AlertTitle>{en.admin.installUnavailable}</AlertTitle><AlertDescription>{en.admin.installUnavailableDescription}</AlertDescription></Alert>
       ) : null}

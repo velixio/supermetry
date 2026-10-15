@@ -17,10 +17,14 @@ import (
 
 type adminUpdateStatusResponse struct {
 	updatecheck.Status
-	UpdateSupported bool             `json:"update_supported"`
-	DeploymentMode  string           `json:"deployment_mode,omitempty"`
-	Job             *admin.UpdateJob `json:"job,omitempty"`
+	UpdateSupported bool              `json:"update_supported"`
+	DeploymentMode  string            `json:"deployment_mode,omitempty"`
+	Job             *admin.UpdateJob  `json:"job,omitempty"`
+	History         []admin.UpdateJob `json:"history"`
 }
+
+// updateHistoryLimit is how many recent update jobs the status response carries.
+const updateHistoryLimit = 10
 
 func (h *handler) adminUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	principal, ok := h.adminPrincipal(w, r)
@@ -67,6 +71,15 @@ func (h *handler) writeUpdateStatus(w http.ResponseWriter, r *http.Request, prin
 			}
 		}
 		response.Job = job
+		history, err := h.deps.Admin.RecentUpdateJobs(r.Context(), updateHistoryLimit)
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+		response.History = history
+	}
+	if response.History == nil {
+		response.History = []admin.UpdateJob{}
 	}
 	writeJSON(w, http.StatusOK, response)
 }
