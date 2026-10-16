@@ -50,7 +50,7 @@ export interface paths {
         put?: never;
         /**
          * Sign in as a user for support
-         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes or change the account's password, email, two-factor settings or API keys. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as; a user who must reset their password returns 409.
+         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes, change the account's password, email or two-factor settings, delete the account, revoke sessions, create API keys, send or accept invitations, change member roles, or create share links, notification channels, alerts or scheduled reports. Organization audit entries written during the session carry impersonated_by with the admin's user id. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as; a user who must reset their password returns 409.
          */
         post: operations["adminImpersonateUser"];
         delete?: never;
@@ -2714,7 +2714,7 @@ export interface components {
             site_id?: string;
         };
         AdminImpersonation: {
-            /** @description Session token to send as the supermetry_session cookie. */
+            /** @description Session token to send as the supermetry_session cookie. Mutating requests with it also need a supermetry_csrf cookie and an X-CSRF-Token header with the same value, as for any cookie session. */
             token: string;
             /** Format: date-time */
             expires_at: string;

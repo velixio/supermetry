@@ -32,6 +32,10 @@ The key authenticates `/api/private/admin/*` only. It acts as a hidden system us
 `POST /api/private/admin/users/{user}/impersonate` starts a support session as that user.
 
 - With a browser session, the admin must re-enter their password. The admin's own session is replaced and the call returns `204`.
-- With the admin key, it returns `200` with `{token, expires_at}`.
+- With the admin key, it returns `200` with `{token, expires_at}`. Send the token as the `supermetry_session` cookie. Like any cookie session, mutating calls (anything but `GET`, `HEAD` and `OPTIONS`) also need a `supermetry_csrf` cookie and an `X-CSRF-Token` header carrying the same value; a front service can pick any random value for both.
 
-The session lasts 1 hour (a hard limit) and the UI shows a banner. It cannot use admin routes, account-security actions, invitations, member role changes, share links or API keys. It is refused for instance admins (`403`), disabled users (`403`) and users who must reset their password (`409`). Each start is recorded in the instance audit and in each of the user's organizations, and the session ends if the admin is demoted, disabled or deleted.
+The session lasts 1 hour (a hard limit) and the UI shows a banner. It cannot use admin routes; change the password, email or two-factor settings; delete the account; revoke sessions; create API keys; send or accept invitations; change member roles; or create share links, notification channels, alerts or scheduled reports. It is refused for instance admins (`403`), disabled users (`403`) and users who must reset their password (`409`). Each start is recorded in the instance audit and in each of the user's organizations, and the session ends if the admin is demoted, disabled or deleted.
+
+Every organization audit entry written during the session carries `impersonated_by` (the admin's user id) in its metadata, so support actions are told apart from the user's own.
+
+A session started with the admin key belongs to the key's system user, not to the key value: rotating or unsetting `SUPERMETRY_ADMIN_API_KEY` does not end it, and it runs until its 1 hour limit. To end one sooner, call `POST /api/private/auth/logout` with the token, or disable the user.

@@ -60,8 +60,12 @@ paths:
       summary: Sign in as a user for support
       description: >-
         Opens a one-hour session as the user that activity never extends. The
-        session cannot use the instance admin routes or change the account's
-        password, email, two-factor settings or API keys. With a cookie session
+        session cannot use the instance admin routes, change the account's
+        password, email or two-factor settings, delete the account, revoke
+        sessions, create API keys, send or accept invitations, change member
+        roles, or create share links, notification channels, alerts or
+        scheduled reports. Organization audit entries written during the
+        session carry impersonated_by with the admin's user id. With a cookie session
         the admin re-enters their password (and TOTP code when enabled), and the
         response replaces the admin's session cookies. With the admin API key no
         body is needed and the session token is returned instead. Instance
@@ -3744,7 +3748,9 @@ components:
       type: object
       required: [token, expires_at]
       properties:
-        token: { type: string, description: Session token to send as the supermetry_session cookie. }
+        token:
+          type: string
+          description: "Session token to send as the supermetry_session cookie. Mutating requests with it also need a supermetry_csrf cookie and an X-CSRF-Token header with the same value, as for any cookie session."
         expires_at: { type: string, format: date-time }
     CurrentUserResponse:
       type: object

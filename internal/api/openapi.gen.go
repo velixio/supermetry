@@ -1779,7 +1779,7 @@ type AdminAuditResponse struct {
 type AdminImpersonation struct {
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Token Session token to send as the supermetry_session cookie.
+	// Token Session token to send as the supermetry_session cookie. Mutating requests with it also need a supermetry_csrf cookie and an X-CSRF-Token header with the same value, as for any cookie session.
 	Token string `json:"token"`
 }
 

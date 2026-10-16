@@ -13,6 +13,11 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 - Badges carry a small Supermetry mark; set `SUPERMETRY_BADGE_BRANDING=false` to remove it. `?style=flat|flat-square` and `?color=<hex>` customise them.
 - Open counters (`/c/github.com/{owner}[/{repo}].svg`), off by default: enable with `SUPERMETRY_OPEN_COUNTERS=true`; optional `SUPERMETRY_OPEN_COUNTER_BLOCKLIST` file, one key per line.
 
+### Security and upgrade notes
+
+- **Existing `SUPERMETRY_ADMIN_API_KEY` values gain power.** A key of 32 or more characters now also grants instance-admin API access (`/api/private/admin/*`), including deleting organizations, changing retention, creating users and signing in as a user. If that is not wanted, rotate the key or unset it before upgrading. Sessions already started with the key last up to 1 hour after rotation.
+- Organization audit entries written during a "sign in as a user" session carry `impersonated_by` with the admin's user id.
+
 ## v0.1.0 (2026-10-14)
 
 ### Analytics and metrics
