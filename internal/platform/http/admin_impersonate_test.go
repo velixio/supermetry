@@ -343,6 +343,41 @@ func TestImpersonationEndsWhenAdminLosesAccess(t *testing.T) {
 	}
 }
 
+func TestImpersonatedOrgAuditCarriesAdmin(t *testing.T) {
+	e := newImpersonateEnv(t)
+	_, cookie := e.impersonate(t, e.targetID)
+	if cookie == nil {
+		t.Fatal("no impersonation cookie")
+	}
+	org := itoa64(e.orgID)
+	targetCookie, err := platformauth.New(&store.Store{Pool: e.pool}, &mail.Fake{}, nil, "https://app.example.test").Login(context.Background(), "target@example.test", impersonateAdminPassword, "", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, session := range []string{cookie.Value, targetCookie} {
+		body := `{"name":"s` + itoa64(int64(i)) + `","hosts":["s` + itoa64(int64(i)) + `.example.test"],"timezone":"UTC","retention_days":30,"revenue_currency":"USD"}`
+		if got := e.serveSession(http.MethodPost, "/api/private/sites", body, session, "X-Supermetry-Org", org); got.Code != http.StatusCreated {
+			t.Fatalf("create site %d status=%d body=%s", i, got.Code, got.Body)
+		}
+	}
+	rows, err := e.pool.Query(context.Background(), `select metadata->'impersonated_by' from audit_log where org_id=$1 and action='site.created' order by id`, e.orgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []*int64
+	for rows.Next() {
+		var by *int64
+		if err := rows.Scan(&by); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, by)
+	}
+	if len(got) != 2 || got[0] == nil || *got[0] != e.rootID || got[1] != nil {
+		t.Fatalf("impersonated_by per audit row = %v, want [%d, none]", got, e.rootID)
+	}
+}
+
 func TestImpersonateAuditBoth(t *testing.T) {
 	e := newImpersonateEnv(t)
 	if got, _ := e.impersonate(t, e.targetID); got.Code != http.StatusNoContent {
