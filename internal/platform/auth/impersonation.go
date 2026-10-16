@@ -36,13 +36,12 @@ func (a *Auth) CreateImpersonationSession(ctx context.Context, adminUserID, targ
 	metadata, _ := ctx.Value(sessionMetadataKey{}).(SessionMetadata)
 	hardExpiresAt := now.Add(ImpersonationLifetime)
 	err := a.store.Tx(ctx, func(tx pgx.Tx) error {
-		var actorAllowed bool
-		err := tx.QueryRow(ctx, `select is_admin and (disabled_at is null or is_system) from users where id=$1`, adminUserID).Scan(&actorAllowed)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !actorAllowed) {
-			return ErrImpersonationForbidden
-		}
+		actorAllowed, err := store.InstanceAdminActive(ctx, tx, adminUserID)
 		if err != nil {
 			return err
+		}
+		if !actorAllowed {
+			return ErrImpersonationForbidden
 		}
 		var isAdmin, isSystem, disabled, resetRequired bool
 		err = tx.QueryRow(ctx, `select is_admin,is_system,disabled_at is not null,password_reset_required from users where id=$1 for share`, targetUserID).Scan(&isAdmin, &isSystem, &disabled, &resetRequired)

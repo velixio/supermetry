@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -114,11 +113,17 @@ func (s *Store) RevokeOtherSessions(ctx context.Context, userID int64, currentHa
 // ImpersonatorActive reports whether userID may still hold an impersonation
 // session: an enabled instance admin, or the hidden admin API key system user.
 func (s *Store) ImpersonatorActive(ctx context.Context, userID int64) (bool, error) {
+	return InstanceAdminActive(ctx, s.Pool, userID)
+}
+
+// InstanceAdminActive reports whether userID may act as an instance admin: an
+// enabled admin account that is not deleted, or the hidden admin API key
+// system user (which is disabled for sign-in). A missing user reports false.
+// Pass a transaction to re-check inside the mutation it guards.
+func InstanceAdminActive(ctx context.Context, db DBTX, userID int64) (bool, error) {
 	var active bool
-	err := s.Pool.QueryRow(ctx, `
-		select is_admin and (disabled_at is null or is_system) from users where id=$1`, userID).Scan(&active)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
-	}
+	err := db.QueryRow(ctx, `
+		select coalesce((select is_admin and (disabled_at is null or is_system)
+		                 from users where id=$1 and deleted_at is null), false)`, userID).Scan(&active)
 	return active, err
 }

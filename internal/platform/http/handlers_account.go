@@ -108,6 +108,12 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 	var impersonatedByEmail *string
 	if principal.ImpersonatedBy != 0 {
 		impersonator, err := h.deps.Store.UserByID(r.Context(), principal.ImpersonatedBy)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// The admin's account was deleted after the authenticator ran;
+			// the session is no longer valid, as the authenticator would say.
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "valid authentication is required")
+			return
+		}
 		if err != nil {
 			serviceError(w, err)
 			return

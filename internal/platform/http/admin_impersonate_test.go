@@ -320,16 +320,23 @@ func TestImpersonatedSessionCannotChangeAccountSecurity(t *testing.T) {
 }
 
 func TestImpersonationEndsWhenAdminLosesAccess(t *testing.T) {
-	e := newImpersonateEnv(t)
-	_, cookie := e.impersonate(t, e.targetID)
-	if cookie == nil {
-		t.Fatal("no impersonation cookie")
-	}
-	if _, err := e.pool.Exec(context.Background(), `update users set is_admin=false where id=$1`, e.rootID); err != nil {
-		t.Fatal(err)
-	}
-	if got := e.serveSession(http.MethodGet, "/api/private/me", "", cookie.Value); got.Code != http.StatusUnauthorized {
-		t.Fatalf("me after admin demotion status=%d", got.Code)
+	for name, revoke := range map[string]string{
+		"demoted":      `update users set is_admin=false where id=$1`,
+		"soft deleted": `update users set deleted_at=now() where id=$1`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newImpersonateEnv(t)
+			_, cookie := e.impersonate(t, e.targetID)
+			if cookie == nil {
+				t.Fatal("no impersonation cookie")
+			}
+			if _, err := e.pool.Exec(context.Background(), revoke, e.rootID); err != nil {
+				t.Fatal(err)
+			}
+			if got := e.serveSession(http.MethodGet, "/api/private/me", "", cookie.Value); got.Code != http.StatusUnauthorized {
+				t.Fatalf("me after admin lost access status=%d body=%s", got.Code, got.Body)
+			}
+		})
 	}
 }
 
