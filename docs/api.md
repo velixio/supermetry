@@ -126,7 +126,7 @@ Short links redirect through your own domain and count clicks without storing IP
 | `GET/PATCH/DELETE /links/{link}` | Read, change and delete one link |
 | `GET /links/{link}/stats?from&to` | Clicks per day (site time zone), countries, referrer hosts and devices; range up to 366 days, default last 30 days |
 | `GET /sites/{site}/pixel?campaign=` | Pixel image URL and HTML snippet |
-| `GET /sites/{site}/pixel/stats?from&to` | Impressions per day and per campaign |
+| `GET /sites/{site}/pixel/stats?from&to` | Impressions per day and per campaign, plus per site-local hour (`hourly`) for ranges of 7 days or less. Hourly counts are kept for 30 days. |
 
 A link has a `slug` (2 to 64 lowercase letters, digits, `-` or `_`; reserved words such as `api` or `admin` are refused; generated when omitted), a `name`, a `destination`, optional default `utm_*` parameters, `enabled`, optional `expires_at` and optional `click_limit`. Destinations must be absolute `http` or `https` URLs of at most 2048 characters with no credentials, spaces or control characters, and may not point back at a short link. Changes are recorded in the audit log without the destination.
 
