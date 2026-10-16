@@ -17,6 +17,8 @@ import {
 } from "./validate";
 
 export const EVENTS_PATH = "/api/public/v1/events";
+/** Supermetry Cloud, used when `host` is omitted. */
+export const DEFAULT_HOST = "https://app.supermetry.com";
 
 /** Async key/value storage; `@react-native-async-storage/async-storage` fits as-is. */
 export interface SupermetryStorage {
@@ -43,8 +45,8 @@ export interface EventPayload {
 export interface SupermetryReactNativeOptions {
   /** Public site ID. */
   site: string;
-  /** Supermetry origin, e.g. `https://analytics.example.com`. */
-  host: string;
+  /** Supermetry origin. Defaults to Supermetry Cloud (`https://app.supermetry.com`); set it when self-hosting. */
+  host?: string;
   /** Base URL for screens, e.g. `https://app.example.com`. Its host must be an allowed host of the site. */
   appUrl: string;
   /** Full events endpoint; defaults to `host + "/api/public/v1/events"`. */
@@ -155,12 +157,11 @@ class Client implements SupermetryClient {
 
   constructor(options: SupermetryReactNativeOptions) {
     if (!options?.site) throw new TypeError("@supermetry/react-native: `site` is required");
-    if (!options.host && !options.endpoint) throw new TypeError("@supermetry/react-native: `host` is required");
     if (!validEventUrl(options.appUrl)) {
       throw new TypeError("@supermetry/react-native: `appUrl` must be an absolute http(s) URL");
     }
     this.options = options;
-    this.endpoint = options.endpoint ?? options.host.replace(/\/+$/, "") + EVENTS_PATH;
+    this.endpoint = options.endpoint ?? (options.host || DEFAULT_HOST).replace(/\/+$/, "") + EVENTS_PATH;
     this.appUrl = options.appUrl.replace(/\/+$/, "");
     this.userAgent = options.userAgent ?? buildUserAgent();
     const prefix = options.storagePrefix ?? "supermetry:";

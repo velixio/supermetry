@@ -1,6 +1,6 @@
 import { Dimensions, Platform } from "react-native";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 const SUFFIX = `Supermetry-ReactNative/${VERSION}`;
 
 type PlatformLike = {
@@ -17,7 +17,7 @@ function clean(value: unknown): string {
 
 /**
  * Browser-shaped User-Agent so the server's parser detects OS and device class,
- * e.g. `Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.1.0`.
+ * e.g. `Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.2.0`.
  */
 export function buildUserAgent(platform: PlatformLike = Platform): string {
   const constants = platform.constants ?? {};
