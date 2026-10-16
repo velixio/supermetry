@@ -243,6 +243,12 @@ describe('AppShell live visitor badge', () => {
     )
   })
 
+  it('shows the build version in the footer', async () => {
+    renderShell('/app/acme/docs-public/settings/general')
+
+    expect(await screen.findByTestId('app-version')).toHaveTextContent(/^(v\d+\.\d+\.\d+( · dev)?|dev)$/)
+  })
+
   it.each(['docs', 'docs-public', '7'])('keeps current site context for the %s alias', async (alias) => {
     renderShell(`/app/acme/${alias}/settings/general`)
     expect(await screen.findByRole('link', { name: /12 live/ })).toHaveAttribute('href', `/app/acme/${alias}/realtime`)

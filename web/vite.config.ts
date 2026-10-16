@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -10,6 +11,15 @@ import { devAllowedHosts } from './dev-hosts'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
+// The latest release tag, shown next to "dev" on development builds (see src/lib/version.ts).
+function releaseTag(): string {
+  try {
+    return execFileSync('git', ['describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*'], { cwd: rootDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    return ''
+  }
+}
+
 export default defineConfig({
   plugins: [
     tanstackRouter({
@@ -19,6 +29,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  define: {
+    __SUPERMETRY_RELEASE_TAG__: JSON.stringify(releaseTag()),
+  },
   resolve: {
     alias: {
       '@': path.resolve(rootDir, 'src'),

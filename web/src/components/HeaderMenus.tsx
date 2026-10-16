@@ -9,6 +9,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { requestLogout } from '@/lib/session-lifecycle'
+import { versionLabel } from '@/lib/version'
 import type { Me } from '@/lib/me'
 import { ui } from '@/messages/ui'
 
@@ -36,7 +37,7 @@ export function AccountMenu({
         <DropdownMenuLabel className="flex flex-col gap-1">
           <span className="truncate">{me.user.name || ui.menus.yourAccount}</span>
           <span className="break-all text-xs font-normal text-muted-foreground">{me.user.email}</span>
-          <span className="text-xs font-normal text-muted-foreground">Supermetry {me.version || 'dev'}</span>
+          <span className="text-xs font-normal text-muted-foreground">Supermetry {versionLabel(me.version)}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
