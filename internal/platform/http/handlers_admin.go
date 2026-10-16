@@ -223,6 +223,48 @@ func (h *handler) adminDeleteOrganization(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// adminSiteRetentionSetter is implemented by Services; custom MutationService
+// implementations opt in by providing it.
+type adminSiteRetentionSetter interface {
+	AdminSetSiteRetention(ctx context.Context, actorUserID int64, siteID int32, days int) error
+}
+
+func (h *handler) adminSetSiteRetention(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	siteID, err := strconv.ParseInt(r.PathValue("site_id"), 10, 32)
+	if err != nil || siteID < 1 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "site is invalid")
+		return
+	}
+	var request struct {
+		RetentionDays *int `json:"retention_days"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if request.RetentionDays == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "retention_days is required")
+		return
+	}
+	setter, ok := h.deps.Mutations.(adminSiteRetentionSetter)
+	if !ok {
+		unavailable(w, "site")
+		return
+	}
+	if err := setter.AdminSetSiteRetention(r.Context(), principal.UserID, int32(siteID), *request.RetentionDays); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": siteID, "retention_days": *request.RetentionDays})
+}
+
 func (h *handler) adminListSites(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.adminPrincipal(w, r); !ok {
 		return

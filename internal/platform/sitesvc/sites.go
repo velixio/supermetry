@@ -364,6 +364,59 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 	return coreSite(updated)
 }
 
+// AdminSetRetention changes a site's retention class on behalf of an instance
+// admin, without an organization principal. It validates and stores the class
+// exactly as an owner edit does and audits the change on the instance log. It
+// returns store.ErrNotFound for a missing or deleted site.
+func (s *Sites) AdminSetRetention(ctx context.Context, actorUserID int64, siteID int32, days int) (store.Site, error) {
+	if _, ok := retentionClass(days); !ok {
+		return store.Site{}, fmt.Errorf("%w: unsupported retention", ErrInvalid)
+	}
+	var updated store.Site
+	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
+		var orgID int64
+		err := tx.QueryRow(ctx, `select org_id from sites where id=$1 and deleted_at is null`, siteID).Scan(&orgID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return store.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		current, err := store.SiteForUpdate(ctx, tx, orgID, siteID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return store.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		from := int(current.RetentionClass)
+		validationHosts := current.AllowedHosts
+		if current.Kind == coresites.KindPixel {
+			validationHosts = []string{"pixel.invalid"}
+		}
+		_, _, _, retention, err := validateSite(current.Name, validationHosts, current.Timezone, days)
+		if err != nil {
+			return err
+		}
+		current.RetentionClass = int16(retention)
+		updated, err = store.UpdateSite(ctx, tx, current)
+		if err != nil {
+			return err
+		}
+		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
+			ActorUserID: actorUserID, Action: "instance.site.retention_changed", TargetType: "site", TargetID: int64(siteID),
+			Metadata: map[string]any{"from": from, "to": days},
+		})
+	})
+	if err != nil {
+		return store.Site{}, err
+	}
+	if err := s.registry.Invalidate(); err != nil {
+		return store.Site{}, fmt.Errorf("refresh site registry: %w", err)
+	}
+	return updated, nil
+}
+
 func (s *Sites) SetQueryInvalidator(invalidate func(int32)) { s.invalidateSite = invalidate }
 
 // Invalidate reloads the active-site registry after a transaction that changes

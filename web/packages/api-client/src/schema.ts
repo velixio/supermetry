@@ -93,6 +93,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/sites/{site_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set a site's retention class
+         * @description Moves the site to the given retention class, as an owner edit does. Audited as instance.site.retention_changed.
+         */
+        patch: operations["adminSetSiteRetention"];
+        trace?: never;
+    };
     "/api/private/admin/settings": {
         parameters: {
             query?: never;
@@ -4512,6 +4532,45 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminSetSiteRetention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {integer} */
+                    retention_days: 0 | 7 | 30 | 90 | 365;
+                };
+            };
+        };
+        responses: {
+            /** @description Retention updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int32 */
+                        id: number;
+                        /** @enum {integer} */
+                        retention_days: 0 | 7 | 30 | 90 | 365;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };

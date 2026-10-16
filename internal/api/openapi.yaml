@@ -91,6 +91,41 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/sites/{site_id}:
+    patch:
+      operationId: adminSetSiteRetention
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Set a site's retention class
+      description: Moves the site to the given retention class, as an owner edit does. Audited as instance.site.retention_changed.
+      parameters:
+        - { name: site_id, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [retention_days]
+              properties:
+                retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
+      responses:
+        '200':
+          description: Retention updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id, retention_days]
+                properties:
+                  id: { type: integer, format: int32 }
+                  retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/settings:
     get:
       operationId: adminGetSettings

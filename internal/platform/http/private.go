@@ -249,6 +249,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/admin/organizations/{org}", h.adminGetOrganization)
 	mux.HandleFunc("DELETE /api/private/admin/organizations/{org}", h.adminDeleteOrganization)
 	mux.HandleFunc("GET /api/private/admin/sites", h.adminListSites)
+	mux.HandleFunc("PATCH /api/private/admin/sites/{site_id}", h.adminSetSiteRetention)
 	mux.HandleFunc("GET /api/private/admin/settings", h.adminGetSettings)
 	mux.HandleFunc("PATCH /api/private/admin/settings", h.adminUpdateSettings)
 	mux.HandleFunc("GET /api/private/admin/security/2fa-policy", h.adminGetTwoFactorPolicy)
@@ -805,6 +806,16 @@ func deleteOrgTx(ctx context.Context, tx pgx.Tx, orgID int64, now time.Time) (de
 		return nil, false, sitesvc.ErrNotFound
 	}
 	return deletedSites, scheduled, nil
+}
+
+// AdminSetSiteRetention changes a site's retention class on behalf of an
+// instance admin; it returns store.ErrNotFound for a missing or deleted site.
+func (s Services) AdminSetSiteRetention(ctx context.Context, actorUserID int64, siteID int32, days int) error {
+	if s.Sites == nil {
+		return errors.New("site service is unavailable")
+	}
+	_, err := s.Sites.AdminSetRetention(ctx, actorUserID, siteID, days)
+	return err
 }
 
 // AdminDeleteOrg deletes an organization on behalf of an instance admin with

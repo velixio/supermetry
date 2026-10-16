@@ -1555,6 +1555,60 @@ func (e VitalsDimension) Valid() bool {
 	}
 }
 
+// Defines values for AdminSetSiteRetentionJSONBodyRetentionDays.
+const (
+	AdminSetSiteRetentionJSONBodyRetentionDaysN0   AdminSetSiteRetentionJSONBodyRetentionDays = 0
+	AdminSetSiteRetentionJSONBodyRetentionDaysN30  AdminSetSiteRetentionJSONBodyRetentionDays = 30
+	AdminSetSiteRetentionJSONBodyRetentionDaysN365 AdminSetSiteRetentionJSONBodyRetentionDays = 365
+	AdminSetSiteRetentionJSONBodyRetentionDaysN7   AdminSetSiteRetentionJSONBodyRetentionDays = 7
+	AdminSetSiteRetentionJSONBodyRetentionDaysN90  AdminSetSiteRetentionJSONBodyRetentionDays = 90
+)
+
+// Valid indicates whether the value is a known member of the AdminSetSiteRetentionJSONBodyRetentionDays enum.
+func (e AdminSetSiteRetentionJSONBodyRetentionDays) Valid() bool {
+	switch e {
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN0:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN30:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN365:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN7:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminSetSiteRetention200JSONResponseBodyRetentionDays.
+const (
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN0   AdminSetSiteRetention200JSONResponseBodyRetentionDays = 0
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN30  AdminSetSiteRetention200JSONResponseBodyRetentionDays = 30
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN365 AdminSetSiteRetention200JSONResponseBodyRetentionDays = 365
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN7   AdminSetSiteRetention200JSONResponseBodyRetentionDays = 7
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN90  AdminSetSiteRetention200JSONResponseBodyRetentionDays = 90
+)
+
+// Valid indicates whether the value is a known member of the AdminSetSiteRetention200JSONResponseBodyRetentionDays enum.
+func (e AdminSetSiteRetention200JSONResponseBodyRetentionDays) Valid() bool {
+	switch e {
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN0:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN30:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN365:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN7:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRevenueReportParamsBreakdown.
 const (
 	GetRevenueReportParamsBreakdownCampaign GetRevenueReportParamsBreakdown = "campaign"
@@ -3796,6 +3850,17 @@ type AdminListSitesParams struct {
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// AdminSetSiteRetentionJSONBody defines parameters for AdminSetSiteRetention.
+type AdminSetSiteRetentionJSONBody struct {
+	RetentionDays AdminSetSiteRetentionJSONBodyRetentionDays `json:"retention_days"`
+}
+
+// AdminSetSiteRetentionJSONBodyRetentionDays defines parameters for AdminSetSiteRetention.
+type AdminSetSiteRetentionJSONBodyRetentionDays int
+
+// AdminSetSiteRetention200JSONResponseBodyRetentionDays defines parameters for AdminSetSiteRetention.
+type AdminSetSiteRetention200JSONResponseBodyRetentionDays int
+
 // AdminListUsersParams defines parameters for AdminListUsers.
 type AdminListUsersParams struct {
 	Search *string     `form:"search,omitempty" json:"search,omitempty"`
@@ -4149,6 +4214,9 @@ type AdminUpdateTwoFactorPolicyJSONRequestBody = AdminTwoFactorPolicy
 
 // AdminUpdateSettingsJSONRequestBody defines body for AdminUpdateSettings for application/json ContentType.
 type AdminUpdateSettingsJSONRequestBody = AdminSettingsPatch
+
+// AdminSetSiteRetentionJSONRequestBody defines body for AdminSetSiteRetention for application/json ContentType.
+type AdminSetSiteRetentionJSONRequestBody AdminSetSiteRetentionJSONBody
 
 // AdminApplyUpdateJSONRequestBody defines body for AdminApplyUpdate for application/json ContentType.
 type AdminApplyUpdateJSONRequestBody = AdminApplyUpdateRequest
@@ -4778,6 +4846,9 @@ type ServerInterface interface {
 	// AdminListSites List sites with usage, last event and retention
 	// (GET /api/private/admin/sites)
 	AdminListSites(w http.ResponseWriter, r *http.Request, params AdminListSitesParams)
+	// AdminSetSiteRetention Set a site's retention class
+	// (PATCH /api/private/admin/sites/{site_id})
+	AdminSetSiteRetention(w http.ResponseWriter, r *http.Request, siteId int32)
 	// AdminGetUpdateStatus Check whether a newer stable Supermetry release is available
 	// (GET /api/private/admin/update)
 	AdminGetUpdateStatus(w http.ResponseWriter, r *http.Request)
@@ -5476,6 +5547,32 @@ func (siw *ServerInterfaceWrapper) AdminListSites(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminListSites(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminSetSiteRetention operation middleware
+func (siw *ServerInterfaceWrapper) AdminSetSiteRetention(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminSetSiteRetention(w, r, siteId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10626,6 +10723,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminDeleteOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminGetOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/sites", wrapper.AdminListSites)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/sites/{site_id}", wrapper.AdminSetSiteRetention)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminGetSettings)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminUpdateSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/security/2fa-policy", wrapper.AdminGetTwoFactorPolicy)
