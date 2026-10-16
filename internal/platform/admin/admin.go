@@ -48,7 +48,10 @@ type UserPatch struct {
 	InstanceAdmin         *bool
 }
 
-type Service struct{ store *store.Store }
+type Service struct {
+	store        *store.Store
+	resetStarter ResetStarter
+}
 
 func New(data *store.Store) *Service { return &Service{store: data} }
 

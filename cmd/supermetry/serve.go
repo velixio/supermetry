@@ -266,6 +266,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		authOptions = append(authOptions, platformauth.WithLoginAttemptCapacity(cfg.E2ELoginLimit))
 	}
 	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL, authOptions...)
+	adminService.SetResetStarter(authService.StartReset)
 	orgService := orgs.New(platformStore, databaseRegistry)
 	keyService := keys.New(platformStore)
 	defer keyService.Close()

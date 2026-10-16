@@ -127,6 +127,34 @@ func (h *handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"data": items})
 }
 
+func (h *handler) adminCreateUser(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		Email     string `json:"email"`
+		Name      string `json:"name"`
+		OrgName   string `json:"org_name"`
+		SendReset bool   `json:"send_reset"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	user, err := h.deps.Admin.CreateUser(r.Context(), principal.UserID, admin.CreateUserInput{
+		Email: request.Email, Name: request.Name, OrgName: request.OrgName, SendReset: request.SendReset,
+	})
+	if err != nil {
+		if errors.Is(err, admin.ErrEmailTaken) {
+			writeProblem(w, http.StatusConflict, "Conflict", "a user with this email already exists")
+			return
+		}
+		adminError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, user)
+}
+
 func (h *handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	principal, ok := h.adminPrincipal(w, r)
 	if !ok {

@@ -94,7 +94,17 @@ func (s *Service) ListUsers(ctx context.Context, search string, limit int) ([]Us
 	if len(search) > 200 {
 		return nil, ErrInvalid
 	}
-	rows, err := s.store.Pool.Query(ctx, `
+	return s.listUsers(ctx, s.store.Pool, search, 0, limit)
+}
+
+type userQuerier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+// listUsers lists visible (non-system) users; a non-zero onlyID restricts it to
+// that user. db may be a transaction so a just-written user can be read back.
+func (s *Service) listUsers(ctx context.Context, db userQuerier, search string, onlyID int64, limit int) ([]User, error) {
+	rows, err := db.Query(ctx, `
 		select u.id,u.email,u.name,u.is_admin,u.disabled_at is not null,u.password_reset_required,
 		       u.totp_enabled,u.created_at,u.last_login_at,
 		       coalesce(jsonb_agg(jsonb_build_object('org_id',m.org_id,'org_name',o.name,'role',m.role)
@@ -102,8 +112,8 @@ func (s *Service) ListUsers(ctx context.Context, search string, limit int) ([]Us
 		from users u
 		left join memberships m on m.user_id=u.id
 		left join orgs o on o.id=m.org_id and o.deleted_at is null
-		where u.deleted_at is null and not u.is_system and ($1='' or lower(u.email) like '%'||lower($1)||'%' or lower(u.name) like '%'||lower($1)||'%')
-		group by u.id order by u.id limit $2`, search, normalizeLimit(limit))
+		where u.deleted_at is null and not u.is_system and ($3::bigint=0 or u.id=$3) and ($1='' or lower(u.email) like '%'||lower($1)||'%' or lower(u.name) like '%'||lower($1)||'%')
+		group by u.id order by u.id limit $2`, search, normalizeLimit(limit), onlyID)
 	if err != nil {
 		return nil, err
 	}

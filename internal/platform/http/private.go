@@ -244,6 +244,7 @@ func New(deps Deps) http.Handler {
 
 func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/admin/users", h.adminListUsers)
+	mux.HandleFunc("POST /api/private/admin/users", h.adminCreateUser)
 	mux.HandleFunc("PATCH /api/private/admin/users/{user}", h.adminUpdateUser)
 	mux.HandleFunc("GET /api/private/admin/organizations", h.adminListOrganizations)
 	mux.HandleFunc("GET /api/private/admin/organizations/{org}", h.adminGetOrganization)

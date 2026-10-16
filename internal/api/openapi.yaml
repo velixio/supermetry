@@ -27,6 +27,18 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
+    post:
+      operationId: adminCreateUser
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Create a user with an unusable password, optionally with an organization they own
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminUserCreate' } } } }
+      responses:
+        '201': { description: Created user., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUser' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: A user with this email already exists., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/users/{user}:
     patch:
       operationId: adminUpdateUser
@@ -3464,6 +3476,15 @@ components:
         created_at: { type: string, format: date-time }
         last_login_at: { type: string, format: date-time }
         memberships: { type: array, items: { $ref: '#/components/schemas/AdminMembership' } }
+    AdminUserCreate:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        name: { type: string, maxLength: 200, description: Defaults to the part of the email before the at sign. }
+        org_name: { type: string, maxLength: 100, description: When set, an organization with this name is created and the user owns it. }
+        send_reset: { type: boolean, description: Email a password-set link. Skipped when mail is not configured. }
     AdminUsersResponse:
       type: object
       additionalProperties: false

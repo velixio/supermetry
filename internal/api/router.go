@@ -319,6 +319,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 	}
 	for _, pattern := range []string{
 		"GET " + privatePrefix + "/admin/users",
+		"POST " + privatePrefix + "/admin/users",
 		"PATCH " + privatePrefix + "/admin/users/{user}",
 		"GET " + privatePrefix + "/admin/organizations",
 		"GET " + privatePrefix + "/admin/organizations/{org}",

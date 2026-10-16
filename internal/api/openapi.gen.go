@@ -1918,6 +1918,20 @@ type AdminUser struct {
 	TotpEnabled           bool                `json:"totp_enabled"`
 }
 
+// AdminUserCreate defines model for AdminUserCreate.
+type AdminUserCreate struct {
+	Email openapi_types.Email `json:"email"`
+
+	// Name Defaults to the part of the email before the at sign.
+	Name *string `json:"name,omitempty"`
+
+	// OrgName When set
+	OrgName *string `json:"org_name,omitempty"`
+
+	// SendReset Email a password-set link. Skipped when mail is not configured.
+	SendReset *bool `json:"send_reset,omitempty"`
+}
+
 // AdminUserPatch defines model for AdminUserPatch.
 type AdminUserPatch struct {
 	Disabled              *bool `json:"disabled,omitempty"`
@@ -4221,6 +4235,9 @@ type AdminSetSiteRetentionJSONRequestBody AdminSetSiteRetentionJSONBody
 // AdminApplyUpdateJSONRequestBody defines body for AdminApplyUpdate for application/json ContentType.
 type AdminApplyUpdateJSONRequestBody = AdminApplyUpdateRequest
 
+// AdminCreateUserJSONRequestBody defines body for AdminCreateUser for application/json ContentType.
+type AdminCreateUserJSONRequestBody = AdminUserCreate
+
 // AdminUpdateUserJSONRequestBody defines body for AdminUpdateUser for application/json ContentType.
 type AdminUpdateUserJSONRequestBody = AdminUserPatch
 
@@ -4861,6 +4878,9 @@ type ServerInterface interface {
 	// AdminListUsers List and search instance users
 	// (GET /api/private/admin/users)
 	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
+	// AdminCreateUser Create a user with an unusable password, optionally with an organization they own
+	// (POST /api/private/admin/users)
+	AdminCreateUser(w http.ResponseWriter, r *http.Request)
 	// AdminUpdateUser Enable, disable, force password reset, promote or demote a user
 	// (PATCH /api/private/admin/users/{user})
 	AdminUpdateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
@@ -5661,6 +5681,20 @@ func (siw *ServerInterfaceWrapper) AdminListUsers(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminListUsers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCreateUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreateUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreateUser(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10718,6 +10752,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminListUsers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminCreateUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminUpdateUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminDeleteOrganization)

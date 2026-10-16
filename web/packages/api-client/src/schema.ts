@@ -14,7 +14,8 @@ export interface paths {
         /** List and search instance users */
         get: operations["adminListUsers"];
         put?: never;
-        post?: never;
+        /** Create a user with an unusable password, optionally with an organization they own */
+        post: operations["adminCreateUser"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2491,6 +2492,16 @@ export interface components {
             last_login_at?: string;
             memberships: components["schemas"]["AdminMembership"][];
         };
+        AdminUserCreate: {
+            /** Format: email */
+            email: string;
+            /** @description Defaults to the part of the email before the at sign. */
+            name?: string;
+            /** @description When set */
+            org_name?: string;
+            /** @description Email a password-set link. Skipped when mail is not configured. */
+            send_reset?: boolean;
+        };
         AdminUsersResponse: {
             data: components["schemas"]["AdminUser"][];
         };
@@ -4399,6 +4410,43 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreate"];
+            };
+        };
+        responses: {
+            /** @description Created user. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A user with this email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             429: components["responses"]["RateLimited"];
         };
     };
