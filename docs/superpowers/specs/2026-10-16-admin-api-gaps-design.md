@@ -129,12 +129,16 @@ The user picked full access with a time limit.
   - deleting the account.
 
   *This is the designer's call.* It keeps "time-limited" true. Everything else, including org and site settings, is allowed.
-- Every audit entry written during impersonation records both the user and `impersonator_user_id`. The audit views show "by <admin> as <user>".
-- The target's Account → Sessions page lists the impersonation session, labelled "Support session by <admin>". The user can revoke it.
+- **The customer does not see it (user, 2026-10-16).**
+  - The impersonation session is left out of the customer's Account → Sessions page and of any "new sign-in" notice.
+  - Org audit entries written during impersonation show the customer as the actor. The org audit view never shows `impersonator_user_id`.
+- **Admins see everything.**
+  - Every audit entry written during impersonation stores `impersonator_user_id`.
+  - The instance audit log shows those entries as "<admin> as <user>", with the reason.
 
 **Ending early.** On every request the session check re-validates the impersonator: they must still be an enabled instance admin, their return session must still exist, and the switch must still be on. If any of that fails, the impersonation session is deleted and the request is treated as logged out. Suspending the target already deletes all of the target's sessions. Deleting the target's org does not end the session. *Designer's call.*
 
-**Audit:** both the instance audit and each of the target's orgs get `support.impersonation.started` and `support.impersonation.ended`, with the reason.
+**Audit:** only the instance audit gets `support.impersonation.started` and `support.impersonation.ended`, with the reason. The customer's org audit does not.
 
 ## UI in core (when the switch is on)
 
@@ -181,7 +185,7 @@ Anti-goals, which would mean failure even if the feature works:
 - `impersonator_user_id`: nullable, references users.
 - `actor_admin_key`: a boolean, default false.
 
-The existing check that at most one of `actor_user_id` and `actor_key_id` is set stays. `actor_admin_key` is true only when both are null. Instance and org audit writers take the `Actor` and fill these columns. Audit views show "Admin API key", or "<admin> as <user>".
+The existing check that at most one of `actor_user_id` and `actor_key_id` is set stays. `actor_admin_key` is true only when both are null. Instance and org audit writers take the `Actor` and fill these columns. The instance audit view shows "Admin API key" or "<admin> as <user>". Org audit views show the customer, never the impersonator.
 
 ## Left to the builder
 
