@@ -7,7 +7,7 @@ import type { Role } from '@/components/Sidebar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { refetchSiteIcon } from '@/features/sites/api'
-import { InstallRecipes, type VerifyResult } from './InstallRecipes'
+import { AiInstallPrompt, InstallRecipes, SiteDetails, type VerifyResult } from './InstallRecipes'
 import { TrackingSnippet } from './TrackingSnippet'
 import { InstallStatusView, type InstallStatus } from '@/features/sites/InstallStatus'
 
@@ -170,7 +170,9 @@ function FeatureSetup({ currency }: { currency?: string }) {
 export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, verify, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; installStatus?: InstallStatus; lastSeenAt?: string | null; revenueCurrency?: string; verify?: () => Promise<VerifyResult | undefined>; now?: Date }) {
   return (
     <div className="flex flex-col gap-6">
+      <SiteDetails publicId={publicId} snippet={snippet} />
       <TrackingSnippet publicId={publicId} snippet={snippet} fullSnippet={fullSnippet} />
+      <AiInstallPrompt publicId={publicId} snippet={snippet} />
       <InstallRecipes publicId={publicId} snippet={snippet} verify={verify} />
       <FeatureSetup currency={revenueCurrency} />
       <aside className="border-l-2 border-accent pl-4 text-sm">
