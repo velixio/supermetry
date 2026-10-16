@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"strings"
@@ -43,14 +44,16 @@ func main() {
 		}
 		return
 	}
-	// Read ./.env (or SUPERMETRY_ENV_FILE); variables already in the environment win.
-	envFile := os.Getenv("SUPERMETRY_ENV_FILE")
-	if envFile == "" {
-		envFile = ".env"
-	}
+	// Read SUPERMETRY_ENV_FILE, ./.env, or the installed settings, in that order;
+	// variables already in the environment win.
+	envFile := startupEnvFile(os.Getenv, fileExists)
 	if err := config.LoadDotEnv(envFile); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		if envFile != systemEnvFile || !errors.Is(err, fs.ErrPermission) {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		// The installed file is root:supermetry 0640; commands that need no settings still run.
+		fmt.Fprintf(os.Stderr, "warning: cannot read %s; run as root (sudo) or the supermetry user to use the installed settings\n", systemEnvFile)
 	}
 	if command == "help" {
 		fmt.Println(usage)
@@ -117,6 +120,11 @@ func main() {
 		}
 	case "restore":
 		if err := restoreCommand(context.Background(), os.Args[2:], os.Stdout, os.Getenv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "user":
+		if err := userCommand(context.Background(), os.Args[2:], os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -200,7 +208,29 @@ func migrate(ctx context.Context) error {
 	return db.Migrate(ctx, pool)
 }
 
-// envFileName is the dotenv file main loads at startup.
+// systemEnvFile holds the settings written by a binary-mode install.
+const systemEnvFile = "/etc/supermetry/supermetry.env"
+
+// startupEnvFile picks the dotenv file main loads: SUPERMETRY_ENV_FILE when set,
+// otherwise ./.env, falling back to the installed settings when only they exist.
+func startupEnvFile(getenv func(string) string, exists func(string) bool) string {
+	if name := getenv("SUPERMETRY_ENV_FILE"); name != "" {
+		return name
+	}
+	if !exists(".env") && exists(systemEnvFile) {
+		return systemEnvFile
+	}
+	return ".env"
+}
+
+// fileExists reports whether path exists, counting a path hidden by permissions
+// (such as /etc/supermetry, mode 0750) as existing so the caller can explain.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || errors.Is(err, fs.ErrPermission)
+}
+
+// envFileName is the dotenv file the installer writes next to the binary.
 func envFileName() string {
 	if name := os.Getenv("SUPERMETRY_ENV_FILE"); name != "" {
 		return name

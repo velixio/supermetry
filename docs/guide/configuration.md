@@ -1,12 +1,12 @@
 # Configuration
 
-Supermetry is configured with `SUPERMETRY_*` environment variables. On start, `supermetry` reads `./.env` (or the file named by `SUPERMETRY_ENV_FILE`). A variable already set in the real environment wins over the file. A missing file is not an error. Lines are `KEY=VALUE`; `#` comments, an `export ` prefix and surrounding quotes are accepted (`internal/config/dotenv.go`).
+Supermetry is configured with `SUPERMETRY_*` environment variables. Every `supermetry` command reads the file named by `SUPERMETRY_ENV_FILE`, otherwise `./.env`, otherwise the installed settings at `/etc/supermetry/supermetry.env` (readable by root and the `supermetry` group, so run CLI commands with `sudo` on a binary install). A variable already set in the real environment wins over the file. A missing file is not an error. Lines are `KEY=VALUE`; `#` comments, an `export ` prefix and surrounding quotes are accepted (`internal/config/dotenv.go`).
 
 Invalid values stop startup with an error naming the variable (`internal/config/config.go`).
 
 | Variable | Purpose |
 |---|---|
-| `SUPERMETRY_ENV_FILE` | Path of the env file to read. Default `.env`. |
+| `SUPERMETRY_ENV_FILE` | Path of the env file to read. Default `.env`, then `/etc/supermetry/supermetry.env` when there is no `.env`. |
 
 ## Required
 

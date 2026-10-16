@@ -22,17 +22,6 @@ import (
 	"supermetry/internal/platform/users"
 )
 
-func init() {
-	if len(os.Args) < 2 || os.Args[1] != "user" {
-		return
-	}
-	if err := userCommand(context.Background(), os.Args[2:], os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
-
 func userCommand(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("usage: supermetry user {create|reset-password|make-admin|remove-admin}")
