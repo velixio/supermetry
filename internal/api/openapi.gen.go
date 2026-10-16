@@ -1775,6 +1775,14 @@ type AdminAuditResponse struct {
 	Data []AdminAuditEntry `json:"data"`
 }
 
+// AdminImpersonation defines model for AdminImpersonation.
+type AdminImpersonation struct {
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Token Session token to send as the supermetry_session cookie.
+	Token string `json:"token"`
+}
+
 // AdminMembership defines model for AdminMembership.
 type AdminMembership struct {
 	OrgId   int64               `json:"org_id"`
@@ -2132,6 +2140,9 @@ type CreatedShare struct {
 // CurrentUserResponse defines model for CurrentUserResponse.
 type CurrentUserResponse struct {
 	DemoPromptDismissed bool `json:"demo_prompt_dismissed"`
+
+	// ImpersonatedByEmail Set when an instance admin signed in as this user; the admin's email.
+	ImpersonatedByEmail *openapi_types.Email `json:"impersonated_by_email,omitempty"`
 	Memberships         []struct {
 		BillingAdmin          bool     `json:"billing_admin"`
 		Capabilities          []string `json:"capabilities"`
@@ -3898,6 +3909,12 @@ type AdminListUsersParams struct {
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// AdminImpersonateUserJSONBody defines parameters for AdminImpersonateUser.
+type AdminImpersonateUserJSONBody struct {
+	Password string  `json:"password"`
+	TotpCode *string `json:"totp_code,omitempty"`
+}
+
 // ConfirmCurrentUserEmailChangeLinkParams defines parameters for ConfirmCurrentUserEmailChangeLink.
 type ConfirmCurrentUserEmailChangeLinkParams struct {
 	Token string `form:"token" json:"token"`
@@ -4257,6 +4274,9 @@ type AdminCreateUserJSONRequestBody = AdminUserCreate
 
 // AdminUpdateUserJSONRequestBody defines body for AdminUpdateUser for application/json ContentType.
 type AdminUpdateUserJSONRequestBody = AdminUserPatch
+
+// AdminImpersonateUserJSONRequestBody defines body for AdminImpersonateUser for application/json ContentType.
+type AdminImpersonateUserJSONRequestBody AdminImpersonateUserJSONBody
 
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
 type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
@@ -4901,6 +4921,9 @@ type ServerInterface interface {
 	// AdminUpdateUser Enable, disable, force password reset, promote or demote a user
 	// (PATCH /api/private/admin/users/{user})
 	AdminUpdateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
+	// AdminImpersonateUser Sign in as a user for support
+	// (POST /api/private/admin/users/{user}/impersonate)
+	AdminImpersonateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
 	// ConfirmCurrentUserEmailChangeLink Confirm an email change from a link
 	// (GET /api/private/auth/email-change/confirm)
 	ConfirmCurrentUserEmailChangeLink(w http.ResponseWriter, r *http.Request, params ConfirmCurrentUserEmailChangeLinkParams)
@@ -5738,6 +5761,32 @@ func (siw *ServerInterfaceWrapper) AdminUpdateUser(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminUpdateUser(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminImpersonateUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminImpersonateUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminImpersonateUser(w, r, user)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10771,6 +10820,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminListUsers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminCreateUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminUpdateUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users/{user}/impersonate", wrapper.AdminImpersonateUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminDeleteOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminGetOrganization)

@@ -39,6 +39,26 @@ export interface paths {
         patch: operations["adminUpdateUser"];
         trace?: never;
     };
+    "/api/private/admin/users/{user}/impersonate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in as a user for support
+         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes or change the account's password, email, two-factor settings or API keys. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as.
+         */
+        post: operations["adminImpersonateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/admin/organizations": {
         parameters: {
             query?: never;
@@ -2693,6 +2713,12 @@ export interface components {
             /** @description Existing public site identifier, present for demo_exists. */
             site_id?: string;
         };
+        AdminImpersonation: {
+            /** @description Session token to send as the supermetry_session cookie. */
+            token: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
         CurrentUserResponse: {
             user: {
                 /** Format: int64 */
@@ -2729,6 +2755,11 @@ export interface components {
             demo_prompt_dismissed: boolean;
             /** @description Build version reported by the running binary; development builds report dev. */
             version: string;
+            /**
+             * Format: email
+             * @description Set when an instance admin signed in as this user; the admin's email.
+             */
+            impersonated_by_email?: string | null;
         };
         UserPreferences: {
             /** @enum {string} */
@@ -4491,6 +4522,48 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AdminUser"];
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminImpersonateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: password */
+                    password: string;
+                    totp_code?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session created through the admin API key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminImpersonation"];
+                };
+            };
+            /** @description Session created; the session and CSRF cookies are set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

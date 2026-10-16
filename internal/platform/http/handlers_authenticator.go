@@ -61,7 +61,7 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 	// Account operations authenticate the person, not a selected tenant. Never
 	// attach organization grants to this principal, even with a stale header.
 	if accountRequest(r) {
-		return authz.Principal{UserID: session.UserID, SiteIDs: []int32{}}, true
+		return authz.Principal{UserID: session.UserID, SiteIDs: []int32{}, ImpersonatedBy: session.ImpersonatedBy}, true
 	}
 	memberships, err := a.orgs.MembershipsFor(r.Context(), session.UserID)
 	if err != nil {
@@ -75,6 +75,7 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 		UserID: session.UserID, OrgID: membership.OrgID, Role: authz.Role(membership.Role),
 		SiteIDs:      copySiteIDs(membership.SiteIDs),
 		Capabilities: append([]string{}, membership.Capabilities...), BillingAdmin: membership.BillingAdmin,
+		ImpersonatedBy: session.ImpersonatedBy,
 	}, true
 }
 
@@ -141,6 +142,32 @@ func accountRequest(r *http.Request) bool {
 		value, ok := strings.CutPrefix(r.URL.Path, "/api/private/me/orgs/")
 		org, suffix, found := strings.Cut(value, "/")
 		return ok && found && org != "" && suffix == "restore"
+	}
+	return false
+}
+
+// impersonationBlocked lists the routes an impersonation session may never
+// use: the instance admin routes and every account-security action (password,
+// email, two-factor, account deletion, session revocation, API key creation).
+func impersonationBlocked(r *http.Request) bool {
+	if strings.HasPrefix(r.URL.Path, "/api/private/admin/") {
+		return true
+	}
+	switch r.Method + " " + r.URL.Path {
+	case "DELETE /api/private/me",
+		"POST /api/private/me/email", "POST /api/private/me/password",
+		"POST /api/private/me/totp", "PATCH /api/private/me/totp", "DELETE /api/private/me/totp", "POST /api/private/me/totp/recovery-codes",
+		"DELETE /api/private/me/sessions",
+		"GET /api/private/auth/email-change/confirm", "HEAD /api/private/auth/email-change/confirm", "POST /api/private/auth/email-change/confirm":
+		return true
+	}
+	if r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/private/me/sessions/") {
+		return true
+	}
+	if r.Method == http.MethodPost {
+		value, ok := strings.CutPrefix(r.URL.Path, "/api/private/orgs/")
+		org, suffix, found := strings.Cut(value, "/")
+		return ok && found && org != "" && strings.TrimSuffix(suffix, "/") == "api-keys"
 	}
 	return false
 }

@@ -53,6 +53,39 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/users/{user}/impersonate:
+    post:
+      operationId: adminImpersonateUser
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Sign in as a user for support
+      description: >-
+        Opens a one-hour session as the user that activity never extends. The
+        session cannot use the instance admin routes or change the account's
+        password, email, two-factor settings or API keys. With a cookie session
+        the admin re-enters their password (and TOTP code when enabled), and the
+        response replaces the admin's session cookies. With the admin API key no
+        body is needed and the session token is returned instead. Instance
+        admins and disabled users cannot be signed in as.
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password: { type: string, format: password }
+                totp_code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200': { description: Session created through the admin API key., content: { application/json: { schema: { $ref: '#/components/schemas/AdminImpersonation' } } } }
+        '204': { description: Session created; the session and CSRF cookies are set. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/organizations:
     get:
       operationId: adminListOrganizations
@@ -3705,6 +3738,12 @@ components:
         site_id:
           type: string
           description: Existing public site identifier, present for demo_exists.
+    AdminImpersonation:
+      type: object
+      required: [token, expires_at]
+      properties:
+        token: { type: string, description: Session token to send as the supermetry_session cookie. }
+        expires_at: { type: string, format: date-time }
     CurrentUserResponse:
       type: object
       required: [user, preferences, memberships, demo_prompt_dismissed, version]
@@ -3755,6 +3794,10 @@ components:
         version:
           type: string
           description: Build version reported by the running binary; development builds report dev.
+        impersonated_by_email:
+          type: [string, 'null']
+          format: email
+          description: Set when an instance admin signed in as this user; the admin's email.
     UserPreferences:
       type: object
       additionalProperties: false

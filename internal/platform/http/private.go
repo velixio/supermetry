@@ -246,6 +246,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/admin/users", h.adminListUsers)
 	mux.HandleFunc("POST /api/private/admin/users", h.adminCreateUser)
 	mux.HandleFunc("PATCH /api/private/admin/users/{user}", h.adminUpdateUser)
+	mux.HandleFunc("POST /api/private/admin/users/{user}/impersonate", h.adminImpersonateUser)
 	mux.HandleFunc("GET /api/private/admin/organizations", h.adminListOrganizations)
 	mux.HandleFunc("GET /api/private/admin/organizations/{org}", h.adminGetOrganization)
 	mux.HandleFunc("DELETE /api/private/admin/organizations/{org}", h.adminDeleteOrganization)
@@ -499,11 +500,19 @@ func (h *handler) principal(w http.ResponseWriter, r *http.Request, allowedRoles
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "valid authentication is required")
 		return authz.Principal{}, false
 	}
+	if principal.ImpersonatedBy != 0 && impersonationBlocked(r) {
+		impersonationForbidden(w)
+		return authz.Principal{}, false
+	}
 	if len(allowedRoles) == 0 || roleAllowed(principal.Role, allowedRoles) {
 		return principal, true
 	}
 	writeProblem(w, http.StatusForbidden, "Forbidden", "the credential cannot use this route")
 	return authz.Principal{}, false
+}
+
+func impersonationForbidden(w http.ResponseWriter) {
+	writeProblem(w, http.StatusForbidden, "Forbidden", "this action is not available while signed in as another user")
 }
 
 func (h *handler) privatePrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, bool) {

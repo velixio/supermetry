@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"supermetry/internal/platform/admin"
+	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/store"
 )
@@ -49,6 +50,12 @@ func (h *handler) adminPrincipal(w http.ResponseWriter, r *http.Request) (authz.
 	}
 	principal, ok := h.privatePrincipal(w, r)
 	if !ok {
+		return authz.Principal{}, false
+	}
+	// A session an admin opened as another user never administers the
+	// instance, even if that user is (or later becomes) an instance admin.
+	if principal.ImpersonatedBy != 0 {
+		impersonationForbidden(w)
 		return authz.Principal{}, false
 	}
 	if h.deps.Admin == nil || principal.UserID == 0 {
@@ -431,6 +438,85 @@ func (h *handler) adminListAudit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+// adminImpersonateUser signs the caller in as another user for support. With a
+// cookie session the admin re-verifies their password (and TOTP), and the new
+// session replaces theirs in this browser. With the admin API key the token is
+// returned instead, so a front service can hand the cookie to a browser.
+func (h *handler) adminImpersonateUser(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	userID, ok := adminID(r, "user")
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "user is invalid")
+		return
+	}
+	if h.deps.Auth == nil {
+		unavailable(w, "authentication")
+		return
+	}
+	keyPath := bearerScheme(r.Header.Get("Authorization"))
+	if !keyPath {
+		var request struct {
+			Password string `json:"password"`
+			TOTPCode string `json:"totp_code,omitempty"`
+		}
+		if !decodeJSON(w, r, &request) {
+			return
+		}
+		if err := h.deps.Auth.VerifySensitiveAction(h.clientContext(r), principal.UserID, request.Password, request.TOTPCode); err != nil {
+			sensitiveActionError(w, err)
+			return
+		}
+	}
+	now := h.deps.Now()
+	token, err := h.deps.Auth.CreateImpersonationSession(h.clientContext(r), principal.UserID, userID, now)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+		case errors.Is(err, platformauth.ErrImpersonationForbidden):
+			writeProblem(w, http.StatusForbidden, "Forbidden", "this user cannot be signed in as")
+		default:
+			serviceError(w, err)
+		}
+		return
+	}
+	if keyPath {
+		writeJSON(w, http.StatusOK, map[string]any{"token": token, "expires_at": now.Add(platformauth.ImpersonationLifetime).UTC()})
+		return
+	}
+	csrfToken, err := randomCookieToken()
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	// The impersonation replaces the admin's own session in this browser.
+	if cookie, err := r.Cookie(platformauth.CookieName); err == nil && cookie.Value != "" {
+		if err := h.deps.Auth.Logout(r.Context(), cookie.Value); err != nil {
+			serviceError(w, err)
+			return
+		}
+	}
+	h.setCookie(w, r, platformauth.CookieName, token, platformauth.ImpersonationLifetime)
+	http.SetCookie(w, &http.Cookie{Name: "supermetry_csrf", Value: csrfToken, Path: "/", MaxAge: int(platformauth.ImpersonationLifetime.Seconds()), Secure: h.cookieSecure(r), SameSite: http.SameSiteLaxMode})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func sensitiveActionError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, platformauth.ErrRateLimited):
+		rateLimited(w)
+	case errors.Is(err, platformauth.ErrTOTPRequired):
+		writeProblem(w, http.StatusBadRequest, "Verification required", "a TOTP code is required")
+	case errors.Is(err, platformauth.ErrInvalid):
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "password or verification code is invalid")
+	default:
+		serviceError(w, err)
+	}
 }
 
 func adminError(w http.ResponseWriter, err error) {
