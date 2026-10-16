@@ -374,6 +374,11 @@ func (s *Sites) AdminSetRetention(ctx context.Context, actorUserID int64, siteID
 	}
 	var updated store.Site
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
+		if allowed, err := store.InstanceAdminActive(ctx, tx, actorUserID); err != nil {
+			return err
+		} else if !allowed {
+			return ErrForbidden
+		}
 		var orgID int64
 		err := tx.QueryRow(ctx, `select org_id from sites where id=$1 and deleted_at is null`, siteID).Scan(&orgID)
 		if errors.Is(err, pgx.ErrNoRows) {

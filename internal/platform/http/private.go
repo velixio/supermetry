@@ -836,6 +836,11 @@ func (s Services) AdminDeleteOrg(ctx context.Context, actorUserID int64, orgID i
 		return errors.New("organization service is unavailable")
 	}
 	err := s.Store.Tx(ctx, func(tx pgx.Tx) error {
+		if allowed, err := store.InstanceAdminActive(ctx, tx, actorUserID); err != nil {
+			return err
+		} else if !allowed {
+			return sitesvc.ErrForbidden
+		}
 		deleted, scheduled, err := deleteOrgTx(ctx, tx, orgID, time.Now())
 		if errors.Is(err, sitesvc.ErrNotFound) {
 			return store.ErrNotFound

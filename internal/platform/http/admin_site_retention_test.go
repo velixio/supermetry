@@ -9,7 +9,11 @@ import (
 	"strings"
 	"testing"
 
+	"errors"
+
+	platformhttp "supermetry/internal/platform/http"
 	"supermetry/internal/platform/sitesvc"
+	"supermetry/internal/platform/store"
 )
 
 func (e adminOrgDeleteEnv) addRetentionSite(t *testing.T) int32 {
@@ -116,5 +120,35 @@ func TestAdminSetRetentionDeletedSite404(t *testing.T) {
 	}
 	if response := patchRetention(e.handler, "admin", 999999, `{"retention_days":90}`); response.Code != http.StatusNotFound {
 		t.Fatalf("missing status = %d", response.Code)
+	}
+}
+
+// An admin demoted after the principal was resolved must not mutate anything:
+// both admin mutations re-check instance admin inside their transaction.
+func TestAdminMutationsRecheckAdminInTx(t *testing.T) {
+	e := newAdminOrgDeleteEnv(t)
+	ctx := context.Background()
+	id := e.addRetentionSite(t)
+	var rootID int64
+	if err := e.pool.QueryRow(ctx, `update users set is_admin=false where email='root@example.test' returning id`).Scan(&rootID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.sites.AdminSetRetention(ctx, rootID, id, 365); !errors.Is(err, sitesvc.ErrForbidden) {
+		t.Fatalf("retention err=%v, want ErrForbidden", err)
+	}
+	if got := siteRetention(t, e, id); got != 30 {
+		t.Fatalf("retention=%d after forbidden change", got)
+	}
+	services := platformhttp.Services{Store: &store.Store{Pool: e.pool}, Sites: e.sites}
+	if err := services.AdminDeleteOrg(ctx, rootID, e.orgID); !errors.Is(err, sitesvc.ErrForbidden) {
+		t.Fatalf("delete org err=%v, want ErrForbidden", err)
+	}
+	var deleted bool
+	if err := e.pool.QueryRow(ctx, `select deleted_at is not null from orgs where id=$1`, e.orgID).Scan(&deleted); err != nil || deleted {
+		t.Fatalf("org deleted=%v err=%v", deleted, err)
+	}
+	var audits int
+	if err := e.pool.QueryRow(ctx, `select count(*) from audit_log where action like 'instance.%'`).Scan(&audits); err != nil || audits != 0 {
+		t.Fatalf("instance audit rows=%d err=%v", audits, err)
 	}
 }
