@@ -301,6 +301,9 @@ func TestImpersonatedSessionCannotChangeAccountSecurity(t *testing.T) {
 		{http.MethodPatch, "/api/private/orgs/" + org + "/members/" + itoa64(e.targetID), `{"role":"admin"}`},
 		{http.MethodPost, "/api/private/sites/1/shares", `{}`},
 		{http.MethodPost, "/api/private/invitations/some-token/accept", `{}`},
+		{http.MethodPost, "/api/private/orgs/" + org + "/channels", `{"name":"c","kind":"webhook","config":{"url":"https://hook.example.test"}}`},
+		{http.MethodPost, "/api/private/sites/1/alerts", `{}`},
+		{http.MethodPost, "/api/private/sites/1/reports", `{}`},
 	} {
 		if got := e.serveSession(tc.method, tc.path, tc.body, cookie.Value, "X-Supermetry-Org", org); got.Code != http.StatusForbidden {
 			t.Errorf("%s %s status=%d body=%s", tc.method, tc.path, got.Code, got.Body)
