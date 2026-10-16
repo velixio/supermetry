@@ -31,11 +31,11 @@ func TestExporterWritesCompleteZIP(t *testing.T) {
 	}
 	if _, err := pool.Exec(ctx, `
 		insert into orgs(id,name,slug) overriding system value values (1,'Org','org');
-		insert into users(id,email,name,password_hash) overriding system value values (1,'owner@example.test','Owner','hash');
+		insert into users(id,email,name,password_hash) overriding system value values (11,'owner@example.test','Owner','hash');
 		insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value
 		values (7,1,'siteexport01','Site','UTC',30);
 		insert into imports(id,site_id,source,status,file_name,created_by) overriding system value
-		values (1,7,'plausible','completed','plausible.zip',1);
+		values (1,7,'plausible','completed','plausible.zip',11);
 		insert into imported_day(site_id,import_id,day,visitors,visits,pageviews,bounces,visit_duration_s)
 		values (7,1,'2026-10-01',2,2,5,1,9);
 		insert into rollup_day(site_id,day,visitors,visits,pageviews,bounces,duration_ms,engagement_ms,scroll_sum,scroll_n)

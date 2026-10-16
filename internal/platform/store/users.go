@@ -62,7 +62,7 @@ func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
 		select id,email,name,password_hash,totp_secret_enc,totp_enabled,
 		       totp_recovery,totp_pending_secret_enc,totp_pending_recovery,
 		       totp_last_step,created_at,last_login_at,is_admin,disabled_at,password_reset_required,two_factor_grace_started_at,preferences
-		from users where lower(email)=lower($1) and deleted_at is null`, email))
+		from users where lower(email)=lower($1) and deleted_at is null and not is_system`, email))
 }
 
 func (s *Store) UserByID(ctx context.Context, id int64) (User, error) {
@@ -181,4 +181,17 @@ func (s *Store) ConsumeRecoveryCode(ctx context.Context, userID int64, hash []by
 		set totp_recovery=array_remove(totp_recovery,$2::bytea)
 		where id=$1 and deleted_at is null and totp_enabled and $2::bytea=any(totp_recovery)`, userID, hash)
 	return tag.RowsAffected() == 1, err
+}
+
+// AdminServiceEmail is the email of the system user that the admin API key
+// acts as (migration 0230). It is a reserved .invalid address.
+const AdminServiceEmail = "admin-key@system.invalid"
+
+// AdminServiceUserID returns the id of the system user that the admin API key
+// acts as. It is matched by the is_system marker, not by email, so an ordinary
+// account that happens to use the same address is never returned.
+func AdminServiceUserID(ctx context.Context, db DBTX) (int64, error) {
+	var id int64
+	err := db.QueryRow(ctx, `select id from users where is_system and is_admin and deleted_at is null`).Scan(&id)
+	return id, err
 }

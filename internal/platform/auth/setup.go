@@ -14,13 +14,13 @@ import (
 
 func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
 	var required bool
-	err := a.store.Pool.QueryRow(ctx, `select not exists(select 1 from users)`).Scan(&required)
+	err := a.store.Pool.QueryRow(ctx, `select not exists(select 1 from users where not is_system)`).Scan(&required)
 	return required, err
 }
 
 func (a *Auth) SetupURL(ctx context.Context) (string, bool) {
 	var usersExist bool
-	if err := a.store.Pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&usersExist); err != nil || usersExist {
+	if err := a.store.Pool.QueryRow(ctx, `select exists(select 1 from users where not is_system)`).Scan(&usersExist); err != nil || usersExist {
 		return "", false
 	}
 	plain, hash := platformcrypto.NewToken("")
@@ -81,7 +81,7 @@ func (a *Auth) CompleteSetup(ctx context.Context, token, email, name, password, 
 			return ErrInvalid
 		}
 		var exists bool
-		if err := tx.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&exists); err != nil {
+		if err := tx.QueryRow(ctx, `select exists(select 1 from users where not is_system)`).Scan(&exists); err != nil {
 			return err
 		}
 		if exists {

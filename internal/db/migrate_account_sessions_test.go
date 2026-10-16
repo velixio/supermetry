@@ -23,7 +23,7 @@ func TestAccountSessionMigrationPreservesLegacyTimestamps(t *testing.T) {
 	active := created.Add(2 * time.Hour)
 	if _, err := pool.Exec(ctx, `insert into users(email,name,password_hash) values ('legacy@example.test','Legacy','test');
  insert into user_sessions(id_hash,user_id,device_label,created_at,last_seen_at,expires_at)
- select decode(repeat('ab',32),'hex'),id,'Old device','2026-09-01T10:11:12Z','2026-09-01T12:11:12Z','2026-12-01T10:11:12Z' from users`); err != nil {
+ select decode(repeat('ab',32),'hex'),id,'Old device','2026-09-01T10:11:12Z','2026-09-01T12:11:12Z','2026-12-01T10:11:12Z' from users where not is_system`); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Migrate(ctx, pool); err != nil {
