@@ -119,6 +119,33 @@ func TestRunDeletesExpiredPixelViews(t *testing.T) {
 	}
 }
 
+func TestRunKeepsThirtyDaysOfHourlyPixelImpressions(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	_ = pool.QueryRow(ctx, `insert into orgs(name,slug) values ('H','h-px') returning id`).Scan(&orgID)
+	var siteID int32
+	_ = pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class) values ($1,'rethour00001','H','Asia/Kathmandu',0) returning id`, orgID).Scan(&siteID)
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_hourly values
+		($1,'mail','2026-09-14T16:00',1),
+		($1,'mail','2026-09-14T17:00',2),
+		($1,'mail','2026-10-14T17:00',4)`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	// 12:00 UTC is 17:45 in Kathmandu, so rows before 17:00 local 30 days back go.
+	if _, err := retention.Run(ctx, pool, time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	var left int64
+	_ = pool.QueryRow(ctx, `select coalesce(sum(impressions),0) from pixel_impressions_hourly`).Scan(&left)
+	if left != 6 {
+		t.Fatalf("left = %d, want the 17:00 and recent rows (6)", left)
+	}
+}
+
 func TestRunKeepsPixelViewsForForeverRetention(t *testing.T) {
 	pool, _ := testpg.New(t)
 	ctx := context.Background()

@@ -300,7 +300,7 @@ func TestPixelAlwaysReturnsGIFAndRecordsImpressions(t *testing.T) {
 	f.get("/px/pubsite0002.gif", "DNT", "1")
 	_, impressions := f.recorder.snapshot()
 	want := map[impressionKey]int64{
-		{1, "2026-10-13", "spring-2026", Place{Source: SourceOther}}: 1,
+		{1, "2026-10-13T02:00", "spring-2026", Place{Source: SourceOther}}: 1,
 	}
 	if len(impressions) != len(want) {
 		t.Fatalf("impressions = %v, want %v", impressions, want)
@@ -342,8 +342,8 @@ func TestPixelRateLimitStillServesImage(t *testing.T) {
 
 func TestRecorderRejectsEmptyAndUnregisteredCampaigns(t *testing.T) {
 	recorder := NewRecorder(nil, RecorderOptions{})
-	recorder.Impression(1, "2026-10-13", "known", Place{Country: ""})
-	recorder.Impression(1, "2026-10-13", "", Place{Country: ""})
+	recorder.Impression(1, noonOn("2026-10-13"), "known", Place{Country: ""})
+	recorder.Impression(1, noonOn("2026-10-13"), "", Place{Country: ""})
 	if _, impressions := recorder.snapshot(); len(impressions) != 0 {
 		t.Fatalf("a recorder without a registry counted impressions: %v", impressions)
 	}
@@ -353,10 +353,10 @@ func TestRecorderRejectsEmptyAndUnregisteredCampaigns(t *testing.T) {
 	if !recorder.Views.Registered(1, "known") || recorder.Views.Registered(1, "unknown") {
 		t.Fatal("registered lookup does not match the registry")
 	}
-	recorder.Impression(1, "2026-10-13", "known", Place{Country: ""})
-	recorder.Impression(1, "2026-10-13", "unknown", Place{Country: ""})
+	recorder.Impression(1, noonOn("2026-10-13"), "known", Place{Country: ""})
+	recorder.Impression(1, noonOn("2026-10-13"), "unknown", Place{Country: ""})
 	_, impressions := recorder.snapshot()
-	if len(impressions) != 1 || impressions[impressionKey{1, "2026-10-13", "known", Place{Source: SourceOther}}] != 1 {
+	if len(impressions) != 1 || impressions[impressionKey{1, "2026-10-13T12:00", "known", Place{Source: SourceOther}}] != 1 {
 		t.Fatalf("impressions = %v, want only the registered campaign", impressions)
 	}
 }
@@ -422,7 +422,7 @@ func TestPixelCountsImageProxyHitsForRegisteredTags(t *testing.T) {
 	f.handler.ProxyLimiter = fakeProxyLimiter{allow: false}
 	f.get("/px/pubsite0001.gif?c=readme", camo...) // over the proxy limit: served, not counted
 	_, impressions := f.recorder.snapshot()
-	if len(impressions) != 1 || impressions[impressionKey{1, "2026-10-13", "readme", Place{Source: SourceGitHub}}] != 2 {
+	if len(impressions) != 1 || impressions[impressionKey{1, "2026-10-13T02:00", "readme", Place{Source: SourceGitHub}}] != 2 {
 		t.Fatalf("impressions = %v, want 2 for readme", impressions)
 	}
 }
