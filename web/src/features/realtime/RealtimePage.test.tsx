@@ -3,9 +3,13 @@ import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useRealtimePage } = vi.hoisted(() => ({ useRealtimePage: vi.fn() }))
+const { useRealtimePage, useTimeseries } = vi.hoisted(() => ({
+  useRealtimePage: vi.fn(),
+  useTimeseries: vi.fn(),
+}))
 
 vi.mock('./useRealtimePage', () => ({ useRealtimePage }))
+vi.mock('@/lib/stats', () => ({ useTimeseries }))
 vi.mock('@/components/Flag', () => ({
   Flag: ({ code }: { code: string }) => <span data-testid={`flag-${code}`} />,
 }))
@@ -55,6 +59,7 @@ describe('RealtimePage', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-08T12:00:30Z'))
     useRealtimePage.mockReturnValue({ data: response, isPending: false, isError: false })
+    useTimeseries.mockReturnValue({ data: { rows: [] }, isPending: false, isError: false })
   })
 
   afterEach(() => {
@@ -75,7 +80,7 @@ describe('RealtimePage', () => {
     expect(screen.getByText('Last 30 minutes')).toBeVisible()
     expect(screen.getByText('Visitors')).toBeVisible()
     expect(screen.getByText('91 pageviews')).toBeVisible()
-    expect(screen.getByRole('img', { name: 'Visitors during the last 30 minutes' })).toBeVisible()
+    expect(screen.getByRole('img', { name: 'Visitors per minute during the last 30 minutes' })).toBeVisible()
     expect(screen.getAllByText('/docs').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/pricing').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Signup').length).toBeGreaterThan(0)
@@ -103,6 +108,78 @@ describe('RealtimePage', () => {
 
     act(() => vi.advanceTimersByTime(5_000))
     expect(items[0]).toHaveTextContent('15s ago')
+  })
+
+  it('switches the visitor chart between exact minute, hourly, and daily series', () => {
+    useTimeseries.mockReturnValue({
+      data: {
+        rows: [
+          { time: '2026-10-08T10:00:00', visitors: 8 },
+          { time: '2026-10-08T11:00:00', visitors: 13 },
+        ],
+      },
+      isPending: false,
+      isError: false,
+    })
+    render(<RealtimePage dateRange={{ from: '2026-10-08', to: '2026-10-08' }} siteId={7} timezone="Asia/Kolkata" />)
+
+    expect(screen.getByRole('radio', { name: 'Minute' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('img', { name: 'Visitors per minute during the last 30 minutes' })).toBeVisible()
+    expect(useTimeseries).toHaveBeenLastCalledWith(expect.objectContaining({
+      siteId: 7,
+      dateRange: { from: '2026-10-08', to: '2026-10-08' },
+      metrics: ['visitors'],
+      filters: [],
+      timezone: 'Asia/Kolkata',
+      live: true,
+      includeImported: false,
+    }), 'hour', false)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Hour' }))
+    expect(screen.getByRole('radio', { name: 'Hour' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('Visitors per hour')).toBeVisible()
+    expect(screen.getByRole('img', { name: 'Visitors per hour today' })).toBeVisible()
+    expect(useTimeseries).toHaveBeenLastCalledWith(expect.objectContaining({
+      dateRange: { from: '2026-10-08', to: '2026-10-08' },
+    }), 'hour', true)
+
+    useTimeseries.mockReturnValue({
+      data: {
+        rows: [
+          { time: '2026-10-07', visitors: 21 },
+          { time: '2026-10-08', visitors: 34 },
+        ],
+      },
+      isPending: false,
+      isError: false,
+    })
+    fireEvent.click(screen.getByRole('radio', { name: 'Day' }))
+    expect(screen.getByRole('radio', { name: 'Day' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('Visitors per day')).toBeVisible()
+    expect(screen.getByRole('img', { name: 'Visitors per day during the last 30 days' })).toBeVisible()
+    expect(useTimeseries).toHaveBeenLastCalledWith(expect.objectContaining({
+      dateRange: { from: '2026-09-09', to: '2026-10-08' },
+    }), 'day', true)
+  })
+
+  it('keeps realtime visible while a historical chart loads or fails', () => {
+    useTimeseries.mockReturnValue({ data: undefined, isPending: true, isError: false })
+    render(<RealtimePage dateRange={{ from: '2026-10-08', to: '2026-10-08' }} siteId={7} timezone="UTC" />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Hour' }))
+    expect(screen.getByLabelText('Loading visitors per hour')).toBeVisible()
+    expect(screen.getByText('Live now')).toBeVisible()
+
+    useTimeseries.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+      error: { detail: 'History is temporarily unavailable.' },
+      refetch: vi.fn(),
+    })
+    fireEvent.click(screen.getByRole('radio', { name: 'Day' }))
+    expect(screen.getByText('History is temporarily unavailable.')).toBeVisible()
+    expect(screen.getByText('Live now')).toBeVisible()
   })
 
   it('renders explicit loading and error states', () => {

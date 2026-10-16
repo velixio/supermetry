@@ -16,8 +16,10 @@ import { Flag } from '@/components/Flag'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { countryName } from '@/lib/country'
 import { fmt } from '@/lib/format'
+import { useTimeseries } from '@/lib/stats'
 import { en } from '@/messages/en'
 
 import { useRealtimePage } from './useRealtimePage'
@@ -30,6 +32,40 @@ type RealtimePageProps = {
 }
 
 type RankedItem = { label: string; value: number; countryCode?: string }
+type VisitorChartInterval = 'minute' | 'hour' | 'day'
+
+function shiftDays(value: string, days: number): string {
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return value
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function numeric(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function chartLabel(value: string, interval: VisitorChartInterval, timezone: string): string {
+  if (interval === 'minute') {
+    return new Intl.DateTimeFormat(activeLocale(), {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(value))
+  }
+  if (interval === 'hour') {
+    const siteLocalBucket = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)
+    return new Intl.DateTimeFormat(activeLocale(), {
+      timeZone: siteLocalBucket ? 'UTC' : timezone,
+      hour: 'numeric',
+    }).format(new Date(siteLocalBucket ? `${value}Z` : value))
+  }
+  return new Intl.DateTimeFormat(activeLocale(), {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(`${value.slice(0, 10)}T12:00:00Z`))
+}
 
 function RankedList({ items, empty = 'No activity yet.' }: { items: RankedItem[]; empty?: string }) {
   if (items.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>
@@ -133,8 +169,22 @@ function BreakdownCard({ title, description, className, children }: { title: str
   )
 }
 
-export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
+export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps) {
+  const [chartInterval, setChartInterval] = useState<VisitorChartInterval>('minute')
   const realtime = useRealtimePage(siteId)
+  const historicalInterval = chartInterval === 'day' ? 'day' : 'hour'
+  const historicalRange = chartInterval === 'day'
+    ? { from: shiftDays(dateRange.to, -29), to: dateRange.to }
+    : dateRange
+  const historical = useTimeseries({
+    siteId,
+    dateRange: historicalRange,
+    metrics: ['visitors'],
+    filters: [],
+    timezone,
+    live: true,
+    includeImported: false,
+  }, historicalInterval, chartInterval !== 'minute')
 
   if (realtime.isPending) {
     return (
@@ -154,22 +204,47 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
   }
 
   const data = realtime.data
-  const formatter = new Intl.DateTimeFormat(activeLocale(), {
-    timeZone: timezone,
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-  const chartPoints = data.visitors_per_minute.slice(-30).map((point) => ({
-    ...point,
-    label: formatter.format(new Date(point.minute)),
-  }))
+  const historicalRows = historical.data?.rows ?? []
+  const chartPoints = chartInterval === 'minute'
+    ? data.visitors_per_minute.slice(-30).map((point) => ({
+        time: point.minute,
+        visitors: Number(point.visitors),
+        label: chartLabel(point.minute, 'minute', timezone),
+      }))
+    : historicalRows.map((row) => {
+        const time = typeof row.time === 'string' ? row.time : ''
+        return {
+          time,
+          visitors: numeric(row.visitors),
+          label: chartLabel(time, chartInterval, timezone),
+        }
+      })
+  const chartCopy = chartInterval === 'minute'
+    ? {
+        title: 'Visitors per minute',
+        description: 'The last 30 minutes, newest minute on the right.',
+        label: 'Visitors per minute during the last 30 minutes',
+      }
+    : chartInterval === 'hour'
+      ? {
+          title: 'Visitors per hour',
+          description: 'Today in the site’s timezone.',
+          label: 'Visitors per hour today',
+        }
+      : {
+          title: 'Visitors per day',
+          description: 'The last 30 days in the site’s timezone.',
+          label: 'Visitors per day during the last 30 days',
+        }
+  const chartPending = chartInterval !== 'minute' && historical.isPending
+  const chartError = chartInterval !== 'minute' && historical.isError
 
   return (
     <PageContainer>
       <PageHeader title="Realtime" description="A live view of the last 30 minutes. Updates every 5 seconds." />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
-        <Card className="overflow-hidden border-primary/30 bg-primary/[0.03]">
+        <Card className="overflow-hidden border-primary/30 bg-primary/[0.03]" data-testid="live-visitors-card">
           <CardHeader className="sr-only">
             <CardTitle>Live visitors</CardTitle>
             <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>
@@ -199,25 +274,43 @@ export function RealtimePage({ siteId, timezone }: RealtimePageProps) {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Visitors per minute</CardTitle>
-            <CardDescription>The pulse of the site, newest minute on the right.</CardDescription>
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <CardTitle>{chartCopy.title}</CardTitle>
+              <CardDescription>{chartCopy.description}</CardDescription>
+            </div>
+            <ToggleGroup
+              aria-label="Visitor chart interval"
+              onValueChange={(value) => {
+                if (value === 'minute' || value === 'hour' || value === 'day') setChartInterval(value)
+              }}
+              type="single"
+              value={chartInterval}
+            >
+              <ToggleGroupItem aria-label="Minute" className="h-11 px-3" value="minute">Minute</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Hour" className="h-11 px-3" value="hour">Hour</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Day" className="h-11 px-3" value="day">Day</ToggleGroupItem>
+            </ToggleGroup>
           </CardHeader>
           <CardContent>
-            {chartPoints.every((point) => Number(point.visitors) === 0) ? (
+            {chartPending ? <Skeleton aria-label={`Loading ${chartCopy.title.toLowerCase()}`} className="h-44 w-full" /> : null}
+            {chartError ? <ErrorState detail={historical.error?.detail} onRetry={() => void historical.refetch()} /> : null}
+            {!chartPending && !chartError && chartPoints.every((point) => point.visitors === 0) ? (
               <p className="flex h-44 w-full items-center justify-center rounded-md border border-dashed px-4 text-center text-sm text-muted-foreground" data-testid="realtime-empty">
                 {en.uiFix.realtimeEmpty}
               </p>
             ) : null}
-            <div className={chartPoints.every((point) => Number(point.visitors) === 0) ? 'sr-only' : 'h-44 w-full'} role="img" aria-label="Visitors during the last 30 minutes">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart data={chartPoints} accessibilityLayer>
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30} />
-                  <Tooltip />
-                  <Bar dataKey="visitors" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {!chartPending && !chartError ? (
+              <div className={chartPoints.every((point) => point.visitors === 0) ? 'sr-only' : 'h-44 w-full'} role="img" aria-label={chartCopy.label}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <BarChart data={chartPoints} accessibilityLayer>
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30} />
+                    <Tooltip />
+                    <Bar dataKey="visitors" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
