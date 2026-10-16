@@ -15,7 +15,6 @@ import { Supermetry } from "@supermetry/node";
 
 const supermetry = new Supermetry({
   site: "your-site-id",
-  host: "https://analytics.example.com",
   url: "https://shop.example.com/", // optional default page URL
   onError: (error) => console.error(error),
 });
@@ -44,10 +43,10 @@ Every call returns a `Promise<SendResult>` (`{ ok, status?, error? }`) that neve
 | option | default | |
 |---|---|---|
 | `site` | required | Public site ID |
-| `host` | required | Supermetry origin; events go to `host + /api/public/v1/events` |
+| `host` | `https://app.supermetry.com` | Supermetry origin; set it when self-hosting. Events go to `host + /api/public/v1/events` |
 | `endpoint` | | Full endpoint URL override |
 | `url` | | Default event URL; base for relative event URLs |
-| `userAgent` | `supermetry-node/0.1.0` | UA when the call does not forward a visitor UA |
+| `userAgent` | `supermetry-node/0.2.0` | UA when the call does not forward a visitor UA |
 | `disabled` | `false` | Send nothing |
 | `onError` | no-op | Receives a `SupermetryError` (validation, network, HTTP status) |
 | `fetch` | `globalThis.fetch` | Custom fetch |
@@ -59,7 +58,7 @@ Per-call context (`track`, `pageview`, third argument of `identify`): `url`, `re
 
 ## Notes
 
-- **User-Agent matters.** Generic HTTP-client UAs (`node-fetch`, `axios`, `undici`…) are filtered as bots. Forward the visitor's UA when you have it; otherwise the SDK sends `supermetry-node/0.1.0`.
+- **User-Agent matters.** Generic HTTP-client UAs (`node-fetch`, `axios`, `undici`…) are filtered as bots. Forward the visitor's UA when you have it; otherwise the SDK sends `supermetry-node/0.2.0`.
 - **Visitor IP** is sent as `X-Forwarded-For`. The Supermetry server only trusts it from addresses listed in `SUPERMETRY_TRUSTED_PROXIES`; add your app servers there, or every event counts as one visitor.
 - **Strict origin**: turn it off for sites that receive server-side events (or set `sendOrigin: true`).
 - **`identify` does not store the profile ID.** A server client is shared across visitors, so a stored ID would leak between users. Pass `profileId` on every call for identified users. `identify` sends the traits (string values, max 20; invalid traits are dropped locally since the server rejects the whole event otherwise).

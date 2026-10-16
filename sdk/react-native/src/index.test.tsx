@@ -71,13 +71,13 @@ beforeEach(() => {
 // --- tests -------------------------------------------------------------------
 describe("platform", () => {
   test("browser-shaped user agents", () => {
-    expect(buildUserAgent()).toBe("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.1.0");
+    expect(buildUserAgent()).toBe("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.2.0");
     platform.isPad = true;
-    expect(buildUserAgent()).toBe("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) Supermetry-ReactNative/0.1.0");
+    expect(buildUserAgent()).toBe("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) Supermetry-ReactNative/0.2.0");
     Object.assign(platform, { OS: "android", Version: 34, constants: { Release: "14", Model: "Pixel 8" } });
-    expect(buildUserAgent()).toBe("Mozilla/5.0 (Linux; Android 14; Pixel 8) Supermetry-ReactNative/0.1.0");
+    expect(buildUserAgent()).toBe("Mozilla/5.0 (Linux; Android 14; Pixel 8) Supermetry-ReactNative/0.2.0");
     Object.assign(platform, { constants: { Model: "Weird; (Model)" } });
-    expect(buildUserAgent()).toBe("Mozilla/5.0 (Linux; Android 34; Weird Model) Supermetry-ReactNative/0.1.0");
+    expect(buildUserAgent()).toBe("Mozilla/5.0 (Linux; Android 34; Weird Model) Supermetry-ReactNative/0.2.0");
   });
 
   test("screen paths are slugified", () => {
@@ -90,6 +90,16 @@ describe("platform", () => {
 });
 
 describe("client", () => {
+  test("host defaults to Supermetry Cloud", async () => {
+    const { fn, calls } = fakeFetch();
+    const { host: _host, ...cloud } = base;
+    const sm = createSupermetry({ ...cloud, fetch: fn });
+    sm.screen("Home");
+    await sm.flush();
+    expect(calls[0]!.url).toBe("https://app.supermetry.com/api/public/v1/events");
+    sm.destroy();
+  });
+
   test("screen sends a pageview to appUrl + slug with UA and screen width", async () => {
     const { fn, calls } = fakeFetch();
     const sm = createSupermetry({ ...base, fetch: fn });
@@ -99,7 +109,7 @@ describe("client", () => {
     const { url, headers, body } = calls[0]!;
     expect(url).toBe("https://a.example.com/api/public/v1/events");
     expect(headers["Content-Type"]).toBe("application/json");
-    expect(headers["User-Agent"]).toBe("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.1.0");
+    expect(headers["User-Agent"]).toBe("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.2.0");
     expect(body).toMatchObject({
       v: 1,
       site: "app_site",
@@ -320,7 +330,7 @@ describe("live HTTP", () => {
       expect(r.method).toBe("POST");
       expect(r.path).toBe("/api/public/v1/events");
       expect(r.headers["content-type"]).toBe("application/json");
-      expect(r.headers["user-agent"]).toBe("Mozilla/5.0 (Linux; Android 14; Pixel 8) Supermetry-ReactNative/0.1.0");
+      expect(r.headers["user-agent"]).toBe("Mozilla/5.0 (Linux; Android 14; Pixel 8) Supermetry-ReactNative/0.2.0");
     }
     const [first, second] = received.map((r) => JSON.parse(r.body));
     expect(second).toEqual(first);

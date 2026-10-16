@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/node",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Server-side Node.js SDK for Supermetry self-hosted web analytics",
   "license": "Apache-2.0",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/velixio/supermetry.git",
     "directory": "sdk/node"
   },
-  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/node#readme",
+  "homepage": "https://supermetry.com",
   "bugs": {
     "url": "https://github.com/velixio/supermetry/issues"
   },

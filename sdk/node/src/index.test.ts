@@ -151,9 +151,13 @@ describe("validation and errors", () => {
     expect(calls).toHaveLength(0);
   });
 
-  test("constructor requires site and host", () => {
+  test("constructor requires site and a non-empty host", () => {
     expect(() => new Supermetry({ site: "", host: "https://a" })).toThrow();
     expect(() => new Supermetry({ site: "s", host: "" })).toThrow();
+  });
+
+  test("host defaults to Supermetry Cloud", () => {
+    expect(new Supermetry({ site: "s" }).endpoint).toBe("https://app.supermetry.com/api/public/v1/events");
   });
 });
 

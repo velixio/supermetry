@@ -16,7 +16,7 @@ import router from "./router";
 
 createApp(App)
   .use(router)
-  .use(Supermetry, { site: "your-site-id", host: "https://analytics.example.com", router })
+  .use(Supermetry, { site: "your-site-id", router })
   .mount("#app");
 ```
 

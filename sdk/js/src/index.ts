@@ -1,3 +1,7 @@
+import { DEFAULT_HOST } from "./host";
+
+export { DEFAULT_HOST };
+
 export type PropValue = string | number | boolean;
 export type Props = Record<string, PropValue>;
 export type Traits = Record<string, string>;
@@ -34,10 +38,14 @@ export interface TrackerOptions {
   allowLocalhost?: boolean;
 }
 
-export type InitOptions = TrackerOptions & { site: string } & (
-    | { src: string; host?: string }
-    | { src?: string; host: string }
-  );
+
+export type InitOptions = TrackerOptions & {
+  site: string;
+  /** Script URL; overrides `host` for the script. */
+  src?: string;
+  /** Supermetry origin. Defaults to Supermetry Cloud; `""` uses `/js/script.js` and the events path on your own domain. */
+  host?: string;
+};
 
 export interface PageviewOptions {
   url?: string;
@@ -143,16 +151,21 @@ function setBooleanAttribute(script: HTMLScriptElement, name: string, value: boo
   if (value !== undefined) script.setAttribute(`data-${name}`, String(value));
 }
 
+function resolvedHost(options: InitOptions): string | undefined {
+  return options.host ?? (options.src ? undefined : DEFAULT_HOST);
+}
+
 export function scriptSource(options: InitOptions): string {
   if (options.src) return options.src;
   const full = options.manual || options.consent || options.beforeSend;
-  return `${trimSlash(options.host ?? "")}/js/script${full ? ".full" : ""}.js`;
+  return `${trimSlash(resolvedHost(options) ?? "")}/js/script${full ? ".full" : ""}.js`;
 }
 
 export function eventsEndpoint(options: InitOptions): string | undefined {
   if (options.api !== undefined) return options.api;
-  if (options.host === undefined) return undefined;
-  return `${trimSlash(options.host)}/api/public/v1/events`;
+  const host = resolvedHost(options);
+  if (host === undefined) return undefined;
+  return `${trimSlash(host)}/api/public/v1/events`;
 }
 
 function trimSlash(value: string): string {
@@ -163,9 +176,7 @@ export function init(options: InitOptions): Tracker {
   const current = state();
   if (!current) return tracker;
   if (current.initialized) return tracker;
-  if (!options?.site || (!options.src && typeof options.host !== "string")) {
-    throw new TypeError("@supermetry/tracker init requires site and src or host");
-  }
+  if (!options?.site) throw new TypeError("@supermetry/tracker init requires site");
 
   const script = document.createElement("script");
   script.async = true;

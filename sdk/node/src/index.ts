@@ -19,9 +19,11 @@ import {
 export type { PropValue, Props, Revenue, Traits } from "./validate.js";
 export { sanitizeProps, sanitizeRevenue, sanitizeTraits } from "./validate.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 export const DEFAULT_USER_AGENT = `supermetry-node/${VERSION}`;
 export const EVENTS_PATH = "/api/public/v1/events";
+/** Supermetry Cloud, used when `host` is omitted. */
+export const DEFAULT_HOST = "https://app.supermetry.com";
 
 /** The JSON body sent to `POST /api/public/v1/events`. */
 export interface EventPayload {
@@ -42,13 +44,13 @@ export interface EventPayload {
 export interface SupermetryOptions {
   /** Public site ID. */
   site: string;
-  /** Supermetry origin, e.g. `https://analytics.example.com`. */
-  host: string;
+  /** Supermetry origin. Defaults to Supermetry Cloud (`https://app.supermetry.com`); set it when self-hosting. */
+  host?: string;
   /** Full events endpoint; defaults to `host + "/api/public/v1/events"`. */
   endpoint?: string;
   /** Default page URL for events that do not pass one. Relative event URLs resolve against it. */
   url?: string;
-  /** User-Agent used when no visitor UA is forwarded. Defaults to `supermetry-node/0.1.0`. */
+  /** User-Agent used when no visitor UA is forwarded. Defaults to `supermetry-node/0.2.0`. */
   userAgent?: string;
   /** Send nothing (every call resolves immediately). */
   disabled?: boolean;
@@ -124,12 +126,12 @@ export class Supermetry {
     if (!options || typeof options.site !== "string" || options.site === "") {
       throw new TypeError("@supermetry/node: `site` is required");
     }
-    if (!options.endpoint && (typeof options.host !== "string" || options.host === "")) {
-      throw new TypeError("@supermetry/node: `host` is required");
+    if (!options.endpoint && options.host !== undefined && (typeof options.host !== "string" || options.host === "")) {
+      throw new TypeError("@supermetry/node: `host` must be a non-empty string");
     }
     this.options = options;
     this.site = options.site;
-    this.endpoint = options.endpoint ?? options.host.replace(/\/+$/, "") + EVENTS_PATH;
+    this.endpoint = options.endpoint ?? (options.host ?? DEFAULT_HOST).replace(/\/+$/, "") + EVENTS_PATH;
   }
 
   /** Sends a custom event. Never rejects; await it to wait for delivery. */

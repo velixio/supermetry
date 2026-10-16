@@ -13,7 +13,6 @@ import { init } from "@supermetry/tracker";
 
 const supermetry = init({
   site: "your-site-id",
-  host: "https://analytics.example.com",
   beforeSend: (event) => ({
     ...event,
     props: { ...event.props, app: "storefront" },
@@ -26,9 +25,9 @@ supermetry.identify("user_123", { plan: "pro" });
 supermetry.identify(null);
 ```
 
-`site` is required, plus either `host` or `src`:
+`site` is required. Events go to Supermetry Cloud (`https://app.supermetry.com`) unless you set `host` or `src`:
 
-- `host` derives `src` (`{host}/js/script.js`, or `script.full.js` when `manual`, `consent` or `beforeSend` is set) and `api` (`{host}/api/public/v1/events`). Use `host: ""` for a first-party proxy on your own origin.
+- `host` is your Supermetry origin when self-hosting. It derives `src` (`{host}/js/script.js`, or `script.full.js` when `manual`, `consent` or `beforeSend` is set) and `api` (`{host}/api/public/v1/events`). Use `host: ""` for a first-party proxy on your own origin.
 - `src` and `api` set the script URL and events endpoint explicitly.
 
 The optional `manual`, `hash`, `consent`, `forms`, `outbound`, `downloads`, `profiles`, and `allowLocalhost` settings configure the corresponding tracker data attributes.

@@ -4,9 +4,13 @@ import type { paths } from "./schema";
 
 export type { components, operations, paths } from "./schema";
 
+/** Supermetry Cloud, used when `baseUrl` is omitted. */
+export const DEFAULT_BASE_URL = "https://app.supermetry.com";
+
 export type SupermetryClientOptions = {
   apiKey: string;
-  baseUrl: string;
+  /** Supermetry origin. Defaults to Supermetry Cloud; set it when self-hosting. */
+  baseUrl?: string;
   fetch?: typeof globalThis.fetch;
 };
 
@@ -15,7 +19,7 @@ export function createSupermetryClient(options: SupermetryClientOptions) {
   const apiKey = options.apiKey.trim();
   if (!apiKey) throw new Error("apiKey is required");
   const client = createClient<paths>({
-    baseUrl: options.baseUrl.replace(/\/$/, ""),
+    baseUrl: (options.baseUrl || DEFAULT_BASE_URL).replace(/\/$/, ""),
     fetch: options.fetch,
   });
   const authentication: Middleware = {

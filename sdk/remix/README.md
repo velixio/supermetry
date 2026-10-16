@@ -22,7 +22,7 @@ export default function App() {
       </head>
       <body>
         <Outlet />
-        <Supermetry site="your-site-id" host="https://analytics.example.com" />
+        <Supermetry site="your-site-id" />
         <Scripts />
       </body>
     </html>
@@ -49,20 +49,20 @@ import { useLocation } from "react-router";
 import { useSupermetryPageviews } from "@supermetry/remix/router";
 
 function Analytics() {
-  useSupermetryPageviews(useLocation(), { site: "your-site-id", host: "https://analytics.example.com" });
+  useSupermetryPageviews(useLocation(), { site: "your-site-id" });
   return null;
 }
 ```
 
 ## First-party proxy
 
-Omit `host` and add two resource routes; the script then loads from `/js/script.full.js` and events post to `/api/public/v1/events` on your origin.
+Pass `host=""` and add two resource routes; the script then loads from `/js/script.full.js` and events post to `/api/public/v1/events` on your origin.
 
 ```ts
 // app/supermetry.server.ts
 import { createSupermetryProxy } from "@supermetry/remix/proxy";
 
-export const proxy = createSupermetryProxy({ host: "https://analytics.example.com" });
+export const proxy = createSupermetryProxy(); // forwards to Supermetry Cloud; pass { host } when self-hosting
 ```
 
 ```ts

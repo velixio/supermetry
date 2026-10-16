@@ -19,7 +19,6 @@ import { SupermetryProvider, createSupermetry, trackNavigation, useSupermetry } 
 
 const supermetry = createSupermetry({
   site: "your-site-id",
-  host: "https://analytics.example.com",
   appUrl: "https://app.example.com", // must be an allowed host of the site
   storage: AsyncStorage,
 });
@@ -48,7 +47,7 @@ function CheckoutButton() {
 
 ## API
 
-- `createSupermetry(options)` → client. Options: `site`, `host`, `appUrl` (required), `endpoint`, `storage`, `disabled`, `onError`, `fetch`, `userAgent`, `maxQueueSize` (500), `maxAttempts` (10), `retryDelay` (1000 ms), `maxRetryDelay` (60000 ms), `storagePrefix` (`"supermetry:"`).
+- `createSupermetry(options)` → client. Options: `site`, `appUrl` (required), `host` (defaults to `https://app.supermetry.com`; set it when self-hosting), `endpoint`, `storage`, `disabled`, `onError`, `fetch`, `userAgent`, `maxQueueSize` (500), `maxAttempts` (10), `retryDelay` (1000 ms), `maxRetryDelay` (60000 ms), `storagePrefix` (`"supermetry:"`).
 - `screen(name, props?)` sends a `pageview` for `appUrl + "/" + slug(name)` (`"Product Details"` → `/product-details`, `"Settings/Edit Profile"` → `/settings/edit-profile`) and makes it the current screen.
 - `pageview(urlOrPath?, props?)` sends a pageview for an absolute URL or a path under `appUrl`.
 - `track(name, props?, { revenue?, url? })`: custom event, URL defaults to the current screen.
@@ -59,7 +58,7 @@ function CheckoutButton() {
 
 ## Behaviour
 
-- **User-Agent**: a browser-shaped UA built from `Platform` so the server detects OS and device, e.g. `Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.1.0` or `Mozilla/5.0 (Linux; Android 14; Pixel 8) Supermetry-ReactNative/0.1.0`.
+- **User-Agent**: a browser-shaped UA built from `Platform` so the server detects OS and device, e.g. `Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.2.0` or `Mozilla/5.0 (Linux; Android 14; Pixel 8) Supermetry-ReactNative/0.2.0`.
 - `screen_width` comes from `Dimensions.get("window").width`.
 - **Delivery**: events go to an in-memory queue and are sent in order. Network errors, 429 and 5xx are retried with exponential backoff (honouring `Retry-After`) and the same `id`/`ts`, so the server deduplicates; `400` drops the event. When the app goes to the background the queue is flushed and anything undelivered is written to `storage`, then restored on the next launch. Events older than 24 h are discarded.
 - Props are capped at 30 string/number/boolean values; invalid traits are dropped locally; traits are only ever sent on `identify`.

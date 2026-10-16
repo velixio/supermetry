@@ -17,8 +17,13 @@ function upstream(response: () => Response): { sent: Sent[]; fetch: typeof fetch
 }
 
 describe("createProxyHandler", () => {
-  test("requires host", () => {
-    expect(() => createProxyHandler({} as never)).toThrow(TypeError);
+  test("defaults to Supermetry Cloud", async () => {
+    const { sent, fetch } = upstream(() => new Response("", { status: 200 }));
+    const handler = createProxyHandler({ fetch });
+
+    await handler(new Request("https://shop.example.com/js/script.js"));
+
+    expect(sent[0].url).toBe("https://app.supermetry.com/js/script.js");
   });
 
   test("forwards events with the visitor user agent and client IP, never cached", async () => {

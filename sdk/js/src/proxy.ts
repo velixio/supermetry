@@ -1,5 +1,8 @@
+import { DEFAULT_HOST } from "./host";
+
 export interface ProxyOptions {
-  host: string;
+  /** Supermetry origin to forward to. Defaults to Supermetry Cloud. */
+  host?: string;
   getClientIp?: (request: Request) => string | null | undefined;
   fetch?: typeof fetch;
 }
@@ -24,9 +27,8 @@ function copyHeaders(from: Headers, names: string[]): Headers {
   return headers;
 }
 
-export function createProxyHandler(options: ProxyOptions): ProxyHandler {
-  if (!options?.host) throw new TypeError("@supermetry proxy requires host");
-  const host = options.host.replace(/\/+$/, "");
+export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
+  const host = (options.host || DEFAULT_HOST).replace(/\/+$/, "");
   const send = options.fetch ?? fetch;
   const getClientIp = options.getClientIp ?? clientIp;
 

@@ -24,4 +24,14 @@ describe("createSupermetryClient", () => {
     );
     expect(request.headers.get("Authorization")).toBe("Bearer supermetry_secret");
   });
+
+  it("defaults to Supermetry Cloud", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    const client = createSupermetryClient({ apiKey: "supermetry_secret", fetch: fetchMock });
+
+    await client.GET("/api/public/v1/sites");
+
+    const request = fetchMock.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe("https://app.supermetry.com/api/public/v1/sites");
+  });
 });

@@ -34,7 +34,7 @@ describe("<Supermetry />", () => {
 
 
     const transitions = await container.renderToString(Supermetry, { props: { site: "site-id", viewTransitions: true } });
-    expect(transitions).toContain('src="/js/script.full.js"');
+    expect(transitions).toContain('src="https://app.supermetry.com/js/script.full.js"');
     expect(transitions).toContain('data-manual="true"');
     expect(transitions).toContain('data-astro-transition-persist="supermetry"');
     expect(transitions).toContain("astro:page-load");

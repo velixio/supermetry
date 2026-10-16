@@ -17,7 +17,7 @@ describe("<Supermetry />", () => {
     expect(renderToString(<Supermetry site="site-id" />)).toBe("");
   });
 
-  test("injects a first-party script by default", async () => {
+  test("injects the Supermetry Cloud script by default", async () => {
     const { act } = await import("react");
     const { createRoot } = await import("react-dom/client");
     const { Supermetry, useSupermetry, getTracker } = await import("./index");
@@ -26,8 +26,8 @@ describe("<Supermetry />", () => {
     await act(async () => root.render(<Supermetry site="site-id" outbound />));
 
     const script = document.head.querySelector("script")!;
-    expect(script.getAttribute("src")).toBe("/js/script.js");
-    expect(script.dataset.api).toBe("/api/public/v1/events");
+    expect(script.getAttribute("src")).toBe("https://app.supermetry.com/js/script.js");
+    expect(script.dataset.api).toBe("https://app.supermetry.com/api/public/v1/events");
     expect(script.dataset.outbound).toBe("true");
     expect(useSupermetry()).toBe(getTracker());
     act(() => root.unmount());

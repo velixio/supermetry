@@ -8,7 +8,7 @@ export interface SupermetryProxy {
   POST: (request: Request) => Promise<Response>;
 }
 
-export function createSupermetryProxy(options: ProxyOptions): SupermetryProxy {
+export function createSupermetryProxy(options: ProxyOptions = {}): SupermetryProxy {
   const handler = createProxyHandler(options);
   return { GET: handler, HEAD: handler, POST: handler };
 }

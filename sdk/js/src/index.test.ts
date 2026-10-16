@@ -66,7 +66,15 @@ describe("init", () => {
     installBrowser();
 
     expect(() => init({ src: "/script.js" } as never)).toThrow(TypeError);
-    expect(() => init({ site: "site-id" } as never)).toThrow(TypeError);
+  });
+
+  test("defaults to Supermetry Cloud when host and src are omitted", () => {
+    const { script } = installBrowser();
+
+    init({ site: "site-id" });
+
+    expect(script.src).toBe("https://app.supermetry.com/js/script.js");
+    expect(script.attributes.get("data-api")).toBe("https://app.supermetry.com/api/public/v1/events");
   });
 
   test("configures one script and forwards queued calls after load", () => {

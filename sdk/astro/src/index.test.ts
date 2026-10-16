@@ -7,12 +7,19 @@ describe("scriptAttributes", () => {
     expect(() => scriptAttributes({} as never)).toThrow(TypeError);
   });
 
-  test("defaults to first-party paths", () => {
+  test("defaults to Supermetry Cloud", () => {
     expect(scriptAttributes({ site: "site-id" })).toEqual({
       async: true,
       defer: true,
-      src: "/js/script.js",
+      src: "https://app.supermetry.com/js/script.js",
       "data-site": "site-id",
+      "data-api": "https://app.supermetry.com/api/public/v1/events",
+    });
+  });
+
+  test("uses first-party paths for an empty host", () => {
+    expect(scriptAttributes({ site: "site-id", host: "" })).toMatchObject({
+      src: "/js/script.js",
       "data-api": "/api/public/v1/events",
     });
   });
