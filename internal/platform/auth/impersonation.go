@@ -22,6 +22,10 @@ const ImpersonationLifetime = time.Hour
 // longer an instance admin.
 var ErrImpersonationForbidden = errors.New("this account cannot be signed in as")
 
+// ErrImpersonationResetRequired is returned when the target must reset their
+// password first: the authenticator would reject the session on first use.
+var ErrImpersonationResetRequired = errors.New("user must reset their password first")
+
 // CreateImpersonationSession opens a session for targetUserID on behalf of the
 // instance admin adminUserID. The session ends at now+1h whatever the activity,
 // records the admin in impersonated_by, and is audited for the instance and for
@@ -40,8 +44,8 @@ func (a *Auth) CreateImpersonationSession(ctx context.Context, adminUserID, targ
 		if err != nil {
 			return err
 		}
-		var isAdmin, isSystem, disabled bool
-		err = tx.QueryRow(ctx, `select is_admin,is_system,disabled_at is not null from users where id=$1 for share`, targetUserID).Scan(&isAdmin, &isSystem, &disabled)
+		var isAdmin, isSystem, disabled, resetRequired bool
+		err = tx.QueryRow(ctx, `select is_admin,is_system,disabled_at is not null,password_reset_required from users where id=$1 for share`, targetUserID).Scan(&isAdmin, &isSystem, &disabled, &resetRequired)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return store.ErrNotFound
 		}
@@ -53,6 +57,8 @@ func (a *Auth) CreateImpersonationSession(ctx context.Context, adminUserID, targ
 			return store.ErrNotFound
 		case isAdmin || disabled:
 			return ErrImpersonationForbidden
+		case resetRequired:
+			return ErrImpersonationResetRequired
 		}
 		if err := store.CreateSession(ctx, tx, store.UserSession{
 			IDHash:      hash,

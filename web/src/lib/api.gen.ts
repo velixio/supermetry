@@ -50,7 +50,7 @@ export interface paths {
         put?: never;
         /**
          * Sign in as a user for support
-         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes or change the account's password, email, two-factor settings or API keys. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as.
+         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes or change the account's password, email, two-factor settings or API keys. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as; a user who must reset their password returns 409.
          */
         post: operations["adminImpersonateUser"];
         delete?: never;
@@ -4569,6 +4569,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The user must reset their password first. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             429: components["responses"]["RateLimited"];
         };
     };

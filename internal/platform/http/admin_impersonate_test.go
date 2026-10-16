@@ -296,6 +296,11 @@ func TestImpersonatedSessionCannotChangeAccountSecurity(t *testing.T) {
 		{http.MethodDelete, "/api/private/me/sessions", ``},
 		{http.MethodPost, "/api/private/auth/email-change/confirm", `{"token":"x"}`},
 		{http.MethodPost, "/api/private/orgs/" + org + "/api-keys", `{"name":"k","scopes":["stats:read"]}`},
+		// Nothing created during the session may outlive it.
+		{http.MethodPost, "/api/private/orgs/" + org + "/invitations", `{"email":"guest@example.test","role":"viewer"}`},
+		{http.MethodPatch, "/api/private/orgs/" + org + "/members/" + itoa64(e.targetID), `{"role":"admin"}`},
+		{http.MethodPost, "/api/private/sites/1/shares", `{}`},
+		{http.MethodPost, "/api/private/invitations/some-token/accept", `{}`},
 	} {
 		if got := e.serveSession(tc.method, tc.path, tc.body, cookie.Value, "X-Supermetry-Org", org); got.Code != http.StatusForbidden {
 			t.Errorf("%s %s status=%d body=%s", tc.method, tc.path, got.Code, got.Body)
@@ -379,5 +384,33 @@ func TestImpersonateWithKeyReturnsToken(t *testing.T) {
 	}
 	if got := serveBearer(e.handler, http.MethodPost, impersonatePath(e.serviceUserID), "", testAdminKey); got.Code != http.StatusNotFound {
 		t.Fatalf("key system target status=%d", got.Code)
+	}
+}
+
+func TestImpersonatePasswordResetRequired409(t *testing.T) {
+	e := newImpersonateEnv(t)
+	ctx := context.Background()
+	if _, err := e.pool.Exec(ctx, `update users set password_reset_required=true where id=$1`, e.targetID); err != nil {
+		t.Fatal(err)
+	}
+	got, cookie := e.impersonate(t, e.targetID)
+	if got.Code != http.StatusConflict || cookie != nil || !strings.Contains(got.Body.String(), "reset their password") {
+		t.Fatalf("status=%d body=%s", got.Code, got.Body)
+	}
+	var sessions, audits int
+	if err := e.pool.QueryRow(ctx, `select count(*) from user_sessions where impersonated_by is not null`).Scan(&sessions); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.pool.QueryRow(ctx, `select count(*) from audit_log where action='instance.user.impersonated'`).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if sessions != 0 || audits != 0 {
+		t.Fatalf("sessions=%d audits=%d", sessions, audits)
+	}
+	if own := e.serveSession(http.MethodGet, "/api/private/me", "", e.adminCookie); own.Code != http.StatusOK {
+		t.Fatalf("admin session after refusal status=%d", own.Code)
+	}
+	if key := serveBearer(e.handler, http.MethodPost, impersonatePath(e.targetID), "", testAdminKey); key.Code != http.StatusConflict {
+		t.Fatalf("key path status=%d body=%s", key.Code, key.Body)
 	}
 }

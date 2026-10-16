@@ -147,8 +147,10 @@ func accountRequest(r *http.Request) bool {
 }
 
 // impersonationBlocked lists the routes an impersonation session may never
-// use: the instance admin routes and every account-security action (password,
-// email, two-factor, account deletion, session revocation, API key creation).
+// use: the instance admin routes, every account-security action (password,
+// email, two-factor, account deletion, session revocation), and anything that
+// grants access beyond the session (API keys, invitations, member role
+// changes, share links, accepting invitations).
 func impersonationBlocked(r *http.Request) bool {
 	if strings.HasPrefix(r.URL.Path, "/api/private/admin/") {
 		return true
@@ -164,10 +166,27 @@ func impersonationBlocked(r *http.Request) bool {
 	if r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/private/me/sessions/") {
 		return true
 	}
-	if r.Method == http.MethodPost {
-		value, ok := strings.CutPrefix(r.URL.Path, "/api/private/orgs/")
+	// Nothing created during the session may outlive it: API keys, invitations,
+	// role changes and share links.
+	if value, ok := strings.CutPrefix(r.URL.Path, "/api/private/orgs/"); ok {
 		org, suffix, found := strings.Cut(value, "/")
-		return ok && found && org != "" && strings.TrimSuffix(suffix, "/") == "api-keys"
+		if !found || org == "" {
+			return false
+		}
+		switch {
+		case r.Method == http.MethodPost && (suffix == "api-keys" || suffix == "invitations"):
+			return true
+		case r.Method == http.MethodPatch && strings.HasPrefix(suffix, "members/"):
+			return true
+		}
+		return false
+	}
+	if value, ok := strings.CutPrefix(r.URL.Path, "/api/private/sites/"); ok && r.Method == http.MethodPost {
+		site, suffix, found := strings.Cut(value, "/")
+		return found && site != "" && suffix == "shares"
+	}
+	if value, ok := strings.CutPrefix(r.URL.Path, "/api/private/invitations/"); ok && r.Method == http.MethodPost {
+		return strings.HasSuffix(value, "/accept")
 	}
 	return false
 }

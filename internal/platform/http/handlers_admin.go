@@ -458,7 +458,8 @@ func (h *handler) adminImpersonateUser(w http.ResponseWriter, r *http.Request) {
 		unavailable(w, "authentication")
 		return
 	}
-	keyPath := bearerScheme(r.Header.Get("Authorization"))
+	// adminPrincipal resolves the admin API key to the system user only.
+	keyPath := h.deps.AdminServiceUserID != 0 && principal.UserID == h.deps.AdminServiceUserID
 	if !keyPath {
 		var request struct {
 			Password string `json:"password"`
@@ -478,6 +479,8 @@ func (h *handler) adminImpersonateUser(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, store.ErrNotFound):
 			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+		case errors.Is(err, platformauth.ErrImpersonationResetRequired):
+			writeProblem(w, http.StatusConflict, "Conflict", "user must reset their password first")
 		case errors.Is(err, platformauth.ErrImpersonationForbidden):
 			writeProblem(w, http.StatusForbidden, "Forbidden", "this user cannot be signed in as")
 		default:

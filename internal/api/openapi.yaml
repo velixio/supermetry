@@ -65,7 +65,8 @@ paths:
         the admin re-enters their password (and TOTP code when enabled), and the
         response replaces the admin's session cookies. With the admin API key no
         body is needed and the session token is returned instead. Instance
-        admins and disabled users cannot be signed in as.
+        admins and disabled users cannot be signed in as; a user who must reset
+        their password returns 409.
       parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
       requestBody:
         required: false
@@ -85,6 +86,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: The user must reset their password first., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/organizations:
     get:
