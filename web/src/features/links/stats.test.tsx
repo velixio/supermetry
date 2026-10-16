@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { renderWithRouter } from '@/test/renderWithRouter'
 
-const { get, patch, del } = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), del: vi.fn() }))
+const { get, patch, del, copyText } = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), del: vi.fn(), copyText: vi.fn() }))
 vi.mock('@/lib/api', () => ({ api: { GET: get, PATCH: patch, DELETE: del } }))
-vi.mock('@/lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) }))
+vi.mock('@/lib/clipboard', () => ({ copyText }))
 
 import { daysBetween, DailyBars } from './DailyBars'
 import { LinkStatsPage } from './LinkStatsPage'
@@ -119,6 +119,14 @@ describe('TrackingPixelPage', () => {
     expect(screen.getByRole('img', { name: 'Badge with the total' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?c=spring&preview=1')
     expect(screen.getByRole('img', { name: 'Badge with total, today and a 30-day graph' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?c=spring&style=stats&preview=1')
     expect(screen.queryByRole('heading', { name: 'Where views come from' })).not.toBeInTheDocument()
+  })
+
+  it('copies the stats badge as a link to supermetry.com', async () => {
+    copyText.mockResolvedValue(true)
+    wrap(<TrackingPixelPage canManage org="acme" pixelId={11} siteId={7} siteSlug="main" timezone="UTC" />)
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Install' }), { button: 0 })
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy stats badge (total, today, graph)' }))
+    await waitFor(() => expect(copyText).toHaveBeenCalledWith('[![views](https://sm.example.test/px/abc.svg?c=spring&style=stats)](https://supermetry.com)'))
   })
 
   it('asks for confirmation before deleting', async () => {
