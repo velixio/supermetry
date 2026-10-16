@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "React provider and hook for Supermetry analytics",
   "license": "Apache-2.0",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/velixio/supermetry.git",
     "directory": "sdk/react"
   },
-  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/react#readme",
+  "homepage": "https://supermetry.com",
   "bugs": {
     "url": "https://github.com/velixio/supermetry/issues"
   },

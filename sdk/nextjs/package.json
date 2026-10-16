@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/nextjs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Supermetry analytics for the Next.js App Router, with a first-party proxy",
   "license": "Apache-2.0",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/velixio/supermetry.git",
     "directory": "sdk/nextjs"
   },
-  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/nextjs#readme",
+  "homepage": "https://supermetry.com",
   "bugs": {
     "url": "https://github.com/velixio/supermetry/issues"
   },

@@ -67,7 +67,7 @@ try {
     assert.equal(manifest.publishConfig?.provenance, true, `${manifest.name} must request provenance`);
     assert.equal(manifest.repository?.url, "git+https://github.com/velixio/supermetry.git");
     assert.equal(manifest.repository?.directory, `sdk/${directory}`);
-    assert.equal(manifest.homepage, `https://github.com/velixio/supermetry/tree/main/sdk/${directory}#readme`);
+    assert.equal(manifest.homepage, "https://supermetry.com");
     assert.equal(manifest.bugs?.url, "https://github.com/velixio/supermetry/issues");
 
     const dependencyGroups = [manifest.dependencies, manifest.optionalDependencies, manifest.peerDependencies];

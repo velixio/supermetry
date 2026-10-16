@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/tracker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed browser wrapper for the Supermetry tracking script",
   "license": "Apache-2.0",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/velixio/supermetry.git",
     "directory": "sdk/js"
   },
-  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/js#readme",
+  "homepage": "https://supermetry.com",
   "bugs": {
     "url": "https://github.com/velixio/supermetry/issues"
   },

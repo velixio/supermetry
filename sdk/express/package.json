@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/express",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Express middleware for Supermetry self-hosted web analytics",
   "license": "Apache-2.0",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/velixio/supermetry.git",
     "directory": "sdk/express"
   },
-  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/express#readme",
+  "homepage": "https://supermetry.com",
   "bugs": {
     "url": "https://github.com/velixio/supermetry/issues"
   },

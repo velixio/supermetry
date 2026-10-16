@@ -1,6 +1,7 @@
 {
   "name": "@supermetry/api-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "homepage": "https://supermetry.com",
   "description": "Typed TypeScript client for the Supermetry Analytics API",
   "type": "module",
   "sideEffects": false,

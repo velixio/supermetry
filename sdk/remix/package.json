@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/remix",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Supermetry analytics for Remix and React Router 7, with a first-party proxy",
   "license": "Apache-2.0",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/velixio/supermetry.git",
     "directory": "sdk/remix"
   },
-  "homepage": "https://github.com/velixio/supermetry/tree/main/sdk/remix#readme",
+  "homepage": "https://supermetry.com",
   "bugs": {
     "url": "https://github.com/velixio/supermetry/issues"
   },
