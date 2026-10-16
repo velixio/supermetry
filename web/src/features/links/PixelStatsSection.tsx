@@ -46,6 +46,11 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
     if (days <= 2) setGranularity('hour')
     else if (granularity === 'hour' && days > MAX_HOURLY_DAYS) setGranularity('day')
   }
+  const chooseGranularity = (next: ChartGranularity) => {
+    setGranularity(next)
+    // Hours are only served for short ranges, so narrow a longer period.
+    if (next === 'hour' && !hourAllowed) setPeriod('7d')
+  }
   return (
     <section aria-labelledby="pixel-stats" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -57,9 +62,9 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
               id="pixel-group"
               className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
               value={granularity}
-              onChange={(event) => setGranularity(event.target.value as ChartGranularity)}
+              onChange={(event) => chooseGranularity(event.target.value as ChartGranularity)}
             >
-              <option disabled={!hourAllowed} value="hour">{t.byHour}</option>
+              <option value="hour">{t.byHour}</option>
               <option value="day">{t.byDay}</option>
               <option value="week">{t.byWeek}</option>
               <option value="month">{t.byMonth}</option>

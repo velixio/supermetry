@@ -170,12 +170,15 @@ describe('PixelStatsSection', () => {
   })
   afterEach(() => cleanup())
 
-  it('offers hourly grouping only for ranges of seven days or less', async () => {
+  it('lets By hour be picked from a long period by narrowing it to seven days', async () => {
     wrap(<PixelStatsSection siteId={7} tag="spring" timezone="UTC" />)
     const group = await screen.findByLabelText('Group by')
-    expect(within(group).getByRole('option', { name: 'By hour' })).toBeDisabled()
-    fireEvent.change(screen.getByLabelText('Period'), { target: { value: '7d' } })
+    expect(screen.getByLabelText('Period')).toHaveValue('30d')
     expect(within(group).getByRole('option', { name: 'By hour' })).toBeEnabled()
+    fireEvent.change(group, { target: { value: 'hour' } })
+    expect(group).toHaveValue('hour')
+    expect(screen.getByLabelText('Period')).toHaveValue('7d')
+    expect(await screen.findByRole('columnheader', { name: 'Hour' })).toBeInTheDocument()
   })
 
   it('switches to hours for today and charts the hourly counts', async () => {
