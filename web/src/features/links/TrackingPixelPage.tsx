@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { en } from '@/messages/en'
 
 import { useDeleteTrackingPixel, useSaveTrackingPixel, useTrackingPixel } from './api'
@@ -69,43 +70,52 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
             ) : null}
           />
 
-          <section aria-labelledby="pixel-snippet" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
-            <h2 className="text-base font-medium" id="pixel-snippet">{t.pixelInstallTitle}</h2>
-            <div>
-              <Label htmlFor="pixel-html">{t.pixelSnippet}</Label>
-              <pre className="mt-1 overflow-x-auto rounded-lg border bg-muted/40 p-3 text-sm" id="pixel-html" tabIndex={0}>
-                <code>{pixel.data.html}</code>
-              </pre>
-              <div className="mt-2">
-                <CopyButton label={t.pixelCopySnippet} text={pixel.data.html}>{t.pixelCopySnippet}</CopyButton>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="pixel-url">{t.pixelUrl}</Label>
-              <p className="mt-1 break-all rounded-lg border bg-muted/40 p-3 font-mono text-sm" id="pixel-url">{pixel.data.gif_url}</p>
-              <div className="mt-2">
-                <CopyButton label={t.pixelCopyUrl} text={pixel.data.gif_url}>{t.pixelCopyUrl}</CopyButton>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">{t.pixelNote}</p>
-          </section>
+          <Tabs defaultValue="stats">
+            <TabsList aria-label={t.pixelTabsLabel} className="h-auto">
+              <TabsTrigger className="min-h-11 px-4" value="stats">{t.pixelTabStats}</TabsTrigger>
+              <TabsTrigger className="min-h-11 px-4" value="install">{t.pixelTabInstall}</TabsTrigger>
+            </TabsList>
+            <TabsContent className="flex flex-col gap-6" value="stats">
+              <PixelStatsSection siteId={siteId} tag={pixel.data.tag} timezone={timezone} />
+            </TabsContent>
+            <TabsContent className="flex flex-col gap-6" value="install">
+              <section aria-labelledby="pixel-snippet" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
+                <h2 className="text-base font-medium" id="pixel-snippet">{t.pixelInstallTitle}</h2>
+                <div>
+                  <Label htmlFor="pixel-html">{t.pixelSnippet}</Label>
+                  <pre className="mt-1 overflow-x-auto rounded-lg border bg-muted/40 p-3 text-sm" id="pixel-html" tabIndex={0}>
+                    <code>{pixel.data.html}</code>
+                  </pre>
+                  <div className="mt-2">
+                    <CopyButton label={t.pixelCopySnippet} text={pixel.data.html}>{t.pixelCopySnippet}</CopyButton>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="pixel-url">{t.pixelUrl}</Label>
+                  <p className="mt-1 break-all rounded-lg border bg-muted/40 p-3 font-mono text-sm" id="pixel-url">{pixel.data.gif_url}</p>
+                  <div className="mt-2">
+                    <CopyButton label={t.pixelCopyUrl} text={pixel.data.gif_url}>{t.pixelCopyUrl}</CopyButton>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">{t.pixelNote}</p>
+              </section>
 
-          <section aria-labelledby="pixel-badge" className="flex flex-col gap-3 rounded-xl border bg-card p-4">
-            <h2 className="text-base font-medium" id="pixel-badge">{t.pixelBadgeTitle}</h2>
-            <p className="text-sm text-muted-foreground">{t.pixelBadgeNote}</p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <img alt={t.pixelBadgePreviewTotal} height={20} src={addBadgeParams(pixel.data.svg_url, 'preview=1')} />
-              <img alt={t.pixelBadgePreviewStats} height={20} src={addBadgeParams(pixel.data.svg_url, 'style=stats&preview=1')} />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <CopyButton label={t.pixelCopyBadge} text={`![views](${pixel.data.svg_url})`}>{t.pixelCopyBadge}</CopyButton>
-              <CopyButton label={t.pixelCopyStatsBadge} text={`![views](${addBadgeParams(pixel.data.svg_url, 'style=stats')})`}>
-                {t.pixelCopyStatsBadge}
-              </CopyButton>
-            </div>
-          </section>
-
-          <PixelStatsSection siteId={siteId} tag={pixel.data.tag} timezone={timezone} />
+              <section aria-labelledby="pixel-badge" className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+                <h2 className="text-base font-medium" id="pixel-badge">{t.pixelBadgeTitle}</h2>
+                <p className="text-sm text-muted-foreground">{t.pixelBadgeNote}</p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <img alt={t.pixelBadgePreviewTotal} height={20} src={addBadgeParams(pixel.data.svg_url, 'preview=1')} />
+                  <img alt={t.pixelBadgePreviewStats} height={20} src={addBadgeParams(pixel.data.svg_url, 'style=stats&preview=1')} />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <CopyButton label={t.pixelCopyBadge} text={`![views](${pixel.data.svg_url})`}>{t.pixelCopyBadge}</CopyButton>
+                  <CopyButton label={t.pixelCopyStatsBadge} text={`![views](${addBadgeParams(pixel.data.svg_url, 'style=stats')})`}>
+                    {t.pixelCopyStatsBadge}
+                  </CopyButton>
+                </div>
+              </section>
+            </TabsContent>
+          </Tabs>
           <PixelDialog
             error={save.error}
             pending={save.isPending}
