@@ -137,6 +137,19 @@ describe('AdminUpdatePage', () => {
     expect(screen.queryByRole('button', { name: 'Update to 1.3.0' })).not.toBeInTheDocument()
   })
 
+  it('places the update status below the version status', () => {
+    available({
+      job: {
+        id: 4, from_version: 'v1.2.0', target_version: 'v1.3.0', deployment_mode: 'binary',
+        status: 'complete', created_at: '2026-10-14T09:01:00Z', updated_at: '2026-10-14T09:02:00Z', finished_at: '2026-10-14T09:02:00Z',
+      },
+    })
+    render(<AdminUpdatePage />)
+    const version = screen.getByText('Version status')
+    const complete = within(screen.getByRole('status', { name: 'Update progress' })).getByText('Update complete')
+    expect(version.compareDocumentPosition(complete) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('shows recovery-required instructions prominently', () => {
     available({
       update_available: false,

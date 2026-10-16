@@ -171,7 +171,6 @@ export function AdminUpdatePage() {
     <AdminPage title={en.admin.update} description={en.admin.updateDescription}>
       {errors.length > 0 ? <Alert variant="destructive"><AlertTitle>{en.admin.updateCheckFailed}</AlertTitle><AlertDescription>{errors.join(' ')}</AlertDescription></Alert> : null}
       {status.isPending ? <div role="status" aria-label={en.admin.loading} className="flex max-w-xl flex-col gap-3"><Skeleton className="h-32 w-full" /><Skeleton className="h-20 w-full" /></div> : null}
-      {job ? <div className="max-w-xl"><UpdateJobStatus job={job} reconnecting={status.isError} /></div> : null}
       {status.data ? (
         <Card className="max-w-xl">
           <CardHeader>
@@ -199,6 +198,7 @@ export function AdminUpdatePage() {
           </CardFooter>
         </Card>
       ) : null}
+      {job ? <div className="max-w-xl"><UpdateJobStatus job={job} reconnecting={status.isError} /></div> : null}
       {status.data ? <UpdateHistory jobs={status.data.history ?? []} /> : null}
       {status.data && !status.data.update_supported ? (
         <Alert role="status" className="max-w-xl"><InfoIcon aria-hidden="true" /><AlertTitle>{en.admin.installUnavailable}</AlertTitle><AlertDescription>{en.admin.installUnavailableDescription}</AlertDescription></Alert>
