@@ -111,14 +111,16 @@ func TestManagerProcessesOneJobAtATimeAndRemovesFiles(t *testing.T) {
 		t.Fatalf("maximum active processors = %d", maximum)
 	}
 	mu.Unlock()
+	// Complete fires before runJob's deferred remove, so check the files only
+	// after Run has returned and every job has finished.
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run error = %v", err)
+	}
 	for _, path := range paths {
 		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("temporary file %s was not removed: %v", path, err)
 		}
-	}
-	cancel()
-	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatalf("Run error = %v", err)
 	}
 }
 
