@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const copyText = vi.fn((_value: string) => Promise.resolve(true))
 vi.mock('@/lib/clipboard', () => ({ copyText: (value: string) => copyText(value) }))
 
-import { InstallRecipes, VerifyInstallation } from './InstallRecipes'
+import { AiInstallPrompt, InstallRecipes, SiteDetails, VerifyInstallation } from './InstallRecipes'
 
 const snippet = '<script defer data-site="abc123def456" src="https://stats.example.com/js/script.js"></script>'
 
@@ -18,6 +18,13 @@ describe('InstallRecipes', () => {
     const labels = screen.getAllByRole('tab').map((tab) => tab.textContent)
     expect(labels).toEqual(expect.arrayContaining(['HTML', 'Next.js', 'Nuxt', 'SvelteKit', 'Astro', 'Remix', 'Angular', 'WordPress', 'Shopify', 'Google Tag Manager', 'curl', 'Node.js', 'Python', 'Go']))
     expect(screen.getByLabelText('HTML snippet')).toHaveTextContent('https://stats.example.com/js/script.js')
+  })
+
+  it('shows the npm install command for package recipes', () => {
+    render(<InstallRecipes publicId="abc123def456" snippet={snippet} />)
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js' }), { button: 0, ctrlKey: false })
+    expect(screen.getByLabelText('Next.js install command')).toHaveTextContent('npm install @supermetry/nextjs')
+    expect(screen.getByLabelText('Next.js snippet')).toHaveTextContent('host="https://stats.example.com"')
   })
 
   it('switches recipe and copies the visible snippet', async () => {
@@ -50,5 +57,29 @@ describe('VerifyInstallation', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Verify installation' })) })
     expect(await screen.findByText('Could not check the status. Try again.')).toBeVisible()
     expect(verify).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('SiteDetails', () => {
+  afterEach(() => { cleanup(); copyText.mockClear() })
+
+  it('shows and copies the site id and host', async () => {
+    render(<SiteDetails publicId="abc123def456" snippet={snippet} />)
+    expect(screen.getByLabelText('Site ID')).toHaveTextContent('abc123def456')
+    expect(screen.getByLabelText('Host')).toHaveTextContent('https://stats.example.com')
+    fireEvent.click(screen.getByRole('button', { name: 'Copy host' }))
+    await waitFor(() => expect(copyText).toHaveBeenCalledWith('https://stats.example.com'))
+  })
+})
+
+describe('AiInstallPrompt', () => {
+  afterEach(() => { cleanup(); copyText.mockClear() })
+
+  it('copies a prompt containing the site id and host', async () => {
+    render(<AiInstallPrompt publicId="abc123def456" snippet={snippet} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy AI prompt' }))
+    await waitFor(() => expect(copyText).toHaveBeenCalledTimes(1))
+    expect(copyText.mock.calls[0]?.[0]).toContain('Site ID: abc123def456')
+    expect(copyText.mock.calls[0]?.[0]).toContain('Host: https://stats.example.com')
   })
 })
