@@ -39,7 +39,7 @@ it.each([true, false])('shows identity and explicit current-session logout with 
 it('shows the server build version in the account menu', async () => {
   render(<AccountMenu me={{ ...me, version: '1.4.2' }} />)
   openMenu('Account')
-  expect(await screen.findByText('Supermetry 1.4.2')).toBeVisible()
+  expect(await screen.findByText('Supermetry v1.4.2')).toBeVisible()
 })
 
 it('opens the same account menu from a caller-supplied trigger', async () => {

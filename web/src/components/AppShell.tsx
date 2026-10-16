@@ -31,6 +31,7 @@ import { getSite } from '@/features/sites/api'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
 import { requestLogout } from '@/lib/session-lifecycle'
+import { versionLabel } from '@/lib/version'
 import { paletteCommands, type PaletteCommand } from './paletteCommands'
 import { ui } from '@/messages/ui'
 import { sidebarStartsOpen } from './sidebarState'
@@ -172,6 +173,7 @@ export function AppShell({
           <footer className="flex flex-wrap items-center justify-center gap-x-3 px-4 pb-4 text-center text-xs text-muted-foreground md:px-6">
             <GeolocationCredit />
             <PoweredBySupermetry className="hover:text-foreground" />
+            <span data-testid="app-version">{versionLabel(me.version)}</span>
           </footer>
         </SidebarInset>
       </SidebarProvider>
