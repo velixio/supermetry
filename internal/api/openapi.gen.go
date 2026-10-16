@@ -1928,8 +1928,25 @@ type AdminUserCreate struct {
 	// OrgName When set
 	OrgName *string `json:"org_name,omitempty"`
 
-	// SendReset Email a password-set link. Skipped when mail is not configured.
+	// SendReset Email a password-set link. When mail is not configured
 	SendReset *bool `json:"send_reset,omitempty"`
+}
+
+// AdminUserCreated defines model for AdminUserCreated.
+type AdminUserCreated struct {
+	CreatedAt             time.Time           `json:"created_at"`
+	Disabled              bool                `json:"disabled"`
+	Email                 openapi_types.Email `json:"email"`
+	Id                    int64               `json:"id"`
+	InstanceAdmin         bool                `json:"instance_admin"`
+	LastLoginAt           *time.Time          `json:"last_login_at,omitempty"`
+	Memberships           []AdminMembership   `json:"memberships"`
+	Name                  string              `json:"name"`
+	PasswordResetRequired bool                `json:"password_reset_required"`
+
+	// ResetUrl One-time password-set link; present only when send_reset was set and mail is not configured.
+	ResetUrl    *string `json:"reset_url,omitempty"`
+	TotpEnabled bool    `json:"totp_enabled"`
 }
 
 // AdminUserPatch defines model for AdminUserPatch.

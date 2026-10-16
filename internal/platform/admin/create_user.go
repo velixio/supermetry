@@ -2,10 +2,7 @@ package admin
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/mail"
 	"strings"
@@ -14,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	platformcrypto "supermetry/internal/platform/crypto"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/platform/users"
 )
@@ -34,6 +32,13 @@ type CreateUserInput struct {
 	SendReset            bool
 }
 
+// CreatedUser is the create response: the user plus, when send_reset was set
+// and mail is not configured, the one-time password-set link.
+type CreatedUser struct {
+	User
+	ResetURL string `json:"reset_url,omitempty"`
+}
+
 // ResetStarter emails a password-set link to the address, or returns the link
 // when no mail transport is configured.
 type ResetStarter func(ctx context.Context, email string) (string, error)
@@ -46,11 +51,11 @@ func (s *Service) SetResetStarter(start ResetStarter) { s.resetStarter = start }
 // an organization they own, and audits it in the same transaction. With
 // SendReset it then emails a password-set link; creation does not depend on that
 // succeeding (the password stays unusable until a reset is completed).
-func (s *Service) CreateUser(ctx context.Context, actorUserID int64, in CreateUserInput) (User, error) {
+func (s *Service) CreateUser(ctx context.Context, actorUserID int64, in CreateUserInput) (CreatedUser, error) {
 	email := users.NormalizeEmail(in.Email)
 	address, err := mail.ParseAddress(email)
 	if err != nil || address.Address != email || len(email) > maxEmailLength || !strings.Contains(email, "@") {
-		return User{}, ErrInvalid
+		return CreatedUser{}, ErrInvalid
 	}
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
@@ -58,12 +63,10 @@ func (s *Service) CreateUser(ctx context.Context, actorUserID int64, in CreateUs
 	}
 	orgName := strings.TrimSpace(in.OrgName)
 	if name == "" || len(name) > maxNameLength || len(orgName) > maxOrgNameLength {
-		return User{}, ErrInvalid
+		return CreatedUser{}, ErrInvalid
 	}
-	password, err := randomPassword()
-	if err != nil {
-		return User{}, err
-	}
+	// 32 random bytes from crypto/rand; hashed at once, never returned or logged.
+	password, _ := platformcrypto.NewToken("")
 	var created User
 	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
 		if err := requireAdmin(ctx, tx, actorUserID); err != nil {
@@ -100,24 +103,20 @@ func (s *Service) CreateUser(ctx context.Context, actorUserID int64, in CreateUs
 		return nil
 	})
 	if err != nil {
-		return User{}, err
+		return CreatedUser{}, err
 	}
-	if in.SendReset && s.resetStarter != nil {
-		// The account exists either way; an unsent link must not turn a
-		// successful creation into an error the caller would retry into a 409.
-		if _, err := s.resetStarter(ctx, email); err != nil {
+	result := CreatedUser{User: created}
+	if in.SendReset {
+		if s.resetStarter == nil {
+			slog.Warn("admin-created user: password reset requested but no reset sender is wired", "user_id", created.ID)
+		} else if link, err := s.resetStarter(ctx, email); err != nil {
+			// The account exists either way; an unsent link must not turn a
+			// successful creation into an error the caller would retry into a 409.
 			slog.Warn("admin-created user: password reset not sent", "user_id", created.ID, "error", err)
+		} else {
+			// A link is returned only when no mail transport is configured.
+			result.ResetURL = link
 		}
 	}
-	return created, nil
-}
-
-// randomPassword returns 32 bytes from crypto/rand, base64url encoded. It is
-// hashed immediately and never returned or logged.
-func randomPassword() (string, error) {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generate password: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(buf), nil
+	return result, nil
 }

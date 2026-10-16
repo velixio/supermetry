@@ -2499,8 +2499,26 @@ export interface components {
             name?: string;
             /** @description When set */
             org_name?: string;
-            /** @description Email a password-set link. Skipped when mail is not configured. */
+            /** @description Email a password-set link. When mail is not configured */
             send_reset?: boolean;
+        };
+        AdminUserCreated: {
+            /** Format: int64 */
+            id: number;
+            /** Format: email */
+            email: string;
+            name: string;
+            instance_admin: boolean;
+            disabled: boolean;
+            password_reset_required: boolean;
+            totp_enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_login_at?: string;
+            memberships: components["schemas"]["AdminMembership"][];
+            /** @description One-time password-set link; present only when send_reset was set and mail is not configured. */
+            reset_url?: string;
         };
         AdminUsersResponse: {
             data: components["schemas"]["AdminUser"][];
@@ -4432,7 +4450,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminUser"];
+                    "application/json": components["schemas"]["AdminUserCreated"];
                 };
             };
             400: components["responses"]["BadRequest"];

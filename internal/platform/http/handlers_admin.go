@@ -152,7 +152,7 @@ func (h *handler) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 		adminError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, user)
+	writeJSON(w, http.StatusCreated, user) // user.ResetURL is set only when mail is off
 }
 
 func (h *handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {

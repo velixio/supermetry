@@ -33,7 +33,7 @@ paths:
       summary: Create a user with an unusable password, optionally with an organization they own
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminUserCreate' } } } }
       responses:
-        '201': { description: Created user., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUser' } } } }
+        '201': { description: Created user., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUserCreated' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -3484,7 +3484,23 @@ components:
         email: { type: string, format: email, maxLength: 254 }
         name: { type: string, maxLength: 200, description: Defaults to the part of the email before the at sign. }
         org_name: { type: string, maxLength: 100, description: When set, an organization with this name is created and the user owns it. }
-        send_reset: { type: boolean, description: Email a password-set link. Skipped when mail is not configured. }
+        send_reset: { type: boolean, description: Email a password-set link. When mail is not configured, the link is returned as reset_url instead. }
+    AdminUserCreated:
+      type: object
+      additionalProperties: false
+      required: [id, email, name, instance_admin, disabled, password_reset_required, totp_enabled, created_at, memberships]
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string, format: email }
+        name: { type: string }
+        instance_admin: { type: boolean }
+        disabled: { type: boolean }
+        password_reset_required: { type: boolean }
+        totp_enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        last_login_at: { type: string, format: date-time }
+        memberships: { type: array, items: { $ref: '#/components/schemas/AdminMembership' } }
+        reset_url: { type: string, description: One-time password-set link; present only when send_reset was set and mail is not configured. }
     AdminUsersResponse:
       type: object
       additionalProperties: false

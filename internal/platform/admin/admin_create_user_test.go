@@ -105,3 +105,19 @@ func TestAdminCreateUserInvalidAndForbidden(t *testing.T) {
 		t.Fatalf("non-admin error = %v", err)
 	}
 }
+
+func TestAdminCreateUserResetURLWhenMailDisabled(t *testing.T) {
+	service, data, actorID, _ := newFixture(t)
+	service.SetResetStarter(platformauth.New(data, &disabledSender{}, nil, "https://app.example.test").StartReset)
+	user, err := service.CreateUser(context.Background(), actorID, CreateUserInput{Email: "l@x.test", SendReset: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(user.ResetURL, "https://app.example.test/password-reset?token=") {
+		t.Fatalf("reset url = %q", user.ResetURL)
+	}
+}
+
+type disabledSender struct{ mail.Fake }
+
+func (*disabledSender) Enabled() bool { return false }

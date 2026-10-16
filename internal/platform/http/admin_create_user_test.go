@@ -7,7 +7,37 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"supermetry/internal/platform/admin"
+	platformauth "supermetry/internal/platform/auth"
+	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/mail"
+	"supermetry/internal/platform/store"
 )
+
+type disabledMail struct{ mail.Fake }
+
+func (*disabledMail) Enabled() bool { return false }
+
+// resetHandler serves the env's database with a reset sender over sender.
+func (e adminOrgDeleteEnv) resetHandler(t *testing.T, sender mail.Sender) http.Handler {
+	t.Helper()
+	var rootID int64
+	if err := e.pool.QueryRow(context.Background(), `select id from users where email='root@example.test'`).Scan(&rootID); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: e.pool}
+	service := admin.New(data)
+	service.SetResetStarter(platformauth.New(data, sender, nil, "https://app.example.test").StartReset)
+	return platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"admin": {UserID: rootID, SiteIDs: []int32{}}},
+		Store:         data,
+		Admin:         service,
+		Mutations:     platformhttp.Services{Store: data},
+		Now:           time.Now,
+	})
+}
 
 func postAdminUser(handler http.Handler, actor, body string) *httptest.ResponseRecorder {
 	request := httptest.NewRequest(http.MethodPost, "/api/private/admin/users", strings.NewReader(body))
@@ -43,8 +73,49 @@ func TestAdminCreateUserWithOrg(t *testing.T) {
 	if user.Email != "new@x.test" || len(user.Memberships) != 1 || user.Memberships[0].Role != "owner" || user.Memberships[0].OrgName != "Newco" {
 		t.Fatalf("user = %+v", user)
 	}
-	if strings.Contains(response.Body.String(), "password") && !strings.Contains(response.Body.String(), "password_reset_required") {
-		t.Fatalf("response leaks password: %s", response.Body)
+	var raw map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"password", "password_hash", "reset_url"} {
+		if _, found := raw[key]; found {
+			t.Fatalf("response has %q: %s", key, response.Body)
+		}
+	}
+}
+
+func TestAdminCreateUserResetMailEnabled(t *testing.T) {
+	e := newAdminOrgDeleteEnv(t)
+	fake := &mail.Fake{}
+	response := postAdminUser(e.resetHandler(t, fake), "admin", `{"email":"mailed@x.test","send_reset":true}`)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", response.Code, response.Body)
+	}
+	if strings.Contains(response.Body.String(), "reset_url") {
+		t.Fatalf("reset_url present with mail enabled: %s", response.Body)
+	}
+	if len(fake.Sent) != 1 || fake.Sent[0].To != "mailed@x.test" {
+		t.Fatalf("sent = %+v", fake.Sent)
+	}
+}
+
+func TestAdminCreateUserResetURLWithoutMail(t *testing.T) {
+	e := newAdminOrgDeleteEnv(t)
+	response := postAdminUser(e.resetHandler(t, &disabledMail{}), "admin", `{"email":"linked@x.test","send_reset":true}`)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d body=%s", response.Code, response.Body)
+	}
+	var body struct {
+		ResetURL string `json:"reset_url"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(body.ResetURL, "https://app.example.test/password-reset?token=") || len(body.ResetURL) < 80 {
+		t.Fatalf("reset_url = %q", body.ResetURL)
+	}
+	if got := postAdminUser(e.resetHandler(t, &disabledMail{}), "admin", `{"email":"plain@x.test"}`); strings.Contains(got.Body.String(), "reset_url") {
+		t.Fatalf("reset_url without send_reset: %s", got.Body)
 	}
 }
 
