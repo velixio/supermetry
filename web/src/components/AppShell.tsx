@@ -9,6 +9,7 @@ import { AccountSidebar } from './AccountSidebar'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
 import { AppHeader } from './AppHeader'
 import { GeolocationCredit } from '@/components/GeolocationCredit'
+import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
 import {
   Dialog,
@@ -148,6 +149,7 @@ export function AppShell({
             paletteTriggerRef={paletteTrigger}
           />
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
+            <ImpersonationBanner me={me} />
             {membership ? (
               scopedSite?.is_demo ? (
                 <DemoBanner org={membership.org} site={scopedSite} />

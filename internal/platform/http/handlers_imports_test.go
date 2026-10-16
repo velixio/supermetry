@@ -237,8 +237,8 @@ func TestImportAndExportMutationsWriteAuditEntries(t *testing.T) {
 	}
 	if _, err := pool.Exec(ctx, `
 		insert into orgs(id,name,slug) overriding system value values (4,'Org','imports-audit');
-		insert into users(id,email,name,password_hash) overriding system value values (1,'audit@example.test','Owner','hash');
-		insert into memberships(org_id,user_id,role) values (4,1,'owner');
+		insert into users(id,email,name,password_hash) overriding system value values (11,'audit@example.test','Owner','hash');
+		insert into memberships(org_id,user_id,role) values (4,11,'owner');
 		insert into sites(id,org_id,public_id,name,timezone,retention_class) overriding system value
 		values (7,4,'importaudit1','Site','UTC',30)
 	`); err != nil {
@@ -246,7 +246,7 @@ func TestImportAndExportMutationsWriteAuditEntries(t *testing.T) {
 	}
 	importStore := imports.NewStore(pool)
 	handler := New(Deps{TrackingMode: privacy.Identified,
-		Authenticator: importTestAuth{principal: authz.Principal{UserID: 1, OrgID: 4, Role: authz.RoleOwner}},
+		Authenticator: importTestAuth{principal: authz.Principal{UserID: 11, OrgID: 4, Role: authz.RoleOwner}},
 		Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}},
 		Store:         &platformstore.Store{Pool: pool},
 		Imports:       importStore,

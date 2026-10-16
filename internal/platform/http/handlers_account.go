@@ -105,6 +105,21 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		twoFactorSetupRequired = status.SetupRequired
 		twoFactorGraceUntil = status.GraceUntil
 	}
+	var impersonatedByEmail *string
+	if principal.ImpersonatedBy != 0 {
+		impersonator, err := h.deps.Store.UserByID(r.Context(), principal.ImpersonatedBy)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// The admin's account was deleted after the authenticator ran;
+			// the session is no longer valid, as the authenticator would say.
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "valid authentication is required")
+			return
+		}
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+		impersonatedByEmail = &impersonator.Email
+	}
 	writeJSON(w, http.StatusOK, struct {
 		User struct {
 			ID                     int64      `json:"id"`
@@ -121,6 +136,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		Memberships         []membershipResponse  `json:"memberships"`
 		DemoPromptDismissed bool                  `json:"demo_prompt_dismissed"`
 		Version             string                `json:"version"`
+		ImpersonatedByEmail *string               `json:"impersonated_by_email"`
 	}{
 		User: struct {
 			ID                     int64      `json:"id"`
@@ -137,6 +153,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		Memberships:         items,
 		DemoPromptDismissed: demoPromptDismissed,
 		Version:             h.deps.Version,
+		ImpersonatedByEmail: impersonatedByEmail,
 	})
 }
 

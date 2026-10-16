@@ -1,6 +1,7 @@
 package platformhttp
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -8,7 +9,9 @@ import (
 	"time"
 
 	"supermetry/internal/platform/admin"
+	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
 )
 
 const adminRequestsPerMinute = 120
@@ -18,9 +21,41 @@ type adminRateWindow struct {
 	count int
 }
 
+// MinAdminAPIKeyLength is the shortest SUPERMETRY_ADMIN_API_KEY that may
+// authenticate the instance admin routes. Shorter keys leave key auth off.
+const MinAdminAPIKeyLength = 32
+
+// adminKeyEnabled reports whether the admin API key may authenticate the
+// instance admin routes.
+func (h *handler) adminKeyEnabled() bool {
+	return len(h.deps.AdminAPIKey) >= MinAdminAPIKeyLength && h.deps.AdminServiceUserID != 0 && h.deps.Admin != nil
+}
+
 func (h *handler) adminPrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, bool) {
+	// The admin API key is accepted here only: adminPrincipal guards
+	// /api/private/admin/* and nothing else. A bearer credential on these
+	// routes must be the key; it never falls back to the session cookie.
+	// Other schemes (e.g. Basic from a reverse proxy) fall through to the cookie path.
+	if authorization := r.Header.Get("Authorization"); bearerScheme(authorization) {
+		if !h.adminKeyEnabled() || !validAdminBearer(authorization, h.deps.AdminAPIKey) {
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "valid authentication is required")
+			return authz.Principal{}, false
+		}
+		if !h.allowAdminRequest(h.deps.AdminServiceUserID) {
+			w.Header().Set("Retry-After", "60")
+			writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
+			return authz.Principal{}, false
+		}
+		return authz.Principal{UserID: h.deps.AdminServiceUserID}, true
+	}
 	principal, ok := h.privatePrincipal(w, r)
 	if !ok {
+		return authz.Principal{}, false
+	}
+	// A session an admin opened as another user never administers the
+	// instance, even if that user is (or later becomes) an instance admin.
+	if principal.ImpersonatedBy != 0 {
+		impersonationForbidden(w)
 		return authz.Principal{}, false
 	}
 	if h.deps.Admin == nil || principal.UserID == 0 {
@@ -42,6 +77,13 @@ func (h *handler) adminPrincipal(w http.ResponseWriter, r *http.Request) (authz.
 		return authz.Principal{}, false
 	}
 	return principal, true
+}
+
+// bearerScheme reports whether an Authorization header uses the Bearer scheme,
+// parsed the same way as validAdminBearer.
+func bearerScheme(header string) bool {
+	scheme, _, ok := strings.Cut(header, " ")
+	return ok && strings.EqualFold(scheme, "Bearer")
 }
 
 func (h *handler) allowAdminRequest(userID int64) bool {
@@ -90,6 +132,34 @@ func (h *handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+func (h *handler) adminCreateUser(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		Email     string `json:"email"`
+		Name      string `json:"name"`
+		OrgName   string `json:"org_name"`
+		SendReset bool   `json:"send_reset"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	user, err := h.deps.Admin.CreateUser(r.Context(), principal.UserID, admin.CreateUserInput{
+		Email: request.Email, Name: request.Name, OrgName: request.OrgName, SendReset: request.SendReset,
+	})
+	if err != nil {
+		if errors.Is(err, admin.ErrEmailTaken) {
+			writeProblem(w, http.StatusConflict, "Conflict", "a user with this email already exists")
+			return
+		}
+		adminError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, user) // user.ResetURL is set only when mail is off
 }
 
 func (h *handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -154,6 +224,80 @@ func (h *handler) adminGetOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+// adminOrgDeleter is implemented by Services; custom MutationService
+// implementations opt in by providing it.
+type adminOrgDeleter interface {
+	AdminDeleteOrg(ctx context.Context, actorUserID int64, orgID int64) error
+}
+
+func (h *handler) adminDeleteOrganization(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	orgID, ok := adminID(r, "org")
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "organization is invalid")
+		return
+	}
+	deleter, ok := h.deps.Mutations.(adminOrgDeleter)
+	if !ok {
+		unavailable(w, "organization")
+		return
+	}
+	if err := deleter.AdminDeleteOrg(r.Context(), principal.UserID, orgID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// adminSiteRetentionSetter is implemented by Services; custom MutationService
+// implementations opt in by providing it.
+type adminSiteRetentionSetter interface {
+	AdminSetSiteRetention(ctx context.Context, actorUserID int64, siteID int32, days int) error
+}
+
+func (h *handler) adminSetSiteRetention(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	siteID, err := strconv.ParseInt(r.PathValue("site_id"), 10, 32)
+	if err != nil || siteID < 1 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "site is invalid")
+		return
+	}
+	var request struct {
+		RetentionDays *int `json:"retention_days"`
+	}
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	if request.RetentionDays == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "retention_days is required")
+		return
+	}
+	setter, ok := h.deps.Mutations.(adminSiteRetentionSetter)
+	if !ok {
+		unavailable(w, "site")
+		return
+	}
+	if err := setter.AdminSetSiteRetention(r.Context(), principal.UserID, int32(siteID), *request.RetentionDays); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": siteID, "retention_days": *request.RetentionDays})
 }
 
 func (h *handler) adminListSites(w http.ResponseWriter, r *http.Request) {
@@ -294,6 +438,88 @@ func (h *handler) adminListAudit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+// adminImpersonateUser signs the caller in as another user for support. With a
+// cookie session the admin re-verifies their password (and TOTP), and the new
+// session replaces theirs in this browser. With the admin API key the token is
+// returned instead, so a front service can hand the cookie to a browser.
+func (h *handler) adminImpersonateUser(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	userID, ok := adminID(r, "user")
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "user is invalid")
+		return
+	}
+	if h.deps.Auth == nil {
+		unavailable(w, "authentication")
+		return
+	}
+	// adminPrincipal resolves the admin API key to the system user only.
+	keyPath := h.deps.AdminServiceUserID != 0 && principal.UserID == h.deps.AdminServiceUserID
+	if !keyPath {
+		var request struct {
+			Password string `json:"password"`
+			TOTPCode string `json:"totp_code,omitempty"`
+		}
+		if !decodeJSON(w, r, &request) {
+			return
+		}
+		if err := h.deps.Auth.VerifySensitiveAction(h.clientContext(r), principal.UserID, request.Password, request.TOTPCode); err != nil {
+			sensitiveActionError(w, err)
+			return
+		}
+	}
+	now := h.deps.Now()
+	token, err := h.deps.Auth.CreateImpersonationSession(h.clientContext(r), principal.UserID, userID, now)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+		case errors.Is(err, platformauth.ErrImpersonationResetRequired):
+			writeProblem(w, http.StatusConflict, "Conflict", "user must reset their password first")
+		case errors.Is(err, platformauth.ErrImpersonationForbidden):
+			writeProblem(w, http.StatusForbidden, "Forbidden", "this user cannot be signed in as")
+		default:
+			serviceError(w, err)
+		}
+		return
+	}
+	if keyPath {
+		writeJSON(w, http.StatusOK, map[string]any{"token": token, "expires_at": now.Add(platformauth.ImpersonationLifetime).UTC()})
+		return
+	}
+	csrfToken, err := randomCookieToken()
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	// The impersonation replaces the admin's own session in this browser.
+	if cookie, err := r.Cookie(platformauth.CookieName); err == nil && cookie.Value != "" {
+		if err := h.deps.Auth.Logout(r.Context(), cookie.Value); err != nil {
+			serviceError(w, err)
+			return
+		}
+	}
+	h.setCookie(w, r, platformauth.CookieName, token, platformauth.ImpersonationLifetime)
+	http.SetCookie(w, &http.Cookie{Name: "supermetry_csrf", Value: csrfToken, Path: "/", MaxAge: int(platformauth.ImpersonationLifetime.Seconds()), Secure: h.cookieSecure(r), SameSite: http.SameSiteLaxMode})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func sensitiveActionError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, platformauth.ErrRateLimited):
+		rateLimited(w)
+	case errors.Is(err, platformauth.ErrTOTPRequired):
+		writeProblem(w, http.StatusBadRequest, "Verification required", "a TOTP code is required")
+	case errors.Is(err, platformauth.ErrInvalid):
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "password or verification code is invalid")
+	default:
+		serviceError(w, err)
+	}
 }
 
 func adminError(w http.ResponseWriter, err error) {

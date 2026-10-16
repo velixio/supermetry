@@ -39,6 +39,8 @@ export type Me = {
   demo_prompt_dismissed?: boolean
   preferences?: UserPreferences
   version?: string
+  /** Set while an instance admin is signed in as this user. */
+  impersonated_by_email?: string | null
 }
 
 export type UserPreferences = {

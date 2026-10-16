@@ -29,6 +29,10 @@ const messages: MessageTree = {
     account: 'অ্যাকাউন্ট', accountMenu: 'অ্যাকাউন্ট মেনু', yourAccount: 'আপনার অ্যাকাউন্ট', accountSettings: 'অ্যাকাউন্ট সেটিংস', logOut: 'লগ আউট',
   },
   emptyState: { setUpTracking: 'ট্র্যাকিং সেট আপ করুন' },
+  impersonation: {
+    signedInAs: (email: string) => `একজন অ্যাডমিনিস্ট্রেটর ${email} হিসেবে সাইন ইন করেছেন`,
+    endSession: 'সেশন শেষ করুন',
+  },
   pager: {
     label: 'তালিকার পৃষ্ঠা বিভাজন', noResults: 'কোনো ফলাফল নেই',
     showing: (first: string, last: string) => `${first}–${last} দেখানো হচ্ছে`,

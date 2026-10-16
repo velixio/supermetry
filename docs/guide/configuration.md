@@ -142,7 +142,7 @@ Do not set these on a normal install.
 
 | Variable | Meaning | Default | Example |
 |---|---|---|---|
-| `SUPERMETRY_ADMIN_API_KEY` | A static API key. Used as a fallback key in compatibility mode, and as the public-API key in the router (`cmd/supermetry/serve.go`, `internal/api/router.go`). Exact precedence: see source. | empty | `CHANGE_ME` |
+| `SUPERMETRY_ADMIN_API_KEY` | A static API key, at least 32 characters (shorter values turn key auth off and log a startup warning). As `Authorization: Bearer <key>` it authenticates `/api/private/admin/*` only, acting as a hidden system user shown in the audit log as `admin-key@system.invalid`; see [Instance admin API](instance-admin-api.md). It also remains the fallback key in compatibility mode and the public-API key in the router (`cmd/supermetry/serve.go`, `internal/api/router.go`). | empty | `CHANGE_ME` |
 | `SUPERMETRY_SITES_FILE` | Path to a sites file. `supermetry load` requires it. `supermetry serve` uses it only when no platform user exists yet, and logs a warning. | empty | `bench/sites.json` |
 | `SUPERMETRY_INGEST_DIAG` | Set to exactly `1` for temporary ingest diagnostics. Each event logs an "ingest ip diag" line with address class (loopback, private, link-local, public, ...), a masked peer address, whether the peer is trusted, masked `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP` and `Forwarded` headers, and the country. Public addresses are never logged. | `0` (off) | `1` |
 

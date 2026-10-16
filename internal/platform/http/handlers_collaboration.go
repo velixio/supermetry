@@ -62,6 +62,14 @@ func (h *handler) listInvitations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {
+	// It authenticates directly rather than through handler.principal, so it
+	// applies the impersonation guard itself, before anything else.
+	if h.deps.Authenticator != nil {
+		if principal, ok := h.deps.Authenticator.Authenticate(r); ok && principal.ImpersonatedBy != 0 {
+			impersonationForbidden(w)
+			return
+		}
+	}
 	if h.deps.Invites == nil {
 		unavailable(w, "invitation")
 		return

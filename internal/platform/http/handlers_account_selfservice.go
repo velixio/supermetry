@@ -151,6 +151,10 @@ func (h *handler) confirmEmailChange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	principal, authenticated := h.deps.Authenticator.Authenticate(r)
+	if authenticated && principal.ImpersonatedBy != 0 {
+		impersonationForbidden(w)
+		return
+	}
 	if r.Method == http.MethodGet {
 		if !authenticated || principal.UserID == 0 {
 			http.Redirect(w, r, "/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusSeeOther)

@@ -148,19 +148,22 @@ type Deps struct {
 	Exporter interface {
 		Write(context.Context, io.Writer, int32, time.Time, time.Time) error
 	}
-	ReplayStore   replay.BlobStore
-	ReplayEnv     config.ReplayEnv
-	DataDir       string
-	SecretKey     []byte
-	AdminAPIKey   string
-	ReplayRefresh func() error
-	Demo          DemoService
-	Overview      *sitesvc.Overview
-	Admin         *admin.Service
-	UpdateChecker UpdateChecker
-	UpdateStarter UpdateStarter
-	UpdateMode    updatehelper.DeploymentMode
-	UpdateNonce   func() (string, error)
+	ReplayStore replay.BlobStore
+	ReplayEnv   config.ReplayEnv
+	DataDir     string
+	SecretKey   []byte
+	AdminAPIKey string
+	// AdminServiceUserID is the system user the admin API key acts as on
+	// /api/private/admin/* (store.AdminServiceUserID). Zero disables key auth there.
+	AdminServiceUserID int64
+	ReplayRefresh      func() error
+	Demo               DemoService
+	Overview           *sitesvc.Overview
+	Admin              *admin.Service
+	UpdateChecker      UpdateChecker
+	UpdateStarter      UpdateStarter
+	UpdateMode         updatehelper.DeploymentMode
+	UpdateNonce        func() (string, error)
 
 	// Integrations serves the third-party connection endpoints. Optional.
 	Integrations IntegrationsService
@@ -241,10 +244,14 @@ func New(deps Deps) http.Handler {
 
 func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/admin/users", h.adminListUsers)
+	mux.HandleFunc("POST /api/private/admin/users", h.adminCreateUser)
 	mux.HandleFunc("PATCH /api/private/admin/users/{user}", h.adminUpdateUser)
+	mux.HandleFunc("POST /api/private/admin/users/{user}/impersonate", h.adminImpersonateUser)
 	mux.HandleFunc("GET /api/private/admin/organizations", h.adminListOrganizations)
 	mux.HandleFunc("GET /api/private/admin/organizations/{org}", h.adminGetOrganization)
+	mux.HandleFunc("DELETE /api/private/admin/organizations/{org}", h.adminDeleteOrganization)
 	mux.HandleFunc("GET /api/private/admin/sites", h.adminListSites)
+	mux.HandleFunc("PATCH /api/private/admin/sites/{site_id}", h.adminSetSiteRetention)
 	mux.HandleFunc("GET /api/private/admin/settings", h.adminGetSettings)
 	mux.HandleFunc("PATCH /api/private/admin/settings", h.adminUpdateSettings)
 	mux.HandleFunc("GET /api/private/admin/security/2fa-policy", h.adminGetTwoFactorPolicy)
@@ -450,12 +457,8 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 	if id != principal.OrgID {
 		return sitesvc.ErrNotFound
 	}
-	var tombstoned int64
 	err := s.Store.Tx(ctx, func(tx pgx.Tx) error {
-		var lockedID int64
-		if err := tx.QueryRow(ctx, `select id from orgs where id=$1 and deleted_at is null for update`, id).Scan(&lockedID); errors.Is(err, pgx.ErrNoRows) {
-			return sitesvc.ErrNotFound
-		} else if err != nil {
+		if err := lockLiveOrg(ctx, tx, id); err != nil {
 			return err
 		}
 		current, err := store.CurrentMemberForUpdate(ctx, tx, id, principal.UserID)
@@ -468,27 +471,12 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 		if !authz.Can(current, authz.ActionOrgDelete, 0) {
 			return orgs.ErrForbidden
 		}
-		var scheduled bool
-		if err := tx.QueryRow(ctx, `select exists(select 1 from sites where org_id=$1 and not is_demo and erased_at is null)`, id).Scan(&scheduled); err != nil {
-			return err
-		}
-		sites, err := tx.Exec(ctx, `
-			update sites
-			set deleted_at=now(),deleted_with_org=$2,deletion_notified_at=null,deletion_reminded_at=null
-			where org_id=$1 and deleted_at is null`, id, scheduled)
+		deleted, scheduled, err := deleteOrgTx(ctx, tx, id, time.Now())
 		if err != nil {
 			return err
-		}
-		tombstoned = sites.RowsAffected()
-		org, err := tx.Exec(ctx, `update orgs set deleted_at=now() where id=$1 and deleted_at is null`, id)
-		if err != nil {
-			return err
-		}
-		if org.RowsAffected() != 1 {
-			return sitesvc.ErrNotFound
 		}
 		return audit.Write(ctx, tx, principal, "organization.deleted", "organization", id, map[string]any{
-			"scheduled": scheduled, "sites_tombstoned": tombstoned,
+			"scheduled": scheduled, "sites_tombstoned": int64(len(deleted)),
 		})
 	})
 	if err != nil {
@@ -512,11 +500,19 @@ func (h *handler) principal(w http.ResponseWriter, r *http.Request, allowedRoles
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "valid authentication is required")
 		return authz.Principal{}, false
 	}
+	if principal.ImpersonatedBy != 0 && impersonationBlocked(r) {
+		impersonationForbidden(w)
+		return authz.Principal{}, false
+	}
 	if len(allowedRoles) == 0 || roleAllowed(principal.Role, allowedRoles) {
 		return principal, true
 	}
 	writeProblem(w, http.StatusForbidden, "Forbidden", "the credential cannot use this route")
 	return authz.Principal{}, false
+}
+
+func impersonationForbidden(w http.ResponseWriter) {
+	writeProblem(w, http.StatusForbidden, "Forbidden", "this action is not available while signed in as another user")
 }
 
 func (h *handler) privatePrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, bool) {
@@ -776,4 +772,94 @@ func orgIDFromPath(w http.ResponseWriter, r *http.Request, principal authz.Princ
 
 func unavailable(w http.ResponseWriter, resource string) {
 	writeProblem(w, http.StatusInternalServerError, "Internal server error", fmt.Sprintf("%s service is unavailable", resource))
+}
+
+// lockLiveOrg row-locks a live organization; sitesvc.ErrNotFound when it is missing or deleted.
+func lockLiveOrg(ctx context.Context, tx pgx.Tx, orgID int64) error {
+	var lockedID int64
+	err := tx.QueryRow(ctx, `select id from orgs where id=$1 and deleted_at is null for update`, orgID).Scan(&lockedID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return sitesvc.ErrNotFound
+	}
+	return err
+}
+
+// deleteOrgTx is the transaction body shared by the owner and instance admin
+// deletion paths: it tombstones the organization and its live sites with the
+// restorable grace period. Callers write their own audit row. scheduled is
+// false for demo-only or empty organizations, which the lifecycle sweep
+// erases at once. It returns sitesvc.ErrNotFound for a missing or deleted org.
+func deleteOrgTx(ctx context.Context, tx pgx.Tx, orgID int64, now time.Time) (deletedSites []int32, scheduled bool, err error) {
+	if err := lockLiveOrg(ctx, tx, orgID); err != nil {
+		return nil, false, err
+	}
+	if err := tx.QueryRow(ctx, `select exists(select 1 from sites where org_id=$1 and not is_demo and erased_at is null)`, orgID).Scan(&scheduled); err != nil {
+		return nil, false, err
+	}
+	rows, err := tx.Query(ctx, `
+		update sites
+		set deleted_at=$3,deleted_with_org=$2,deletion_notified_at=null,deletion_reminded_at=null
+		where org_id=$1 and deleted_at is null
+		returning id`, orgID, scheduled, now)
+	if err != nil {
+		return nil, false, err
+	}
+	deletedSites, err = pgx.CollectRows(rows, pgx.RowTo[int32])
+	if err != nil {
+		return nil, false, err
+	}
+	org, err := tx.Exec(ctx, `update orgs set deleted_at=$2 where id=$1 and deleted_at is null`, orgID, now)
+	if err != nil {
+		return nil, false, err
+	}
+	if org.RowsAffected() != 1 {
+		return nil, false, sitesvc.ErrNotFound
+	}
+	return deletedSites, scheduled, nil
+}
+
+// AdminSetSiteRetention changes a site's retention class on behalf of an
+// instance admin; it returns store.ErrNotFound for a missing or deleted site.
+func (s Services) AdminSetSiteRetention(ctx context.Context, actorUserID int64, siteID int32, days int) error {
+	if s.Sites == nil {
+		return errors.New("site service is unavailable")
+	}
+	_, err := s.Sites.AdminSetRetention(ctx, actorUserID, siteID, days)
+	return err
+}
+
+// AdminDeleteOrg deletes an organization on behalf of an instance admin with
+// the same restorable grace period as an owner deletion. It returns
+// store.ErrNotFound for a missing or already deleted organization.
+func (s Services) AdminDeleteOrg(ctx context.Context, actorUserID int64, orgID int64) error {
+	if s.Store == nil {
+		return errors.New("organization service is unavailable")
+	}
+	err := s.Store.Tx(ctx, func(tx pgx.Tx) error {
+		if allowed, err := store.InstanceAdminActive(ctx, tx, actorUserID); err != nil {
+			return err
+		} else if !allowed {
+			return sitesvc.ErrForbidden
+		}
+		deleted, scheduled, err := deleteOrgTx(ctx, tx, orgID, time.Now())
+		if errors.Is(err, sitesvc.ErrNotFound) {
+			return store.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
+			ActorUserID: actorUserID, Action: "instance.organization.deleted", TargetType: "organization", TargetID: orgID,
+			Metadata: map[string]any{"scheduled": scheduled, "sites_tombstoned": len(deleted)},
+		})
+	})
+	if err != nil {
+		return err
+	}
+	if s.Sites != nil {
+		if err := s.Sites.Invalidate(); err != nil {
+			return fmt.Errorf("refresh site registry: %w", err)
+		}
+	}
+	return nil
 }
