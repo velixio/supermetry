@@ -33,7 +33,7 @@ Gotchas:
 | Variable | Meaning | Default | Example |
 |---|---|---|---|
 | `SUPERMETRY_LISTEN` | Address the HTTP server listens on. | `:8080` | `127.0.0.1:8787` |
-| `SUPERMETRY_TRUSTED_PROXIES` | Comma-separated IPs or CIDR prefixes of reverse proxies whose `X-Forwarded-For` is trusted. A bare IP means a single-host prefix. | empty (no proxy trusted) | `127.0.0.1/32,10.0.0.5` |
+| `SUPERMETRY_TRUSTED_PROXIES` | Comma-separated IPs or CIDR prefixes of reverse proxies whose `X-Forwarded-For` is trusted. A bare IP means a single-host prefix. | empty: loopback and private networks (`127.0.0.0/8`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`). `none` trusts no proxy. | `127.0.0.1/32,10.0.0.5` |
 | `SUPERMETRY_SIGNUP` | Signup mode: `open` or `invite`. Any other value is rejected. | `open` | `invite` |
 | `SUPERMETRY_DATABASE_HOST` | Alternative to `SUPERMETRY_DATABASE_URL` when that is not set: the app builds the URL from separate settings. Also `SUPERMETRY_DATABASE_PORT` (`5432`), `SUPERMETRY_DATABASE_USER`, `SUPERMETRY_DATABASE_PASSWORD`, `SUPERMETRY_DATABASE_NAME` (each falls back to `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, then `supermetry`) and `SUPERMETRY_DATABASE_SSLMODE` (`disable`). The Docker Compose setup uses this for its bundled database. | empty | `postgres` |
 | `SUPERMETRY_MAX_ORGS_PER_USER` | Most organizations one user may own. Instance admins are exempt. Must be a positive integer. | `3` | `5` |
@@ -48,7 +48,7 @@ Gotcha: the default `open` signup lets anyone who can reach the server register.
 
 Supermetry only believes forwarding headers when the TCP peer address is inside `SUPERMETRY_TRUSTED_PROXIES` (`internal/ingest/diag.go`, `proxyTrusted`). Behind a reverse proxy:
 
-1. List the address the proxy connects from, for example `127.0.0.1/32` for nginx on the same host. If it is not listed, Supermetry sees the proxy's private address as the visitor and the visitor country is empty.
+1. A proxy on the same host, the LAN or a Docker network connects from a loopback or private address, which is trusted by default, so no setting is needed. A proxy with a public address (Cloudflare, a cloud load balancer) must be listed. If it is not, Supermetry sees the proxy's address as the visitor and the visitor country is empty. Set `none` if untrusted clients can reach Supermetry directly from a private network, since they could otherwise set `X-Forwarded-For` themselves.
 2. The proxy must overwrite `X-Forwarded-For` with the real client address, not append to it. In nginx:
 
 ```nginx
