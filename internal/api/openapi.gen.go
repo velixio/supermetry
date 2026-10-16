@@ -1933,10 +1933,10 @@ type AdminUserCreate struct {
 	// Name Defaults to the part of the email before the at sign.
 	Name *string `json:"name,omitempty"`
 
-	// OrgName When set
+	// OrgName When set, an organization with this name is created and the user owns it.
 	OrgName *string `json:"org_name,omitempty"`
 
-	// SendReset Email a password-set link. When mail is not configured
+	// SendReset Email a password-set link. When mail is not configured, the link is returned as reset_url instead.
 	SendReset *bool `json:"send_reset,omitempty"`
 }
 

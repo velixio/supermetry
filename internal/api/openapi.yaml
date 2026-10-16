@@ -3518,8 +3518,8 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         name: { type: string, maxLength: 200, description: Defaults to the part of the email before the at sign. }
-        org_name: { type: string, maxLength: 100, description: When set, an organization with this name is created and the user owns it. }
-        send_reset: { type: boolean, description: Email a password-set link. When mail is not configured, the link is returned as reset_url instead. }
+        org_name: { type: string, maxLength: 100, description: 'When set, an organization with this name is created and the user owns it.' }
+        send_reset: { type: boolean, description: 'Email a password-set link. When mail is not configured, the link is returned as reset_url instead.' }
     AdminUserCreated:
       type: object
       additionalProperties: false

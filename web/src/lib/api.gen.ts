@@ -2517,9 +2517,9 @@ export interface components {
             email: string;
             /** @description Defaults to the part of the email before the at sign. */
             name?: string;
-            /** @description When set */
+            /** @description When set, an organization with this name is created and the user owns it. */
             org_name?: string;
-            /** @description Email a password-set link. When mail is not configured */
+            /** @description Email a password-set link. When mail is not configured, the link is returned as reset_url instead. */
             send_reset?: boolean;
         };
         AdminUserCreated: {
