@@ -18,7 +18,32 @@ type adminRateWindow struct {
 	count int
 }
 
+// MinAdminAPIKeyLength is the shortest SUPERMETRY_ADMIN_API_KEY that may
+// authenticate the instance admin routes. Shorter keys leave key auth off.
+const MinAdminAPIKeyLength = 32
+
+// adminKeyEnabled reports whether the admin API key may authenticate the
+// instance admin routes.
+func (h *handler) adminKeyEnabled() bool {
+	return len(h.deps.AdminAPIKey) >= MinAdminAPIKeyLength && h.deps.AdminServiceUserID != 0 && h.deps.Admin != nil
+}
+
 func (h *handler) adminPrincipal(w http.ResponseWriter, r *http.Request) (authz.Principal, bool) {
+	// The admin API key is accepted here only: adminPrincipal guards
+	// /api/private/admin/* and nothing else. A bearer credential on these
+	// routes must be the key; it never falls back to the session cookie.
+	if authorization := r.Header.Get("Authorization"); authorization != "" {
+		if !h.adminKeyEnabled() || !validAdminBearer(authorization, h.deps.AdminAPIKey) {
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "valid authentication is required")
+			return authz.Principal{}, false
+		}
+		if !h.allowAdminRequest(h.deps.AdminServiceUserID) {
+			w.Header().Set("Retry-After", "60")
+			writeProblem(w, http.StatusTooManyRequests, "Rate limit exceeded", "retry after the indicated delay")
+			return authz.Principal{}, false
+		}
+		return authz.Principal{UserID: h.deps.AdminServiceUserID}, true
+	}
 	principal, ok := h.privatePrincipal(w, r)
 	if !ok {
 		return authz.Principal{}, false

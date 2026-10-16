@@ -150,7 +150,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return err
 	}
 	var usersExist bool
-	if err := pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&usersExist); err != nil {
+	if err := pool.QueryRow(ctx, `select exists(select 1 from users where not is_system)`).Scan(&usersExist); err != nil {
 		return fmt.Errorf("check platform users: %w", err)
 	}
 	logAdminSetup(slog.Default(), cfg.BaseURL, usersExist)
@@ -256,6 +256,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	accounts := users.New(platformStore)
 	adminService := admin.New(platformStore)
+	adminServiceUserID, err := adminKeyServiceUser(ctx, pool, cfg.AdminAPIKey)
+	if err != nil {
+		return err
+	}
 	authOptions := []platformauth.Option{platformauth.WithAuditSecret(cfg.SecretKey), platformauth.WithPolicySource(adminService)}
 	if cfg.E2ELoginLimit > 0 {
 		slog.Warn("SUPERMETRY_E2E_LOGIN_LIMIT is enabled; login throttling is reduced")
@@ -397,31 +401,32 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			Keys:  keyService,
 			Store: platformStore,
 		},
-		Store:             platformStore,
-		Definitions:       definitionService,
-		Auth:              authService,
-		Orgs:              orgService,
-		Keys:              keyService,
-		Invites:           inviteService,
-		Shares:            shareService,
-		Reports:           reportService,
-		Alerts:            alertService,
-		Integrations:      integrationService,
-		Query:             engine,
-		Imports:           importStore,
-		ImportQueue:       importManager,
-		ProfileTombstones: profileTombstones,
-		ProfileErasures:   profileErasures,
-		ReplayStore:       replayStore,
-		Exporter:          exporter,
-		ReplayEnv:         cfg.Replay,
-		DataDir:           cfg.DataDir,
-		SecretKey:         cfg.SecretKey,
-		AdminAPIKey:       cfg.AdminAPIKey,
-		ReplayRefresh:     refreshRegistry,
-		Demo:              demoService,
-		Overview:          overviewService,
-		Admin:             adminService,
+		Store:              platformStore,
+		Definitions:        definitionService,
+		Auth:               authService,
+		Orgs:               orgService,
+		Keys:               keyService,
+		Invites:            inviteService,
+		Shares:             shareService,
+		Reports:            reportService,
+		Alerts:             alertService,
+		Integrations:       integrationService,
+		Query:              engine,
+		Imports:            importStore,
+		ImportQueue:        importManager,
+		ProfileTombstones:  profileTombstones,
+		ProfileErasures:    profileErasures,
+		ReplayStore:        replayStore,
+		Exporter:           exporter,
+		ReplayEnv:          cfg.Replay,
+		DataDir:            cfg.DataDir,
+		SecretKey:          cfg.SecretKey,
+		AdminAPIKey:        cfg.AdminAPIKey,
+		AdminServiceUserID: adminServiceUserID,
+		ReplayRefresh:      refreshRegistry,
+		Demo:               demoService,
+		Overview:           overviewService,
+		Admin:              adminService,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {
@@ -988,7 +993,7 @@ func (m *compatibilityMode) disableWhenUsersExist(ctx context.Context) error {
 		return nil
 	}
 	var exists bool
-	if err := m.pool.QueryRow(ctx, `select exists(select 1 from users)`).Scan(&exists); err != nil {
+	if err := m.pool.QueryRow(ctx, `select exists(select 1 from users where not is_system)`).Scan(&exists); err != nil {
 		return fmt.Errorf("check platform users: %w", err)
 	}
 	if exists {

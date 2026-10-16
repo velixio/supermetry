@@ -102,7 +102,7 @@ func (s *Service) ListUsers(ctx context.Context, search string, limit int) ([]Us
 		from users u
 		left join memberships m on m.user_id=u.id
 		left join orgs o on o.id=m.org_id and o.deleted_at is null
-		where u.deleted_at is null and ($1='' or lower(u.email) like '%'||lower($1)||'%' or lower(u.name) like '%'||lower($1)||'%')
+		where u.deleted_at is null and not u.is_system and ($1='' or lower(u.email) like '%'||lower($1)||'%' or lower(u.name) like '%'||lower($1)||'%')
 		group by u.id order by u.id limit $2`, search, normalizeLimit(limit))
 	if err != nil {
 		return nil, err

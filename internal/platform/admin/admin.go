@@ -72,7 +72,7 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, userID int64, patch U
 		var currentAdmin bool
 		var disabledAt *time.Time
 		var resetRequired bool
-		if err := tx.QueryRow(ctx, `select is_admin,disabled_at,password_reset_required from users where id=$1 and deleted_at is null for update`, userID).Scan(&currentAdmin, &disabledAt, &resetRequired); errors.Is(err, pgx.ErrNoRows) {
+		if err := tx.QueryRow(ctx, `select is_admin,disabled_at,password_reset_required from users where id=$1 and deleted_at is null and not is_system for update`, userID).Scan(&currentAdmin, &disabledAt, &resetRequired); errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		} else if err != nil {
 			return err
@@ -215,7 +215,7 @@ func (s *Service) SetExemption(ctx context.Context, actorID, userID int64, reaso
 		}
 		tag, err := tx.Exec(ctx, `
 			insert into two_factor_exemptions(user_id,granted_by,reason,expires_at)
-			select id,$2,$3,$4 from users where id=$1 and deleted_at is null
+			select id,$2,$3,$4 from users where id=$1 and deleted_at is null and not is_system
 			on conflict(user_id) do update set granted_by=excluded.granted_by,reason=excluded.reason,expires_at=excluded.expires_at,created_at=now()`, userID, actorID, reason, expiresAt)
 		if err != nil {
 			return err
@@ -239,9 +239,12 @@ func (s *Service) DeleteExemption(ctx context.Context, actorID, userID int64) er
 	})
 }
 
+// requireAdmin accepts enabled instance admins and the admin API key's system
+// user (is_system), which is disabled so it can never sign in but must still be
+// able to act through the key on the admin routes.
 func requireAdmin(ctx context.Context, tx pgx.Tx, userID int64) error {
 	var allowed bool
-	if err := tx.QueryRow(ctx, `select coalesce((select is_admin and disabled_at is null from users where id=$1 and deleted_at is null),false)`, userID).Scan(&allowed); err != nil {
+	if err := tx.QueryRow(ctx, `select coalesce((select is_admin and (disabled_at is null or is_system) from users where id=$1 and deleted_at is null),false)`, userID).Scan(&allowed); err != nil {
 		return err
 	}
 	if !allowed {

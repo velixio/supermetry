@@ -148,19 +148,22 @@ type Deps struct {
 	Exporter interface {
 		Write(context.Context, io.Writer, int32, time.Time, time.Time) error
 	}
-	ReplayStore   replay.BlobStore
-	ReplayEnv     config.ReplayEnv
-	DataDir       string
-	SecretKey     []byte
-	AdminAPIKey   string
-	ReplayRefresh func() error
-	Demo          DemoService
-	Overview      *sitesvc.Overview
-	Admin         *admin.Service
-	UpdateChecker UpdateChecker
-	UpdateStarter UpdateStarter
-	UpdateMode    updatehelper.DeploymentMode
-	UpdateNonce   func() (string, error)
+	ReplayStore replay.BlobStore
+	ReplayEnv   config.ReplayEnv
+	DataDir     string
+	SecretKey   []byte
+	AdminAPIKey string
+	// AdminServiceUserID is the system user the admin API key acts as on
+	// /api/private/admin/* (store.AdminServiceUserID). Zero disables key auth there.
+	AdminServiceUserID int64
+	ReplayRefresh      func() error
+	Demo               DemoService
+	Overview           *sitesvc.Overview
+	Admin              *admin.Service
+	UpdateChecker      UpdateChecker
+	UpdateStarter      UpdateStarter
+	UpdateMode         updatehelper.DeploymentMode
+	UpdateNonce        func() (string, error)
 
 	// Integrations serves the third-party connection endpoints. Optional.
 	Integrations IntegrationsService
