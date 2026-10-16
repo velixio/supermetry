@@ -7,7 +7,7 @@ export { getTracker, useSupermetry } from "@supermetry/react";
 
 export type SupermetryProps = Omit<InitOptions, "host" | "src"> & { host?: string; src?: string };
 
-export function Supermetry({ host = "", ...options }: SupermetryProps): null {
-  useInitSupermetry({ host, ...options } as InitOptions);
+export function Supermetry(options: SupermetryProps): null {
+  useInitSupermetry(options as InitOptions);
   return null;
 }

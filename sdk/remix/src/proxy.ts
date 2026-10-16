@@ -11,7 +11,7 @@ export interface SupermetryProxy {
   action: (args: ProxyArgs) => Promise<Response>;
 }
 
-export function createSupermetryProxy(options: ProxyOptions): SupermetryProxy {
+export function createSupermetryProxy(options: ProxyOptions = {}): SupermetryProxy {
   const handler = createProxyHandler(options);
   const route = ({ request }: ProxyArgs) => handler(request);
   return { loader: route, action: route };

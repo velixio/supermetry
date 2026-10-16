@@ -19,7 +19,7 @@ export function usePageviews(location: RouteLocation, hash = false): void {
   }, [key]);
 }
 
-export function useSupermetryPageviews(location: RouteLocation, { host = "", ...options }: SupermetryProps): void {
-  useInitSupermetry({ host, ...options, manual: true } as InitOptions);
+export function useSupermetryPageviews(location: RouteLocation, options: SupermetryProps): void {
+  useInitSupermetry({ ...options, manual: true } as InitOptions);
   usePageviews(location, options.hash);
 }

@@ -11,7 +11,7 @@ export type SupermetryProps = Omit<TrackerOptions, "beforeSend"> & {
 export function scriptAttributes(props: SupermetryProps): Record<string, string | boolean> {
   if (!props?.site) throw new TypeError("@supermetry/astro requires site");
   const manual = props.viewTransitions ? true : props.manual;
-  const options = { ...props, host: props.host ?? "", manual, beforeSend: props.beforeSend ? () => null : undefined } as InitOptions;
+  const options = { ...props, manual, beforeSend: props.beforeSend ? () => null : undefined } as InitOptions;
   const attributes: Record<string, string | boolean> = {
     async: true,
     defer: true,
