@@ -453,12 +453,8 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 	if id != principal.OrgID {
 		return sitesvc.ErrNotFound
 	}
-	var tombstoned int64
 	err := s.Store.Tx(ctx, func(tx pgx.Tx) error {
-		var lockedID int64
-		if err := tx.QueryRow(ctx, `select id from orgs where id=$1 and deleted_at is null for update`, id).Scan(&lockedID); errors.Is(err, pgx.ErrNoRows) {
-			return sitesvc.ErrNotFound
-		} else if err != nil {
+		if err := lockLiveOrg(ctx, tx, id); err != nil {
 			return err
 		}
 		current, err := store.CurrentMemberForUpdate(ctx, tx, id, principal.UserID)
@@ -471,27 +467,12 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 		if !authz.Can(current, authz.ActionOrgDelete, 0) {
 			return orgs.ErrForbidden
 		}
-		var scheduled bool
-		if err := tx.QueryRow(ctx, `select exists(select 1 from sites where org_id=$1 and not is_demo and erased_at is null)`, id).Scan(&scheduled); err != nil {
-			return err
-		}
-		sites, err := tx.Exec(ctx, `
-			update sites
-			set deleted_at=now(),deleted_with_org=$2,deletion_notified_at=null,deletion_reminded_at=null
-			where org_id=$1 and deleted_at is null`, id, scheduled)
+		deleted, scheduled, err := deleteOrgTx(ctx, tx, id, time.Now())
 		if err != nil {
 			return err
-		}
-		tombstoned = sites.RowsAffected()
-		org, err := tx.Exec(ctx, `update orgs set deleted_at=now() where id=$1 and deleted_at is null`, id)
-		if err != nil {
-			return err
-		}
-		if org.RowsAffected() != 1 {
-			return sitesvc.ErrNotFound
 		}
 		return audit.Write(ctx, tx, principal, "organization.deleted", "organization", id, map[string]any{
-			"scheduled": scheduled, "sites_tombstoned": tombstoned,
+			"scheduled": scheduled, "sites_tombstoned": int64(len(deleted)),
 		})
 	})
 	if err != nil {
@@ -779,4 +760,48 @@ func orgIDFromPath(w http.ResponseWriter, r *http.Request, principal authz.Princ
 
 func unavailable(w http.ResponseWriter, resource string) {
 	writeProblem(w, http.StatusInternalServerError, "Internal server error", fmt.Sprintf("%s service is unavailable", resource))
+}
+
+// lockLiveOrg row-locks a live organization; sitesvc.ErrNotFound when it is missing or deleted.
+func lockLiveOrg(ctx context.Context, tx pgx.Tx, orgID int64) error {
+	var lockedID int64
+	err := tx.QueryRow(ctx, `select id from orgs where id=$1 and deleted_at is null for update`, orgID).Scan(&lockedID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return sitesvc.ErrNotFound
+	}
+	return err
+}
+
+// deleteOrgTx is the transaction body shared by the owner and instance admin
+// deletion paths: it tombstones the organization and its live sites with the
+// restorable grace period. Callers write their own audit row. scheduled is
+// false for demo-only or empty organizations, which the lifecycle sweep
+// erases at once. It returns sitesvc.ErrNotFound for a missing or deleted org.
+func deleteOrgTx(ctx context.Context, tx pgx.Tx, orgID int64, now time.Time) (deletedSites []int32, scheduled bool, err error) {
+	if err := lockLiveOrg(ctx, tx, orgID); err != nil {
+		return nil, false, err
+	}
+	if err := tx.QueryRow(ctx, `select exists(select 1 from sites where org_id=$1 and not is_demo and erased_at is null)`, orgID).Scan(&scheduled); err != nil {
+		return nil, false, err
+	}
+	rows, err := tx.Query(ctx, `
+		update sites
+		set deleted_at=$3,deleted_with_org=$2,deletion_notified_at=null,deletion_reminded_at=null
+		where org_id=$1 and deleted_at is null
+		returning id`, orgID, scheduled, now)
+	if err != nil {
+		return nil, false, err
+	}
+	deletedSites, err = pgx.CollectRows(rows, pgx.RowTo[int32])
+	if err != nil {
+		return nil, false, err
+	}
+	org, err := tx.Exec(ctx, `update orgs set deleted_at=$2 where id=$1 and deleted_at is null`, orgID, now)
+	if err != nil {
+		return nil, false, err
+	}
+	if org.RowsAffected() != 1 {
+		return nil, false, sitesvc.ErrNotFound
+	}
+	return deletedSites, scheduled, nil
 }
