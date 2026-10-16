@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <Supermetry site="your-site-id" host="https://analytics.example.com" />
+        <Supermetry site="your-site-id" />
         {children}
       </body>
     </html>
@@ -40,13 +40,13 @@ export function SignupButton() {
 
 ## First-party proxy
 
-Serve the script and events from your own domain so ad blockers and CSP rules treat them as first-party. Omit `host` on `<Supermetry />`; it then loads `/js/script.js` and posts to `/api/public/v1/events` on your origin.
+Serve the script and events from your own domain so ad blockers and CSP rules treat them as first-party. Pass `host=""` to `<Supermetry />`; it then loads `/js/script.js` and posts to `/api/public/v1/events` on your origin.
 
 ```ts
 // lib/supermetry.ts
 import { createSupermetryProxy } from "@supermetry/nextjs/proxy";
 
-export const proxy = createSupermetryProxy({ host: "https://analytics.example.com" });
+export const proxy = createSupermetryProxy(); // forwards to Supermetry Cloud; pass { host } when self-hosting
 ```
 
 ```ts

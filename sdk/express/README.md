@@ -20,7 +20,6 @@ app.set("trust proxy", true); // so req.ip / req.protocol reflect the real visit
 app.use(
   supermetry({
     site: "your-site-id",
-    host: "https://analytics.example.com",
     trackPageviews: true, // pageview for every GET answered 2xx with text/html
     getProfileId: (req) => req.user?.id,
     onError: (error) => console.error(error),

@@ -16,7 +16,6 @@ Create an API key in **Organization settings → API keys**. Give read integrati
 import { createSupermetryClient } from '@supermetry/api-client'
 
 const supermetry = createSupermetryClient({
-  baseUrl: 'https://analytics.example.com',
   apiKey: process.env.SUPERMETRY_API_KEY!,
 })
 
@@ -32,6 +31,8 @@ const { data, error, response } = await supermetry.GET('/api/public/v1/stats/sum
 if (!response.ok) throw new Error(error.detail)
 console.log(data.totals)
 ```
+
+Requests go to Supermetry Cloud (`https://app.supermetry.com`) by default. When self-hosting, pass `baseUrl` with your own Supermetry URL.
 
 The client adds `Authorization: Bearer <key>` to every request. Rate-limit metadata is returned in the `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` response headers. A `429` response can also include `Retry-After`.
 

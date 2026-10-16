@@ -51,7 +51,8 @@ used. Visitors are derived server-side from IP + User-Agent + a daily salt.
 
 ## Shared SDK surface (adapt names to the language's idiom)
 
-- Config: `site` (required), `host` (required, e.g. `https://analytics.example.com`;
+- Config: `site` (required), `host` (Supermetry origin: `https://app.supermetry.com` for Cloud, which the npm packages
+  use by default, or the self-hosted URL;
   endpoint = host + `/api/public/v1/events`, overridable with `api`/`endpoint`), `disabled`
   flag, `onError` / logger hook.
 - `track(name, props?, { revenue?, profileId?, url?, referrer? })`

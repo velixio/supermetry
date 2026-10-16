@@ -25,8 +25,10 @@ event contract, described in [SPEC.md](SPEC.md).
 ## HTML / Script
 
 ```html
-<script defer data-site="YOUR_SITE_ID" src="https://analytics.example.com/js/script.js"></script>
+<script defer data-site="YOUR_SITE_ID" src="https://app.supermetry.com/js/script.js"></script>
 ```
+
+Self-hosting? Load the script from your own Supermetry URL instead. The npm packages default to Supermetry Cloud (`https://app.supermetry.com`); pass `host` to point them at your instance.
 
 Then, anywhere on the page:
 
@@ -44,7 +46,7 @@ Options are `data-` attributes on the tag: `data-api`, `data-manual`, `data-hash
 ## REST API
 
 ```sh
-curl -X POST https://analytics.example.com/api/public/v1/events \
+curl -X POST https://app.supermetry.com/api/public/v1/events \
   -H "Content-Type: application/json" \
   -H "User-Agent: $VISITOR_USER_AGENT" \
   -H "X-Forwarded-For: $VISITOR_IP" \

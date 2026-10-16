@@ -13,7 +13,7 @@ import { SupermetryProvider, useSupermetry } from "@supermetry/react";
 
 export function App() {
   return (
-    <SupermetryProvider site="your-site-id" host="https://analytics.example.com">
+    <SupermetryProvider site="your-site-id">
       <Checkout />
     </SupermetryProvider>
   );
@@ -33,7 +33,7 @@ function Checkout() {
 }
 ```
 
-`SupermetryProvider` accepts every [`@supermetry/tracker` option](https://github.com/velixio/supermetry/blob/main/sdk/js/README.md) (`site` plus `host` or `src`, `manual`, `hash`, `consent`, `beforeSend`, …) and injects the script once, after mount.
+`SupermetryProvider` accepts every [`@supermetry/tracker` option](https://github.com/velixio/supermetry/blob/main/sdk/js/README.md) (`site`, optional `host` (defaults to Supermetry Cloud) or `src`, `manual`, `hash`, `consent`, `beforeSend`, …) and injects the script once, after mount.
 
 `useSupermetry()` returns the tracker: `pageview`, `track`, `identify`, `consent`, `optIn`, `optOut`. It works anywhere, with or without the provider in the tree; calls made before the script loads are queued, and during server rendering every method is a no-op.
 

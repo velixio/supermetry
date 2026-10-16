@@ -16,7 +16,7 @@ import Supermetry from "@supermetry/astro";
 
 <html lang="en">
   <head>
-    <Supermetry site="your-site-id" host="https://analytics.example.com" />
+    <Supermetry site="your-site-id" />
   </head>
   <body><slot /></body>
 </html>
@@ -27,7 +27,7 @@ import Supermetry from "@supermetry/astro";
 With `<ClientRouter />` (or `<ViewTransitions />` in Astro 4), pass `viewTransitions`. The tracker then runs in manual mode, persists across navigations, and sends a pageview on every `astro:page-load`, including the first.
 
 ```astro
-<Supermetry site="your-site-id" host="https://analytics.example.com" viewTransitions />
+<Supermetry site="your-site-id" viewTransitions />
 ```
 
 ### Props
@@ -35,7 +35,7 @@ With `<ClientRouter />` (or `<ViewTransitions />` in Astro 4), pass `viewTransit
 | Prop | |
 |---|---|
 | `site` | Required public site ID. |
-| `host` | Supermetry origin. Defaults to `""`: `/js/script.js` and `/api/public/v1/events` on your own domain (proxy them, or use `src` / `api`). |
+| `host` | Supermetry origin. Defaults to Supermetry Cloud (`https://app.supermetry.com`); set it when self-hosting. `""` loads `/js/script.js` and posts to `/api/public/v1/events` on your own domain (proxy them, or use `src` / `api`). |
 | `src`, `api` | Explicit script URL and events endpoint. |
 | `manual`, `hash`, `forms`, `outbound`, `downloads`, `profiles`, `allowLocalhost` | Tracker data attributes. |
 | `consent` | Wait for `window.supermetry.consent(true)` before sending. |
