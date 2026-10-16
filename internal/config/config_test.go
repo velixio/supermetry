@@ -55,6 +55,42 @@ func TestLoadTrustedProxies(t *testing.T) {
 	}
 }
 
+func TestLoadTrustedProxiesDefaultsToPrivateNetworks(t *testing.T) {
+	c, err := Load(env(baseEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	trusted := func(raw string) bool {
+		addr := netip.MustParseAddr(raw)
+		for _, prefix := range c.TrustedProxies {
+			if prefix.Contains(addr) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, raw := range []string{"127.0.0.1", "::1", "10.1.2.3", "172.17.0.1", "192.168.1.10", "fd00::1"} {
+		if !trusted(raw) {
+			t.Errorf("default TrustedProxies=%v does not trust %s", c.TrustedProxies, raw)
+		}
+	}
+	for _, raw := range []string{"8.8.8.8", "2001:4860::8888", "172.32.0.1", "169.254.1.1"} {
+		if trusted(raw) {
+			t.Errorf("default TrustedProxies=%v trusts public or link-local %s", c.TrustedProxies, raw)
+		}
+	}
+
+	values := baseEnv()
+	values["SUPERMETRY_TRUSTED_PROXIES"] = "none"
+	c, err = Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.TrustedProxies) != 0 {
+		t.Fatalf("SUPERMETRY_TRUSTED_PROXIES=none gave %v, want no proxies", c.TrustedProxies)
+	}
+}
+
 func TestLoadMetricsToken(t *testing.T) {
 	values := baseEnv()
 	values["SUPERMETRY_METRICS_TOKEN"] = "metrics-secret"

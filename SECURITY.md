@@ -68,11 +68,11 @@ This section is for operators of a Supermetry instance. Every variable, command 
 
 Work through these in order.
 
-1. **Confirm `SUPERMETRY_TRUSTED_PROXIES` is correct.** If Supermetry runs behind a reverse proxy, a load balancer or Cloudflare, set this to the proxy's addresses or CIDRs, comma-separated. If it is not set:
+1. **Confirm `SUPERMETRY_TRUSTED_PROXIES` is correct.** If Supermetry runs behind a reverse proxy, a load balancer or Cloudflare, set this to the proxy's addresses or CIDRs, comma-separated. Loopback and private networks are trusted when it is empty, so only a proxy with a public address (Cloudflare, a cloud load balancer) needs listing. If such a proxy is not listed:
    - Every visitor appears to come from the proxy's IP. The per-IP limit (1,000 events/s) then applies to all visitors together, and one flooder can push real visitors into 429s.
    - Visitors with the same browser merge into one visitor.
    - IP exclusions and geo lookup see the proxy, not the client.
-   - A proxy on the same host no longer makes `/metrics` public: requests that pass through it carry forwarding headers and are refused without `SUPERMETRY_METRICS_TOKEN`. The server logs a startup warning when `SUPERMETRY_TRUSTED_PROXIES` is empty and it listens on loopback.
+   - A proxy on the same host no longer makes `/metrics` public: requests that pass through it carry forwarding headers and are refused without `SUPERMETRY_METRICS_TOKEN`. The server logs a startup warning when `SUPERMETRY_TRUSTED_PROXIES` is `none` and it listens on loopback.
 
    Check it with `SUPERMETRY_INGEST_DIAG=1`: requests that arrive through the proxy should log `peer_trusted=true`. List only proxies you control. A trusted range lets anyone inside it choose their own client IP through `X-Forwarded-For`.
 2. **Tighten the site's allowed hosts** (site settings in the dashboard, or `PATCH /api/private/sites/{site}` with `allowed_hosts`). Remove wildcard entries you do not need. This stops events whose page URL names another host. It does not stop a script that copies one of your real hostnames.

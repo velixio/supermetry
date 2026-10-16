@@ -80,7 +80,9 @@ How to read the tables:
 
 `clientip.Resolve` (`internal/clientip/clientip.go:15-35`) trusts `X-Forwarded-For` only when the TCP peer is inside `SUPERMETRY_TRUSTED_PROXIES`. It then walks right to left and takes the first public address that is not itself a proxy.
 
-If the server runs behind a reverse proxy and this variable is unset:
+When the variable is empty, loopback and private networks (`127.0.0.0/8`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`) are trusted, so a proxy on the same host, LAN or Docker network works without setup (`internal/config/config.go`, `defaultTrustedProxies`). The trade-off: a client that reaches Supermetry directly from a private network can set its own `X-Forwarded-For`, spoofing its country and its key in the per-IP ingest and login limits. Operators with untrusted private clients set `none`.
+
+If the server runs behind a proxy with a public address (Cloudflare, a cloud load balancer) that is not listed, or the variable is `none` behind any proxy:
 
 - Every visitor gets the proxy's IP. All visitors then share one 1,000/s bucket, and visitor IDs (`H(salt, site, ip, UA)`) merge everyone with the same browser.
 - Geo lookup and IP exclusions see the proxy address.
@@ -98,7 +100,7 @@ A second, smaller issue: `Resolve` skips private hops, so a client whose real ad
 | Shared 100k-per-kind dictionary, so one site can degrade all sites | Medium | **Done:** per-site share of each kind's dictionary capacity, daily garbage collection of unreferenced entries, and 80% and 95% fill warnings. Overflow is also counted per site on the health page |
 | Rate limits are hard-coded and per process | Medium | Make them configurable. Document that multi-instance deployments need a limiter in the proxy |
 | No per-site view of drops | Medium | **Done:** per-site daily drop counts with spike warnings on the health page (bots by rule name, rate limits, privacy signals, overflow). Only counts are stored, never IPs or user agents |
-| Unset `SUPERMETRY_TRUSTED_PROXIES` behind a proxy | Medium (misconfiguration) | Log a startup warning when requests arrive with `X-Forwarded-For` from an untrusted peer |
+| Public proxy missing from `SUPERMETRY_TRUSTED_PROXIES` | Medium (misconfiguration) | Log a startup warning when requests arrive with `X-Forwarded-For` from an untrusted peer |
 | No tool to delete spam already stored, by time range, referrer or IP | Medium | Add a site-scoped purge for a time range plus filter, followed by a rollup rebuild. Today the options are profile erasure (identified mode only), retention, or deleting the site |
 | Public ID cannot be rotated | Low | Add rotation, keeping the old ID accepted for a grace period |
 

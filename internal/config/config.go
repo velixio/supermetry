@@ -382,7 +382,15 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_GLOBAL"), "SUPERMETRY_INGEST_RATE_GLOBAL", &c.IngestRateGlobal, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_READ_TIMEOUT"), "SUPERMETRY_HTTP_READ_TIMEOUT", &c.HTTPReadTimeout, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_WRITE_TIMEOUT"), "SUPERMETRY_HTTP_WRITE_TIMEOUT", &c.HTTPWriteTimeout, &errs)
-	if raw := getenv("SUPERMETRY_TRUSTED_PROXIES"); raw != "" {
+	switch raw := strings.TrimSpace(getenv("SUPERMETRY_TRUSTED_PROXIES")); {
+	case raw == "":
+		// A proxy on the same host, LAN or Docker network connects from a
+		// loopback or private address; trust those so the visitor's
+		// X-Forwarded-For is used without extra setup. Public peers are never
+		// trusted by default, so internet clients cannot spoof their address.
+		c.TrustedProxies = defaultTrustedProxies()
+	case strings.EqualFold(raw, "none"):
+	default:
 		for _, item := range strings.Split(raw, ",") {
 			proxy, err := parseTrustedProxy(strings.TrimSpace(item))
 			if err != nil {
@@ -421,6 +429,15 @@ func LoadGeoIP(getenv func(string) string) (Config, error) {
 		seenEditions[edition] = true
 	}
 	return c, errors.Join(errs...)
+}
+
+func defaultTrustedProxies() []netip.Prefix {
+	raw := []string{"127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"}
+	prefixes := make([]netip.Prefix, len(raw))
+	for i, item := range raw {
+		prefixes[i] = netip.MustParsePrefix(item)
+	}
+	return prefixes
 }
 
 func parseTrustedProxy(raw string) (netip.Prefix, error) {

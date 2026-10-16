@@ -149,7 +149,7 @@ curl -X POST https://supermetry.com/api/public/v1/events \
   -d '{"site":"<public-site-id>","name":"Purchase","url":"https://example.com/checkout","props":{"plan":"pro"},"revenue":{"amount":"49.90","currency":"USD"}}'
 ```
 
-- Forward the visitor's user agent and IP so the event joins the right session and location. Supermetry parses them and never stores them. `X-Forwarded-For` is trusted only from addresses in `SUPERMETRY_TRUSTED_PROXIES`.
+- Forward the visitor's user agent and IP so the event joins the right session and location. Supermetry parses them and never stores them. `X-Forwarded-For` is trusted only from addresses in `SUPERMETRY_TRUSTED_PROXIES` (loopback and private networks by default).
 - The body is at most 8 KB, with up to 30 props.
 - The endpoint answers `202 Accepted` and needs no API key; the site's allowed hosts and exclusion rules still apply.
 
