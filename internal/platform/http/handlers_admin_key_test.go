@@ -42,12 +42,14 @@ func newAdminKeyEnv(t *testing.T, key string) adminKeyEnv {
 		t.Fatal(err)
 	}
 	// A real instance admin exists too, so "last admin" checks never involve the system user.
-	if _, err := pool.Exec(ctx, `insert into users(email,name,password_hash,is_admin) values ('root@example.test','Root','hash',true)`); err != nil {
+	// It is also a valid cookie actor ("admin"), so tests can prove the key never falls back to it.
+	var rootID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash,is_admin) values ('root@example.test','Root','hash',true) returning id`).Scan(&rootID); err != nil {
 		t.Fatal(err)
 	}
 	data := &store.Store{Pool: pool}
 	handler := platformhttp.New(platformhttp.Deps{
-		Authenticator:      actorAuthenticator{},
+		Authenticator:      actorAuthenticator{"admin": {UserID: rootID, SiteIDs: []int32{}}},
 		Store:              data,
 		Admin:              admin.New(data),
 		Signup:             "invite",
@@ -58,9 +60,18 @@ func newAdminKeyEnv(t *testing.T, key string) adminKeyEnv {
 }
 
 func serveBearer(handler http.Handler, method, path, body, key string) *httptest.ResponseRecorder {
+	return serveAuthorization(handler, method, path, body, "Bearer "+key, "")
+}
+
+// serveAuthorization sends an Authorization header and, when actor is set, a
+// valid cookie-session actor alongside it.
+func serveAuthorization(handler http.Handler, method, path, body, authorization, actor string) *httptest.ResponseRecorder {
 	request := httptest.NewRequest(method, path, strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+key)
+	request.Header.Set("Authorization", authorization)
+	if actor != "" {
+		request.Header.Set("X-Test-Actor", actor)
+	}
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response
@@ -121,6 +132,18 @@ func TestAdminKeyWrongKey(t *testing.T) {
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d body=%s, want 401", response.Code, response.Body.String())
 	}
+	withSession := serveAuthorization(env.handler, http.MethodGet, "/api/private/admin/users", "", "Bearer "+testAdminKey+"x", "admin")
+	if withSession.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong bearer with valid session status=%d body=%s, want 401 (no cookie fallback)", withSession.Code, withSession.Body.String())
+	}
+}
+
+func TestAdminKeyNonBearerSchemeFallsThroughToSession(t *testing.T) {
+	env := newAdminKeyEnv(t, testAdminKey)
+	response := serveAuthorization(env.handler, http.MethodGet, "/api/private/admin/users", "", "Basic x", "admin")
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s, want 200", response.Code, response.Body.String())
+	}
 }
 
 func TestAdminKeyShortKeyDisabled(t *testing.T) {
@@ -129,5 +152,9 @@ func TestAdminKeyShortKeyDisabled(t *testing.T) {
 	response := serveBearer(env.handler, http.MethodGet, "/api/private/admin/users", "", short)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d body=%s, want 401", response.Code, response.Body.String())
+	}
+	withSession := serveAuthorization(env.handler, http.MethodGet, "/api/private/admin/users", "", "Bearer "+short, "admin")
+	if withSession.Code != http.StatusUnauthorized {
+		t.Fatalf("short bearer with valid session status=%d body=%s, want 401 (no cookie fallback)", withSession.Code, withSession.Body.String())
 	}
 }

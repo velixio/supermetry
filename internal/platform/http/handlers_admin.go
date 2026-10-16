@@ -32,7 +32,8 @@ func (h *handler) adminPrincipal(w http.ResponseWriter, r *http.Request) (authz.
 	// The admin API key is accepted here only: adminPrincipal guards
 	// /api/private/admin/* and nothing else. A bearer credential on these
 	// routes must be the key; it never falls back to the session cookie.
-	if authorization := r.Header.Get("Authorization"); authorization != "" {
+	// Other schemes (e.g. Basic from a reverse proxy) fall through to the cookie path.
+	if authorization := r.Header.Get("Authorization"); bearerScheme(authorization) {
 		if !h.adminKeyEnabled() || !validAdminBearer(authorization, h.deps.AdminAPIKey) {
 			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "valid authentication is required")
 			return authz.Principal{}, false
@@ -67,6 +68,13 @@ func (h *handler) adminPrincipal(w http.ResponseWriter, r *http.Request) (authz.
 		return authz.Principal{}, false
 	}
 	return principal, true
+}
+
+// bearerScheme reports whether an Authorization header uses the Bearer scheme,
+// parsed the same way as validAdminBearer.
+func bearerScheme(header string) bool {
+	scheme, _, ok := strings.Cut(header, " ")
+	return ok && strings.EqualFold(scheme, "Bearer")
 }
 
 func (h *handler) allowAdminRequest(userID int64) bool {
