@@ -267,7 +267,7 @@ const messages: MessageTree = {
     pixelLoading: 'ট্র্যাকিং পিক্সেল লোড হচ্ছে…', pixelLoadError: 'ট্র্যাকিং পিক্সেল লোড করা যায়নি।', pixelEmpty: 'এখনও কোনো ট্র্যাকিং পিক্সেল নেই।',
     pixelEmptyHint: 'ইমেইল, পেজ বা স্ক্রিপ্ট চলে না এমন স্থানের জন্য একটি তৈরি করুন।', pixelName: 'নাম', pixelTag: 'ট্যাগ',
     pixelTagHint: 'ঐচ্ছিক। অক্ষর বা সংখ্যা দিয়ে শুরু করুন; এরপর অক্ষর, সংখ্যা, ডট, আন্ডারস্কোর, কোলন বা হাইফেন ব্যবহার করুন। স্বয়ংক্রিয়ভাবে পেতে ফাঁকা রাখুন।', pixelTagInvalid: 'শুধু অনুমোদিত চিহ্ন ব্যবহার করুন এবং অক্ষর বা সংখ্যা দিয়ে শুরু করুন।',
-    pixelLast30Total: 'গত ৩০ দিন', pixelOpen: 'খুলুন', pixelOpenLabel: '{name} খুলুন', pixelCopyImageUrl: '{name}-এর ছবির URL কপি করুন', pixelInstallTitle: 'এই পিক্সেলটি বসান',
+    pixelLast30Total: 'গত ৩০ দিন', pixelOpen: 'খুলুন', pixelOpenLabel: '{name} খুলুন', pixelCopyImageUrl: '{name}-এর ছবির URL কপি করুন', pixelTabsLabel: 'পিক্সেলের অংশ', pixelTabStats: 'পরিসংখ্যান', pixelTabInstall: 'বসান', pixelInstallTitle: 'এই পিক্সেলটি বসান',
     pixelSnippet: 'HTML স্নিপেট', pixelUrl: 'ছবির URL',
     pixelCopySnippet: 'স্নিপেট কপি করুন', pixelCopyUrl: 'URL কপি করুন', pixelStatsTitle: 'ইমপ্রেশন',
     pixelImpressions: 'সময়কালের ইমপ্রেশন', pixelNote: 'ছবি ব্লক বা প্রক্সি করা ইমেইল ক্লায়েন্টে কম বা বেশি গণনা হতে পারে; ইমপ্রেশনকে প্রবণতা হিসেবে দেখুন, নির্ভুল ওপেন রেট হিসেবে নয়।',

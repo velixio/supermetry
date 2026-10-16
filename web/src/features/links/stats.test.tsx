@@ -95,13 +95,11 @@ describe('TrackingPixelPage', () => {
   })
   afterEach(() => cleanup())
 
-  it('shows the named pixel, its snippets, campaign-scoped stats and badge previews', async () => {
+  it('opens on campaign-scoped stats without the install snippets', async () => {
     wrap(<TrackingPixelPage canManage org="acme" pixelId={11} siteId={7} siteSlug="main" timezone="UTC" />)
     expect(await screen.findByRole('heading', { name: 'Spring newsletter' })).toBeInTheDocument()
     expect(screen.getByText('spring')).toBeInTheDocument()
-    expect(await screen.findByText('https://sm.example.test/px/abc.gif?c=spring')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Badge with the total' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?c=spring&preview=1')
-    expect(screen.getByRole('img', { name: 'Badge with total, today and a 30-day graph' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?c=spring&style=stats&preview=1')
+    expect(screen.getByRole('tab', { name: 'Stats' })).toHaveAttribute('aria-selected', 'true')
     await waitFor(() => {
       const calls = get.mock.calls.filter(([path]) => path === '/api/private/sites/{site}/pixel/stats')
       expect(calls.length).toBeGreaterThan(0)
@@ -110,6 +108,17 @@ describe('TrackingPixelPage', () => {
     expect(await screen.findByRole('heading', { name: 'Where views come from' })).toBeInTheDocument()
     expect(screen.getByText('GitHub')).toBeInTheDocument()
     expect(screen.getByText('Kathmandu, Nepal')).toBeInTheDocument()
+    expect(screen.queryByText('https://sm.example.test/px/abc.gif?c=spring')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Badge with the total' })).not.toBeInTheDocument()
+  })
+
+  it('shows the snippets and badge previews on the install tab', async () => {
+    wrap(<TrackingPixelPage canManage org="acme" pixelId={11} siteId={7} siteSlug="main" timezone="UTC" />)
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Install' }), { button: 0 })
+    expect(await screen.findByText('https://sm.example.test/px/abc.gif?c=spring')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Badge with the total' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?c=spring&preview=1')
+    expect(screen.getByRole('img', { name: 'Badge with total, today and a 30-day graph' })).toHaveAttribute('src', 'https://sm.example.test/px/abc.svg?c=spring&style=stats&preview=1')
+    expect(screen.queryByRole('heading', { name: 'Where views come from' })).not.toBeInTheDocument()
   })
 
   it('asks for confirmation before deleting', async () => {
