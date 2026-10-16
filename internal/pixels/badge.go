@@ -94,6 +94,8 @@ const (
 	sparkWidth  = 60
 	sparkHeight = 12
 	todayColor  = "#2a2740"
+	poweredBy   = "powered by Supermetry"
+	homeURL     = "https://supermetry.com"
 )
 
 // StatsBadgeOptions describes the wider badge: label, total, today and a sparkline.
@@ -140,7 +142,11 @@ func RenderStatsBadge(o StatsBadgeOptions) []byte {
 	}
 	mid := len(total)*charWidth + 2*padding
 	right := len(today)*charWidth + sparkWidth + 3*padding
-	width := left + mid + right
+	brand := 0
+	if o.Branded {
+		brand = len(poweredBy)*charWidth + 2*padding
+	}
+	width := left + mid + right + brand
 	fill := defaultColor
 	if o.Color != "" {
 		fill = "#" + o.Color
@@ -156,13 +162,20 @@ func RenderStatsBadge(o StatsBadgeOptions) []byte {
 	fmt.Fprintf(&b, `<rect width="%d" height="20" fill="%s"/><rect x="%d" width="%d" height="20" fill="%s"/><rect x="%d" width="%d" height="20" fill="%s"/></g>`,
 		left, labelColor, left, mid, fill, left+mid, right, todayColor)
 	if o.Branded {
+		fmt.Fprintf(&b, `<rect x="%d" width="%d" height="20" fill="%s" clip-path="url(#r)"/>`, left+mid+right, brand, labelColor)
+	}
+	if o.Branded {
 		b.WriteString(`<g id="sm-mark" fill="#fff"><rect x="6" y="11" width="3" height="4"/><rect x="10" y="8" width="3" height="7"/><rect x="14" y="5" width="3" height="10"/></g>`)
 	}
 	fmt.Fprintf(&b, `<g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="%d" y="14">%s</text><text x="%d" y="14">%s</text><text x="%d" y="14">%s</text></g>`,
 		textX, label, left+padding, total, left+mid+padding, today)
 	if points := sparkPoints(o.Series); points != "" {
 		fmt.Fprintf(&b, `<polyline transform="translate(%d,4)" points="%s" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`,
-			width-padding-sparkWidth, points)
+			left+mid+right-padding-sparkWidth, points)
+	}
+	if o.Branded {
+		fmt.Fprintf(&b, `<a href="%s" target="_blank"><text x="%d" y="14" fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">%s</text></a>`,
+			homeURL, left+mid+right+padding, poweredBy)
 	}
 	b.WriteString(`</svg>`)
 	return b.Bytes()
