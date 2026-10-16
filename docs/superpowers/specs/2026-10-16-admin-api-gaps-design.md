@@ -1,6 +1,6 @@
 # Admin management API: design
 
-Date: 2026-10-16. Status: proposed, awaiting user approval.
+Date: 2026-10-16. Status: approved by the user, 2026-10-16.
 
 ## Intent
 
