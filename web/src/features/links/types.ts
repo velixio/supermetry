@@ -38,6 +38,7 @@ export type LinkInput = {
 
 export type LinkCount = { value: string; clicks: number }
 export type DayCount = { day: string; count: number }
+export type HourCount = { hour: string; count: number }
 
 export type LinkStats = {
   from: string
@@ -72,6 +73,8 @@ export type PixelStats = {
   to: string
   total: number
   daily: DayCount[]
+  /** Site-local hours (YYYY-MM-DDTHH:00) with impressions; empty for ranges over seven days. */
+  hourly: HourCount[]
   sources: { source: 'github' | 'other'; impressions: number }[]
   countries: { country: string; impressions: number }[]
   cities: { country: string; city: string; impressions: number }[]

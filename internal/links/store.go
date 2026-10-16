@@ -179,6 +179,15 @@ type DayCount struct {
 	Count int64  `json:"count"`
 }
 
+// HourCount is one site-local hour (YYYY-MM-DDTHH:00) and its count.
+type HourCount struct {
+	Hour  string `json:"hour"`
+	Count int64  `json:"count"`
+}
+
+// MaxHourlyDays is the longest inclusive range that gets hourly pixel counts.
+const MaxHourlyDays = 7
+
 // Stats summarizes a link's clicks between two inclusive site-local days.
 type Stats struct {
 	Total     int64      `json:"total"`
@@ -265,6 +274,7 @@ type PixelStats struct {
 	Summary   ImpressionSummary `json:"summary"`
 	Total     int64             `json:"total"`
 	Daily     []DayCount        `json:"daily"`
+	Hourly    []HourCount       `json:"hourly"`
 	Sources   []PlaceCount      `json:"sources"`
 	Countries []PlaceCount      `json:"countries"`
 	Cities    []PlaceCount      `json:"cities"`
@@ -272,7 +282,7 @@ type PixelStats struct {
 
 // ImpressionStats aggregates one campaign's pixel rows for the inclusive day range.
 func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to, campaign string) (PixelStats, error) {
-	stats := PixelStats{Daily: []DayCount{}, Sources: []PlaceCount{}, Countries: []PlaceCount{}, Cities: []PlaceCount{}}
+	stats := PixelStats{Daily: []DayCount{}, Hourly: []HourCount{}, Sources: []PlaceCount{}, Countries: []PlaceCount{}, Cities: []PlaceCount{}}
 	rows, err := db.Query(ctx, `
 		select day::text, sum(impressions)::bigint from pixel_impressions_daily
 		where site_id=$1 and day between $2::date and $3::date and campaign = $4
@@ -291,6 +301,9 @@ func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to, campa
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
+		return PixelStats{}, err
+	}
+	if stats.Hourly, err = hourlyImpressions(ctx, db, siteID, from, to, campaign); err != nil {
 		return PixelStats{}, err
 	}
 	const scope = ` from pixel_impressions_daily where site_id=$1 and day between $2::date and $3::date and campaign=$4`
@@ -324,6 +337,39 @@ func ImpressionStats(ctx context.Context, db DBTX, siteID int32, from, to, campa
 		}
 	}
 	return stats, nil
+}
+
+// hourlyImpressions lists one campaign's non-empty hours for ranges of at most
+// MaxHourlyDays days; longer ranges get an empty list.
+func hourlyImpressions(ctx context.Context, db DBTX, siteID int32, from, to, campaign string) ([]HourCount, error) {
+	hours := []HourCount{}
+	start, err := time.Parse(time.DateOnly, from)
+	if err != nil {
+		return nil, err
+	}
+	end, err := time.Parse(time.DateOnly, to)
+	if err != nil {
+		return nil, err
+	}
+	if end.Sub(start) >= MaxHourlyDays*24*time.Hour {
+		return hours, nil
+	}
+	rows, err := db.Query(ctx, `
+		select to_char(hour, 'YYYY-MM-DD"T"HH24:00'), impressions from pixel_impressions_hourly
+		where site_id=$1 and campaign=$4 and hour >= $2::date and hour < $3::date + 1
+		order by hour`, siteID, from, to, campaign)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var h HourCount
+		if err := rows.Scan(&h.Hour, &h.Count); err != nil {
+			return nil, err
+		}
+		hours = append(hours, h)
+	}
+	return hours, rows.Err()
 }
 
 // ImpressionSummaryFor totals one campaign's pixel impressions up to and including today.

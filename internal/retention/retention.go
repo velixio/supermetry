@@ -47,6 +47,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 	if err := deleteExpiredPixelViews(ctx, pool, now); err != nil {
 		return nil, err
 	}
+	if err := deleteExpiredHourlyImpressions(ctx, pool, now); err != nil {
+		return nil, err
+	}
 	var expired []db.Partition
 	for _, table := range []string{"events", "sessions"} {
 		partitions, err := db.ListPartitions(ctx, pool, table)
@@ -165,6 +168,24 @@ func deleteExpiredPixelViews(ctx context.Context, pool *pgxpool.Pool, now time.T
 		  and v.day < (($1::timestamptz at time zone s.timezone)::date - s.retention_class - 1)`, now)
 	if err != nil {
 		return fmt.Errorf("delete expired pixel views: %w", err)
+	}
+	return nil
+}
+
+// hourlyImpressionDays is how long the tracking-pixel hourly chart data lives,
+// whatever the site's retention; the daily table keeps the long history.
+const hourlyImpressionDays = 30
+
+// deleteExpiredHourlyImpressions drops hourly pixel counts older than
+// hourlyImpressionDays, measured in each site's local wall-clock time.
+func deleteExpiredHourlyImpressions(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	_, err := pool.Exec(ctx, `
+		delete from pixel_impressions_hourly h using sites s
+		where h.site_id = s.id
+		  and h.hour < date_trunc('hour', $1::timestamptz at time zone s.timezone) - make_interval(days => $2)`,
+		now, hourlyImpressionDays)
+	if err != nil {
+		return fmt.Errorf("delete expired hourly pixel impressions: %w", err)
 	}
 	return nil
 }

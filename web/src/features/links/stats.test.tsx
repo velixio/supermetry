@@ -12,6 +12,7 @@ vi.mock('@/lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) })
 
 import { daysBetween, DailyBars } from './DailyBars'
 import { LinkStatsPage } from './LinkStatsPage'
+import { PixelStatsSection } from './PixelStatsSection'
 import { TrackingPixelPage } from './TrackingPixelPage'
 
 function wrap(node: ReactNode) {
@@ -150,5 +151,54 @@ describe('TrackingPixelPage', () => {
       params: { path: { id: 11 } },
       body: { name: 'Renamed pixel' },
     }))
+  })
+})
+
+describe('PixelStatsSection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    get.mockImplementation(async (_path: string, options: { params: { query: { from: string; to: string } } }) => ({
+      data: {
+        from: options.params.query.from, to: options.params.query.to,
+        summary: { today: 3, last_7: 3, last_30: 3, total: 3 }, total: 3,
+        daily: [{ day: options.params.query.to, count: 3 }],
+        hourly: [{ hour: `${options.params.query.to}T09:00`, count: 2 }, { hour: `${options.params.query.to}T14:00`, count: 1 }],
+        sources: [], countries: [], cities: [],
+      },
+      response: { status: 200 },
+    }))
+  })
+  afterEach(() => cleanup())
+
+  it('lets By hour be picked from a long period by narrowing it to seven days', async () => {
+    wrap(<PixelStatsSection siteId={7} tag="spring" timezone="UTC" />)
+    const group = await screen.findByLabelText('Group by')
+    expect(screen.getByLabelText('Period')).toHaveValue('30d')
+    expect(within(group).getByRole('option', { name: 'By hour' })).toBeEnabled()
+    fireEvent.change(group, { target: { value: 'hour' } })
+    expect(group).toHaveValue('hour')
+    expect(screen.getByLabelText('Period')).toHaveValue('7d')
+    expect(await screen.findByRole('columnheader', { name: 'Hour' })).toBeInTheDocument()
+  })
+
+  it('switches to hours for today and charts the hourly counts', async () => {
+    wrap(<PixelStatsSection siteId={7} tag="spring" timezone="UTC" />)
+    fireEvent.change(await screen.findByLabelText('Period'), { target: { value: 'today' } })
+    expect(screen.getByLabelText('Group by')).toHaveValue('hour')
+    const table = await screen.findByRole('table')
+    expect(within(table).getByRole('columnheader', { name: 'Hour' })).toBeInTheDocument()
+    const rows = within(table).getAllByRole('row').slice(1).map((row) => row.textContent)
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatch(/09:00.*2$/)
+    expect(rows[1]).toMatch(/14:00.*1$/)
+    expect(screen.getByRole('img', { name: /Busiest hour .*09:00 with 2/ })).toBeInTheDocument()
+  })
+
+  it('falls back to days when a longer period is chosen', async () => {
+    wrap(<PixelStatsSection siteId={7} tag="spring" timezone="UTC" />)
+    fireEvent.change(await screen.findByLabelText('Period'), { target: { value: 'yesterday' } })
+    expect(screen.getByLabelText('Group by')).toHaveValue('hour')
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: '30d' } })
+    expect(screen.getByLabelText('Group by')).toHaveValue('day')
   })
 })

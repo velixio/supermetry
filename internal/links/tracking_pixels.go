@@ -97,6 +97,8 @@ func DeleteTrackingPixel(ctx context.Context, db DBTX, id int64) error {
 		select site_id, tag from tracking_pixels where id=$1
 	), impressions as (
 		delete from pixel_impressions_daily d using target t where d.site_id=t.site_id and d.campaign=t.tag
+	), hourly as (
+		delete from pixel_impressions_hourly h using target t where h.site_id=t.site_id and h.campaign=t.tag
 	), registration as (
 		delete from tracking_pixels tp using target t where tp.id=$1 returning 1
 	) select count(*) from registration`, id).Scan(&deleted)

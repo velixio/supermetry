@@ -39,10 +39,19 @@ const (
 
 type impressionKey struct {
 	siteID   int32
-	day      string
+	hour     string // site-local wall-clock hour, hourLayout
 	campaign string
 	place    Place
 }
+
+type hourKey struct {
+	siteID   int32
+	hour     string
+	campaign string
+}
+
+// hourLayout formats a site-local hour bucket; its first 10 bytes are the day.
+const hourLayout = "2006-01-02T15:00"
 
 // Recorder aggregates clicks and impressions in memory and persists them in
 // batches. Request goroutines only take a mutex around a map increment and
@@ -120,15 +129,17 @@ func (r *Recorder) Click(linkID int64, day, country, referrer, device string) {
 	}
 }
 
-// Impression records one pixel load. It never blocks on the database.
-func (r *Recorder) Impression(siteID int32, day, campaign string, place Place) {
+// Impression records one pixel load at local, the wall-clock time in the
+// site's time zone. It never blocks on the database.
+func (r *Recorder) Impression(siteID int32, local time.Time, campaign string, place Place) {
 	if r == nil || campaign == "" || r.Views == nil || !r.Views.Registered(siteID, campaign) {
 		return
 	}
 	if place.Source != SourceGitHub {
 		place.Source = SourceOther
 	}
-	key := impressionKey{siteID, day, campaign, place}
+	hour := local.Format(hourLayout)
+	key := impressionKey{siteID, hour, campaign, place}
 	r.mu.Lock()
 	if _, ok := r.impressions[key]; !ok && len(r.clicks)+len(r.impressions) >= r.maxKeys {
 		r.mu.Unlock()
@@ -138,7 +149,7 @@ func (r *Recorder) Impression(siteID int32, day, campaign string, place Place) {
 	r.impressions[key]++
 	full := len(r.clicks)+len(r.impressions) >= flushThreshold
 	r.mu.Unlock()
-	r.Views.Add(siteID, campaign, day, 1)
+	r.Views.Add(siteID, campaign, hour[:len(time.DateOnly)], 1)
 	if full {
 		r.nudge()
 	}
@@ -219,7 +230,9 @@ func (r *Recorder) Flush(ctx context.Context) error {
 	for id, n := range perLink {
 		batch.Queue(`update links set clicks = clicks + $2 where id=$1`, id, n)
 	}
+	hourly := make(map[hourKey]int64)
 	for key, n := range impressions {
+		hourly[hourKey{key.siteID, key.hour, key.campaign}] += n
 		batch.Queue(`
 			insert into pixel_impressions_daily(site_id, day, campaign, country, city, source, impressions)
 			select $1, $2::date, $3, $4, $5, $6, $7 where exists (
@@ -227,7 +240,17 @@ func (r *Recorder) Flush(ctx context.Context) error {
 			)
 			on conflict (site_id, day, campaign, country, city, source)
 			do update set impressions = pixel_impressions_daily.impressions + excluded.impressions`,
-			key.siteID, key.day, key.campaign, key.place.Country, truncateRunes(key.place.City, 100), key.place.Source, n)
+			key.siteID, key.hour[:len(time.DateOnly)], key.campaign, key.place.Country, truncateRunes(key.place.City, 100), key.place.Source, n)
+	}
+	for key, n := range hourly {
+		batch.Queue(`
+			insert into pixel_impressions_hourly(site_id, campaign, hour, impressions)
+			select $1, $2, $3::timestamp, $4 where exists (
+				select 1 from tracking_pixels where site_id=$1 and tag=$2
+			)
+			on conflict (site_id, campaign, hour)
+			do update set impressions = pixel_impressions_hourly.impressions + excluded.impressions`,
+			key.siteID, key.campaign, key.hour, n)
 	}
 
 	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {

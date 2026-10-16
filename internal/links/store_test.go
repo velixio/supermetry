@@ -116,9 +116,9 @@ func TestRecorderFlushPersistsBatchesAndStatsMatchFixture(t *testing.T) {
 	}
 	recorder.Click(link.ID, "2026-10-11", "", "", "tablet")
 	recorder.Click(link.ID, "2026-10-12", "NP", "", "desktop")
-	recorder.Impression(siteID, "2026-10-11", "spring", Place{Country: "NP"})
-	recorder.Impression(siteID, "2026-10-11", "spring", Place{Country: "NP"})
-	recorder.Impression(siteID, "2026-10-12", "", Place{Country: "US"})
+	recorder.Impression(siteID, noonOn("2026-10-11"), "spring", Place{Country: "NP"})
+	recorder.Impression(siteID, noonOn("2026-10-11"), "spring", Place{Country: "NP"})
+	recorder.Impression(siteID, noonOn("2026-10-12"), "", Place{Country: "US"})
 	if got := recorder.Pending(link.ID); got != 8 {
 		t.Fatalf("pending = %d", got)
 	}
@@ -346,6 +346,69 @@ func TestSiteViewsRegisterAndUnregisterBoundAllocation(t *testing.T) {
 	}
 }
 
+// noonOn is a wall-clock time in the site's zone on day.
+func noonOn(day string) time.Time {
+	at, err := time.Parse(time.DateOnly, day)
+	if err != nil {
+		panic(err)
+	}
+	return at.Add(12 * time.Hour)
+}
+
+func TestImpressionStatsHourlyForShortRanges(t *testing.T) {
+	pool, siteID := newDB(t)
+	ctx := context.Background()
+	recorder := NewRecorder(pool, RecorderOptions{})
+	recorder.Views = NewSiteViews()
+	recorder.Views.Register(siteID, "spring")
+	if _, err := pool.Exec(ctx, `insert into tracking_pixels(site_id,name,tag) values ($1,'Spring','spring')`, siteID); err != nil {
+		t.Fatal(err)
+	}
+	recorder.Impression(siteID, time.Date(2026, 10, 11, 9, 5, 0, 0, time.UTC), "spring", Place{Country: "NP"})
+	recorder.Impression(siteID, time.Date(2026, 10, 11, 9, 59, 59, 0, time.UTC), "spring", Place{Source: SourceGitHub})
+	recorder.Impression(siteID, time.Date(2026, 10, 12, 23, 30, 0, 0, time.UTC), "spring", Place{})
+	if err := recorder.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	stats, err := ImpressionStats(ctx, pool, siteID, "2026-10-11", "2026-10-12", "spring")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []HourCount{{Hour: "2026-10-11T09:00", Count: 2}, {Hour: "2026-10-12T23:00", Count: 1}}
+	if fmt.Sprint(stats.Hourly) != fmt.Sprint(want) {
+		t.Fatalf("hourly = %+v, want %+v", stats.Hourly, want)
+	}
+
+	long, err := ImpressionStats(ctx, pool, siteID, "2026-10-01", "2026-10-12", "spring")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if long.Hourly == nil || len(long.Hourly) != 0 {
+		t.Fatalf("hourly for a 12-day range = %#v, want an empty list", long.Hourly)
+	}
+
+	if err := DeleteTrackingPixel(ctx, pool, trackingPixelID(t, pool, siteID, "spring")); err != nil {
+		t.Fatal(err)
+	}
+	var left int
+	if err := pool.QueryRow(ctx, `select count(*) from pixel_impressions_hourly where site_id=$1`, siteID).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 {
+		t.Fatalf("%d hourly rows survive deleting the pixel", left)
+	}
+}
+
+func trackingPixelID(t *testing.T, pool *pgxpool.Pool, siteID int32, tag string) int64 {
+	t.Helper()
+	var id int64
+	if err := pool.QueryRow(context.Background(), `select id from tracking_pixels where site_id=$1 and tag=$2`, siteID, tag).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
 func TestImpressionStatsBreakDownSourcesCountriesAndCities(t *testing.T) {
 	pool, siteID := newDB(t)
 	ctx := context.Background()
@@ -356,14 +419,14 @@ func TestImpressionStatsBreakDownSourcesCountriesAndCities(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 3 {
-		recorder.Impression(siteID, "2026-10-11", "readme", Place{Source: SourceGitHub})
+		recorder.Impression(siteID, noonOn("2026-10-11"), "readme", Place{Source: SourceGitHub})
 	}
 	for range 2 {
-		recorder.Impression(siteID, "2026-10-11", "readme", Place{Country: "NP", City: "Kathmandu", Source: SourceOther})
+		recorder.Impression(siteID, noonOn("2026-10-11"), "readme", Place{Country: "NP", City: "Kathmandu", Source: SourceOther})
 	}
-	recorder.Impression(siteID, "2026-10-12", "readme", Place{Country: "NP", City: "Pokhara", Source: SourceOther})
-	recorder.Impression(siteID, "2026-10-12", "readme", Place{Country: "US", Source: SourceOther})
-	recorder.Impression(siteID, "2026-10-12", "readme", Place{Source: "whatever"}) // anything but github is other
+	recorder.Impression(siteID, noonOn("2026-10-12"), "readme", Place{Country: "NP", City: "Pokhara", Source: SourceOther})
+	recorder.Impression(siteID, noonOn("2026-10-12"), "readme", Place{Country: "US", Source: SourceOther})
+	recorder.Impression(siteID, noonOn("2026-10-12"), "readme", Place{Source: "whatever"}) // anything but github is other
 	if err := recorder.Flush(ctx); err != nil {
 		t.Fatal(err)
 	}

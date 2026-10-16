@@ -277,7 +277,7 @@ func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool
 				if proxy == "camo" {
 					source = SourceGitHub
 				}
-				h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, Place{Source: source})
+				h.Recorder.Impression(site.ID, localTime(h.now(), site), tag, Place{Source: source})
 			}
 			return site, true
 		}
@@ -293,7 +293,7 @@ func (h *Handler) countPixel(r *http.Request, publicID string) (sites.Site, bool
 		return site, true
 	}
 	where := h.Enricher.City(ip)
-	h.Recorder.Impression(site.ID, localDay(h.now(), site), tag, Place{Country: where.Country, City: where.City, Source: SourceOther})
+	h.Recorder.Impression(site.ID, localTime(h.now(), site), tag, Place{Country: where.Country, City: where.City, Source: SourceOther})
 	return site, true
 }
 
@@ -302,11 +302,16 @@ func privacySignal(r *http.Request) bool {
 }
 
 func localDay(now time.Time, site sites.Site) string {
+	return localTime(now, site).Format(time.DateOnly)
+}
+
+// localTime is now in the site's time zone (UTC when unset).
+func localTime(now time.Time, site sites.Site) time.Time {
 	location := site.TZ
 	if location == nil {
 		location = time.UTC
 	}
-	return now.In(location).Format(time.DateOnly)
+	return now.In(location)
 }
 
 // referrerHost reduces a Referer header to a lowercase host; paths and query
