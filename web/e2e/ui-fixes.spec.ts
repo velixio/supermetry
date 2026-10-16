@@ -43,14 +43,41 @@ test('realtime: empty chart explains itself and Live now card has room at 1440',
     body.visitors_per_minute = Array.from({ length: 30 }, (_, i) => ({ minute: new Date(now - (29 - i) * 60_000).toISOString(), visitors: 0 }))
     await route.fulfill({ response, json: body })
   })
+  await page.route('**/api/private/stats/timeseries**', async (route) => {
+    const interval = new URL(route.request().url()).searchParams.get('interval')
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        columns: ['time', 'visitors'],
+        rows: interval === 'day'
+          ? [{ time: '2026-10-15', visitors: 18 }, { time: '2026-10-16', visitors: 23 }]
+          : [{ time: '2026-10-16T10:00:00', visitors: 7 }, { time: '2026-10-16T11:00:00', visitors: 11 }],
+        totals: {},
+      }),
+    })
+  })
   await page.setViewportSize({ width: 1440, height: 900 })
   await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}/realtime`)
   await expect(page.getByTestId('realtime-empty')).toBeVisible()
   const cardBox = await page.getByTestId('realtime-empty').boundingBox()
   expect(cardBox!.width).toBeGreaterThan(300)
-  const live = await page.locator('[class*="border-accent"]').first().boundingBox()
+  const live = await page.getByTestId('live-visitors-card').boundingBox()
   expect(live!.width).toBeGreaterThanOrEqual(272)
+  const intervals = page.getByRole('radiogroup', { name: 'Visitor chart interval' })
+  await expect(intervals.getByRole('radio', { name: 'Minute' })).toBeChecked()
+  await intervals.getByRole('radio', { name: 'Hour' }).click()
+  await expect(page.getByRole('img', { name: 'Visitors per hour today' })).toBeVisible()
+  await intervals.getByRole('radio', { name: 'Day' }).click()
+  await expect(page.getByRole('img', { name: 'Visitors per day during the last 30 days' })).toBeVisible()
   await page.screenshot({ path: `${dir}/realtime-empty-1440.png` })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  for (const name of ['Minute', 'Hour', 'Day']) {
+    const target = await intervals.getByRole('radio', { name }).boundingBox()
+    expect(target!.height).toBeGreaterThanOrEqual(44)
+  }
+  await page.screenshot({ path: `${dir}/realtime-day-390.png`, fullPage: true })
 })
 
 test('replay: phone player uses the width and does not scroll sideways', async ({ page, owner }) => {
