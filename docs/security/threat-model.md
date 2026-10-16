@@ -276,6 +276,10 @@ This static bearer token grants all scopes on all sites:
 
 It cannot be revoked except by changing the environment and restarting.
 
+Keys shorter than 32 characters disable key auth (startup warning). As a bearer token the key also authenticates `/api/private/admin/*` as a hidden system user (`admin-key@system.invalid` in the audit log). It cannot call `update/apply`, which needs the admin's password. Through that route set the key can delete organizations, change site retention, create users and start impersonation sessions (`POST /api/private/admin/users/{user}/impersonate`, which returns a token).
+
+Impersonation controls: the session lasts 1 hour with a hard expiry; the UI shows a banner; the session cannot use admin routes, account-security actions, invitations, member role changes, share links or API keys; it is refused for instance admins, disabled users and users who must reset their password; it is audited in the instance audit and in each of the user's organizations; and it ends if the admin is demoted, disabled or deleted. Cookie-based impersonation requires re-entering the admin password.
+
 ### Abuse cases and residual risk
 
 | Abuse / residual risk | Severity | Next step |
@@ -283,7 +287,7 @@ It cannot be revoked except by changing the environment and restarting.
 | A leaked key with `stats:read` reads all data for its sites until revoked; with `data:export` or `profiles:read`, more | Medium | Encourage site-limited, expiring keys in the UI; show last-used time (stored, `internal/platform/keys/keys.go:46,297`) |
 | Expensive queries: 30-request burst × 10 s statement timeout, and no global query concurrency cap (*not found*). Session-authenticated `/api/private/query` and friends have no rate limit at all (`internal/api/router.go:151` uses `authenticate`, not `authenticateRateLimited`) | Medium | Add a per-instance query semaphore and a per-user limit |
 | `SUPERMETRY_QUERY_TIMEOUT` is parsed (`internal/config/config.go:281`) but nothing reads `cfg.QueryTimeout`; the timeout is the 10 s constant | Low | Wire it through or remove it |
-| Leaked `SUPERMETRY_ADMIN_API_KEY` is instance-wide and has no revocation path | High if set | Leave it unset in production; scope it, or drop it after setup |
+| Leaked `SUPERMETRY_ADMIN_API_KEY` is instance-wide, has no revocation path, and can now manage organizations, users and impersonation | High if set | Leave it unset in production; scope it, or drop it after setup |
 | Rate limiter is per process; `RateLimit-*` headers are approximate | Low | Document it |
 
 ---

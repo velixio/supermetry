@@ -8,6 +8,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Added
 
+- Instance admin API additions: `SUPERMETRY_ADMIN_API_KEY` (32+ characters) as a bearer token for `/api/private/admin/*`; admin delete of an organization (restorable for 7 days); admin change of a site's `retention_days`; admin creation of users with an optional organization and reset link; and time-limited, audited "sign in as a user" support sessions.
 - Pixel analytics projects ("Views anywhere"): 1×1 GIF pixels and SVG view-count badges for GitHub profiles, READMEs and docs. Views are daily aggregates split by image proxy and direct; no IPs or user agents are stored. Up to 100 pixels per project.
 - Badges carry a small Supermetry mark; set `SUPERMETRY_BADGE_BRANDING=false` to remove it. `?style=flat|flat-square` and `?color=<hex>` customise them.
 - Open counters (`/c/github.com/{owner}[/{repo}].svg`), off by default: enable with `SUPERMETRY_OPEN_COUNTERS=true`; optional `SUPERMETRY_OPEN_COUNTER_BLOCKLIST` file, one key per line.
