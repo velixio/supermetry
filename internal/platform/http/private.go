@@ -247,6 +247,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/private/admin/users/{user}", h.adminUpdateUser)
 	mux.HandleFunc("GET /api/private/admin/organizations", h.adminListOrganizations)
 	mux.HandleFunc("GET /api/private/admin/organizations/{org}", h.adminGetOrganization)
+	mux.HandleFunc("DELETE /api/private/admin/organizations/{org}", h.adminDeleteOrganization)
 	mux.HandleFunc("GET /api/private/admin/sites", h.adminListSites)
 	mux.HandleFunc("GET /api/private/admin/settings", h.adminGetSettings)
 	mux.HandleFunc("PATCH /api/private/admin/settings", h.adminUpdateSettings)
@@ -804,4 +805,35 @@ func deleteOrgTx(ctx context.Context, tx pgx.Tx, orgID int64, now time.Time) (de
 		return nil, false, sitesvc.ErrNotFound
 	}
 	return deletedSites, scheduled, nil
+}
+
+// AdminDeleteOrg deletes an organization on behalf of an instance admin with
+// the same restorable grace period as an owner deletion. It returns
+// store.ErrNotFound for a missing or already deleted organization.
+func (s Services) AdminDeleteOrg(ctx context.Context, actorUserID int64, orgID int64) error {
+	if s.Store == nil {
+		return errors.New("organization service is unavailable")
+	}
+	err := s.Store.Tx(ctx, func(tx pgx.Tx) error {
+		deleted, scheduled, err := deleteOrgTx(ctx, tx, orgID, time.Now())
+		if errors.Is(err, sitesvc.ErrNotFound) {
+			return store.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
+			ActorUserID: actorUserID, Action: "instance.organization.deleted", TargetType: "organization", TargetID: orgID,
+			Metadata: map[string]any{"scheduled": scheduled, "sites_tombstoned": len(deleted)},
+		})
+	})
+	if err != nil {
+		return err
+	}
+	if s.Sites != nil {
+		if err := s.Sites.Invalidate(); err != nil {
+			return fmt.Errorf("refresh site registry: %w", err)
+		}
+	}
+	return nil
 }

@@ -21,6 +21,7 @@ const demoPublicIDAttempts = 8
 var (
 	ErrDemoExists        = errors.New("demo site already exists")
 	ErrNotRestorable     = errors.New("site is not restorable")
+	ErrNotFound          = errors.New("not found")
 	demoPublicIDEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 )
 

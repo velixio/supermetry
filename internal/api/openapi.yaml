@@ -66,6 +66,18 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: adminDeleteOrganization
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Delete an organization with the restorable deletion grace period
+      description: Tombstones the organization and its sites; the owner can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      responses:
+        '204': { description: Organization deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/sites:
     get:
       operationId: adminListSites

@@ -4751,6 +4751,9 @@ type ServerInterface interface {
 	// AdminListOrganizations List organizations with member, site and quota counts
 	// (GET /api/private/admin/organizations)
 	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
+	// AdminDeleteOrganization Delete an organization with the restorable deletion grace period
+	// (DELETE /api/private/admin/organizations/{org})
+	AdminDeleteOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminGetOrganization Get an organization with its members, sites and quota
 	// (GET /api/private/admin/organizations/{org})
 	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -5267,6 +5270,32 @@ func (siw *ServerInterfaceWrapper) AdminListOrganizations(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminListOrganizations(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteOrganization operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteOrganization(w, r, org)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10594,6 +10623,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminListUsers)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminUpdateUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminDeleteOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminGetOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/sites", wrapper.AdminListSites)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminGetSettings)

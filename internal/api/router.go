@@ -322,6 +322,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PATCH " + privatePrefix + "/admin/users/{user}",
 		"GET " + privatePrefix + "/admin/organizations",
 		"GET " + privatePrefix + "/admin/organizations/{org}",
+		"DELETE " + privatePrefix + "/admin/organizations/{org}",
 		"GET " + privatePrefix + "/admin/sites",
 		"GET " + privatePrefix + "/admin/settings",
 		"PATCH " + privatePrefix + "/admin/settings",

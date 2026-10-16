@@ -66,7 +66,11 @@ export interface paths {
         get: operations["adminGetOrganization"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an organization with the restorable deletion grace period
+         * @description Tombstones the organization and its sites; the owner can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
+         */
+        delete: operations["adminDeleteOrganization"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4454,6 +4458,30 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AdminOrganizationDetail"];
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminDeleteOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

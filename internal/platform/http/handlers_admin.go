@@ -1,6 +1,7 @@
 package platformhttp
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/store"
 )
 
 const adminRequestsPerMinute = 120
@@ -187,6 +189,38 @@ func (h *handler) adminGetOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+// adminOrgDeleter is implemented by Services; custom MutationService
+// implementations opt in by providing it.
+type adminOrgDeleter interface {
+	AdminDeleteOrg(ctx context.Context, actorUserID int64, orgID int64) error
+}
+
+func (h *handler) adminDeleteOrganization(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	orgID, ok := adminID(r, "org")
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "organization is invalid")
+		return
+	}
+	deleter, ok := h.deps.Mutations.(adminOrgDeleter)
+	if !ok {
+		unavailable(w, "organization")
+		return
+	}
+	if err := deleter.AdminDeleteOrg(r.Context(), principal.UserID, orgID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) adminListSites(w http.ResponseWriter, r *http.Request) {
