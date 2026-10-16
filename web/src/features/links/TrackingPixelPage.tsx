@@ -109,7 +109,7 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <CopyButton label={t.pixelCopyBadge} text={`![views](${pixel.data.svg_url})`}>{t.pixelCopyBadge}</CopyButton>
-                  <CopyButton label={t.pixelCopyStatsBadge} text={`![views](${addBadgeParams(pixel.data.svg_url, 'style=stats')})`}>
+                  <CopyButton label={t.pixelCopyStatsBadge} text={`[![views](${addBadgeParams(pixel.data.svg_url, 'style=stats')})](https://supermetry.com)`}>
                     {t.pixelCopyStatsBadge}
                   </CopyButton>
                 </div>

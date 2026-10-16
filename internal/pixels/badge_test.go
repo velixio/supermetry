@@ -81,6 +81,24 @@ func TestStatsBadgeShowsTotalTodayAndSparkline(t *testing.T) {
 	}
 }
 
+func TestStatsBadgePoweredByLinksHomeOnlyWhenBranded(t *testing.T) {
+	series := []int64{1, 2, 3}
+	branded := RenderStatsBadge(StatsBadgeOptions{Label: "views", Total: 6, Today: 3, Series: series, Style: "flat", Branded: true})
+	wellFormed(t, branded)
+	for _, want := range []string{"powered by Supermetry", `href="https://supermetry.com"`} {
+		if !strings.Contains(string(branded), want) {
+			t.Errorf("branded stats badge lacks %q: %s", want, branded)
+		}
+	}
+	plain := string(RenderStatsBadge(StatsBadgeOptions{Label: "views", Total: 6, Today: 3, Series: series, Style: "flat"}))
+	if strings.Contains(plain, "Supermetry") || strings.Contains(plain, "href=") {
+		t.Errorf("unbranded stats badge mentions Supermetry: %s", plain)
+	}
+	if len(branded) <= len(plain) {
+		t.Error("branded stats badge must be wider than the plain one")
+	}
+}
+
 func TestSeriesCountsOnlyTheWindowOldestFirst(t *testing.T) {
 	c := NewTotalCache()
 	c.AddDay(1, "2026-10-30", 2)
