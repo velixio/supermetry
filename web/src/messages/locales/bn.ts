@@ -271,7 +271,7 @@ const messages: MessageTree = {
     pixelSnippet: 'HTML স্নিপেট', pixelUrl: 'ছবির URL',
     pixelCopySnippet: 'স্নিপেট কপি করুন', pixelCopyUrl: 'URL কপি করুন', pixelStatsTitle: 'ইমপ্রেশন',
     pixelImpressions: 'সময়কালের ইমপ্রেশন', pixelNote: 'ছবি ব্লক বা প্রক্সি করা ইমেইল ক্লায়েন্টে কম বা বেশি গণনা হতে পারে; ইমপ্রেশনকে প্রবণতা হিসেবে দেখুন, নির্ভুল ওপেন রেট হিসেবে নয়।',
-    last6mo: 'গত ৬ মাস', last12mo: 'গত ১২ মাস', groupBy: 'গ্রুপ করুন', byDay: 'দিন অনুযায়ী', byWeek: 'সপ্তাহ অনুযায়ী', byMonth: 'মাস অনুযায়ী', pixelToday: 'আজ', pixelAllTime: 'সব সময়', pixelPeriodCards: 'সময়কাল অনুযায়ী ইমপ্রেশন',
+    last6mo: 'গত ৬ মাস', last12mo: 'গত ১২ মাস', groupBy: 'গ্রুপ করুন', byDay: 'দিন অনুযায়ী', byWeek: 'সপ্তাহ অনুযায়ী', byHour: 'ঘণ্টা অনুযায়ী', periodYesterday: 'গতকাল', hour: 'ঘণ্টা', hourlyAlt: '{from} থেকে {to} পর্যন্ত {total}। সবচেয়ে ব্যস্ত ঘণ্টা {peakDay}, {peak}।', byMonth: 'মাস অনুযায়ী', pixelToday: 'আজ', pixelAllTime: 'সব সময়', pixelPeriodCards: 'সময়কাল অনুযায়ী ইমপ্রেশন',
     pixelBack: 'ট্র্যাকিং পিক্সেলের তালিকায় ফিরুন',
     pixelBadgeTitle: 'GitHub বা README-তে কাউন্ট দেখান',
     pixelBadgeNote: 'এই পিক্সেলের ব্যাজ যোগ করুন, যেমন GitHub প্রোফাইলের README-তে। প্রিভিউ গণনা করা হয় না।',

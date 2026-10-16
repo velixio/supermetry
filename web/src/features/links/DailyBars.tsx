@@ -2,7 +2,7 @@ import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 
 import { bucketKey, type Granularity } from '../pixels/buckets'
-import type { DayCount } from './types'
+import type { DayCount, HourCount } from './types'
 
 const t = en.linksUi
 
@@ -16,23 +16,49 @@ export function daysBetween(from: string, to: string): string[] {
   return days
 }
 
-type Props = { from: string; to: string; daily: DayCount[]; unit: string; title: string; granularity?: Granularity }
+/** Chart buckets: the pixel granularities plus site-local hours. */
+export type ChartGranularity = Granularity | 'hour'
 
-/** A bar-per-day chart with a text summary and an equivalent data table. */
-export function DailyBars({ from, to, daily, unit, title, granularity = 'day' }: Props) {
-  const byDay = new Map(daily.map((item) => [item.day, item.count]))
+type Props = {
+  from: string
+  to: string
+  daily: DayCount[]
+  hourly?: HourCount[]
+  unit: string
+  title: string
+  granularity?: ChartGranularity
+}
+
+/** Every bucket in the range with its count; hour keys read YYYY-MM-DD HH:00. */
+function chartBuckets(from: string, to: string, daily: DayCount[], hourly: HourCount[], granularity: ChartGranularity) {
   const buckets = new Map<string, number>()
-  for (const day of daysBetween(from, to)) {
-    const key = bucketKey(day, granularity)
-    buckets.set(key, (buckets.get(key) ?? 0) + (byDay.get(day) ?? 0))
+  if (granularity === 'hour') {
+    const byHour = new Map(hourly.map((item) => [item.hour, item.count]))
+    for (const day of daysBetween(from, to)) {
+      for (let hour = 0; hour < 24; hour++) {
+        const clock = `${String(hour).padStart(2, '0')}:00`
+        buckets.set(`${day} ${clock}`, byHour.get(`${day}T${clock}`) ?? 0)
+      }
+    }
+  } else {
+    const byDay = new Map(daily.map((item) => [item.day, item.count]))
+    for (const day of daysBetween(from, to)) {
+      const key = bucketKey(day, granularity)
+      buckets.set(key, (buckets.get(key) ?? 0) + (byDay.get(day) ?? 0))
+    }
   }
-  const days = [...buckets].map(([day, count]) => ({ day, count }))
+  return [...buckets].map(([day, count]) => ({ day, count }))
+}
+
+/** A bar-per-bucket chart with a text summary and an equivalent data table. */
+export function DailyBars({ from, to, daily, hourly = [], unit, title, granularity = 'day' }: Props) {
+  const days = chartBuckets(from, to, daily, hourly, granularity)
   const total = days.reduce((sum, item) => sum + item.count, 0)
   const peak = days.reduce((best, item) => (item.count > best.count ? item : best), days[0] ?? { day: from, count: 0 })
   if (total === 0) {
     return <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{t.dailyNone}</p>
   }
-  const summary = t.dailyAlt
+  const summary = (granularity === 'hour' ? t.hourlyAlt : t.dailyAlt)
     .replace('{total}', fmt.number(total))
     .replace('{from}', from)
     .replace('{to}', to)
@@ -72,13 +98,13 @@ export function DailyBars({ from, to, daily, unit, title, granularity = 'day' }:
         </svg>
       </div>
       <div aria-hidden="true" className="ml-12 flex justify-between text-xs text-muted-foreground tabular-nums">
-        <span>{from}</span>
-        <span>{to}</span>
+        <span>{granularity === 'hour' ? days[0].day : from}</span>
+        <span>{granularity === 'hour' ? days[days.length - 1].day : to}</span>
       </div>
       <table className="sr-only">
         <caption>{title}</caption>
         <thead>
-          <tr><th scope="col">{t.day}</th><th scope="col">{unit}</th></tr>
+          <tr><th scope="col">{granularity === 'hour' ? t.hour : t.day}</th><th scope="col">{unit}</th></tr>
         </thead>
         <tbody>
           {days.filter((item) => item.count > 0).map((item) => (

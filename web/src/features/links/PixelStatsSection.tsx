@@ -6,14 +6,15 @@ import { fmt } from '@/lib/format'
 import { resolveRange, type Period } from '@/lib/search'
 import { en } from '@/messages/en'
 
-import { type Granularity } from '../pixels/buckets'
 import { usePixelStats } from './api'
-import { DailyBars } from './DailyBars'
+import { type ChartGranularity, DailyBars, daysBetween } from './DailyBars'
 import { PixelPlaces } from './PixelPlaces'
 
 const t = en.linksUi
 
 const periods: { value: Period; label: string }[] = [
+  { value: 'today', label: t.pixelToday },
+  { value: 'yesterday', label: t.periodYesterday },
   { value: '7d', label: t.last7 },
   { value: '30d', label: t.last30 },
   { value: '91d', label: t.last90 },
@@ -27,12 +28,24 @@ type Props = {
   tag: string
 }
 
+/** Longest inclusive range the API returns hourly counts for. */
+const MAX_HOURLY_DAYS = 7
+
 /** Period cards and grouped impression chart for one managed tracking pixel. */
 export function PixelStatsSection({ siteId, timezone, tag }: Props) {
   const [period, setPeriod] = useState<Period>('30d')
-  const [granularity, setGranularity] = useState<Granularity>('day')
+  const [granularity, setGranularity] = useState<ChartGranularity>('day')
   const range = useMemo(() => resolveRange(period, timezone, new Date()), [period, timezone])
   const stats = usePixelStats(siteId, range, tag)
+  const hourAllowed = daysBetween(range.from, range.to).length <= MAX_HOURLY_DAYS
+  const choosePeriod = (next: Period) => {
+    const nextRange = resolveRange(next, timezone, new Date())
+    const days = daysBetween(nextRange.from, nextRange.to).length
+    setPeriod(next)
+    // A day or two reads best by hour; hours are only stored for short ranges.
+    if (days <= 2) setGranularity('hour')
+    else if (granularity === 'hour' && days > MAX_HOURLY_DAYS) setGranularity('day')
+  }
   return (
     <section aria-labelledby="pixel-stats" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -44,8 +57,9 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
               id="pixel-group"
               className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
               value={granularity}
-              onChange={(event) => setGranularity(event.target.value as Granularity)}
+              onChange={(event) => setGranularity(event.target.value as ChartGranularity)}
             >
+              <option disabled={!hourAllowed} value="hour">{t.byHour}</option>
               <option value="day">{t.byDay}</option>
               <option value="week">{t.byWeek}</option>
               <option value="month">{t.byMonth}</option>
@@ -57,7 +71,7 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
               id="pixel-period"
               className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
               value={period}
-              onChange={(event) => setPeriod(event.target.value as Period)}
+              onChange={(event) => choosePeriod(event.target.value as Period)}
             >
               {periods.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
@@ -85,7 +99,8 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
           <DailyBars
             daily={stats.data.daily}
             from={stats.data.from}
-            granularity={granularity}
+            granularity={granularity === 'hour' && !hourAllowed ? 'day' : granularity}
+            hourly={stats.data.hourly}
             title={t.pixelStatsTitle}
             to={stats.data.to}
             unit={t.pixelStatsTitle}
