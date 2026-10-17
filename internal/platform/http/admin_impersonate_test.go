@@ -222,6 +222,10 @@ func TestImpersonateCreatesShortSession(t *testing.T) {
 	if got := e.serveSession(http.MethodDelete, "/api/private/orgs/1/membership", "", cookie.Value); got.Code != http.StatusForbidden || !strings.Contains(got.Body.String(), "signed in as another user") {
 		t.Fatalf("leave during impersonation status=%d body=%s", got.Code, got.Body)
 	}
+	// Removing a member is a lasting change, so it is refused too.
+	if got := e.serveSession(http.MethodDelete, "/api/private/orgs/1/members/2", "", cookie.Value); got.Code != http.StatusForbidden || !strings.Contains(got.Body.String(), "signed in as another user") {
+		t.Fatalf("remove member during impersonation status=%d body=%s", got.Code, got.Body)
+	}
 	// Activity never extends the session past the hard expiry.
 	for _, step := range []time.Duration{20 * time.Minute, 20 * time.Minute, 19 * time.Minute} {
 		e.clock.Advance(step)
