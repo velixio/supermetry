@@ -288,6 +288,9 @@ export function SiteGeneralPage({
                   <Input
                     id="site-hosts"
                     name="hosts"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     defaultValue={site.data.allowed_hosts.join(", ")}
                   />
                   <FieldDescription>
