@@ -12,7 +12,6 @@ export const uiFlows = {
     retry: 'Try again',
     saving: 'Saving…',
     saveChanges: 'Save changes',
-    saved: 'Saved.',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     contactSupport: 'Contact support',
@@ -38,7 +37,6 @@ export const uiFlows = {
     joinHeading: (org: string) => `Join ${org}`,
     invitedBy: (name: string, org: string) => `${name} invited you to join ${org} on Supermetry.`,
     invitedTo: (org: string) => `You have been invited to join ${org} on Supermetry.`,
-    invitationFor: (email: string) => `This invitation is for ${email}.`,
     expires: (date: string) => `The invitation expires on ${date}.`,
     joinAs: (email: string) => `Join as ${email}`,
     joining: 'Joining…',
@@ -144,7 +142,6 @@ export const uiFlows = {
     leaveConfirmBody: 'To come back, an owner or admin must invite you again.',
     leaveConfirm: 'Leave',
     lastOwner: 'You are the last owner. Make another member an owner, or delete the organization, before you leave.',
-    left: (org: string) => `You left ${org}.`,
   },
   invitations: {
     sent: (email: string) => `Invitation created for ${email}. If email is set up on this instance it is on its way; you can also copy the link.`,
