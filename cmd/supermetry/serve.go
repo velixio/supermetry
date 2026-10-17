@@ -325,6 +325,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
 	siteService.SetClock(settings.clock.Now)
 	siteService.SetSiteLimit(cfg.MaxSitesPerOrg)
+	siteService.SetRetentionPolicy(cfg.DefaultRetentionDays, cfg.RetentionForever)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
 	overviewService := sitesvc.NewOverview(platformStore, sessions)
 	overviewService.SetClock(settings.clock.Now)
@@ -388,6 +389,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		MaxOrgsPerUser:     cfg.MaxOrgsPerUser,
 		MaxSitesPerOrg:     cfg.MaxSitesPerOrg,
 		BaseURL:            cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
+		SupportURL:      cfg.SupportURL,
+		RetentionPolicy: siteService.RetentionPolicy,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)
 		},

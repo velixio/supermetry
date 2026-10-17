@@ -93,10 +93,65 @@ func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 
 func TestCreateRequiresUppercaseProjectCurrency(t *testing.T) {
 	service, _, principal, _ := newSites(t)
-	for _, currency := range []string{"", "usd", "US", "USDX"} {
+	for _, currency := range []string{"usd", "US", "USDX", " USD"} {
 		if _, err := service.Create(context.Background(), principal, CreateInput{Name: "Bad currency", Hosts: []string{"example.test"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: currency}); !errors.Is(err, ErrInvalid) {
 			t.Errorf("currency %q error=%v, want invalid", currency, err)
 		}
+	}
+}
+
+func TestCreateWebSiteWithoutCurrencyLeavesItUnconfigured(t *testing.T) {
+	service, registry, principal, _ := newSites(t)
+	ctx := context.Background()
+	site, err := service.Create(ctx, principal, CreateInput{Name: "No revenue", Hosts: []string{"plain.example.test"}, Timezone: "UTC", RetentionDays: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := registry.ByPublicID(site.PublicID)
+	if !ok || got.RevenueCurrency != "" || got.RevenueCurrencyState != sites.RevenueCurrencyUnconfigured {
+		t.Fatalf("registry currency = %q/%q", got.RevenueCurrency, got.RevenueCurrencyState)
+	}
+	// The currency can still be chosen once, later, from the site settings.
+	currency := "EUR"
+	updated, err := service.Update(ctx, principal, site.ID, SitePatch{RevenueCurrency: &currency})
+	if err != nil || updated.RevenueCurrency != "EUR" || updated.RevenueCurrencyState != sites.RevenueCurrencyConfigured {
+		t.Fatalf("set later = %+v, %v", updated, err)
+	}
+}
+
+func TestRetentionPolicyRejectsForeverWhenDisabled(t *testing.T) {
+	service, _, principal, _ := newSites(t)
+	ctx := context.Background()
+	if days, forever := service.RetentionPolicy(); days != 30 || !forever {
+		t.Fatalf("default policy = %d, %v", days, forever)
+	}
+	forever, err := service.Create(ctx, principal, CreateInput{Name: "Forever", Hosts: []string{"forever.example.test"}, Timezone: "UTC", RetentionDays: 0, RevenueCurrency: "USD"})
+	if err != nil || forever.Retention != db.RetForever {
+		t.Fatalf("forever allowed by default: %+v, %v", forever.Retention, err)
+	}
+	service.SetRetentionPolicy(90, false)
+	if days, allowed := service.RetentionPolicy(); days != 90 || allowed {
+		t.Fatalf("policy = %d, %v", days, allowed)
+	}
+	if _, err := service.Create(ctx, principal, CreateInput{Name: "Forever 2", Hosts: []string{"forever2.example.test"}, Timezone: "UTC", RetentionDays: 0, RevenueCurrency: "USD"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("create forever err = %v, want invalid", err)
+	}
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Ninety", Hosts: []string{"ninety.example.test"}, Timezone: "UTC", RetentionDays: 90, RevenueCurrency: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	zero := 0
+	if _, err := service.Update(ctx, principal, site.ID, SitePatch{RetentionDays: &zero}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("update to forever err = %v, want invalid", err)
+	}
+	// A site that already keeps events forever can still save its other settings.
+	name := "Still forever"
+	if _, err := service.Update(ctx, principal, forever.ID, SitePatch{Name: &name}); err != nil {
+		t.Fatalf("unrelated update of a forever site: %v", err)
+	}
+	unchanged := 0
+	if _, err := service.Update(ctx, principal, forever.ID, SitePatch{Name: &name, RetentionDays: &unchanged}); err != nil {
+		t.Fatalf("resubmitting the existing forever retention: %v", err)
 	}
 }
 

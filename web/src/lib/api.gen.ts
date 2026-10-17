@@ -2760,6 +2760,11 @@ export interface components {
              * @description Set when an instance admin signed in as this user; the admin's email.
              */
             impersonated_by_email?: string | null;
+            /**
+             * Format: date-time
+             * @description Present while an instance admin is signed in as this user; when that session ends. Activity never extends it.
+             */
+            impersonation_expires_at?: string;
         };
         UserPreferences: {
             /** @enum {string} */
@@ -3103,7 +3108,7 @@ export interface components {
             data: components["schemas"]["Site"][];
             next_cursor?: string | null;
         };
-        /** @description hosts and revenue_currency are required when kind is web (the default) and ignored for pixel. */
+        /** @description hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel. */
         CreateSiteRequest: {
             name: string;
             /**
@@ -3114,8 +3119,12 @@ export interface components {
             kind: "web" | "pixel";
             hosts?: string[];
             timezone: string;
-            /** @enum {integer} */
-            retention_days: 0 | 7 | 30 | 90 | 365;
+            /**
+             * @description Raw-event retention in days; 0 keeps events forever. Omitted uses the instance default (SUPERMETRY_DEFAULT_RETENTION_DAYS). 0 is rejected with 400 when SUPERMETRY_RETENTION_FOREVER is false.
+             * @enum {integer}
+             */
+            retention_days?: 0 | 7 | 30 | 90 | 365;
+            /** @description Permanent project currency. Omitted leaves it unconfigured; an owner or admin can set it once later. */
             revenue_currency?: string;
         };
         PixelInput: {

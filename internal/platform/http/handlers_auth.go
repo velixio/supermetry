@@ -73,12 +73,22 @@ func (h *handler) authConfig(w http.ResponseWriter, r *http.Request) {
 	if h.deps.GeoIPSource != nil && h.deps.GeoIPSource() == "maxmind" {
 		geoIPSource = "maxmind"
 	}
+	defaultRetention, retentionForever := 30, true
+	if h.deps.RetentionPolicy != nil {
+		defaultRetention, retentionForever = h.deps.RetentionPolicy()
+	}
 	writeJSON(w, http.StatusOK, struct {
-		SetupRequired bool   `json:"setup_required"`
-		Signup        string `json:"signup"`
-		HomepageURL   string `json:"homepage_url"`
-		GeoIPSource   string `json:"geoip_source"`
-	}{SetupRequired: setupRequired, Signup: mode, HomepageURL: homepageURL, GeoIPSource: geoIPSource})
+		SetupRequired        bool   `json:"setup_required"`
+		Signup               string `json:"signup"`
+		HomepageURL          string `json:"homepage_url"`
+		GeoIPSource          string `json:"geoip_source"`
+		DefaultRetentionDays int    `json:"default_retention_days"`
+		RetentionForever     bool   `json:"retention_forever"`
+		SupportURL           string `json:"support_url,omitempty"`
+	}{
+		SetupRequired: setupRequired, Signup: mode, HomepageURL: homepageURL, GeoIPSource: geoIPSource,
+		DefaultRetentionDays: defaultRetention, RetentionForever: retentionForever, SupportURL: h.deps.SupportURL,
+	})
 }
 
 func (h *handler) login(w http.ResponseWriter, r *http.Request) {
