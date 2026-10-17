@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { refetchSiteIcon } from '@/features/sites/api'
 import { AiInstallPrompt, InstallRecipes, SiteDetails, type VerifyResult } from './InstallRecipes'
 import { TrackingSnippet } from './TrackingSnippet'
-import { InstallStatusView, type InstallStatus } from '@/features/sites/InstallStatus'
+import { InstallStatusCard, InstallTroubleshooting, type InstallStatus } from '@/features/sites/InstallStatus'
+import { uiFlows } from '@/messages/uiFlows'
 
 type CachedMe = {
   memberships: Array<{ sites: Array<{ id: number; icon_url?: string }> }>
@@ -118,8 +119,9 @@ export function SiteSettingsTabs({ org, site, current, showReplay = false, track
   )
 }
 
-export function installationStatusInterval(): 30000 {
-  return 30_000
+/** Poll every few seconds while the first event is awaited, then every thirty. */
+export function installationStatusInterval(status?: InstallStatus): number {
+  return status === 'receiving' || status === 'quiet' ? 30_000 : 5_000
 }
 
 const featureSetup: { feature: string; needs: string; code?: string }[] = [
@@ -167,13 +169,28 @@ function FeatureSetup({ currency }: { currency?: string }) {
   )
 }
 
-export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, verify, now = new Date() }: { publicId: string; snippet?: string; fullSnippet?: string; installStatus?: InstallStatus; lastSeenAt?: string | null; revenueCurrency?: string; verify?: () => Promise<VerifyResult | undefined>; now?: Date }) {
+export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, verify, now = new Date(), dashboardHref, domainsHref, snippetLoading = false, snippetFailed = false, onRetrySnippet }: {
+  publicId: string; snippet?: string; fullSnippet?: string; installStatus?: InstallStatus; lastSeenAt?: string | null; revenueCurrency?: string
+  verify?: () => Promise<VerifyResult | undefined>; now?: Date
+  /** In-app links for the status card; omitted outside the router. */
+  dashboardHref?: string; domainsHref?: string
+  snippetLoading?: boolean; snippetFailed?: boolean; onRetrySnippet?: () => void
+}) {
+  const renderLink = (href: string, label: string) => <Link className="font-medium text-foreground underline underline-offset-4" to={href}>{label}</Link>
+  const troubleshooting = <InstallTroubleshooting domainsHref={domainsHref} renderLink={renderLink} />
   return (
     <div className="flex flex-col gap-6">
+      <InstallStatusCard
+        status={installStatus}
+        lastSeenAt={lastSeenAt}
+        now={now}
+        troubleshooting={troubleshooting}
+        dashboardLink={dashboardHref ? <Button asChild><Link to={dashboardHref}>{uiFlows.install.openDashboard}</Link></Button> : undefined}
+      />
+      <TrackingSnippet publicId={publicId} snippet={snippet} fullSnippet={fullSnippet} loading={snippetLoading} failed={snippetFailed} onRetry={onRetrySnippet} />
       <SiteDetails publicId={publicId} snippet={snippet} />
-      <TrackingSnippet publicId={publicId} snippet={snippet} fullSnippet={fullSnippet} />
       <AiInstallPrompt publicId={publicId} snippet={snippet} />
-      <InstallRecipes publicId={publicId} snippet={snippet} verify={verify} />
+      <InstallRecipes publicId={publicId} snippet={snippet} verify={verify} troubleshooting={troubleshooting} />
       <FeatureSetup currency={revenueCurrency} />
       <aside className="border-l-2 border-accent pl-4 text-sm">
         <p className="font-medium">Track custom clicks</p>
@@ -184,7 +201,6 @@ export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, la
         <p className="font-medium">Reduce ad-blocker losses</p>
         <p className="text-muted-foreground">Proxy the script through your own domain and forward the event endpoint from the same host.</p>
       </aside>
-      <InstallStatusView status={installStatus} lastSeenAt={lastSeenAt} now={now} />
     </div>
   )
 }

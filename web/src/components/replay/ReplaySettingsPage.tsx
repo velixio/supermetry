@@ -13,7 +13,7 @@ export function ReplaySettingsPage({ siteId, editable }: { siteId: number; edita
   if (settings.isPending) return <Skeleton className="h-96 w-full" />
   if (settings.isError) return settings.error instanceof ReplayApiError && settings.error.status === 404
     ? null
-    : <ErrorState detail={settings.error.message} onRetry={() => void settings.refetch()} />
+    : <ErrorState level="page" detail={settings.error.message} onRetry={() => void settings.refetch()} />
   return (
     <ReplaySettingsForm
       editable={editable}

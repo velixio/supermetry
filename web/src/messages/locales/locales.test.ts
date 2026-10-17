@@ -5,6 +5,7 @@ import { en } from '@/messages/en'
 import { dashEdit } from '@/messages/dashEdit'
 import { ui } from '@/messages/ui'
 import { uiAccount } from '@/messages/uiAccount'
+import { uiFlows } from '@/messages/uiFlows'
 import de from './de'
 import deDashEdit from './de.dashEdit'
 import es from './es'
@@ -17,17 +18,21 @@ import bn from './bn'
 import bnDashEdit from './bn.dashEdit'
 import bnUi from './bn.ui'
 import bnUiAccount from './bn.uiAccount'
+import esUiFlows from './es.uiFlows'
+import deUiFlows from './de.uiFlows'
+import bnUiFlows from './bn.uiFlows'
 
 const english = en as unknown as MessageTree
 const englishDashEdit = dashEdit as unknown as MessageTree
 const englishUi = ui as unknown as MessageTree
 const englishUiAccount = uiAccount as unknown as MessageTree
+const englishUiFlows = uiFlows as unknown as MessageTree
 
 describe.each([
-  ['es', es, esDashEdit, esUi, esUiAccount],
-  ['de', de, deDashEdit, deUi, deUiAccount],
-  ['bn', bn, bnDashEdit, bnUi, bnUiAccount],
-] as const)('%s catalogue', (_code, main, editor, uiTree, accountTree) => {
+  ['es', es, esDashEdit, esUi, esUiAccount, esUiFlows],
+  ['de', de, deDashEdit, deUi, deUiAccount, deUiFlows],
+  ['bn', bn, bnDashEdit, bnUi, bnUiAccount, bnUiFlows],
+] as const)('%s catalogue', (_code, main, editor, uiTree, accountTree, flowsTree) => {
   it('has every English key, no extras, and matching placeholders and function arguments', () => {
     expect(compareCatalogue(english, main)).toEqual([])
   })
@@ -39,6 +44,7 @@ describe.each([
   it('covers the ui catalogue the same way', () => {
     expect(compareCatalogue(englishUi, uiTree)).toEqual([])
     expect(compareCatalogue(englishUiAccount, accountTree)).toEqual([])
+    expect(compareCatalogue(englishUiFlows, flowsTree)).toEqual([])
   })
 
   it('translates rather than copying English for most strings', () => {

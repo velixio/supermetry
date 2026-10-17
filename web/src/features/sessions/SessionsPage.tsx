@@ -177,7 +177,7 @@ export function SessionsPage({
     <PageContainer>
       <PageHeader title="Sessions" description="Inspect anonymous visits without linking people across days." />
       {sessions.isError ? (
-        <ErrorState detail={sessions.error?.detail} onRetry={() => void sessions.refetch()} />
+        <ErrorState level="page" detail={sessions.error?.detail} onRetry={() => void sessions.refetch()} />
       ) : sessions.isPending ? (
         <div aria-label="Loading sessions" className="flex flex-col gap-3">
           <Skeleton className="h-10 w-full" />

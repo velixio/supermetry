@@ -12,12 +12,19 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Added
 
+- `SUPERMETRY_DEFAULT_RETENTION_DAYS` (7, 30, 90, 365 or 0; default 30) sets the retention a new site gets when none is chosen, and `SUPERMETRY_RETENTION_FOREVER` (default `true`) can turn off "keep forever": the API then rejects `retention_days: 0` with 400 and the dashboard hides the option. `SUPERMETRY_SUPPORT_URL` adds an optional "Contact support" link to the sign-in and error pages. All three are reported by `GET /api/private/auth/config`.
+- Account recovery and onboarding: a "Forgot password?" page, clearer reset and invitation pages (an invitation names the organization and inviter, a signed-in invitee joins with one button, a new account is signed in after accepting), a two-field first-site form (domain and time zone, with retention and revenue currency under Advanced options), a live installation status with troubleshooting, and a no-data banner that follows the site's install status.
+- Members: remove a member, leave an organization (`DELETE /api/private/orgs/{org}/membership`; the last owner gets 409), confirmations before reducing access, and invitation status, expiry, resend and confirmed revoke. `GET /api/private/invitations/{token}` previews an invitation without using it.
+- Instance admin pages: create users, sign in as a user, delete an organization and edit a site's retention; the support-session bar stays in view and shows when the session ends (`impersonation_expires_at` on `GET /api/private/me`).
+- Branded 404, error and unknown-site pages.
 - Instance admin API additions: `SUPERMETRY_ADMIN_API_KEY` (32+ characters) as a bearer token for `/api/private/admin/*`; admin delete of an organization (restorable for 7 days); admin change of a site's `retention_days`; admin creation of users with an optional organization and reset link; and time-limited, audited "sign in as a user" support sessions.
 - Pixel analytics projects ("Views anywhere"): 1×1 GIF pixels and SVG view-count badges for GitHub profiles, READMEs and docs. Views are daily aggregates split by image proxy and direct; no IPs or user agents are stored. Up to 100 pixels per project.
 - Badges carry a small Supermetry mark; set `SUPERMETRY_BADGE_BRANDING=false` to remove it. `?style=flat|flat-square` and `?color=<hex>` customise them.
 - Open counters (`/c/github.com/{owner}[/{repo}].svg`), off by default: enable with `SUPERMETRY_OPEN_COUNTERS=true`; optional `SUPERMETRY_OPEN_COUNTER_BLOCKLIST` file, one key per line.
 
 ### Security and upgrade notes
+
+- `POST /api/private/sites`: `retention_days` is now optional (the instance default applies) and so is `revenue_currency` for web sites (the project then stays unconfigured until an owner or admin chooses a currency once in the site settings). Clients that relied on an omitted `retention_days` meaning "keep forever" must send `0` explicitly.
 
 - **Existing `SUPERMETRY_ADMIN_API_KEY` values gain power.** A key of 32 or more characters now also grants instance-admin API access (`/api/private/admin/*`), including deleting organizations, changing retention, creating users and signing in as a user. If that is not wanted, rotate the key or unset it before upgrading. Sessions already started with the key last up to 1 hour after rotation.
 - Organization audit entries written during a "sign in as a user" session carry `impersonated_by` with the admin's user id.

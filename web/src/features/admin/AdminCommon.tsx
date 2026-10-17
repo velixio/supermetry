@@ -1,6 +1,6 @@
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,8 +18,10 @@ export function AdminPage({ title, description, children }: { title: string; des
   )
 }
 
-export function SearchForm({ onSearch }: { onSearch: (value: string) => void }) {
-  const [value, setValue] = useState('')
+/** The search box of the admin lists. `initial` comes from the URL (?q=) so results can be linked and survive Back. */
+export function SearchForm({ onSearch, initial = '' }: { onSearch: (value: string) => void; initial?: string }) {
+  const [value, setValue] = useState(initial)
+  useEffect(() => setValue(initial), [initial])
   const submit = (event: FormEvent) => {
     event.preventDefault()
     onSearch(value)
@@ -40,9 +42,19 @@ export function ErrorLine({ error }: { error: unknown }) {
   return <p role="alert" className="text-sm text-destructive">{error instanceof Error ? error.message : String(error)}</p>
 }
 
-export function formatDate(value?: string | null) {
-  if (!value) return en.admin.neverSignedIn
+export function formatDate(value?: string | null, empty: string = en.admin.neverSignedIn) {
+  if (!value) return empty
   return new Date(value).toLocaleString(activeLocale(), { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+/** Search state for an admin list: the URL's ?q= when the route provides it, local state otherwise. */
+export function useAdminSearch(search?: string, onSearch?: (value: string) => void): [string, (value: string) => void] {
+  const [local, setLocal] = useState('')
+  return search !== undefined && onSearch ? [search, onSearch] : [local, setLocal]
+}
+
+export function parseAdminSearch(value: Record<string, unknown>): { q?: string } {
+  return typeof value.q === 'string' && value.q.trim() ? { q: value.q.slice(0, 200) } : {}
 }
 
 export const tableClass = 'w-full min-w-[40rem] text-left text-sm'

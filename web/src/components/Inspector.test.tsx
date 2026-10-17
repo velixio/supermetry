@@ -131,7 +131,7 @@ describe('Inspector', () => {
     useStats.mockReturnValue({ data: undefined, error: { detail: 'Upstream failed' }, isError: true, isPending: false, refetch })
     render(<Inspector anonymous={false} query={query} target={india} trafficMetric="visitors" onFilter={vi.fn()} />)
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Upstream failed')
+    expect(screen.getByRole('status')).toHaveTextContent('Upstream failed')
   })
 
   it('reads a Weekly rhythm cell from the cached grid query and offers no filter', () => {

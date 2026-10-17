@@ -6,6 +6,8 @@ import { privateRequest } from '@/features/settings/privateApi'
 type Schemas = components['schemas']
 export type AdminUser = Schemas['AdminUser']
 export type AdminUserPatch = Schemas['AdminUserPatch']
+export type AdminUserCreate = Schemas['AdminUserCreate']
+export type AdminUserCreated = Schemas['AdminUserCreated']
 export type AdminOrganization = Schemas['AdminOrganization']
 export type AdminOrganizationDetail = Schemas['AdminOrganizationDetail']
 export type AdminSite = Schemas['AdminSite']
@@ -49,6 +51,39 @@ export function useUpdateAdminUser() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: AdminUserPatch }) => privateRequest<AdminUser>('PATCH', `${base}/users/${id}`, { body: patch }),
     onSuccess: () => client.invalidateQueries({ queryKey: adminKeys.all }),
+  })
+}
+
+export function useCreateAdminUser() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: AdminUserCreate) => privateRequest<AdminUserCreated>('POST', `${base}/users`, { body }),
+    onSuccess: () => client.invalidateQueries({ queryKey: adminKeys.all }),
+  })
+}
+
+/** Replaces the admin's session cookies with a one-hour session as the user. */
+export function useImpersonateUser() {
+  return useMutation({
+    mutationFn: ({ id, password, totpCode }: { id: number; password: string; totpCode?: string }) =>
+      privateRequest<void>('POST', `${base}/users/${id}/impersonate`, { body: { password, ...(totpCode ? { totp_code: totpCode } : {}) } }),
+  })
+}
+
+export function useDeleteAdminOrganization() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => privateRequest<void>('DELETE', `${base}/organizations/${id}`),
+    onSuccess: () => client.invalidateQueries({ queryKey: adminKeys.all }),
+  })
+}
+
+export function useSetAdminSiteRetention() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, retentionDays }: { id: number; retentionDays: number }) =>
+      privateRequest<{ id: number; retention_days: number }>('PATCH', `${base}/sites/${id}`, { body: { retention_days: retentionDays } }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['admin', 'sites'] }),
   })
 }
 

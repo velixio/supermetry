@@ -17,6 +17,7 @@ import (
 	"supermetry/internal/platform/audit"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
 	"supermetry/internal/platform/orgs"
 	"supermetry/internal/platform/store"
 	coresites "supermetry/internal/sites"
@@ -106,6 +107,7 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		twoFactorGraceUntil = status.GraceUntil
 	}
 	var impersonatedByEmail *string
+	var impersonationExpiresAt *time.Time
 	if principal.ImpersonatedBy != 0 {
 		impersonator, err := h.deps.Store.UserByID(r.Context(), principal.ImpersonatedBy)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -119,6 +121,11 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		impersonatedByEmail = &impersonator.Email
+		if cookie, err := r.Cookie(platformauth.CookieName); err == nil {
+			if session, err := h.deps.Store.SessionByHash(r.Context(), platformcrypto.HashToken(cookie.Value)); err == nil {
+				impersonationExpiresAt = session.HardExpiresAt
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, struct {
 		User struct {
@@ -137,6 +144,8 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 		DemoPromptDismissed bool                  `json:"demo_prompt_dismissed"`
 		Version             string                `json:"version"`
 		ImpersonatedByEmail *string               `json:"impersonated_by_email"`
+		// ImpersonationExpiresAt is when an impersonation session ends; nothing extends it.
+		ImpersonationExpiresAt *time.Time `json:"impersonation_expires_at,omitempty"`
 	}{
 		User: struct {
 			ID                     int64      `json:"id"`
@@ -149,11 +158,12 @@ func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 			TwoFactorSetupRequired bool       `json:"two_factor_setup_required"`
 			TwoFactorGraceUntil    *time.Time `json:"two_factor_grace_until,omitempty"`
 		}{user.ID, user.Email, user.Name, user.TOTPEnabled, user.CreatedAt, user.LastLoginAt, user.IsAdmin, twoFactorSetupRequired, twoFactorGraceUntil},
-		Preferences:         preferences,
-		Memberships:         items,
-		DemoPromptDismissed: demoPromptDismissed,
-		Version:             h.deps.Version,
-		ImpersonatedByEmail: impersonatedByEmail,
+		Preferences:            preferences,
+		Memberships:            items,
+		DemoPromptDismissed:    demoPromptDismissed,
+		Version:                h.deps.Version,
+		ImpersonatedByEmail:    impersonatedByEmail,
+		ImpersonationExpiresAt: impersonationExpiresAt,
 	})
 }
 

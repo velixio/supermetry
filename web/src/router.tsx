@@ -1,6 +1,7 @@
 import { createRouter } from '@tanstack/react-router'
 
 import { stringifySearch } from '@/lib/search'
+import { NotFoundPage } from './components/NotFound'
 import { RoutePending } from './components/RoutePending'
 import { routeTree } from './routeTree.gen'
 
@@ -35,6 +36,7 @@ export const router = createRouter({
   defaultPreloadDelay: 50,
   defaultPreloadStaleTime: 0,
   defaultPendingComponent: RoutePending,
+  defaultNotFoundComponent: NotFoundPage,
   defaultPendingMs: 180,
   defaultPendingMinMs: 200,
   scrollRestoration: true,

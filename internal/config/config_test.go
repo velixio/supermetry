@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"net/netip"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -612,5 +613,69 @@ func TestDatabaseURLFromSeparateSettings(t *testing.T) {
 	// Neither a URL nor a host is still an error.
 	if _, err := Load(env(without(without(values, "SUPERMETRY_DATABASE_URL"), "SUPERMETRY_DATABASE_HOST"))); err == nil {
 		t.Fatal("Load accepted a configuration with no database")
+	}
+}
+
+func TestLoadSiteRetentionPolicy(t *testing.T) {
+	got, err := Load(env(baseEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DefaultRetentionDays != 30 || !got.RetentionForever {
+		t.Fatalf("defaults = %d days, forever %v; want 30 and true", got.DefaultRetentionDays, got.RetentionForever)
+	}
+	for _, days := range []string{"7", "30", "90", "365", "0"} {
+		values := baseEnv()
+		values["SUPERMETRY_DEFAULT_RETENTION_DAYS"] = days
+		got, err := Load(env(values))
+		if err != nil {
+			t.Fatalf("SUPERMETRY_DEFAULT_RETENTION_DAYS=%s: %v", days, err)
+		}
+		if want, _ := strconv.Atoi(days); got.DefaultRetentionDays != want {
+			t.Fatalf("DefaultRetentionDays = %d, want %d", got.DefaultRetentionDays, want)
+		}
+	}
+	for _, bad := range []string{"1", "60", "-7", "forever", "3650"} {
+		values := baseEnv()
+		values["SUPERMETRY_DEFAULT_RETENTION_DAYS"] = bad
+		if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_DEFAULT_RETENTION_DAYS") {
+			t.Errorf("SUPERMETRY_DEFAULT_RETENTION_DAYS=%q error = %v", bad, err)
+		}
+	}
+	values := baseEnv()
+	values["SUPERMETRY_RETENTION_FOREVER"] = "false"
+	values["SUPERMETRY_DEFAULT_RETENTION_DAYS"] = "90"
+	got, err = Load(env(values))
+	if err != nil || got.RetentionForever || got.DefaultRetentionDays != 90 {
+		t.Fatalf("forever off = %+v, %v", got.RetentionForever, err)
+	}
+	values["SUPERMETRY_DEFAULT_RETENTION_DAYS"] = "0"
+	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_RETENTION_FOREVER") {
+		t.Fatalf("a forever default with forever disabled was accepted: %v", err)
+	}
+	values["SUPERMETRY_RETENTION_FOREVER"] = "sometimes"
+	if _, err := Load(env(values)); err == nil {
+		t.Fatal("accepted SUPERMETRY_RETENTION_FOREVER=sometimes")
+	}
+}
+
+func TestLoadSupportURL(t *testing.T) {
+	got, err := Load(env(baseEnv()))
+	if err != nil || got.SupportURL != "" {
+		t.Fatalf("default SupportURL = %q, %v", got.SupportURL, err)
+	}
+	values := baseEnv()
+	values["SUPERMETRY_SUPPORT_URL"] = "https://help.example/contact"
+	got, err = Load(env(values))
+	if err != nil || got.SupportURL != "https://help.example/contact" {
+		t.Fatalf("SupportURL = %q, %v", got.SupportURL, err)
+	}
+	values["SUPERMETRY_SUPPORT_URL"] = "mailto:help@example.com"
+	if got, err = Load(env(values)); err != nil || got.SupportURL != "mailto:help@example.com" {
+		t.Fatalf("mailto SupportURL = %q, %v", got.SupportURL, err)
+	}
+	values["SUPERMETRY_SUPPORT_URL"] = "javascript:alert(1)"
+	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_SUPPORT_URL") {
+		t.Fatalf("unsafe support URL error = %v", err)
 	}
 }

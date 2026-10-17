@@ -1,11 +1,12 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router'
 
 import { SessionBoundary } from '@/lib/session-lifecycle'
-import { ErrorState } from '@/components/ErrorState'
+import { NotFoundPage, RouteErrorPage } from '@/components/NotFound'
 
 export const Route = createRootRoute({
   component: RootLayout,
-  errorComponent: ({ error, reset }) => <ErrorState detail={error instanceof Error ? error.message : String(error)} onRetry={reset} />,
+  errorComponent: ({ error, reset }) => <RouteErrorPage error={error} reset={reset} />,
+  notFoundComponent: NotFoundPage,
 })
 
 function RootLayout() {

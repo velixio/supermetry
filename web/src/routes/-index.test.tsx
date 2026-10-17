@@ -1,12 +1,16 @@
 import '@testing-library/jest-dom/vitest'
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Onboarding } from '@/features/sites/Onboarding'
 import { landingTarget } from '@/features/sites/SitesOverviewLanding'
 
 afterEach(cleanup)
+
+const wrap = (node: ReactNode) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{node}</QueryClientProvider>
 
 describe('onboarding', () => {
   it('defaults to the last visited site, or the first site, unless overview is chosen', () => {
@@ -27,7 +31,7 @@ describe('onboarding', () => {
     expect(landingTarget({ ...me, preferences: { landing_page: 'last_site', sites_view: 'cards', last_site_id: 8 } })).toBe('/app/acme/shop-public')
   })
 
-  it('creates a first site with all settings and opens Installation', async () => {
+  it('creates a first site from a domain and opens Installation', async () => {
     const createSite = vi.fn().mockResolvedValue({
       id: 7,
       org_id: 1,
@@ -40,7 +44,7 @@ describe('onboarding', () => {
       revenue_currency_state: 'configured',
     })
     const navigate = vi.fn()
-    render(
+    render(wrap(
       <Onboarding
         me={{
           user: { id: 1, name: 'Owner', email: 'owner@example.com' },
@@ -55,30 +59,24 @@ describe('onboarding', () => {
         createSite={createSite}
         navigate={navigate}
       />,
-    )
+    ))
 
-    fireEvent.change(screen.getByLabelText('Site name'), {
-      target: { value: 'Docs' },
-    })
-    fireEvent.change(screen.getByLabelText('Domains'), {
+    fireEvent.change(screen.getByLabelText('Domain'), {
       target: { value: 'docs.example.com' },
     })
-    fireEvent.change(screen.getByLabelText('Time zone'), {
-      target: { value: 'Asia/Kolkata' },
-    })
-    fireEvent.change(screen.getByLabelText('Retention'), {
+    fireEvent.change(screen.getByLabelText('Raw data retention'), {
       target: { value: '90' },
     })
-    fireEvent.change(screen.getByLabelText('Revenue currency'), {
+    fireEvent.change(screen.getByLabelText('Revenue currency (optional)'), {
       target: { value: 'usd' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create site' }))
 
     await waitFor(() =>
       expect(createSite).toHaveBeenCalledWith({
-        name: 'Docs',
+        name: 'docs.example.com',
         hosts: ['docs.example.com'],
-        timezone: 'Asia/Kolkata',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         retention_days: 90,
         revenue_currency: 'USD',
       }),
@@ -92,7 +90,7 @@ describe('onboarding', () => {
 
   it('skips site creation and opens the organization empty state', () => {
     const navigate = vi.fn()
-    render(
+    render(wrap(
       <Onboarding
         me={{
           user: { id: 1, name: 'Owner', email: 'owner@example.com' },
@@ -107,7 +105,7 @@ describe('onboarding', () => {
         createSite={vi.fn()}
         navigate={navigate}
       />,
-    )
+    ))
 
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
     expect(navigate).toHaveBeenCalledWith('/app/acme/sites')

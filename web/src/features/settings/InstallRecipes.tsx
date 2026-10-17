@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CheckIcon, CopyIcon, SparklesIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ const maxPolls = 20
 type VerifyState = 'idle' | 'checking' | 'ok' | 'timeout' | 'error'
 
 /** Polls the install status until an event newer than the click arrives. */
-export function VerifyInstallation({ verify, intervalMs = pollEveryMs }: { verify: () => Promise<VerifyResult | undefined>; intervalMs?: number }) {
+export function VerifyInstallation({ verify, intervalMs = pollEveryMs, troubleshooting }: { verify: () => Promise<VerifyResult | undefined>; intervalMs?: number; troubleshooting?: ReactNode }) {
   const [state, setState] = useState<VerifyState>('idle')
   const run = useRef(0)
   useEffect(() => () => { run.current += 1 }, [])
@@ -43,25 +43,43 @@ export function VerifyInstallation({ verify, intervalMs = pollEveryMs }: { verif
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button type="button" variant="outline" className="min-h-11" disabled={state === 'checking'} onClick={() => void start()}>
-        Verify installation
-      </Button>
-      <span role="status" className="text-sm text-muted-foreground">
-        {state === 'checking' ? 'Waiting for the first event… open your site in another tab.' : null}
-        {state === 'ok' ? 'Events are arriving. Installation verified.' : null}
-        {state === 'timeout' ? 'No event yet. Check that the snippet is on the page, then try again.' : null}
-        {state === 'error' ? 'Could not check the status. Try again.' : null}
-      </span>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" variant="outline" className="min-h-11" disabled={state === 'checking'} onClick={() => void start()}>
+          Verify installation
+        </Button>
+        <span role="status" className="text-sm text-muted-foreground">
+          {state === 'checking' ? 'Waiting for the first event… open your site in another tab.' : null}
+          {state === 'ok' ? 'Events are arriving. Installation verified.' : null}
+          {state === 'timeout' ? 'No event yet. Check the common causes below, then try again.' : null}
+          {state === 'error' ? 'Could not check the status. Try again.' : null}
+        </span>
+      </div>
+      {state === 'timeout' && troubleshooting ? troubleshooting : null}
     </div>
   )
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
+export function useCopyStatus(resetAfterMs = 3_000) {
   const [copied, setCopied] = useState<'yes' | 'manual' | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const copy = async (value: string) => {
+    clearTimeout(timer.current)
+    // Clear first so a second copy is announced again.
+    setCopied(null)
+    const ok = await copyText(value)
+    setCopied(ok ? 'yes' : 'manual')
+    if (ok) timer.current = setTimeout(() => setCopied(null), resetAfterMs)
+  }
+  return { copied, copy }
+}
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const { copied, copy } = useCopyStatus()
   return (
     <div className="flex items-center gap-3">
-      <Button type="button" variant="outline" className="min-h-11" onClick={() => void copyText(value).then((ok) => setCopied(ok ? 'yes' : 'manual'))}>
+      <Button type="button" variant="outline" className="min-h-11" onClick={() => void copy(value)}>
         {copied === 'yes' ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
         {label}
       </Button>
@@ -93,7 +111,7 @@ export function SiteDetails({ publicId, snippet }: { publicId: string; snippet?:
           <div key={field.label} className="flex min-w-0 flex-col gap-2 rounded-lg border p-3">
             <dt className="text-sm font-medium">{field.label}</dt>
             <dd className="min-w-0 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm select-all" aria-label={field.label}>{field.value}</dd>
-            <CopyButton value={field.value} label={`Copy ${field.label === 'Site ID' ? 'site ID' : 'host'}`} />
+            <dd><CopyButton value={field.value} label={`Copy ${field.label === 'Site ID' ? 'site ID' : 'host'}`} /></dd>
           </div>
         ))}
       </dl>
@@ -134,7 +152,7 @@ function RecipePanel({ recipe }: { recipe: Recipe }) {
   )
 }
 
-export function InstallRecipes({ publicId, snippet, verify }: { publicId: string; snippet?: string; verify?: () => Promise<VerifyResult | undefined> }) {
+export function InstallRecipes({ publicId, snippet, verify, troubleshooting }: { publicId: string; snippet?: string; verify?: () => Promise<VerifyResult | undefined>; troubleshooting?: ReactNode }) {
   const input = useRecipeInput(publicId, snippet)
   const recipes = useMemo(() => buildRecipes(input), [input])
   const groups: { label: string; items: Recipe[] }[] = [
@@ -156,7 +174,7 @@ export function InstallRecipes({ publicId, snippet, verify }: { publicId: string
           <TabsContent key={recipe.id} value={recipe.id} className="min-w-0 pt-3"><RecipePanel recipe={recipe} /></TabsContent>
         ))}
       </Tabs>
-      {verify ? <VerifyInstallation verify={verify} /> : null}
+      {verify ? <VerifyInstallation verify={verify} troubleshooting={troubleshooting} /> : null}
     </section>
   )
 }

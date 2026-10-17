@@ -47,7 +47,6 @@ const messages: MessageTree = {
   },
   emptyState: { setUpTracking: 'Tracking einrichten' },
   impersonation: {
-    signedInAs: (email: string) => `Von einem Administrator als ${email} angemeldet`,
     endSession: 'Sitzung beenden',
   },
   pager: {

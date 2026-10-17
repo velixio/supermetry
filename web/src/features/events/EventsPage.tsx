@@ -120,7 +120,7 @@ export function EventsPage({
         ) : null}
       </section>
       {events.isError ? (
-        <ErrorState detail={events.error.message} onRetry={() => void events.refetch()} />
+        <ErrorState level="page" detail={events.error.message} onRetry={() => void events.refetch()} />
       ) : events.isPending ? (
         <div aria-label="Loading events" className="flex flex-col gap-3">
           <Skeleton className="h-10 w-full" /><Skeleton className="h-64 w-full" />

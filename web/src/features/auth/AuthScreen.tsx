@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { BrandLogo } from '@/components/BrandLogo'
 import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
+import { SupportLink } from '@/components/SupportLink'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 
 export function AuthScreen({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -20,6 +21,7 @@ export function AuthScreen({ title, description, children }: { title: string; de
           </CardHeader>
           <CardContent className="flex flex-col gap-4 px-6">{children}</CardContent>
         </Card>
+        <SupportLink className="text-xs" />
         <PoweredBySupermetry className="text-xs text-muted-foreground hover:text-foreground" />
       </section>
     </main>

@@ -105,21 +105,25 @@ export function AppHeader({
         <Breadcrumbs membership={membership} />
       </div>
       <div className="flex items-center gap-1">
-        <Button
-          ref={paletteTriggerRef}
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="gap-1.5 text-muted-foreground"
-          aria-label={ui.palette.open}
-          aria-keyshortcuts="Control+K Meta+K"
-          onClick={onOpenPalette}
-        >
-          <SearchIcon aria-hidden="true" />
-          <kbd className="hidden rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium md:inline">
+        {/* The shortcut hint sits beside the button's text, not inside it: the button's name is
+            "Open command palette" and the shortcut is announced through aria-keyshortcuts. */}
+        <span className="relative inline-flex">
+          <Button
+            ref={paletteTriggerRef}
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="gap-1.5 text-muted-foreground md:pr-12"
+            aria-label={ui.palette.open}
+            aria-keyshortcuts="Control+K Meta+K"
+            onClick={onOpenPalette}
+          >
+            <SearchIcon aria-hidden="true" />
+          </Button>
+          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium text-muted-foreground md:inline">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
-        </Button>
+        </span>
         <UpdateNotice instanceAdmin={instanceAdmin} />
         {membership && site && requestedSite ? (
           <div className="hidden sm:block">

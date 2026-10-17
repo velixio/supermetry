@@ -107,8 +107,39 @@ describe('site settings', () => {
     expect(screen.getByText(detail)).toBeVisible()
   })
 
-  it('polls status no more than once every thirty seconds', () => {
-    expect(installationStatusInterval()).toBe(30_000)
+  it('polls every few seconds until the first event, then every thirty seconds', () => {
+    expect(installationStatusInterval(undefined)).toBe(5_000)
+    expect(installationStatusInterval('waiting')).toBe(5_000)
+    expect(installationStatusInterval('receiving')).toBe(30_000)
+    expect(installationStatusInterval('quiet')).toBe(30_000)
+  })
+
+  it('puts the live status first, with troubleshooting while waiting', () => {
+    render(<InstallGuide publicId="site-public" installStatus="waiting" snippet="<script></script>" fullSnippet="<script></script>" />)
+    const heading = screen.getByRole('heading', { name: 'Waiting for the first event' })
+    const snippetButton = screen.getByRole('button', { name: 'Copy tracking snippet' })
+    expect(heading.compareDocumentPosition(snippetButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('list', { name: 'Setup progress' })).toHaveTextContent('Install the snippet')
+    expect(screen.getByText('No event yet? Check these common causes')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open dashboard' })).not.toBeInTheDocument()
+  })
+
+  it('offers the dashboard once events arrive', async () => {
+    renderWithRouter(<InstallGuide publicId="site-public" installStatus="receiving" lastSeenAt="2026-10-07T09:59:40Z" now={new Date('2026-10-07T10:00:00Z')} dashboardHref="/app/acme/docs" domainsHref="/app/acme/docs/settings/general" snippet="<script></script>" fullSnippet="<script></script>" />)
+    expect(await screen.findByRole('link', { name: 'Open dashboard' })).toHaveAttribute('href', '/app/acme/docs')
+    expect(screen.getByRole('heading', { name: 'Events are arriving' })).toBeVisible()
+    expect(screen.queryByText('No event yet? Check these common causes')).not.toBeInTheDocument()
+  })
+
+  it('holds the snippet space while it loads and offers a retry when it fails', () => {
+    const { rerender } = render(<InstallGuide publicId="site-public" snippetLoading />)
+    expect(screen.getByRole('status', { name: 'Loading your snippet…' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy tracking snippet' })).not.toBeInTheDocument()
+    const onRetry = vi.fn()
+    rerender(<InstallGuide publicId="site-public" snippetFailed onRetrySnippet={onRetry} />)
+    expect(screen.getByText('Your tracking snippet could not be loaded.')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onRetry).toHaveBeenCalled()
   })
 
   it('updates the icon cache and confirms a successful refetch', async () => {

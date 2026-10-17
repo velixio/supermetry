@@ -89,7 +89,7 @@ type DialogState = { mode: 'add' | 'edit'; widget: ReturnType<typeof makeWidget>
 export function DashboardEditor(props: DashboardEditorProps) {
   const dashboards = useDashboards(props.siteId)
   if (!props.canWrite) return <p className="rounded-xl border bg-card p-4 text-sm" role="status">{t.readOnly}</p>
-  if (dashboards.isError) return <ErrorState detail={dashboards.error?.detail ?? t.loadError} onRetry={() => void dashboards.refetch()} />
+  if (dashboards.isError) return <ErrorState level="page" detail={dashboards.error?.detail ?? t.loadError} onRetry={() => void dashboards.refetch()} />
   if (dashboards.isPending) {
     return (
       <div aria-busy="true" aria-label={t.loading} className="flex flex-col gap-3" role="status">

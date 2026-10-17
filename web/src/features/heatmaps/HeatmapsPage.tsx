@@ -203,7 +203,7 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
   }
 
   if (site.isError) {
-    return <ErrorState detail={site.error?.detail} onRetry={() => void site.refetch()} />
+    return <ErrorState level="page" detail={site.error?.detail} onRetry={() => void site.refetch()} />
   }
 
   if (!enabled) {
@@ -269,7 +269,7 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
         </CardContent>
       </Card>
       {report.isError ? (
-        <ErrorState detail={report.error?.detail} onRetry={() => void report.refetch()} />
+        <ErrorState level="page" detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
         <Skeleton aria-label="Loading heatmap report" className="h-96 w-full" />
       ) : totalClicks === 0 && pageviews === 0 ? (

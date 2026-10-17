@@ -32,7 +32,7 @@ export type DashboardViewerProps = {
 /** Renders one saved dashboard's layout with the existing dashboard cards. */
 export function DashboardViewer(props: DashboardViewerProps) {
   const dashboards = useDashboards(props.base.siteId)
-  if (dashboards.isError) return <ErrorState detail={dashboards.error?.detail ?? t.loadError} onRetry={() => void dashboards.refetch()} />
+  if (dashboards.isError) return <ErrorState level="page" detail={dashboards.error?.detail ?? t.loadError} onRetry={() => void dashboards.refetch()} />
   if (dashboards.isPending) {
     return (
       <div aria-busy="true" aria-label={t.loading(t.switcherLabel)} className="grid grid-cols-1 gap-4 md:grid-cols-2" role="status">

@@ -107,7 +107,7 @@ function ProfileDetailPageContent({
   const retryErasure = useRetryProfileErasure(orgId)
   const canDelete = role === 'owner' || role === 'admin'
 
-  if (profile.isError) return <ErrorState detail={profile.error?.message} onRetry={() => void profile.refetch?.()} />
+  if (profile.isError) return <ErrorState level="page" detail={profile.error?.message} onRetry={() => void profile.refetch?.()} />
   if (profile.isPending || !profile.data) return <Skeleton className="h-72 w-full" />
   if (profile.data.site_id !== siteId) return <AccessDenied subject="read this profile from the selected site" />
   const data = profile.data as Paged<typeof profile.data>

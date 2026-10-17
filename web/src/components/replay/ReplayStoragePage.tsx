@@ -13,7 +13,7 @@ export function ReplayStoragePage() {
   if (storage.isPending) return <Skeleton className="h-96 w-full" />
   if (storage.isError) return storage.error instanceof ReplayApiError && storage.error.status === 404
     ? null
-    : <ErrorState detail={storage.error.message} onRetry={() => void storage.refetch()} />
+    : <ErrorState level="page" detail={storage.error.message} onRetry={() => void storage.refetch()} />
   return (
     <ReplayStorageForm
       saving={save.isPending}

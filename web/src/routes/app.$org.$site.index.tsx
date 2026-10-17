@@ -300,7 +300,9 @@ function WebDashboardStateRoute() {
         </div>
       )}
       <DashboardNoDataBanner
-        query={query}
+        siteId={site.id}
+        orgId={membership?.org.id}
+        enabled={!site.is_demo}
         href={`/app/${org}/${siteSlug}/settings/installation`}
       />
       {edit ? (
