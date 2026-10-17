@@ -39,8 +39,9 @@ describe('SiteForm', () => {
       name: 'shop.example.com',
       hosts: ['www.shop.example.com'],
       timezone: 'Asia/Tokyo',
-      retention_days: 90,
     }))
+    // The server applies the instance default retention when the user did not choose one.
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('retention_days')
   })
 
   it('keeps retention and the permanent currency under advanced options', async () => {
@@ -58,6 +59,15 @@ describe('SiteForm', () => {
       retention_days: 365,
       revenue_currency: 'EUR',
     })))
+  })
+
+  it('shows the loaded default and hides keep forever until the settings allow it', () => {
+    const onSubmit = vi.fn()
+    const { rerender } = render(<SiteForm submitLabel="Add site" onSubmit={onSubmit} />)
+    expect(screen.queryByRole('option', { name: 'Keep forever' })).not.toBeInTheDocument()
+    rerender(<SiteForm submitLabel="Add site" onSubmit={onSubmit} retention={{ defaultDays: 90, forever: false }} />)
+    expect(screen.getByLabelText('Raw data retention')).toHaveValue('90')
+    expect(screen.queryByRole('option', { name: 'Keep forever' })).not.toBeInTheDocument()
   })
 
   it('offers keep forever only when the instance allows it', () => {

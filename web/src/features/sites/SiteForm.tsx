@@ -46,13 +46,17 @@ export function SiteForm({
   submitLabel,
   onSubmit,
   secondaryAction,
-  retention = retentionPolicy(undefined),
+  retention,
 }: {
   submitLabel: string
   onSubmit: (input: WebSiteInput) => Promise<void>
   secondaryAction?: React.ReactNode
+  /** The instance policy once loaded. Until then keep-forever stays hidden and the server's default applies. */
   retention?: RetentionPolicy
 }) {
+  const policy = retention ?? { ...retentionPolicy(undefined), forever: false }
+  // Only a retention the user picked is sent; otherwise the server applies the instance default.
+  const [retentionChosen, setRetentionChosen] = useState(false)
   const [error, setError] = useState<{ field: FieldName; message: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -79,7 +83,7 @@ export function SiteForm({
         name: nameFromDomain(hosts[0] ?? ''),
         hosts,
         timezone: String(data.get('timezone') ?? 'UTC').trim(),
-        retention_days: Number(data.get('retention') ?? retention.defaultDays) as RetentionDays,
+        ...(retentionChosen ? { retention_days: Number(data.get('retention')) as RetentionDays } : {}),
         ...(currency ? { revenue_currency: currency } : {}),
       })
     } catch (cause) {
@@ -130,12 +134,14 @@ export function SiteForm({
               <select
                 id="site-retention"
                 name="retention"
-                defaultValue={String(retention.defaultDays)}
+                key={`${policy.defaultDays}:${policy.forever}`}
+                defaultValue={String(policy.defaultDays)}
+                onChange={() => setRetentionChosen(true)}
                 className={nativeSelectClass}
                 aria-invalid={Boolean(retentionError) || undefined}
                 aria-describedby={retentionError ? 'site-retention-hint site-retention-error' : 'site-retention-hint'}
               >
-                {retentionOptions(retention).map((days) => (
+                {retentionOptions(policy).map((days) => (
                   <option key={days} value={days}>{retentionLabel(days)}</option>
                 ))}
               </select>
