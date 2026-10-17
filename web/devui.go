@@ -37,9 +37,9 @@ func devUIOrigin(raw string) string {
 // devUI makes the server a reverse proxy for the Vite dev server: GET and HEAD
 // requests that reach the UI catch-all (including WebSocket upgrades for hot
 // reload) are forwarded to raw, so the browser only ever talks to this server.
-// /api, other methods and the legacy /invite?token= link stay with next, which
-// rewrites the invite link before it is proxied on the following hop. With no
-// valid URL, next is returned unchanged.
+// /api, other methods and the legacy /invite?token= and /password-reset?token=
+// links stay with next, which rewrites those links before they are proxied on
+// the following hop. With no valid URL, next is returned unchanged.
 func devUI(next http.Handler, raw string) http.Handler {
 	origin := devUIOrigin(raw)
 	if origin == "" {
@@ -83,7 +83,8 @@ func devUI(next http.Handler, raw string) http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if (r.Method != http.MethodGet && r.Method != http.MethodHead) || r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") ||
-			(r.URL.Path == "/invite" && r.URL.Query().Get("token") != "") {
+			(r.URL.Path == "/invite" && r.URL.Query().Get("token") != "") ||
+			(r.URL.Path == "/password-reset" && r.URL.Query().Get("token") != "") {
 			next.ServeHTTP(w, r)
 			return
 		}

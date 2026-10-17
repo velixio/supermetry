@@ -112,7 +112,7 @@ func TestCheckAdminExistsMatchesDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	if table != nil {
-		if err := db.QueryRow(context.Background(), "select exists(select 1 from users where is_admin limit 1)").Scan(&want); err != nil {
+		if err := db.QueryRow(context.Background(), "select exists(select 1 from users u where u.is_admin and not coalesce((to_jsonb(u)->>'is_system')::boolean,false) limit 1)").Scan(&want); err != nil {
 			t.Fatal(err)
 		}
 	}

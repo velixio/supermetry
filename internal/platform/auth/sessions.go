@@ -20,6 +20,9 @@ type Session struct {
 	UserID      int64
 	ExpiresAt   time.Time
 	DeviceLabel string
+	// ImpersonatedBy is the instance admin signed in as UserID; zero for the
+	// user's own session.
+	ImpersonatedBy int64
 }
 
 type SessionInfo struct {
@@ -97,6 +100,22 @@ func (a *Auth) session(ctx context.Context, cookieValue string, activity bool) (
 		_ = a.store.DeleteSession(ctx, hash)
 		return Session{}, false
 	}
+	// The hard expiry is independent of expires_at and of activity: nothing
+	// extends it. An impersonation session must carry one.
+	if (record.HardExpiresAt != nil && !now.Before(*record.HardExpiresAt)) || (record.ImpersonatedBy != 0 && record.HardExpiresAt == nil) {
+		_ = a.store.DeleteSession(ctx, hash)
+		return Session{}, false
+	}
+	if record.ImpersonatedBy != 0 {
+		active, err := a.store.ImpersonatorActive(ctx, record.ImpersonatedBy)
+		if err != nil {
+			return Session{}, false
+		}
+		if !active {
+			_ = a.store.DeleteSession(ctx, hash)
+			return Session{}, false
+		}
+	}
 	user, err := a.store.UserByID(ctx, record.UserID)
 	if err != nil || user.DisabledAt != nil || user.PasswordResetRequired {
 		_ = a.store.DeleteSession(ctx, hash)
@@ -107,7 +126,7 @@ func (a *Auth) session(ctx context.Context, cookieValue string, activity bool) (
 			return Session{}, false
 		}
 	}
-	return Session{UserID: record.UserID, ExpiresAt: record.ExpiresAt, DeviceLabel: record.DeviceLabel}, true
+	return Session{UserID: record.UserID, ExpiresAt: record.ExpiresAt, DeviceLabel: record.DeviceLabel, ImpersonatedBy: record.ImpersonatedBy}, true
 }
 
 func (a *Auth) Logout(ctx context.Context, cookieValue string) error {
@@ -122,7 +141,7 @@ func (a *Auth) Sessions(ctx context.Context, userID int64) ([]SessionInfo, error
 	sessions := make([]SessionInfo, 0, len(records))
 	now := a.clock.Now()
 	for _, record := range records {
-		if !now.Before(record.ExpiresAt) || now.Sub(record.LastSeenAt) >= sessionIdleTimeout {
+		if !now.Before(record.ExpiresAt) || now.Sub(record.LastSeenAt) >= sessionIdleTimeout || (record.HardExpiresAt != nil && !now.Before(*record.HardExpiresAt)) {
 			_ = a.store.DeleteSession(ctx, record.IDHash)
 			continue
 		}

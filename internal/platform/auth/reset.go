@@ -34,7 +34,7 @@ func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
 		values ($1,$2,$3)`, hash, user.ID, a.clock.Now().Add(resetLifetime)); err != nil {
 		return "", err
 	}
-	link := a.baseURL + "/password-reset?token=" + url.QueryEscape(plain)
+	link := a.baseURL + "/reset/" + url.PathEscape(plain)
 	if !a.mail.Enabled() {
 		return link, nil
 	}

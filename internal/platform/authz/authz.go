@@ -25,6 +25,10 @@ type Principal struct {
 	Scopes       []string
 	Capabilities []string
 	BillingAdmin bool
+	// ImpersonatedBy is the instance admin signed in as UserID through an
+	// impersonation session; zero otherwise. Such a principal never reaches
+	// the instance admin routes or account-security actions.
+	ImpersonatedBy int64
 }
 
 type Action string

@@ -14,7 +14,8 @@ export interface paths {
         /** List and search instance users */
         get: operations["adminListUsers"];
         put?: never;
-        post?: never;
+        /** Create a user with an unusable password, optionally with an organization they own */
+        post: operations["adminCreateUser"];
         delete?: never;
         options?: never;
         head?: never;
@@ -36,6 +37,26 @@ export interface paths {
         head?: never;
         /** Enable, disable, force password reset, promote or demote a user */
         patch: operations["adminUpdateUser"];
+        trace?: never;
+    };
+    "/api/private/admin/users/{user}/impersonate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in as a user for support
+         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes, change the account's password, email or two-factor settings, delete the account, revoke sessions, create API keys, send or accept invitations, change member roles, or create share links, notification channels, alerts or scheduled reports. Organization audit entries written during the session carry impersonated_by with the admin's user id. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as; a user who must reset their password returns 409.
+         */
+        post: operations["adminImpersonateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/private/admin/organizations": {
@@ -66,7 +87,11 @@ export interface paths {
         get: operations["adminGetOrganization"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an organization with the restorable deletion grace period
+         * @description Tombstones the organization and its sites; the owner can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
+         */
+        delete: operations["adminDeleteOrganization"];
         options?: never;
         head?: never;
         patch?: never;
@@ -87,6 +112,26 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/sites/{site_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set a site's retention class
+         * @description Moves the site to the given retention class, as an owner edit does. Audited as instance.site.retention_changed.
+         */
+        patch: operations["adminSetSiteRetention"];
         trace?: never;
     };
     "/api/private/admin/settings": {
@@ -2467,6 +2512,34 @@ export interface components {
             last_login_at?: string;
             memberships: components["schemas"]["AdminMembership"][];
         };
+        AdminUserCreate: {
+            /** Format: email */
+            email: string;
+            /** @description Defaults to the part of the email before the at sign. */
+            name?: string;
+            /** @description When set, an organization with this name is created and the user owns it. */
+            org_name?: string;
+            /** @description Email a password-set link. When mail is not configured, the link is returned as reset_url instead. */
+            send_reset?: boolean;
+        };
+        AdminUserCreated: {
+            /** Format: int64 */
+            id: number;
+            /** Format: email */
+            email: string;
+            name: string;
+            instance_admin: boolean;
+            disabled: boolean;
+            password_reset_required: boolean;
+            totp_enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_login_at?: string;
+            memberships: components["schemas"]["AdminMembership"][];
+            /** @description One-time password-set link; present only when send_reset was set and mail is not configured. */
+            reset_url?: string;
+        };
         AdminUsersResponse: {
             data: components["schemas"]["AdminUser"][];
         };
@@ -2640,6 +2713,12 @@ export interface components {
             /** @description Existing public site identifier, present for demo_exists. */
             site_id?: string;
         };
+        AdminImpersonation: {
+            /** @description Session token to send as the supermetry_session cookie. Mutating requests with it also need a supermetry_csrf cookie and an X-CSRF-Token header with the same value, as for any cookie session. */
+            token: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
         CurrentUserResponse: {
             user: {
                 /** Format: int64 */
@@ -2676,6 +2755,11 @@ export interface components {
             demo_prompt_dismissed: boolean;
             /** @description Build version reported by the running binary; development builds report dev. */
             version: string;
+            /**
+             * Format: email
+             * @description Set when an instance admin signed in as this user; the admin's email.
+             */
+            impersonated_by_email?: string | null;
         };
         UserPreferences: {
             /** @enum {string} */
@@ -4378,6 +4462,43 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
+    adminCreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreate"];
+            };
+        };
+        responses: {
+            /** @description Created user. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A user with this email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
     adminUpdateUser: {
         parameters: {
             query?: never;
@@ -4406,6 +4527,57 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminImpersonateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: password */
+                    password: string;
+                    totp_code?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session created through the admin API key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminImpersonation"];
+                };
+            };
+            /** @description Session created; the session and CSRF cookies are set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The user must reset their password first. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             429: components["responses"]["RateLimited"];
         };
     };
@@ -4461,6 +4633,30 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
+    adminDeleteOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     adminListSites: {
         parameters: {
             query?: {
@@ -4484,6 +4680,45 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminSetSiteRetention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {integer} */
+                    retention_days: 0 | 7 | 30 | 90 | 365;
+                };
+            };
+        };
+        responses: {
+            /** @description Retention updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int32 */
+                        id: number;
+                        /** @enum {integer} */
+                        retention_days: 0 | 7 | 30 | 90 | 365;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };

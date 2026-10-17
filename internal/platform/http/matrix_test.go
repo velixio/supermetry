@@ -311,6 +311,9 @@ func queryToken(t *testing.T, rawURL string) string {
 	if token := parsed.Query().Get("token"); token != "" {
 		return token
 	}
+	if token, ok := strings.CutPrefix(parsed.Path, "/reset/"); ok && token != "" {
+		return token
+	}
 	t.Fatalf("token missing from %q", rawURL)
 	return ""
 }

@@ -162,14 +162,14 @@ func setUserAdmin(ctx context.Context, args []string, output io.Writer, admin bo
 	defer closeServices()
 	if !admin {
 		var others int
-		if err := data.Pool.QueryRow(ctx, `select count(*) from users where is_admin and lower(email)<>$1`, users.NormalizeEmail(*email)).Scan(&others); err != nil {
+		if err := data.Pool.QueryRow(ctx, `select count(*) from users where is_admin and not is_system and lower(email)<>$1`, users.NormalizeEmail(*email)).Scan(&others); err != nil {
 			return err
 		}
 		if others == 0 {
 			return errors.New("refusing to remove the last instance admin")
 		}
 	}
-	tag, err := data.Pool.Exec(ctx, `update users set is_admin=$2 where lower(email)=$1`, users.NormalizeEmail(*email), admin)
+	tag, err := data.Pool.Exec(ctx, `update users set is_admin=$2 where lower(email)=$1 and not is_system`, users.NormalizeEmail(*email), admin)
 	if err != nil {
 		return err
 	}

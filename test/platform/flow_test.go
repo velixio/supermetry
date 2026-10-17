@@ -99,7 +99,7 @@ func TestPlatformFlow(t *testing.T) {
 func TestUserCLI(t *testing.T) {
 	env := prepare(t)
 	output := env.runCLI(t, "user", "create", "--email", "c@example.test", "--org", "CLI Org")
-	if !strings.Contains(output, "/password-reset?token=") {
+	if !strings.Contains(output, "/reset/") {
 		t.Fatalf("create output does not contain a password reset URL: %q", output)
 	}
 	var memberships int
@@ -114,7 +114,7 @@ func TestUserCLI(t *testing.T) {
 		t.Fatalf("created owner memberships = %d", memberships)
 	}
 	output = env.runCLI(t, "user", "reset-password", "--email", "c@example.test")
-	if !strings.Contains(output, "/password-reset?token=") {
+	if !strings.Contains(output, "/reset/") {
 		t.Fatalf("reset output does not contain a password reset URL: %q", output)
 	}
 }

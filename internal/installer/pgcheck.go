@@ -62,8 +62,10 @@ func CheckAdminExists(ctx context.Context, conn string) (bool, error) {
 	if table == nil {
 		return false, nil
 	}
+	// The admin API key's system user (is_system, migration 0230) is not a real
+	// admin. to_jsonb keeps the check working on databases migrated before 0230.
 	var exists bool
-	if err := db.QueryRow(checkCtx, "select exists(select 1 from users where is_admin limit 1)").Scan(&exists); err != nil {
+	if err := db.QueryRow(checkCtx, `select exists(select 1 from users u where u.is_admin and not coalesce((to_jsonb(u)->>'is_system')::boolean,false) limit 1)`).Scan(&exists); err != nil {
 		return false, classifyCheckError(err)
 	}
 	return exists, nil

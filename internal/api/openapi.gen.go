@@ -1555,6 +1555,60 @@ func (e VitalsDimension) Valid() bool {
 	}
 }
 
+// Defines values for AdminSetSiteRetentionJSONBodyRetentionDays.
+const (
+	AdminSetSiteRetentionJSONBodyRetentionDaysN0   AdminSetSiteRetentionJSONBodyRetentionDays = 0
+	AdminSetSiteRetentionJSONBodyRetentionDaysN30  AdminSetSiteRetentionJSONBodyRetentionDays = 30
+	AdminSetSiteRetentionJSONBodyRetentionDaysN365 AdminSetSiteRetentionJSONBodyRetentionDays = 365
+	AdminSetSiteRetentionJSONBodyRetentionDaysN7   AdminSetSiteRetentionJSONBodyRetentionDays = 7
+	AdminSetSiteRetentionJSONBodyRetentionDaysN90  AdminSetSiteRetentionJSONBodyRetentionDays = 90
+)
+
+// Valid indicates whether the value is a known member of the AdminSetSiteRetentionJSONBodyRetentionDays enum.
+func (e AdminSetSiteRetentionJSONBodyRetentionDays) Valid() bool {
+	switch e {
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN0:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN30:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN365:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN7:
+		return true
+	case AdminSetSiteRetentionJSONBodyRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminSetSiteRetention200JSONResponseBodyRetentionDays.
+const (
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN0   AdminSetSiteRetention200JSONResponseBodyRetentionDays = 0
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN30  AdminSetSiteRetention200JSONResponseBodyRetentionDays = 30
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN365 AdminSetSiteRetention200JSONResponseBodyRetentionDays = 365
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN7   AdminSetSiteRetention200JSONResponseBodyRetentionDays = 7
+	AdminSetSiteRetention200JSONResponseBodyRetentionDaysN90  AdminSetSiteRetention200JSONResponseBodyRetentionDays = 90
+)
+
+// Valid indicates whether the value is a known member of the AdminSetSiteRetention200JSONResponseBodyRetentionDays enum.
+func (e AdminSetSiteRetention200JSONResponseBodyRetentionDays) Valid() bool {
+	switch e {
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN0:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN30:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN365:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN7:
+		return true
+	case AdminSetSiteRetention200JSONResponseBodyRetentionDaysN90:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRevenueReportParamsBreakdown.
 const (
 	GetRevenueReportParamsBreakdownCampaign GetRevenueReportParamsBreakdown = "campaign"
@@ -1721,6 +1775,14 @@ type AdminAuditResponse struct {
 	Data []AdminAuditEntry `json:"data"`
 }
 
+// AdminImpersonation defines model for AdminImpersonation.
+type AdminImpersonation struct {
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Token Session token to send as the supermetry_session cookie. Mutating requests with it also need a supermetry_csrf cookie and an X-CSRF-Token header with the same value, as for any cookie session.
+	Token string `json:"token"`
+}
+
 // AdminMembership defines model for AdminMembership.
 type AdminMembership struct {
 	OrgId   int64               `json:"org_id"`
@@ -1862,6 +1924,37 @@ type AdminUser struct {
 	Name                  string              `json:"name"`
 	PasswordResetRequired bool                `json:"password_reset_required"`
 	TotpEnabled           bool                `json:"totp_enabled"`
+}
+
+// AdminUserCreate defines model for AdminUserCreate.
+type AdminUserCreate struct {
+	Email openapi_types.Email `json:"email"`
+
+	// Name Defaults to the part of the email before the at sign.
+	Name *string `json:"name,omitempty"`
+
+	// OrgName When set, an organization with this name is created and the user owns it.
+	OrgName *string `json:"org_name,omitempty"`
+
+	// SendReset Email a password-set link. When mail is not configured, the link is returned as reset_url instead.
+	SendReset *bool `json:"send_reset,omitempty"`
+}
+
+// AdminUserCreated defines model for AdminUserCreated.
+type AdminUserCreated struct {
+	CreatedAt             time.Time           `json:"created_at"`
+	Disabled              bool                `json:"disabled"`
+	Email                 openapi_types.Email `json:"email"`
+	Id                    int64               `json:"id"`
+	InstanceAdmin         bool                `json:"instance_admin"`
+	LastLoginAt           *time.Time          `json:"last_login_at,omitempty"`
+	Memberships           []AdminMembership   `json:"memberships"`
+	Name                  string              `json:"name"`
+	PasswordResetRequired bool                `json:"password_reset_required"`
+
+	// ResetUrl One-time password-set link; present only when send_reset was set and mail is not configured.
+	ResetUrl    *string `json:"reset_url,omitempty"`
+	TotpEnabled bool    `json:"totp_enabled"`
 }
 
 // AdminUserPatch defines model for AdminUserPatch.
@@ -2047,6 +2140,9 @@ type CreatedShare struct {
 // CurrentUserResponse defines model for CurrentUserResponse.
 type CurrentUserResponse struct {
 	DemoPromptDismissed bool `json:"demo_prompt_dismissed"`
+
+	// ImpersonatedByEmail Set when an instance admin signed in as this user; the admin's email.
+	ImpersonatedByEmail *openapi_types.Email `json:"impersonated_by_email,omitempty"`
 	Memberships         []struct {
 		BillingAdmin          bool     `json:"billing_admin"`
 		Capabilities          []string `json:"capabilities"`
@@ -3796,10 +3892,27 @@ type AdminListSitesParams struct {
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// AdminSetSiteRetentionJSONBody defines parameters for AdminSetSiteRetention.
+type AdminSetSiteRetentionJSONBody struct {
+	RetentionDays AdminSetSiteRetentionJSONBodyRetentionDays `json:"retention_days"`
+}
+
+// AdminSetSiteRetentionJSONBodyRetentionDays defines parameters for AdminSetSiteRetention.
+type AdminSetSiteRetentionJSONBodyRetentionDays int
+
+// AdminSetSiteRetention200JSONResponseBodyRetentionDays defines parameters for AdminSetSiteRetention.
+type AdminSetSiteRetention200JSONResponseBodyRetentionDays int
+
 // AdminListUsersParams defines parameters for AdminListUsers.
 type AdminListUsersParams struct {
 	Search *string     `form:"search,omitempty" json:"search,omitempty"`
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminImpersonateUserJSONBody defines parameters for AdminImpersonateUser.
+type AdminImpersonateUserJSONBody struct {
+	Password string  `json:"password"`
+	TotpCode *string `json:"totp_code,omitempty"`
 }
 
 // ConfirmCurrentUserEmailChangeLinkParams defines parameters for ConfirmCurrentUserEmailChangeLink.
@@ -4150,11 +4263,20 @@ type AdminUpdateTwoFactorPolicyJSONRequestBody = AdminTwoFactorPolicy
 // AdminUpdateSettingsJSONRequestBody defines body for AdminUpdateSettings for application/json ContentType.
 type AdminUpdateSettingsJSONRequestBody = AdminSettingsPatch
 
+// AdminSetSiteRetentionJSONRequestBody defines body for AdminSetSiteRetention for application/json ContentType.
+type AdminSetSiteRetentionJSONRequestBody AdminSetSiteRetentionJSONBody
+
 // AdminApplyUpdateJSONRequestBody defines body for AdminApplyUpdate for application/json ContentType.
 type AdminApplyUpdateJSONRequestBody = AdminApplyUpdateRequest
 
+// AdminCreateUserJSONRequestBody defines body for AdminCreateUser for application/json ContentType.
+type AdminCreateUserJSONRequestBody = AdminUserCreate
+
 // AdminUpdateUserJSONRequestBody defines body for AdminUpdateUser for application/json ContentType.
 type AdminUpdateUserJSONRequestBody = AdminUserPatch
+
+// AdminImpersonateUserJSONRequestBody defines body for AdminImpersonateUser for application/json ContentType.
+type AdminImpersonateUserJSONRequestBody AdminImpersonateUserJSONBody
 
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
 type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
@@ -4751,6 +4873,9 @@ type ServerInterface interface {
 	// AdminListOrganizations List organizations with member, site and quota counts
 	// (GET /api/private/admin/organizations)
 	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
+	// AdminDeleteOrganization Delete an organization with the restorable deletion grace period
+	// (DELETE /api/private/admin/organizations/{org})
+	AdminDeleteOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminGetOrganization Get an organization with its members, sites and quota
 	// (GET /api/private/admin/organizations/{org})
 	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -4775,6 +4900,9 @@ type ServerInterface interface {
 	// AdminListSites List sites with usage, last event and retention
 	// (GET /api/private/admin/sites)
 	AdminListSites(w http.ResponseWriter, r *http.Request, params AdminListSitesParams)
+	// AdminSetSiteRetention Set a site's retention class
+	// (PATCH /api/private/admin/sites/{site_id})
+	AdminSetSiteRetention(w http.ResponseWriter, r *http.Request, siteId int32)
 	// AdminGetUpdateStatus Check whether a newer stable Supermetry release is available
 	// (GET /api/private/admin/update)
 	AdminGetUpdateStatus(w http.ResponseWriter, r *http.Request)
@@ -4787,9 +4915,15 @@ type ServerInterface interface {
 	// AdminListUsers List and search instance users
 	// (GET /api/private/admin/users)
 	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
+	// AdminCreateUser Create a user with an unusable password, optionally with an organization they own
+	// (POST /api/private/admin/users)
+	AdminCreateUser(w http.ResponseWriter, r *http.Request)
 	// AdminUpdateUser Enable, disable, force password reset, promote or demote a user
 	// (PATCH /api/private/admin/users/{user})
 	AdminUpdateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
+	// AdminImpersonateUser Sign in as a user for support
+	// (POST /api/private/admin/users/{user}/impersonate)
+	AdminImpersonateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
 	// ConfirmCurrentUserEmailChangeLink Confirm an email change from a link
 	// (GET /api/private/auth/email-change/confirm)
 	ConfirmCurrentUserEmailChangeLink(w http.ResponseWriter, r *http.Request, params ConfirmCurrentUserEmailChangeLinkParams)
@@ -5276,6 +5410,32 @@ func (siw *ServerInterfaceWrapper) AdminListOrganizations(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// AdminDeleteOrganization operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AdminGetOrganization operation middleware
 func (siw *ServerInterfaceWrapper) AdminGetOrganization(w http.ResponseWriter, r *http.Request) {
 
@@ -5456,6 +5616,32 @@ func (siw *ServerInterfaceWrapper) AdminListSites(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// AdminSetSiteRetention operation middleware
+func (siw *ServerInterfaceWrapper) AdminSetSiteRetention(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminSetSiteRetention(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AdminGetUpdateStatus operation middleware
 func (siw *ServerInterfaceWrapper) AdminGetUpdateStatus(w http.ResponseWriter, r *http.Request) {
 
@@ -5544,6 +5730,20 @@ func (siw *ServerInterfaceWrapper) AdminListUsers(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// AdminCreateUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreateUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreateUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AdminUpdateUser operation middleware
 func (siw *ServerInterfaceWrapper) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 
@@ -5561,6 +5761,32 @@ func (siw *ServerInterfaceWrapper) AdminUpdateUser(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminUpdateUser(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminImpersonateUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminImpersonateUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminImpersonateUser(w, r, user)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10592,10 +10818,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminListUsers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminCreateUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminUpdateUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users/{user}/impersonate", wrapper.AdminImpersonateUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminDeleteOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminGetOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/sites", wrapper.AdminListSites)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/sites/{site_id}", wrapper.AdminSetSiteRetention)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminGetSettings)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminUpdateSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/security/2fa-policy", wrapper.AdminGetTwoFactorPolicy)

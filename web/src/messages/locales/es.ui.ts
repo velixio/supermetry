@@ -46,6 +46,10 @@ const messages: MessageTree = {
     logOut: 'Cerrar sesión',
   },
   emptyState: { setUpTracking: 'Configurar el seguimiento' },
+  impersonation: {
+    signedInAs: (email: string) => `Sesión iniciada como ${email} por un administrador`,
+    endSession: 'Terminar sesión',
+  },
   pager: {
     label: 'Paginación de la lista',
     noResults: 'Sin resultados',
