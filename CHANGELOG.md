@@ -6,6 +6,10 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Fixed
+
+- Password reset emails now link to the dashboard's `/reset/{token}` page; the old `/password-reset?token=` link pointed at a missing page and now redirects there.
+
 ### Added
 
 - Instance admin API additions: `SUPERMETRY_ADMIN_API_KEY` (32+ characters) as a bearer token for `/api/private/admin/*`; admin delete of an organization (restorable for 7 days); admin change of a site's `retention_days`; admin creation of users with an optional organization and reset link; and time-limited, audited "sign in as a user" support sessions.
