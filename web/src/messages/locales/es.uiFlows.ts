@@ -198,7 +198,7 @@ const messages: MessageTree = {
     linkTitle: 'Enlace de contraseña de un solo uso',
     linkHint: 'El correo no está configurado en esta instancia. Comparte este enlace con el usuario; funciona una sola vez.',
     signInAs: 'Iniciar sesión como el usuario',
-    signInAsAria: (email: string) => `Iniciar sesión como ${email}`,
+    signInAsAria: (email: string) => `Iniciar sesión como el usuario: ${email}`,
     signInAsTitle: (email: string) => `¿Iniciar sesión como ${email}?`,
     signInAsBody: 'Tu sesión de administrador se sustituye por una sesión de 1 hora como este usuario. Las páginas de administración no están disponibles durante ella, y el registro de auditoría de la organización del usuario anota que actuaste en su nombre. Para volver, termina la sesión e inicia sesión de nuevo.',
     yourPassword: 'Tu contraseña',

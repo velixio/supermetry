@@ -198,7 +198,7 @@ const messages: MessageTree = {
     linkTitle: 'Einmal-Link für das Passwort',
     linkHint: 'Auf dieser Instanz ist keine E-Mail eingerichtet. Gib diesen Link an den Benutzer weiter; er funktioniert einmal.',
     signInAs: 'Als Benutzer anmelden',
-    signInAsAria: (email: string) => `Als ${email} anmelden`,
+    signInAsAria: (email: string) => `Als Benutzer anmelden: ${email}`,
     signInAsTitle: (email: string) => `Als ${email} anmelden?`,
     signInAsBody: 'Deine Admin-Sitzung wird durch eine einstündige Sitzung als dieser Benutzer ersetzt. Admin-Seiten sind währenddessen nicht verfügbar, und das Audit-Log der Organisation des Benutzers vermerkt, dass du für ihn gehandelt hast. Zum Zurückkehren beende die Sitzung und melde dich erneut an.',
     yourPassword: 'Dein Passwort',

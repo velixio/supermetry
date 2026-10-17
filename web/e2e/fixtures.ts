@@ -72,7 +72,13 @@ export default async function globalSetup(config: FullConfig) {
     required("SUPERMETRY_E2E_RESET_FILE"),
     "utf8",
   ).trim();
-  const token = new URL(resetURL).searchParams.get("token");
+  // Reset links are /reset/{token}; older builds printed /password-reset?token=.
+  const parsed = new URL(resetURL);
+  const token =
+    parsed.searchParams.get("token") ??
+    (parsed.pathname.startsWith("/reset/")
+      ? decodeURIComponent(parsed.pathname.slice("/reset/".length))
+      : null);
   if (!token)
     throw new Error("supermetry user create did not return a reset token");
 

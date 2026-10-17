@@ -47,6 +47,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "axe-core": "4.14.0",
     "country-flag-icons": "1.6.20",
     "jsdom": "^27.1.0",
     "openapi-typescript": "^7.13.0",

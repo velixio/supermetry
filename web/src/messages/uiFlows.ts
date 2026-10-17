@@ -198,7 +198,7 @@ export const uiFlows = {
     linkTitle: 'One-time password link',
     linkHint: 'Email is not configured on this instance. Share this link with the user; it works once.',
     signInAs: 'Sign in as user',
-    signInAsAria: (email: string) => `Sign in as ${email}`,
+    signInAsAria: (email: string) => `Sign in as user: ${email}`,
     signInAsTitle: (email: string) => `Sign in as ${email}?`,
     signInAsBody: 'Your admin session is replaced by a 1-hour session as this user. Admin pages are unavailable during it, and the user’s organization audit log records that you acted for them. To return, end the session and sign in again.',
     yourPassword: 'Your password',

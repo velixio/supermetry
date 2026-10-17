@@ -68,7 +68,7 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
       {sites.isPending ? <p role="status" className="text-sm text-muted-foreground">{en.admin.loading}</p> : null}
       {sites.data && sites.data.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.admin.empty}</p> : null}
       {sites.data && sites.data.data.length > 0 ? (
-        <div className="relative overflow-x-auto rounded-lg border" tabIndex={0} role="region" aria-label={en.admin.sites}>
+        <div className="relative overflow-x-auto rounded-lg border" tabIndex={0}>
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.sites}</caption>
             <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">

@@ -111,7 +111,7 @@ export function SiteDetails({ publicId, snippet }: { publicId: string; snippet?:
           <div key={field.label} className="flex min-w-0 flex-col gap-2 rounded-lg border p-3">
             <dt className="text-sm font-medium">{field.label}</dt>
             <dd className="min-w-0 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm select-all" aria-label={field.label}>{field.value}</dd>
-            <CopyButton value={field.value} label={`Copy ${field.label === 'Site ID' ? 'site ID' : 'host'}`} />
+            <dd><CopyButton value={field.value} label={`Copy ${field.label === 'Site ID' ? 'site ID' : 'host'}`} /></dd>
           </div>
         ))}
       </dl>

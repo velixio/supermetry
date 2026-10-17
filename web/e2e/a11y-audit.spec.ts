@@ -1,15 +1,13 @@
-import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 import type { Locator, Page } from '@playwright/test'
 
+import { axeAvailable, axeMissing, axePath } from './axe'
 import { expect, test } from './fixtures'
 
 test.use({ bypassCSP: true })
 
-// The axe audit is opt-in: point SUPERMETRY_AXE_PATH at an axe-core build (axe.min.js).
-// axe-core is deliberately not a project dependency, so the audit is skipped when it is not set.
-const axePath = process.env.SUPERMETRY_AXE_PATH ?? ''
 const screenshotDir = 'e2e/screenshots/a11y2'
 
 type Impact = 'minor' | 'moderate' | 'serious' | 'critical'
@@ -107,7 +105,7 @@ async function screenshotElement(locator: Locator, filename: string) {
 }
 
 test('reports axe findings for the requested pages', async ({ page, owner }) => {
-  test.skip(!axePath || !existsSync(axePath), 'set SUPERMETRY_AXE_PATH to an axe-core axe.min.js to run the audit')
+  test.skip(!axeAvailable, axeMissing)
   const reports: AxePageReport[] = []
 
   await page.goto('/login')
@@ -135,6 +133,99 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
   await expect(page.getByRole('main')).toHaveCount(1)
   reports.push(await audit(page, 'account'))
+
+  saveAxeReport(reports)
+})
+
+async function expectNoSeriousViolations(page: Page, name: string) {
+  const report = await audit(page, name)
+  const serious = report.violations
+    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+    .map((violation) => `${violation.id}: ${violation.samples.map((sample) => sample.target.join(' ')).join(' | ')}`)
+  expect.soft(serious, `${name}: serious or critical axe violations`).toEqual([])
+  return report
+}
+
+test('account recovery, invitation, first-run, account security and admin pages have no serious axe violations', async ({ page, owner, browser, request }) => {
+  test.skip(!axeAvailable, axeMissing)
+  test.setTimeout(120_000)
+  const reports: AxePageReport[] = []
+
+  // Signed out: the auth screens.
+  await page.goto('/forgot')
+  await expect(page.getByRole('heading', { level: 1, name: 'Reset your password' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'forgot'))
+  await page.getByLabel('Email').fill('nobody@supermetry.test')
+  await page.getByRole('button', { name: 'Send reset link' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'If an account exists' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'forgot-sent'))
+
+  await page.goto('/reset/not-a-real-token')
+  await expect(page.getByRole('heading', { level: 1, name: 'Choose a new password' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'reset'))
+
+  const invitation = await request.post(`/api/private/orgs/${owner.orgId}/invitations`, {
+    headers: owner.apiHeaders,
+    data: { email: `axe-invite-${Date.now()}@supermetry.test`, role: 'viewer', site_ids: [] },
+  })
+  expect(invitation.ok(), await invitation.text()).toBe(true)
+  const token = new URL((await invitation.json()).link).searchParams.get('token')
+  const guest = await browser.newContext({ bypassCSP: true })
+  try {
+    const invitePage = await guest.newPage()
+    await invitePage.goto(`/invite/${token}`)
+    await expect(invitePage.getByRole('heading', { level: 1, name: /^Join / })).toBeVisible()
+    await expect(invitePage.getByLabel('Name', { exact: true })).toBeVisible()
+    reports.push(await expectNoSeriousViolations(invitePage, 'invite'))
+  } finally {
+    await guest.close()
+  }
+
+  // Signed in.
+  await owner.login(page, `/app/${owner.orgSlug}/sites/new`)
+  await expect(page.getByRole('heading', { level: 1, name: 'What do you want to measure?' })).toBeVisible()
+  await page.getByText('Advanced options').click()
+  await expect(page.getByLabel('Raw data retention')).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'first-site'))
+
+  await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/settings/installation`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Installation' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy tracking snippet' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'installation'))
+
+  await page.goto(`/app/${owner.orgSlug}/settings/members`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Members' })).toBeVisible()
+  await expect(page.getByText('(you)')).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'members'))
+
+  await page.goto(`/app/${owner.orgSlug}/settings/invites`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Invitations' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sent invitations' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'invitations'))
+
+  await page.goto('/app/account/profile')
+  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'account-profile'))
+
+  await page.goto('/app/account/security')
+  await expect(page.getByRole('heading', { level: 1, name: 'Account security' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'account-security'))
+
+  for (const [path, heading] of [['/app/admin/users', 'Users'], ['/app/admin/organizations', 'Organizations'], ['/app/admin/sites', 'Sites']] as const) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible()
+    await expect(page.getByRole('table').first()).toBeVisible()
+    reports.push(await expectNoSeriousViolations(page, `admin${path.slice('/app/admin'.length).replace('/', '-')}`))
+  }
+
+  await page.goto(`/app/${owner.orgSlug}/no-such-site`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Site not found' })).toBeVisible()
+  reports.push(await expectNoSeriousViolations(page, 'site-not-found'))
+
+  await page.goto('/no-such-page')
+  await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()
+  await expect(page.getByRole('main')).toHaveCount(1)
+  reports.push(await expectNoSeriousViolations(page, 'not-found'))
 
   saveAxeReport(reports)
 })
