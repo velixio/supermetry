@@ -44,6 +44,16 @@ func newHandler(files fs.FS) http.Handler {
 				return
 			}
 		}
+		// Older reset emails linked to /password-reset?token=; the SPA route is
+		// /reset/{token}. The token is a credential: never cache or refer it.
+		if path == "/password-reset" {
+			if token := r.URL.Query().Get("token"); token != "" {
+				w.Header().Set("Cache-Control", "no-store")
+				w.Header().Set("Referrer-Policy", "no-referrer")
+				http.Redirect(w, r, "/reset/"+url.PathEscape(token), http.StatusFound)
+				return
+			}
+		}
 		if path == "/api" || strings.HasPrefix(path, "/api/") {
 			http.NotFound(w, r)
 			return

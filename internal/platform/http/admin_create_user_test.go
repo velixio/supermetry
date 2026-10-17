@@ -111,7 +111,7 @@ func TestAdminCreateUserResetURLWithoutMail(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(body.ResetURL, "https://app.example.test/password-reset?token=") || len(body.ResetURL) < 80 {
+	if !strings.HasPrefix(body.ResetURL, "https://app.example.test/reset/") || len(body.ResetURL) < 80 {
 		t.Fatalf("reset_url = %q", body.ResetURL)
 	}
 	if got := postAdminUser(e.resetHandler(t, &disabledMail{}), "admin", `{"email":"plain@x.test"}`); strings.Contains(got.Body.String(), "reset_url") {

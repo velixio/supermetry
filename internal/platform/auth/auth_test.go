@@ -586,6 +586,9 @@ func tokenFrom(t *testing.T, rawURL string) string {
 	}
 	token := u.Query().Get("token")
 	if token == "" {
+		token, _ = strings.CutPrefix(u.Path, "/reset/")
+	}
+	if token == "" {
 		t.Fatalf("URL has no token: %q", rawURL)
 	}
 	return token

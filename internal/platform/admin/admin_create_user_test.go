@@ -28,7 +28,7 @@ func TestAdminCreateUserWithOrg(t *testing.T) {
 	if len(user.Memberships) != 1 || user.Memberships[0].OrgName != "Newco" || user.Memberships[0].Role != "owner" {
 		t.Fatalf("memberships = %+v", user.Memberships)
 	}
-	if len(fake.Sent) != 1 || fake.Sent[0].To != "new@x.test" || !strings.Contains(fake.Sent[0].Text, "/password-reset?token=") {
+	if len(fake.Sent) != 1 || fake.Sent[0].To != "new@x.test" || !strings.Contains(fake.Sent[0].Text, "/reset/") {
 		t.Fatalf("sent = %+v", fake.Sent)
 	}
 	var actor int64
@@ -113,7 +113,7 @@ func TestAdminCreateUserResetURLWhenMailDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(user.ResetURL, "https://app.example.test/password-reset?token=") {
+	if !strings.HasPrefix(user.ResetURL, "https://app.example.test/reset/") {
 		t.Fatalf("reset url = %q", user.ResetURL)
 	}
 }
