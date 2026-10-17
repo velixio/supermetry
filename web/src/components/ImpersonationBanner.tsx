@@ -26,6 +26,14 @@ export function ImpersonationBanner({ me }: { me: Me }) {
     const timer = setTimeout(() => setAnnounced(true), 1_000)
     return () => clearTimeout(timer)
   }, [me.impersonated_by_email])
+  // The bar sticks to the bottom of the viewport; keep focused elements scrolled clear of it (WCAG 2.4.11).
+  useEffect(() => {
+    if (!me.impersonated_by_email) return
+    const root = document.documentElement
+    const previous = root.style.scrollPaddingBottom
+    root.style.scrollPaddingBottom = '5rem'
+    return () => { root.style.scrollPaddingBottom = previous }
+  }, [me.impersonated_by_email])
   if (!me.impersonated_by_email) return null
   const endsAt = me.impersonation_expires_at ? formatTime(me.impersonation_expires_at) : undefined
   return (

@@ -30,6 +30,13 @@ it('names the customer, the admin and the end time, and ends with a notice on si
   expect(requestLogout).toHaveBeenCalledWith('/login?notice=impersonation')
 })
 
+it('keeps focused content clear of the bar while it is shown', () => {
+  const { unmount } = render(<ImpersonationBanner me={{ ...me, impersonated_by_email: 'root@example.test' }} />)
+  expect(document.documentElement.style.scrollPaddingBottom).toBe('5rem')
+  unmount()
+  expect(document.documentElement.style.scrollPaddingBottom).toBe('')
+})
+
 it.each([undefined, null])('impersonation banner stays hidden for the user’s own session (%s)', (value) => {
   render(<ImpersonationBanner me={{ ...me, impersonated_by_email: value }} />)
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
