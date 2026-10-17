@@ -41,6 +41,8 @@ export type Me = {
   version?: string
   /** Set while an instance admin is signed in as this user. */
   impersonated_by_email?: string | null
+  /** When the admin's session as this user ends; activity never extends it. */
+  impersonation_expires_at?: string
 }
 
 export type UserPreferences = {

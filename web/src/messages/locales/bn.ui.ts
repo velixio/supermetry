@@ -30,7 +30,6 @@ const messages: MessageTree = {
   },
   emptyState: { setUpTracking: 'ট্র্যাকিং সেট আপ করুন' },
   impersonation: {
-    signedInAs: (email: string) => `একজন অ্যাডমিনিস্ট্রেটর ${email} হিসেবে সাইন ইন করেছেন`,
     endSession: 'সেশন শেষ করুন',
   },
   pager: {
