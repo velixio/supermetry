@@ -72,6 +72,10 @@ type Sites struct {
 	invalidateSite     func(int32)
 	maxSites           int
 	restoreInvalidator interface{ Invalidate() error }
+	// defaultRetention is the retention a new site gets when the request names none.
+	defaultRetention int
+	// noForever rejects retention 0 ("keep forever") for new values; zero value allows it.
+	noForever bool
 }
 
 var malformedTrackerLogged sync.Map
@@ -81,7 +85,27 @@ func New(data *store.Store, registry *Registry, modes ...privacy.Mode) *Sites {
 	if len(modes) > 0 {
 		mode = modes[0]
 	}
-	return &Sites{store: data, registry: registry, restoreInvalidator: registry, now: time.Now, discoverIcon: siteicon.Discover, trackingMode: mode}
+	return &Sites{store: data, registry: registry, restoreInvalidator: registry, now: time.Now, discoverIcon: siteicon.Discover, trackingMode: mode, defaultRetention: 30}
+}
+
+// SetRetentionPolicy sets the retention new sites get by default and whether
+// "keep forever" (0) may be chosen. Configure it before serving requests.
+func (s *Sites) SetRetentionPolicy(defaultDays int, allowForever bool) {
+	s.defaultRetention, s.noForever = defaultDays, !allowForever
+}
+
+// RetentionPolicy reports the default retention for new sites and whether
+// "keep forever" may be chosen.
+func (s *Sites) RetentionPolicy() (defaultDays int, allowForever bool) {
+	return s.defaultRetention, !s.noForever
+}
+
+// checkForever rejects a new "keep forever" retention when the instance does not offer it.
+func (s *Sites) checkForever(days int) error {
+	if days == 0 && s.noForever {
+		return fmt.Errorf("%w: keeping events forever is not offered on this instance; choose 7, 30, 90 or 365 days", ErrInvalid)
+	}
+	return nil
 }
 
 // SetSiteLimit caps live non-demo sites created or restored for an organization
@@ -145,7 +169,10 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, input any
 	switch in.Kind {
 	case coresites.KindWeb:
 		name, hosts, location, retention, err = validateSite(in.Name, in.Hosts, in.Timezone, in.RetentionDays)
-		if err == nil && !coresites.ValidCurrency(in.RevenueCurrency) {
+		// Without a currency the project stays unconfigured; an owner picks it once later.
+		if in.RevenueCurrency == "" {
+			state = string(coresites.RevenueCurrencyUnconfigured)
+		} else if err == nil && !coresites.ValidCurrency(in.RevenueCurrency) {
 			err = fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
 		}
 	case coresites.KindPixel:
@@ -153,6 +180,9 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, input any
 		hosts, in.RevenueCurrency, state = []string{}, "", string(coresites.RevenueCurrencyUnconfigured)
 	default:
 		err = fmt.Errorf("%w: kind must be web or pixel", ErrInvalid)
+	}
+	if err == nil {
+		err = s.checkForever(in.RetentionDays)
 	}
 	if err != nil {
 		return coresites.Site{}, err
@@ -234,6 +264,12 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 			current.Timezone = *patch.TZ
 		}
 		if patch.RetentionDays != nil {
+			// Re-saving a site's existing forever retention stays allowed.
+			if int(current.RetentionClass) != *patch.RetentionDays {
+				if err := s.checkForever(*patch.RetentionDays); err != nil {
+					return err
+				}
+			}
 			current.RetentionClass = int16(*patch.RetentionDays)
 		}
 		if patch.ExcludeIPs != nil {
@@ -371,6 +407,9 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 func (s *Sites) AdminSetRetention(ctx context.Context, actorUserID int64, siteID int32, days int) (store.Site, error) {
 	if _, ok := retentionClass(days); !ok {
 		return store.Site{}, fmt.Errorf("%w: unsupported retention", ErrInvalid)
+	}
+	if err := s.checkForever(days); err != nil {
+		return store.Site{}, err
 	}
 	var updated store.Site
 	err := s.store.Tx(ctx, func(tx pgx.Tx) error {

@@ -92,6 +92,11 @@ type Deps struct {
 	MaxSitesPerOrg int
 	BaseURL        string
 	HomepageURL    string
+	// SupportURL is an optional help link for error pages; empty hides it.
+	SupportURL string
+	// RetentionPolicy reports the default retention for new sites and whether
+	// "keep forever" is offered. Nil means 30 days and forever allowed.
+	RetentionPolicy func() (defaultDays int, allowForever bool)
 	// GeoIPSource reports which geolocation provider is in use ("dbip" or "maxmind"), so the
 	// dashboard can show the credit that provider's license requires. Nil means the bundled one.
 	GeoIPSource func() string
@@ -177,12 +182,13 @@ type Services struct {
 }
 
 type CreateSiteRequest struct {
-	Name            string   `json:"name"`
-	Kind            string   `json:"kind"`
-	Hosts           []string `json:"hosts"`
-	Timezone        string   `json:"timezone"`
-	RetentionDays   int      `json:"retention_days"`
-	RevenueCurrency string   `json:"revenue_currency"`
+	Name     string   `json:"name"`
+	Kind     string   `json:"kind"`
+	Hosts    []string `json:"hosts"`
+	Timezone string   `json:"timezone"`
+	// RetentionDays is optional; nil uses the instance default.
+	RetentionDays   *int   `json:"retention_days"`
+	RevenueCurrency string `json:"revenue_currency"`
 }
 
 type CreateAPIKeyRequest struct {
@@ -370,6 +376,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/orgs/{org}/members", h.listMembers)
 	mux.HandleFunc("PATCH /api/private/orgs/{org}/members/{user}", h.updateMember)
 	mux.HandleFunc("DELETE /api/private/orgs/{org}/members/{user}", h.deleteMember)
+	mux.HandleFunc("DELETE /api/private/orgs/{org}/membership", h.leaveOrganization)
 	mux.HandleFunc("POST /api/private/orgs/{org}/invitations", h.createInvitation)
 	mux.HandleFunc("GET /api/private/orgs/{org}/invitations", h.listInvitations)
 	mux.HandleFunc("DELETE /api/private/orgs/{org}/invitations/{invitation}", h.revokeInvitation)
@@ -404,6 +411,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/sites/{site}/integrations/{provider}", h.disconnectIntegration)
 	mux.HandleFunc("GET /api/private/integrations/{provider}/callback", h.integrationCallback)
 	mux.HandleFunc("GET /api/private/sites/{site}/search-console/top", h.searchConsoleTop)
+	mux.HandleFunc("GET /api/private/invitations/{token}", h.previewInvitation)
 	mux.HandleFunc("POST /api/private/invitations/{token}/accept", h.acceptInvitation)
 	mux.HandleFunc("POST /api/private/share/{slug}/open", h.openShare)
 }
@@ -412,9 +420,13 @@ func (s Services) CreateSite(ctx context.Context, principal authz.Principal, req
 	if s.Sites == nil {
 		return coresites.Site{}, errors.New("site service is unavailable")
 	}
+	retention, _ := s.Sites.RetentionPolicy()
+	if request.RetentionDays != nil {
+		retention = *request.RetentionDays
+	}
 	return s.Sites.Create(ctx, principal, sitesvc.CreateInput{
 		Name: request.Name, Kind: request.Kind, Hosts: request.Hosts, Timezone: request.Timezone,
-		RetentionDays: request.RetentionDays, RevenueCurrency: request.RevenueCurrency,
+		RetentionDays: retention, RevenueCurrency: request.RevenueCurrency,
 	})
 }
 

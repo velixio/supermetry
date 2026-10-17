@@ -10,6 +10,7 @@ import { SiteForm } from '@/features/sites/SiteForm'
 import { createSite } from '@/features/sites/api'
 import type { SiteInput, SiteKind } from '@/features/sites/types'
 import { en } from '@/messages/en'
+import { retentionPolicy, useInstanceConfig } from '@/lib/instanceConfig'
 import { useMe } from './app.$org'
 
 export const Route = createFileRoute('/app/$org/sites/new')({ component: NewSiteRoute })
@@ -21,6 +22,7 @@ function NewSiteRoute() {
   const me = useMe()
   const queryClient = useQueryClient()
   const membership = me.data?.memberships.find((item) => item.org.slug === org)
+  const config = useInstanceConfig()
 
   if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
     return <p role="alert" className="text-sm text-muted-foreground">You do not have permission to add sites.</p>
@@ -44,7 +46,7 @@ function NewSiteRoute() {
         <KindChoice value={kind} onChange={setKind} />
         {kind === 'pixel'
           ? <PixelProjectForm submitLabel={en.pixels.createProject} onSubmit={submit} />
-          : <SiteForm submitLabel="Add site" onSubmit={submit} />}
+          : <SiteForm submitLabel="Add site" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} />}
       </section>
     </PageContainer>
   )

@@ -62,14 +62,17 @@ import { fmt } from "@/lib/format";
 import { en } from "@/messages/en";
 
 import { ApiKeySecretDialog } from "./ApiKeySecretDialog";
-import { type MemberRole } from "./MemberRoleSelect";
-import { MemberAccessControls, siteAccessLabel, type MemberAccess } from "./MemberAccessControls";
 import { privateRequest, type ListResponse } from "./privateApi";
 import { TotpQr } from "./TotpQr";
 import { InstallGuide, SiteIconSettings, installationStatusInterval } from "./SiteSettings";
 import { ProfilesSettings } from "./ProfilesSettings";
 import type { Role } from "@/components/Sidebar";
 import { activeLocale } from '@/lib/i18n/intl'
+import { lowersRetention, retentionOptions, retentionPolicy, useInstanceConfig } from '@/lib/instanceConfig'
+import { retentionLabel } from '@/features/sites/SiteForm'
+import { TimezoneSelect } from '@/features/sites/TimezoneSelect'
+import { nativeSelectClass } from '@/lib/nativeSelect'
+import { uiFlows } from '@/messages/uiFlows'
 
 type Site = {
   id: number;
@@ -88,25 +91,6 @@ type Site = {
   revenue_currency_state: "unconfigured" | "configured" | "conflict";
 };
 
-type Member = {
-  user_id: number;
-  email: string;
-  name: string;
-  role: MemberRole;
-  site_ids: number[] | null;
-  capabilities: string[];
-  billing_admin: boolean;
-};
-type Invitation = {
-  id: number;
-  email: string;
-  role: MemberRole;
-  expires_at: string;
-  revoked_at?: string;
-  site_ids: number[] | null;
-  capabilities: string[];
-  billing_admin: boolean;
-};
 type ApiKey = {
   id?: number;
   ID?: number;
@@ -228,13 +212,16 @@ export function SiteGeneralPage({
       }
     },
   });
+  const config = useInstanceConfig();
+  const policy = retentionPolicy(config.data);
+  const [pendingLower, setPendingLower] = useState<Record<string, unknown> | null>(null);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const revenueCurrency = String(data.get("revenue_currency") ?? "")
       .trim()
       .toUpperCase();
-    save.mutate({
+    const body: Record<string, unknown> = {
       name: String(data.get("name") ?? ""),
       ...(data.get("slug") !== null ? { slug: String(data.get("slug")).trim() } : {}),
       hosts: String(data.get("hosts") ?? "")
@@ -244,7 +231,13 @@ export function SiteGeneralPage({
       timezone: String(data.get("timezone") ?? ""),
       retention_days: Number(data.get("retention")),
       ...(revenueCurrency ? { revenue_currency: revenueCurrency } : {}),
-    });
+    };
+    const current = site.data?.retention_days;
+    if (current !== undefined && lowersRetention(current, Number(body.retention_days))) {
+      setPendingLower(body);
+      return;
+    }
+    save.mutate(body);
   }
   return (
     <Page
@@ -295,34 +288,30 @@ export function SiteGeneralPage({
                   <Input
                     id="site-hosts"
                     name="hosts"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     defaultValue={site.data.allowed_hosts.join(", ")}
                   />
                   <FieldDescription>
                     Separate multiple hosts with commas.
                   </FieldDescription>
                 </Field>
+                <TimezoneSelect key={site.data.timezone} defaultValue={site.data.timezone} hint={uiFlows.site.timezoneHint} />
                 <Field>
-                  <FieldLabel htmlFor="site-timezone">Time zone</FieldLabel>
-                  <Input
-                    id="site-timezone"
-                    name="timezone"
-                    defaultValue={site.data.timezone}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="site-retention">Retention</FieldLabel>
+                  <FieldLabel htmlFor="site-retention">{uiFlows.site.retention}</FieldLabel>
                   <select
                     id="site-retention"
                     name="retention"
                     defaultValue={site.data.retention_days}
-                    className="h-9 rounded-lg border bg-background px-3 text-sm"
+                    className={nativeSelectClass}
+                    aria-describedby="site-retention-hint"
                   >
-                    <option value="7">7 days</option>
-                    <option value="30">30 days</option>
-                    <option value="90">90 days</option>
-                    <option value="365">365 days</option>
-                    <option value="0">Forever</option>
+                    {retentionOptions(policy, site.data.retention_days).map((days) => (
+                      <option key={days} value={days}>{retentionLabel(days)}</option>
+                    ))}
                   </select>
+                  <FieldDescription id="site-retention-hint">{uiFlows.site.retentionHint}</FieldDescription>
                 </Field>
                 <ProfilesSettings
                   enabled={site.data.profiles_enabled}
@@ -332,14 +321,37 @@ export function SiteGeneralPage({
                 />
               </FieldGroup>
               <Message error={save.error} />
+              {save.isSuccess && !save.isPending ? (
+                <p role="status" className="text-sm text-muted-foreground">{uiFlows.site.saved}</p>
+              ) : null}
               <Button
                 className="self-start"
                 disabled={save.isPending}
                 type="submit"
               >
-                Save changes
+                {save.isPending ? uiFlows.common.saving : "Save changes"}
               </Button>
             </form>
+            <AlertDialog open={pendingLower !== null} onOpenChange={(open) => { if (!open) setPendingLower(null); }}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{uiFlows.site.lowerTitle(Number(pendingLower?.retention_days ?? 0))}</AlertDialogTitle>
+                  <AlertDialogDescription>{uiFlows.site.lowerBody(Number(pendingLower?.retention_days ?? 0))}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{uiFlows.common.cancel}</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => {
+                      if (pendingLower) save.mutate(pendingLower);
+                      setPendingLower(null);
+                    }}
+                  >
+                    {uiFlows.site.lowerConfirm}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -396,17 +408,21 @@ export function InstallationPage({
   publicId,
   orgId,
   isDemo = false,
+  dashboardHref,
+  domainsHref,
 }: {
   siteId: number;
   publicId: string;
   orgId: number;
   isDemo?: boolean;
+  dashboardHref?: string;
+  domainsHref?: string;
 }) {
   const status = useQuery({
     queryKey: ["tracking-status", siteId],
     queryFn: () =>
       privateRequest<Site>("GET", `/api/private/sites/${siteId}`, { orgId }),
-    refetchInterval: installationStatusInterval,
+    refetchInterval: (query) => installationStatusInterval(query.state.data?.install_status),
     enabled: !isDemo,
   });
   const snippet = useQuery({
@@ -433,6 +449,11 @@ export function InstallationPage({
           installStatus={status.data?.install_status}
           lastSeenAt={status.data?.last_seen_at}
           revenueCurrency={status.data?.revenue_currency}
+          dashboardHref={dashboardHref}
+          domainsHref={domainsHref}
+          snippetLoading={snippet.isPending}
+          snippetFailed={snippet.isError}
+          onRetrySnippet={() => void snippet.refetch()}
           verify={async () => {
             const result = await status.refetch();
             return { status: result.data?.install_status, lastSeenAt: result.data?.last_seen_at };
@@ -851,241 +872,7 @@ export function ReportsPage({
   );
 }
 
-export function MembersPage({
-  orgId,
-  actorRole,
-  sites,
-}: {
-  orgId: number;
-  actorRole: MemberRole;
-  sites: { id: number; name: string }[];
-}) {
-  const queryClient = useQueryClient();
-  const key = ["members", orgId];
-  const members = useQuery({
-    queryKey: key,
-    enabled: actorRole === "owner" || actorRole === "admin",
-    queryFn: () =>
-      privateRequest<ListResponse<Member>>(
-        "GET",
-        `/api/private/orgs/${orgId}/members`,
-        { orgId },
-      ),
-  });
-  const update = useMutation({
-    mutationFn: ({
-      member,
-      changes,
-    }: {
-      member: number;
-      changes: Partial<MemberAccess>;
-    }) =>
-      privateRequest<void>(
-        "PATCH",
-        `/api/private/orgs/${orgId}/members/${member}`,
-        { orgId, body: changes },
-      ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: key });
-      void queryClient.invalidateQueries({ queryKey: ["me"] });
-    },
-  });
-  if (actorRole !== "owner" && actorRole !== "admin")
-    return (
-      <p role="alert">
-        Only organization owners and admins can manage members.
-      </p>
-    );
-  return (
-    <Page
-      title="Members"
-      description="Assign roles, project access, and sensitive data permissions."
-    >
-      <Surface>
-        <Message error={members.error || update.error} />
-        <ul className="flex flex-col gap-6">
-          {members.data?.data.map((member) => {
-            const locked = member.role === "owner" && actorRole !== "owner";
-            return (
-              <li
-                className="flex flex-col gap-4 border-b pb-6"
-                key={member.user_id}
-              >
-                <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {member.email}
-                  </p>
-                </div>
-                <MemberAccessControls
-                  value={{
-                    role: member.role,
-                    site_ids: member.site_ids ?? null,
-                    capabilities: member.capabilities ?? [],
-                  }}
-                  actorRole={actorRole}
-                  sites={sites}
-                  disabled={locked || update.isPending}
-                  onChange={(changes) =>
-                    update.mutate({ member: member.user_id, changes })
-                  }
-                />
-              </li>
-            );
-          })}
-        </ul>
-      </Surface>
-    </Page>
-  );
-}
-
-export function InvitationsPage({
-  orgId,
-  actorRole = "viewer",
-  sites = [],
-}: {
-  orgId: number;
-  actorRole?: MemberRole;
-  sites?: { id: number; name: string }[];
-}) {
-  const queryClient = useQueryClient();
-  const [link, setLink] = useState("");
-  const [access, setAccess] = useState<MemberAccess>({
-    role: "viewer",
-    site_ids: null,
-    capabilities: [],
-  });
-  const canManage = actorRole === "owner" || actorRole === "admin";
-  const key = ["invitations", orgId];
-  const invitations = useQuery({
-    queryKey: key,
-    queryFn: () =>
-      privateRequest<ListResponse<Invitation>>(
-        "GET",
-        `/api/private/orgs/${orgId}/invitations`,
-        { orgId },
-      ),
-    enabled: canManage,
-  });
-  const create = useMutation({
-    mutationFn: (email: string) =>
-      privateRequest<{ link: string }>(
-        "POST",
-        `/api/private/orgs/${orgId}/invitations`,
-        {
-          orgId,
-          body: {
-            email,
-            role: access.role,
-            site_ids: access.site_ids,
-            capabilities: access.capabilities,
-          },
-        },
-      ),
-    onSuccess: (data) => {
-      setLink(data.link);
-      void queryClient.invalidateQueries({ queryKey: key });
-    },
-  });
-  const revoke = useMutation({
-    mutationFn: (id: number) =>
-      privateRequest<void>(
-        "DELETE",
-        `/api/private/orgs/${orgId}/invitations/${id}`,
-        { orgId },
-      ),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
-  });
-  if (!canManage)
-    return (
-      <p role="alert">
-        Only organization owners and admins can manage invitations.
-      </p>
-    );
-  return (
-    <Page
-      title="Invitations"
-      description="Invite a teammate with the project access and permissions they need."
-    >
-      <Surface>
-        <form
-          className="flex flex-col gap-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            create.mutate(
-              String(new FormData(event.currentTarget).get("email") ?? ""),
-            );
-          }}
-        >
-          <label className="flex flex-col gap-1 text-sm">
-            Email
-            <Input
-              name="email"
-              type="email"
-              placeholder="teammate@example.com"
-              required
-            />
-          </label>
-          <MemberAccessControls
-            allowOwner={false}
-            value={access}
-            actorRole={actorRole}
-            sites={sites}
-            disabled={create.isPending}
-            onChange={(changes) =>
-              setAccess((current) => ({ ...current, ...changes }))
-            }
-          />
-          <Button
-            className="self-start"
-            type="submit"
-            disabled={create.isPending}
-          >
-            Invite
-          </Button>
-        </form>
-        <Message error={invitations.error || create.error || revoke.error} />
-        {link ? (
-          <Button
-            className="self-start"
-            variant="outline"
-            onClick={() => void copyText(link)}
-          >
-            Copy invitation link
-          </Button>
-        ) : null}
-        <ul className="flex flex-col gap-2">
-          {invitations.data?.data.map((invitation) => (
-            <li
-              className="flex items-center justify-between gap-3 border-t pt-3"
-              key={invitation.id}
-            >
-              <div className="text-sm">
-                <p>
-                  {invitation.email} · {invitation.role}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {siteAccessLabel(invitation.site_ids)}
-                  {invitation.capabilities?.length
-                    ? ` · ${invitation.capabilities.join(", ")}`
-                    : ""}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={Boolean(invitation.revoked_at) || revoke.isPending}
-                onClick={() => revoke.mutate(invitation.id)}
-              >
-                Revoke
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </Surface>
-    </Page>
-  );
-}
+export { InvitationsPage, MembersPage } from './MembersPages';
 
 const apiKeyScopes = [
   "stats:read",

@@ -11,6 +11,7 @@ import { PixelProjectForm } from '@/features/sites/PixelProjectForm'
 import { SiteForm } from '@/features/sites/SiteForm'
 import type { ManagedSite, SiteInput, SiteKind } from '@/features/sites/types'
 import { en } from '@/messages/en'
+import { retentionPolicy, useInstanceConfig } from '@/lib/instanceConfig'
 import type { Me } from '@/routes/app.$org'
 
 export function Onboarding({ me, createSite, navigate }: {
@@ -19,7 +20,10 @@ export function Onboarding({ me, createSite, navigate }: {
   navigate: (path: string, replace?: boolean) => void
 }) {
   const [kind, setKind] = useState<SiteKind>('web')
-  const membership = me.memberships[0]
+  // Onboard in an organization where the user can add sites, not just the first one listed:
+  // someone invited as a viewer elsewhere who then signs up should set up their own organization.
+  const membership = me.memberships.find((item) => canCreateSites(item.role)) ?? me.memberships[0]
+  const config = useInstanceConfig()
   const existingSite = membership?.sites[0]
 
   useEffect(() => {
@@ -56,6 +60,7 @@ export function Onboarding({ me, createSite, navigate }: {
         ) : (
           <SiteForm
             submitLabel="Create site"
+            retention={config.data ? retentionPolicy(config.data) : undefined}
             onSubmit={async (input) => {
               const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
               navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/installation`)

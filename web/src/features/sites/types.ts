@@ -14,8 +14,10 @@ export type WebSiteInput = {
   name: string
   hosts: string[]
   timezone: string
-  retention_days: RetentionDays
-  revenue_currency: string
+  /** Omitted to let the server apply the instance default. */
+  retention_days?: RetentionDays
+  /** Optional: without it the project currency stays unconfigured until chosen in settings. */
+  revenue_currency?: string
 }
 
 export type PixelSiteInput = {

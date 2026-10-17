@@ -465,6 +465,7 @@ export function ApiDocsPage({
   if (query.isError || !reference || !selected) {
     return (
       <ErrorState
+        level="page"
         detail={
           query.error instanceof Error
             ? query.error.message

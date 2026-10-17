@@ -50,7 +50,7 @@ export interface paths {
         put?: never;
         /**
          * Sign in as a user for support
-         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes, change the account's password, email or two-factor settings, delete the account, revoke sessions, create API keys, send or accept invitations, change member roles, or create share links, notification channels, alerts or scheduled reports. Organization audit entries written during the session carry impersonated_by with the admin's user id. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as; a user who must reset their password returns 409.
+         * @description Opens a one-hour session as the user that activity never extends. The session cannot use the instance admin routes, change the account's password, email or two-factor settings, delete the account, revoke sessions, create API keys, send or accept invitations, change member roles, remove members, leave an organization, or create share links, notification channels, alerts or scheduled reports. Organization audit entries written during the session carry impersonated_by with the admin's user id. With a cookie session the admin re-enters their password (and TOTP code when enabled), and the response replaces the admin's session cookies. With the admin API key no body is needed and the session token is returned instead. Instance admins and disabled users cannot be signed in as; a user who must reset their password returns 409.
          */
         post: operations["adminImpersonateUser"];
         delete?: never;
@@ -2760,6 +2760,11 @@ export interface components {
              * @description Set when an instance admin signed in as this user; the admin's email.
              */
             impersonated_by_email?: string | null;
+            /**
+             * Format: date-time
+             * @description Present while an instance admin is signed in as this user; when that session ends. Activity never extends it.
+             */
+            impersonation_expires_at?: string;
         };
         UserPreferences: {
             /** @enum {string} */
@@ -3103,7 +3108,7 @@ export interface components {
             data: components["schemas"]["Site"][];
             next_cursor?: string | null;
         };
-        /** @description hosts and revenue_currency are required when kind is web (the default) and ignored for pixel. */
+        /** @description hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel. */
         CreateSiteRequest: {
             name: string;
             /**
@@ -3114,8 +3119,12 @@ export interface components {
             kind: "web" | "pixel";
             hosts?: string[];
             timezone: string;
-            /** @enum {integer} */
-            retention_days: 0 | 7 | 30 | 90 | 365;
+            /**
+             * @description Raw-event retention in days; 0 keeps events forever. Omitted uses the instance default (SUPERMETRY_DEFAULT_RETENTION_DAYS). 0 is rejected with 400 when SUPERMETRY_RETENTION_FOREVER is false.
+             * @enum {integer}
+             */
+            retention_days?: 0 | 7 | 30 | 90 | 365;
+            /** @description Permanent project currency. Omitted leaves it unconfigured; an owner or admin can set it once later. */
             revenue_currency?: string;
         };
         PixelInput: {

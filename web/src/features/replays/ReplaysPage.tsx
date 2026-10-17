@@ -130,7 +130,7 @@ function ReplaysPageContent({ siteId, org, site, from, to, cursor, page, replayI
         </FieldGroup>
       </section>
       {saved.isError ? <p role="alert" className="text-sm text-destructive">{saved.error.message} {en.replays.saveRetry}</p> : null}
-      {replays.isPending ? <Skeleton aria-label={en.replays.loading} className="h-64 w-full" /> : replays.isError ? <ErrorState detail={replays.error.message} onRetry={() => void replays.refetch()} /> : replays.data.items.length === 0 ? (
+      {replays.isPending ? <Skeleton aria-label={en.replays.loading} className="h-64 w-full" /> : replays.isError ? <ErrorState level="page" detail={replays.error.message} onRetry={() => void replays.refetch()} /> : replays.data.items.length === 0 ? (
         <Empty><EmptyHeader><EmptyTitle>{filters.saved ? en.replays.noSaved : en.replays.noResults}</EmptyTitle><EmptyDescription>{filters.saved ? en.replays.noSavedDescription : hasFilters ? en.replays.noResultsFiltered : en.replays.noResultsDescription}</EmptyDescription></EmptyHeader>{hasFilters ? <Button type="button" variant="outline" onClick={() => onFiltersChange(filters.saved ? { saved: undefined } : { q: undefined, min_duration: undefined, max_duration: undefined, has_events: undefined, saved: undefined })}>{filters.saved ? en.replays.showAll : en.replays.clearFilters}</Button> : null}</Empty>
       ) : (
         <section className="flex min-w-0 max-w-full flex-col gap-4">

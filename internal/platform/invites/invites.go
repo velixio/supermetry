@@ -303,3 +303,37 @@ func currentInvitationManager(ctx context.Context, tx pgx.Tx, orgID, userID int6
 	}
 	return role, nil
 }
+
+// Preview describes a pending invitation to whoever holds its token, without
+// consuming it: the organization, the invited address and whether an account
+// already uses that address (so the page can ask that person to sign in).
+type Preview struct {
+	OrgName       string    `json:"org_name"`
+	OrgSlug       string    `json:"org_slug"`
+	Email         string    `json:"email"`
+	Role          string    `json:"role"`
+	InvitedBy     string    `json:"invited_by"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	AccountExists bool      `json:"account_exists"`
+}
+
+// Preview returns ErrInvalid for an unknown, accepted, revoked or expired token.
+func (i *Invites) Preview(ctx context.Context, token string) (Preview, error) {
+	if token == "" {
+		return Preview{}, ErrInvalid
+	}
+	var preview Preview
+	err := i.store.Pool.QueryRow(ctx, `
+		select o.name, o.slug, i.email, i.role, coalesce(u.name, ''), i.expires_at,
+			exists (select 1 from users x where x.email = i.email and x.deleted_at is null)
+		from invitations i
+		join orgs o on o.id = i.org_id and o.deleted_at is null
+		left join users u on u.id = i.invited_by
+		where i.token_hash = $1 and i.accepted_at is null and i.revoked_at is null and i.expires_at > $2`,
+		platformcrypto.HashToken(token), i.clock.Now(),
+	).Scan(&preview.OrgName, &preview.OrgSlug, &preview.Email, &preview.Role, &preview.InvitedBy, &preview.ExpiresAt, &preview.AccountExists)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Preview{}, ErrInvalid
+	}
+	return preview, err
+}

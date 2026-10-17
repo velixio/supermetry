@@ -20,28 +20,31 @@ export const manifest: Record<LocaleCode, LocaleInfo> = {
   es: {
     code: 'es', label: 'Spanish', nativeName: 'Español', reviewed: false,
     load: async () => {
-      const [main, dashEdit, ui, uiAccount] = await Promise.all([
+      const [main, dashEdit, ui, uiAccount, uiFlows] = await Promise.all([
         import('@/messages/locales/es'), import('@/messages/locales/es.dashEdit'), import('@/messages/locales/es.ui'), import('@/messages/locales/es.uiAccount'),
+        import('@/messages/locales/es.uiFlows'),
       ])
-      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default }
+      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default, uiFlows: uiFlows.default }
     },
   },
   de: {
     code: 'de', label: 'German', nativeName: 'Deutsch', reviewed: false,
     load: async () => {
-      const [main, dashEdit, ui, uiAccount] = await Promise.all([
+      const [main, dashEdit, ui, uiAccount, uiFlows] = await Promise.all([
         import('@/messages/locales/de'), import('@/messages/locales/de.dashEdit'), import('@/messages/locales/de.ui'), import('@/messages/locales/de.uiAccount'),
+        import('@/messages/locales/de.uiFlows'),
       ])
-      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default }
+      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default, uiFlows: uiFlows.default }
     },
   },
   bn: {
     code: 'bn', label: 'Bengali', nativeName: 'বাংলা', reviewed: false,
     load: async () => {
-      const [main, dashEdit, ui, uiAccount] = await Promise.all([
+      const [main, dashEdit, ui, uiAccount, uiFlows] = await Promise.all([
         import('@/messages/locales/bn'), import('@/messages/locales/bn.dashEdit'), import('@/messages/locales/bn.ui'), import('@/messages/locales/bn.uiAccount'),
+        import('@/messages/locales/bn.uiFlows'),
       ])
-      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default }
+      return { main: main.default, dashEdit: dashEdit.default, ui: ui.default, uiAccount: uiAccount.default, uiFlows: uiFlows.default }
     },
   },
 }

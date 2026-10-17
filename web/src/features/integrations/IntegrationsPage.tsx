@@ -229,7 +229,7 @@ export function IntegrationsPage({
           <Skeleton className="h-40 w-full" />
         </div>
       ) : integrations.isError ? (
-        <ErrorState detail={t.loadError} onRetry={() => void integrations.refetch()} />
+        <ErrorState level="page" detail={t.loadError} onRetry={() => void integrations.refetch()} />
       ) : integrations.data.length === 0 ? (
         <Empty>
           <EmptyHeader>

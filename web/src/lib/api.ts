@@ -22,6 +22,11 @@ type PrivatePaths = {
             'application/json': {
               signup: 'open' | 'invite'
               setup_required: boolean
+              homepage_url: string
+              geoip_source?: string
+              default_retention_days?: number
+              retention_forever?: boolean
+              support_url?: string
             }
           }
         }

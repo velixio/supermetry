@@ -99,7 +99,8 @@ export function createSessionLifecycle(deps: Dependencies) {
     },
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     getStatus,
-    requestLogout(): Promise<void> {
+    /** Signs out, then opens `url` (the sign-in page by default). */
+    requestLogout(url = '/login'): Promise<void> {
       if (pending) return pending
       if (status === 'leaving') return Promise.resolve()
       setStatus('pending')
@@ -115,7 +116,7 @@ export function createSessionLifecycle(deps: Dependencies) {
           })
           if (response.status !== 204) throw new Error('Logout was not confirmed')
           deps.broadcast()
-          leave()
+          leave(url)
         } catch {
           if (getStatus() !== 'leaving') setStatus('failed')
         } finally { pending = undefined }
@@ -168,9 +169,9 @@ export function registerPrivateTask(cancel: () => void) {
   return lifecycle!.registerPrivateTask(cancel)
 }
 
-export function requestLogout() {
+export function requestLogout(url?: string) {
   installSessionLifecycle()
-  return lifecycle!.requestLogout()
+  return lifecycle!.requestLogout(url)
 }
 export function expireSession(url = '/login') {
   installSessionLifecycle()

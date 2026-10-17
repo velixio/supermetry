@@ -203,6 +203,42 @@ func (o *Orgs) Remove(ctx context.Context, actor authz.Principal, userID int64) 
 	})
 }
 
+// Leave removes the actor's own membership. Any member may leave; the last
+// owner must hand over ownership or delete the organization instead.
+func (o *Orgs) Leave(ctx context.Context, actor authz.Principal) error {
+	if actor.UserID == 0 || actor.OrgID == 0 {
+		return ErrForbidden
+	}
+	return o.store.Tx(ctx, func(tx pgx.Tx) error {
+		if err := lockOrg(ctx, tx, actor.OrgID); err != nil {
+			return err
+		}
+		member, err := membershipAccess(ctx, tx, actor.OrgID, actor.UserID)
+		if err != nil {
+			return err
+		}
+		if member.Role == RoleOwner {
+			last, err := isLastOwner(ctx, tx, actor.OrgID)
+			if err != nil {
+				return err
+			}
+			if last {
+				return ErrLastOwner
+			}
+		}
+		if _, err := tx.Exec(ctx, `delete from memberships where org_id = $1 and user_id = $2`, actor.OrgID, actor.UserID); err != nil {
+			return fmt.Errorf("delete membership: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `delete from report_subscriptions rs using sites s
+			where rs.site_id = s.id and s.org_id = $1 and rs.user_id = $2`, actor.OrgID, actor.UserID); err != nil {
+			return fmt.Errorf("delete report subscriptions: %w", err)
+		}
+		return audit.Write(ctx, tx, actor, "membership.left", "membership", actor.UserID, map[string]any{
+			"role": member.Role, "site_ids": member.SiteIDs, "capabilities": member.Capabilities, "billing_admin": member.BillingAdmin,
+		})
+	})
+}
+
 func (o *Orgs) MembershipsFor(ctx context.Context, userID int64) ([]Membership, error) {
 	stored, err := store.MembershipsFor(ctx, o.store, userID)
 	if err != nil {

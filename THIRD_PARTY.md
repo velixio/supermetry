@@ -161,6 +161,13 @@ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 License for the specific language governing permissions and limitations under
 the License.
 
+## MPL-2.0 test-only dependencies
+
+- `axe-core` v4.14.0 — Copyright (c) Deque Systems, Inc. Used only by the
+  Playwright accessibility audits (`web/e2e`); it is not bundled into the
+  dashboard or the binary. Source and license:
+  <https://github.com/dequelabs/axe-core> (Mozilla Public License 2.0).
+
 ## CC BY 4.0 data
 
 - DB-IP IP to Country Lite database, refreshed monthly and bundled without

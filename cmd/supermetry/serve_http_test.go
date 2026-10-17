@@ -167,7 +167,7 @@ func TestAppSecurityHeaders(t *testing.T) {
 				t.Error("Permissions-Policy is absent")
 			}
 			csp := response.Header().Get("Content-Security-Policy")
-			for _, directive := range []string{"default-src 'self'", "script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='", "style-src 'self' 'unsafe-inline'", "frame-ancestors 'none'", "object-src 'none'"} {
+			for _, directive := range []string{"default-src 'self'", "script-src 'self' 'sha256-6FzPl4r8IDd+kJsQB3auePRTyKcmc9DOh1w9K0hueio='", "style-src 'self' 'unsafe-inline'", "frame-ancestors 'none'", "object-src 'none'"} {
 				if !strings.Contains(csp, directive) {
 					t.Errorf("CSP %q missing %q", csp, directive)
 				}
@@ -227,9 +227,9 @@ func TestSecurityHeadersByRouteClass(t *testing.T) {
 		appPermissions    = "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-write=(self), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()"
 		lockedPermissions = "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-write=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()"
 		apiCSP            = "default-src 'none'; frame-ancestors 'none'"
-		shareCSP          = "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		shareCSP          = "default-src 'self'; script-src 'self' 'sha256-6FzPl4r8IDd+kJsQB3auePRTyKcmc9DOh1w9K0hueio='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	)
-	appCSP := "default-src 'self'; script-src 'self' 'sha256-SuOncodWHu+gLg1OlZCyogivDxh1qcH4Utmkganh+Pg='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	appCSP := "default-src 'self'; script-src 'self' 'sha256-6FzPl4r8IDd+kJsQB3auePRTyKcmc9DOh1w9K0hueio='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; frame-src 'self' blob: https: http:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	replayCSP := strings.Replace(appCSP, "font-src 'self'", "font-src 'self' data: blob: https:", 1)
 
 	base := map[string]string{

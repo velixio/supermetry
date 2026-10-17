@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AccountSecurityPage } from "./app.account.security";
+import { AccountSecurityPage, totpSecret } from "./app.account.security";
 
 afterEach(cleanup);
 
@@ -47,5 +47,39 @@ describe("account 2FA security", () => {
       current_password: "pw-123456789",
       code: "recovery-code",
     }));
+  });
+
+  it("offers a typeable setup key and saved recovery codes before confirming", async () => {
+    const request = vi.fn(async (method: string, path: string) => {
+      if (method === "POST" && path === "/api/private/me/totp") return { url: "otpauth://totp/Supermetry:me?secret=JBSWY3DPEHPK3PXP&issuer=Supermetry", recovery_codes: ["aaaa-bbbb", "cccc-dddd"] };
+      return undefined;
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}>
+        <AccountSecurityPage totpEnabled={false} request={request} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set up authenticator" }));
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "pw-123456789" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByText("JBSW Y3DP EHPK 3PXP")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Copy setup key" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Download codes" })).toBeVisible();
+    const code = screen.getByLabelText("Code from your authenticator app");
+    expect(code).toHaveAttribute("autocomplete", "one-time-code");
+    const confirm = screen.getByRole("button", { name: "Confirm" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByLabelText("I have saved these recovery codes"));
+    expect(confirm).toBeEnabled();
+    fireEvent.change(code, { target: { value: "123456" } });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(request).toHaveBeenCalledWith("PATCH", "/api/private/me/totp", { code: "123456" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Two-factor authentication is on.");
+  });
+
+  it("reads the secret from an otpauth URI", () => {
+    expect(totpSecret("otpauth://totp/x?secret=abcdefghij")).toBe("ABCD EFGH IJ");
+    expect(totpSecret("not a uri")).toBe("");
   });
 });

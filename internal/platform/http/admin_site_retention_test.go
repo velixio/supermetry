@@ -152,3 +152,15 @@ func TestAdminMutationsRecheckAdminInTx(t *testing.T) {
 		t.Fatalf("instance audit rows=%d err=%v", audits, err)
 	}
 }
+
+func TestAdminSetRetentionRejectsForeverWhenDisabled(t *testing.T) {
+	e := newAdminOrgDeleteEnv(t)
+	id := e.addRetentionSite(t)
+	e.sites.SetRetentionPolicy(30, false)
+	if response := patchRetention(e.handler, "admin", id, `{"retention_days":0}`); response.Code != http.StatusBadRequest {
+		t.Fatalf("forever status = %d body=%s", response.Code, response.Body)
+	}
+	if got := siteRetention(t, e, id); got != 30 {
+		t.Fatalf("retention changed to %d", got)
+	}
+}

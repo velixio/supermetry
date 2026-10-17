@@ -14,6 +14,7 @@ import (
 	"supermetry/internal/platform/authn"
 	"supermetry/internal/platform/authz"
 	"supermetry/internal/platform/invites"
+	"supermetry/internal/platform/orgs"
 	"supermetry/internal/platform/reports"
 	"supermetry/internal/platform/shares"
 )
@@ -59,6 +60,50 @@ func (h *handler) listInvitations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+}
+
+// previewInvitation tells the holder of an invitation link which organization
+// it is for, without consuming the token.
+func (h *handler) previewInvitation(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Invites == nil {
+		unavailable(w, "invitation")
+		return
+	}
+	preview, err := h.deps.Invites.Preview(r.Context(), r.PathValue("token"))
+	if err != nil {
+		if errors.Is(err, invites.ErrInvalid) {
+			writeProblem(w, http.StatusNotFound, "Not found", "the invitation is invalid or expired")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, preview)
+}
+
+// leaveOrganization removes the signed-in user's own membership.
+func (h *handler) leaveOrganization(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if _, ok := orgIDFromPath(w, r, principal); !ok {
+		return
+	}
+	if h.deps.Orgs == nil {
+		unavailable(w, "organization")
+		return
+	}
+	if err := h.deps.Orgs.Leave(r.Context(), principal); err != nil {
+		if errors.Is(err, orgs.ErrLastOwner) {
+			writeProblem(w, http.StatusConflict, "Conflict", "the last owner cannot leave; make another member an owner or delete the organization")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) acceptInvitation(w http.ResponseWriter, r *http.Request) {

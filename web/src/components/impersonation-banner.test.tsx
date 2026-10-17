@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { ImpersonationBanner } from './ImpersonationBanner'
@@ -13,14 +13,28 @@ const me: Me = {
   memberships: [],
 }
 
-afterEach(() => { cleanup(); vi.clearAllMocks() })
+afterEach(() => { cleanup(); vi.clearAllMocks(); vi.useRealTimers() })
 
-it('impersonation banner shows the target email and ends the session', () => {
-  render(<ImpersonationBanner me={{ ...me, impersonated_by_email: 'root@example.test' }} />)
+it('names the customer, the admin and the end time, and ends with a notice on sign-in', () => {
+  vi.useFakeTimers()
+  const expires = new Date(2026, 9, 17, 14, 30)
+  render(<ImpersonationBanner me={{ ...me, impersonated_by_email: 'root@example.test', impersonation_expires_at: expires.toISOString() }} />)
   const banner = screen.getByRole('alert')
-  expect(banner).toHaveTextContent('Signed in as target@example.test by an administrator')
+  expect(banner).toHaveTextContent('You are signed in as target@example.test by root@example.test.')
+  expect(banner).toHaveTextContent(/The session ends at .*30/)
+  expect(banner).toHaveClass('sticky')
+  act(() => { vi.advanceTimersByTime(1_500) })
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Support session' })).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'End session' }))
-  expect(requestLogout).toHaveBeenCalledTimes(1)
+  expect(requestLogout).toHaveBeenCalledWith('/login?notice=impersonation')
+})
+
+it('keeps focused content clear of the bar while it is shown', () => {
+  const { unmount } = render(<ImpersonationBanner me={{ ...me, impersonated_by_email: 'root@example.test' }} />)
+  expect(document.documentElement.style.scrollPaddingBottom).toBe('5rem')
+  unmount()
+  expect(document.documentElement.style.scrollPaddingBottom).toBe('')
 })
 
 it.each([undefined, null])('impersonation banner stays hidden for the user’s own session (%s)', (value) => {

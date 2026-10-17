@@ -1,14 +1,13 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 
 import type { Page } from '@playwright/test'
 
+import { axeAvailable, axeMissing, axePath } from './axe'
 import { removeSavedDashboards } from './dashboards-cleanup'
 import { expect, test } from './fixtures'
 
 test.use({ bypassCSP: true })
 
-// axe-core is not a project dependency: point SUPERMETRY_AXE_PATH at axe.min.js to run this audit.
-const axePath = process.env.SUPERMETRY_AXE_PATH ?? ''
 const shots = 'e2e/screenshots/ui-qa'
 const range = 'period=custom&from=2026-09-28&to=2026-09-30'
 
@@ -56,7 +55,7 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
 type Step = [name: string, url: string, action?: (page: Page) => Promise<void>]
 
 test('new pages pass axe and fit the viewport in light and dark themes', async ({ page, request, owner }) => {
-  test.skip(!axePath || !existsSync(axePath), 'set SUPERMETRY_AXE_PATH to an axe-core axe.min.js to run this audit')
+  test.skip(!axeAvailable, axeMissing)
   test.setTimeout(900_000)
   mkdirSync(shots, { recursive: true })
   await removeSavedDashboards(request, owner)

@@ -46,7 +46,6 @@ export const ui = {
   },
   emptyState: { setUpTracking: 'Set up tracking' },
   impersonation: {
-    signedInAs: (email: string) => `Signed in as ${email} by an administrator`,
     endSession: 'End session',
   },
   pager: {

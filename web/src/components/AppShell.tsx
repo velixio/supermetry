@@ -38,6 +38,7 @@ import { ui } from '@/messages/ui'
 import { sidebarStartsOpen } from './sidebarState'
 import { loadPalette } from './paletteLoader'
 import { PaletteBoundary } from './PaletteBoundary'
+import { InAppShell, UnknownSite } from './NotFound'
 
 // cmdk and the palette load on first open, so they stay out of the initial JS budget.
 const lazyPalette = () => lazy(loadPalette)
@@ -118,6 +119,7 @@ export function AppShell({
 
   return (
     <AuthorizationProvider membership={membership}>
+    <InAppShell.Provider value>
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <a
@@ -149,7 +151,6 @@ export function AppShell({
             paletteTriggerRef={paletteTrigger}
           />
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
-            <ImpersonationBanner me={me} />
             {membership ? (
               scopedSite?.is_demo ? (
                 <DemoBanner org={membership.org} site={scopedSite} />
@@ -162,7 +163,9 @@ export function AppShell({
                 key={pathname}
                 className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-150"
               >
-                {membership ? (
+                {membership && requestedSite && !scopedSite ? (
+                  <UnknownSite key={`${membership.org.id}/${requestedSite}`} membership={membership} />
+                ) : membership ? (
                   <AnalyticsPrivacyBoundary site={scopedSite} org={membership.org.slug} requestedSite={requestedSite} pathname={pathname} renderedPathnames={renderedPathnames}>
                     <Outlet />
                   </AnalyticsPrivacyBoundary>
@@ -172,6 +175,7 @@ export function AppShell({
               </div>
             </AuthorizationCacheBoundary>
           </main>
+          <ImpersonationBanner me={me} />
           <footer className="flex flex-wrap items-center justify-center gap-x-3 px-4 pb-4 text-center text-xs text-muted-foreground md:px-6">
             <GeolocationCredit />
             <PoweredBySupermetry className="hover:text-foreground" />
@@ -220,6 +224,7 @@ export function AppShell({
       ) : null}
       <Toaster />
     </TooltipProvider>
+    </InAppShell.Provider>
     </AuthorizationProvider>
   )
 }

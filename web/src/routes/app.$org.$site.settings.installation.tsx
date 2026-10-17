@@ -14,6 +14,8 @@ function InstallationRoute() {
       siteId={site.id}
       publicId={site.public_id ?? String(site.id)}
       isDemo={site.is_demo}
+      dashboardHref={`/app/${org}/${slug}`}
+      domainsHref={`/app/${org}/${slug}/settings/general`}
     />
   ) : null
 }

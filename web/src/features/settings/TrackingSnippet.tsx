@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
+import { ErrorState } from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
-import { copyText } from "@/lib/clipboard";
+import { Skeleton } from "@/components/ui/skeleton";
+import { uiFlows } from "@/messages/uiFlows";
+import { useCopyStatus } from "./InstallRecipes";
 
 // Fallback used only until the server snippet loads: absolute URL on this origin.
 export function trackingSnippet(
@@ -36,12 +39,19 @@ export function TrackingSnippet({
   publicId,
   snippet: serverSnippet,
   fullSnippet,
+  loading = false,
+  failed = false,
+  onRetry,
 }: {
   publicId: string;
   snippet?: string;
   fullSnippet?: string;
+  /** While the server snippet loads, hold its space instead of showing a fallback that could be copied. */
+  loading?: boolean;
+  failed?: boolean;
+  onRetry?: () => void;
 }) {
-  const [copied, setCopied] = useState<"yes" | "manual" | null>(null);
+  const { copied, copy: copyValue } = useCopyStatus();
   const [full, setFull] = useState(true);
   const generatedSnippet = Boolean(
     serverSnippet && fullSnippet && serverSnippet === fullSnippet,
@@ -54,7 +64,20 @@ export function TrackingSnippet({
   );
 
   async function copy() {
-    setCopied((await copyText(snippet)) ? "yes" : "manual");
+    await copyValue(snippet);
+  }
+
+  if (loading && !serverSnippet) {
+    return (
+      <div className="flex flex-col gap-3" role="status" aria-label={uiFlows.install.loadingSnippet}>
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-9 w-48" />
+      </div>
+    );
+  }
+  if (failed && !serverSnippet) {
+    return <ErrorState detail={uiFlows.install.snippetFailed} onRetry={onRetry} />;
   }
 
   return (

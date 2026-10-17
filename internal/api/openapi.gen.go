@@ -2105,22 +2105,26 @@ type CreateShareRequest struct {
 	Password      *string          `json:"password,omitempty"`
 }
 
-// CreateSiteRequest hosts and revenue_currency are required when kind is web (the default) and ignored for pixel.
+// CreateSiteRequest hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel.
 type CreateSiteRequest struct {
 	Hosts *[]string `json:"hosts,omitempty"`
 
 	// Kind Fixed at creation.
-	Kind            *CreateSiteRequestKind         `json:"kind,omitempty"`
-	Name            string                         `json:"name"`
-	RetentionDays   CreateSiteRequestRetentionDays `json:"retention_days"`
-	RevenueCurrency *string                        `json:"revenue_currency,omitempty"`
-	Timezone        string                         `json:"timezone"`
+	Kind *CreateSiteRequestKind `json:"kind,omitempty"`
+	Name string                 `json:"name"`
+
+	// RetentionDays Raw-event retention in days; 0 keeps events forever. Omitted uses the instance default (SUPERMETRY_DEFAULT_RETENTION_DAYS). 0 is rejected with 400 when SUPERMETRY_RETENTION_FOREVER is false.
+	RetentionDays *CreateSiteRequestRetentionDays `json:"retention_days,omitempty"`
+
+	// RevenueCurrency Permanent project currency. Omitted leaves it unconfigured; an owner or admin can set it once later.
+	RevenueCurrency *string `json:"revenue_currency,omitempty"`
+	Timezone        string  `json:"timezone"`
 }
 
 // CreateSiteRequestKind Fixed at creation.
 type CreateSiteRequestKind string
 
-// CreateSiteRequestRetentionDays defines model for CreateSiteRequest.RetentionDays.
+// CreateSiteRequestRetentionDays Raw-event retention in days; 0 keeps events forever. Omitted uses the instance default (SUPERMETRY_DEFAULT_RETENTION_DAYS). 0 is rejected with 400 when SUPERMETRY_RETENTION_FOREVER is false.
 type CreateSiteRequestRetentionDays int
 
 // CreatedAPIKey defines model for CreatedAPIKey.
@@ -2143,7 +2147,10 @@ type CurrentUserResponse struct {
 
 	// ImpersonatedByEmail Set when an instance admin signed in as this user; the admin's email.
 	ImpersonatedByEmail *openapi_types.Email `json:"impersonated_by_email,omitempty"`
-	Memberships         []struct {
+
+	// ImpersonationExpiresAt Present while an instance admin is signed in as this user; when that session ends. Activity never extends it.
+	ImpersonationExpiresAt *time.Time `json:"impersonation_expires_at,omitempty"`
+	Memberships            []struct {
 		BillingAdmin          bool     `json:"billing_admin"`
 		Capabilities          []string `json:"capabilities"`
 		EffectiveCapabilities []string `json:"effective_capabilities"`

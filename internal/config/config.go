@@ -35,6 +35,8 @@ const (
 	defaultDataDir          = "./data"
 	defaultMaxMind          = "GeoLite2-City,GeoLite2-ASN"
 	defaultHomepageURL      = "https://supermetry.com"
+	// defaultRetentionDays is what the site form offered before the setting existed.
+	defaultRetentionDays = 30
 )
 
 var allowedMaxMindEditions = map[string]bool{
@@ -53,12 +55,18 @@ type SMTP struct {
 }
 
 type Config struct {
-	Tracking             TrackingMode
-	TrackingPaths        privacy.PathPolicy
-	DatabaseURL          string
-	Listen               string
-	BaseURL              string
-	HomepageURL          string
+	Tracking      TrackingMode
+	TrackingPaths privacy.PathPolicy
+	DatabaseURL   string
+	Listen        string
+	BaseURL       string
+	HomepageURL   string
+	// SupportURL is an optional help link (https or mailto) shown on error pages. Empty hides it.
+	SupportURL string
+	// DefaultRetentionDays preselects raw-event retention for new sites (7, 30, 90, 365, or 0 for forever).
+	DefaultRetentionDays int
+	// RetentionForever offers the "keep forever" retention. When false the API rejects retention_days 0.
+	RetentionForever     bool
 	BadgeBranding        bool
 	OpenCounters         bool
 	OpenCounterBlocklist string
@@ -169,6 +177,9 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		Listen:               valueOrDefault(getenv("SUPERMETRY_LISTEN"), defaultListen),
 		BaseURL:              getenv("SUPERMETRY_BASE_URL"),
 		HomepageURL:          valueOrDefault(getenv("SUPERMETRY_HOMEPAGE_URL"), defaultHomepageURL),
+		SupportURL:           strings.TrimSpace(getenv("SUPERMETRY_SUPPORT_URL")),
+		DefaultRetentionDays: defaultRetentionDays,
+		RetentionForever:     true,
 		BadgeBranding:        true,
 		OpenCounterBlocklist: strings.TrimSpace(getenv("SUPERMETRY_OPEN_COUNTER_BLOCKLIST")),
 		EventPath:            valueOrDefault(getenv("SUPERMETRY_EVENT_PATH"), defaultEventPath),
@@ -267,6 +278,23 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
+	parseOptionalBool(getenv("SUPERMETRY_RETENTION_FOREVER"), "SUPERMETRY_RETENTION_FOREVER", &c.RetentionForever, &errs)
+	if raw := strings.TrimSpace(getenv("SUPERMETRY_DEFAULT_RETENTION_DAYS")); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || !ValidRetentionDays(value) {
+			errs = append(errs, errors.New("SUPERMETRY_DEFAULT_RETENTION_DAYS must be 7, 30, 90, 365 or 0 (keep forever)"))
+		} else {
+			c.DefaultRetentionDays = value
+		}
+	}
+	if c.DefaultRetentionDays == 0 && !c.RetentionForever {
+		errs = append(errs, errors.New("SUPERMETRY_RETENTION_FOREVER=false needs SUPERMETRY_DEFAULT_RETENTION_DAYS set to 7, 30, 90 or 365"))
+	}
+	if c.SupportURL != "" {
+		if err := validateSupportURL(c.SupportURL); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	parseOptionalBool(getenv("SUPERMETRY_BADGE_BRANDING"), "SUPERMETRY_BADGE_BRANDING", &c.BadgeBranding, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_OPEN_COUNTERS"), "SUPERMETRY_OPEN_COUNTERS", &c.OpenCounters, &errs)
 	parseOptionalBoolPointer(getenv("SUPERMETRY_REPLAY_MASK"), "SUPERMETRY_REPLAY_MASK", &c.Replay.Mask, &errs)
@@ -456,6 +484,23 @@ func valueOrDefault(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// ValidRetentionDays reports whether days is a supported raw-event retention; 0 keeps events forever.
+func ValidRetentionDays(days int) bool {
+	switch days {
+	case 0, 7, 30, 90, 365:
+		return true
+	}
+	return false
+}
+
+func validateSupportURL(raw string) error {
+	parsed, err := url.Parse(raw)
+	if err == nil && parsed.Scheme == "mailto" && strings.Contains(parsed.Opaque, "@") {
+		return nil
+	}
+	return validateURL(raw, "SUPERMETRY_SUPPORT_URL", map[string]bool{"http": true, "https": true})
 }
 
 func validateURL(raw, name string, schemes map[string]bool) error {

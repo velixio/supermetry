@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
+import { uiFlows } from '@/messages/uiFlows'
 import { resetAfterLogin } from '@/lib/session-lifecycle'
 import { signedInRedirect } from '@/lib/signed-in'
 import { applyPreferredTheme } from '@/lib/theme'
 
 import { AuthScreen } from '@/features/auth/AuthScreen'
+import { PasswordInput } from '@/features/auth/PasswordInput'
 import { authProblemMessage, createAuthConfigApi, postPrivate, type LoginResult, type SignupMode } from '@/features/auth/api'
 
 export type SignupInput = {
@@ -31,24 +33,29 @@ export const Route = createFileRoute('/signup')({
 function SignupPage() {
   const navigate = Route.useNavigate()
   const [signup, setSignup] = useState<SignupMode>()
+  const [configFailed, setConfigFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
+    setConfigFailed(false)
     void createAuthConfigApi()()
       .then((config) => {
         if (active) setSignup(config.signup)
       })
       .catch(() => {
-        if (active) setSignup('invite')
+        if (active) setConfigFailed(true)
       })
     return () => {
       active = false
     }
-  }, [])
+  }, [attempt])
 
   return (
     <SignupPageContent
       signup={signup}
+      configFailed={configFailed}
+      onRetryConfig={() => setAttempt((value) => value + 1)}
       submit={(input) => postPrivate('/api/private/auth/signup', input)}
       onSuccess={() => {
         resetAfterLogin()
@@ -63,18 +70,35 @@ export function SignupPageContent({
   signup,
   submit,
   onSuccess,
+  configFailed = false,
+  onRetryConfig,
 }: {
   signup?: SignupMode
   submit: (input: SignupInput) => Promise<LoginResult>
   onSuccess: (path: '/') => void
+  /** The sign-up settings could not be loaded; never guess "invite-only" from a failure. */
+  configFailed?: boolean
+  onRetryConfig?: () => void
 }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
 
+  if (configFailed && signup === undefined) {
+    return (
+      <AuthScreen title={en.auth.signupHeading} description={en.auth.signupDescription}>
+        <p role="alert" className="text-sm text-destructive">{uiFlows.auth.signupConfigFailed}</p>
+        {onRetryConfig ? <Button type="button" variant="outline" onClick={onRetryConfig}>{uiFlows.common.retry}</Button> : null}
+        <p className="text-sm text-muted-foreground">
+          Already have an account? <Link to="/login">{en.auth.backToLogin}</Link>
+        </p>
+      </AuthScreen>
+    )
+  }
+
   if (signup === undefined) {
     return (
       <AuthScreen title={en.auth.signupHeading} description={en.auth.signupDescription}>
-        <p className="text-sm text-muted-foreground">Loading signup settings…</p>
+        <p role="status" className="text-sm text-muted-foreground">Loading signup settings…</p>
       </AuthScreen>
     )
   }
@@ -123,11 +147,11 @@ export function SignupPageContent({
           </Field>
           <Field>
             <FieldLabel htmlFor="email">{en.auth.email}</FieldLabel>
-            <Input id="email" name="email" type="email" autoComplete="email" required />
+            <Input id="email" name="email" type="email" autoComplete="email" spellCheck={false} autoCapitalize="none" required />
           </Field>
           <Field>
             <FieldLabel htmlFor="password">{en.auth.password}</FieldLabel>
-			<Input id="password" name="password" type="password" autoComplete="new-password" minLength={6} required />
+            <PasswordInput id="password" name="password" autoComplete="new-password" minLength={6} required />
 			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
           </Field>
           <Field>

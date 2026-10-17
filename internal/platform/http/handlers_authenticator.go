@@ -167,8 +167,8 @@ func impersonationBlocked(r *http.Request) bool {
 		return true
 	}
 	// Nothing created during the session may outlive it: API keys, invitations,
-	// role changes, share links, notification channels, alerts and scheduled
-	// reports.
+	// role changes, member removals, leaving, share links, notification
+	// channels, alerts and scheduled reports.
 	if value, ok := strings.CutPrefix(r.URL.Path, "/api/private/orgs/"); ok {
 		org, suffix, found := strings.Cut(value, "/")
 		if !found || org == "" {
@@ -178,6 +178,8 @@ func impersonationBlocked(r *http.Request) bool {
 		case r.Method == http.MethodPost && (suffix == "api-keys" || suffix == "invitations" || suffix == "channels"):
 			return true
 		case r.Method == http.MethodPatch && strings.HasPrefix(suffix, "members/"):
+			return true
+		case r.Method == http.MethodDelete && (suffix == "membership" || strings.HasPrefix(suffix, "members/")):
 			return true
 		}
 		return false
