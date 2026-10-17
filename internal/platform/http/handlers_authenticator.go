@@ -179,6 +179,8 @@ func impersonationBlocked(r *http.Request) bool {
 			return true
 		case r.Method == http.MethodPatch && strings.HasPrefix(suffix, "members/"):
 			return true
+		case r.Method == http.MethodDelete && suffix == "membership":
+			return true
 		}
 		return false
 	}

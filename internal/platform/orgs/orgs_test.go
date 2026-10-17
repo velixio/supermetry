@@ -268,3 +268,27 @@ func equalSites(a, b []int32) bool {
 	}
 	return true
 }
+
+func TestLeaveRemovesOnlyTheActorAndProtectsTheLastOwner(t *testing.T) {
+	service, ids, pool := newOrgWith(t, RoleOwner, RoleViewer)
+	ctx := context.Background()
+	viewer := principal(ids[RoleViewer], RoleViewer, ids["org"])
+	if err := service.Leave(ctx, viewer); err != nil {
+		t.Fatal("viewer leave:", err)
+	}
+	var count int
+	if err := pool.QueryRow(ctx, `select count(*) from memberships where org_id=$1`, ids["org"]).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("memberships after leave = %d, %v", count, err)
+	}
+	var audited int
+	if err := pool.QueryRow(ctx, `select count(*) from audit_log where action='membership.left' and target_id=$1`, ids[RoleViewer]).Scan(&audited); err != nil || audited != 1 {
+		t.Fatalf("membership.left audit rows = %d, %v", audited, err)
+	}
+	if err := service.Leave(ctx, viewer); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("second leave err = %v, want ErrNotFound", err)
+	}
+	owner := principal(ids[RoleOwner], RoleOwner, ids["org"])
+	if err := service.Leave(ctx, owner); !errors.Is(err, ErrLastOwner) {
+		t.Fatalf("last owner leave err = %v, want ErrLastOwner", err)
+	}
+}

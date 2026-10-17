@@ -17,6 +17,7 @@ PATCH /api/private/goals/{goal}  # Dashboard or account flow; session/private UI
 GET /api/private/health  # Dashboard or account flow; session/private UI contract.
 POST /api/private/heatmaps/query  # Dashboard or account flow; session/private UI contract.
 DELETE /api/private/imports/{import}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/invitations/{token}  # Dashboard or account flow; session/private UI contract.
 POST /api/private/invitations/{token}/accept  # Dashboard or account flow; session/private UI contract.
 POST /api/private/journeys/query  # Dashboard or account flow; session/private UI contract.
 DELETE /api/private/links/{link}  # Dashboard or account flow; session/private UI contract.
@@ -47,6 +48,7 @@ GET /api/private/orgs/{org}/invitations  # Dashboard or account flow; session/pr
 POST /api/private/orgs/{org}/invitations  # Dashboard or account flow; session/private UI contract.
 DELETE /api/private/orgs/{org}/invitations/{invitation}  # Dashboard or account flow; session/private UI contract.
 GET /api/private/orgs/{org}/members  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/orgs/{org}/membership  # Dashboard or account flow; session/private UI contract.
 DELETE /api/private/orgs/{org}/members/{user}  # Dashboard or account flow; session/private UI contract.
 PATCH /api/private/orgs/{org}/members/{user}  # Dashboard or account flow; session/private UI contract.
 GET /api/private/profiles/{profile}  # Dashboard or account flow; session/private UI contract.

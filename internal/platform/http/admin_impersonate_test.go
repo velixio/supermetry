@@ -147,7 +147,8 @@ type impersonatedMe struct {
 	User struct {
 		Email string `json:"email"`
 	} `json:"user"`
-	ImpersonatedByEmail *string `json:"impersonated_by_email"`
+	ImpersonatedByEmail    *string    `json:"impersonated_by_email"`
+	ImpersonationExpiresAt *time.Time `json:"impersonation_expires_at"`
 }
 
 func decodeMe(t *testing.T, response *httptest.ResponseRecorder) (impersonatedMe, map[string]any) {
@@ -170,7 +171,7 @@ func TestImpersonateCreatesShortSession(t *testing.T) {
 	if own.Code != http.StatusOK {
 		t.Fatalf("admin me status=%d body=%s", own.Code, own.Body)
 	}
-	if me, raw := decodeMe(t, own); me.ImpersonatedByEmail != nil {
+	if me, raw := decodeMe(t, own); me.ImpersonatedByEmail != nil || me.ImpersonationExpiresAt != nil {
 		t.Fatalf("admin me impersonated_by_email = %v", *me.ImpersonatedByEmail)
 	} else if _, present := raw["impersonated_by_email"]; !present {
 		t.Fatalf("impersonated_by_email missing from me: %s", own.Body)
@@ -213,6 +214,13 @@ func TestImpersonateCreatesShortSession(t *testing.T) {
 	}
 	if body, _ := decodeMe(t, me); body.User.Email != "target@example.test" || body.ImpersonatedByEmail == nil || *body.ImpersonatedByEmail != "root@example.test" {
 		t.Fatalf("me = %s", me.Body)
+	}
+	if body, _ := decodeMe(t, me); body.ImpersonationExpiresAt == nil || !body.ImpersonationExpiresAt.Equal(created.Add(time.Hour)) {
+		t.Fatalf("me impersonation_expires_at = %v, want %s", body.ImpersonationExpiresAt, created.Add(time.Hour))
+	}
+	// Leaving an organization is refused while signed in as the customer.
+	if got := e.serveSession(http.MethodDelete, "/api/private/orgs/1/membership", "", cookie.Value); got.Code != http.StatusForbidden || !strings.Contains(got.Body.String(), "signed in as another user") {
+		t.Fatalf("leave during impersonation status=%d body=%s", got.Code, got.Body)
 	}
 	// Activity never extends the session past the hard expiry.
 	for _, step := range []time.Duration{20 * time.Minute, 20 * time.Minute, 19 * time.Minute} {

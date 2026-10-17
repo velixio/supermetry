@@ -295,3 +295,49 @@ func createSite(t *testing.T, env inviteEnv, publicID string) int32 {
 	}
 	return siteID
 }
+
+func TestPreviewDescribesAPendingInvitationWithoutConsumingIt(t *testing.T) {
+	env := newInviteEnv(t, &mail.Fake{})
+	ctx := context.Background()
+	link, err := env.service.Create(ctx, env.owner, "preview@example.test", authz.RoleViewer, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := tokenFromLink(t, link)
+	preview, err := env.service.Preview(ctx, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.OrgName != "Test" || preview.Email != "preview@example.test" || preview.Role != "viewer" || preview.InvitedBy != "Owner" || preview.AccountExists {
+		t.Fatalf("preview = %+v", preview)
+	}
+	if !preview.ExpiresAt.Equal(env.clock.now.Add(7 * 24 * time.Hour)) {
+		t.Fatalf("expires_at = %v", preview.ExpiresAt)
+	}
+	// Previewing leaves the token usable.
+	if _, err := env.service.Accept(ctx, token, 0, "Preview", "password-1234"); err != nil {
+		t.Fatalf("accept after preview: %v", err)
+	}
+	if _, err := env.service.Preview(ctx, token); !errors.Is(err, invites.ErrInvalid) {
+		t.Fatalf("preview of an accepted invitation err = %v, want ErrInvalid", err)
+	}
+	if _, err := env.service.Preview(ctx, "not-a-token"); !errors.Is(err, invites.ErrInvalid) {
+		t.Fatalf("preview of an unknown token err = %v", err)
+	}
+	existing, err := env.service.Create(ctx, env.owner, "admin@example.test", authz.RoleViewer, nil)
+	if err == nil {
+		got, err := env.service.Preview(ctx, tokenFromLink(t, existing))
+		if err != nil || !got.AccountExists {
+			t.Fatalf("existing account preview = %+v, %v", got, err)
+		}
+	}
+	env.clock.Advance(8 * 24 * time.Hour)
+	expired, err := env.service.Create(ctx, env.owner, "late@example.test", authz.RoleViewer, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.clock.Advance(8 * 24 * time.Hour)
+	if _, err := env.service.Preview(ctx, tokenFromLink(t, expired)); !errors.Is(err, invites.ErrInvalid) {
+		t.Fatalf("expired preview err = %v", err)
+	}
+}
