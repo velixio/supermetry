@@ -18,11 +18,11 @@ import { privateRequest } from './privateApi'
 import { useSaveLocalePreference } from './useSaveLocalePreference'
 import { uiAccount } from '@/messages/uiAccount'
 import { uiFlows } from '@/messages/uiFlows'
+import { nativeSelectClass } from '@/lib/nativeSelect'
 
 type Method = 'PATCH' | 'POST' | 'DELETE'
 type Request = (method: Method, path: string, body: Record<string, unknown>) => Promise<unknown>
 
-export const nativeSelectClass = 'h-9 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground disabled:opacity-50'
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : en.auth.serverError)
 

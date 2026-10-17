@@ -83,3 +83,48 @@ describe('site URL name', () => {
     expect(onSlugChange).not.toHaveBeenCalled()
   })
 })
+
+describe('site retention', () => {
+  beforeEach(() => {
+    privateRequest.mockReset()
+    privateRequest.mockImplementation(async (method: string) => (method === 'GET' ? { ...site, retention_days: 365 } : { ...site, retention_days: 7 }))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ signup: 'invite', setup_required: false, homepage_url: '/', default_retention_days: 90, retention_forever: false }), { status: 200 })))
+  })
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  function renderPage() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    renderWithRouter(
+      <QueryClientProvider client={queryClient}>
+        <SiteGeneralPage orgId={3} role="owner" siteId={7} />
+      </QueryClientProvider>,
+    )
+  }
+
+  it('confirms before lowering retention and states what is deleted', async () => {
+    renderPage()
+    const retention = await screen.findByLabelText('Raw data retention')
+    expect(retention).toHaveValue('365')
+    await waitFor(() => expect(screen.queryByRole('option', { name: 'Keep forever' })).not.toBeInTheDocument())
+    fireEvent.change(retention, { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Lower retention to 7 days?' })
+    expect(dialog).toHaveTextContent('Raw events older than 7 days will be permanently deleted')
+    expect(privateRequest.mock.calls.some(([method]) => method === 'PATCH')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Lower retention' }))
+    await waitFor(() => expect(privateRequest.mock.calls.find(([method]) => method === 'PATCH')?.[2].body).toMatchObject({ retention_days: 7 }))
+    expect(await screen.findByText('Site settings saved.')).toHaveAttribute('role', 'status')
+  })
+
+  it('saves a longer retention without asking', async () => {
+    privateRequest.mockImplementation(async (method: string) => (method === 'GET' ? { ...site, retention_days: 30 } : { ...site, retention_days: 90 }))
+    renderPage()
+    fireEvent.change(await screen.findByLabelText('Raw data retention'), { target: { value: '90' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(privateRequest.mock.calls.some(([method]) => method === 'PATCH')).toBe(true))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+})

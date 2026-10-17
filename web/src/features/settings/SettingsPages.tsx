@@ -70,6 +70,11 @@ import { InstallGuide, SiteIconSettings, installationStatusInterval } from "./Si
 import { ProfilesSettings } from "./ProfilesSettings";
 import type { Role } from "@/components/Sidebar";
 import { activeLocale } from '@/lib/i18n/intl'
+import { lowersRetention, retentionOptions, retentionPolicy, useInstanceConfig } from '@/lib/instanceConfig'
+import { retentionLabel } from '@/features/sites/SiteForm'
+import { TimezoneSelect } from '@/features/sites/TimezoneSelect'
+import { nativeSelectClass } from '@/lib/nativeSelect'
+import { uiFlows } from '@/messages/uiFlows'
 
 type Site = {
   id: number;
@@ -228,13 +233,16 @@ export function SiteGeneralPage({
       }
     },
   });
+  const config = useInstanceConfig();
+  const policy = retentionPolicy(config.data);
+  const [pendingLower, setPendingLower] = useState<Record<string, unknown> | null>(null);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const revenueCurrency = String(data.get("revenue_currency") ?? "")
       .trim()
       .toUpperCase();
-    save.mutate({
+    const body: Record<string, unknown> = {
       name: String(data.get("name") ?? ""),
       ...(data.get("slug") !== null ? { slug: String(data.get("slug")).trim() } : {}),
       hosts: String(data.get("hosts") ?? "")
@@ -244,7 +252,13 @@ export function SiteGeneralPage({
       timezone: String(data.get("timezone") ?? ""),
       retention_days: Number(data.get("retention")),
       ...(revenueCurrency ? { revenue_currency: revenueCurrency } : {}),
-    });
+    };
+    const current = site.data?.retention_days;
+    if (current !== undefined && lowersRetention(current, Number(body.retention_days))) {
+      setPendingLower(body);
+      return;
+    }
+    save.mutate(body);
   }
   return (
     <Page
@@ -301,28 +315,21 @@ export function SiteGeneralPage({
                     Separate multiple hosts with commas.
                   </FieldDescription>
                 </Field>
+                <TimezoneSelect key={site.data.timezone} defaultValue={site.data.timezone} hint={uiFlows.site.timezoneHint} />
                 <Field>
-                  <FieldLabel htmlFor="site-timezone">Time zone</FieldLabel>
-                  <Input
-                    id="site-timezone"
-                    name="timezone"
-                    defaultValue={site.data.timezone}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="site-retention">Retention</FieldLabel>
+                  <FieldLabel htmlFor="site-retention">{uiFlows.site.retention}</FieldLabel>
                   <select
                     id="site-retention"
                     name="retention"
                     defaultValue={site.data.retention_days}
-                    className="h-9 rounded-lg border bg-background px-3 text-sm"
+                    className={nativeSelectClass}
+                    aria-describedby="site-retention-hint"
                   >
-                    <option value="7">7 days</option>
-                    <option value="30">30 days</option>
-                    <option value="90">90 days</option>
-                    <option value="365">365 days</option>
-                    <option value="0">Forever</option>
+                    {retentionOptions(policy, site.data.retention_days).map((days) => (
+                      <option key={days} value={days}>{retentionLabel(days)}</option>
+                    ))}
                   </select>
+                  <FieldDescription id="site-retention-hint">{uiFlows.site.retentionHint}</FieldDescription>
                 </Field>
                 <ProfilesSettings
                   enabled={site.data.profiles_enabled}
@@ -332,14 +339,37 @@ export function SiteGeneralPage({
                 />
               </FieldGroup>
               <Message error={save.error} />
+              {save.isSuccess && !save.isPending ? (
+                <p role="status" className="text-sm text-muted-foreground">{uiFlows.site.saved}</p>
+              ) : null}
               <Button
                 className="self-start"
                 disabled={save.isPending}
                 type="submit"
               >
-                Save changes
+                {save.isPending ? uiFlows.common.saving : "Save changes"}
               </Button>
             </form>
+            <AlertDialog open={pendingLower !== null} onOpenChange={(open) => { if (!open) setPendingLower(null); }}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{uiFlows.site.lowerTitle(Number(pendingLower?.retention_days ?? 0))}</AlertDialogTitle>
+                  <AlertDialogDescription>{uiFlows.site.lowerBody(Number(pendingLower?.retention_days ?? 0))}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{uiFlows.common.cancel}</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => {
+                      if (pendingLower) save.mutate(pendingLower);
+                      setPendingLower(null);
+                    }}
+                  >
+                    {uiFlows.site.lowerConfirm}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -396,17 +426,21 @@ export function InstallationPage({
   publicId,
   orgId,
   isDemo = false,
+  dashboardHref,
+  domainsHref,
 }: {
   siteId: number;
   publicId: string;
   orgId: number;
   isDemo?: boolean;
+  dashboardHref?: string;
+  domainsHref?: string;
 }) {
   const status = useQuery({
     queryKey: ["tracking-status", siteId],
     queryFn: () =>
       privateRequest<Site>("GET", `/api/private/sites/${siteId}`, { orgId }),
-    refetchInterval: installationStatusInterval,
+    refetchInterval: (query) => installationStatusInterval(query.state.data?.install_status),
     enabled: !isDemo,
   });
   const snippet = useQuery({
@@ -433,6 +467,11 @@ export function InstallationPage({
           installStatus={status.data?.install_status}
           lastSeenAt={status.data?.last_seen_at}
           revenueCurrency={status.data?.revenue_currency}
+          dashboardHref={dashboardHref}
+          domainsHref={domainsHref}
+          snippetLoading={snippet.isPending}
+          snippetFailed={snippet.isError}
+          onRetrySnippet={() => void snippet.refetch()}
           verify={async () => {
             const result = await status.refetch();
             return { status: result.data?.install_status, lastSeenAt: result.data?.last_seen_at };
