@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountProfilePage } from './AccountProfilePage'
@@ -43,5 +43,55 @@ describe('account profile self-service', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Permanently delete account' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('DELETE', '/api/private/me', { password: 'new-password-1', totp_code: '123456' }))
     expect(onDeleted).toHaveBeenCalledOnce()
+  })
+
+  function renderPage(request: (method: 'PATCH' | 'POST' | 'DELETE', path: string, body: Record<string, unknown>) => Promise<unknown>, onDeleted = vi.fn()) {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <AccountProfilePage name="Owner" email="owner@example.test" totpEnabled={false} request={request} onDeleted={onDeleted} />
+      </QueryClientProvider>,
+    )
+  }
+
+  it('keeps a password-change error next to the password and confirms other saves', async () => {
+    const request = vi.fn(async (_method: string, path: string) => {
+      if (path === '/api/private/me/password') throw new Error('The current password is incorrect.')
+      return {}
+    })
+    renderPage(request)
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'wrong-password' } })
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    const current = screen.getByLabelText('Current password')
+    await waitFor(() => expect(current).toHaveAttribute('aria-invalid', 'true'))
+    expect(current).toHaveAccessibleDescription('The current password is incorrect.')
+    // Other forms stay usable and show no error.
+    expect(screen.getByRole('button', { name: 'Save name' })).toBeEnabled()
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
+    expect(await screen.findByText('Display name saved.')).toHaveAttribute('role', 'status')
+  })
+
+  it('confirms a password change', async () => {
+    renderPage(vi.fn().mockResolvedValue({}))
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'pw-123456789' } })
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(await screen.findByText('Password changed. Your other sessions were signed out.')).toBeVisible()
+    expect(screen.getByLabelText('Current password')).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password')
+  })
+
+  it('shows an account deletion error inside the open dialog', async () => {
+    const request = vi.fn().mockRejectedValue(new Error('Password is incorrect.'))
+    const onDeleted = vi.fn()
+    renderPage(request, onDeleted)
+    fireEvent.change(screen.getByLabelText('Delete account password'), { target: { value: 'wrong' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete your account?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Permanently delete account' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Password is incorrect.')
+    expect(onDeleted).not.toHaveBeenCalled()
   })
 })
