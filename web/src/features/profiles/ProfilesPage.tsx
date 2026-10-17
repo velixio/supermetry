@@ -54,7 +54,7 @@ function ProfilesPageContent({
     <PageContainer>
       <PageHeader title="Profiles" description="Understand identified users across sessions and events." />
       {profiles.isError ? (
-        <ErrorState detail={profiles.error?.message} onRetry={() => void profiles.refetch?.()} />
+        <ErrorState level="page" detail={profiles.error?.message} onRetry={() => void profiles.refetch?.()} />
       ) : profiles.isPending ? (
         <div aria-label="Loading profiles" className="flex flex-col gap-3">
           <Skeleton className="h-9 w-full" />

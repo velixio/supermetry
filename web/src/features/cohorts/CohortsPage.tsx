@@ -200,7 +200,7 @@ function CohortsTab({
       {subject ? <ResultPanel siteId={siteId} subject={subject.value} title={subject.title} /> : null}
 
       {cohorts.isError ? (
-        <ErrorState detail={cohorts.error.message} onRetry={() => void cohorts.refetch()} />
+        <ErrorState level="page" detail={cohorts.error.message} onRetry={() => void cohorts.refetch()} />
       ) : cohorts.isPending ? (
         <div aria-label={t.loading} className="flex flex-col gap-3">
           <Skeleton className="h-10 w-full" />

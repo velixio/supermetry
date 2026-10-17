@@ -9,6 +9,8 @@ const root = join(__dirname, '..', '..') // web/
 const OUTSIDE_SHELL = new Set<string>([
   'src/features/auth/AuthScreen.tsx',
   'src/features/share/SharedDashboard.tsx',
+  // The router's not-found and error fallbacks render outside the shell (inside it they drop the main landmark).
+  'src/components/NotFound.tsx',
 ])
 
 // Files still to migrate. Each adoption task deletes its entries.

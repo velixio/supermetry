@@ -38,6 +38,7 @@ import { ui } from '@/messages/ui'
 import { sidebarStartsOpen } from './sidebarState'
 import { loadPalette } from './paletteLoader'
 import { PaletteBoundary } from './PaletteBoundary'
+import { InAppShell, UnknownSite } from './NotFound'
 
 // cmdk and the palette load on first open, so they stay out of the initial JS budget.
 const lazyPalette = () => lazy(loadPalette)
@@ -118,6 +119,7 @@ export function AppShell({
 
   return (
     <AuthorizationProvider membership={membership}>
+    <InAppShell.Provider value>
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <a
@@ -162,7 +164,9 @@ export function AppShell({
                 key={pathname}
                 className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-150"
               >
-                {membership ? (
+                {membership && requestedSite && !scopedSite ? (
+                  <UnknownSite key={`${membership.org.id}/${requestedSite}`} membership={membership} />
+                ) : membership ? (
                   <AnalyticsPrivacyBoundary site={scopedSite} org={membership.org.slug} requestedSite={requestedSite} pathname={pathname} renderedPathnames={renderedPathnames}>
                     <Outlet />
                   </AnalyticsPrivacyBoundary>
@@ -220,6 +224,7 @@ export function AppShell({
       ) : null}
       <Toaster />
     </TooltipProvider>
+    </InAppShell.Provider>
     </AuthorizationProvider>
   )
 }

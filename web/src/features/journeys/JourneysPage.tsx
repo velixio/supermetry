@@ -58,7 +58,7 @@ export function JourneysPage({
         onChange={onControlsChange}
       />
       {report.isError ? (
-        <ErrorState detail={report.error?.detail} onRetry={() => void report.refetch()} />
+        <ErrorState level="page" detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
         <div aria-label={t.loading} className="flex flex-col gap-3 rounded-xl border p-4">
           <Skeleton className="h-16 w-full" />
