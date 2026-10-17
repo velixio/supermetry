@@ -1,55 +1,84 @@
 import { type FormEvent, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { LoaderCircleIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
+import { uiFlows } from '@/messages/uiFlows'
 
 import { AuthScreen } from '@/features/auth/AuthScreen'
-import { authResultMessage, postPrivate } from '@/features/auth/api'
+import { PasswordInput } from '@/features/auth/PasswordInput'
+import { authProblemMessage, postPrivate, type LoginResult } from '@/features/auth/api'
 
 export const Route = createFileRoute('/reset/$token')({
-  component: ResetPage,
+  component: ResetRoute,
 })
 
-function ResetPage() {
+function ResetRoute() {
   const { token } = Route.useParams()
-  const [message, setMessage] = useState('')
+  const navigate = Route.useNavigate()
+  return (
+    <ResetPasswordForm
+      submit={(password) => postPrivate('/api/private/auth/password-reset/confirm', { token, password })}
+      onDone={() => void navigate({ to: '/login', search: { notice: 'reset' }, replace: true })}
+    />
+  )
+}
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+export function ResetPasswordForm({ submit, onDone }: { submit: (password: string) => Promise<LoginResult>; onDone: () => void }) {
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
+  const [invalidLink, setInvalidLink] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    setMessage(
-      await authResultMessage(() =>
-        postPrivate('/api/private/auth/password-reset/confirm', {
-          token,
-          password: String(form.get('password') ?? ''),
-        }),
-      ),
-    )
+    if (pending) return
+    const password = String(new FormData(event.currentTarget).get('password') ?? '')
+    setPending(true)
+    setError('')
+    try {
+      const result = await submit(password)
+      if (result.ok) {
+        onDone()
+        return
+      }
+      const message = result.type?.endsWith('password-policy') ? en.auth.passwordPolicy : authProblemMessage(result.problem)
+      setInvalidLink(message === en.auth.invalidToken)
+      setError(message)
+    } catch {
+      setError(en.auth.networkError)
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
     <AuthScreen title={en.auth.resetHeading} description={en.auth.resetDescription}>
-      <form onSubmit={submit}>
+      <form onSubmit={(event) => void handleSubmit(event)}>
         <FieldGroup>
-          <Field>
+          <Field data-invalid={Boolean(error) || undefined}>
             <FieldLabel htmlFor="password">{en.auth.newPassword}</FieldLabel>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
-			  minLength={6}
+              minLength={6}
               required
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? 'reset-hint reset-error' : 'reset-hint'}
             />
-			<FieldDescription>{en.auth.passwordPolicy}</FieldDescription>
+            <FieldDescription id="reset-hint">{en.auth.passwordPolicy}</FieldDescription>
           </Field>
-          {message ? <FieldError>{message}</FieldError> : null}
-          <Button type="submit">{en.auth.resetPassword}</Button>
+          {error ? <FieldError id="reset-error">{error}</FieldError> : null}
+          {invalidLink ? <Link to="/forgot" className="text-sm font-medium underline underline-offset-4">{uiFlows.auth.requestNewLink}</Link> : null}
+          <Button type="submit" disabled={pending}>
+            {pending ? <LoaderCircleIcon data-icon="inline-start" className="animate-spin" /> : null}
+            {pending ? uiFlows.auth.resetting : en.auth.resetPassword}
+          </Button>
         </FieldGroup>
       </form>
+      <p className="text-sm text-muted-foreground"><Link to="/login" className="font-medium text-foreground underline-offset-4 hover:underline">{uiFlows.auth.backToSignIn}</Link></p>
     </AuthScreen>
   )
 }

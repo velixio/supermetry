@@ -308,7 +308,7 @@ func TestPreviewDescribesAPendingInvitationWithoutConsumingIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.OrgName != "Test" || preview.Email != "preview@example.test" || preview.Role != "viewer" || preview.InvitedBy != "Owner" || preview.AccountExists {
+	if preview.OrgName != "Test" || preview.OrgSlug != "test" || preview.Email != "preview@example.test" || preview.Role != "viewer" || preview.InvitedBy != "Owner" || preview.AccountExists {
 		t.Fatalf("preview = %+v", preview)
 	}
 	if !preview.ExpiresAt.Equal(env.clock.now.Add(7 * 24 * time.Hour)) {

@@ -94,10 +94,10 @@ describe('login form', () => {
     expect(router.state.location.pathname).not.toBe('/app/missing/site')
   })
 
-  it('uses the dark auth surface by default', () => {
-    render(<LoginForm login={vi.fn()} next="/" onSuccess={vi.fn()} />)
+  it('uses the dark auth surface by default', async () => {
+    renderWithRouter(<LoginForm login={vi.fn()} next="/" onSuccess={vi.fn()} />)
 
-    expect(screen.getByRole('main')).toHaveClass('dark', 'bg-background', 'text-foreground')
+    expect(await screen.findByRole('main')).toHaveClass('dark', 'bg-background', 'text-foreground')
   })
 
   it('turns auth network failures into a generic message', async () => {
@@ -147,7 +147,7 @@ describe('login form', () => {
     const onSuccess = vi.fn()
     const redirect = loginRedirect('/app/acme/blog', '?period=30d')
     const next = new URL(redirect, window.location.origin).searchParams.get('next')
-    render(
+    renderWithRouter(
       <LoginForm
         login={login}
         next={next ?? '/'}
@@ -155,7 +155,7 @@ describe('login form', () => {
       />,
     )
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'o@example.test' },
     })
     fireEvent.change(screen.getByLabelText(/password/i), {
@@ -173,9 +173,9 @@ describe('login form', () => {
       .fn()
       .mockResolvedValueOnce({ ok: false, type: 'totp-required' })
       .mockResolvedValueOnce({ ok: true })
-    render(<LoginForm login={login} next="/" onSuccess={vi.fn()} />)
+    renderWithRouter(<LoginForm login={login} next="/" onSuccess={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'o@example.test' },
     })
     fireEvent.change(screen.getByLabelText(/password/i), {
@@ -195,7 +195,7 @@ describe('login form', () => {
 
   it('rejects backslash-based external return URLs', async () => {
     const onSuccess = vi.fn()
-    render(
+    renderWithRouter(
       <LoginForm
         login={vi.fn().mockResolvedValue({ ok: true })}
         next="/\\evil.test"
@@ -203,7 +203,7 @@ describe('login form', () => {
       />,
     )
 
-    fireEvent.change(screen.getByLabelText(/email/i), {
+    fireEvent.change(await screen.findByLabelText(/email/i), {
       target: { value: 'o@example.test' },
     })
     fireEvent.change(screen.getByLabelText(/password/i), {
@@ -231,7 +231,7 @@ describe('login form', () => {
   })
 
   it('does not offer public signup when signup is invite only', () => {
-    render(
+    renderWithRouter(
       <LoginForm
         login={vi.fn()}
         next="/"

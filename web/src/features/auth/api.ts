@@ -13,6 +13,13 @@ export type AuthConfig = {
   signup: SignupMode
   setup_required: boolean
   homepage_url: string
+  geoip_source?: string
+  /** Retention preselected for new sites: 7, 30, 90, 365 or 0 (keep forever). */
+  default_retention_days?: number
+  /** False when the instance does not offer "keep forever" retention. */
+  retention_forever?: boolean
+  /** Optional help link (https or mailto); absent when not configured. */
+  support_url?: string
 }
 
 async function request(path: string, init: RequestInit, fetcher = globalThis.fetch): Promise<Response> {

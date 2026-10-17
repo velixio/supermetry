@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 
-import { LoginForm } from '@/features/auth/LoginForm'
+import { LoginForm, type LoginNotice } from '@/features/auth/LoginForm'
 import { createAuthConfigApi, postPrivate, type SignupMode } from '@/features/auth/api'
 import { safeAuthNext } from '@/features/auth/navigation'
 import { resetAfterLogin } from '@/lib/session-lifecycle'
 import { applyPreferredTheme } from '@/lib/theme'
 
-const parseLoginSearch = (value: unknown): { next?: string } => {
+const notices: readonly LoginNotice[] = ['reset', 'invite', 'impersonation']
+
+const parseLoginSearch = (value: unknown): { next?: string; notice?: LoginNotice } => {
   const search = value && typeof value === 'object' ? value as Record<string, unknown> : {}
-  return typeof search.next === 'string' ? { next: search.next } : {}
+  return {
+    ...(typeof search.next === 'string' ? { next: search.next } : {}),
+    ...(notices.includes(search.notice as LoginNotice) ? { notice: search.notice as LoginNotice } : {}),
+  }
 }
 
 type LoginMembership = { org: { slug: string } }
@@ -65,5 +70,6 @@ function LoginPage() {
       else router.history.replace((await signedInTarget(next)) ?? '/app')
     }}
     signup={signup}
+    notice={search.notice}
   />
 }
