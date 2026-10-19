@@ -35,6 +35,6 @@ cd web && bun install --frozen-lockfile && bun run typecheck && bun run test --r
 
 ## License
 
-Supermetry is licensed under [Apache-2.0](LICENSE). You keep the copyright in your work. As section 5 of the license says, anything you submit in a pull request is contributed under Apache-2.0; there is no separate agreement to sign.
+Supermetry is licensed under [Apache-2.0](../LICENSE). You keep the copyright in your work. As section 5 of the license says, anything you submit in a pull request is contributed under Apache-2.0; there is no separate agreement to sign.
 
 If an employer or another organization owns your work, make sure it allows you to contribute it under Apache-2.0. Do not submit code you do not have the right to contribute, or code copied from a source whose license does not allow it. Do not copy code from other analytics projects unless its license allows it and you say where it came from.

@@ -260,7 +260,7 @@ Dashboard code is in `web/` and uses Bun (`bun install --frozen-lockfile`, `bun 
 
 ## Contributing and security
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+Issues and pull requests are welcome. See [CONTRIBUTING.md](.github/CONTRIBUTING.md). Report vulnerabilities privately as described in [SECURITY.md](.github/SECURITY.md).
 
 If Supermetry is useful to you, a ⭐ helps other people find it.
 
