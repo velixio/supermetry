@@ -2,7 +2,7 @@
 
 Status: first version, 2026-10-10, written against `main` at `cf449dc`. All file references are relative to the repository root. Line numbers drift, so re-check them before relying on one.
 
-This document covers the public and semi-public surfaces of one Supermetry instance: a Go binary, PostgreSQL, and the embedded dashboard. For how to respond to abuse, see the operator runbook in [SECURITY.md](../../SECURITY.md#abuse-runbook).
+This document covers the public and semi-public surfaces of one Supermetry instance: a Go binary, PostgreSQL, and the embedded dashboard. For how to respond to abuse, see the operator runbook in [SECURITY.md](../../.github/SECURITY.md#abuse-runbook).
 
 How to read the tables:
 

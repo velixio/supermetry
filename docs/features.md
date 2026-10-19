@@ -3,7 +3,7 @@
 Supermetry compared with Plausible, Umami and OpenPanel, feature by feature.
 ✓ has it · – lacks it · ? not verified yet (check `knowledge/` before relying on it).
 **Supermetry**: ✅ done · ⏳ in progress · ❌ not started · ⏸ deferred.
-Evidence for the other products: [findings.md](findings.md). Last updated 2026-10-14. Comparison cells marked `?` have not been checked against the other product yet.
+Evidence for the other products is kept in the maintainers' research notes. Last updated 2026-10-14. Comparison cells marked `?` have not been checked against the other product yet.
 
 ## Analytics
 
@@ -162,6 +162,6 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 - ~~Accuracy check (reference, 0 mismatches)~~ ✅; real-traffic comparison with Plausible (`tools/bench/accuracy/compare_live.py`) and product benchmark (D25) ⏳
 - Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
 
-Full gap analysis against every reference repo: [competitor-profiles/_summary.md](competitor-profiles/_summary.md).
+A full gap analysis against every reference repo is kept in the maintainers' research notes.
 
 Deferred: AI insights, mobile SDKs, SSO/OIDC, Camo IP-range verification, and more open-counter hosts.
