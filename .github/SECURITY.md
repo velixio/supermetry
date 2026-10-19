@@ -18,7 +18,7 @@ In scope: the Supermetry server, dashboard, tracker script and the official API 
 
 ## What is protected and what is not
 
-The full analysis, with code references, is in [docs/security/threat-model.md](docs/security/threat-model.md). In short:
+The full analysis, with code references, is in [docs/security/threat-model.md](../docs/security/threat-model.md). In short:
 
 **Protected**
 
