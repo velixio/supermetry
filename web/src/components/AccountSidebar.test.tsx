@@ -65,6 +65,17 @@ describe('AccountSidebar', () => {
     expect(within(nav).getByRole('link', { name: 'Account settings' })).not.toHaveAttribute('aria-current')
   })
 
+  it('links GitHub stars in the sidebar for instance admins only', async () => {
+    const admin = await show('/app/admin/github-stars', { ...me, user: { ...me.user, instance_admin: true } })
+    const link = within(within(admin).getByRole('navigation', { name: 'Instance administration' })).getByRole('link', { name: 'GitHub stars' })
+    expect(link).toHaveAttribute('href', '/app/admin/github-stars')
+    expect(link).toHaveAttribute('aria-current', 'page')
+    cleanup()
+    const member = await show('/app/account/profile')
+    expect(within(member).queryByRole('link', { name: 'GitHub stars' })).toBeNull()
+    expect(within(member).queryByRole('navigation', { name: 'Instance administration' })).toBeNull()
+  })
+
   it('switches organizations without offering sites', async () => {
     const menu = await openSwitcher(await show('/app/account/profile'))
     expect(within(menu).getByRole('menuitem', { name: 'Acme' }).getAttribute('href')).toMatch(/^\/app\/acme\/docs\?/)

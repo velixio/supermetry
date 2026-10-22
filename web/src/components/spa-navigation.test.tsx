@@ -189,6 +189,15 @@ describe('SPA navigation', () => {
     expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument()
   })
 
+  it('shows the GitHub stars link inside an organization for instance admins only', async () => {
+    renderSidebar('/app/acme/docs-public', { me: { ...me, user: { ...me.user, instance_admin: true } } })
+    expect(await screen.findByRole('link', { name: 'GitHub stars' })).toHaveAttribute('href', '/app/admin/github-stars')
+    cleanup()
+    renderSidebar('/app/acme/docs-public')
+    await screen.findByRole('link', { name: 'Realtime' })
+    expect(screen.queryByRole('link', { name: 'GitHub stars' })).toBeNull()
+  })
+
   it('keeps every sidebar and switcher link target unchanged', async () => {
     renderSidebar()
     await screen.findByRole('link', { name: 'Realtime' })
