@@ -679,33 +679,3 @@ func TestLoadSupportURL(t *testing.T) {
 		t.Fatalf("unsafe support URL error = %v", err)
 	}
 }
-
-func TestLoadGitHubStars(t *testing.T) {
-	c, err := Load(env(baseEnv()))
-	if err != nil || c.GitHubStarsRepo != "" || c.GitHubStarsTZ != "UTC" {
-		t.Fatalf("defaults = (%q, %q), %v", c.GitHubStarsRepo, c.GitHubStarsTZ, err)
-	}
-	values := baseEnv()
-	values["SUPERMETRY_GITHUB_STARS_REPO"] = " velixio/supermetry "
-	values["SUPERMETRY_GITHUB_WEBHOOK_SECRET"] = "s3cret"
-	values["SUPERMETRY_GITHUB_TOKEN"] = "tok"
-	values["SUPERMETRY_GITHUB_STARS_TZ"] = "Asia/Kathmandu"
-	c, err = Load(env(values))
-	if err != nil || c.GitHubStarsRepo != "velixio/supermetry" || c.GitHubWebhookSecret != "s3cret" || c.GitHubToken != "tok" || c.GitHubStarsTZ != "Asia/Kathmandu" {
-		t.Fatalf("configured = %+v, %v", c, err)
-	}
-	for name, change := range map[string]map[string]string{
-		"repo shape": {"SUPERMETRY_GITHUB_STARS_REPO": "velixio"},
-		"repo path":  {"SUPERMETRY_GITHUB_STARS_REPO": "a/b/c"},
-		"time zone":  {"SUPERMETRY_GITHUB_STARS_TZ": "Mars/Base"},
-	} {
-		bad := baseEnv()
-		bad["SUPERMETRY_GITHUB_STARS_REPO"] = "velixio/supermetry"
-		for k, v := range change {
-			bad[k] = v
-		}
-		if _, err := Load(env(bad)); err == nil {
-			t.Errorf("%s: want an error", name)
-		}
-	}
-}

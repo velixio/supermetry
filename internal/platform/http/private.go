@@ -166,8 +166,8 @@ type Deps struct {
 	Demo               DemoService
 	Overview           *sitesvc.Overview
 	Admin              *admin.Service
-	// GitHubStars serves the instance-admin star history. Nil means the feature is off.
-	GitHubStars   *ghstars.Store
+	// GitHubStars manages the tracked repositories and serves their star history. Nil answers 404.
+	GitHubStars   *ghstars.Service
 	UpdateChecker UpdateChecker
 	UpdateStarter UpdateStarter
 	UpdateMode    updatehelper.DeploymentMode
@@ -268,6 +268,12 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/private/admin/security/2fa-exemptions/{user}", h.adminSetTwoFactorExemption)
 	mux.HandleFunc("DELETE /api/private/admin/security/2fa-exemptions/{user}", h.adminDeleteTwoFactorExemption)
 	mux.HandleFunc("GET /api/private/admin/audit", h.adminListAudit)
+	mux.HandleFunc("GET /api/private/admin/github-stars/repos", h.adminStarsRepos)
+	mux.HandleFunc("POST /api/private/admin/github-stars/repos", h.adminStarsAddRepo)
+	mux.HandleFunc("PATCH /api/private/admin/github-stars/repos/{id}", h.adminStarsUpdateRepo)
+	mux.HandleFunc("DELETE /api/private/admin/github-stars/repos/{id}", h.adminStarsDeleteRepo)
+	mux.HandleFunc("POST /api/private/admin/github-stars/repos/{id}/rotate-secret", h.adminStarsRotateSecret)
+	mux.HandleFunc("POST /api/private/admin/github-stars/repos/{id}/sync", h.adminStarsSync)
 	mux.HandleFunc("GET /api/private/admin/github-stars/summary", h.adminStarsSummary)
 	mux.HandleFunc("GET /api/private/admin/github-stars/series", h.adminStarsSeries)
 	mux.HandleFunc("GET /api/private/admin/github-stars/events", h.adminStarsEvents)

@@ -75,7 +75,7 @@ type Deps struct {
 	// Links serves the public short-link redirect and tracking pixel. Optional.
 	Links  *links.Handler
 	Pixels http.Handler
-	// GitHubWebhook receives repository star webhooks. Nil leaves the route off.
+	// GitHubWebhook receives repository star webhooks, one URL per tracked repository. Nil leaves the route off.
 	GitHubWebhook       http.Handler
 	OpenCounters        *opencounters.Handler
 	OpenCountersEnabled bool
@@ -189,7 +189,7 @@ func NewRouter(deps Deps) http.Handler {
 		}
 	}
 	if deps.GitHubWebhook != nil {
-		mux.Handle("POST /api/github/webhook", deps.GitHubWebhook)
+		mux.Handle("POST /api/github/webhook/{public_id}", deps.GitHubWebhook)
 	}
 	if deps.OpenCounters != nil && deps.OpenCountersEnabled {
 		mux.Handle("GET /c/{rest...}", deps.OpenCounters)
@@ -339,6 +339,12 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PUT " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"DELETE " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"GET " + privatePrefix + "/admin/audit",
+		"GET " + privatePrefix + "/admin/github-stars/repos",
+		"POST " + privatePrefix + "/admin/github-stars/repos",
+		"PATCH " + privatePrefix + "/admin/github-stars/repos/{id}",
+		"DELETE " + privatePrefix + "/admin/github-stars/repos/{id}",
+		"POST " + privatePrefix + "/admin/github-stars/repos/{id}/rotate-secret",
+		"POST " + privatePrefix + "/admin/github-stars/repos/{id}/sync",
 		"GET " + privatePrefix + "/admin/github-stars/summary",
 		"GET " + privatePrefix + "/admin/github-stars/series",
 		"GET " + privatePrefix + "/admin/github-stars/events",
