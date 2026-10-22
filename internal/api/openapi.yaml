@@ -254,6 +254,106 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/github-stars/summary:
+    get:
+      operationId: adminGetGitHubStarsSummary
+      security: [{ cookieAuth: [] }]
+      summary: Live star counters and the net change over 24 hours and 7 days
+      description: Reads the configured repository only. Returns 404 while GitHub star tracking is not configured.
+      responses:
+        '200': { description: Star summary., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsSummary' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/github-stars/series:
+    get:
+      operationId: adminGetGitHubStarsSeries
+      security: [{ cookieAuth: [] }]
+      summary: Gained, lost, net and cumulative stars per bucket
+      description: Buckets are local hours or days in the configured time zone. Defaults are the last 24 hours (hour) or 30 days (day). Hour ranges are limited to 31 days and day ranges to 5 years.
+      parameters:
+        - { name: granularity, in: query, required: true, schema: { type: string, description: hour or day. } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Star series., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsSeries' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/github-stars/events:
+    get:
+      operationId: adminListGitHubStarsEvents
+      security: [{ cookieAuth: [] }]
+      summary: List the user-attributed star and unstar log, newest first
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/GitHubStarsEventLimit' }
+      responses:
+        '200': { description: Star events., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsEvents' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/github-stars/annotations:
+    get:
+      operationId: adminListGitHubStarsAnnotations
+      security: [{ cookieAuth: [] }]
+      summary: List chart annotations
+      responses:
+        '200': { description: Annotations., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsAnnotations' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    post:
+      operationId: adminCreateGitHubStarsAnnotation
+      security: [{ cookieAuth: [] }]
+      summary: Add a chart annotation such as a launch marker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GitHubStarsAnnotationInput' }
+      responses:
+        '201': { description: Annotation created., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsAnnotation' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/github-stars/annotations/{annotation}:
+    delete:
+      operationId: adminDeleteGitHubStarsAnnotation
+      security: [{ cookieAuth: [] }]
+      summary: Delete a chart annotation
+      parameters:
+        - { name: annotation, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '204': { description: Annotation deleted. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/github-stars/users/{login}:
+    delete:
+      operationId: adminEraseGitHubStarsUser
+      security: [{ cookieAuth: [] }]
+      summary: Erase every recorded star event of a GitHub user
+      description: Privacy erasure. Aggregates are recomputed from the remaining events; the live counters and daily snapshots keep their totals. Audited as instance.github_stars.user_erased with the event count only.
+      parameters:
+        - { name: login, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 39 } }
+      responses:
+        '200': { description: Events erased., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsErasure' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/update:
     get:
       operationId: adminGetUpdateStatus
@@ -3111,6 +3211,10 @@ components:
       name: limit
       in: query
       schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    GitHubStarsEventLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
     AdminUserID:
       name: user
       in: path
@@ -3621,6 +3725,80 @@ components:
       properties:
         reason: { type: string, minLength: 1, maxLength: 500 }
         expires_at: { type: string, format: date-time }
+    GitHubStarsSummary:
+      type: object
+      additionalProperties: false
+      required: [stars, forks, watchers, open_issues, updated_at, net_24h, net_7d]
+      properties:
+        stars: { type: integer }
+        forks: { type: integer }
+        watchers: { type: integer }
+        open_issues: { type: integer }
+        updated_at: { type: [string, 'null'], format: date-time }
+        net_24h: { type: integer }
+        net_7d: { type: integer }
+    GitHubStarsPoint:
+      type: object
+      additionalProperties: false
+      required: [bucket, gained, lost, net, cumulative]
+      properties:
+        bucket: { type: string, format: date-time, description: Start of the bucket in the configured time zone. }
+        gained: { type: integer }
+        lost: { type: integer }
+        net: { type: integer }
+        cumulative: { type: integer }
+    GitHubStarsSeries:
+      type: object
+      additionalProperties: false
+      required: [time_zone, data]
+      properties:
+        time_zone: { type: string }
+        data: { type: array, items: { $ref: '#/components/schemas/GitHubStarsPoint' } }
+    GitHubStarsEvent:
+      type: object
+      additionalProperties: false
+      required: [id, user_id, login, action, occurred_at, source]
+      properties:
+        id: { type: integer, format: int64 }
+        user_id: { type: integer, format: int64 }
+        login: { type: string }
+        action: { type: string, description: starred or unstarred. }
+        occurred_at: { type: string, format: date-time }
+        source: { type: string, description: webhook, backfill or reconcile. }
+    GitHubStarsEvents:
+      type: object
+      additionalProperties: false
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/GitHubStarsEvent' } }
+        next_cursor: { type: [string, 'null'] }
+    GitHubStarsAnnotation:
+      type: object
+      additionalProperties: false
+      required: [id, at, label, created_by]
+      properties:
+        id: { type: integer, format: int64 }
+        at: { type: string, format: date-time }
+        label: { type: string }
+        created_by: { type: [integer, 'null'], format: int64 }
+    GitHubStarsAnnotations:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/GitHubStarsAnnotation' } } }
+    GitHubStarsAnnotationInput:
+      type: object
+      additionalProperties: false
+      required: [at, label]
+      properties:
+        at: { type: string, format: date-time }
+        label: { type: string, minLength: 1, maxLength: 200 }
+    GitHubStarsErasure:
+      type: object
+      additionalProperties: false
+      required: [deleted_events]
+      properties:
+        deleted_events: { type: integer, format: int64 }
     AdminAuditEntry:
       type: object
       additionalProperties: false

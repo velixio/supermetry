@@ -427,3 +427,6 @@ func (s *Store) EraseUser(ctx context.Context, login string, actorID int64) (int
 	})
 	return deleted, err
 }
+
+// Location returns the time zone aggregates are bucketed in.
+func (s *Store) Location() *time.Location { return s.loc }

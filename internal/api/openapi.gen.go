@@ -2500,6 +2500,76 @@ type FunnelStepResult struct {
 	Visitors int64 `json:"visitors"`
 }
 
+// GitHubStarsAnnotation defines model for GitHubStarsAnnotation.
+type GitHubStarsAnnotation struct {
+	At        time.Time `json:"at"`
+	CreatedBy *int64    `json:"created_by"`
+	Id        int64     `json:"id"`
+	Label     string    `json:"label"`
+}
+
+// GitHubStarsAnnotationInput defines model for GitHubStarsAnnotationInput.
+type GitHubStarsAnnotationInput struct {
+	At    time.Time `json:"at"`
+	Label string    `json:"label"`
+}
+
+// GitHubStarsAnnotations defines model for GitHubStarsAnnotations.
+type GitHubStarsAnnotations struct {
+	Data []GitHubStarsAnnotation `json:"data"`
+}
+
+// GitHubStarsErasure defines model for GitHubStarsErasure.
+type GitHubStarsErasure struct {
+	DeletedEvents int64 `json:"deleted_events"`
+}
+
+// GitHubStarsEvent defines model for GitHubStarsEvent.
+type GitHubStarsEvent struct {
+	// Action starred or unstarred.
+	Action     string    `json:"action"`
+	Id         int64     `json:"id"`
+	Login      string    `json:"login"`
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// Source webhook
+	Source string `json:"source"`
+	UserId int64  `json:"user_id"`
+}
+
+// GitHubStarsEvents defines model for GitHubStarsEvents.
+type GitHubStarsEvents struct {
+	Data       []GitHubStarsEvent `json:"data"`
+	NextCursor *string            `json:"next_cursor"`
+}
+
+// GitHubStarsPoint defines model for GitHubStarsPoint.
+type GitHubStarsPoint struct {
+	// Bucket Start of the bucket in the configured time zone.
+	Bucket     time.Time `json:"bucket"`
+	Cumulative int       `json:"cumulative"`
+	Gained     int       `json:"gained"`
+	Lost       int       `json:"lost"`
+	Net        int       `json:"net"`
+}
+
+// GitHubStarsSeries defines model for GitHubStarsSeries.
+type GitHubStarsSeries struct {
+	Data     []GitHubStarsPoint `json:"data"`
+	TimeZone string             `json:"time_zone"`
+}
+
+// GitHubStarsSummary defines model for GitHubStarsSummary.
+type GitHubStarsSummary struct {
+	Forks      int        `json:"forks"`
+	Net24h     int        `json:"net_24h"`
+	Net7d      int        `json:"net_7d"`
+	OpenIssues int        `json:"open_issues"`
+	Stars      int        `json:"stars"`
+	UpdatedAt  *time.Time `json:"updated_at"`
+	Watchers   int        `json:"watchers"`
+}
+
 // Goal defines model for Goal.
 type Goal struct {
 	Currency  *string  `json:"currency,omitempty"`
@@ -3831,6 +3901,9 @@ type Format = string
 // FunnelPathID defines model for FunnelPathID.
 type FunnelPathID = int64
 
+// GitHubStarsEventLimit defines model for GitHubStarsEventLimit.
+type GitHubStarsEventLimit = int
+
 // GoalPathID defines model for GoalPathID.
 type GoalPathID = int64
 
@@ -3885,6 +3958,19 @@ type Unauthorized = Problem
 // AdminListAuditParams defines parameters for AdminListAudit.
 type AdminListAuditParams struct {
 	Limit *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminListGitHubStarsEventsParams defines parameters for AdminListGitHubStarsEvents.
+type AdminListGitHubStarsEventsParams struct {
+	Cursor *string                `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *GitHubStarsEventLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminGetGitHubStarsSeriesParams defines parameters for AdminGetGitHubStarsSeries.
+type AdminGetGitHubStarsSeriesParams struct {
+	Granularity string     `form:"granularity" json:"granularity"`
+	From        *time.Time `form:"from,omitempty" json:"from,omitempty"`
+	To          *time.Time `form:"to,omitempty" json:"to,omitempty"`
 }
 
 // AdminListOrganizationsParams defines parameters for AdminListOrganizations.
@@ -4260,6 +4346,9 @@ type TrackingPixelParams struct {
 
 // TrackingPixelParamsStyle defines parameters for TrackingPixel.
 type TrackingPixelParamsStyle string
+
+// AdminCreateGitHubStarsAnnotationJSONRequestBody defines body for AdminCreateGitHubStarsAnnotation for application/json ContentType.
+type AdminCreateGitHubStarsAnnotationJSONRequestBody = GitHubStarsAnnotationInput
 
 // AdminSetTwoFactorExemptionJSONRequestBody defines body for AdminSetTwoFactorExemption for application/json ContentType.
 type AdminSetTwoFactorExemptionJSONRequestBody = AdminTwoFactorExemption
@@ -4877,6 +4966,27 @@ type ServerInterface interface {
 	// AdminListAudit List instance administration audit entries
 	// (GET /api/private/admin/audit)
 	AdminListAudit(w http.ResponseWriter, r *http.Request, params AdminListAuditParams)
+	// AdminListGitHubStarsAnnotations List chart annotations
+	// (GET /api/private/admin/github-stars/annotations)
+	AdminListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request)
+	// AdminCreateGitHubStarsAnnotation Add a chart annotation such as a launch marker
+	// (POST /api/private/admin/github-stars/annotations)
+	AdminCreateGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request)
+	// AdminDeleteGitHubStarsAnnotation Delete a chart annotation
+	// (DELETE /api/private/admin/github-stars/annotations/{annotation})
+	AdminDeleteGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request, annotation int64)
+	// AdminListGitHubStarsEvents List the user-attributed star and unstar log, newest first
+	// (GET /api/private/admin/github-stars/events)
+	AdminListGitHubStarsEvents(w http.ResponseWriter, r *http.Request, params AdminListGitHubStarsEventsParams)
+	// AdminGetGitHubStarsSeries Gained, lost, net and cumulative stars per bucket
+	// (GET /api/private/admin/github-stars/series)
+	AdminGetGitHubStarsSeries(w http.ResponseWriter, r *http.Request, params AdminGetGitHubStarsSeriesParams)
+	// AdminGetGitHubStarsSummary Live star counters and the net change over 24 hours and 7 days
+	// (GET /api/private/admin/github-stars/summary)
+	AdminGetGitHubStarsSummary(w http.ResponseWriter, r *http.Request)
+	// AdminEraseGitHubStarsUser Erase every recorded star event of a GitHub user
+	// (DELETE /api/private/admin/github-stars/users/{login})
+	AdminEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request, login string)
 	// AdminListOrganizations List organizations with member, site and quota counts
 	// (GET /api/private/admin/organizations)
 	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
@@ -5362,6 +5472,205 @@ func (siw *ServerInterfaceWrapper) AdminListAudit(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminListAudit(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminListGitHubStarsAnnotations operation middleware
+func (siw *ServerInterfaceWrapper) AdminListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListGitHubStarsAnnotations(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCreateGitHubStarsAnnotation operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreateGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreateGitHubStarsAnnotation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteGitHubStarsAnnotation operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "annotation" -------------
+	var annotation int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "annotation", r.PathValue("annotation"), &annotation, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "annotation", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteGitHubStarsAnnotation(w, r, annotation)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminListGitHubStarsEvents operation middleware
+func (siw *ServerInterfaceWrapper) AdminListGitHubStarsEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListGitHubStarsEventsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListGitHubStarsEvents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetGitHubStarsSeries operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetGitHubStarsSeries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminGetGitHubStarsSeriesParams
+
+	// ------------- Required query parameter "granularity" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "granularity", r.URL.Query(), &params.Granularity, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "granularity"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "granularity", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetGitHubStarsSeries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetGitHubStarsSummary operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetGitHubStarsSummary(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetGitHubStarsSummary(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminEraseGitHubStarsUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "login" -------------
+	var login string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "login", r.PathValue("login"), &login, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "login", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminEraseGitHubStarsUser(w, r, login)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10840,6 +11149,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminDeleteTwoFactorExemption)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminSetTwoFactorExemption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/audit", wrapper.AdminListAudit)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/summary", wrapper.AdminGetGitHubStarsSummary)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/series", wrapper.AdminGetGitHubStarsSeries)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/events", wrapper.AdminListGitHubStarsEvents)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/annotations", wrapper.AdminListGitHubStarsAnnotations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/github-stars/annotations", wrapper.AdminCreateGitHubStarsAnnotation)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/github-stars/annotations/{annotation}", wrapper.AdminDeleteGitHubStarsAnnotation)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/github-stars/users/{login}", wrapper.AdminEraseGitHubStarsUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/update", wrapper.AdminGetUpdateStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/update/check", wrapper.AdminCheckUpdate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/update/apply", wrapper.AdminApplyUpdate)
