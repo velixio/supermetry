@@ -73,8 +73,10 @@ type Deps struct {
 	Heatmaps       heatmapService
 	Ingest         http.Handler
 	// Links serves the public short-link redirect and tracking pixel. Optional.
-	Links               *links.Handler
-	Pixels              http.Handler
+	Links  *links.Handler
+	Pixels http.Handler
+	// GitHubWebhook receives repository star webhooks. Nil leaves the route off.
+	GitHubWebhook       http.Handler
 	OpenCounters        *opencounters.Handler
 	OpenCountersEnabled bool
 	Replay              http.Handler
@@ -185,6 +187,9 @@ func NewRouter(deps Deps) http.Handler {
 		} else {
 			mux.HandleFunc("GET /px/{file}", deps.Links.ServePixel)
 		}
+	}
+	if deps.GitHubWebhook != nil {
+		mux.Handle("POST /api/github/webhook", deps.GitHubWebhook)
 	}
 	if deps.OpenCounters != nil && deps.OpenCountersEnabled {
 		mux.Handle("GET /c/{rest...}", deps.OpenCounters)
@@ -334,6 +339,13 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PUT " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"DELETE " + privatePrefix + "/admin/security/2fa-exemptions/{user}",
 		"GET " + privatePrefix + "/admin/audit",
+		"GET " + privatePrefix + "/admin/github-stars/summary",
+		"GET " + privatePrefix + "/admin/github-stars/series",
+		"GET " + privatePrefix + "/admin/github-stars/events",
+		"GET " + privatePrefix + "/admin/github-stars/annotations",
+		"POST " + privatePrefix + "/admin/github-stars/annotations",
+		"DELETE " + privatePrefix + "/admin/github-stars/annotations/{annotation}",
+		"DELETE " + privatePrefix + "/admin/github-stars/users/{login}",
 		"GET " + privatePrefix + "/admin/update",
 		"POST " + privatePrefix + "/admin/update/check",
 		"POST " + privatePrefix + "/admin/update/apply",

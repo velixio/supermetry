@@ -21,6 +21,7 @@ import (
 
 	"supermetry/internal/api"
 	"supermetry/internal/config"
+	"supermetry/internal/ghstars"
 	"supermetry/internal/imports"
 	"supermetry/internal/links"
 	"supermetry/internal/pixels"
@@ -165,10 +166,12 @@ type Deps struct {
 	Demo               DemoService
 	Overview           *sitesvc.Overview
 	Admin              *admin.Service
-	UpdateChecker      UpdateChecker
-	UpdateStarter      UpdateStarter
-	UpdateMode         updatehelper.DeploymentMode
-	UpdateNonce        func() (string, error)
+	// GitHubStars serves the instance-admin star history. Nil means the feature is off.
+	GitHubStars   *ghstars.Store
+	UpdateChecker UpdateChecker
+	UpdateStarter UpdateStarter
+	UpdateMode    updatehelper.DeploymentMode
+	UpdateNonce   func() (string, error)
 
 	// Integrations serves the third-party connection endpoints. Optional.
 	Integrations IntegrationsService
@@ -265,6 +268,13 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/private/admin/security/2fa-exemptions/{user}", h.adminSetTwoFactorExemption)
 	mux.HandleFunc("DELETE /api/private/admin/security/2fa-exemptions/{user}", h.adminDeleteTwoFactorExemption)
 	mux.HandleFunc("GET /api/private/admin/audit", h.adminListAudit)
+	mux.HandleFunc("GET /api/private/admin/github-stars/summary", h.adminStarsSummary)
+	mux.HandleFunc("GET /api/private/admin/github-stars/series", h.adminStarsSeries)
+	mux.HandleFunc("GET /api/private/admin/github-stars/events", h.adminStarsEvents)
+	mux.HandleFunc("GET /api/private/admin/github-stars/annotations", h.adminStarsAnnotations)
+	mux.HandleFunc("POST /api/private/admin/github-stars/annotations", h.adminStarsAddAnnotation)
+	mux.HandleFunc("DELETE /api/private/admin/github-stars/annotations/{annotation}", h.adminStarsDeleteAnnotation)
+	mux.HandleFunc("DELETE /api/private/admin/github-stars/users/{login}", h.adminStarsEraseUser)
 	mux.HandleFunc("GET /api/private/admin/update", h.adminUpdateStatus)
 	mux.HandleFunc("POST /api/private/admin/update/check", h.adminCheckUpdate)
 	mux.HandleFunc("POST /api/private/admin/update/apply", h.adminApplyUpdate)

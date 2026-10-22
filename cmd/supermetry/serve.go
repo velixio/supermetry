@@ -35,6 +35,7 @@ import (
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
 	"supermetry/internal/geoupdate"
+	"supermetry/internal/ghstars"
 	"supermetry/internal/health"
 	"supermetry/internal/heatmap"
 	"supermetry/internal/imports"
@@ -376,8 +377,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			Stats: opencounters.PoolStats(pool),
 		}
 	}
+	starTracking, err := newStarTracking(cfg, pool, settings.clock.Now)
+	if err != nil {
+		return err
+	}
 	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
+		GitHubStars:        starTracking.store,
 		LinkCache:          linkHandler,
 		TrackingPixelViews: linkRecorder.Views,
 		Pixels:             pixelRegistry,
@@ -481,7 +487,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
 		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
-		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler,
+		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: starTracking.webhook,
 		OpenCounters: counterHandler, OpenCountersEnabled: cfg.OpenCounters,
 		Now: settings.clock.Now, Ready: func() bool { return ready.Load() && postgresReady(pool) },
 		RollupBackfillProgress: func(ctx context.Context) (bool, int, int, error) {
@@ -541,6 +547,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, cfg.OpenCounters, settings.clock, engine.InvalidateSite)
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
+	if starTracking.reconciler != nil {
+		jobs = append(jobs, starTracking.reconciler.Job())
+	}
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)
@@ -1435,4 +1444,33 @@ func closedDayKey(siteID int32, day time.Time) string {
 func civilDay(value time.Time) time.Time {
 	value = value.UTC()
 	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// starTracking holds the optional GitHub star feature; every field is nil while
+// SUPERMETRY_GITHUB_STARS_REPO is empty.
+type starTracking struct {
+	store      *ghstars.Store
+	webhook    http.Handler
+	reconciler *ghstars.Reconciler
+}
+
+func newStarTracking(cfg config.Config, pool *pgxpool.Pool, now func() time.Time) (starTracking, error) {
+	if cfg.GitHubStarsRepo == "" {
+		return starTracking{}, nil
+	}
+	loc, err := time.LoadLocation(cfg.GitHubStarsTZ)
+	if err != nil {
+		return starTracking{}, fmt.Errorf("load GitHub stars time zone: %w", err)
+	}
+	store := ghstars.NewStore(pool, cfg.GitHubStarsRepo, loc)
+	tracking := starTracking{
+		store:      store,
+		reconciler: &ghstars.Reconciler{Store: store, Client: ghstars.NewClient(cfg.GitHubToken), Now: now},
+	}
+	if cfg.GitHubWebhookSecret == "" {
+		slog.Warn("GitHub star webhook is off: SUPERMETRY_GITHUB_WEBHOOK_SECRET is empty; stars are only reconciled daily")
+		return tracking, nil
+	}
+	tracking.webhook = &ghstars.Handler{Store: store, Secret: []byte(cfg.GitHubWebhookSecret), Now: now}
+	return tracking, nil
 }

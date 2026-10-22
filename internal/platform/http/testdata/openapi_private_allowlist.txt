@@ -1,6 +1,7 @@
 # Undocumented routes outside /api/public/v1.
 # Format: METHOD /pattern  # reason
 
+POST /api/github/webhook  # GitHub star webhook; verified by HMAC signature, not a query API operation.
 DELETE /api/private/annotations/{annotation}  # Dashboard or account flow; session/private UI contract.
 PATCH /api/private/annotations/{annotation}  # Dashboard or account flow; session/private UI contract.
 GET /api/private/auth/config  # Dashboard or account flow; session/private UI contract.

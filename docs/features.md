@@ -153,6 +153,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 31. ~~Install recipes, full report dialog and exports~~ ✅
 32. ~~Interface languages (Spanish and German first translations)~~ ✅
 33. ~~Pixel analytics projects and opt-in open GitHub counters~~ ✅
+34. ~~GitHub star tracking for our own repo: webhook, per-user event log, hourly and daily charts, daily reconcile (instance admin only)~~ ✅
 
 ### Later
 
