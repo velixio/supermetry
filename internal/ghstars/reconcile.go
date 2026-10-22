@@ -34,6 +34,10 @@ var (
 	ErrRepoNotFound = errors.New("ghstars: repository not found on github")
 	// ErrBadToken reports a 401 from GitHub.
 	ErrBadToken = errors.New("ghstars: github rejected the token")
+	// ErrTokenIgnored reports a run that succeeded only after retrying without
+	// the stored token, which GitHub rejected. The data is saved; the admin
+	// should replace or clear the token.
+	ErrTokenIgnored = errors.New("ghstars: github rejected the stored token (401); synced without it, replace or clear the token in the repository settings")
 )
 
 // Client reads one repository from the GitHub REST API. The host is the fixed
@@ -248,6 +252,19 @@ func (s *Service) reconcile(ctx context.Context, r repoRow) error {
 			return errors.New("stored token cannot be decrypted")
 		}
 	}
+	err := s.reconcileWith(ctx, r, token)
+	if token != "" && errors.Is(err, ErrBadToken) {
+		// A stale token is worse than none for a public repository, so retry once
+		// without it. Private repositories fail again here with not found.
+		if retryErr := s.reconcileWith(ctx, r, ""); retryErr != nil {
+			return retryErr
+		}
+		return ErrTokenIgnored
+	}
+	return err
+}
+
+func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) error {
 	client, store, now := s.client(token), s.storeOf(r), s.Now()
 	counts, err := client.Counts(ctx, store.Repo())
 	if err != nil {
