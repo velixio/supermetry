@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ type fakeGitHub struct {
 	repo        map[string]any
 	stargazers  []map[string]any
 	status      int
+	rejectAuth  bool // 401 for any request that carries a token
 	repoCalls   atomic.Int32
 	starCalls   atomic.Int32
 	lastAuth    atomic.Value
@@ -35,6 +37,10 @@ func newFakeGitHub(t *testing.T, stars int, gazers ...[3]string) (*fakeGitHub, *
 	mux.HandleFunc("GET /repos/{owner}/{name}", func(w http.ResponseWriter, r *http.Request) {
 		f.repoCalls.Add(1)
 		f.lastAuth.Store(r.Header.Get("Authorization"))
+		if f.rejectAuth && r.Header.Get("Authorization") != "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if f.status != 0 {
 			w.WriteHeader(f.status)
 			return
@@ -43,6 +49,10 @@ func newFakeGitHub(t *testing.T, stars int, gazers ...[3]string) (*fakeGitHub, *
 	})
 	mux.HandleFunc("GET /repos/{owner}/{name}/stargazers", func(w http.ResponseWriter, r *http.Request) {
 		f.starCalls.Add(1)
+		if f.rejectAuth && r.Header.Get("Authorization") != "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		f.lastAccepts.Store(r.Header.Get("Accept"))
 		perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
 		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -339,5 +349,44 @@ func TestBackfillSkipsErasedUsers(t *testing.T) {
 	}
 	if n, _ := store.EventCount(ctx); n != 1 {
 		t.Fatalf("events = %d", n)
+	}
+}
+
+// A rejected token must not stop a public repository from syncing: the run is
+// retried without it, the stars are saved, and the repository keeps a warning
+// telling the admin to replace or clear the token.
+func TestReconcileFallsBackWhenTheTokenIsRejected(t *testing.T) {
+	fake, server := newFakeGitHub(t, 1, [3]string{"7", "ann", "2026-10-10T10:00:00Z"})
+	svc, repo, store := repoService(t, server)
+	fake.rejectAuth = true // the token goes stale after the repository was added
+	ctx := context.Background()
+	if err := svc.ReconcileRepo(ctx, repo.ID); !errors.Is(err, ErrTokenIgnored) {
+		t.Fatalf("err = %v, want ErrTokenIgnored", err)
+	}
+	if n, _ := store.EventCount(ctx); n != 1 {
+		t.Fatalf("events = %d, want the star saved without the token", n)
+	}
+	got, _ := svc.Get(ctx, repo.ID)
+	if got.LastError == nil || !strings.Contains(*got.LastError, "token") || got.LastReconcileAt == nil {
+		t.Fatalf("repo = %+v, want a token warning and a reconcile time", got)
+	}
+}
+
+// Without a stored token a 401 is still an error, and nothing is retried.
+func TestReconcileReportsBadTokenWhenThereIsNoFallback(t *testing.T) {
+	fake, server := newFakeGitHub(t, 1)
+	svc, _, _ := repoService(t, server)
+	ctx := context.Background()
+	other, _, err := svc.Create(ctx, CreateInput{Repo: "velixio/public"}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake.status = http.StatusUnauthorized
+	before := fake.repoCalls.Load()
+	if err := svc.ReconcileRepo(ctx, other.ID); !errors.Is(err, ErrBadToken) {
+		t.Fatalf("err = %v, want ErrBadToken", err)
+	}
+	if n := fake.repoCalls.Load() - before; n != 1 {
+		t.Fatalf("sync calls = %d, want one (no retry without a token)", n)
 	}
 }
