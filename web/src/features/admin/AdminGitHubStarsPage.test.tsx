@@ -3,11 +3,11 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiProblem } from '@/lib/apiProblem'
-
 const api = vi.hoisted(() => ({
   useStarsSummary: vi.fn(), useStarsSeries: vi.fn(), useStarsEvents: vi.fn(), useStarsAnnotations: vi.fn(),
   useAddStarsAnnotation: vi.fn(), useDeleteStarsAnnotation: vi.fn(), useEraseStarsUser: vi.fn(),
+  useStarsRepos: vi.fn(), useAddStarsRepo: vi.fn(), useUpdateStarsRepo: vi.fn(), useDeleteStarsRepo: vi.fn(),
+  useRotateStarsSecret: vi.fn(), useSyncStarsRepo: vi.fn(),
 }))
 vi.mock('./githubStarsApi', async (importOriginal) => ({ ...(await importOriginal<typeof import('./githubStarsApi')>()), ...api }))
 
@@ -23,7 +23,25 @@ const days = [
 
 const mutation = (overrides: Record<string, unknown> = {}) => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null, ...overrides })
 
-function ready(overrides: { events?: unknown; annotations?: unknown[]; erase?: ReturnType<typeof mutation>; add?: ReturnType<typeof mutation>; remove?: ReturnType<typeof mutation> } = {}) {
+const repo = (over: Record<string, unknown> = {}) => ({
+  id: 1, repo: 'velixio/supermetry', enabled: true, time_zone: 'Asia/Kathmandu', has_token: true,
+  webhook_url: 'https://stats.example.test/api/github/webhook/abcd1234efgh5678', created_at: '2026-10-01T00:00:00Z',
+  last_webhook_at: '2026-10-02T05:00:00Z', last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, ...over,
+})
+
+type Overrides = {
+  repos?: unknown[]; events?: unknown; annotations?: unknown[]; erase?: ReturnType<typeof mutation>; add?: ReturnType<typeof mutation>
+  remove?: ReturnType<typeof mutation>; addRepo?: ReturnType<typeof mutation>; updateRepo?: ReturnType<typeof mutation>
+  deleteRepo?: ReturnType<typeof mutation>; rotate?: ReturnType<typeof mutation>; sync?: ReturnType<typeof mutation>
+}
+
+function ready(overrides: Overrides = {}) {
+  api.useStarsRepos.mockReturnValue({ isPending: false, isError: false, data: { data: overrides.repos ?? [repo()] } })
+  api.useAddStarsRepo.mockReturnValue(overrides.addRepo ?? mutation())
+  api.useUpdateStarsRepo.mockReturnValue(overrides.updateRepo ?? mutation())
+  api.useDeleteStarsRepo.mockReturnValue(overrides.deleteRepo ?? mutation())
+  api.useRotateStarsSecret.mockReturnValue(overrides.rotate ?? mutation())
+  api.useSyncStarsRepo.mockReturnValue(overrides.sync ?? mutation())
   api.useStarsSummary.mockReturnValue({
     isPending: false, isError: false, error: null,
     data: { stars: 1234, forks: 5, watchers: 6, open_issues: 7, updated_at: '2026-10-03T00:00:00Z', net_24h: 3, net_7d: -2 },
@@ -78,18 +96,9 @@ describe('AdminGitHubStarsPage', () => {
   it('switches the chart between hour and day buckets', () => {
     ready()
     render(<AdminGitHubStarsPage />)
-    expect(api.useStarsSeries).toHaveBeenLastCalledWith('day')
+    expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'day')
     fireEvent.click(screen.getByRole('radio', { name: 'Hour' }))
-    expect(api.useStarsSeries).toHaveBeenLastCalledWith('hour')
-  })
-
-  it('shows a not-configured state for the 404 the API returns when the feature is off', () => {
-    ready()
-    api.useStarsSummary.mockReturnValue({ isPending: false, isError: true, error: new ApiProblem(404, { detail: 'GitHub star tracking is not configured' }) })
-    render(<AdminGitHubStarsPage />)
-    expect(screen.getByText('GitHub star tracking is off')).toBeVisible()
-    expect(screen.getByText(/SUPERMETRY_GITHUB_STARS_REPO/)).toBeVisible()
-    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'hour')
   })
 
   it('reports other failures with a retry', () => {
@@ -97,7 +106,7 @@ describe('AdminGitHubStarsPage', () => {
     const refetch = vi.fn()
     api.useStarsSummary.mockReturnValue({ isPending: false, isError: true, error: new Error('boom'), refetch })
     render(<AdminGitHubStarsPage />)
-    expect(screen.getByRole('alert')).toHaveTextContent('boom')
+    expect(screen.getByRole('alert', { name: '' })).toHaveTextContent('boom')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalled()
   })
@@ -144,6 +153,7 @@ describe('AdminGitHubStarsPage', () => {
     expect(erase.mutate).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Erase events' }))
     expect(erase.mutate).toHaveBeenCalledWith('alice', expect.any(Object))
+    expect(within(dialog).getByText(/future stars are ignored/)).toBeVisible()
   })
 
   it('validates the login before opening the erase dialog', () => {
@@ -156,5 +166,108 @@ describe('AdminGitHubStarsPage', () => {
     fireEvent.change(screen.getByLabelText('GitHub login'), { target: { value: 'carol' } })
     fireEvent.click(submit)
     expect(screen.getByRole('alertdialog', { name: 'Erase events of carol?' })).toBeVisible()
+  })
+
+  it('invites adding the first repository when none is tracked', () => {
+    ready({ repos: [] })
+    render(<AdminGitHubStarsPage />)
+    expect(screen.getByText('Add your first repository')).toBeVisible()
+    expect(screen.queryByText(/SUPERMETRY_GITHUB/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Add repository' }))
+    expect(screen.getByRole('dialog', { name: 'Add repository' })).toBeVisible()
+  })
+
+  it('adds a repository and shows the secret once with the setup steps', () => {
+    const addRepo = mutation()
+    addRepo.mutate.mockImplementation((_body, options) => options.onSuccess({
+      repo: repo({ id: 2, repo: 'velixio/docs' }), webhook_secret: 'topsecret', webhook_url: 'https://stats.example.test/api/github/webhook/zzzz',
+    }))
+    ready({ addRepo })
+    render(<AdminGitHubStarsPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add repository' }))
+    fireEvent.change(screen.getByLabelText('Repository (owner/name)'), { target: { value: ' velixio/docs ' } })
+    fireEvent.change(screen.getByLabelText(/GitHub token/), { target: { value: 'ghp_x' } })
+    fireEvent.change(screen.getByLabelText(/^Time zone/), { target: { value: 'Asia/Kolkata' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add repository' }))
+    expect(addRepo.mutate).toHaveBeenCalledWith({ repo: 'velixio/docs', token: 'ghp_x', time_zone: 'Asia/Kolkata' }, expect.any(Object))
+    const panel = screen.getByRole('region', { name: 'Webhook for velixio/docs' })
+    expect(within(panel).getByText('topsecret')).toBeVisible()
+    expect(within(panel).getByText('https://stats.example.test/api/github/webhook/zzzz')).toBeVisible()
+    expect(within(panel).getByText('Set Content type to application/json.')).toBeVisible()
+    expect(within(panel).getByText(/tick only Stars/)).toBeVisible()
+    expect(within(panel).getAllByRole('button', { name: /^Copy / })).toHaveLength(2)
+    fireEvent.click(within(panel).getByRole('button', { name: 'I have saved the secret' }))
+    expect(screen.queryByText('topsecret')).not.toBeInTheDocument()
+  })
+
+  it('selects between repositories and loads the chosen one', () => {
+    ready({ repos: [repo(), repo({ id: 2, repo: 'velixio/docs', enabled: false })] })
+    render(<AdminGitHubStarsPage />)
+    expect(api.useStarsSummary).toHaveBeenLastCalledWith(1)
+    fireEvent.change(screen.getByLabelText('Repository'), { target: { value: '2' } })
+    expect(api.useStarsSummary).toHaveBeenLastCalledWith(2)
+    expect(screen.getByRole('option', { name: 'velixio/docs (disabled)' })).toBeInTheDocument()
+  })
+
+  it('shows the status line and the last error', () => {
+    ready({ repos: [repo({ last_error: 'github rate limit or access denied', last_webhook_at: null })] })
+    render(<AdminGitHubStarsPage />)
+    const status = screen.getByRole('region', { name: 'Status of velixio/supermetry' })
+    expect(within(status).getByText('none received yet')).toBeVisible()
+    expect(within(status).getByRole('alert')).toHaveTextContent('github rate limit or access denied')
+    expect(within(status).getByText('Asia/Kathmandu')).toBeVisible()
+  })
+
+  it('toggles enabled and starts a sync', () => {
+    const updateRepo = mutation()
+    const sync = mutation()
+    ready({ updateRepo, sync })
+    render(<AdminGitHubStarsPage />)
+    fireEvent.click(screen.getByRole('switch', { name: 'Enabled' }))
+    expect(updateRepo.mutate).toHaveBeenCalledWith({ id: 1, patch: { enabled: false } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sync now' }))
+    expect(sync.mutate).toHaveBeenCalledWith(1)
+  })
+
+  it('saves the time zone and can clear the token', () => {
+    const updateRepo = mutation()
+    ready({ updateRepo })
+    render(<AdminGitHubStarsPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    const dialog = screen.getByRole('dialog', { name: 'Settings for velixio/supermetry' })
+    fireEvent.change(within(dialog).getByLabelText(/^Time zone/), { target: { value: 'UTC' } })
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Remove the stored token' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    expect(updateRepo.mutate).toHaveBeenCalledWith({ id: 1, patch: { time_zone: 'UTC', clear_token: true } }, expect.any(Object))
+  })
+
+  it('rotates the secret only after confirmation and shows the new one', () => {
+    const rotate = mutation()
+    rotate.mutate.mockImplementation((_id, options) => options.onSuccess({ repo: repo(), webhook_secret: 'newsecret', webhook_url: 'https://stats.example.test/x' }))
+    ready({ rotate })
+    render(<AdminGitHubStarsPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate secret' }))
+    expect(rotate.mutate).not.toHaveBeenCalled()
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Rotate secret' }))
+    expect(rotate.mutate).toHaveBeenCalledWith(1, expect.any(Object))
+    expect(screen.getByText('newsecret')).toBeVisible()
+  })
+
+  it('offers disable as the safe default and asks twice before removing data', () => {
+    const deleteRepo = mutation()
+    ready({ deleteRepo })
+    render(<AdminGitHubStarsPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    const dialog = screen.getByRole('dialog', { name: 'Remove velixio/supermetry' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove repository and all its data' }))
+    expect(deleteRepo.mutate).not.toHaveBeenCalled()
+    const confirm = screen.getByRole('dialog', { name: 'Remove velixio/supermetry and all its data?' })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Back' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Disable and keep history' }))
+    expect(deleteRepo.mutate).toHaveBeenCalledWith({ id: 1, deleteData: false }, expect.any(Object))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove repository and all its data' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove with data' }))
+    expect(deleteRepo.mutate).toHaveBeenLastCalledWith({ id: 1, deleteData: true }, expect.any(Object))
   })
 })

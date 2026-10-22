@@ -15,9 +15,9 @@ import { useEraseStarsUser, useStarsEvents } from './githubStarsApi'
 
 const loginPattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/
 
-export function StarsEvents() {
-  const events = useStarsEvents()
-  const erase = useEraseStarsUser()
+export function StarsEvents({ repoId }: { repoId: number }) {
+  const events = useStarsEvents(repoId)
+  const erase = useEraseStarsUser(repoId)
   const [login, setLogin] = useState('')
   const [target, setTarget] = useState<string | null>(null)
   const [done, setDone] = useState<number | null>(null)

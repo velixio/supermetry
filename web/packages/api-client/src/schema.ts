@@ -205,6 +205,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/github-stars/repos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tracked GitHub repositories
+         * @description Secrets and tokens are never returned; webhook_url is the endpoint to configure on GitHub.
+         */
+        get: operations["adminListGitHubStarsRepos"];
+        put?: never;
+        /**
+         * Track a repository
+         * @description Checks the repository exists with one GitHub call (a GitHub outage or rate limit does not block the save). The response carries the webhook secret, shown exactly once. At most 50 repositories.
+         */
+        post: operations["adminCreateGitHubStarsRepo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/repos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disable a repository, or remove it with its data
+         * @description delete_data is required. false only disables the repository and keeps its history (200). true deletes the configuration and every event, snapshot, annotation and erasure record of the repository in one transaction (204).
+         */
+        delete: operations["adminDeleteGitHubStarsRepo"];
+        options?: never;
+        head?: never;
+        /** Enable or disable a repository, change its time zone, or set or clear its token */
+        patch: operations["adminUpdateGitHubStarsRepo"];
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/repos/{id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the webhook secret
+         * @description The new secret is returned exactly once; update it on GitHub.
+         */
+        post: operations["adminRotateGitHubStarsSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/repos/{id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconcile and backfill a repository now
+         * @description Starts the sync in the background. At most one runs per repository and manual syncs must be a minute apart; the outcome appears in last_reconcile_at and last_error.
+         */
+        post: operations["adminSyncGitHubStarsRepo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/admin/github-stars/summary": {
         parameters: {
             query?: never;
@@ -214,7 +299,7 @@ export interface paths {
         };
         /**
          * Live star counters and the net change over 24 hours and 7 days
-         * @description Reads the configured repository only. Returns 404 while GitHub star tracking is not configured.
+         * @description Reads the repository selected by repo_id. Returns 404 for an unknown repository.
          */
         get: operations["adminGetGitHubStarsSummary"];
         put?: never;
@@ -2716,6 +2801,48 @@ export interface components {
             /** Format: date-time */
             expires_at?: string;
         };
+        GitHubStarsRepo: {
+            /** Format: int64 */
+            id: number;
+            /** @description Lowercase owner/name. */
+            repo: string;
+            enabled: boolean;
+            time_zone: string;
+            has_token: boolean;
+            /** @description The URL to configure as the GitHub webhook payload URL. */
+            webhook_url: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_webhook_at: string | null;
+            /** Format: date-time */
+            last_reconcile_at: string | null;
+            last_error: string | null;
+        };
+        GitHubStarsRepos: {
+            data: components["schemas"]["GitHubStarsRepo"][];
+        };
+        GitHubStarsRepoInput: {
+            /** @description owner/name */
+            repo: string;
+            /** @description Optional GitHub token for the daily sync. */
+            token?: string;
+            /** @description IANA time zone for charts; defaults to UTC. */
+            time_zone?: string;
+        };
+        GitHubStarsRepoPatch: {
+            enabled?: boolean;
+            time_zone?: string;
+            /** @description Replaces the stored token when not empty. */
+            token?: string;
+            clear_token?: boolean;
+        };
+        GitHubStarsRepoSecret: {
+            repo: components["schemas"]["GitHubStarsRepo"];
+            /** @description Shown once; never returned again. */
+            webhook_secret: string;
+            webhook_url: string;
+        };
         GitHubStarsSummary: {
             stars: number;
             forks: number;
@@ -4579,6 +4706,7 @@ export interface components {
     };
     parameters: {
         AdminLimit: number;
+        GitHubStarsRepoID: number;
         GitHubStarsEventLimit: number;
         AdminUserID: number;
         SiteID: number;
@@ -5086,9 +5214,199 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminGetGitHubStarsSummary: {
+    adminListGitHubStarsRepos: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tracked repositories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsRepos"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCreateGitHubStarsRepo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubStarsRepoInput"];
+            };
+        };
+        responses: {
+            /** @description Repository added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsRepoSecret"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The repository is already tracked or the limit is reached. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminDeleteGitHubStarsRepo: {
+        parameters: {
+            query: {
+                delete_data: boolean;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repository disabled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsRepo"];
+                };
+            };
+            /** @description Repository and its data removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUpdateGitHubStarsRepo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubStarsRepoPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated repository. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsRepo"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminRotateGitHubStarsSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description New secret. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsRepoSecret"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminSyncGitHubStarsRepo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync started. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A sync is already running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetGitHubStarsSummary: {
+        parameters: {
+            query: {
+                repo_id: components["parameters"]["GitHubStarsRepoID"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5113,6 +5431,7 @@ export interface operations {
     adminGetGitHubStarsSeries: {
         parameters: {
             query: {
+                repo_id: components["parameters"]["GitHubStarsRepoID"];
                 granularity: string;
                 from?: string;
                 to?: string;
@@ -5141,7 +5460,8 @@ export interface operations {
     };
     adminListGitHubStarsEvents: {
         parameters: {
-            query?: {
+            query: {
+                repo_id: components["parameters"]["GitHubStarsRepoID"];
                 cursor?: string;
                 limit?: components["parameters"]["GitHubStarsEventLimit"];
             };
@@ -5169,7 +5489,9 @@ export interface operations {
     };
     adminListGitHubStarsAnnotations: {
         parameters: {
-            query?: never;
+            query: {
+                repo_id: components["parameters"]["GitHubStarsRepoID"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5193,7 +5515,9 @@ export interface operations {
     };
     adminCreateGitHubStarsAnnotation: {
         parameters: {
-            query?: never;
+            query: {
+                repo_id: components["parameters"]["GitHubStarsRepoID"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5222,7 +5546,9 @@ export interface operations {
     };
     adminDeleteGitHubStarsAnnotation: {
         parameters: {
-            query?: never;
+            query: {
+                repo_id: components["parameters"]["GitHubStarsRepoID"];
+            };
             header?: never;
             path: {
                 annotation: number;
@@ -5247,7 +5573,9 @@ export interface operations {
     };
     adminEraseGitHubStarsUser: {
         parameters: {
-            query?: never;
+            query: {
+                repo_id: components["parameters"]["GitHubStarsRepoID"];
+            };
             header?: never;
             path: {
                 login: string;

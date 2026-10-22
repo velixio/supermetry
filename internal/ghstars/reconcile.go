@@ -29,6 +29,13 @@ const (
 // ErrRateLimited reports a 403 or 429 from GitHub. The next scheduled run retries.
 var ErrRateLimited = errors.New("ghstars: github rate limit or access denied")
 
+var (
+	// ErrRepoNotFound reports a 404 from GitHub: no such repository, or the token cannot see it.
+	ErrRepoNotFound = errors.New("ghstars: repository not found on github")
+	// ErrBadToken reports a 401 from GitHub.
+	ErrBadToken = errors.New("ghstars: github rejected the token")
+)
+
 // Client reads one repository from the GitHub REST API. The host is the fixed
 // GitHub API unless BaseURL overrides it for tests.
 type Client struct {
@@ -86,6 +93,10 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, accept 
 	switch {
 	case resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests:
 		return ErrRateLimited
+	case resp.StatusCode == http.StatusNotFound:
+		return ErrRepoNotFound
+	case resp.StatusCode == http.StatusUnauthorized:
+		return ErrBadToken
 	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("github request: status %d", resp.StatusCode)
 	}
@@ -138,62 +149,135 @@ func (c *Client) Stargazers(ctx context.Context, repo string) ([]Stargazer, erro
 	return nil, fmt.Errorf("github stargazers: more than %d pages", maxPages)
 }
 
-// Reconciler repairs missed webhooks and backfills existing stargazers.
-type Reconciler struct {
-	Store  *Store
-	Client *Client
-	Now    func() time.Time
+// ReconcileJob returns the daily scheduler job. It also runs at startup, which
+// performs the one-time backfill for newly added repositories. Repositories are
+// handled one by one and a failure is recorded on that repository only.
+func (s *Service) ReconcileJob() scheduler.Job {
+	return scheduler.Job{Name: "github-stars-reconcile", Every: 24 * time.Hour, RunOnStart: true, Run: s.ReconcileAll}
 }
 
-// Job returns the daily scheduler job. It also runs at startup, which performs
-// the one-time backfill on a fresh install. A rate limit is logged and left
-// for the next run rather than reported as a failure.
-func (r *Reconciler) Job() scheduler.Job {
-	return scheduler.Job{Name: "github-stars-reconcile", Every: 24 * time.Hour, RunOnStart: true, Run: func(ctx context.Context) error {
-		err := r.Run(ctx)
-		if errors.Is(err, ErrRateLimited) {
-			slog.Warn("github star reconcile skipped: rate limited or access denied")
-			return nil
+// ReconcileAll reconciles every enabled repository.
+func (s *Service) ReconcileAll(ctx context.Context) error {
+	rows, err := s.pool.Query(ctx, `select id from github_star_repos where enabled order by id`)
+	if err != nil {
+		return fmt.Errorf("list star repos: %w", err)
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
 		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
 		return err
-	}}
+	}
+	for _, id := range ids {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err := s.ReconcileRepo(ctx, id); err != nil {
+			slog.Warn("github star reconcile failed", "repo_id", id, "error", err)
+		}
+	}
+	return nil
 }
 
-// Run records today's snapshot and, when GitHub's star count differs from the
-// live row (or no history exists yet), diffs the full stargazer list against
-// the recorded history. With no events at all the inserted stars are marked as
-// backfill, otherwise as reconcile.
-func (r *Reconciler) Run(ctx context.Context) error {
-	now := r.Now()
-	counts, err := r.Client.Counts(ctx, r.Store.Repo())
+// StartSync reconciles one repository in the background. At most one sync runs
+// per repository and manual syncs are at least a minute apart.
+func (s *Service) StartSync(ctx context.Context, id int64) error {
+	if _, err := s.load(ctx, id); err != nil {
+		return err
+	}
+	now := s.Now()
+	s.mu.Lock()
+	if s.running[id] {
+		s.mu.Unlock()
+		return ErrBusy
+	}
+	if last, ok := s.lastSync[id]; ok && now.Sub(last) < manualSyncGap {
+		s.mu.Unlock()
+		return ErrTooSoon
+	}
+	s.running[id] = true
+	s.lastSync[id] = now
+	s.mu.Unlock()
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		defer func() { s.mu.Lock(); delete(s.running, id); s.mu.Unlock() }()
+		runCtx, cancel := context.WithTimeout(context.Background(), syncTimeout)
+		defer cancel()
+		if err := s.ReconcileRepo(runCtx, id); err != nil {
+			slog.Warn("github star sync failed", "repo_id", id, "error", err)
+		}
+	}()
+	return nil
+}
+
+// ReconcileRepo records today's snapshot and, when GitHub's star count differs
+// from the live row (or no history exists yet), diffs the full stargazer list
+// against the recorded history. With no events at all the inserted stars are
+// marked as backfill, otherwise as reconcile. The outcome, including a rate
+// limit, is saved on the repository as last_error / last_reconcile_at.
+func (s *Service) ReconcileRepo(ctx context.Context, id int64) error {
+	r, err := s.load(ctx, id)
 	if err != nil {
 		return err
 	}
-	events, err := r.Store.EventCount(ctx)
+	runErr := s.reconcile(ctx, r)
+	status := (*string)(nil)
+	if runErr != nil {
+		msg := truncateError(runErr)
+		status = &msg
+	}
+	if _, err := s.pool.Exec(ctx, `update github_star_repos set last_reconcile_at=$2, last_error=$3 where id=$1`, id, s.Now(), status); err != nil {
+		return errors.Join(runErr, err)
+	}
+	return runErr
+}
+
+func (s *Service) reconcile(ctx context.Context, r repoRow) error {
+	token := ""
+	if len(r.tokenEnc) > 0 {
+		var err error
+		if token, err = s.open(r.tokenEnc); err != nil {
+			return errors.New("stored token cannot be decrypted")
+		}
+	}
+	client, store, now := s.client(token), s.storeOf(r), s.Now()
+	counts, err := client.Counts(ctx, store.Repo())
 	if err != nil {
 		return err
 	}
-	stored, known, err := r.Store.Stars(ctx)
+	events, err := store.EventCount(ctx)
+	if err != nil {
+		return err
+	}
+	stored, known, err := store.Stars(ctx)
 	if err != nil {
 		return err
 	}
 	if events == 0 || !known || stored != counts.Stars {
-		if err := r.repairHistory(ctx, events == 0, now); err != nil {
+		if err := repairHistory(ctx, store, client, events == 0, now); err != nil {
 			return err
 		}
 	}
-	if err := r.Store.SaveState(ctx, counts, now); err != nil {
+	if err := store.SaveState(ctx, counts, now); err != nil {
 		return err
 	}
-	return r.Store.SaveSnapshot(ctx, now.In(r.Store.loc), counts)
+	return store.SaveSnapshot(ctx, now.In(store.loc), counts)
 }
 
-func (r *Reconciler) repairHistory(ctx context.Context, backfill bool, now time.Time) error {
-	remote, err := r.Client.Stargazers(ctx, r.Store.Repo())
+func repairHistory(ctx context.Context, store *Store, client *Client, backfill bool, now time.Time) error {
+	remote, err := client.Stargazers(ctx, store.Repo())
 	if err != nil {
 		return err
 	}
-	local, err := r.Store.CurrentStargazers(ctx)
+	local, err := store.CurrentStargazers(ctx)
 	if err != nil {
 		return err
 	}
@@ -214,5 +298,5 @@ func (r *Reconciler) repairHistory(ctx context.Context, backfill bool, now time.
 			missing = append(missing, Event{UserID: id, Login: login, Action: ActionUnstarred, OccurredAt: now, Source: SourceReconcile})
 		}
 	}
-	return r.Store.InsertEvents(ctx, missing)
+	return store.InsertEvents(ctx, missing)
 }

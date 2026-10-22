@@ -7,15 +7,12 @@ import (
 	"net"
 	"net/netip"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"supermetry/internal/privacy"
 )
-
-var githubRepoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 const (
 	defaultListen           = ":8787"
@@ -102,15 +99,7 @@ type Config struct {
 	Signup               string
 	SMTP                 SMTP
 	AllowPrivateWebhooks bool
-
-	// GitHubStarsRepo (owner/name) turns on star tracking for that repository;
-	// empty leaves it off. The webhook needs GitHubWebhookSecret, and the
-	// reconcile job uses GitHubToken when set. GitHubStarsTZ buckets the charts.
-	GitHubStarsRepo     string
-	GitHubWebhookSecret string
-	GitHubToken         string
-	GitHubStarsTZ       string
-	Replay              ReplayEnv
+	Replay               ReplayEnv
 
 	// SearchConsoleClientID and SearchConsoleClientSecret enable the Google
 	// Search Console integration; it stays hidden while either is empty.
@@ -286,18 +275,6 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 			errs = append(errs, errors.New("SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS must be a boolean"))
 		} else {
 			c.AllowPrivateWebhooks = value
-		}
-	}
-	c.GitHubStarsRepo = strings.TrimSpace(getenv("SUPERMETRY_GITHUB_STARS_REPO"))
-	c.GitHubWebhookSecret = getenv("SUPERMETRY_GITHUB_WEBHOOK_SECRET")
-	c.GitHubToken = getenv("SUPERMETRY_GITHUB_TOKEN")
-	c.GitHubStarsTZ = valueOrDefault(strings.TrimSpace(getenv("SUPERMETRY_GITHUB_STARS_TZ")), "UTC")
-	if c.GitHubStarsRepo != "" {
-		if !githubRepoPattern.MatchString(c.GitHubStarsRepo) {
-			errs = append(errs, errors.New("SUPERMETRY_GITHUB_STARS_REPO must be owner/name"))
-		}
-		if _, err := time.LoadLocation(c.GitHubStarsTZ); err != nil {
-			errs = append(errs, errors.New("SUPERMETRY_GITHUB_STARS_TZ must be an IANA time zone"))
 		}
 	}
 	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
