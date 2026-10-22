@@ -13,9 +13,9 @@ function localInputValue(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-export function StarsAnnotations({ annotations }: { annotations: StarsAnnotation[] }) {
-  const add = useAddStarsAnnotation()
-  const remove = useDeleteStarsAnnotation()
+export function StarsAnnotations({ repoId, annotations }: { repoId: number; annotations: StarsAnnotation[] }) {
+  const add = useAddStarsAnnotation(repoId)
+  const remove = useDeleteStarsAnnotation(repoId)
   const [label, setLabel] = useState('')
   const [at, setAt] = useState(() => localInputValue(new Date()))
   const submit = (event: FormEvent) => {

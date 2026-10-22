@@ -8,10 +8,13 @@ import { ErrorState } from '@/components/ErrorState'
 import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 import { AdminPage, formatDate } from './AdminCommon'
+import { nativeSelectClass } from '@/lib/nativeSelect'
+import { Button } from '@/components/ui/button'
 import {
-  isNotConfigured, useStarsAnnotations, useStarsSeries, useStarsSummary,
+  useStarsAnnotations, useStarsRepos, useStarsSeries, useStarsSummary,
   type StarsGranularity, type StarsSummary,
 } from './githubStarsApi'
+import { AddRepoDialog, RepoPanel, RevealPanel, type Reveal } from './StarsRepos'
 import { StarsAnnotations } from './StarsAnnotations'
 import { StarsChart } from './StarsChart'
 import { StarsEvents } from './StarsEvents'
@@ -49,10 +52,10 @@ function Counters({ summary }: { summary: StarsSummary }) {
   )
 }
 
-function GrowthChart() {
+function GrowthChart({ repoId }: { repoId: number }) {
   const [granularity, setGranularity] = useState<StarsGranularity>('day')
-  const series = useStarsSeries(granularity)
-  const annotations = useStarsAnnotations()
+  const series = useStarsSeries(repoId, granularity)
+  const annotations = useStarsAnnotations(repoId)
   return (
     <section aria-labelledby="stars-chart" className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -73,31 +76,60 @@ function GrowthChart() {
       ) : (
         <StarsChart points={series.data.data} granularity={granularity} timeZone={series.data.time_zone} annotations={annotations.data?.data ?? []} />
       )}
-      <StarsAnnotations annotations={annotations.data?.data ?? []} />
+      <StarsAnnotations repoId={repoId} annotations={annotations.data?.data ?? []} />
     </section>
   )
 }
 
+function RepoView({ repoId }: { repoId: number }) {
+  const summary = useStarsSummary(repoId)
+  return (
+    <>
+      {summary.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-40 w-full" /> : summary.isError ? (
+        <ErrorState level="page" detail={errorText(summary.error)} onRetry={() => void summary.refetch()} />
+      ) : <Counters summary={summary.data} />}
+      <GrowthChart repoId={repoId} />
+      <StarsEvents repoId={repoId} />
+    </>
+  )
+}
+
 export function AdminGitHubStarsPage() {
-  const summary = useStarsSummary()
+  const repos = useStarsRepos()
+  const [selected, setSelected] = useState<number | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [reveal, setReveal] = useState<Reveal | null>(null)
+  const list = repos.data?.data ?? []
+  const current = list.find((repo) => repo.id === selected) ?? list[0]
   return (
     <AdminPage title={en.githubStars.title} description={en.githubStars.description}>
-      {summary.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-40 w-full" /> : isNotConfigured(summary.error) ? (
+      {repos.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-40 w-full" /> : repos.isError ? (
+        <ErrorState level="page" detail={errorText(repos.error)} onRetry={() => void repos.refetch()} />
+      ) : !current ? (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>{en.githubStars.notConfiguredTitle}</EmptyTitle>
-            <EmptyDescription>{en.githubStars.notConfiguredBody}</EmptyDescription>
+            <EmptyTitle>{en.githubStars.addFirstTitle}</EmptyTitle>
+            <EmptyDescription>{en.githubStars.addFirstBody}</EmptyDescription>
           </EmptyHeader>
+          <Button type="button" className="min-h-11" onClick={() => setAdding(true)}>{en.githubStars.addRepo}</Button>
         </Empty>
-      ) : summary.isError ? (
-        <ErrorState level="page" detail={errorText(summary.error)} onRetry={() => void summary.refetch()} />
       ) : (
         <>
-          <Counters summary={summary.data} />
-          <GrowthChart />
-          <StarsEvents />
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex min-w-0 flex-1 basis-56 flex-col gap-1 text-sm font-medium">
+              {en.githubStars.repoSelector}
+              <select className={`${nativeSelectClass} min-h-11`} value={current.id} onChange={(event) => setSelected(Number(event.target.value))}>
+                {list.map((repo) => <option key={repo.id} value={repo.id}>{repo.repo}{repo.enabled ? '' : ` (${en.githubStars.disabled})`}</option>)}
+              </select>
+            </label>
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => setAdding(true)}>{en.githubStars.addRepo}</Button>
+          </div>
+          {reveal ? <RevealPanel reveal={reveal} onDismiss={() => setReveal(null)} /> : null}
+          <RepoPanel key={current.id} repo={current} onReveal={setReveal} />
+          <RepoView key={current.id} repoId={current.id} />
         </>
       )}
+      <AddRepoDialog open={adding} onOpenChange={setAdding} onCreated={(created, id) => { setReveal(created); setSelected(id) }} />
     </AdminPage>
   )
 }
