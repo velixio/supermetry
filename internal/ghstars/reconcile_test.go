@@ -192,3 +192,49 @@ func TestReconcileServerErrorLeavesDataAlone(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestReconcileSkipsErasedUsers(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+	if err := store.InsertEvents(ctx, []Event{
+		{UserID: 1, Login: "a", Action: ActionStarred, OccurredAt: at("2026-01-01T00:00:00Z"), Source: SourceBackfill},
+		{UserID: 2, Login: "b", Action: ActionStarred, OccurredAt: at("2026-02-01T00:00:00Z"), Source: SourceBackfill},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.EraseUser(ctx, "a", 0); err != nil {
+		t.Fatal(err)
+	}
+	// GitHub still lists the erased user, so its count (2) differs from the live row.
+	_, server := newFakeGitHub(t, 2,
+		[3]string{"1", "a", "2026-01-01T00:00:00Z"},
+		[3]string{"2", "b", "2026-02-01T00:00:00Z"})
+	if err := newReconciler(store, server).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	events, _, _ := store.Events(ctx, "", 10)
+	if len(events) != 1 || events[0].Login != "b" {
+		t.Fatalf("events = %+v", events)
+	}
+	// The live count still comes from GitHub, not from the stored events.
+	if stars, _, _ := store.Stars(ctx); stars != 2 {
+		t.Fatalf("stars = %d", stars)
+	}
+}
+
+func TestBackfillSkipsErasedUsers(t *testing.T) {
+	store, pool := newTestStore(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `insert into github_star_erasures(repo,user_id) values ($1,2)`, testRepo); err != nil {
+		t.Fatal(err)
+	}
+	_, server := newFakeGitHub(t, 2,
+		[3]string{"1", "a", "2026-01-01T00:00:00Z"},
+		[3]string{"2", "b", "2026-02-01T00:00:00Z"})
+	if err := newReconciler(store, server).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := store.EventCount(ctx); n != 1 {
+		t.Fatalf("events = %d", n)
+	}
+}

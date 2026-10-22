@@ -179,3 +179,25 @@ func TestWebhookMalformedPayloads(t *testing.T) {
 		}
 	}
 }
+
+func TestWebhookIgnoresErasedUser(t *testing.T) {
+	h, store := newHook(t)
+	ctx := context.Background()
+	if rec := h.do(signed("star", "e1", starBody("created", testRepo, 10, "2026-10-10T11:00:00Z"))); rec.Code != http.StatusOK {
+		t.Fatalf("first star = %d", rec.Code)
+	}
+	if n, err := store.EraseUser(ctx, "octo", 0); err != nil || n != 1 {
+		t.Fatalf("erase = %d, %v", n, err)
+	}
+	rec := h.do(signed("star", "e2", starBody("created", testRepo, 11, "2026-10-10T11:30:00Z")))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("erased user's star = %d", rec.Code)
+	}
+	if n, _ := store.EventCount(ctx); n != 0 {
+		t.Fatalf("events = %d", n)
+	}
+	// The repository counter in the payload is still the truth about GitHub.
+	if stars, _, _ := store.Stars(ctx); stars != 11 {
+		t.Fatalf("stars = %d", stars)
+	}
+}

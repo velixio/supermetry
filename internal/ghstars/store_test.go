@@ -262,3 +262,43 @@ func TestSaveSnapshotUpserts(t *testing.T) {
 		t.Fatalf("rows=%d stars=%d err=%v", rows, stars, err)
 	}
 }
+
+func TestEraseUserWritesTombstoneAndBlocksFutureEvents(t *testing.T) {
+	s, pool := newTestStore(t)
+	seed(t, s)
+	ctx := context.Background()
+	if _, err := s.EraseUser(ctx, "u1", 0); err != nil {
+		t.Fatal(err)
+	}
+	var ids []int64
+	rows, err := pool.Query(ctx, `select user_id from github_star_erasures where repo=$1`, testRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if len(ids) != 1 || ids[0] != 11 {
+		t.Fatalf("tombstones = %v", ids)
+	}
+	// Erasing again, or after new events are blocked, keeps a single tombstone.
+	if _, err := s.EraseUser(ctx, "u1", 0); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := s.EventCount(ctx)
+	err = s.InsertEvents(ctx, []Event{
+		{UserID: 11, Login: "u1", Action: ActionStarred, OccurredAt: at("2026-10-05T00:00:00Z"), Source: SourceReconcile},
+		{UserID: 14, Login: "u4", Action: ActionStarred, OccurredAt: at("2026-10-05T00:00:00Z"), Source: SourceReconcile},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := s.EventCount(ctx); after != before+1 {
+		t.Fatalf("events %d -> %d, want one new", before, after)
+	}
+}

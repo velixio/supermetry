@@ -111,6 +111,14 @@ func (s *Store) Repo() string { return s.repo }
 func (s *Store) RecordEvent(ctx context.Context, e Event, counts Counts, now time.Time) (bool, error) {
 	var recorded bool
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var erased bool
+		if err := tx.QueryRow(ctx, `select exists (select 1 from github_star_erasures where repo=$1 and user_id=$2)`, s.repo, e.UserID).Scan(&erased); err != nil {
+			return fmt.Errorf("check star erasure: %w", err)
+		}
+		if erased {
+			// Nothing is stored for an erased user, but the counters GitHub reports stay current.
+			return saveState(ctx, tx, s.repo, counts, now)
+		}
 		tag, err := tx.Exec(ctx, `
 			insert into github_star_events(delivery_id,repo,user_id,login,action,occurred_at,source)
 			values (nullif($1,''),$2,$3,$4,$5,$6,$7)
@@ -128,21 +136,48 @@ func (s *Store) RecordEvent(ctx context.Context, e Event, counts Counts, now tim
 	return recorded, err
 }
 
-// InsertEvents bulk-inserts events without delivery ids (backfill and reconcile).
+// InsertEvents bulk-inserts events without delivery ids (backfill and reconcile),
+// skipping users whose history was erased.
 func (s *Store) InsertEvents(ctx context.Context, events []Event) error {
 	if len(events) == 0 {
 		return nil
 	}
-	rows := make([][]any, len(events))
-	for i, e := range events {
-		rows[i] = []any{s.repo, e.UserID, e.Login, e.Action, e.OccurredAt, e.Source}
+	erased, err := s.erasedUsers(ctx)
+	if err != nil {
+		return err
 	}
-	_, err := s.pool.CopyFrom(ctx, pgx.Identifier{"github_star_events"},
+	rows := make([][]any, 0, len(events))
+	for _, e := range events {
+		if !erased[e.UserID] {
+			rows = append(rows, []any{s.repo, e.UserID, e.Login, e.Action, e.OccurredAt, e.Source})
+		}
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	_, err = s.pool.CopyFrom(ctx, pgx.Identifier{"github_star_events"},
 		[]string{"repo", "user_id", "login", "action", "occurred_at", "source"}, pgx.CopyFromRows(rows))
 	if err != nil {
 		return fmt.Errorf("copy star events: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) erasedUsers(ctx context.Context) (map[int64]bool, error) {
+	rows, err := s.pool.Query(ctx, `select user_id from github_star_erasures where repo=$1`, s.repo)
+	if err != nil {
+		return nil, fmt.Errorf("query star erasures: %w", err)
+	}
+	defer rows.Close()
+	erased := make(map[int64]bool)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		erased[id] = true
+	}
+	return erased, rows.Err()
 }
 
 // SaveState sets the live counters.
@@ -405,12 +440,19 @@ func (s *Store) DeleteAnnotation(ctx context.Context, id int64) error {
 	return nil
 }
 
-// EraseUser deletes every event of a login (privacy erasure) and writes an
-// instance audit entry that records the count but not the login. Snapshots and
-// the live counters are left as they are.
+// EraseUser deletes every event of a login (privacy erasure) and records the
+// numeric user ids in a tombstone, in the same transaction, so later webhooks,
+// reconciles and backfills skip them. The audit entry records the count but not
+// the login. Snapshots and the live counters are left as they are.
 func (s *Store) EraseUser(ctx context.Context, login string, actorID int64) (int64, error) {
 	var deleted int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			insert into github_star_erasures(repo,user_id)
+			select distinct repo, user_id from github_star_events where repo=$1 and lower(login)=lower($2)
+			on conflict do nothing`, s.repo, login); err != nil {
+			return fmt.Errorf("tombstone star user: %w", err)
+		}
 		tag, err := tx.Exec(ctx, `delete from github_star_events where repo=$1 and lower(login)=lower($2)`, s.repo, login)
 		if err != nil {
 			return fmt.Errorf("erase star events: %w", err)

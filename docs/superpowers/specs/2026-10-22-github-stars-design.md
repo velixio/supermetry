@@ -56,7 +56,7 @@ Admin API (instance admin only, under `/api/private/admin/github-stars`, added t
 - `GET /series?granularity=hour|day&from=&to=`: gained, lost and net per bucket plus cumulative stars, bucketed in the configured time zone.
 - `GET /events?cursor=&limit=`: the user-attributed log, newest first.
 - `GET/POST/DELETE /annotations`.
-- `DELETE /users/{login}`: deletes that user's events (privacy erasure; aggregates are recomputed from remaining events and snapshots keep the totals).
+- `DELETE /users/{login}`: deletes that user's events (privacy erasure; aggregates are recomputed from remaining events and snapshots keep the totals) The numeric user id is also written to a tombstone table (`github_star_erasures`, migration `0241`, no login) in the same transaction, and the webhook, reconcile and backfill skip tombstoned ids, so a person who is still starring on GitHub is not re-recorded. The live counters still follow GitHub.
 
 Dashboard: an Admin > GitHub stars page with a live counter (polls summary every 10 s), a gained/lost/cumulative chart with hour and day modes, annotation markers, and an events table. Follows existing admin page and shadcn chart conventions.
 
