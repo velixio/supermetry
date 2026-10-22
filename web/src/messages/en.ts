@@ -1019,7 +1019,7 @@ export const en = {
     eraseLogin: 'GitHub login',
     eraseRow: (login: string) => `Erase events of ${login}`,
     eraseTitle: (login: string) => `Erase events of ${login}?`,
-    eraseBody: 'This permanently deletes every star and unstar event of this user from the history. It cannot be undone.',
+    eraseBody: 'This permanently deletes every star and unstar event of this user from the history, and their future stars are ignored. It cannot be undone.',
     eraseConfirm: 'Erase events',
     erasing: 'Erasing…',
     erased: (count: number) => `${count} events erased.`,

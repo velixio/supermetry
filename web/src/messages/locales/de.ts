@@ -1006,7 +1006,7 @@ const messages: MessageTree = {
     eraseLogin: 'GitHub-Login',
     eraseRow: (login: string) => `Ereignisse von ${login} löschen`,
     eraseTitle: (login: string) => `Ereignisse von ${login} löschen?`,
-    eraseBody: 'Dadurch werden alle Stern- und Unstern-Ereignisse dieses Nutzers dauerhaft aus dem Verlauf gelöscht. Das kann nicht rückgängig gemacht werden.',
+    eraseBody: 'Dadurch werden alle Stern- und Unstern-Ereignisse dieses Nutzers dauerhaft aus dem Verlauf gelöscht. Künftige Sterne dieses Nutzers werden ignoriert. Das kann nicht rückgängig gemacht werden.',
     eraseConfirm: 'Ereignisse löschen',
     erasing: 'Wird gelöscht…',
     erased: (count: number) => `${count} Ereignisse gelöscht.`,

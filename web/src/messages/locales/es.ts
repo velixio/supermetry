@@ -1006,7 +1006,7 @@ const messages: MessageTree = {
     eraseLogin: 'Usuario de GitHub',
     eraseRow: (login: string) => `Borrar eventos de ${login}`,
     eraseTitle: (login: string) => `¿Borrar los eventos de ${login}?`,
-    eraseBody: 'Esto elimina de forma permanente todos los eventos de estrella y de quitar estrella de este usuario del historial. No se puede deshacer.',
+    eraseBody: 'Esto elimina de forma permanente todos los eventos de estrella y de quitar estrella de este usuario del historial. Sus futuras estrellas se ignorarán. No se puede deshacer.',
     eraseConfirm: 'Borrar eventos',
     erasing: 'Borrando…',
     erased: (count: number) => `${count} eventos borrados.`,
