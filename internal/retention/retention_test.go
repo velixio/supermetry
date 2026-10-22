@@ -368,3 +368,40 @@ func siteTables() []string {
 		"dirty_day",
 	}
 }
+
+// A site whose zone name the database cannot resolve must not stop pixel
+// retention for the other sites; its cutoffs fall back to UTC.
+func TestRunPixelRetentionSurvivesAnUnknownZoneName(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	_ = pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Z','z-px') returning id`).Scan(&orgID)
+	var oddSite, kathmanduSite int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class,kind) values ($1,'retzone00001','Odd','Nowhere/Nothing',30,'pixel') returning id`, orgID).Scan(&oddSite); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class,kind) values ($1,'retzone00002','Kath','Asia/Kathmandu',30,'pixel') returning id`, orgID).Scan(&kathmanduSite); err != nil {
+		t.Fatal(err)
+	}
+	var oddPixel, kathPixel int64
+	_ = pool.QueryRow(ctx, `insert into pixels(site_id,public_id,name) values ($1,'pRETZONE0001','a') returning id`, oddSite).Scan(&oddPixel)
+	_ = pool.QueryRow(ctx, `insert into pixels(site_id,public_id,name) values ($1,'pRETZONE0002','b') returning id`, kathmanduSite).Scan(&kathPixel)
+	if _, err := pool.Exec(ctx, `insert into pixel_views_daily values ($1,'2026-08-01','','proxy',1),($1,'2026-10-10','','proxy',2),($2,'2026-08-01','','proxy',4),($2,'2026-10-10','','proxy',8)`, oddPixel, kathPixel); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into pixel_impressions_hourly values ($1,'m','2026-09-01T10:00',1),($1,'m','2026-10-14T10:00',2),($2,'m','2026-09-01T10:00',4),($2,'m','2026-10-14T10:00',8)`, oddSite, kathmanduSite); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := retention.Run(ctx, pool, time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("retention failed: %v", err)
+	}
+	var views, hours int64
+	_ = pool.QueryRow(ctx, `select coalesce(sum(views),0) from pixel_views_daily`).Scan(&views)
+	_ = pool.QueryRow(ctx, `select coalesce(sum(impressions),0) from pixel_impressions_hourly`).Scan(&hours)
+	if views != 10 || hours != 10 {
+		t.Fatalf("views=%d hours=%d, want only the recent rows (10 and 10)", views, hours)
+	}
+}
