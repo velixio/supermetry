@@ -205,6 +205,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/github-stars/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live star counters and the net change over 24 hours and 7 days
+         * @description Reads the configured repository only. Returns 404 while GitHub star tracking is not configured.
+         */
+        get: operations["adminGetGitHubStarsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gained, lost, net and cumulative stars per bucket
+         * @description Buckets are local hours or days in the configured time zone. Defaults are the last 24 hours (hour) or 30 days (day). Hour ranges are limited to 31 days and day ranges to 5 years.
+         */
+        get: operations["adminGetGitHubStarsSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the user-attributed star and unstar log, newest first */
+        get: operations["adminListGitHubStarsEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List chart annotations */
+        get: operations["adminListGitHubStarsAnnotations"];
+        put?: never;
+        /** Add a chart annotation such as a launch marker */
+        post: operations["adminCreateGitHubStarsAnnotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/annotations/{annotation}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a chart annotation */
+        delete: operations["adminDeleteGitHubStarsAnnotation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/github-stars/users/{login}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Erase every recorded star event of a GitHub user
+         * @description Privacy erasure. Aggregates are recomputed from the remaining events; the live counters and daily snapshots keep their totals. Audited as instance.github_stars.user_erased with the event count only.
+         */
+        delete: operations["adminEraseGitHubStarsUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/admin/update": {
         parameters: {
             query?: never;
@@ -2604,6 +2716,69 @@ export interface components {
             /** Format: date-time */
             expires_at?: string;
         };
+        GitHubStarsSummary: {
+            stars: number;
+            forks: number;
+            watchers: number;
+            open_issues: number;
+            /** Format: date-time */
+            updated_at: string | null;
+            net_24h: number;
+            net_7d: number;
+        };
+        GitHubStarsPoint: {
+            /**
+             * Format: date-time
+             * @description Start of the bucket in the configured time zone.
+             */
+            bucket: string;
+            gained: number;
+            lost: number;
+            net: number;
+            cumulative: number;
+        };
+        GitHubStarsSeries: {
+            time_zone: string;
+            data: components["schemas"]["GitHubStarsPoint"][];
+        };
+        GitHubStarsEvent: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            user_id: number;
+            login: string;
+            /** @description starred or unstarred. */
+            action: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description webhook */
+            source: string;
+        };
+        GitHubStarsEvents: {
+            data: components["schemas"]["GitHubStarsEvent"][];
+            next_cursor: string | null;
+        };
+        GitHubStarsAnnotation: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            at: string;
+            label: string;
+            /** Format: int64 */
+            created_by: number | null;
+        };
+        GitHubStarsAnnotations: {
+            data: components["schemas"]["GitHubStarsAnnotation"][];
+        };
+        GitHubStarsAnnotationInput: {
+            /** Format: date-time */
+            at: string;
+            label: string;
+        };
+        GitHubStarsErasure: {
+            /** Format: int64 */
+            deleted_events: number;
+        };
         AdminAuditEntry: {
             /** Format: int64 */
             id: number;
@@ -4404,6 +4579,7 @@ export interface components {
     };
     parameters: {
         AdminLimit: number;
+        GitHubStarsEventLimit: number;
         AdminUserID: number;
         SiteID: number;
         SitePathID: number;
@@ -4907,6 +5083,192 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetGitHubStarsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Star summary. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsSummary"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetGitHubStarsSeries: {
+        parameters: {
+            query: {
+                granularity: string;
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Star series. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsSeries"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminListGitHubStarsEvents: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: components["parameters"]["GitHubStarsEventLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Star events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsEvents"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminListGitHubStarsAnnotations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Annotations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsAnnotations"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminCreateGitHubStarsAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubStarsAnnotationInput"];
+            };
+        };
+        responses: {
+            /** @description Annotation created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsAnnotation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminDeleteGitHubStarsAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                annotation: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Annotation deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminEraseGitHubStarsUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                login: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Events erased. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsErasure"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };
