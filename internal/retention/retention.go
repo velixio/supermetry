@@ -158,16 +158,61 @@ WHERE (tableoid, ctid) IN (
 	return nil
 }
 
+// pixelSiteZone is a pixel project's id, retention class and time zone.
+type pixelSiteZone struct {
+	id        int32
+	retention int
+	timezone  string
+}
+
+// listPixelSites returns every site that can hold pixel data. Local cutoffs are
+// computed in Go, not SQL: a database built without every tz alias (for example
+// Asia/Calcutta) rejects zone names that Go accepts, and one such site must not
+// stop retention for all of them. An unknown zone name falls back to UTC.
+func listPixelSites(ctx context.Context, pool *pgxpool.Pool) ([]pixelSiteZone, error) {
+	rows, err := pool.Query(ctx, "select id, retention_class, timezone from sites")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var sites []pixelSiteZone
+	for rows.Next() {
+		var site pixelSiteZone
+		if err := rows.Scan(&site.id, &site.retention, &site.timezone); err != nil {
+			return nil, err
+		}
+		sites = append(sites, site)
+	}
+	return sites, rows.Err()
+}
+
+// localTime is now in the site's zone, or UTC when the name is unknown.
+func (s pixelSiteZone) localTime(now time.Time) time.Time {
+	location, err := time.LoadLocation(s.timezone)
+	if err != nil {
+		location = time.UTC
+	}
+	return now.In(location)
+}
+
 // deleteExpiredPixelViews applies each pixel project's retention class to its
 // small, unpartitioned daily table, in the project's time zone.
 func deleteExpiredPixelViews(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
-	_, err := pool.Exec(ctx, `
-		delete from pixel_views_daily v using pixels p, sites s
-		where v.pixel_id = p.id and p.site_id = s.id
-		  and s.retention_class <> 0
-		  and v.day < (($1::timestamptz at time zone s.timezone)::date - s.retention_class - 1)`, now)
+	sites, err := listPixelSites(ctx, pool)
 	if err != nil {
-		return fmt.Errorf("delete expired pixel views: %w", err)
+		return fmt.Errorf("list sites for pixel view retention: %w", err)
+	}
+	for _, site := range sites {
+		if site.retention == 0 {
+			continue
+		}
+		local := site.localTime(now)
+		cutoff := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -site.retention-1)
+		if _, err := pool.Exec(ctx, `
+			delete from pixel_views_daily v using pixels p
+			where v.pixel_id = p.id and p.site_id = $1 and v.day < $2`, site.id, cutoff); err != nil {
+			return fmt.Errorf("delete expired pixel views: %w", err)
+		}
 	}
 	return nil
 }
@@ -179,13 +224,16 @@ const hourlyImpressionDays = 30
 // deleteExpiredHourlyImpressions drops hourly pixel counts older than
 // hourlyImpressionDays, measured in each site's local wall-clock time.
 func deleteExpiredHourlyImpressions(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
-	_, err := pool.Exec(ctx, `
-		delete from pixel_impressions_hourly h using sites s
-		where h.site_id = s.id
-		  and h.hour < date_trunc('hour', $1::timestamptz at time zone s.timezone) - make_interval(days => $2)`,
-		now, hourlyImpressionDays)
+	sites, err := listPixelSites(ctx, pool)
 	if err != nil {
-		return fmt.Errorf("delete expired hourly pixel impressions: %w", err)
+		return fmt.Errorf("list sites for hourly impression retention: %w", err)
+	}
+	for _, site := range sites {
+		local := site.localTime(now)
+		cutoff := time.Date(local.Year(), local.Month(), local.Day(), local.Hour(), 0, 0, 0, time.UTC).AddDate(0, 0, -hourlyImpressionDays)
+		if _, err := pool.Exec(ctx, `delete from pixel_impressions_hourly where site_id = $1 and hour < $2`, site.id, cutoff); err != nil {
+			return fmt.Errorf("delete expired hourly pixel impressions: %w", err)
+		}
 	}
 	return nil
 }
