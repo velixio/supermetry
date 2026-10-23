@@ -53,6 +53,7 @@ type Repo struct {
 	TimeZone        string     `json:"time_zone"`
 	HasToken        bool       `json:"has_token"`
 	WebhookURL      string     `json:"webhook_url"`
+	PublicCountURL  string     `json:"public_count_url"`
 	CreatedAt       time.Time  `json:"created_at"`
 	LastWebhookAt   *time.Time `json:"last_webhook_at"`
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
@@ -164,6 +165,7 @@ func (s *Service) scan(row pgx.Row) (repoRow, error) {
 	}
 	r.HasToken = len(r.tokenEnc) > 0
 	r.WebhookURL = s.webhookURL(r.publicID)
+	r.PublicCountURL = s.BaseURL + "/api/github/stars/" + r.Repo.Repo
 	return r, nil
 }
 

@@ -2563,6 +2563,9 @@ type GitHubStarsRepo struct {
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
 	LastWebhookAt   *time.Time `json:"last_webhook_at"`
 
+	// PublicCountUrl Public, unauthenticated endpoint returning {"stars":N} for this repository.
+	PublicCountUrl string `json:"public_count_url"`
+
 	// Repo Lowercase owner/name.
 	Repo     string `json:"repo"`
 	TimeZone string `json:"time_zone"`
