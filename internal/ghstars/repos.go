@@ -66,6 +66,9 @@ type repoRow struct {
 	publicID  string
 	secretEnc []byte
 	tokenEnc  []byte
+	// backfillCursor and backfillComplete track the resumable import of large repositories.
+	backfillCursor   *string
+	backfillComplete bool
 }
 
 // CreateInput describes a repository to track. Token is optional.
@@ -152,11 +155,11 @@ func (s *Service) webhookURL(publicID string) string {
 	return s.BaseURL + "/api/github/webhook/" + publicID
 }
 
-const repoColumns = `id, public_id, repo, enabled, timezone, webhook_secret_enc, token_enc, created_at, last_webhook_at, last_reconcile_at, last_error`
+const repoColumns = `id, public_id, repo, enabled, timezone, webhook_secret_enc, token_enc, created_at, last_webhook_at, last_reconcile_at, last_error, backfill_cursor, backfill_complete`
 
 func (s *Service) scan(row pgx.Row) (repoRow, error) {
 	var r repoRow
-	err := row.Scan(&r.ID, &r.publicID, &r.Repo.Repo, &r.Enabled, &r.TimeZone, &r.secretEnc, &r.tokenEnc, &r.CreatedAt, &r.LastWebhookAt, &r.LastReconcileAt, &r.LastError)
+	err := row.Scan(&r.ID, &r.publicID, &r.Repo.Repo, &r.Enabled, &r.TimeZone, &r.secretEnc, &r.tokenEnc, &r.CreatedAt, &r.LastWebhookAt, &r.LastReconcileAt, &r.LastError, &r.backfillCursor, &r.backfillComplete)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return repoRow{}, ErrNotFound
 	}

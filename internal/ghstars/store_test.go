@@ -302,3 +302,44 @@ func TestEraseUserWritesTombstoneAndBlocksFutureEvents(t *testing.T) {
 		t.Fatalf("events %d -> %d, want one new", before, after)
 	}
 }
+
+func TestSummaryRecordedCountsCurrentStargazers(t *testing.T) {
+	s, _ := newTestStore(t)
+	seed(t, s)
+	got, err := s.Summary(context.Background(), at("2026-10-03T00:00:00Z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// u1 unstarred, so u0, u2 and u3 are on record.
+	if got.Recorded != 3 {
+		t.Fatalf("recorded = %d", got.Recorded)
+	}
+}
+
+func TestImportPageSavesEventsAndCursorTogether(t *testing.T) {
+	svc, _ := newTestService(t)
+	ctx := context.Background()
+	repo, _, _ := svc.Create(ctx, CreateInput{Repo: "a/b"}, 0)
+	store, _, _ := svc.StoreFor(ctx, repo.ID)
+	if _, err := svc.pool.Exec(ctx, `insert into github_star_erasures(repo,user_id) values ('a/b',2)`); err != nil {
+		t.Fatal(err)
+	}
+	page := []Event{
+		{UserID: 1, Login: "a", Action: ActionStarred, OccurredAt: at("2026-10-01T00:00:00Z"), Source: SourceBackfill},
+		{UserID: 2, Login: "b", Action: ActionStarred, OccurredAt: at("2026-10-01T00:00:00Z"), Source: SourceBackfill},
+	}
+	if err := store.ImportPage(ctx, page, "cur-1", false); err != nil {
+		t.Fatal(err)
+	}
+	row, _ := svc.load(ctx, repo.ID)
+	if n, _ := store.EventCount(ctx); n != 1 || row.backfillCursor == nil || *row.backfillCursor != "cur-1" || row.backfillComplete {
+		t.Fatalf("after page: events=%d row=%+v", n, row)
+	}
+	if err := store.ImportPage(ctx, nil, "cur-2", true); err != nil {
+		t.Fatal(err)
+	}
+	row, _ = svc.load(ctx, repo.ID)
+	if row.backfillCursor != nil || !row.backfillComplete {
+		t.Fatalf("after completion: %+v", row)
+	}
+}
