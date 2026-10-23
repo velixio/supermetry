@@ -273,17 +273,18 @@ func TestAdminGitHubStarsReads(t *testing.T) {
 	}
 
 	var summary struct {
-		Stars  int `json:"stars"`
-		Forks  int `json:"forks"`
-		Net24h int `json:"net_24h"`
-		Net7d  int `json:"net_7d"`
+		Stars    int `json:"stars"`
+		Forks    int `json:"forks"`
+		Net24h   int `json:"net_24h"`
+		Net7d    int `json:"net_7d"`
+		Recorded int `json:"recorded"`
 	}
 	got := starsRequest(e.handler, http.MethodGet, e.q("/summary"), "admin", "")
 	if got.Code != http.StatusOK || json.Unmarshal(got.Body.Bytes(), &summary) != nil {
 		t.Fatalf("summary = %d %s", got.Code, got.Body)
 	}
 	// Window ends 2026-10-03T00:00Z: +1 alice, +1 bob, -1 alice = net 1.
-	if summary.Stars != 1 || summary.Forks != 2 || summary.Net24h != 1 || summary.Net7d != 1 {
+	if summary.Stars != 1 || summary.Forks != 2 || summary.Net24h != 1 || summary.Net7d != 1 || summary.Recorded != 1 {
 		t.Fatalf("summary = %+v", summary)
 	}
 	// Another repository's data is separate.

@@ -558,7 +558,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, cfg.OpenCounters, settings.clock, engine.InvalidateSite)
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
-	jobs = append(jobs, starService.ReconcileJob())
+	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)

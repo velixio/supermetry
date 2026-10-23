@@ -3879,7 +3879,7 @@ components:
     GitHubStarsSummary:
       type: object
       additionalProperties: false
-      required: [stars, forks, watchers, open_issues, updated_at, net_24h, net_7d]
+      required: [stars, forks, watchers, open_issues, updated_at, net_24h, net_7d, recorded]
       properties:
         stars: { type: integer }
         forks: { type: integer }
@@ -3888,6 +3888,7 @@ components:
         updated_at: { type: [string, 'null'], format: date-time }
         net_24h: { type: integer }
         net_7d: { type: integer }
+        recorded: { type: integer, description: Current stargazers on record; below stars while the history import of a large repository is still running. }
     GitHubStarsPoint:
       type: object
       additionalProperties: false
