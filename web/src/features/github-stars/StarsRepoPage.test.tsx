@@ -33,7 +33,7 @@ const mutation = (overrides: Record<string, unknown> = {}) => ({ mutate: vi.fn()
 const repo = (over: Record<string, unknown> = {}) => ({
   id: 1, repo: 'velixio/supermetry', enabled: true, time_zone: 'Asia/Kathmandu', has_token: true,
   webhook_url: 'https://stats.example.test/api/github/webhook/abcd1234efgh5678', public_count_url: 'https://stats.example.test/api/github/stars/velixio/supermetry', created_at: '2026-10-01T00:00:00Z',
-  last_webhook_at: '2026-10-02T05:00:00Z', last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, ...over,
+  last_webhook_at: '2026-10-02T05:00:00Z', last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, history_complete: true, ...over,
 })
 
 type Overrides = {
@@ -51,7 +51,7 @@ function ready(overrides: Overrides = {}) {
   api.useSyncStarsRepo.mockReturnValue(overrides.sync ?? mutation())
   api.useStarsSummary.mockReturnValue({
     isPending: false, isError: false, error: null,
-    data: { stars: 1234, forks: 5, watchers: 6, open_issues: 7, updated_at: '2026-10-03T00:00:00Z', net_24h: 3, net_7d: -2 },
+    data: { stars: 1234, forks: 5, watchers: 6, open_issues: 7, updated_at: '2026-10-03T00:00:00Z', net_24h: 3, net_7d: -2, recorded: 1234 },
   })
   api.useStarsSeries.mockReturnValue({ isPending: false, isError: false, data: { time_zone: 'Asia/Kathmandu', data: days } })
   api.useStarsAnnotations.mockReturnValue({ data: { data: overrides.annotations ?? [{ id: 9, at: '2026-10-02T04:00:00Z', label: 'Launch', created_by: 1 }] } })
@@ -308,7 +308,7 @@ describe('StarsRepoPage', () => {
     ready()
     api.useStarsSummary.mockReturnValue({
       isPending: false, isError: false, error: null,
-      data: { stars: 82412, forks: 12345, watchers: 20000, open_issues: 10001, updated_at: '2026-10-03T00:00:00Z', net_24h: 15000, net_7d: -23456 },
+      data: { stars: 82412, forks: 12345, watchers: 20000, open_issues: 10001, updated_at: '2026-10-03T00:00:00Z', net_24h: 15000, net_7d: -23456, recorded: 82412 },
     })
     render(<Detail />)
     for (const text of ['82,412', '12,345', '20,000', '10,001', '+15,000', '-23,456']) expect(screen.getByText(text)).toBeVisible()
@@ -325,5 +325,40 @@ describe('StarsRepoPage', () => {
     expect(within(status).getByText('https://stats.example.test/api/github/stars/velixio/supermetry')).toBeVisible()
     fireEvent.click(within(status).getByRole('button', { name: 'Copy Public count URL' }))
     expect(writeText).toHaveBeenCalledWith('https://stats.example.test/api/github/stars/velixio/supermetry')
+  })
+
+  it('shows the history import progress with full numbers while it is unfinished', () => {
+    ready({ repos: [repo({ history_complete: false })] })
+    api.useStarsSummary.mockReturnValue({
+      isPending: false, isError: false, error: null,
+      data: { stars: 82418, forks: 1, watchers: 1, open_issues: 1, updated_at: '2026-10-03T00:00:00Z', net_24h: 0, net_7d: 0, recorded: 31200 },
+    })
+    render(<Detail />)
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('History import: 31,200 of 82,418 stars (resumes automatically)')
+  })
+
+  it('says a large repository needs a token for its history import', () => {
+    ready({ repos: [repo({ history_complete: false, has_token: false })] })
+    api.useStarsSummary.mockReturnValue({
+      isPending: false, isError: false, error: null,
+      data: { stars: 82418, forks: 1, watchers: 1, open_issues: 1, updated_at: null, net_24h: 0, net_7d: 0, recorded: 10 },
+    })
+    render(<Detail />)
+    expect(screen.getByText('History import needs a GitHub token')).toBeVisible()
+    expect(screen.queryByText(/resumes automatically/)).not.toBeInTheDocument()
+  })
+
+  it('hides the import line once the history is complete or fully recorded', () => {
+    ready()
+    render(<Detail />)
+    expect(screen.queryByText(/History import/)).not.toBeInTheDocument()
+    ready({ repos: [repo({ history_complete: false })] })
+    api.useStarsSummary.mockReturnValue({
+      isPending: false, isError: false, error: null,
+      data: { stars: 5, forks: 1, watchers: 1, open_issues: 1, updated_at: null, net_24h: 0, net_7d: 0, recorded: 5 },
+    })
+    cleanup()
+    render(<Detail />)
+    expect(screen.queryByText(/History import/)).not.toBeInTheDocument()
   })
 })

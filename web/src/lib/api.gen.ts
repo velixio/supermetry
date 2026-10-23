@@ -2813,6 +2813,8 @@ export interface components {
             webhook_url: string;
             /** @description Public, unauthenticated endpoint returning {"stars":N} for this repository. */
             public_count_url: string;
+            /** @description False while the history import of a large repository is unfinished. */
+            history_complete: boolean;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -2854,6 +2856,8 @@ export interface components {
             updated_at: string | null;
             net_24h: number;
             net_7d: number;
+            /** @description Current stargazers on record; below stars while the history import of a large repository is still running. */
+            recorded: number;
         };
         GitHubStarsPoint: {
             /**

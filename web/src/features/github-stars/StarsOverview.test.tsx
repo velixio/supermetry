@@ -20,9 +20,9 @@ import { StarsOverview } from './StarsOverview'
 const repo = (over: Record<string, unknown> = {}) => ({
   id: 1, repo: 'velixio/supermetry', enabled: true, time_zone: 'UTC', has_token: false,
   webhook_url: 'https://stats.example.test/api/github/webhook/abc', public_count_url: 'https://stats.example.test/api/github/stars/velixio/supermetry',
-  created_at: '2026-10-01T00:00:00Z', last_webhook_at: null, last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, ...over,
+  created_at: '2026-10-01T00:00:00Z', last_webhook_at: null, last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, history_complete: true, ...over,
 })
-const summary = (stars: number, net7: number) => ({ isPending: false, isError: false, data: { stars, forks: 1, watchers: 1, open_issues: 1, updated_at: null, net_24h: 0, net_7d: net7 } })
+const summary = (stars: number, net7: number, recorded = stars) => ({ isPending: false, isError: false, data: { stars, forks: 1, watchers: 1, open_issues: 1, updated_at: null, net_24h: 0, net_7d: net7, recorded } })
 const series = (first: number, last: number) => ({
   isPending: false, isError: false,
   data: { time_zone: 'UTC', data: [{ bucket: '2026-09-14T00:00:00Z', gained: 0, lost: 0, net: 0, cumulative: first }, { bucket: '2026-10-13T00:00:00Z', gained: 1, lost: 0, net: 1, cumulative: last }] },
@@ -127,5 +127,16 @@ describe('StarsOverview', () => {
     render(<StarsOverview org="acme" />)
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalled()
+  })
+
+  it('shows the import progress on a card only while the history is unfinished', () => {
+    ready([repo({ history_complete: false, has_token: true }), repo({ id: 2, repo: 'velixio/docs', history_complete: false, has_token: false }), repo({ id: 3, repo: 'velixio/done' })])
+    api.useStarsSummary.mockImplementation((id: number) => (id === 3 ? summary(10, 0) : summary(82418, 5, 31200)))
+    api.useStarsSeries.mockReturnValue(series(1, 2))
+    render(<StarsOverview org="acme" />)
+    const first = screen.getByRole('link', { name: 'velixio/supermetry, 82,418 stars' })
+    expect(within(first).getByRole('status')).toHaveTextContent('History import: 31,200 of 82,418 stars (resumes automatically)')
+    expect(within(screen.getByRole('link', { name: 'velixio/docs, 82,418 stars' })).getByRole('status')).toHaveTextContent('needs a GitHub token')
+    expect(within(screen.getByRole('link', { name: 'velixio/done, 10 stars' })).queryByRole('status')).toBeNull()
   })
 })

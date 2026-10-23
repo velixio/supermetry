@@ -1087,6 +1087,8 @@ const messages: MessageTree = {
     sparkLabel: (from: string, to: string) => `Sterne in den letzten 30 Tagen: von ${from} auf ${to}`,
     sparkNone: 'Noch kein Sternverlauf',
     weekChange: (value: string) => `${value} diese Woche`,
+    importProgress: (recorded: string, total: string) => `Verlaufsimport: ${recorded} von ${total} Sternen (wird automatisch fortgesetzt)`,
+    importNeedsToken: 'Der Verlaufsimport braucht ein GitHub-Token',
     cardError: 'Zahlen konnten nicht geladen werden',
     statusDisabled: 'Deaktiviert',
     statusNever: 'Nie abgeglichen',

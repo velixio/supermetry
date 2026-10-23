@@ -12,6 +12,7 @@ import { formatDate } from '@/features/admin/AdminCommon'
 import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 import { useStarsRepos, useStarsSeries, useStarsSummary, type StarsPoint, type StarsRepo } from './githubStarsApi'
+import { ImportProgress } from './ImportProgress'
 import { AddRepoDialog, RevealPanel, type Reveal } from './StarsRepos'
 
 const t = en.githubStars
@@ -67,6 +68,7 @@ export function RepoCard({ org, repo }: { org: string; repo: StarsRepo }) {
           <span className="text-sm tabular-nums text-muted-foreground">{t.weekChange(signed(summary.data!.net_7d))}</span>
         </>
       )}
+      {summary.data ? <ImportProgress recorded={summary.data.recorded} stars={summary.data.stars} hasToken={repo.has_token} historyComplete={repo.history_complete} className="text-xs text-muted-foreground" /> : null}
       {series.isPending ? <Skeleton aria-hidden="true" className="h-10 w-full" /> : series.isError ? null : <Sparkline points={series.data.data} />}
       <span className="truncate text-xs text-muted-foreground" title={repo.last_error ?? undefined}>{statusLine(repo)}</span>
     </Link>
