@@ -338,7 +338,6 @@ const messages: MessageTree = {
     settings: 'Ajustes de la instancia',
     security: 'Seguridad',
     update: 'Actualización del sistema',
-    githubStars: 'Estrellas de GitHub',
     updateAvailable: 'Actualización disponible',
     updateDescription: 'Revisa la versión instalada y la última versión publicada.',
     versionStatus: 'Estado de la versión',
@@ -956,6 +955,8 @@ const messages: MessageTree = {
   },
   githubStars: {
     title: 'Estrellas de GitHub',
+    nav: 'Estrellas de GitHub',
+    navGroup: 'Comunidad',
     description: 'Historial de estrellas del repositorio de la instancia. Visible solo para administradores de la instancia.',
     loading: 'Cargando estrellas de GitHub',
     liveCounter: 'Estrellas',

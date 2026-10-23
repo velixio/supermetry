@@ -20,6 +20,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppOrgRouteImport } from './routes/app.$org'
 import { Route as AppAccountRouteImport } from './routes/app.account'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
+import { Route as AppGithubStarsRouteImport } from './routes/app.github-stars'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
@@ -134,6 +135,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
 const AppAdminRoute = AppAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGithubStarsRoute = AppGithubStarsRouteImport.update({
+  id: '/github-stars',
+  path: '/github-stars',
   getParentRoute: () => AppRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
@@ -462,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
   '/app/admin': typeof AppAdminRouteWithChildren
+  '/app/github-stars': typeof AppGithubStarsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
@@ -534,6 +541,7 @@ export interface FileRoutesByTo {
   '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
   '/app/admin': typeof AppAdminRouteWithChildren
+  '/app/github-stars': typeof AppGithubStarsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
@@ -607,6 +615,7 @@ export interface FileRoutesById {
   '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
   '/app/admin': typeof AppAdminRouteWithChildren
+  '/app/github-stars': typeof AppGithubStarsRoute
   '/invite/$token': typeof InviteTokenRoute
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
@@ -682,6 +691,7 @@ export interface FileRouteTypes {
     | '/app/$org'
     | '/app/account'
     | '/app/admin'
+    | '/app/github-stars'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
@@ -754,6 +764,7 @@ export interface FileRouteTypes {
     | '/app/$org'
     | '/app/account'
     | '/app/admin'
+    | '/app/github-stars'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
@@ -826,6 +837,7 @@ export interface FileRouteTypes {
     | '/app/$org'
     | '/app/account'
     | '/app/admin'
+    | '/app/github-stars'
     | '/invite/$token'
     | '/reset/$token'
     | '/share/$slug'
@@ -979,6 +991,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/app/admin'
       preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/github-stars': {
+      id: '/app/github-stars'
+      path: '/github-stars'
+      fullPath: '/app/github-stars'
+      preLoaderRoute: typeof AppGithubStarsRouteImport
       parentRoute: typeof AppRoute
     }
     '/invite/$token': {
@@ -1571,6 +1590,7 @@ interface AppRouteChildren {
   AppOrgRoute: typeof AppOrgRouteWithChildren
   AppAccountRoute: typeof AppAccountRouteWithChildren
   AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppGithubStarsRoute: typeof AppGithubStarsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -1578,6 +1598,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOrgRoute: AppOrgRouteWithChildren,
   AppAccountRoute: AppAccountRouteWithChildren,
   AppAdminRoute: AppAdminRouteWithChildren,
+  AppGithubStarsRoute: AppGithubStarsRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

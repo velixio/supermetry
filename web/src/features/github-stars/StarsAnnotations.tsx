@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
-import { ErrorLine, formatDate } from './AdminCommon'
+import { ErrorLine, formatDate } from '@/features/admin/AdminCommon'
 import { useAddStarsAnnotation, useDeleteStarsAnnotation, type StarsAnnotation } from './githubStarsApi'
 
 /** A value for <input type="datetime-local">: the browser's wall clock, minute precision. */

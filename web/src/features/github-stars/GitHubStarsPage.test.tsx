@@ -11,7 +11,7 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('./githubStarsApi', async (importOriginal) => ({ ...(await importOriginal<typeof import('./githubStarsApi')>()), ...api }))
 
-import { AdminGitHubStarsPage } from './AdminGitHubStarsPage'
+import { GitHubStarsPage } from './GitHubStarsPage'
 import { markerBucket } from './StarsChart'
 
 const point = (bucket: string, gained: number, lost: number, cumulative: number) => ({ bucket, gained, lost, net: gained - lost, cumulative })
@@ -77,10 +77,10 @@ describe('markerBucket', () => {
   })
 })
 
-describe('AdminGitHubStarsPage', () => {
+describe('GitHubStarsPage', () => {
   it('shows the live counters and the accessible chart table', () => {
     ready()
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'GitHub stars' })).toBeVisible()
     expect(screen.getByText('1,234')).toBeVisible()
@@ -95,7 +95,7 @@ describe('AdminGitHubStarsPage', () => {
 
   it('switches the chart between hour and day buckets', () => {
     ready()
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'day')
     fireEvent.click(screen.getByRole('radio', { name: 'Hour' }))
     expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'hour')
@@ -105,7 +105,7 @@ describe('AdminGitHubStarsPage', () => {
     ready()
     const refetch = vi.fn()
     api.useStarsSummary.mockReturnValue({ isPending: false, isError: true, error: new Error('boom'), refetch })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     expect(screen.getByRole('alert', { name: '' })).toHaveTextContent('boom')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalled()
@@ -113,7 +113,7 @@ describe('AdminGitHubStarsPage', () => {
 
   it('shows empty states for events and annotations', () => {
     ready({ annotations: [], events: { isSuccess: true, isError: false, hasNextPage: false, data: { pages: [{ data: [], next_cursor: null }] } } })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     expect(screen.getByText('No star events recorded yet.')).toBeVisible()
     expect(screen.getByText('No annotations yet.')).toBeVisible()
   })
@@ -124,7 +124,7 @@ describe('AdminGitHubStarsPage', () => {
       isSuccess: true, isError: false, hasNextPage: true, isFetchingNextPage: false, fetchNextPage,
       data: { pages: [{ data: [{ id: 1, user_id: 1, login: 'alice', action: 'starred', occurred_at: '2026-10-02T03:00:00Z', source: 'webhook' }], next_cursor: 'c1' }] },
     } })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
     expect(fetchNextPage).toHaveBeenCalled()
   })
@@ -133,7 +133,7 @@ describe('AdminGitHubStarsPage', () => {
     const add = mutation()
     const remove = mutation()
     ready({ add, remove })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     const submit = screen.getByRole('button', { name: 'Add annotation' })
     expect(submit).toBeDisabled()
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: '  Show HN  ' } })
@@ -147,7 +147,7 @@ describe('AdminGitHubStarsPage', () => {
   it('erases a user only after confirmation', () => {
     const erase = mutation()
     ready({ erase })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Erase events of alice' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Erase events of alice?' })
     expect(erase.mutate).not.toHaveBeenCalled()
@@ -158,7 +158,7 @@ describe('AdminGitHubStarsPage', () => {
 
   it('validates the login before opening the erase dialog', () => {
     ready()
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     const submit = screen.getByRole('button', { name: 'Erase user data' })
     expect(submit).toBeDisabled()
     fireEvent.change(screen.getByLabelText('GitHub login'), { target: { value: 'bad login' } })
@@ -170,7 +170,7 @@ describe('AdminGitHubStarsPage', () => {
 
   it('invites adding the first repository when none is tracked', () => {
     ready({ repos: [] })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     expect(screen.getByText('Add your first repository')).toBeVisible()
     expect(screen.queryByText(/SUPERMETRY_GITHUB/)).not.toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('AdminGitHubStarsPage', () => {
       repo: repo({ id: 2, repo: 'velixio/docs' }), webhook_secret: 'topsecret', webhook_url: 'https://stats.example.test/api/github/webhook/zzzz',
     }))
     ready({ addRepo })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Add repository' }))
     fireEvent.change(screen.getByLabelText('Repository (owner/name)'), { target: { value: ' velixio/docs ' } })
     fireEvent.change(screen.getByLabelText(/GitHub token/), { target: { value: 'ghp_x' } })
@@ -203,7 +203,7 @@ describe('AdminGitHubStarsPage', () => {
 
   it('selects between repositories and loads the chosen one', () => {
     ready({ repos: [repo(), repo({ id: 2, repo: 'velixio/docs', enabled: false })] })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     expect(api.useStarsSummary).toHaveBeenLastCalledWith(1)
     fireEvent.change(screen.getByLabelText('Repository'), { target: { value: '2' } })
     expect(api.useStarsSummary).toHaveBeenLastCalledWith(2)
@@ -212,7 +212,7 @@ describe('AdminGitHubStarsPage', () => {
 
   it('shows the status line and the last error', () => {
     ready({ repos: [repo({ last_error: 'github rate limit or access denied', last_webhook_at: null })] })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     const status = screen.getByRole('region', { name: 'Status of velixio/supermetry' })
     expect(within(status).getByText('none received yet')).toBeVisible()
     expect(within(status).getByRole('alert')).toHaveTextContent('github rate limit or access denied')
@@ -223,7 +223,7 @@ describe('AdminGitHubStarsPage', () => {
     const updateRepo = mutation()
     const sync = mutation()
     ready({ updateRepo, sync })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     fireEvent.click(screen.getByRole('switch', { name: 'Enabled' }))
     expect(updateRepo.mutate).toHaveBeenCalledWith({ id: 1, patch: { enabled: false } })
     fireEvent.click(screen.getByRole('button', { name: 'Sync now' }))
@@ -233,7 +233,7 @@ describe('AdminGitHubStarsPage', () => {
   it('saves the time zone and can clear the token', () => {
     const updateRepo = mutation()
     ready({ updateRepo })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
     const dialog = screen.getByRole('dialog', { name: 'Settings for velixio/supermetry' })
     fireEvent.change(within(dialog).getByLabelText(/^Time zone/), { target: { value: 'UTC' } })
@@ -246,7 +246,7 @@ describe('AdminGitHubStarsPage', () => {
     const rotate = mutation()
     rotate.mutate.mockImplementation((_id, options) => options.onSuccess({ repo: repo(), webhook_secret: 'newsecret', webhook_url: 'https://stats.example.test/x' }))
     ready({ rotate })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Rotate secret' }))
     expect(rotate.mutate).not.toHaveBeenCalled()
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Rotate secret' }))
@@ -257,7 +257,7 @@ describe('AdminGitHubStarsPage', () => {
   it('offers disable as the safe default and asks twice before removing data', () => {
     const deleteRepo = mutation()
     ready({ deleteRepo })
-    render(<AdminGitHubStarsPage />)
+    render(<GitHubStarsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
     const dialog = screen.getByRole('dialog', { name: 'Remove velixio/supermetry' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove repository and all its data' }))

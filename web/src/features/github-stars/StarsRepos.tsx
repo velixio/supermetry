@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { en } from '@/messages/en'
-import { ErrorLine, formatDate } from './AdminCommon'
+import { ErrorLine, formatDate } from '@/features/admin/AdminCommon'
 import {
   useAddStarsRepo, useDeleteStarsRepo, useRotateStarsSecret, useSyncStarsRepo, useUpdateStarsRepo,
   type StarsRepo, type StarsRepoSecret,
