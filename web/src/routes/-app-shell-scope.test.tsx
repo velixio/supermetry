@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 
 import { QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -117,5 +117,44 @@ describe('one shell for every /app route', () => {
     renderRoute('/app', { ...me, memberships: [{ ...acme, sites: [] }] })
     expect(await screen.findByRole('heading', { level: 1, name: 'What do you want to measure?' })).toBeVisible()
     await expectShell()
+  })
+
+  describe('GitHub stars', () => {
+    const admin: Me = { ...me, user: { ...me.user, instance_admin: true } }
+
+    it('keeps the organization menu around the page and marks it active', async () => {
+      renderRoute('/app/acme/github-stars', admin)
+      expect(await screen.findByRole('heading', { level: 1, name: 'GitHub stars' })).toBeVisible()
+      const { sidebar } = await expectShell()
+      expect(within(sidebar).getByRole('link', { name: 'Sites' })).toBeVisible()
+      expect(within(sidebar).getByRole('link', { name: 'GitHub stars' })).toHaveAttribute('aria-current', 'page')
+      expect(within(sidebar).queryByRole('navigation', { name: 'Account' })).toBeNull()
+    })
+
+    it('sends everyone else back to the organization', async () => {
+      const router = renderRoute('/app/acme/github-stars')
+      await screen.findByRole('complementary', { name: 'Application sidebar' })
+      await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme'))
+      expect(screen.queryByRole('heading', { name: 'GitHub stars' })).toBeNull()
+    })
+
+    it('redirects /app/github-stars to the first organization', async () => {
+      const router = renderRoute('/app/github-stars', { ...admin, memberships: [{ ...acme, org: { id: 2, name: 'Zed', slug: 'zed' } }, acme] })
+      await waitFor(() => expect(router.state.location.pathname).toBe('/app/zed/github-stars'))
+    })
+
+    it('falls back to the administration console without an organization', async () => {
+      const router = renderRoute('/app/github-stars', { ...admin, memberships: [] })
+      await waitFor(() => expect(router.state.location.pathname).toBe('/app/admin/users'))
+    })
+
+    it('keeps the old admin URL working and refuses non-admins', async () => {
+      const router = renderRoute('/app/admin/github-stars', admin)
+      await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/github-stars'))
+      cleanup()
+      queryClient.clear()
+      const other = renderRoute('/app/github-stars')
+      await waitFor(() => expect(other.state.location.pathname).not.toContain('github-stars'))
+    })
   })
 })
