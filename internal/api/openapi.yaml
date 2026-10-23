@@ -3834,7 +3834,7 @@ components:
     GitHubStarsRepo:
       type: object
       additionalProperties: false
-      required: [id, repo, enabled, time_zone, has_token, webhook_url, created_at, last_webhook_at, last_reconcile_at, last_error]
+      required: [id, repo, enabled, time_zone, has_token, webhook_url, public_count_url, created_at, last_webhook_at, last_reconcile_at, last_error]
       properties:
         id: { type: integer, format: int64 }
         repo: { type: string, description: Lowercase owner/name. }
@@ -3842,6 +3842,7 @@ components:
         time_zone: { type: string }
         has_token: { type: boolean }
         webhook_url: { type: string, description: The URL to configure as the GitHub webhook payload URL. }
+        public_count_url: { type: string, description: 'Public, unauthenticated endpoint returning {"stars":N} for this repository.' }
         created_at: { type: string, format: date-time }
         last_webhook_at: { type: [string, 'null'], format: date-time }
         last_reconcile_at: { type: [string, 'null'], format: date-time }

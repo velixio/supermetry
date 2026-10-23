@@ -1029,6 +1029,8 @@ const messages: MessageTree = {
     revealTitle: (repo: string) => `Webhook de ${repo}`,
     revealWarn: 'Copia el secreto ahora. Se muestra una sola vez y no se puede recuperar después.',
     webhookUrl: 'URL de payload',
+    publicCountUrl: 'URL pública del contador',
+    publicCountHint: 'Cualquiera puede leer aquí el número de estrellas como {"stars":N}. No se comparte nada más.',
     webhookSecret: 'Secreto',
     copy: 'Copiar',
     copied: 'Copiado',

@@ -43,6 +43,9 @@ func TestCreateNormalisesAndReturnsTheSecretOnce(t *testing.T) {
 	if repo.Repo != "velixio/supermetry" || !repo.Enabled || !repo.HasToken || repo.TimeZone != "Asia/Kathmandu" || len(secret) != 64 {
 		t.Fatalf("repo = %+v secret len %d", repo, len(secret))
 	}
+	if repo.PublicCountURL != "https://stats.example.test/api/github/stars/velixio/supermetry" {
+		t.Fatalf("public count url = %q", repo.PublicCountURL)
+	}
 	if !strings.HasPrefix(repo.WebhookURL, "https://stats.example.test/api/github/webhook/") || len(repo.WebhookURL) != len("https://stats.example.test/api/github/webhook/")+16 {
 		t.Fatalf("webhook url = %q", repo.WebhookURL)
 	}
@@ -67,7 +70,7 @@ func TestCreateWithoutBaseURLReturnsAPath(t *testing.T) {
 	svc, _ := newTestService(t)
 	svc.BaseURL = ""
 	repo, _, err := svc.Create(context.Background(), CreateInput{Repo: "a/b"}, 0)
-	if err != nil || !strings.HasPrefix(repo.WebhookURL, "/api/github/webhook/") || repo.TimeZone != "UTC" {
+	if err != nil || !strings.HasPrefix(repo.WebhookURL, "/api/github/webhook/") || repo.PublicCountURL != "/api/github/stars/a/b" || repo.TimeZone != "UTC" {
 		t.Fatalf("repo = %+v, %v", repo, err)
 	}
 }

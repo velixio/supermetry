@@ -1,6 +1,8 @@
 # Undocumented routes outside /api/public/v1.
 # Format: METHOD /pattern  # reason
 
+GET /api/github/stars/{owner}/{name}  # Public star count of a tracked repository; {"stars":N} only, not a query API operation.
+OPTIONS /api/github/stars/{owner}/{name}  # CORS preflight of the public star count.
 POST /api/github/webhook/{public_id}  # GitHub star webhook; verified by HMAC signature, not a query API operation.
 DELETE /api/private/annotations/{annotation}  # Dashboard or account flow; session/private UI contract.
 PATCH /api/private/annotations/{annotation}  # Dashboard or account flow; session/private UI contract.

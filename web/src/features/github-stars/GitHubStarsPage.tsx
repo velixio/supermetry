@@ -26,7 +26,7 @@ function errorText(error: unknown) {
 }
 
 function signed(value: number) {
-  return `${value > 0 ? '+' : ''}${fmt.number(value)}`
+  return `${value > 0 ? '+' : ''}${fmt.full(value)}`
 }
 
 function Counter({ label, value, live }: { label: string; value: string; live?: boolean }) {
@@ -42,12 +42,12 @@ function Counters({ summary }: { summary: StarsSummary }) {
   return (
     <section aria-label={en.githubStars.liveCounter} className="flex flex-col gap-2">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Counter live label={en.githubStars.liveCounter} value={fmt.number(summary.stars)} />
+        <Counter live label={en.githubStars.liveCounter} value={fmt.full(summary.stars)} />
         <Counter label={en.githubStars.net24h} value={signed(summary.net_24h)} />
         <Counter label={en.githubStars.net7d} value={signed(summary.net_7d)} />
-        <Counter label={en.githubStars.forks} value={fmt.number(summary.forks)} />
-        <Counter label={en.githubStars.watchers} value={fmt.number(summary.watchers)} />
-        <Counter label={en.githubStars.openIssues} value={fmt.number(summary.open_issues)} />
+        <Counter label={en.githubStars.forks} value={fmt.full(summary.forks)} />
+        <Counter label={en.githubStars.watchers} value={fmt.full(summary.watchers)} />
+        <Counter label={en.githubStars.openIssues} value={fmt.full(summary.open_issues)} />
       </div>
       <p className="text-xs text-muted-foreground">{summary.updated_at ? en.githubStars.updatedAt(formatDate(summary.updated_at)) : en.githubStars.notUpdated}</p>
     </section>

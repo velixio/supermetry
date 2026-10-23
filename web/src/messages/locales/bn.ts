@@ -509,6 +509,8 @@ const messages: MessageTree = {
     revealTitle: (repo: string) => `${repo}-এর ওয়েবহুক`,
     revealWarn: 'এখনই সিক্রেট কপি করুন। এটি একবারই দেখানো হয় এবং পরে ফেরত পাওয়া যায় না।',
     webhookUrl: 'পেলোড URL',
+    publicCountUrl: 'পাবলিক কাউন্ট URL',
+    publicCountHint: 'এখানে যে কেউ {"stars":N} হিসেবে স্টারের সংখ্যা পড়তে পারে। আর কিছু শেয়ার করা হয় না।',
     webhookSecret: 'সিক্রেট',
     copy: 'কপি',
     copied: 'কপি হয়েছে',
