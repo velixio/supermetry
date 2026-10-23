@@ -163,14 +163,14 @@ function SettingsDialog({ repo, open, onOpenChange }: { repo: StarsRepo; open: b
   )
 }
 
-function RemoveDialog({ repo, open, onOpenChange }: { repo: StarsRepo; open: boolean; onOpenChange: (open: boolean) => void }) {
+function RemoveDialog({ repo, open, onOpenChange, onRemoved }: { repo: StarsRepo; open: boolean; onOpenChange: (open: boolean) => void; onRemoved?: () => void }) {
   const remove = useDeleteStarsRepo()
   const [confirmData, setConfirmData] = useState(false)
   const close = (next: boolean) => {
     if (!next) { remove.reset(); setConfirmData(false) }
     onOpenChange(next)
   }
-  const run = (deleteData: boolean) => remove.mutate({ id: repo.id, deleteData }, { onSuccess: () => close(false) })
+  const run = (deleteData: boolean) => remove.mutate({ id: repo.id, deleteData }, { onSuccess: () => { close(false); if (deleteData) onRemoved?.() } })
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!remove.isPending) close(next) }}>
       <DialogContent>
@@ -231,7 +231,8 @@ function RotateDialog({ repo, open, onOpenChange, onRotated }: { repo: StarsRepo
 }
 
 /** Status line and actions of the selected repository. */
-export function RepoPanel({ repo, onReveal }: { repo: StarsRepo; onReveal: (reveal: Reveal) => void }) {
+/** `onRemoved` runs after the repository and its data were removed (not after a plain disable). */
+export function RepoPanel({ repo, onReveal, onRemoved }: { repo: StarsRepo; onReveal: (reveal: Reveal) => void; onRemoved?: () => void }) {
   const update = useUpdateStarsRepo()
   const sync = useSyncStarsRepo()
   const [dialog, setDialog] = useState<'settings' | 'rotate' | 'remove' | null>(null)
@@ -268,7 +269,7 @@ export function RepoPanel({ repo, onReveal }: { repo: StarsRepo; onReveal: (reve
       <ErrorLine error={update.error ?? sync.error} />
       <SettingsDialog key={`s-${repo.id}-${repo.time_zone}-${repo.has_token}`} repo={repo} open={dialog === 'settings'} onOpenChange={(open) => setDialog(open ? 'settings' : null)} />
       <RotateDialog repo={repo} open={dialog === 'rotate'} onOpenChange={(open) => setDialog(open ? 'rotate' : null)} onRotated={onReveal} />
-      <RemoveDialog repo={repo} open={dialog === 'remove'} onOpenChange={(open) => setDialog(open ? 'remove' : null)} />
+      <RemoveDialog repo={repo} open={dialog === 'remove'} onOpenChange={(open) => setDialog(open ? 'remove' : null)} onRemoved={onRemoved} />
     </section>
   )
 }

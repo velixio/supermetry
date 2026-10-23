@@ -3,6 +3,13 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  Link: ({ to, params, children, ...rest }: { to: string; params?: Record<string, string>; children: React.ReactNode }) => (
+    <a href={to.replace(/\$(\w+)/g, (_m, key: string) => params?.[key] ?? '').replace(/\/$/, '')} {...rest}>{children}</a>
+  ),
+}))
+
 const api = vi.hoisted(() => ({
   useStarsSummary: vi.fn(), useStarsSeries: vi.fn(), useStarsEvents: vi.fn(), useStarsAnnotations: vi.fn(),
   useAddStarsAnnotation: vi.fn(), useDeleteStarsAnnotation: vi.fn(), useEraseStarsUser: vi.fn(),
@@ -11,7 +18,7 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('./githubStarsApi', async (importOriginal) => ({ ...(await importOriginal<typeof import('./githubStarsApi')>()), ...api }))
 
-import { GitHubStarsPage } from './GitHubStarsPage'
+import { StarsRepoPage } from './StarsRepoPage'
 import { markerBucket } from './StarsChart'
 
 const point = (bucket: string, gained: number, lost: number, cumulative: number) => ({ bucket, gained, lost, net: gained - lost, cumulative })
@@ -60,6 +67,11 @@ function ready(overrides: Overrides = {}) {
   api.useEraseStarsUser.mockReturnValue(overrides.erase ?? mutation())
 }
 
+const removed = vi.fn()
+function Detail({ owner = 'Velixio', name = 'SuperMetry' }: { owner?: string; name?: string }) {
+  return <StarsRepoPage org="acme" owner={owner} name={name} onRemoved={removed} />
+}
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -77,12 +89,12 @@ describe('markerBucket', () => {
   })
 })
 
-describe('GitHubStarsPage', () => {
+describe('StarsRepoPage', () => {
   it('shows the live counters and the accessible chart table', () => {
     ready()
-    render(<GitHubStarsPage />)
+    render(<Detail />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'GitHub stars' })).toBeVisible()
+    expect(screen.getByRole('heading', { level: 1, name: 'velixio/supermetry' })).toBeVisible()
     expect(screen.getByText('1,234')).toBeVisible()
     expect(screen.getByText('+3')).toBeVisible()
     expect(screen.getByText('-2')).toBeVisible()
@@ -95,7 +107,7 @@ describe('GitHubStarsPage', () => {
 
   it('switches the chart between hour and day buckets', () => {
     ready()
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'day')
     fireEvent.click(screen.getByRole('radio', { name: 'Hour' }))
     expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'hour')
@@ -105,7 +117,7 @@ describe('GitHubStarsPage', () => {
     ready()
     const refetch = vi.fn()
     api.useStarsSummary.mockReturnValue({ isPending: false, isError: true, error: new Error('boom'), refetch })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     expect(screen.getByRole('alert', { name: '' })).toHaveTextContent('boom')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalled()
@@ -113,7 +125,7 @@ describe('GitHubStarsPage', () => {
 
   it('shows empty states for events and annotations', () => {
     ready({ annotations: [], events: { isSuccess: true, isError: false, hasNextPage: false, data: { pages: [{ data: [], next_cursor: null }] } } })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     expect(screen.getByText('No star events recorded yet.')).toBeVisible()
     expect(screen.getByText('No annotations yet.')).toBeVisible()
   })
@@ -124,7 +136,7 @@ describe('GitHubStarsPage', () => {
       isSuccess: true, isError: false, hasNextPage: true, isFetchingNextPage: false, fetchNextPage,
       data: { pages: [{ data: [{ id: 1, user_id: 1, login: 'alice', action: 'starred', occurred_at: '2026-10-02T03:00:00Z', source: 'webhook' }], next_cursor: 'c1' }] },
     } })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
     expect(fetchNextPage).toHaveBeenCalled()
   })
@@ -133,7 +145,7 @@ describe('GitHubStarsPage', () => {
     const add = mutation()
     const remove = mutation()
     ready({ add, remove })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     const submit = screen.getByRole('button', { name: 'Add annotation' })
     expect(submit).toBeDisabled()
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: '  Show HN  ' } })
@@ -147,7 +159,7 @@ describe('GitHubStarsPage', () => {
   it('erases a user only after confirmation', () => {
     const erase = mutation()
     ready({ erase })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     fireEvent.click(screen.getByRole('button', { name: 'Erase events of alice' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Erase events of alice?' })
     expect(erase.mutate).not.toHaveBeenCalled()
@@ -158,7 +170,7 @@ describe('GitHubStarsPage', () => {
 
   it('validates the login before opening the erase dialog', () => {
     ready()
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     const submit = screen.getByRole('button', { name: 'Erase user data' })
     expect(submit).toBeDisabled()
     fireEvent.change(screen.getByLabelText('GitHub login'), { target: { value: 'bad login' } })
@@ -168,51 +180,37 @@ describe('GitHubStarsPage', () => {
     expect(screen.getByRole('alertdialog', { name: 'Erase events of carol?' })).toBeVisible()
   })
 
-  it('invites adding the first repository when none is tracked', () => {
-    ready({ repos: [] })
-    render(<GitHubStarsPage />)
-    expect(screen.getByText('Add your first repository')).toBeVisible()
-    expect(screen.queryByText(/SUPERMETRY_GITHUB/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Add repository' }))
-    expect(screen.getByRole('dialog', { name: 'Add repository' })).toBeVisible()
-  })
-
-  it('adds a repository and shows the secret once with the setup steps', () => {
-    const addRepo = mutation()
-    addRepo.mutate.mockImplementation((_body, options) => options.onSuccess({
-      repo: repo({ id: 2, repo: 'velixio/docs' }), webhook_secret: 'topsecret', webhook_url: 'https://stats.example.test/api/github/webhook/zzzz',
-    }))
-    ready({ addRepo })
-    render(<GitHubStarsPage />)
-    fireEvent.click(screen.getByRole('button', { name: 'Add repository' }))
-    fireEvent.change(screen.getByLabelText('Repository (owner/name)'), { target: { value: ' velixio/docs ' } })
-    fireEvent.change(screen.getByLabelText(/GitHub token/), { target: { value: 'ghp_x' } })
-    fireEvent.change(screen.getByLabelText(/^Time zone/), { target: { value: 'Asia/Kolkata' } })
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add repository' }))
-    expect(addRepo.mutate).toHaveBeenCalledWith({ repo: 'velixio/docs', token: 'ghp_x', time_zone: 'Asia/Kolkata' }, expect.any(Object))
-    const panel = screen.getByRole('region', { name: 'Webhook for velixio/docs' })
-    expect(within(panel).getByText('topsecret')).toBeVisible()
-    expect(within(panel).getByText('https://stats.example.test/api/github/webhook/zzzz')).toBeVisible()
-    expect(within(panel).getByText('Set Content type to application/json.')).toBeVisible()
-    expect(within(panel).getByText(/tick only Stars/)).toBeVisible()
-    expect(within(panel).getAllByRole('button', { name: /^Copy / })).toHaveLength(2)
-    fireEvent.click(within(panel).getByRole('button', { name: 'I have saved the secret' }))
-    expect(screen.queryByText('topsecret')).not.toBeInTheDocument()
-  })
-
-  it('selects between repositories and loads the chosen one', () => {
-    ready({ repos: [repo(), repo({ id: 2, repo: 'velixio/docs', enabled: false })] })
-    render(<GitHubStarsPage />)
+  it('resolves the repository from the URL case-insensitively and links back to the overview', () => {
+    ready({ repos: [repo(), repo({ id: 2, repo: 'velixio/docs' })] })
+    render(<Detail />)
+    expect(screen.getByRole('heading', { level: 1, name: 'velixio/supermetry' })).toBeVisible()
     expect(api.useStarsSummary).toHaveBeenLastCalledWith(1)
-    fireEvent.change(screen.getByLabelText('Repository'), { target: { value: '2' } })
-    expect(api.useStarsSummary).toHaveBeenLastCalledWith(2)
-    expect(screen.getByRole('option', { name: 'velixio/docs (disabled)' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'All repositories' })).toHaveAttribute('href', '/app/acme/github-stars')
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('shows a not-found state with a link back for an unknown repository', () => {
+    ready()
+    render(<Detail name="missing" />)
+    expect(screen.getByText('Repository not found')).toBeVisible()
+    expect(screen.getByText('velixio/missing is not a tracked repository.')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'All repositories' })).toHaveAttribute('href', '/app/acme/github-stars')
+    expect(screen.queryByRole('region', { name: /^Status of/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the rotated secret on the repository page', () => {
+    const rotate = mutation()
+    rotate.mutate.mockImplementation((_id, options) => options.onSuccess({ repo: repo(), webhook_secret: 'rot', webhook_url: 'https://stats.example.test/x' }))
+    ready({ rotate })
+    render(<Detail />)
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate secret' }))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Rotate secret' }))
+    expect(screen.getByRole('region', { name: 'Webhook for velixio/supermetry' })).toBeVisible()
   })
 
   it('shows the status line and the last error', () => {
     ready({ repos: [repo({ last_error: 'github rate limit or access denied', last_webhook_at: null })] })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     const status = screen.getByRole('region', { name: 'Status of velixio/supermetry' })
     expect(within(status).getByText('none received yet')).toBeVisible()
     expect(within(status).getByRole('alert')).toHaveTextContent('github rate limit or access denied')
@@ -222,9 +220,9 @@ describe('GitHubStarsPage', () => {
   it('gives sibling sections distinct keys, so an update never duplicates the status card', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     ready({ sync: mutation({ isSuccess: false }) })
-    const { rerender } = render(<GitHubStarsPage />)
+    const { rerender } = render(<Detail />)
     ready({ sync: mutation({ isSuccess: true }) })
-    rerender(<GitHubStarsPage />)
+    rerender(<Detail />)
     expect(screen.getAllByRole('region', { name: 'Status of velixio/supermetry' })).toHaveLength(1)
     const duplicateKeys = error.mock.calls.filter((call) => String(call[0]).includes('same key'))
     error.mockRestore()
@@ -235,7 +233,7 @@ describe('GitHubStarsPage', () => {
     const updateRepo = mutation()
     const sync = mutation()
     ready({ updateRepo, sync })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     fireEvent.click(screen.getByRole('switch', { name: 'Enabled' }))
     expect(updateRepo.mutate).toHaveBeenCalledWith({ id: 1, patch: { enabled: false } })
     fireEvent.click(screen.getByRole('button', { name: 'Sync now' }))
@@ -245,7 +243,7 @@ describe('GitHubStarsPage', () => {
   it('saves the time zone and can clear the token', () => {
     const updateRepo = mutation()
     ready({ updateRepo })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
     const dialog = screen.getByRole('dialog', { name: 'Settings for velixio/supermetry' })
     fireEvent.change(within(dialog).getByLabelText(/^Time zone/), { target: { value: 'UTC' } })
@@ -258,7 +256,7 @@ describe('GitHubStarsPage', () => {
     const rotate = mutation()
     rotate.mutate.mockImplementation((_id, options) => options.onSuccess({ repo: repo(), webhook_secret: 'newsecret', webhook_url: 'https://stats.example.test/x' }))
     ready({ rotate })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     fireEvent.click(screen.getByRole('button', { name: 'Rotate secret' }))
     expect(rotate.mutate).not.toHaveBeenCalled()
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Rotate secret' }))
@@ -268,8 +266,9 @@ describe('GitHubStarsPage', () => {
 
   it('offers disable as the safe default and asks twice before removing data', () => {
     const deleteRepo = mutation()
+    deleteRepo.mutate.mockImplementation((_vars, options) => options.onSuccess())
     ready({ deleteRepo })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
     const dialog = screen.getByRole('dialog', { name: 'Remove velixio/supermetry' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Remove repository and all its data' }))
@@ -278,9 +277,12 @@ describe('GitHubStarsPage', () => {
     fireEvent.click(within(confirm).getByRole('button', { name: 'Back' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Disable and keep history' }))
     expect(deleteRepo.mutate).toHaveBeenCalledWith({ id: 1, deleteData: false }, expect.any(Object))
+    expect(removed).not.toHaveBeenCalled() // a plain disable keeps the repository and the page
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove repository and all its data' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove with data' }))
     expect(deleteRepo.mutate).toHaveBeenLastCalledWith({ id: 1, deleteData: true }, expect.any(Object))
+    expect(removed).toHaveBeenCalledTimes(1) // removing with data returns to the overview
   })
 
   it('shows full numbers with thousands separators, never compact ones', () => {
@@ -289,7 +291,7 @@ describe('GitHubStarsPage', () => {
       isPending: false, isError: false, error: null,
       data: { stars: 82412, forks: 12345, watchers: 20000, open_issues: 10001, updated_at: '2026-10-03T00:00:00Z', net_24h: 15000, net_7d: -23456 },
     })
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     for (const text of ['82,412', '12,345', '20,000', '10,001', '+15,000', '-23,456']) expect(screen.getByText(text)).toBeVisible()
     expect(screen.queryByText(/\d[.,]?\d*K/)).not.toBeInTheDocument()
   })
@@ -298,7 +300,7 @@ describe('GitHubStarsPage', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     ready()
-    render(<GitHubStarsPage />)
+    render(<Detail />)
     const status = screen.getByRole('region', { name: 'Status of velixio/supermetry' })
     expect(within(status).getByText('Public count URL')).toBeVisible()
     expect(within(status).getByText('https://stats.example.test/api/github/stars/velixio/supermetry')).toBeVisible()

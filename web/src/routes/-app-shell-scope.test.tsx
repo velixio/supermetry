@@ -131,6 +131,22 @@ describe('one shell for every /app route', () => {
       expect(within(sidebar).queryByRole('navigation', { name: 'Account' })).toBeNull()
     })
 
+    it('keeps the menu item active on a repository page and links back to the overview', async () => {
+      renderRoute('/app/acme/github-stars/Velixio/Supermetry', admin)
+      expect(await screen.findByRole('heading', { level: 1, name: 'velixio/supermetry' })).toBeVisible()
+      const { sidebar } = await expectShell()
+      expect(within(sidebar).getByRole('link', { name: 'Sites' })).toBeVisible()
+      expect(within(sidebar).getByRole('link', { name: 'GitHub stars' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByRole('link', { name: 'All repositories' })).toHaveAttribute('href', '/app/acme/github-stars')
+      expect(await screen.findByText('Repository not found')).toBeVisible()
+    })
+
+    it('guards the repository page too', async () => {
+      const router = renderRoute('/app/acme/github-stars/velixio/supermetry')
+      await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme'))
+      expect(screen.queryByRole('heading', { name: 'velixio/supermetry' })).toBeNull()
+    })
+
     it('sends everyone else back to the organization', async () => {
       const router = renderRoute('/app/acme/github-stars')
       await screen.findByRole('complementary', { name: 'Application sidebar' })

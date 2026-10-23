@@ -49,6 +49,7 @@ import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.r
 import { Route as AppOrgSiteSessionsRouteImport } from './routes/app.$org.$site.sessions'
 import { Route as AppOrgSiteSettingsRouteImport } from './routes/app.$org.$site.settings'
 import { Route as AppOrgSiteVitalsRouteImport } from './routes/app.$org.$site.vitals'
+import { Route as AppOrgGithubStarsIndexRouteImport } from './routes/app.$org.github-stars.index'
 import { Route as AppOrgSettingsIndexRouteImport } from './routes/app.$org.settings.index'
 import { Route as AppOrgSettingsApiRouteImport } from './routes/app.$org.settings.api'
 import { Route as AppOrgSettingsApiKeysRouteImport } from './routes/app.$org.settings.api-keys'
@@ -81,6 +82,7 @@ import { Route as AppOrgSiteSettingsReplayRouteImport } from './routes/app.$org.
 import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org.$site.settings.reports'
 import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.$site.settings.shares'
 import { Route as AppOrgSiteSettingsTrackingRouteImport } from './routes/app.$org.$site.settings.tracking'
+import { Route as AppOrgGithubStarsOwnerNameRouteImport } from './routes/app.$org.github-stars.$owner.$name'
 import { Route as AppOrgSiteLinksPixelIdRouteImport } from './routes/app.$org.$site.links.pixel_.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -283,6 +285,11 @@ const AppOrgSiteVitalsRoute = AppOrgSiteVitalsRouteImport.update({
   path: '/$site/vitals',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgGithubStarsIndexRoute = AppOrgGithubStarsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppOrgGithubStarsRoute,
+} as any)
 const AppOrgSettingsIndexRoute = AppOrgSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -457,6 +464,12 @@ const AppOrgSiteSettingsTrackingRoute =
     path: '/tracking',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgGithubStarsOwnerNameRoute =
+  AppOrgGithubStarsOwnerNameRouteImport.update({
+    id: '/$owner/$name',
+    path: '/$owner/$name',
+    getParentRoute: () => AppOrgGithubStarsRoute,
+  } as any)
 const AppOrgSiteLinksPixelIdRoute = AppOrgSiteLinksPixelIdRouteImport.update({
   id: '/$site/links/pixel_/$id',
   path: '/$site/links/pixel/$id',
@@ -479,7 +492,7 @@ export interface FileRoutesByFullPath {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/app/': typeof AppIndexRoute
-  '/app/$org/github-stars': typeof AppOrgGithubStarsRoute
+  '/app/$org/github-stars': typeof AppOrgGithubStarsRouteWithChildren
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
   '/app/account/profile': typeof AppAccountProfileRoute
@@ -513,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
   '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
   '/app/$org/$site/': typeof AppOrgSiteIndexRoute
+  '/app/$org/github-stars/': typeof AppOrgGithubStarsIndexRoute
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
@@ -532,6 +546,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
@@ -553,7 +568,6 @@ export interface FileRoutesByTo {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/app': typeof AppIndexRoute
-  '/app/$org/github-stars': typeof AppOrgGithubStarsRoute
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
@@ -586,6 +600,7 @@ export interface FileRoutesByTo {
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
   '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
   '/app/$org/$site': typeof AppOrgSiteIndexRoute
+  '/app/$org/github-stars': typeof AppOrgGithubStarsIndexRoute
   '/app/$org/settings': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
@@ -605,6 +620,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/links': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
@@ -628,7 +644,7 @@ export interface FileRoutesById {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/app/': typeof AppIndexRoute
-  '/app/$org/github-stars': typeof AppOrgGithubStarsRoute
+  '/app/$org/github-stars': typeof AppOrgGithubStarsRouteWithChildren
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
   '/app/account/profile': typeof AppAccountProfileRoute
@@ -662,6 +678,7 @@ export interface FileRoutesById {
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
   '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
   '/app/$org/$site/': typeof AppOrgSiteIndexRoute
+  '/app/$org/github-stars/': typeof AppOrgGithubStarsIndexRoute
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
@@ -681,6 +698,7 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
@@ -739,6 +757,7 @@ export interface FileRouteTypes {
     | '/app/$org/sites/new'
     | '/app/account/organizations/new'
     | '/app/$org/$site/'
+    | '/app/$org/github-stars/'
     | '/app/$org/settings/'
     | '/app/$org/sites/'
     | '/app/$org/$site/funnels/$id'
@@ -758,6 +777,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
     | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
@@ -779,7 +799,6 @@ export interface FileRouteTypes {
     | '/reset/$token'
     | '/share/$slug'
     | '/app'
-    | '/app/$org/github-stars'
     | '/app/$org/health'
     | '/app/account/profile'
     | '/app/account/security'
@@ -812,6 +831,7 @@ export interface FileRouteTypes {
     | '/app/$org/sites/new'
     | '/app/account/organizations/new'
     | '/app/$org/$site'
+    | '/app/$org/github-stars'
     | '/app/$org/settings'
     | '/app/$org/sites'
     | '/app/$org/$site/funnels/$id'
@@ -831,6 +851,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels'
     | '/app/$org/$site/links'
     | '/app/$org/$site/profiles'
@@ -887,6 +908,7 @@ export interface FileRouteTypes {
     | '/app/$org/sites/new'
     | '/app/account/organizations/new'
     | '/app/$org/$site/'
+    | '/app/$org/github-stars/'
     | '/app/$org/settings/'
     | '/app/$org/sites/'
     | '/app/$org/$site/funnels/$id'
@@ -906,6 +928,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
     | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
@@ -1208,6 +1231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteVitalsRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/github-stars/': {
+      id: '/app/$org/github-stars/'
+      path: '/'
+      fullPath: '/app/$org/github-stars/'
+      preLoaderRoute: typeof AppOrgGithubStarsIndexRouteImport
+      parentRoute: typeof AppOrgGithubStarsRoute
+    }
     '/app/$org/settings/': {
       id: '/app/$org/settings/'
       path: '/'
@@ -1432,6 +1462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsTrackingRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
+    '/app/$org/github-stars/$owner/$name': {
+      id: '/app/$org/github-stars/$owner/$name'
+      path: '/$owner/$name'
+      fullPath: '/app/$org/github-stars/$owner/$name'
+      preLoaderRoute: typeof AppOrgGithubStarsOwnerNameRouteImport
+      parentRoute: typeof AppOrgGithubStarsRoute
+    }
     '/app/$org/$site/links/pixel_/$id': {
       id: '/app/$org/$site/links/pixel_/$id'
       path: '/$site/links/pixel/$id'
@@ -1441,6 +1478,19 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppOrgGithubStarsRouteChildren {
+  AppOrgGithubStarsIndexRoute: typeof AppOrgGithubStarsIndexRoute
+  AppOrgGithubStarsOwnerNameRoute: typeof AppOrgGithubStarsOwnerNameRoute
+}
+
+const AppOrgGithubStarsRouteChildren: AppOrgGithubStarsRouteChildren = {
+  AppOrgGithubStarsIndexRoute: AppOrgGithubStarsIndexRoute,
+  AppOrgGithubStarsOwnerNameRoute: AppOrgGithubStarsOwnerNameRoute,
+}
+
+const AppOrgGithubStarsRouteWithChildren =
+  AppOrgGithubStarsRoute._addFileChildren(AppOrgGithubStarsRouteChildren)
 
 interface AppOrgSettingsRouteChildren {
   AppOrgSettingsApiRoute: typeof AppOrgSettingsApiRoute
@@ -1503,7 +1553,7 @@ const AppOrgSiteSettingsRouteWithChildren =
   AppOrgSiteSettingsRoute._addFileChildren(AppOrgSiteSettingsRouteChildren)
 
 interface AppOrgRouteChildren {
-  AppOrgGithubStarsRoute: typeof AppOrgGithubStarsRoute
+  AppOrgGithubStarsRoute: typeof AppOrgGithubStarsRouteWithChildren
   AppOrgHealthRoute: typeof AppOrgHealthRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRouteWithChildren
   AppOrgSiteCohortsRoute: typeof AppOrgSiteCohortsRoute
@@ -1533,7 +1583,7 @@ interface AppOrgRouteChildren {
 }
 
 const AppOrgRouteChildren: AppOrgRouteChildren = {
-  AppOrgGithubStarsRoute: AppOrgGithubStarsRoute,
+  AppOrgGithubStarsRoute: AppOrgGithubStarsRouteWithChildren,
   AppOrgHealthRoute: AppOrgHealthRoute,
   AppOrgSettingsRoute: AppOrgSettingsRouteWithChildren,
   AppOrgSiteCohortsRoute: AppOrgSiteCohortsRoute,
