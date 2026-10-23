@@ -18,7 +18,7 @@ import type { Me } from '@/lib/me'
 import { en } from '@/messages/en'
 import { ui } from '@/messages/ui'
 
-import { OrganizationMenuGroup, SidebarAccountFooter, SidebarBrandLink } from './Sidebar'
+import { InstanceAdminGroup, OrganizationMenuGroup, SidebarAccountFooter, SidebarBrandLink } from './Sidebar'
 
 export type AccountDestination = 'account' | 'admin'
 
@@ -70,7 +70,7 @@ export function AccountSidebar({ me }: { me: Me }) {
                   const label = destination === 'admin' ? en.admin.link : ui.menus.accountSettings
                   return (
                     <SidebarMenuItem key={destination}>
-                      <SidebarMenuButton asChild className="h-11" isActive={active} tooltip={label}>
+                      <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={label}>
                         <Link
                           aria-current={active ? 'page' : undefined}
                           onClick={closeMobile}
@@ -87,6 +87,7 @@ export function AccountSidebar({ me }: { me: Me }) {
             </nav>
           </SidebarGroupContent>
         </SidebarGroup>
+        <InstanceAdminGroup me={me} onNavigate={closeMobile} />
       </SidebarContent>
       <SidebarAccountFooter me={me} />
     </Sidebar>

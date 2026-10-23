@@ -18,6 +18,7 @@ import {
   RouteIcon,
   Rows3Icon,
   SettingsIcon,
+  StarIcon,
   TablePropertiesIcon,
   UserRoundIcon,
   UsersRoundIcon,
@@ -330,6 +331,37 @@ export function OrganizationMenuGroup({ me, onSelect }: { me: Me; onSelect: () =
   )
 }
 
+const adminStarsPath = '/app/admin/github-stars'
+
+/**
+ * Instance-admin shortcuts shown in both sidebars. It renders nothing for anyone who is
+ * not an instance admin, so other users never see these destinations.
+ */
+export function InstanceAdminGroup({ me, onNavigate }: { me: Me; onNavigate: () => void }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  if (!me.user.instance_admin) return null
+  const active = pathname === adminStarsPath || pathname.startsWith(`${adminStarsPath}/`)
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel asChild><h2 id="sidebar-instance-admin-heading">{en.admin.link}</h2></SidebarGroupLabel>
+      <SidebarGroupContent>
+        <nav aria-labelledby="sidebar-instance-admin-heading">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={en.admin.githubStars}>
+                <Link aria-current={active ? 'page' : undefined} onClick={onNavigate} to={adminStarsPath}>
+                  <StarIcon />
+                  <span>{en.admin.githubStars}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </nav>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  )
+}
+
 /** The account menu in the footer of both sidebars. */
 export function SidebarAccountFooter({ me }: { me: Me }) {
   const { isMobile } = useSidebar()
@@ -342,7 +374,7 @@ export function SidebarAccountFooter({ me }: { me: Me }) {
             me={me}
             side={isMobile ? 'top' : 'right'}
             trigger={
-              <SidebarMenuButton className="h-11" tooltip={ui.menus.account}>
+              <SidebarMenuButton className="h-11 md:h-8" tooltip={ui.menus.account}>
                 <UserRoundIcon aria-hidden="true" />
                 <span>{ui.menus.account}</span>
               </SidebarMenuButton>
@@ -444,7 +476,7 @@ export function SupermetrySidebar({
                       const active = navigationIsActive(item, pathname, membership.org.slug, currentSite)
                       const rows = [
                         <SidebarMenuItem key={item.label}>
-                          <SidebarMenuButton asChild className="h-11" isActive={active} tooltip={item.label}>
+                          <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={item.label}>
                             {navigationLink(item, membership.org.slug, currentSite, active, closeMobile)}
                           </SidebarMenuButton>
                         </SidebarMenuItem>,
@@ -454,7 +486,7 @@ export function SupermetrySidebar({
                           <SidebarMenuItem key="Replays">
                             <SidebarMenuButton
                               asChild
-                              className="h-11"
+                              className="h-11 md:h-8"
                               isActive={pathname.startsWith(`/app/${membership.org.slug}/${currentSite}/replays`)}
                               tooltip="Replays"
                             >
@@ -471,6 +503,7 @@ export function SupermetrySidebar({
             </SidebarGroup>
           )
         })}
+        <InstanceAdminGroup me={me} onNavigate={closeMobile} />
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel asChild><h2 id="sidebar-settings-heading">{ui.menus.settings}</h2></SidebarGroupLabel>
           <SidebarGroupContent>
@@ -481,7 +514,7 @@ export function SupermetrySidebar({
                   const label = destination === 'site' ? ui.menus.siteSettings : ui.menus.organizationSettings
                   return (
                     <SidebarMenuItem key={destination}>
-                      <SidebarMenuButton asChild className="h-11" isActive={active} tooltip={label}>
+                      <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={label}>
                         {destination === 'site' && site ? (
                           <Link
                             aria-current={active ? 'page' : undefined}
