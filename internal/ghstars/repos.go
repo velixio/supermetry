@@ -47,13 +47,15 @@ var (
 // Repo is one tracked repository as the admin API shows it. The webhook secret
 // and the token are never part of it.
 type Repo struct {
-	ID              int64      `json:"id"`
-	Repo            string     `json:"repo"`
-	Enabled         bool       `json:"enabled"`
-	TimeZone        string     `json:"time_zone"`
-	HasToken        bool       `json:"has_token"`
-	WebhookURL      string     `json:"webhook_url"`
-	PublicCountURL  string     `json:"public_count_url"`
+	ID             int64  `json:"id"`
+	Repo           string `json:"repo"`
+	Enabled        bool   `json:"enabled"`
+	TimeZone       string `json:"time_zone"`
+	HasToken       bool   `json:"has_token"`
+	WebhookURL     string `json:"webhook_url"`
+	PublicCountURL string `json:"public_count_url"`
+	// HistoryComplete is false while a large repository's history import is unfinished.
+	HistoryComplete bool       `json:"history_complete"`
 	CreatedAt       time.Time  `json:"created_at"`
 	LastWebhookAt   *time.Time `json:"last_webhook_at"`
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
@@ -66,6 +68,9 @@ type repoRow struct {
 	publicID  string
 	secretEnc []byte
 	tokenEnc  []byte
+	// backfillCursor and backfillComplete track the resumable import of large repositories.
+	backfillCursor   *string
+	backfillComplete bool
 }
 
 // CreateInput describes a repository to track. Token is optional.
@@ -97,6 +102,18 @@ type Service struct {
 	HTTP    *http.Client
 	Now     func() time.Time
 
+	// LargeThreshold is the star count above which history is imported through
+	// GraphQL instead of the REST listing. Zero means 30,000.
+	LargeThreshold int
+	// ChunkBudget is how long one import run works before it stops and saves its
+	// cursor. Zero means four minutes.
+	ChunkBudget time.Duration
+	// ChunkPages, when positive, also caps the pages one import run reads.
+	ChunkPages int
+	// GraphQLPageSize is the GraphQL stargazers page size. Zero means 100.
+	GraphQLPageSize int
+	pageHook        func() // test hook: runs after each saved import page
+
 	mu       sync.Mutex
 	running  map[int64]bool
 	lastSync map[int64]time.Time
@@ -125,6 +142,7 @@ func (s *Service) client(token string) *Client {
 	if s.HTTP != nil {
 		c.HTTP = s.HTTP
 	}
+	c.GraphQLPageSize = s.GraphQLPageSize
 	return c
 }
 
@@ -152,11 +170,11 @@ func (s *Service) webhookURL(publicID string) string {
 	return s.BaseURL + "/api/github/webhook/" + publicID
 }
 
-const repoColumns = `id, public_id, repo, enabled, timezone, webhook_secret_enc, token_enc, created_at, last_webhook_at, last_reconcile_at, last_error`
+const repoColumns = `id, public_id, repo, enabled, timezone, webhook_secret_enc, token_enc, created_at, last_webhook_at, last_reconcile_at, last_error, backfill_cursor, backfill_complete`
 
 func (s *Service) scan(row pgx.Row) (repoRow, error) {
 	var r repoRow
-	err := row.Scan(&r.ID, &r.publicID, &r.Repo.Repo, &r.Enabled, &r.TimeZone, &r.secretEnc, &r.tokenEnc, &r.CreatedAt, &r.LastWebhookAt, &r.LastReconcileAt, &r.LastError)
+	err := row.Scan(&r.ID, &r.publicID, &r.Repo.Repo, &r.Enabled, &r.TimeZone, &r.secretEnc, &r.tokenEnc, &r.CreatedAt, &r.LastWebhookAt, &r.LastReconcileAt, &r.LastError, &r.backfillCursor, &r.backfillComplete)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return repoRow{}, ErrNotFound
 	}
@@ -164,6 +182,7 @@ func (s *Service) scan(row pgx.Row) (repoRow, error) {
 		return repoRow{}, err
 	}
 	r.HasToken = len(r.tokenEnc) > 0
+	r.HistoryComplete = r.backfillComplete
 	r.WebhookURL = s.webhookURL(r.publicID)
 	r.PublicCountURL = s.BaseURL + "/api/github/stars/" + r.Repo.Repo
 	return r, nil

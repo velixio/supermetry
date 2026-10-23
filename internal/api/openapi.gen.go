@@ -2555,9 +2555,12 @@ type GitHubStarsPoint struct {
 
 // GitHubStarsRepo defines model for GitHubStarsRepo.
 type GitHubStarsRepo struct {
-	CreatedAt       time.Time  `json:"created_at"`
-	Enabled         bool       `json:"enabled"`
-	HasToken        bool       `json:"has_token"`
+	CreatedAt time.Time `json:"created_at"`
+	Enabled   bool      `json:"enabled"`
+	HasToken  bool      `json:"has_token"`
+
+	// HistoryComplete False while the history import of a large repository is unfinished.
+	HistoryComplete bool       `json:"history_complete"`
 	Id              int64      `json:"id"`
 	LastError       *string    `json:"last_error"`
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
@@ -2618,13 +2621,16 @@ type GitHubStarsSeries struct {
 
 // GitHubStarsSummary defines model for GitHubStarsSummary.
 type GitHubStarsSummary struct {
-	Forks      int        `json:"forks"`
-	Net24h     int        `json:"net_24h"`
-	Net7d      int        `json:"net_7d"`
-	OpenIssues int        `json:"open_issues"`
-	Stars      int        `json:"stars"`
-	UpdatedAt  *time.Time `json:"updated_at"`
-	Watchers   int        `json:"watchers"`
+	Forks      int `json:"forks"`
+	Net24h     int `json:"net_24h"`
+	Net7d      int `json:"net_7d"`
+	OpenIssues int `json:"open_issues"`
+
+	// Recorded Current stargazers on record; below stars while the history import of a large repository is still running.
+	Recorded  int        `json:"recorded"`
+	Stars     int        `json:"stars"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	Watchers  int        `json:"watchers"`
 }
 
 // Goal defines model for Goal.

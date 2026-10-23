@@ -15,8 +15,9 @@ import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import {
   useStarsAnnotations, useStarsRepos, useStarsSeries, useStarsSummary,
-  type StarsGranularity, type StarsPoint, type StarsSummary,
+  type StarsGranularity, type StarsPoint, type StarsRepo, type StarsSummary,
 } from './githubStarsApi'
+import { ImportProgress } from './ImportProgress'
 import { RepoPanel, RevealPanel, type Reveal } from './StarsRepos'
 import { StarsAnnotations } from './StarsAnnotations'
 import { bucketLabel, StarsChart } from './StarsChart'
@@ -126,6 +127,12 @@ function RepoView({ repoId }: { repoId: number }) {
   )
 }
 
+function RepoImport({ repo }: { repo: StarsRepo }) {
+  const summary = useStarsSummary(repo.id) // shares its query with the counters
+  if (!summary.data) return null
+  return <ImportProgress recorded={summary.data.recorded} stars={summary.data.stars} hasToken={repo.has_token} historyComplete={repo.history_complete} />
+}
+
 /** One repository's page: status and actions, counters, chart, annotations and events. */
 export function StarsRepoPage({ org, owner, name, onRemoved }: { org: string; owner: string; name: string; onRemoved: () => void }) {
   const repos = useStarsRepos()
@@ -154,6 +161,7 @@ export function StarsRepoPage({ org, owner, name, onRemoved }: { org: string; ow
           <>
             {reveal ? <RevealPanel reveal={reveal} onDismiss={() => setReveal(null)} /> : null}
             <RepoPanel repo={repo} onReveal={setReveal} onRemoved={onRemoved} />
+            <RepoImport repo={repo} />
             <RepoView repoId={repo.id} />
           </>
         )}

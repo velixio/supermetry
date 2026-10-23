@@ -1100,6 +1100,8 @@ export const en = {
     sparkLabel: (from: string, to: string) => `Stars over the last 30 days: from ${from} to ${to}`,
     sparkNone: 'No star history yet',
     weekChange: (value: string) => `${value} this week`,
+    importProgress: (recorded: string, total: string) => `History import: ${recorded} of ${total} stars (resumes automatically)`,
+    importNeedsToken: 'History import needs a GitHub token',
     cardError: 'Numbers could not be loaded',
     statusDisabled: 'Disabled',
     statusNever: 'Never synced',

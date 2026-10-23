@@ -567,6 +567,8 @@ const messages: MessageTree = {
     sparkLabel: (from: string, to: string) => `গত ৩০ দিনে স্টার: ${from} থেকে ${to}`,
     sparkNone: 'এখনও স্টারের ইতিহাস নেই',
     weekChange: (value: string) => `এই সপ্তাহে ${value}`,
+    importProgress: (recorded: string, total: string) => `ইতিহাস আমদানি: ${total}টির মধ্যে ${recorded}টি স্টার (স্বয়ংক্রিয়ভাবে চলবে)`,
+    importNeedsToken: 'ইতিহাস আমদানির জন্য গিটহাব টোকেন দরকার',
     cardError: 'সংখ্যা লোড করা যায়নি',
     statusDisabled: 'নিষ্ক্রিয়',
     statusNever: 'কখনও সিঙ্ক হয়নি',

@@ -68,6 +68,9 @@ type Summary struct {
 	UpdatedAt *time.Time `json:"updated_at"`
 	Net24h    int        `json:"net_24h"`
 	Net7d     int        `json:"net_7d"`
+	// Recorded is how many current stargazers the history holds; below Stars
+	// while a large repository's history import is still running.
+	Recorded int `json:"recorded"`
 }
 
 // Point is one chart bucket. Bucket is the start of the bucket in the store's time zone.
@@ -139,6 +142,14 @@ func (s *Store) RecordEvent(ctx context.Context, e Event, counts Counts, now tim
 // InsertEvents bulk-inserts events without delivery ids (backfill and reconcile),
 // skipping users whose history was erased.
 func (s *Store) InsertEvents(ctx context.Context, events []Event) error {
+	return s.insertEvents(ctx, s.pool, events)
+}
+
+type copier interface {
+	CopyFrom(ctx context.Context, table pgx.Identifier, columns []string, rows pgx.CopyFromSource) (int64, error)
+}
+
+func (s *Store) insertEvents(ctx context.Context, db copier, events []Event) error {
 	if len(events) == 0 {
 		return nil
 	}
@@ -155,12 +166,34 @@ func (s *Store) InsertEvents(ctx context.Context, events []Event) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	_, err = s.pool.CopyFrom(ctx, pgx.Identifier{"github_star_events"},
+	_, err = db.CopyFrom(ctx, pgx.Identifier{"github_star_events"},
 		[]string{"repo", "user_id", "login", "action", "occurred_at", "source"}, pgx.CopyFromRows(rows))
 	if err != nil {
 		return fmt.Errorf("copy star events: %w", err)
 	}
 	return nil
+}
+
+// ImportPage records one page of a resumable import and the cursor to resume
+// from in one transaction. complete marks the import finished and clears the
+// cursor.
+func (s *Store) ImportPage(ctx context.Context, events []Event, cursor string, complete bool) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := s.insertEvents(ctx, tx, events); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `update github_star_repos set backfill_cursor=case when $3 then null else nullif($2,'') end, backfill_complete=$3 where repo=$1`, s.repo, cursor, complete)
+		if err != nil {
+			return fmt.Errorf("save import cursor: %w", err)
+		}
+		return nil
+	})
+}
+
+// MarkBackfillComplete records that the whole history is on record.
+func (s *Store) MarkBackfillComplete(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `update github_star_repos set backfill_complete=true, backfill_cursor=null where repo=$1`, s.repo)
+	return err
 }
 
 func (s *Store) erasedUsers(ctx context.Context) (map[int64]bool, error) {
@@ -235,6 +268,22 @@ func (s *Store) EventCount(ctx context.Context) (int64, error) {
 }
 
 // CurrentStargazers returns user id to login for every user whose latest event is a star.
+// StarredCount is len(CurrentStargazers) counted in SQL, for callers that only
+// need the number (the summary is polled while a page is open).
+func (s *Store) StarredCount(ctx context.Context) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx, `
+		select count(*) from (
+			select distinct on (user_id) action
+			from github_star_events where repo=$1
+			order by user_id, occurred_at desc, id desc) latest
+		where action='starred'`, s.repo).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count current stargazers: %w", err)
+	}
+	return n, nil
+}
+
 func (s *Store) CurrentStargazers(ctx context.Context) (map[int64]string, error) {
 	rows, err := s.pool.Query(ctx, `
 		select user_id, login from (
@@ -275,6 +324,9 @@ func (s *Store) Summary(ctx context.Context, now time.Time) (Summary, error) {
 		s.repo, now.Add(-24*time.Hour), now.Add(-7*24*time.Hour), now).Scan(&out.Net24h, &out.Net7d)
 	if err != nil {
 		return Summary{}, fmt.Errorf("read star change: %w", err)
+	}
+	if out.Recorded, err = s.StarredCount(ctx); err != nil {
+		return Summary{}, err
 	}
 	return out, nil
 }
