@@ -172,6 +172,9 @@ func TestLargeRepoImportsInResumableChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	row, _ = svc.load(ctx, repo.ID)
+	if listed, _ := svc.Get(ctx, repo.ID); !listed.HistoryComplete {
+		t.Fatal("the repository response should report the history as complete")
+	}
 	if row.backfillCursor != nil || !row.backfillComplete || row.LastError != nil {
 		t.Fatalf("after run 3: cursor=%v complete=%v err=%v", row.backfillCursor, row.backfillComplete, row.LastError)
 	}

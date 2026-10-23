@@ -47,13 +47,15 @@ var (
 // Repo is one tracked repository as the admin API shows it. The webhook secret
 // and the token are never part of it.
 type Repo struct {
-	ID              int64      `json:"id"`
-	Repo            string     `json:"repo"`
-	Enabled         bool       `json:"enabled"`
-	TimeZone        string     `json:"time_zone"`
-	HasToken        bool       `json:"has_token"`
-	WebhookURL      string     `json:"webhook_url"`
-	PublicCountURL  string     `json:"public_count_url"`
+	ID             int64  `json:"id"`
+	Repo           string `json:"repo"`
+	Enabled        bool   `json:"enabled"`
+	TimeZone       string `json:"time_zone"`
+	HasToken       bool   `json:"has_token"`
+	WebhookURL     string `json:"webhook_url"`
+	PublicCountURL string `json:"public_count_url"`
+	// HistoryComplete is false while a large repository's history import is unfinished.
+	HistoryComplete bool       `json:"history_complete"`
 	CreatedAt       time.Time  `json:"created_at"`
 	LastWebhookAt   *time.Time `json:"last_webhook_at"`
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
@@ -180,6 +182,7 @@ func (s *Service) scan(row pgx.Row) (repoRow, error) {
 		return repoRow{}, err
 	}
 	r.HasToken = len(r.tokenEnc) > 0
+	r.HistoryComplete = r.backfillComplete
 	r.WebhookURL = s.webhookURL(r.publicID)
 	r.PublicCountURL = s.BaseURL + "/api/github/stars/" + r.Repo.Repo
 	return r, nil

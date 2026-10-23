@@ -2555,9 +2555,12 @@ type GitHubStarsPoint struct {
 
 // GitHubStarsRepo defines model for GitHubStarsRepo.
 type GitHubStarsRepo struct {
-	CreatedAt       time.Time  `json:"created_at"`
-	Enabled         bool       `json:"enabled"`
-	HasToken        bool       `json:"has_token"`
+	CreatedAt time.Time `json:"created_at"`
+	Enabled   bool      `json:"enabled"`
+	HasToken  bool      `json:"has_token"`
+
+	// HistoryComplete False while the history import of a large repository is unfinished.
+	HistoryComplete bool       `json:"history_complete"`
 	Id              int64      `json:"id"`
 	LastError       *string    `json:"last_error"`
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
