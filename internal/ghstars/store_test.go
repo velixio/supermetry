@@ -343,3 +343,32 @@ func TestImportPageSavesEventsAndCursorTogether(t *testing.T) {
 		t.Fatalf("after completion: %+v", row)
 	}
 }
+
+// StarredCount counts in SQL what CurrentStargazers lists, so the summary does
+// not have to load every stargazer just to show how many are recorded.
+func TestStarredCountMatchesCurrentStargazers(t *testing.T) {
+	s, _ := newTestStore(t)
+	ctx := context.Background()
+	if n, err := s.StarredCount(ctx); err != nil || n != 0 {
+		t.Fatalf("empty: n = %d, err = %v", n, err)
+	}
+	seed(t, s)
+	n, err := s.StarredCount(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// u1 unstarred, so u0, u2 and u3 remain.
+	if n != 3 {
+		t.Fatalf("count = %d, want 3", n)
+	}
+	if err := s.InsertEvents(ctx, []Event{{UserID: 11, Login: "u1", Action: ActionStarred, OccurredAt: at("2026-10-05T00:00:00Z"), Source: SourceReconcile}}); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := s.StarredCount(ctx); n != 4 {
+		t.Fatalf("after a re-star count = %d, want 4", n)
+	}
+	current, _ := s.CurrentStargazers(ctx)
+	if n, _ := s.StarredCount(ctx); n != len(current) {
+		t.Fatalf("count %d != len(current) %d", n, len(current))
+	}
+}

@@ -268,6 +268,22 @@ func (s *Store) EventCount(ctx context.Context) (int64, error) {
 }
 
 // CurrentStargazers returns user id to login for every user whose latest event is a star.
+// StarredCount is len(CurrentStargazers) counted in SQL, for callers that only
+// need the number (the summary is polled while a page is open).
+func (s *Store) StarredCount(ctx context.Context) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx, `
+		select count(*) from (
+			select distinct on (user_id) action
+			from github_star_events where repo=$1
+			order by user_id, occurred_at desc, id desc) latest
+		where action='starred'`, s.repo).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count current stargazers: %w", err)
+	}
+	return n, nil
+}
+
 func (s *Store) CurrentStargazers(ctx context.Context) (map[int64]string, error) {
 	rows, err := s.pool.Query(ctx, `
 		select user_id, login from (
@@ -309,11 +325,9 @@ func (s *Store) Summary(ctx context.Context, now time.Time) (Summary, error) {
 	if err != nil {
 		return Summary{}, fmt.Errorf("read star change: %w", err)
 	}
-	recorded, err := s.CurrentStargazers(ctx)
-	if err != nil {
+	if out.Recorded, err = s.StarredCount(ctx); err != nil {
 		return Summary{}, err
 	}
-	out.Recorded = len(recorded)
 	return out, nil
 }
 
