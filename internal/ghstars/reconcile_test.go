@@ -467,3 +467,27 @@ func TestReconcileKeepsTheRejectedTokenErrorWhenTheFallbackCannotList(t *testing
 		t.Fatalf("err = %v, want ErrBadToken", err)
 	}
 }
+
+// The saved error names the request GitHub refused and the token permissions it
+// says that request needs, so an admin can tell which part of the setup is wrong.
+func TestReconcileErrorNamesTheRefusedRequestAndNeededPermissions(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/{owner}/{name}", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"stargazers_count": 1})
+	})
+	mux.HandleFunc("GET /repos/{owner}/{name}/stargazers", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Accepted-GitHub-Permissions", "metadata=read")
+		w.WriteHeader(http.StatusNotFound)
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	svc, repo, _ := repoService(t, server)
+	ctx := context.Background()
+	if err := svc.ReconcileRepo(ctx, repo.ID); !errors.Is(err, ErrRepoNotFound) {
+		t.Fatalf("err = %v, want ErrRepoNotFound", err)
+	}
+	got, _ := svc.Get(ctx, repo.ID)
+	if got.LastError == nil || !strings.Contains(*got.LastError, "/stargazers") || !strings.Contains(*got.LastError, "metadata=read") {
+		t.Fatalf("last error = %v, want the request path and needed permissions", got.LastError)
+	}
+}
