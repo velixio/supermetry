@@ -278,7 +278,14 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	if err != nil {
 		return err
 	}
-	if events == 0 || !known || stored != counts.Stars {
+	recorded, err := store.CurrentStargazers(ctx)
+	if err != nil {
+		return err
+	}
+	// The live count alone is not proof the history is complete: a webhook that
+	// arrives before the first sync sets it to GitHub's total while only that
+	// one star is on record. Compare the stargazers actually recorded too.
+	if events == 0 || !known || stored != counts.Stars || len(recorded) != counts.Stars {
 		if err := repairHistory(ctx, store, client, events == 0, now); err != nil {
 			return err
 		}

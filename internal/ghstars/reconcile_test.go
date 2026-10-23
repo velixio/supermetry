@@ -390,3 +390,35 @@ func TestReconcileReportsBadTokenWhenThereIsNoFallback(t *testing.T) {
 		t.Fatalf("sync calls = %d, want one (no retry without a token)", n)
 	}
 }
+
+// A webhook that arrives before the first sync records one star and sets the
+// live count to GitHub's real total. The sync must still import the stargazers
+// that were there before the webhook was set up, even though the live count
+// already matches GitHub.
+func TestReconcileImportsHistoryAfterAWebhookOnlyStart(t *testing.T) {
+	_, server := newFakeGitHub(t, 3,
+		[3]string{"4", "old-d", "2025-03-01T00:00:00Z"},
+		[3]string{"5", "old-e", "2026-01-15T00:00:00Z"},
+		[3]string{"9", "me", "2026-10-10T19:30:00Z"})
+	svc, repo, store := repoService(t, server)
+	ctx := context.Background()
+	if err := store.InsertEvents(ctx, []Event{
+		{UserID: 9, Login: "me", Action: ActionStarred, OccurredAt: at("2026-10-10T19:30:00Z"), Source: SourceWebhook},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveState(ctx, Counts{Stars: 3}, at("2026-10-10T19:30:00Z")); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ReconcileRepo(ctx, repo.ID); err != nil {
+		t.Fatal(err)
+	}
+	current, _ := store.CurrentStargazers(ctx)
+	if len(current) != 3 || current[4] != "old-d" || current[5] != "old-e" || current[9] != "me" {
+		t.Fatalf("current = %v, want all three stargazers recorded", current)
+	}
+	events, _, _ := store.Events(ctx, "", 10)
+	if len(events) != 3 {
+		t.Fatalf("events = %d, want 3 (the webhook star is not duplicated)", len(events))
+	}
+}
