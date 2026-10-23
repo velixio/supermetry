@@ -69,6 +69,22 @@ func NewClient(token string) *Client {
 	}}
 }
 
+// githubMessage is ": <message>" from GitHub's JSON error body, or "" when there
+// is none. Only a short prefix of the body is read, and it is never logged raw.
+func githubMessage(resp *http.Response) string {
+	var body struct {
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2048)).Decode(&body); err != nil || body.Message == "" {
+		return ""
+	}
+	message := body.Message
+	if len(message) > 200 {
+		message = message[:200]
+	}
+	return ": " + message
+}
+
 // refused wraps a GitHub refusal with the request that was refused and, when
 // GitHub sends it, the token permissions that request needs, so the saved error
 // tells an admin which part of the setup is wrong. errors.Is still matches base.
@@ -118,7 +134,7 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, accept 
 	case resp.StatusCode == http.StatusUnauthorized:
 		return refused(ErrBadToken, path, resp)
 	case resp.StatusCode != http.StatusOK:
-		return fmt.Errorf("github request: status %d", resp.StatusCode)
+		return fmt.Errorf("github request: status %d (GET %s)%s", resp.StatusCode, path, githubMessage(resp))
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponse)).Decode(out); err != nil {
 		return fmt.Errorf("decode github response: %w", err)
