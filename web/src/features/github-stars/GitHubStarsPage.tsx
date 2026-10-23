@@ -129,8 +129,8 @@ export function GitHubStarsPage() {
             <Button type="button" variant="outline" className="min-h-11" onClick={() => setAdding(true)}>{en.githubStars.addRepo}</Button>
           </div>
           {reveal ? <RevealPanel reveal={reveal} onDismiss={() => setReveal(null)} /> : null}
-          <RepoPanel key={current.id} repo={current} onReveal={setReveal} />
-          <RepoView key={current.id} repoId={current.id} />
+          <RepoPanel key={`panel-${current.id}`} repo={current} onReveal={setReveal} />
+          <RepoView key={`view-${current.id}`} repoId={current.id} />
         </>
       )}
       <AddRepoDialog open={adding} onOpenChange={setAdding} onCreated={(created, id) => { setReveal(created); setSelected(id) }} />
