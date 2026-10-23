@@ -219,6 +219,18 @@ describe('GitHubStarsPage', () => {
     expect(within(status).getByText('Asia/Kathmandu')).toBeVisible()
   })
 
+  it('gives sibling sections distinct keys, so an update never duplicates the status card', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    ready({ sync: mutation({ isSuccess: false }) })
+    const { rerender } = render(<GitHubStarsPage />)
+    ready({ sync: mutation({ isSuccess: true }) })
+    rerender(<GitHubStarsPage />)
+    expect(screen.getAllByRole('region', { name: 'Status of velixio/supermetry' })).toHaveLength(1)
+    const duplicateKeys = error.mock.calls.filter((call) => String(call[0]).includes('same key'))
+    error.mockRestore()
+    expect(duplicateKeys).toHaveLength(0)
+  })
+
   it('toggles enabled and starts a sync', () => {
     const updateRepo = mutation()
     const sync = mutation()
