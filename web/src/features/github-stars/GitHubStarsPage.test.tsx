@@ -25,7 +25,7 @@ const mutation = (overrides: Record<string, unknown> = {}) => ({ mutate: vi.fn()
 
 const repo = (over: Record<string, unknown> = {}) => ({
   id: 1, repo: 'velixio/supermetry', enabled: true, time_zone: 'Asia/Kathmandu', has_token: true,
-  webhook_url: 'https://stats.example.test/api/github/webhook/abcd1234efgh5678', created_at: '2026-10-01T00:00:00Z',
+  webhook_url: 'https://stats.example.test/api/github/webhook/abcd1234efgh5678', public_count_url: 'https://stats.example.test/api/github/stars/velixio/supermetry', created_at: '2026-10-01T00:00:00Z',
   last_webhook_at: '2026-10-02T05:00:00Z', last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, ...over,
 })
 
@@ -281,5 +281,28 @@ describe('GitHubStarsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove repository and all its data' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove with data' }))
     expect(deleteRepo.mutate).toHaveBeenLastCalledWith({ id: 1, deleteData: true }, expect.any(Object))
+  })
+
+  it('shows full numbers with thousands separators, never compact ones', () => {
+    ready()
+    api.useStarsSummary.mockReturnValue({
+      isPending: false, isError: false, error: null,
+      data: { stars: 82412, forks: 12345, watchers: 20000, open_issues: 10001, updated_at: '2026-10-03T00:00:00Z', net_24h: 15000, net_7d: -23456 },
+    })
+    render(<GitHubStarsPage />)
+    for (const text of ['82,412', '12,345', '20,000', '10,001', '+15,000', '-23,456']) expect(screen.getByText(text)).toBeVisible()
+    expect(screen.queryByText(/\d[.,]?\d*K/)).not.toBeInTheDocument()
+  })
+
+  it('shows the public count URL with a copy button', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    ready()
+    render(<GitHubStarsPage />)
+    const status = screen.getByRole('region', { name: 'Status of velixio/supermetry' })
+    expect(within(status).getByText('Public count URL')).toBeVisible()
+    expect(within(status).getByText('https://stats.example.test/api/github/stars/velixio/supermetry')).toBeVisible()
+    fireEvent.click(within(status).getByRole('button', { name: 'Copy Public count URL' }))
+    expect(writeText).toHaveBeenCalledWith('https://stats.example.test/api/github/stars/velixio/supermetry')
   })
 })

@@ -51,7 +51,7 @@ export function StarsChart({ points, granularity, timeZone, annotations }: Props
             <XAxis dataKey="bucket" tickFormatter={(value: string) => bucketLabel(value, granularity, timeZone)} minTickGap={32} tickMargin={6} fontSize={12} />
             <YAxis yAxisId="change" allowDecimals={false} width={36} fontSize={12} />
             <YAxis yAxisId="total" orientation="right" allowDecimals={false} width={44} fontSize={12} domain={['auto', 'auto']} />
-            <Tooltip labelFormatter={(value) => bucketLabel(String(value), granularity, timeZone)} formatter={(value, name) => [fmt.number(Math.abs(Number(value))), name]} />
+            <Tooltip labelFormatter={(value) => bucketLabel(String(value), granularity, timeZone)} formatter={(value, name) => [fmt.full(Math.abs(Number(value))), name]} />
             <Bar yAxisId="change" dataKey="gained" name={en.githubStars.gained} stackId="change" fill="var(--chart-3)" />
             <Bar yAxisId="change" dataKey="lostBelow" name={en.githubStars.lost} stackId="change" fill="var(--destructive)" />
             <Line yAxisId="total" dataKey="cumulative" name={en.githubStars.cumulative} type="monotone" stroke="var(--chart-1)" strokeWidth={2} dot={false} />

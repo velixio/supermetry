@@ -23,6 +23,11 @@ function number(value: number): string {
     : numberFormat('regular').format(value)
 }
 
+/** The whole number with the locale's thousands separators, never compact. */
+function full(value: number): string {
+  return numberFormat('regular').format(value)
+}
+
 function percent(value: number): string {
   return numberFormat('percent').format(value)
 }
@@ -67,4 +72,4 @@ function date(value: string, timeZone: string): string {
   }
 }
 
-export const fmt = { number, percent, duration, date }
+export const fmt = { number, full, percent, duration, date }

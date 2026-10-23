@@ -244,6 +244,14 @@ export function RepoPanel({ repo, onReveal }: { repo: StarsRepo; onReveal: (reve
         <div><dt className="inline text-muted-foreground">{t.repoTimeZone}: </dt><dd className="inline">{repo.time_zone}</dd></div>
         <div><dt className="inline text-muted-foreground">{t.webhookUrl}: </dt><dd className="inline break-all">{repo.webhook_url}</dd></div>
       </dl>
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-sm text-muted-foreground">{t.publicCountUrl}</span>
+        <div className="flex items-center gap-2">
+          <code className="min-w-0 flex-1 break-all rounded-md border bg-muted px-2 py-2 text-xs">{repo.public_count_url}</code>
+          <CopyButton text={repo.public_count_url} label={t.copyLabel(t.publicCountUrl)} />
+        </div>
+        <span className="text-xs text-muted-foreground">{t.publicCountHint}</span>
+      </div>
       {repo.last_error ? <p role="alert" className="text-sm text-destructive">{t.lastError}: {repo.last_error}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         <label htmlFor={switchId} className="flex min-h-11 items-center gap-2 pr-2 text-sm">

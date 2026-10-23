@@ -1042,6 +1042,8 @@ export const en = {
     revealTitle: (repo: string) => `Webhook for ${repo}`,
     revealWarn: 'Copy the secret now. It is shown once and cannot be retrieved later.',
     webhookUrl: 'Payload URL',
+    publicCountUrl: 'Public count URL',
+    publicCountHint: 'Anyone can read the star count here as {"stars":N}. Nothing else is shared.',
     webhookSecret: 'Secret',
     copy: 'Copy',
     copied: 'Copied',

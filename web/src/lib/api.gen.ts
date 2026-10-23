@@ -2811,6 +2811,8 @@ export interface components {
             has_token: boolean;
             /** @description The URL to configure as the GitHub webhook payload URL. */
             webhook_url: string;
+            /** @description Public, unauthenticated endpoint returning {"stars":N} for this repository. */
+            public_count_url: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
