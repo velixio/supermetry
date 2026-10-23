@@ -191,7 +191,12 @@ describe('SPA navigation', () => {
 
   it('shows the GitHub stars link inside an organization for instance admins only', async () => {
     renderSidebar('/app/acme/docs-public', { me: { ...me, user: { ...me.user, instance_admin: true } } })
-    expect(await screen.findByRole('link', { name: 'GitHub stars' })).toHaveAttribute('href', '/app/github-stars')
+    const link = await screen.findByRole('link', { name: 'GitHub stars' })
+    expect(link).toHaveAttribute('href', '/app/acme/github-stars')
+    // It sits in the Manage section with Sites and Health, not in a group of its own.
+    const manage = link.closest('nav') as HTMLElement
+    expect(within(manage).getByRole('link', { name: 'Sites' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Community' })).toBeNull()
     cleanup()
     renderSidebar('/app/acme/docs-public')
     await screen.findByRole('link', { name: 'Realtime' })

@@ -84,6 +84,14 @@ describe('paletteCommands', () => {
     const admin = run({ me: { ...me, user: { ...me.user, instance_admin: true } }, membership: undefined })
     expect(labels(admin, 'pages')).toEqual(['Account settings', 'Instance administration', 'GitHub stars'])
     expect(hrefOf(admin, 'Instance administration')).toBe('/app/admin/users')
+    expect(hrefOf(admin, 'GitHub stars')).toBe('/app/github-stars')
+  })
+
+  it('offers GitHub stars inside an organization only to instance admins, at the organization URL', () => {
+    expect(labels(run(), 'pages')).not.toContain('GitHub stars')
+    const admin = run({ me: { ...me, user: { ...me.user, instance_admin: true } } })
+    expect(labels(admin, 'pages').filter((label) => label === 'GitHub stars')).toHaveLength(1)
+    expect(hrefOf(admin, 'GitHub stars')).toBe('/app/acme/github-stars')
   })
 
   it('offers only existing actions, labels theme for the current theme, and keeps ids unique', () => {

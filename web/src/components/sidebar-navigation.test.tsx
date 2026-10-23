@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import type { Site } from '@/lib/me'
 import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
-import { settingsDestinations, settingsIsActive, visibleNavigation } from './Sidebar'
+import { navigationHref, navigationIsActive, settingsDestinations, settingsIsActive, visibleNavigation } from './Sidebar'
 import { accountDestinationIsActive, accountDestinations } from './AccountSidebar'
 
 describe('primary sidebar navigation', () => {
+  it('adds the organization-level GitHub stars item for instance admins only', () => {
+    expect(visibleNavigation('viewer', false).map((item) => item.suffix)).not.toContain('/github-stars')
+    const items = visibleNavigation('viewer', false, undefined, undefined, true)
+    const stars = items.find((item) => item.suffix === '/github-stars')
+    expect(stars?.label).toBe('GitHub stars')
+    expect(stars && navigationHref(stars, 'acme', 'docs')).toBe('/app/acme/github-stars')
+    // It needs no site and stays in the menu of pixel projects.
+    expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site, true).map((item) => item.suffix)).toContain('/github-stars')
+  })
+
+  it('marks GitHub stars active on its own path only', () => {
+    const stars = visibleNavigation('owner', false, undefined, undefined, true).find((item) => item.suffix === '/github-stars')!
+    expect(navigationIsActive(stars, '/app/acme/github-stars', 'acme', '')).toBe(true)
+    expect(navigationIsActive(stars, '/app/acme/health', 'acme', '')).toBe(false)
+    expect(navigationIsActive(stars, '/app/github-stars', 'acme', '')).toBe(false)
+  })
+
   it('hides web-only pages for pixel projects', () => {
     const items = visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site)
     expect(items.map((item) => item.suffix)).toEqual(['', '/sites', '/health'])
