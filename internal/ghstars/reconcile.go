@@ -50,8 +50,13 @@ type Client struct {
 	// Token is optional; unauthenticated requests work at lower limits.
 	Token string
 	HTTP  *http.Client
-	// PageSize is the stargazers page size. Zero means 100.
+	// PageSize is the REST stargazers page size. Zero means 100.
 	PageSize int
+	// GraphQLPageSize is the GraphQL stargazers page size. Zero means 100.
+	GraphQLPageSize int
+
+	retryDelay     time.Duration // test hook; zero means the default backoff
+	graphqlTimeout time.Duration // test hook; zero means 30 seconds
 }
 
 // Stargazer is one current star with the time it was given.
