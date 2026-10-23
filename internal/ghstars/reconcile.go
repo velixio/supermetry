@@ -69,6 +69,17 @@ func NewClient(token string) *Client {
 	}}
 }
 
+// refused wraps a GitHub refusal with the request that was refused and, when
+// GitHub sends it, the token permissions that request needs, so the saved error
+// tells an admin which part of the setup is wrong. errors.Is still matches base.
+func refused(base error, path string, resp *http.Response) error {
+	detail := " (GET " + path
+	if needed := resp.Header.Get("X-Accepted-GitHub-Permissions"); needed != "" {
+		detail += "; needs token permissions: " + needed
+	}
+	return fmt.Errorf("%w%s)", base, detail)
+}
+
 func (c *Client) get(ctx context.Context, path string, query url.Values, accept string, out any) error {
 	base := c.BaseURL
 	if base == "" {
@@ -99,13 +110,13 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, accept 
 	defer resp.Body.Close()
 	switch {
 	case resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests:
-		return ErrRateLimited
+		return refused(ErrRateLimited, path, resp)
 	case resp.StatusCode == http.StatusNotFound:
-		return ErrRepoNotFound
+		return refused(ErrRepoNotFound, path, resp)
 	case resp.StatusCode == http.StatusUnauthorized && c.Token == "":
-		return ErrTokenRequired
+		return refused(ErrTokenRequired, path, resp)
 	case resp.StatusCode == http.StatusUnauthorized:
-		return ErrBadToken
+		return refused(ErrBadToken, path, resp)
 	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("github request: status %d", resp.StatusCode)
 	}
