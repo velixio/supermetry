@@ -76,7 +76,9 @@ type Deps struct {
 	Links  *links.Handler
 	Pixels http.Handler
 	// GitHubWebhook receives repository star webhooks, one URL per tracked repository. Nil leaves the route off.
-	GitHubWebhook       http.Handler
+	GitHubWebhook http.Handler
+	// GitHubStarCount serves the public star count of a tracked repository. Nil leaves the route off.
+	GitHubStarCount     http.Handler
 	OpenCounters        *opencounters.Handler
 	OpenCountersEnabled bool
 	Replay              http.Handler
@@ -190,6 +192,10 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.GitHubWebhook != nil {
 		mux.Handle("POST /api/github/webhook/{public_id}", deps.GitHubWebhook)
+	}
+	if deps.GitHubStarCount != nil {
+		mux.Handle("GET /api/github/stars/{owner}/{name}", deps.GitHubStarCount)
+		mux.Handle("OPTIONS /api/github/stars/{owner}/{name}", deps.GitHubStarCount)
 	}
 	if deps.OpenCounters != nil && deps.OpenCountersEnabled {
 		mux.Handle("GET /c/{rest...}", deps.OpenCounters)
