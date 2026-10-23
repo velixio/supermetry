@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+import { ChevronLeftIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,13 +12,11 @@ import { en } from '@/messages/en'
 import { formatDate } from '@/features/admin/AdminCommon'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { nativeSelectClass } from '@/lib/nativeSelect'
-import { Button } from '@/components/ui/button'
 import {
   useStarsAnnotations, useStarsRepos, useStarsSeries, useStarsSummary,
   type StarsGranularity, type StarsSummary,
 } from './githubStarsApi'
-import { AddRepoDialog, RepoPanel, RevealPanel, type Reveal } from './StarsRepos'
+import { RepoPanel, RevealPanel, type Reveal } from './StarsRepos'
 import { StarsAnnotations } from './StarsAnnotations'
 import { StarsChart } from './StarsChart'
 import { StarsEvents } from './StarsEvents'
@@ -96,44 +96,37 @@ function RepoView({ repoId }: { repoId: number }) {
   )
 }
 
-export function GitHubStarsPage() {
+/** One repository's page: status and actions, counters, chart, annotations and events. */
+export function StarsRepoPage({ org, owner, name, onRemoved }: { org: string; owner: string; name: string; onRemoved: () => void }) {
   const repos = useStarsRepos()
-  const [selected, setSelected] = useState<number | null>(null)
-  const [adding, setAdding] = useState(false)
   const [reveal, setReveal] = useState<Reveal | null>(null)
-  const list = repos.data?.data ?? []
-  const current = list.find((repo) => repo.id === selected) ?? list[0]
+  const wanted = `${owner}/${name}`.toLowerCase()
+  const repo = repos.data?.data.find((item) => item.repo === wanted)
+  const title = repo?.repo ?? wanted
   return (
     <PageContainer>
       <section className="flex min-w-0 flex-col gap-4" aria-labelledby="github-stars-title">
-      <PageHeader titleId="github-stars-title" title={en.githubStars.title} description={en.githubStars.description} />
-      {repos.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-40 w-full" /> : repos.isError ? (
-        <ErrorState level="page" detail={errorText(repos.error)} onRetry={() => void repos.refetch()} />
-      ) : !current ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>{en.githubStars.addFirstTitle}</EmptyTitle>
-            <EmptyDescription>{en.githubStars.addFirstBody}</EmptyDescription>
-          </EmptyHeader>
-          <Button type="button" className="min-h-11" onClick={() => setAdding(true)}>{en.githubStars.addRepo}</Button>
-        </Empty>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-0 flex-1 basis-56 flex-col gap-1 text-sm font-medium">
-              {en.githubStars.repoSelector}
-              <select className={`${nativeSelectClass} min-h-11`} value={current.id} onChange={(event) => setSelected(Number(event.target.value))}>
-                {list.map((repo) => <option key={repo.id} value={repo.id}>{repo.repo}{repo.enabled ? '' : ` (${en.githubStars.disabled})`}</option>)}
-              </select>
-            </label>
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => setAdding(true)}>{en.githubStars.addRepo}</Button>
-          </div>
-          {reveal ? <RevealPanel reveal={reveal} onDismiss={() => setReveal(null)} /> : null}
-          <RepoPanel key={`panel-${current.id}`} repo={current} onReveal={setReveal} />
-          <RepoView key={`view-${current.id}`} repoId={current.id} />
-        </>
-      )}
-      <AddRepoDialog open={adding} onOpenChange={setAdding} onCreated={(created, id) => { setReveal(created); setSelected(id) }} />
+        <Link to="/app/$org/github-stars" params={{ org }} className="inline-flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeftIcon aria-hidden="true" className="size-4" />
+          {en.githubStars.allRepos}
+        </Link>
+        <PageHeader titleId="github-stars-title" title={<span className="break-all">{title}</span>} description={en.githubStars.repoDescription} />
+        {repos.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-40 w-full" /> : repos.isError ? (
+          <ErrorState level="page" detail={errorText(repos.error)} onRetry={() => void repos.refetch()} />
+        ) : !repo ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>{en.githubStars.repoNotFoundTitle}</EmptyTitle>
+              <EmptyDescription>{en.githubStars.repoNotFoundBody(wanted)}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <>
+            {reveal ? <RevealPanel reveal={reveal} onDismiss={() => setReveal(null)} /> : null}
+            <RepoPanel repo={repo} onReveal={setReveal} onRemoved={onRemoved} />
+            <RepoView repoId={repo.id} />
+          </>
+        )}
       </section>
     </PageContainer>
   )
