@@ -35,7 +35,7 @@ Record the star history of GitHub repositories (any number, chosen by the instan
 
 ## Design
 
-Configuration: none in the environment. Repositories are added in Admin > GitHub stars (up to 50). With zero repositories nothing runs and the list endpoint returns an empty list. The webhook secret and the optional API token are sealed with the instance secret key (the same facility as the other stored secrets) and are never logged or returned, except the webhook secret once at creation and at rotation.
+Configuration: none in the environment. Repositories are added on the GitHub stars page (up to 50). With zero repositories nothing runs and the list endpoint returns an empty list. The webhook secret and the optional API token are sealed with the instance secret key (the same facility as the other stored secrets) and are never logged or returned, except the webhook secret once at creation and at rotation.
 
 Package `internal/ghstars`.
 
@@ -60,7 +60,7 @@ Admin API (instance admin only, under `/api/private/admin/github-stars`, added t
 - `GET/POST/DELETE /annotations`.
 - `DELETE /users/{login}`: deletes that user's events (privacy erasure; aggregates are recomputed from remaining events and snapshots keep the totals) The numeric user id is also written to a tombstone table (`github_star_erasures`, migration `0241`, no login) in the same transaction, and the webhook, reconcile and backfill skip tombstoned ids, so a person who is still starring on GitHub is not re-recorded. The live counters still follow GitHub.
 
-Dashboard: an Admin > GitHub stars page with a repository selector, an Add repository dialog, a per-repository status line (last webhook, last sync, last error, enabled toggle, Sync now, Disable, Remove with a data choice), a one-time panel showing the webhook URL, secret and GitHub setup steps after create or rotate, an empty state that invites adding the first repository, and, for the selected repository, a live counter (polls summary every 10 s), a gained/lost/cumulative chart with hour and day modes, annotation markers, and an events table. Follows existing admin page and shadcn chart conventions.
+Dashboard: a GitHub stars page in the main app at `/app/github-stars` (not under Admin and not organization-scoped, because the data is instance-wide; instance admins only, others are redirected; `/app/admin/github-stars` redirects to it; sidebar item under a "Community" heading and a command-palette entry, both admin-only), with a repository selector, an Add repository dialog, a per-repository status line (last webhook, last sync, last error, enabled toggle, Sync now, Disable, Remove with a data choice), a one-time panel showing the webhook URL, secret and GitHub setup steps after create or rotate, an empty state that invites adding the first repository, and, for the selected repository, a live counter (polls summary every 10 s), a gained/lost/cumulative chart with hour and day modes, annotation markers, and an events table. Follows existing admin page and shadcn chart conventions.
 
 ## Left to the builder
 
