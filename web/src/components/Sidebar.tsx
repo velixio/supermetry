@@ -81,9 +81,10 @@ const managementNavigation = [
   { get label() { return en.navigation.sites }, suffix: '/sites', icon: Globe2Icon, scope: 'org' },
   { get label() { return en.navigation.health }, suffix: '/health', icon: CircleGaugeIcon, scope: 'org' },
   { get label() { return en.linksUi.nav }, suffix: '/links', icon: Link2Icon, scope: 'site' },
+  { get label() { return en.githubStars.nav }, suffix: '/github-stars', icon: StarIcon, scope: 'org' },
 ] as const
 
-export const PIXEL_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health']
+export const PIXEL_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health', '/github-stars']
 
 export type NavigationItem =
   | (typeof coreNavigation)[number]
@@ -93,12 +94,14 @@ const navigationSections = [
   { key: 'analyze', get label() { return en.a11y2.sidebarSections.analyze }, suffixes: ['', '/events', '/sessions', '/realtime'] },
   { key: 'behaviour', get label() { return en.a11y2.sidebarSections.behaviour }, suffixes: ['/journeys', '/retention', '/profiles', '/cohorts', '/heatmaps', '/vitals'] },
   { key: 'conversion', get label() { return en.a11y2.sidebarSections.conversion }, suffixes: ['/funnels', '/goals', '/revenue'] },
-  { key: 'manage', get label() { return en.a11y2.sidebarSections.manage }, suffixes: ['/sites', '/links', '/health'] },
+  { key: 'manage', get label() { return en.a11y2.sidebarSections.manage }, suffixes: ['/sites', '/links', '/health', '/github-stars'] },
 ] as const
 
-export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site): NavigationItem[] {
+/** GitHub stars is instance-wide data, so only instance admins get the item. */
+export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site, instanceAdmin = false): NavigationItem[] {
   const items: NavigationItem[] = [...coreNavigation, managementNavigation[0], managementNavigation[2]]
   if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
+  if (instanceAdmin) items.push(managementNavigation[3])
   return items.filter((item) => (hasSite || item.scope === 'org') &&
     (site?.kind !== 'pixel' || PIXEL_NAV_SUFFIXES.includes(item.suffix)) &&
     (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && ((item.suffix !== '/profiles' && item.suffix !== '/cohorts') || hasCapability(authorization, 'profiles.read')))
@@ -276,6 +279,8 @@ function navigationLink(
       return <Link to="/app/$org/$site/links" params={{ org, site }} {...props}>{content}</Link>
     case '/health':
       return <Link to="/app/$org/health" params={{ org }} {...props}>{content}</Link>
+    case '/github-stars':
+      return <Link to="/app/$org/github-stars" params={{ org }} {...props}>{content}</Link>
   }
 
   const unreachable: never = item
@@ -405,7 +410,7 @@ export function SupermetrySidebar({
   const closeMobile = () => setOpenMobile(false)
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
-  const visibleItems = visibleNavigation(membership.role, Boolean(navigationSite), membership, navigationSite)
+  const visibleItems = visibleNavigation(membership.role, Boolean(navigationSite), membership, navigationSite, Boolean(me.user.instance_admin))
   const showReplays = replaysAvailable(membership, navigationSite)
 
   return (
@@ -503,7 +508,6 @@ export function SupermetrySidebar({
             </SidebarGroup>
           )
         })}
-        <GitHubStarsNav me={me} onNavigate={closeMobile} />
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel asChild><h2 id="sidebar-settings-heading">{ui.menus.settings}</h2></SidebarGroupLabel>
           <SidebarGroupContent>

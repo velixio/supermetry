@@ -24,6 +24,7 @@ import { Route as AppGithubStarsRouteImport } from './routes/app.github-stars'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
+import { Route as AppOrgGithubStarsRouteImport } from './routes/app.$org.github-stars'
 import { Route as AppOrgHealthRouteImport } from './routes/app.$org.health'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.$org.settings'
 import { Route as AppAccountProfileRouteImport } from './routes/app.account.profile'
@@ -156,6 +157,11 @@ const ShareSlugRoute = ShareSlugRouteImport.update({
   id: '/share/$slug',
   path: '/share/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgGithubStarsRoute = AppOrgGithubStarsRouteImport.update({
+  id: '/github-stars',
+  path: '/github-stars',
+  getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgHealthRoute = AppOrgHealthRouteImport.update({
   id: '/health',
@@ -473,6 +479,7 @@ export interface FileRoutesByFullPath {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/app/': typeof AppIndexRoute
+  '/app/$org/github-stars': typeof AppOrgGithubStarsRoute
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
   '/app/account/profile': typeof AppAccountProfileRoute
@@ -546,6 +553,7 @@ export interface FileRoutesByTo {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/app': typeof AppIndexRoute
+  '/app/$org/github-stars': typeof AppOrgGithubStarsRoute
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
@@ -620,6 +628,7 @@ export interface FileRoutesById {
   '/reset/$token': typeof ResetTokenRoute
   '/share/$slug': typeof ShareSlugRoute
   '/app/': typeof AppIndexRoute
+  '/app/$org/github-stars': typeof AppOrgGithubStarsRoute
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
   '/app/account/profile': typeof AppAccountProfileRoute
@@ -696,6 +705,7 @@ export interface FileRouteTypes {
     | '/reset/$token'
     | '/share/$slug'
     | '/app/'
+    | '/app/$org/github-stars'
     | '/app/$org/health'
     | '/app/$org/settings'
     | '/app/account/profile'
@@ -769,6 +779,7 @@ export interface FileRouteTypes {
     | '/reset/$token'
     | '/share/$slug'
     | '/app'
+    | '/app/$org/github-stars'
     | '/app/$org/health'
     | '/app/account/profile'
     | '/app/account/security'
@@ -842,6 +853,7 @@ export interface FileRouteTypes {
     | '/reset/$token'
     | '/share/$slug'
     | '/app/'
+    | '/app/$org/github-stars'
     | '/app/$org/health'
     | '/app/$org/settings'
     | '/app/account/profile'
@@ -1020,6 +1032,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/share/$slug'
       preLoaderRoute: typeof ShareSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/$org/github-stars': {
+      id: '/app/$org/github-stars'
+      path: '/github-stars'
+      fullPath: '/app/$org/github-stars'
+      preLoaderRoute: typeof AppOrgGithubStarsRouteImport
+      parentRoute: typeof AppOrgRoute
     }
     '/app/$org/health': {
       id: '/app/$org/health'
@@ -1484,6 +1503,7 @@ const AppOrgSiteSettingsRouteWithChildren =
   AppOrgSiteSettingsRoute._addFileChildren(AppOrgSiteSettingsRouteChildren)
 
 interface AppOrgRouteChildren {
+  AppOrgGithubStarsRoute: typeof AppOrgGithubStarsRoute
   AppOrgHealthRoute: typeof AppOrgHealthRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRouteWithChildren
   AppOrgSiteCohortsRoute: typeof AppOrgSiteCohortsRoute
@@ -1513,6 +1533,7 @@ interface AppOrgRouteChildren {
 }
 
 const AppOrgRouteChildren: AppOrgRouteChildren = {
+  AppOrgGithubStarsRoute: AppOrgGithubStarsRoute,
   AppOrgHealthRoute: AppOrgHealthRoute,
   AppOrgSettingsRoute: AppOrgSettingsRouteWithChildren,
   AppOrgSiteCohortsRoute: AppOrgSiteCohortsRoute,
