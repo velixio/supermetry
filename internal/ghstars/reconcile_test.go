@@ -491,3 +491,32 @@ func TestReconcileErrorNamesTheRefusedRequestAndNeededPermissions(t *testing.T) 
 		t.Fatalf("last error = %v, want the request path and needed permissions", got.LastError)
 	}
 }
+
+// Any other refusal (for example a 422 on a deep stargazer page) is saved with
+// the request and GitHub's own message, not just a bare status code.
+func TestReconcileErrorIncludesGitHubsMessageForOtherStatuses(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/{owner}/{name}", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"stargazers_count": 3})
+	})
+	mux.HandleFunc("GET /repos/{owner}/{name}/stargazers", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"message":"Pagination is limited for this API","status":"422"}`))
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	svc, repo, _ := repoService(t, server)
+	ctx := context.Background()
+	if err := svc.ReconcileRepo(ctx, repo.ID); err == nil {
+		t.Fatal("want an error")
+	}
+	got, _ := svc.Get(ctx, repo.ID)
+	if got.LastError == nil {
+		t.Fatal("no last error saved")
+	}
+	for _, want := range []string{"422", "/stargazers", "Pagination is limited for this API"} {
+		if !strings.Contains(*got.LastError, want) {
+			t.Fatalf("last error %q lacks %q", *got.LastError, want)
+		}
+	}
+}
