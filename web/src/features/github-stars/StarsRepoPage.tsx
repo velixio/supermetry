@@ -8,17 +8,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ErrorState } from '@/components/ErrorState'
 import { fmt } from '@/lib/format'
+import { activeLocale } from '@/lib/i18n/intl'
 import { en } from '@/messages/en'
 import { formatDate } from '@/features/admin/AdminCommon'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import {
   useStarsAnnotations, useStarsRepos, useStarsSeries, useStarsSummary,
-  type StarsGranularity, type StarsSummary,
+  type StarsGranularity, type StarsPoint, type StarsSummary,
 } from './githubStarsApi'
 import { RepoPanel, RevealPanel, type Reveal } from './StarsRepos'
 import { StarsAnnotations } from './StarsAnnotations'
-import { StarsChart } from './StarsChart'
+import { bucketLabel, StarsChart } from './StarsChart'
+import { gainStats } from './gain'
 import { StarsEvents } from './StarsEvents'
 
 function errorText(error: unknown) {
@@ -27,6 +29,31 @@ function errorText(error: unknown) {
 
 function signed(value: number) {
   return `${value > 0 ? '+' : ''}${fmt.full(value)}`
+}
+
+/** Gain in the chart's own bucket size: per hour in hour mode, per day in day mode. */
+function GainSummary({ points, granularity, timeZone }: { points: StarsPoint[]; granularity: StarsGranularity; timeZone?: string }) {
+  const stats = gainStats(points)
+  if (!stats) return null
+  const hourly = granularity === 'hour'
+  const t = en.githubStars
+  const average = new Intl.NumberFormat(activeLocale(), { maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(stats.average)
+  const items: Array<[string, string]> = [
+    [hourly ? t.gainThisHour : t.gainToday, signed(stats.current)],
+    ...(stats.previous === undefined ? [] : [[hourly ? t.gainPreviousHour : t.gainYesterday, signed(stats.previous)] as [string, string]]),
+    [hourly ? t.gainAvgHour : t.gainAvgDay, average],
+    ...(stats.peak ? [[hourly ? t.gainPeakHour : t.gainBestDay, `${signed(stats.peak.net)} · ${bucketLabel(stats.peak.bucket, granularity, timeZone)}`] as [string, string]] : []),
+  ]
+  return (
+    <dl role="group" aria-label={hourly ? t.gainHourLabel : t.gainDayLabel} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
+      {items.map(([label, value]) => (
+        <div key={label} className="flex min-w-0 flex-col">
+          <dt className="text-xs text-muted-foreground">{label}</dt>
+          <dd className="truncate font-medium tabular-nums" title={value}>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
 }
 
 function Counter({ label, value, live }: { label: string; value: string; live?: boolean }) {
@@ -76,7 +103,10 @@ function GrowthChart({ repoId }: { repoId: number }) {
       {series.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-64 w-full" /> : series.isError ? (
         <ErrorState detail={errorText(series.error)} onRetry={() => void series.refetch()} />
       ) : (
-        <StarsChart points={series.data.data} granularity={granularity} timeZone={series.data.time_zone} annotations={annotations.data?.data ?? []} />
+        <>
+          <GainSummary points={series.data.data} granularity={granularity} timeZone={series.data.time_zone} />
+          <StarsChart points={series.data.data} granularity={granularity} timeZone={series.data.time_zone} annotations={annotations.data?.data ?? []} />
+        </>
       )}
       <StarsAnnotations repoId={repoId} annotations={annotations.data?.data ?? []} />
     </section>

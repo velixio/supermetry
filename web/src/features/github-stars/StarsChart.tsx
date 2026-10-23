@@ -18,7 +18,7 @@ export function markerBucket(points: StarsPoint[], granularity: StarsGranularity
   return undefined
 }
 
-function bucketLabel(bucket: string, granularity: StarsGranularity, timeZone?: string) {
+export function bucketLabel(bucket: string, granularity: StarsGranularity, timeZone?: string) {
   // The bucket carries its own offset; format the wall clock of the configured zone, not the browser's.
   const options: Intl.DateTimeFormatOptions = granularity === 'hour'
     ? { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone }

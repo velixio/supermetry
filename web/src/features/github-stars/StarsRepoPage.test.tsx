@@ -113,6 +113,25 @@ describe('StarsRepoPage', () => {
     expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'hour')
   })
 
+  it('shows the gain per hour in hour mode and per day in day mode', () => {
+    ready()
+    const hours = [2, 0, 5, -1, 3].map((net, i) => ({ bucket: `2026-10-23T${String(9 + i).padStart(2, '0')}:00:00+05:30`, gained: Math.max(net, 0), lost: Math.max(-net, 0), net, cumulative: 100 + i }))
+    const daily = [4, 10].map((net, i) => ({ bucket: `2026-10-${22 + i}T00:00:00+05:30`, gained: net, lost: 0, net, cumulative: 200 + i }))
+    api.useStarsSeries.mockImplementation((_id: number, granularity: string) => ({ isPending: false, isError: false, data: { time_zone: 'Asia/Kolkata', data: granularity === 'hour' ? hours : daily } }))
+    render(<Detail />)
+    const day = screen.getByRole('group', { name: 'Gain per day' })
+    expect(within(day).getByText('Today').nextSibling).toHaveTextContent('+10')
+    expect(within(day).getByText('Yesterday').nextSibling).toHaveTextContent('+4')
+    expect(within(day).getByText('Average per day').nextSibling).toHaveTextContent('+7')
+    fireEvent.click(screen.getByRole('radio', { name: 'Hour' }))
+    const hour = screen.getByRole('group', { name: 'Gain per hour' })
+    expect(within(hour).getByText('This hour').nextSibling).toHaveTextContent('+3')
+    expect(within(hour).getByText('Previous hour').nextSibling).toHaveTextContent('-1')
+    expect(within(hour).getByText('Average per hour').nextSibling).toHaveTextContent('+1.8')
+    expect(within(hour).getByText('Peak hour').nextSibling).toHaveTextContent('+5')
+    expect(screen.queryByRole('group', { name: 'Gain per day' })).toBeNull()
+  })
+
   it('reports other failures with a retry', () => {
     ready()
     const refetch = vi.fn()
