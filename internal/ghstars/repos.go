@@ -246,6 +246,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput, actor int64) (Repo
 		return Repo{}, "", fmt.Errorf("%w: GitHub does not know this repository (or the token cannot see it)", ErrInvalid)
 	case errors.Is(err, ErrBadToken):
 		return Repo{}, "", fmt.Errorf("%w: GitHub rejected the token", ErrInvalid)
+	case errors.Is(err, ErrTokenRequired):
+		return Repo{}, "", fmt.Errorf("%w: GitHub requires a token for this repository", ErrInvalid)
 	}
 	publicID, err := newPublicID()
 	if err != nil {

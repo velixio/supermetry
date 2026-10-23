@@ -14,14 +14,15 @@ import (
 )
 
 type fakeGitHub struct {
-	repo        map[string]any
-	stargazers  []map[string]any
-	status      int
-	rejectAuth  bool // 401 for any request that carries a token
-	repoCalls   atomic.Int32
-	starCalls   atomic.Int32
-	lastAuth    atomic.Value
-	lastAccepts atomic.Value
+	repo          map[string]any
+	stargazers    []map[string]any
+	status        int
+	rejectAuth    bool // 401 for any request that carries a token
+	needAuthStars bool // 401 for the stargazer list without a token, like GitHub's star media type
+	repoCalls     atomic.Int32
+	starCalls     atomic.Int32
+	lastAuth      atomic.Value
+	lastAccepts   atomic.Value
 }
 
 func newFakeGitHub(t *testing.T, stars int, gazers ...[3]string) (*fakeGitHub, *httptest.Server) {
@@ -49,6 +50,10 @@ func newFakeGitHub(t *testing.T, stars int, gazers ...[3]string) (*fakeGitHub, *
 	})
 	mux.HandleFunc("GET /repos/{owner}/{name}/stargazers", func(w http.ResponseWriter, r *http.Request) {
 		f.starCalls.Add(1)
+		if f.needAuthStars && r.Header.Get("Authorization") == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if f.rejectAuth && r.Header.Get("Authorization") != "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -372,8 +377,9 @@ func TestReconcileFallsBackWhenTheTokenIsRejected(t *testing.T) {
 	}
 }
 
-// Without a stored token a 401 is still an error, and nothing is retried.
-func TestReconcileReportsBadTokenWhenThereIsNoFallback(t *testing.T) {
+// Without a stored token a 401 is an error that says a token is needed, and
+// nothing is retried.
+func TestReconcileReportsATokenIsNeededWhenThereIsNoFallback(t *testing.T) {
 	fake, server := newFakeGitHub(t, 1)
 	svc, _, _ := repoService(t, server)
 	ctx := context.Background()
@@ -383,8 +389,8 @@ func TestReconcileReportsBadTokenWhenThereIsNoFallback(t *testing.T) {
 	}
 	fake.status = http.StatusUnauthorized
 	before := fake.repoCalls.Load()
-	if err := svc.ReconcileRepo(ctx, other.ID); !errors.Is(err, ErrBadToken) {
-		t.Fatalf("err = %v, want ErrBadToken", err)
+	if err := svc.ReconcileRepo(ctx, other.ID); !errors.Is(err, ErrTokenRequired) {
+		t.Fatalf("err = %v, want ErrTokenRequired", err)
 	}
 	if n := fake.repoCalls.Load() - before; n != 1 {
 		t.Fatalf("sync calls = %d, want one (no retry without a token)", n)
@@ -420,5 +426,44 @@ func TestReconcileImportsHistoryAfterAWebhookOnlyStart(t *testing.T) {
 	events, _, _ := store.Events(ctx, "", 10)
 	if len(events) != 3 {
 		t.Fatalf("events = %d, want 3 (the webhook star is not duplicated)", len(events))
+	}
+}
+
+// GitHub only lists stargazers with their star dates to authenticated callers.
+// A repository without a token still gets its counts and daily snapshot, and a
+// clear "needs a token" error, not a misleading "rejected the token".
+func TestReconcileTellsWhenAStargazerListNeedsAToken(t *testing.T) {
+	fake, server := newFakeGitHub(t, 1, [3]string{"7", "ann", "2026-10-10T10:00:00Z"})
+	fake.needAuthStars = true
+	svc, _, _ := repoService(t, server)
+	ctx := context.Background()
+	other, _, err := svc.Create(ctx, CreateInput{Repo: "velixio/public"}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ReconcileRepo(ctx, other.ID); !errors.Is(err, ErrTokenRequired) {
+		t.Fatalf("err = %v, want ErrTokenRequired", err)
+	}
+	got, _ := svc.Get(ctx, other.ID)
+	if got.LastError == nil || !strings.Contains(*got.LastError, "needs a token") || strings.Contains(*got.LastError, "rejected") {
+		t.Fatalf("last error = %v", got.LastError)
+	}
+	store, _, _ := svc.StoreFor(ctx, other.ID)
+	var snapshots int
+	_ = svc.pool.QueryRow(ctx, `select count(*) from github_star_snapshots where repo=$1`, store.Repo()).Scan(&snapshots)
+	if snapshots != 1 {
+		t.Fatalf("snapshots = %d, want today's counts saved even without the stargazer list", snapshots)
+	}
+}
+
+// A stale token plus a stargazer list that needs authentication: the fallback
+// cannot help, so the admin hears that the token was rejected.
+func TestReconcileKeepsTheRejectedTokenErrorWhenTheFallbackCannotList(t *testing.T) {
+	fake, server := newFakeGitHub(t, 1, [3]string{"7", "ann", "2026-10-10T10:00:00Z"})
+	svc, repo, _ := repoService(t, server)
+	fake.rejectAuth = true
+	fake.needAuthStars = true
+	if err := svc.ReconcileRepo(context.Background(), repo.ID); !errors.Is(err, ErrBadToken) {
+		t.Fatalf("err = %v, want ErrBadToken", err)
 	}
 }

@@ -34,6 +34,9 @@ var (
 	ErrRepoNotFound = errors.New("ghstars: repository not found on github")
 	// ErrBadToken reports a 401 from GitHub.
 	ErrBadToken = errors.New("ghstars: github rejected the token")
+	// ErrTokenRequired reports a 401 for a request that carried no token: GitHub
+	// lists stargazers with their star dates to authenticated callers only.
+	ErrTokenRequired = errors.New("ghstars: GitHub needs a token to list stargazers with their star dates; add a token in the repository settings (read-only; a classic token needs no scopes for a public repository)")
 	// ErrTokenIgnored reports a run that succeeded only after retrying without
 	// the stored token, which GitHub rejected. The data is saved; the admin
 	// should replace or clear the token.
@@ -99,6 +102,8 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, accept 
 		return ErrRateLimited
 	case resp.StatusCode == http.StatusNotFound:
 		return ErrRepoNotFound
+	case resp.StatusCode == http.StatusUnauthorized && c.Token == "":
+		return ErrTokenRequired
 	case resp.StatusCode == http.StatusUnauthorized:
 		return ErrBadToken
 	case resp.StatusCode != http.StatusOK:
@@ -256,7 +261,11 @@ func (s *Service) reconcile(ctx context.Context, r repoRow) error {
 	if token != "" && errors.Is(err, ErrBadToken) {
 		// A stale token is worse than none for a public repository, so retry once
 		// without it. Private repositories fail again here with not found.
-		if retryErr := s.reconcileWith(ctx, r, ""); retryErr != nil {
+		retryErr := s.reconcileWith(ctx, r, "")
+		if errors.Is(retryErr, ErrTokenRequired) {
+			return err // the stargazer list needs a working token, so the old one is the problem
+		}
+		if retryErr != nil {
 			return retryErr
 		}
 		return ErrTokenIgnored
@@ -287,6 +296,12 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	// one star is on record. Compare the stargazers actually recorded too.
 	if events == 0 || !known || stored != counts.Stars || len(recorded) != counts.Stars {
 		if err := repairHistory(ctx, store, client, events == 0, now); err != nil {
+			// The counts are still worth keeping: today's snapshot does not need
+			// the stargazer list. The live row is left alone so the next run
+			// notices the history is still incomplete.
+			if snapErr := store.SaveSnapshot(ctx, now.In(store.loc), counts); snapErr != nil {
+				return errors.Join(err, snapErr)
+			}
 			return err
 		}
 	}
