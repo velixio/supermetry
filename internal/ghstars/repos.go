@@ -100,6 +100,18 @@ type Service struct {
 	HTTP    *http.Client
 	Now     func() time.Time
 
+	// LargeThreshold is the star count above which history is imported through
+	// GraphQL instead of the REST listing. Zero means 30,000.
+	LargeThreshold int
+	// ChunkBudget is how long one import run works before it stops and saves its
+	// cursor. Zero means four minutes.
+	ChunkBudget time.Duration
+	// ChunkPages, when positive, also caps the pages one import run reads.
+	ChunkPages int
+	// GraphQLPageSize is the GraphQL stargazers page size. Zero means 100.
+	GraphQLPageSize int
+	pageHook        func() // test hook: runs after each saved import page
+
 	mu       sync.Mutex
 	running  map[int64]bool
 	lastSync map[int64]time.Time
@@ -128,6 +140,7 @@ func (s *Service) client(token string) *Client {
 	if s.HTTP != nil {
 		c.HTTP = s.HTTP
 	}
+	c.GraphQLPageSize = s.GraphQLPageSize
 	return c
 }
 

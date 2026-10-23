@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"supermetry/internal/scheduler"
@@ -37,6 +38,9 @@ var (
 	// ErrTokenRequired reports a 401 for a request that carried no token: GitHub
 	// lists stargazers with their star dates to authenticated callers only.
 	ErrTokenRequired = errors.New("ghstars: GitHub needs a token to list stargazers with their star dates; add a token in the repository settings (read-only; a classic token needs no scopes for a public repository)")
+	// ErrPaginationLimited reports GitHub's 422 "pagination is limited" for a
+	// stargazer listing too deep for the REST API; the GraphQL import takes over.
+	ErrPaginationLimited = errors.New("ghstars: github limits REST pagination for this repository")
 	// ErrTokenIgnored reports a run that succeeded only after retrying without
 	// the stored token, which GitHub rejected. The data is saved; the admin
 	// should replace or clear the token.
@@ -138,6 +142,12 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, accept 
 		return refused(ErrTokenRequired, path, resp)
 	case resp.StatusCode == http.StatusUnauthorized:
 		return refused(ErrBadToken, path, resp)
+	case resp.StatusCode == http.StatusUnprocessableEntity:
+		message := githubMessage(resp)
+		if strings.Contains(message, "pagination is limited") {
+			return fmt.Errorf("%w (GET %s)%s", ErrPaginationLimited, path, message)
+		}
+		return fmt.Errorf("github request: status %d (GET %s)%s", resp.StatusCode, path, message)
 	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("github request: status %d (GET %s)%s", resp.StatusCode, path, githubMessage(resp))
 	}
@@ -220,15 +230,34 @@ func (s *Service) ReconcileAll(ctx context.Context) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if err := s.ReconcileRepo(ctx, id); err != nil {
+		if err := s.ReconcileRepo(ctx, id); err != nil && !errors.Is(err, ErrBusy) {
 			slog.Warn("github star reconcile failed", "repo_id", id, "error", err)
 		}
 	}
 	return nil
 }
 
-// StartSync reconciles one repository in the background. At most one sync runs
-// per repository and manual syncs are at least a minute apart.
+// acquire takes the per-repository lock shared by the daily job, the import
+// job and manual syncs, so they never overlap.
+func (s *Service) acquire(id int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.running[id] {
+		return false
+	}
+	s.running[id] = true
+	return true
+}
+
+func (s *Service) release(id int64) {
+	s.mu.Lock()
+	delete(s.running, id)
+	s.mu.Unlock()
+}
+
+// StartSync reconciles one repository in the background (for a large
+// repository that is one import chunk). At most one run happens per repository
+// and manual syncs are at least a minute apart.
 func (s *Service) StartSync(ctx context.Context, id int64) error {
 	if _, err := s.load(ctx, id); err != nil {
 		return err
@@ -249,22 +278,35 @@ func (s *Service) StartSync(ctx context.Context, id int64) error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		defer func() { s.mu.Lock(); delete(s.running, id); s.mu.Unlock() }()
-		runCtx, cancel := context.WithTimeout(context.Background(), syncTimeout)
+		defer s.release(id)
+		timeout := syncTimeout
+		if padded := s.chunkBudget() + syncSlack; padded > timeout {
+			timeout = padded
+		}
+		runCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		if err := s.ReconcileRepo(runCtx, id); err != nil {
+		if err := s.reconcileLocked(runCtx, id); err != nil {
 			slog.Warn("github star sync failed", "repo_id", id, "error", err)
 		}
 	}()
 	return nil
 }
 
-// ReconcileRepo records today's snapshot and, when GitHub's star count differs
-// from the live row (or no history exists yet), diffs the full stargazer list
-// against the recorded history. With no events at all the inserted stars are
-// marked as backfill, otherwise as reconcile. The outcome, including a rate
-// limit, is saved on the repository as last_error / last_reconcile_at.
+// ReconcileRepo records today's snapshot and brings the history up to date:
+// repositories up to LargeThreshold stars get a full diff against the REST
+// stargazer list, larger ones (or ones GitHub refuses to page) a resumable
+// GraphQL import and then an incremental read of the newest pages. The outcome,
+// including a rate limit, is saved on the repository as last_error /
+// last_reconcile_at. It returns ErrBusy when another run is in progress.
 func (s *Service) ReconcileRepo(ctx context.Context, id int64) error {
+	if !s.acquire(id) {
+		return ErrBusy
+	}
+	defer s.release(id)
+	return s.reconcileLocked(ctx, id)
+}
+
+func (s *Service) reconcileLocked(ctx context.Context, id int64) error {
 	r, err := s.load(ctx, id)
 	if err != nil {
 		return err
@@ -311,6 +353,9 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	if err != nil {
 		return err
 	}
+	if counts.Stars > s.largeThreshold() {
+		return s.reconcileLarge(ctx, r, store, client, counts)
+	}
 	events, err := store.EventCount(ctx)
 	if err != nil {
 		return err
@@ -328,6 +373,9 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	// one star is on record. Compare the stargazers actually recorded too.
 	if events == 0 || !known || stored != counts.Stars || len(recorded) != counts.Stars {
 		if err := repairHistory(ctx, store, client, events == 0, now); err != nil {
+			if errors.Is(err, ErrPaginationLimited) {
+				return s.reconcileLarge(ctx, r, store, client, counts)
+			}
 			// The counts are still worth keeping: today's snapshot does not need
 			// the stargazer list. The live row is left alone so the next run
 			// notices the history is still incomplete.
@@ -339,6 +387,11 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	}
 	if err := store.SaveState(ctx, counts, now); err != nil {
 		return err
+	}
+	if !r.backfillComplete {
+		if err := store.MarkBackfillComplete(ctx); err != nil {
+			return err
+		}
 	}
 	return store.SaveSnapshot(ctx, now.In(store.loc), counts)
 }
