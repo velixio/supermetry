@@ -338,7 +338,6 @@ const messages: MessageTree = {
     settings: 'Instanzeinstellungen',
     security: 'Sicherheit',
     update: 'Systemaktualisierung',
-    githubStars: 'GitHub-Sterne',
     updateAvailable: 'Aktualisierung verfügbar',
     updateDescription: 'Installierte Version und neueste veröffentlichte Version prüfen.',
     versionStatus: 'Versionsstatus',
@@ -956,6 +955,8 @@ const messages: MessageTree = {
   },
   githubStars: {
     title: 'GitHub-Sterne',
+    nav: 'GitHub-Sterne',
+    navGroup: 'Community',
     description: 'Sternverlauf des Instanz-Repositorys. Nur für Instanzadministratoren sichtbar.',
     loading: 'GitHub-Sterne werden geladen',
     liveCounter: 'Sterne',

@@ -331,27 +331,27 @@ export function OrganizationMenuGroup({ me, onSelect }: { me: Me; onSelect: () =
   )
 }
 
-const adminStarsPath = '/app/admin/github-stars'
+export const githubStarsPath = '/app/github-stars'
 
 /**
- * Instance-admin shortcuts shown in both sidebars. It renders nothing for anyone who is
- * not an instance admin, so other users never see these destinations.
+ * The GitHub stars item shown in both sidebars. The data is instance-wide, so it renders
+ * nothing for anyone who is not an instance admin.
  */
-export function InstanceAdminGroup({ me, onNavigate }: { me: Me; onNavigate: () => void }) {
+export function GitHubStarsNav({ me, onNavigate }: { me: Me; onNavigate: () => void }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   if (!me.user.instance_admin) return null
-  const active = pathname === adminStarsPath || pathname.startsWith(`${adminStarsPath}/`)
+  const active = pathname === githubStarsPath || pathname.startsWith(`${githubStarsPath}/`)
   return (
     <SidebarGroup>
-      <SidebarGroupLabel asChild><h2 id="sidebar-instance-admin-heading">{en.admin.link}</h2></SidebarGroupLabel>
+      <SidebarGroupLabel asChild><h2 id="sidebar-community-heading">{en.githubStars.navGroup}</h2></SidebarGroupLabel>
       <SidebarGroupContent>
-        <nav aria-labelledby="sidebar-instance-admin-heading">
+        <nav aria-labelledby="sidebar-community-heading">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={en.admin.githubStars}>
-                <Link aria-current={active ? 'page' : undefined} onClick={onNavigate} to={adminStarsPath}>
+              <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={en.githubStars.nav}>
+                <Link aria-current={active ? 'page' : undefined} onClick={onNavigate} to={githubStarsPath}>
                   <StarIcon />
-                  <span>{en.admin.githubStars}</span>
+                  <span>{en.githubStars.nav}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -503,7 +503,7 @@ export function SupermetrySidebar({
             </SidebarGroup>
           )
         })}
-        <InstanceAdminGroup me={me} onNavigate={closeMobile} />
+        <GitHubStarsNav me={me} onNavigate={closeMobile} />
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel asChild><h2 id="sidebar-settings-heading">{ui.menus.settings}</h2></SidebarGroupLabel>
           <SidebarGroupContent>

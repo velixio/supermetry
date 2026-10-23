@@ -191,7 +191,7 @@ describe('SPA navigation', () => {
 
   it('shows the GitHub stars link inside an organization for instance admins only', async () => {
     renderSidebar('/app/acme/docs-public', { me: { ...me, user: { ...me.user, instance_admin: true } } })
-    expect(await screen.findByRole('link', { name: 'GitHub stars' })).toHaveAttribute('href', '/app/admin/github-stars')
+    expect(await screen.findByRole('link', { name: 'GitHub stars' })).toHaveAttribute('href', '/app/github-stars')
     cleanup()
     renderSidebar('/app/acme/docs-public')
     await screen.findByRole('link', { name: 'Realtime' })

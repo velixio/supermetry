@@ -21,7 +21,6 @@ const sections = [
   ['/app/admin/settings', en.admin.settings],
   ['/app/admin/security', en.admin.security],
   ['/app/admin/update', en.admin.update],
-  ['/app/admin/github-stars', en.admin.githubStars],
 ] as const
 
 // Content inside the app shell: the administration section tabs and the page.

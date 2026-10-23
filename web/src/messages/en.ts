@@ -336,7 +336,6 @@ export const en = {
     settings: 'Instance settings',
     security: 'Security',
     update: 'System update',
-    githubStars: 'GitHub stars',
     updateAvailable: 'Update available',
     updateDescription: 'Review the installed version and the latest published release.',
     versionStatus: 'Version status',
@@ -969,6 +968,8 @@ export const en = {
   },
   githubStars: {
     title: 'GitHub stars',
+    nav: 'GitHub stars',
+    navGroup: 'Community',
     description: 'Star history of the instance repository. Visible to instance administrators only.',
     loading: 'Loading GitHub stars',
     liveCounter: 'Stars',

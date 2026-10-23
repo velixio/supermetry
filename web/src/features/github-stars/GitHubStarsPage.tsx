@@ -7,7 +7,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ErrorState } from '@/components/ErrorState'
 import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
-import { AdminPage, formatDate } from './AdminCommon'
+import { formatDate } from '@/features/admin/AdminCommon'
+import { PageContainer } from '@/components/PageContainer'
+import { PageHeader } from '@/components/PageHeader'
 import { nativeSelectClass } from '@/lib/nativeSelect'
 import { Button } from '@/components/ui/button'
 import {
@@ -94,7 +96,7 @@ function RepoView({ repoId }: { repoId: number }) {
   )
 }
 
-export function AdminGitHubStarsPage() {
+export function GitHubStarsPage() {
   const repos = useStarsRepos()
   const [selected, setSelected] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
@@ -102,7 +104,9 @@ export function AdminGitHubStarsPage() {
   const list = repos.data?.data ?? []
   const current = list.find((repo) => repo.id === selected) ?? list[0]
   return (
-    <AdminPage title={en.githubStars.title} description={en.githubStars.description}>
+    <PageContainer>
+      <section className="flex min-w-0 flex-col gap-4" aria-labelledby="github-stars-title">
+      <PageHeader titleId="github-stars-title" title={en.githubStars.title} description={en.githubStars.description} />
       {repos.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-40 w-full" /> : repos.isError ? (
         <ErrorState level="page" detail={errorText(repos.error)} onRetry={() => void repos.refetch()} />
       ) : !current ? (
@@ -130,6 +134,7 @@ export function AdminGitHubStarsPage() {
         </>
       )}
       <AddRepoDialog open={adding} onOpenChange={setAdding} onCreated={(created, id) => { setReveal(created); setSelected(id) }} />
-    </AdminPage>
+      </section>
+    </PageContainer>
   )
 }

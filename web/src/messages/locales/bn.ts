@@ -157,7 +157,6 @@ const messages: MessageTree = {
     title: 'ইনস্ট্যান্স প্রশাসন', nav: 'ইনস্ট্যান্স প্রশাসনের অংশ', link: 'ইনস্ট্যান্স প্রশাসন', users: 'ব্যবহারকারী', organizations: 'প্রতিষ্ঠান',
     sites: 'সাইট', settings: 'ইনস্ট্যান্স সেটিংস', security: 'নিরাপত্তা',
     update: 'সিস্টেম আপডেট', updateAvailable: 'আপডেট পাওয়া গেছে', updateDescription: 'ইনস্টল করা সংস্করণ এবং সর্বশেষ প্রকাশিত সংস্করণ দেখুন।',
-    githubStars: 'গিটহাব স্টার',
     versionStatus: 'সংস্করণের অবস্থা', newRelease: 'Supermetry-এর একটি নতুন সংস্করণ পাওয়া গেছে।', updateCheckFailed: 'আপডেট পরীক্ষা সম্পন্ন করা যায়নি',
     updateUnknown: 'সর্বশেষ সংস্করণ নির্ধারণ করা যায়নি।', currentVersion: 'ইনস্টল করা সংস্করণ', latestVersion: 'সর্বশেষ সংস্করণ', published: 'প্রকাশিত',
     checked: 'সর্বশেষ পরীক্ষা', viewRelease: 'রিলিজ নোট দেখুন', checkForUpdates: 'আপডেট পরীক্ষা করুন', checkingForUpdates: 'পরীক্ষা করা হচ্ছে…', upToDate: 'Supermetry হালনাগাদ আছে।',
@@ -436,6 +435,8 @@ const messages: MessageTree = {
   },
   githubStars: {
     title: 'গিটহাব স্টার',
+    nav: 'গিটহাব স্টার',
+    navGroup: 'কমিউনিটি',
     description: 'ইনস্ট্যান্সের রিপোজিটরির স্টার ইতিহাস। শুধু ইনস্ট্যান্স অ্যাডমিনদের জন্য দৃশ্যমান।',
     loading: 'গিটহাব স্টার লোড হচ্ছে',
     liveCounter: 'স্টার',

@@ -82,7 +82,7 @@ describe('paletteCommands', () => {
     expect(labels(commands, 'sites')).toEqual([])
     expect(commands.filter((command) => command.group === 'organizations').map((command) => command.kind === 'navigate' && command.href)).toEqual([`/app/acme/docs${base}`, '/app/other/settings'])
     const admin = run({ me: { ...me, user: { ...me.user, instance_admin: true } }, membership: undefined })
-    expect(labels(admin, 'pages')).toEqual(['Account settings', 'Instance administration'])
+    expect(labels(admin, 'pages')).toEqual(['Account settings', 'Instance administration', 'GitHub stars'])
     expect(hrefOf(admin, 'Instance administration')).toBe('/app/admin/users')
   })
 

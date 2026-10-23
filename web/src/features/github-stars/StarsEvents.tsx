@@ -10,7 +10,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { en } from '@/messages/en'
-import { ErrorLine, formatDate } from './AdminCommon'
+import { ErrorLine, formatDate } from '@/features/admin/AdminCommon'
 import { useEraseStarsUser, useStarsEvents } from './githubStarsApi'
 
 const loginPattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/

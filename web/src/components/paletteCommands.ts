@@ -7,6 +7,7 @@ import { ui } from '@/messages/ui'
 import { accountDestinations } from './AccountSidebar'
 import {
   activeSite,
+  githubStarsPath,
   navigationUrl,
   organizationUrl,
   organizationSettingsHref,
@@ -78,6 +79,8 @@ export function paletteCommands({
     if (destination === 'admin') page('admin', en.admin.link, '/app/admin/users')
     else page('account', ui.menus.accountSettings, '/app/account/profile')
   }
+
+  if (me.user.instance_admin) page('github-stars', en.githubStars.nav, githubStarsPath)
 
   for (const other of me.memberships) {
     if (other.org.id === membership?.org.id) continue
