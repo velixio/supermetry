@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -22,7 +23,7 @@ func TestBuildScriptDefaultsToEnabledModules(t *testing.T) {
 
 	const publicID = "abc123def456"
 	got := BuildScript(publicID, (sites.TrackerSettingsInput{}).Resolve(true), noReplay())
-	wantPrelude := `(d=>{d.site??="abc123def456";d.api??=new URL(document.currentScript.src).origin+"/api/public/v1/events";d.heatmap??="true";d.replay="";})(document.currentScript.dataset);` + "\n"
+	wantPrelude := `(d=>{d.site??="abc123def456";d.api??=document.currentScript.src.replace(/\/js\/[^/]*$/,"/api/public/v1/events");d.heatmap??="true";d.replay="";})(document.currentScript.dataset);` + "\n"
 	if !bytes.HasPrefix(got.Body, []byte(wantPrelude)) {
 		t.Fatalf("body prefix = %q, want %q", got.Body[:min(len(got.Body), len(wantPrelude))], wantPrelude)
 	}
@@ -417,7 +418,7 @@ func TestSitePath(t *testing.T) {
 func TestBuildScriptSendsEventsToTheScriptOrigin(t *testing.T) {
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
 	prelude, _, _ := strings.Cut(body, "\n")
-	want := `d.api??=new URL(document.currentScript.src).origin+"/api/public/v1/events";`
+	want := `d.api??=document.currentScript.src.replace(/\/js\/[^/]*$/,"/api/public/v1/events");`
 	if !strings.Contains(prelude, want) {
 		t.Fatalf("prelude %q does not set the absolute event endpoint", prelude)
 	}
@@ -427,7 +428,7 @@ func TestBuildScriptUsesConfiguredEventPath(t *testing.T) {
 	SetEventPath("/x/collect")
 	t.Cleanup(func() { SetEventPath("") })
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
-	if !strings.Contains(body, `origin+"/x/collect";`) {
+	if !strings.Contains(body, `[^/]*$/,"/x/collect");`) {
 		t.Fatalf("script does not use the configured event path:\n%s", body[:200])
 	}
 }
@@ -456,5 +457,44 @@ func TestSiteHandlerIdentityPolicyInvalidatesCachedScript(t *testing.T) {
 	SiteHandlerWithPolicy(reg, config.ReplayEnv{}, privacy.Anonymous).ServeHTTP(anonymous, req)
 	if anonymous.Code != http.StatusOK || !bytes.Contains(anonymous.Body.Bytes(), []byte(`d.profiles="false"`)) {
 		t.Fatal("anonymous instance did not veto project opt in")
+	}
+}
+
+// A per-site script served through a first-party proxy under a path prefix
+// (/sm/js/<site>.js) must post events under the same prefix, not at the
+// page's root; a script at /js/<site>.js keeps posting to the origin.
+func TestBuildScriptKeepsTheProxyPrefixForEvents(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is required to evaluate the generated prelude")
+	}
+	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
+	prelude, _, _ := strings.Cut(body, "\n")
+	for src, want := range map[string]string{
+		"https://app.supermetry.com/js/abc123def456.js":     "https://app.supermetry.com/api/public/v1/events",
+		"https://shop.example.com/sm/js/abc123def456.js":    "https://shop.example.com/sm/api/public/v1/events",
+		"https://shop.example.com/a/b/js/abc123def456.js":   "https://shop.example.com/a/b/api/public/v1/events",
+		"https://app.supermetry.com/js/abc123def456.js?v=2": "https://app.supermetry.com/api/public/v1/events",
+	} {
+		script := `const vm=require("node:vm");const d={};vm.runInNewContext(process.argv[1],{document:{currentScript:{src:process.argv[2],dataset:d}},URL});process.stdout.write(d.api)`
+		out, err := exec.Command("node", "-e", script, prelude, src).CombinedOutput()
+		if err != nil || string(out) != want {
+			t.Errorf("src %s: api = %q (%v), want %q", src, out, err, want)
+		}
+	}
+}
+
+func TestBuildScriptUsesConfiguredScriptDir(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is required to evaluate the generated prelude")
+	}
+	SetScriptDir("/insights")
+	SetEventPath("/insights/collect")
+	t.Cleanup(func() { SetScriptDir(""); SetEventPath("") })
+	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
+	prelude, _, _ := strings.Cut(body, "\n")
+	script := `const vm=require("node:vm");const d={};vm.runInNewContext(process.argv[1],{document:{currentScript:{src:process.argv[2],dataset:d}},URL});process.stdout.write(d.api)`
+	out, err := exec.Command("node", "-e", script, prelude, "https://shop.example.com/sm/insights/abc123def456.js").CombinedOutput()
+	if want := "https://shop.example.com/sm/insights/collect"; err != nil || string(out) != want {
+		t.Fatalf("api = %q (%v), want %q", out, err, want)
 	}
 }
