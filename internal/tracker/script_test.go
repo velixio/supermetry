@@ -470,10 +470,10 @@ func TestBuildScriptKeepsTheProxyPrefixForEvents(t *testing.T) {
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
 	prelude, _, _ := strings.Cut(body, "\n")
 	for src, want := range map[string]string{
-		"https://app.supermetry.com/js/abc123def456.js":     "https://app.supermetry.com/api/public/v1/events",
-		"https://shop.example.com/sm/js/abc123def456.js":    "https://shop.example.com/sm/api/public/v1/events",
-		"https://shop.example.com/a/b/js/abc123def456.js":   "https://shop.example.com/a/b/api/public/v1/events",
-		"https://app.supermetry.com/js/abc123def456.js?v=2": "https://app.supermetry.com/api/public/v1/events",
+		"https://app.supermetry.com/js/abc123def456.js":                         "https://app.supermetry.com/api/public/v1/events",
+		"https://shop.example.com/sm/js/abc123def456.js":                        "https://shop.example.com/sm/api/public/v1/events",
+		"https://shop.example.com/a/b/js/abc123def456.js":                       "https://shop.example.com/a/b/api/public/v1/events",
+		"https://app.supermetry.com/js/abc123def456.js?v=2":                     "https://app.supermetry.com/api/public/v1/events",
 		"https://shop.example.com/sm/js/abc123def456.js?source=/campaign/x#a/b": "https://shop.example.com/sm/api/public/v1/events",
 	} {
 		script := `const vm=require("node:vm");const d={};vm.runInNewContext(process.argv[1],{document:{currentScript:{src:process.argv[2],dataset:d}},URL});process.stdout.write(d.api)`
