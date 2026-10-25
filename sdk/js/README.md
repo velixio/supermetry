@@ -46,4 +46,4 @@ Calls made before the script loads, or before `init`, are queued in memory. `get
 
 ## First-party proxy
 
-`@supermetry/tracker/proxy` exports `createProxyHandler({ host })`, a Fetch API `(Request) => Promise<Response>` handler that serves `/js/*.js` and forwards `POST /api/public/v1/events` with the visitor's `User-Agent` and client IP in `X-Forwarded-For`. Framework packages wrap it (`@supermetry/nextjs`, `@supermetry/remix`).
+`@supermetry/tracker/proxy` exports `createProxyHandler({ host })`, a Fetch API `(Request) => Promise<Response>` handler that serves `/js/*.js` and `/replay.js`, and forwards `POST /api/public/v1/events` and session replay uploads (`POST /api/replay/start`, `POST /api/replay/chunk`, `PUT /api/replay/css/{hash}`), with the visitor's `User-Agent` and client IP in `X-Forwarded-For`. Framework packages wrap it (`@supermetry/nextjs`, `@supermetry/remix`). Mount it under any path prefix (for example `/stats/`): the tracker loads replay from the same prefix as `data-api`.

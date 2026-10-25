@@ -61,6 +61,20 @@ import { proxy } from "@/lib/supermetry";
 export const { POST } = proxy;
 ```
 
+For session replay, add two more routes:
+
+```ts
+// app/replay.js/route.ts
+import { proxy } from "@/lib/supermetry";
+export const { GET, HEAD } = proxy;
+```
+
+```ts
+// app/api/replay/[...path]/route.ts
+import { proxy } from "@/lib/supermetry";
+export const { POST, PUT } = proxy;
+```
+
 ```tsx
 <Supermetry site="your-site-id" />
 ```

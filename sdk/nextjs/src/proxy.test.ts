@@ -9,13 +9,13 @@ afterEach(() => {
 });
 
 describe("createSupermetryProxy", () => {
-  test("exposes GET, HEAD and POST route handlers", async () => {
+  test("exposes GET, HEAD, POST and PUT route handlers", async () => {
     const sent: [string, RequestInit][] = [];
     globalThis.fetch = (async (url: string, init: RequestInit) => {
       sent.push([url, init]);
       return new Response(null, { status: 202 });
     }) as unknown as typeof fetch;
-    const { GET, HEAD, POST } = createSupermetryProxy({ host: "https://analytics.example.com" });
+    const { GET, HEAD, POST, PUT } = createSupermetryProxy({ host: "https://analytics.example.com" });
 
     const event = await POST(
       new Request("https://shop.example.com/api/public/v1/events", {
@@ -27,6 +27,7 @@ describe("createSupermetryProxy", () => {
     await GET(new Request("https://shop.example.com/js/script.js"));
 
     expect(HEAD).toBe(GET);
+    expect(PUT).toBe(POST);
     expect(event.status).toBe(202);
     expect(event.headers.get("cache-control")).toBe("no-store");
     expect(sent.map(([url]) => url)).toEqual([

@@ -18,6 +18,41 @@ export function clientIp(request: Request): string | undefined {
   return forwarded || request.headers.get("x-real-ip")?.trim() || undefined;
 }
 
+// Upload caps, comfortably above core's own (events 8 KiB, replay start 4 KiB,
+// chunk 256 KiB, stylesheet 1 MiB) so the proxy never refuses what core accepts.
+const maxEventBytes = 64 * 1024;
+const maxReplayBytes = 2 * 1024 * 1024;
+
+class TooLarge extends Error {}
+
+// Reads at most max bytes from the body, counting while streaming so a missing
+// or false Content-Length cannot make the proxy buffer more.
+async function readLimited(request: Request, max: number): Promise<Uint8Array> {
+  const declared = Number(request.headers.get("content-length"));
+  if (declared > max) throw new TooLarge();
+  if (!request.body) return new Uint8Array(0);
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  const reader = request.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      throw new TooLarge();
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.byteLength;
+  }
+  return out;
+}
+
 function copyHeaders(from: Headers, names: string[]): Headers {
   const headers = new Headers();
   for (const name of names) {
@@ -34,11 +69,35 @@ export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
 
   return async (request) => {
     const { pathname, search } = new URL(request.url);
+    const read = request.method === "GET" || request.method === "HEAD";
     const isEvent = request.method === "POST" && pathname.endsWith(eventsPath);
-    const isScript = (request.method === "GET" || request.method === "HEAD") && /\/js\/[\w.-]+\.js$/.test(pathname);
-    if (!isEvent && !isScript) return new Response("Not Found", { status: 404 });
+    const isScript = read && /\/js\/[\w.-]+\.js$/.test(pathname);
+    // Session replay: the recorder script and its uploads, kept next to the
+    // events endpoint (so under the same path prefix).
+    const isRecorder = read && pathname.endsWith("/replay.js");
+    const replay = pathname.match(/\/api\/replay\/(start|chunk|css\/[0-9a-f]+)$/);
+    const isReplay = replay !== null && (replay[1].startsWith("css/") ? request.method === "PUT" : request.method === "POST");
+    if (!isEvent && !isScript && !isRecorder && !isReplay) return new Response("Not Found", { status: 404 });
 
-    const target = isEvent ? `${host}${eventsPath}` : `${host}${pathname.slice(pathname.lastIndexOf("/js/"))}${search}`;
+    const target = isEvent
+      ? `${host}${eventsPath}`
+      : isScript
+        ? `${host}${pathname.slice(pathname.lastIndexOf("/js/"))}${search}`
+        : isRecorder
+          ? `${host}/replay.js${search}`
+          : `${host}/api/replay/${replay![1]}${search}`;
+    const upload = isEvent || isReplay;
+    let body: string | ArrayBuffer | undefined;
+    if (upload) {
+      const max = isEvent || replay![1] === "start" ? maxEventBytes : maxReplayBytes;
+      try {
+        const bytes = await readLimited(request, max);
+        body = isEvent ? new TextDecoder().decode(bytes) : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+      } catch (err) {
+        if (!(err instanceof TooLarge)) throw err;
+        return new Response("Payload Too Large", { status: 413, headers: { "cache-control": "no-store" } });
+      }
+    }
     const headers = copyHeaders(request.headers, forwardedRequestHeaders);
     const ip = getClientIp(request);
     if (ip) headers.set("x-forwarded-for", ip);
@@ -47,12 +106,12 @@ export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
       const upstream = await send(target, {
         method: request.method,
         headers,
-        body: isEvent ? await request.text() : undefined,
-        cache: isEvent ? "no-store" : undefined,
+        body,
+        cache: upload ? "no-store" : undefined,
         redirect: "manual",
       });
       const responseHeaders = copyHeaders(upstream.headers, forwardedResponseHeaders);
-      if (isEvent) responseHeaders.set("cache-control", "no-store");
+      if (upload) responseHeaders.set("cache-control", "no-store");
       return new Response(request.method === "HEAD" ? null : upstream.body, {
         status: upstream.status,
         headers: responseHeaders,

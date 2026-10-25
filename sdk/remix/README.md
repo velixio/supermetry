@@ -56,7 +56,7 @@ function Analytics() {
 
 ## First-party proxy
 
-Pass `host=""` and add two resource routes; the script then loads from `/js/script.full.js` and events post to `/api/public/v1/events` on your origin.
+Pass `host=""` and add two resource routes (four with session replay); the script then loads from `/js/script.full.js` and events post to `/api/public/v1/events` on your origin.
 
 ```ts
 // app/supermetry.server.ts
@@ -73,6 +73,20 @@ export const loader = proxy.loader;
 
 ```ts
 // app/routes/api.public.v1.events.ts
+import { proxy } from "~/supermetry.server";
+export const action = proxy.action;
+```
+
+For session replay, add two more routes:
+
+```ts
+// app/routes/replay[.]js.ts
+import { proxy } from "~/supermetry.server";
+export const loader = proxy.loader;
+```
+
+```ts
+// app/routes/api.replay.$.ts
 import { proxy } from "~/supermetry.server";
 export const action = proxy.action;
 ```
