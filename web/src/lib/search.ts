@@ -1,3 +1,4 @@
+import { isChartInterval, type ChartInterval } from '@/lib/chart'
 import { activeLocale } from '@/lib/i18n/intl'
 export const periodValues = [
   'today',
@@ -150,6 +151,8 @@ export type DashboardSearch = {
   include_imported: boolean
   /** Saved dashboard id, or 'builtin' for the standard dashboard; absent follows the site default. */
   dash?: string
+  /** Chart bucket size; absent uses the last choice for the site, then the automatic one. */
+  granularity?: ChartInterval
 }
 
 function searchDash(value: unknown): string | undefined {
@@ -171,6 +174,7 @@ export function parseDashboardSearch(value: unknown): DashboardSearch {
     ...(search.live === undefined ? {} : { live: searchBoolean(search.live) }),
     include_imported: search.include_imported === undefined || searchBoolean(search.include_imported),
     ...(searchDash(search.dash) ? { dash: searchDash(search.dash) } : {}),
+    ...(isChartInterval(search.granularity) ? { granularity: search.granularity } : {}),
   }
 }
 

@@ -26,8 +26,9 @@ function renderManager(canEdit = true) {
         dateRange={{ from: '2026-10-01', to: '2026-10-07' }}
         canEdit={canEdit}
       >
-        {({ annotations, onEdit, onDelete }) => (
+        {({ addButton, annotations, onEdit, onDelete }) => (
           <div>
+            {addButton}
             {annotations.map((annotation) => (
               <article key={annotation.id}>
                 {annotation.text}
