@@ -109,9 +109,10 @@ describe('palette switch commands', () => {
     const commands = paletteCommands({ me, membership: acme, requestedSite: 'docs', theme: 'light', current })
     expect(commands.find((command) => command.id === 'site:8')).toMatchObject({ href: siteSwitchHref(current, acme, shop) })
     expect(commands.find((command) => command.id === 'site:8')).toMatchObject({ href: expect.stringMatching(/^\/app\/acme\/shop\/sessions\?period=7d$/) })
-    const settings = { routeId: '/app/$org/settings/members', search: {} }
+    // The other organization's member is a viewer, so an organization page they can open is kept.
+    const settings = { routeId: '/app/$org/sites/', search: {} }
     const orgCommands = paletteCommands({ me, membership: acme, requestedSite: 'docs', theme: 'light', current: settings })
     expect(orgCommands.find((command) => command.id === 'org:2')).toMatchObject({ href: orgSwitchHref(settings, other) })
-    expect(orgCommands.find((command) => command.id === 'org:2')).toMatchObject({ href: '/app/other/settings/members' })
+    expect(orgCommands.find((command) => command.id === 'org:2')).toMatchObject({ href: '/app/other/sites' })
   })
 })

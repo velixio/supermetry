@@ -72,4 +72,22 @@ describe('organization switch target', () => {
     expect(path(orgSwitchHref({ routeId: '/app/$org/$site/sessions', search: {} }, other))).toBe('/app/beta/site-b')
     expect(orgSwitchHref({ routeId: '/app/$org/$site/sessions', search: {} }, empty)).toBe('/app/empty/settings')
   })
+
+  it('keeps an organization page only when the member may open it there', () => {
+    const asViewer: Membership = { ...other, role: 'viewer' }
+    expect(path(orgSwitchHref({ routeId: '/app/$org/health', search: {} }, asViewer))).toBe('/app/beta/site-b')
+    expect(path(orgSwitchHref({ routeId: '/app/$org/settings/members', search: {} }, asViewer))).toBe('/app/beta/site-b')
+    expect(path(orgSwitchHref({ routeId: '/app/$org/sites/new', search: {} }, asViewer))).toBe('/app/beta/site-b')
+    expect(orgSwitchHref({ routeId: '/app/$org/settings/', search: {} }, asViewer)).toBe('/app/beta/settings')
+    expect(orgSwitchHref({ routeId: '/app/$org/sites/', search: {} }, asViewer)).toBe('/app/beta/sites')
+    expect(path(orgSwitchHref({ routeId: '/app/$org/settings/replay-storage', search: {} }, { ...other, role: 'admin' }))).toBe('/app/beta/site-b')
+    expect(orgSwitchHref({ routeId: '/app/$org/health', search: {} }, { ...other, role: 'admin' })).toBe('/app/beta/health')
+  })
+
+  it('keeps the portable search when falling back to the dashboard', () => {
+    const href = orgSwitchHref({ routeId: '/app/$org/$site/sessions', search: { period: '7d', dash: '4' } }, other)
+    expect(path(href)).toBe('/app/beta/site-b')
+    expect(query(href).period).toBe('7d')
+    expect(query(href)).not.toHaveProperty('dash')
+  })
 })

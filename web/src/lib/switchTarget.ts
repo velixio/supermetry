@@ -93,10 +93,20 @@ export function siteSwitchHref(current: CurrentRoute | undefined, membership: Me
   return targetHref(siteSwitchTarget(current, membership, site))
 }
 
-/** The organization's home: its first site's dashboard, or its settings when it has no site. */
-export function organizationHome(membership: Membership): SwitchTarget {
+/** The organization's home: its first site's dashboard (with `search`), or its settings when it has no site. */
+export function organizationHome(membership: Membership, search: Record<string, unknown> = {}): SwitchTarget {
   const site = membership.sites[0]
-  return site ? siteDashboard(membership, site, {}) : { pathname: `/app/${encodeURIComponent(membership.org.slug)}/settings`, search: {} }
+  return site ? siteDashboard(membership, site, search) : { pathname: `/app/${encodeURIComponent(membership.org.slug)}/settings`, search: {} }
+}
+
+/** Whether this member may open an organization-level page, mirroring the sidebar and settings tabs. */
+function orgRouteAvailable(pattern: string, membership: Membership): boolean {
+  const manager = membership.role === 'owner' || membership.role === 'admin'
+  const rest = pattern.slice(ORG_ROOT.length + 1)
+  if (rest === 'settings' || rest === 'sites' || rest.startsWith('github-stars')) return true
+  if (rest === 'settings/replay-storage') return membership.role === 'owner'
+  if (rest.startsWith('settings/') || rest === 'health' || rest === 'sites/new') return manager
+  return true
 }
 
 /**
@@ -105,10 +115,10 @@ export function organizationHome(membership: Membership): SwitchTarget {
  */
 export function orgSwitchTarget(current: CurrentRoute | undefined, membership: Membership): SwitchTarget {
   const pattern = current ? normalize(current.routeId) : ''
-  if (pattern.startsWith(`${ORG_ROOT}/`) && pattern !== SITE_ROOT && !pattern.startsWith(`${SITE_ROOT}/`)) {
+  if (pattern.startsWith(`${ORG_ROOT}/`) && pattern !== SITE_ROOT && !pattern.startsWith(`${SITE_ROOT}/`) && orgRouteAvailable(pattern, membership)) {
     return { pathname: fill(pattern, membership.org.slug), search: {} }
   }
-  return organizationHome(membership)
+  return organizationHome(membership, current ? portableSearchParams(current.search) : {})
 }
 
 export function orgSwitchHref(current: CurrentRoute | undefined, membership: Membership): string {
