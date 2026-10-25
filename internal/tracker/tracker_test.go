@@ -148,6 +148,18 @@ func TestTrackerRuntimeContract(t *testing.T) {
 	}
 }
 
+func TestTrackerReplayRuntimeContract(t *testing.T) {
+	t.Parallel()
+
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is required to execute the browser tracker contract")
+	}
+	command := exec.Command("node", "tracker_replay_runtime_test.js")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("tracker replay runtime contract: %v\n%s", err, output)
+	}
+}
+
 func TestMinifiedTrackerGzipSize(t *testing.T) {
 	t.Parallel()
 

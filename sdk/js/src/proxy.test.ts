@@ -83,6 +83,37 @@ describe("createProxyHandler", () => {
     expect((sent[0]!.init.headers as Headers).get("x-forwarded-for")).toBe("192.0.2.4");
   });
 
+  test("serves the replay recorder from a prefixed path", async () => {
+    const { sent, fetch } = upstream(() => new Response("recorder", { headers: { "content-type": "application/javascript" } }));
+    const handler = createProxyHandler({ host: "https://analytics.example.com", fetch });
+
+    const response = await handler(new Request("https://shop.example.com/stats/replay.js"));
+
+    expect(await response.text()).toBe("recorder");
+    expect(sent[0]!.url).toBe("https://analytics.example.com/replay.js");
+  });
+
+  test("forwards replay uploads with their query, binary body and client IP, never cached", async () => {
+    const { sent, fetch } = upstream(() => new Response(null, { status: 202 }));
+    const handler = createProxyHandler({ host: "https://analytics.example.com", fetch, getClientIp: () => "203.0.113.9" });
+    const bytes = new Uint8Array([31, 139, 8, 0, 255]);
+
+    const start = await handler(new Request("https://shop.example.com/stats/api/replay/start", { method: "POST", body: "{}", headers: { "content-type": "application/json" } }));
+    const chunk = await handler(new Request("https://shop.example.com/stats/api/replay/chunk?s=abc&n=1", { method: "POST", body: bytes, headers: { "content-type": "application/octet-stream" } }));
+    const css = await handler(new Request("https://shop.example.com/stats/api/replay/css/0a1b2c?s=abc&c=1", { method: "PUT", body: bytes, headers: { "content-type": "application/gzip" } }));
+
+    expect([start.status, chunk.status, css.status]).toEqual([202, 202, 202]);
+    expect(chunk.headers.get("cache-control")).toBe("no-store");
+    expect(sent.map((s) => `${s.init.method} ${s.url}`)).toEqual([
+      "POST https://analytics.example.com/api/replay/start",
+      "POST https://analytics.example.com/api/replay/chunk?s=abc&n=1",
+      "PUT https://analytics.example.com/api/replay/css/0a1b2c?s=abc&c=1",
+    ]);
+    expect(new Uint8Array(sent[1]!.init.body as ArrayBuffer)).toEqual(bytes);
+    expect((sent[2]!.init.headers as Headers).get("content-type")).toBe("application/gzip");
+    expect((sent[1]!.init.headers as Headers).get("x-forwarded-for")).toBe("203.0.113.9");
+  });
+
   test("rejects other paths and methods", async () => {
     const { sent, fetch } = upstream(() => new Response(null));
     const handler = createProxyHandler({ host: "https://analytics.example.com", fetch });
@@ -90,6 +121,9 @@ describe("createProxyHandler", () => {
     expect((await handler(new Request("https://shop.example.com/api/public/v1/events"))).status).toBe(404);
     expect((await handler(new Request("https://shop.example.com/js/../admin", { method: "POST" }))).status).toBe(404);
     expect((await handler(new Request("https://shop.example.com/secret.txt"))).status).toBe(404);
+    expect((await handler(new Request("https://shop.example.com/api/replay/start"))).status).toBe(404);
+    expect((await handler(new Request("https://shop.example.com/api/replay/css/../../admin", { method: "PUT", body: "x" }))).status).toBe(404);
+    expect((await handler(new Request("https://shop.example.com/replay.js", { method: "POST" }))).status).toBe(404);
     expect(sent).toHaveLength(0);
   });
 
