@@ -1,4 +1,5 @@
 import { siteSlug } from '@/lib/matchSite'
+import { orgSwitchHref, siteSwitchHref, type CurrentRoute } from '@/lib/switchTarget'
 import type { Me, Membership } from '@/lib/me'
 import type { Theme } from '@/lib/theme'
 import { en } from '@/messages/en'
@@ -9,12 +10,10 @@ import {
   activeSite,
   githubStarsPath,
   navigationUrl,
-  organizationUrl,
   organizationSettingsHref,
   replaysAvailable,
   replaysUrl,
   settingsDestinations,
-  siteDashboardUrl,
   siteSettingsHref,
   visibleNavigation,
 } from './Sidebar'
@@ -38,11 +37,14 @@ export function paletteCommands({
   membership,
   requestedSite,
   theme,
+  current,
 }: {
   me: Me
   membership?: Membership
   requestedSite?: string
   theme: Theme
+  /** The matched route; switching site or organization keeps this page, like the sidebar switchers. */
+  current?: CurrentRoute
 }): PaletteCommand[] {
   const commands: PaletteCommand[] = []
   const page = (id: string, label: string, href: string) =>
@@ -70,7 +72,7 @@ export function paletteCommands({
         detail: membership.org.name,
         keywords: [other.name, membership.org.name],
         kind: 'navigate',
-        href: siteDashboardUrl(org, siteSlug(other)),
+        href: siteSwitchHref(current, membership, other),
       })
     }
   }
@@ -85,7 +87,7 @@ export function paletteCommands({
 
   for (const other of me.memberships) {
     if (other.org.id === membership?.org.id) continue
-    commands.push({ id: `org:${other.org.id}`, group: 'organizations', label: other.org.name, keywords: [other.org.name], kind: 'navigate', href: organizationUrl(other) })
+    commands.push({ id: `org:${other.org.id}`, group: 'organizations', label: other.org.name, keywords: [other.org.name], kind: 'navigate', href: orgSwitchHref(current, other) })
   }
 
   const actions: [PaletteAction, string][] = [

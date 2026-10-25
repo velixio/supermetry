@@ -10,7 +10,7 @@ async function openSwitcher(page: Page, siteName: string) {
   return page.getByRole('menu')
 }
 
-test('switching site keeps the page, its portable search params, and falls back from a funnel to the list', async ({ page, owner, request }) => {
+test('switching site from the sidebar or the palette keeps the page, its portable search params, and falls back from a funnel to the list', async ({ page, owner, request }) => {
   const created = await request.post('/api/private/sites', {
     headers: owner.apiHeaders,
     data: { name: 'Switch target', hosts: ['switch-target.test'], timezone: 'UTC', retention_days: 30 },
@@ -41,6 +41,14 @@ test('switching site keeps the page, its portable search params, and falls back 
     await (await openSwitcher(page, current.name)).getByRole('menuitem', { name: new RegExp(`^${other.name}`) }).click()
     await expect(page).toHaveURL((url) => url.pathname === `${base}/${otherSlug}/sessions` &&
       url.searchParams.get('period') === '7d' && url.searchParams.get('compare') === 'previous_period' && !url.searchParams.has('dash'))
+
+    // The command palette's switch command uses the same mapping.
+    await page.goto(`${base}/${owner.siteSlug}/sessions?period=7d`)
+    await page.getByRole('button', { name: 'Open command palette' }).click()
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    await palette.getByRole('combobox').fill(other.name)
+    await palette.getByRole('option', { name: new RegExp(`^${other.name}`) }).click()
+    await expect(page).toHaveURL((url) => url.pathname === `${base}/${otherSlug}/sessions` && url.searchParams.get('period') === '7d')
 
     // A funnel that only exists on the old site falls back to the funnels list.
     await page.goto(`${base}/${owner.siteSlug}/funnels/${funnelId}`)
