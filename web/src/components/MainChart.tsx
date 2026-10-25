@@ -27,7 +27,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { Annotation } from '@/features/annotations/types'
-import { intervalAllowed, resolveInterval, type ChartInterval } from '@/lib/chart'
+import { intervalAllowed, resolveInterval, trimFutureBuckets, type ChartInterval } from '@/lib/chart'
 import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useTimeseries, type StatsQuery } from '../lib/stats'
@@ -48,6 +48,8 @@ type MainChartProps = {
   onIntervalChange?: (interval: ChartInterval) => void
   /** Controls shown in the chart card's header, next to the granularity select. */
   headerActions?: ReactNode
+  /** The current time; buckets that start after it are not drawn. Tests pass a fixed value. */
+  now?: Date
   annotations?: Annotation[]
   canEditAnnotations?: boolean
   onEditAnnotation?: (annotation: Annotation) => void
@@ -283,6 +285,7 @@ export function MainChart({
   interval,
   onIntervalChange,
   headerActions,
+  now,
   annotations = [],
   canEditAnnotations = false,
   onEditAnnotation,
@@ -319,15 +322,27 @@ export function MainChart({
   const comparisonRows = chronological(compare === 'previous_period'
     ? current.data?.comparison?.rows ?? []
     : previousYearResult.data?.rows ?? [])
-  const points: ChartPoint[] = chronological(current.data?.rows ?? []).map((row, index) => ({
-    time: timeValue(row),
-    value: nullableNumeric(row, chartMetric),
-    ...(compare === 'off'
-      ? {}
-      : { comparison: numeric(comparisonRows[index] ?? {}, chartMetric) }),
-  }))
-  const label = `${metricLabel(chartMetric)} over time`
   const timezone = query.timezone ?? 'UTC'
+  // The chart ends at the current, still-filling bucket: future buckets are not drawn at all.
+  // The comparison is matched by position, so it is trimmed to the same length.
+  const points: ChartPoint[] = trimFutureBuckets(
+    chronological(current.data?.rows ?? []).map((row, index) => ({
+      time: timeValue(row),
+      value: nullableNumeric(row, chartMetric),
+      ...(compare === 'off'
+        ? {}
+        : { comparison: numeric(comparisonRows[index] ?? {}, chartMetric) }),
+    })),
+    resolvedInterval,
+    now ?? new Date(),
+    timezone,
+  )
+  const lastBucket = points[points.length - 1]?.time
+  // Annotations are placed across the drawn days only.
+  const drawnRange = lastBucket && lastBucket.slice(0, 10) < query.dateRange.to
+    ? { from: query.dateRange.from, to: lastBucket.slice(0, 10) }
+    : query.dateRange
+  const label = `${metricLabel(chartMetric)} over time`
   const measured = points.filter((point): point is ChartPoint & { value: number } => point.value !== null)
   const peak = measured.reduce<(ChartPoint & { value: number }) | undefined>((best, point) => !best || point.value > best.value ? point : best, undefined)
   const low = measured.reduce<(ChartPoint & { value: number }) | undefined>((best, point) => !best || point.value < best.value ? point : best, undefined)
@@ -352,6 +367,7 @@ export function MainChart({
       aria-busy={current.isLoading || previousYearResult.isLoading}
       aria-label={label}
       data-interval={resolvedInterval}
+      data-last-bucket={lastBucket}
       className="rounded-xl border bg-card p-4 text-card-foreground shadow-xs"
     >
       <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
@@ -374,7 +390,7 @@ export function MainChart({
       <ChartContainer>
         <AnnotationMarkers
           annotations={annotations}
-          range={query.dateRange}
+          range={drawnRange}
           timezone={query.timezone ?? 'UTC'}
           canEdit={canEditAnnotations}
           onEdit={onEditAnnotation}

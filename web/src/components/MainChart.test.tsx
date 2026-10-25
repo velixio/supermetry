@@ -319,3 +319,40 @@ describe('MainChart future buckets and controlled granularity', () => {
     expect(screen.getByRole('button', { name: 'Add annotation' })).toBeVisible()
   })
 })
+
+describe('MainChart ends at the current bucket', () => {
+  afterEach(cleanup)
+
+  it('drops buckets after now, keeps past zero hours and trims the comparison to match', () => {
+    useTimeseries.mockReturnValue({
+      isError: false, isLoading: false,
+      data: {
+        rows: [
+          { time: '2026-10-26T12:00:00', visitors: 0 },
+          { time: '2026-10-26T13:00:00', visitors: 5 },
+          { time: '2026-10-26T14:00:00', visitors: null },
+          { time: '2026-10-26T15:00:00', visitors: null },
+        ],
+        comparison: { rows: [
+          { time: '2026-10-26T12:00:00', visitors: 1 },
+          { time: '2026-10-26T13:00:00', visitors: 2 },
+          { time: '2026-10-26T14:00:00', visitors: 3 },
+          { time: '2026-10-26T15:00:00', visitors: 4 },
+        ] },
+        totals: { visitors: 5 },
+      },
+    })
+    render(
+      <MainChart
+        query={{ ...query, timezone: 'Asia/Kolkata', dateRange: { from: '2026-10-26', to: '2026-10-26' } }}
+        metric="visitors"
+        compare="previous_period"
+        now={new Date('2026-10-26T08:10:00Z')}
+      />,
+    )
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent))).toEqual([['0', '1'], ['5', '2']])
+    expect(screen.getByRole('region', { name: 'visitors over time' })).toHaveAttribute('data-last-bucket', '2026-10-26T13:00:00')
+  })
+})

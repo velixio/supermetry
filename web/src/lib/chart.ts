@@ -55,3 +55,29 @@ export function rememberInterval(siteId: number, interval: ChartInterval): void 
     // Storage may be unavailable (private mode); the URL still carries the choice.
   }
 }
+
+/** The current bucket's key in `timezone`: "YYYY-MM-DDTHH:00:00" for hours, "YYYY-MM-DD" otherwise. */
+export function currentBucketKey(interval: ChartInterval, now: Date, timezone: string): string {
+  let parts: Record<string, string>
+  try {
+    parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
+    }).formatToParts(now).map((part) => [part.type, part.value]))
+  } catch {
+    return currentBucketKey(interval, now, 'UTC')
+  }
+  const day = `${parts.year}-${parts.month}-${parts.day}`
+  return interval === 'hour' ? `${day}T${parts.hour}:00:00` : day
+}
+
+/**
+ * Drops the trailing buckets that start after now in the site's time zone, so the chart ends
+ * at the current, still-filling bucket. Bucket keys sort as text; closed buckets, including
+ * genuine zero hours, are kept.
+ */
+export function trimFutureBuckets<T extends { time: string }>(points: T[], interval: ChartInterval, now: Date, timezone: string): T[] {
+  const current = currentBucketKey(interval, now, timezone)
+  let end = points.length
+  while (end > 0 && points[end - 1]!.time.slice(0, current.length) > current) end -= 1
+  return end === points.length ? points : points.slice(0, end)
+}
