@@ -9,7 +9,7 @@ import (
 func futureRows(times ...string) []map[string]any {
 	rows := make([]map[string]any, 0, len(times))
 	for _, value := range times {
-		rows = append(rows, map[string]any{"time": value, "visitors": float64(0), "pageviews": float64(3)})
+		rows = append(rows, map[string]any{"time": value, "visitors": float64(0), "pageviews": float64(0)})
 	}
 	return rows
 }
@@ -32,6 +32,7 @@ func TestBlankFutureBucketsHoursInSiteTimeZone(t *testing.T) {
 	// 2026-10-26 08:10 UTC is 13:40 in Kolkata (+5:30): the 13:00 bucket is still filling.
 	now := time.Date(2026, 10, 26, 8, 10, 0, 0, time.UTC)
 	rows := futureRows("2026-10-26T00:00:00", "2026-10-26T12:00:00", "2026-10-26T13:00:00", "2026-10-26T14:00:00", "2026-10-26T23:00:00")
+	rows[2]["pageviews"] = float64(3)
 	blankFutureBuckets(rows, []Metric{Visitors, Pageviews}, "hour", now, kolkata)
 	if got := blankTimes(rows); len(got) != 2 || got[0] != "2026-10-26T14:00:00" || got[1] != "2026-10-26T23:00:00" {
 		t.Fatalf("blank buckets = %v, want 14:00 and 23:00", got)
@@ -69,6 +70,13 @@ func TestBlankFutureBucketsDaysWeeksMonths(t *testing.T) {
 	blankFutureBuckets(months, []Metric{Visitors, Pageviews}, "month", now, kathmandu)
 	if got := blankTimes(months); len(got) != 1 || got[0] != "2026-11-01" {
 		t.Fatalf("month blanks = %v", got)
+	}
+	// A future bucket that holds data (clock skew) keeps it.
+	skewed := futureRows("2026-10-27")
+	skewed[0]["visitors"] = float64(2)
+	blankFutureBuckets(skewed, []Metric{Visitors, Pageviews}, "day", now, kathmandu)
+	if skewed[0]["visitors"] != float64(2) {
+		t.Fatalf("future bucket with data was blanked: %v", skewed[0])
 	}
 	encoded, err := json.Marshal(months[2])
 	if err != nil || string(encoded) != `{"pageviews":null,"time":"2026-11-01","visitors":null}` {

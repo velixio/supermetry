@@ -929,7 +929,8 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 // blankFutureBuckets sets the metrics of buckets that start after now, in the
 // site's time zone, to null: their data has not arrived yet, so a chart line
 // stops at the current, still-filling bucket instead of dropping to 0. Closed
-// buckets without data keep their 0.
+// buckets without data keep their 0. A future bucket that somehow holds data
+// (clock skew, imported rows) is left as it is: no recorded value is hidden.
 func blankFutureBuckets(rows []map[string]any, metrics []Metric, interval string, now time.Time, loc *time.Location) {
 	if loc == nil {
 		loc = time.UTC
@@ -941,11 +942,20 @@ func blankFutureBuckets(rows []map[string]any, metrics []Metric, interval string
 	}
 	for _, row := range rows {
 		key, _ := row["time"].(string)
-		if key == "" || key <= current {
+		if key == "" || key <= current || bucketHasData(row, metrics) {
 			continue
 		}
 		for _, metric := range metrics {
 			row[string(metric)] = nil
 		}
 	}
+}
+
+func bucketHasData(row map[string]any, metrics []Metric) bool {
+	for _, metric := range metrics {
+		if number(row[string(metric)]) != 0 {
+			return true
+		}
+	}
+	return false
 }
