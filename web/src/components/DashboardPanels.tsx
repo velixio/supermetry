@@ -99,7 +99,7 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
     <div ref={wrapperRef} className="min-w-0">
       <ResizablePanelGroup className="items-stretch" orientation="horizontal" style={{ height: 'auto', overflow: 'visible' }}>
         <ResizablePanel id="dashboard-main" minSize={wide ? `${MAIN_MIN_REM}rem` : undefined} style={{ overflow: 'visible', maxHeight: 'none' }}>
-          <div className="flex min-w-0 flex-col gap-4">{main}</div>
+          <div className="flex min-w-0 flex-col gap-3">{main}</div>
         </ResizablePanel>
         {wide && inspector ? (
           <>

@@ -17,5 +17,5 @@ export function PageContainer({
   className?: string
   children: ReactNode
 }) {
-  return <div className={cn('mx-auto flex w-full min-w-0 flex-col gap-4', widths[width], className)}>{children}</div>
+  return <div className={cn('mx-auto flex w-full min-w-0 flex-col gap-3', widths[width], className)}>{children}</div>
 }

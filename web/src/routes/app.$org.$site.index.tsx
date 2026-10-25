@@ -262,7 +262,7 @@ function WebDashboardStateRoute() {
         }
       />
       {edit ? null : (
-        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-11 z-10 bg-background py-2" role="group">
+        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-11 z-10 -mt-1 bg-background py-1" role="group">
           <ResponsiveFilters className="justify-start">
             <DatePicker
               search={search}

@@ -93,7 +93,7 @@ function Surface({
   children: React.ReactNode
 }) {
   return (
-    <section className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-card-foreground">
+    <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5 text-card-foreground">
       <header className="flex flex-col gap-1">
         <h2 className="font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>

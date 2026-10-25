@@ -150,7 +150,7 @@ export function AppShell({
             onOpenPalette={openPalette}
             paletteTriggerRef={paletteTrigger}
           />
-          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
+          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-4 py-3 md:px-6 md:py-4" id="main-content" tabIndex={-1}>
             {membership ? (
               scopedSite?.is_demo ? (
                 <DemoBanner org={membership.org} site={scopedSite} />
