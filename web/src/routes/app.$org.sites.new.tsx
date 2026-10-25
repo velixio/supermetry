@@ -42,7 +42,7 @@ function NewSiteRoute() {
   return (
     <PageContainer width="narrow">
       <PageHeader title={en.pixels.measureTitle} description="Choose web analytics or count views where JavaScript cannot run." />
-      <section className="flex flex-col gap-5 rounded-xl border bg-card p-5">
+      <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5">
         <KindChoice value={kind} onChange={setKind} />
         {kind === 'pixel'
           ? <PixelProjectForm submitLabel={en.pixels.createProject} onSubmit={submit} />

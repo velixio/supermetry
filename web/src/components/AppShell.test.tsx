@@ -346,7 +346,8 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByRole('link', { name: 'Add project' })).not.toBeInTheDocument()
     fireEvent.pointerDown(within(sidebar).getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
     const menu = await screen.findByRole('menu')
-    expect(within(menu).getByRole('menuitem', { name: /Other/ }).getAttribute('href')).toMatch(/^\/app\/acme\/other\?/)
+    // Switching site keeps the page: settings/general of the other site.
+    expect(within(menu).getByRole('menuitem', { name: /Other/ })).toHaveAttribute('href', '/app/acme/other/settings/general')
     expect(within(menu).getByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
   })
 

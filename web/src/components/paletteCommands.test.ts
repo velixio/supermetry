@@ -5,6 +5,7 @@ import { defaultSearch, stringifySearch } from '@/lib/search'
 
 import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 import { paletteCommands, type PaletteCommand } from './paletteCommands'
+import { orgSwitchHref, siteSwitchHref } from '@/lib/switchTarget'
 
 const docs: Site = { id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public', tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }
 const shop: Site = { id: 8, name: 'Shop', slug: 'shop', tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }
@@ -99,5 +100,19 @@ describe('paletteCommands', () => {
     expect(labels(run({ theme: 'dark' }), 'actions')[0]).toBe('Use light theme')
     const ids = run().map((command) => command.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+describe('palette switch commands', () => {
+  it('keep the current page like the sidebar switchers', () => {
+    const current = { routeId: '/app/$org/$site/sessions', search: { period: '7d', dash: '3' } }
+    const commands = paletteCommands({ me, membership: acme, requestedSite: 'docs', theme: 'light', current })
+    expect(commands.find((command) => command.id === 'site:8')).toMatchObject({ href: siteSwitchHref(current, acme, shop) })
+    expect(commands.find((command) => command.id === 'site:8')).toMatchObject({ href: expect.stringMatching(/^\/app\/acme\/shop\/sessions\?period=7d$/) })
+    // The other organization's member is a viewer, so an organization page they can open is kept.
+    const settings = { routeId: '/app/$org/sites/', search: {} }
+    const orgCommands = paletteCommands({ me, membership: acme, requestedSite: 'docs', theme: 'light', current: settings })
+    expect(orgCommands.find((command) => command.id === 'org:2')).toMatchObject({ href: orgSwitchHref(settings, other) })
+    expect(orgCommands.find((command) => command.id === 'org:2')).toMatchObject({ href: '/app/other/sites' })
   })
 })

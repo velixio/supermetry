@@ -290,3 +290,32 @@ describe('xTickGap', () => {
     expect(xTickGap(1000)).toBe(32)
   })
 })
+
+describe('MainChart future buckets and controlled granularity', () => {
+  afterEach(cleanup)
+
+  it('leaves buckets after now empty instead of plotting 0', () => {
+    useTimeseries.mockReturnValue({
+      isError: false, isLoading: false,
+      data: { rows: [{ time: '2026-10-01T10:00:00', visitors: 4 }, { time: '2026-10-01T11:00:00', visitors: 0 }, { time: '2026-10-01T12:00:00', visitors: null }], totals: { visitors: 4 } },
+    })
+    render(<MainChart query={query} metric="visitors" compare="off" />)
+    const cells = screen.getAllByRole('cell')
+    expect(cells.map((cell) => cell.textContent)).toEqual(['4', '0', '–'])
+  })
+
+  it('reports a picked granularity to the page and draws the requested one', () => {
+    const onIntervalChange = vi.fn()
+    render(<MainChart query={{ ...query, dateRange: { from: '2026-10-01', to: '2026-10-20' } }} metric="visitors" compare="off" interval="week" onIntervalChange={onIntervalChange} />)
+    expect(screen.getByRole('combobox', { name: 'Chart interval' })).toHaveTextContent('Week')
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chart interval' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Hour' }))
+    expect(onIntervalChange).toHaveBeenCalledWith('hour')
+  })
+
+  it('shows header actions next to the granularity select', () => {
+    mockSeries([['2026-10-01', 5]])
+    render(<MainChart query={query} metric="visitors" compare="off" headerActions={<button type="button">Add annotation</button>} />)
+    expect(screen.getByRole('button', { name: 'Add annotation' })).toBeVisible()
+  })
+})

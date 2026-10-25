@@ -27,7 +27,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { Annotation } from '@/features/annotations/types'
-import { autoInterval, maxHourlyRangeDays, type ChartInterval } from '@/lib/chart'
+import { intervalAllowed, resolveInterval, type ChartInterval } from '@/lib/chart'
 import { fmt } from '../lib/format'
 import type { Compare } from '../lib/search'
 import { useTimeseries, type StatsQuery } from '../lib/stats'
@@ -42,7 +42,12 @@ type MainChartProps = {
   query: StatsQuery
   metric: ChartMetric
   compare: Compare
+  /** Requested granularity (URL or remembered); resolved against the range. */
   interval?: ChartInterval
+  /** Called when the user picks a granularity; without it the choice is local to the chart. */
+  onIntervalChange?: (interval: ChartInterval) => void
+  /** Controls shown in the chart card's header, next to the granularity select. */
+  headerActions?: ReactNode
   annotations?: Annotation[]
   canEditAnnotations?: boolean
   onEditAnnotation?: (annotation: Annotation) => void
@@ -51,7 +56,8 @@ type MainChartProps = {
 
 type ChartPoint = {
   time: string
-  value: number
+  /** Null for a bucket that has not started yet: the line stops at the current bucket. */
+  value: number | null
   comparison?: number
 }
 
@@ -115,6 +121,13 @@ function numeric(row: Record<string, unknown>, key: string): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
+/** A metric that may be null: the API sends null for buckets after now. */
+function nullableNumeric(row: Record<string, unknown>, key: string): number | null {
+  const value = row[key]
+  if (value === null) return null
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
 function timeValue(row: Record<string, unknown>): string {
   return typeof row.time === 'string' ? row.time : ''
 }
@@ -170,10 +183,6 @@ export function axisBucketLabel(value: string, interval: ChartInterval, timezone
 
 function chronological(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
   return [...rows].sort((left, right) => timeValue(left).localeCompare(timeValue(right)))
-}
-
-function rangeDays(from: string, to: string): number {
-  return Math.floor((dateAtUTC(to).getTime() - dateAtUTC(from).getTime()) / 86_400_000) + 1
 }
 
 function ChartContainer({ children }: { children: ReactNode }) {
@@ -272,6 +281,8 @@ export function MainChart({
   metric,
   compare,
   interval,
+  onIntervalChange,
+  headerActions,
   annotations = [],
   canEditAnnotations = false,
   onEditAnnotation,
@@ -279,19 +290,20 @@ export function MainChart({
 }: MainChartProps) {
   const summaryId = useId()
   const [chartWidth, setChartWidth] = useState(0)
-  const [selectedInterval, setSelectedInterval] = useState<ChartInterval | undefined>(interval)
+  const [localInterval, setLocalInterval] = useState<ChartInterval | undefined>(interval)
 
+  // Without a controlling page (dashboard widgets) a local choice resets when the range changes.
   useEffect(() => {
-    setSelectedInterval(interval)
+    setLocalInterval(interval)
   }, [interval, query.dateRange.from, query.dateRange.to])
   const chartMetric: ChartMetric = metric === 'exit_rate' || metric === 'time_on_page'
     ? 'visitors'
     : metric
-  const automaticInterval = autoInterval(query.dateRange.from, query.dateRange.to)
-  const requestedInterval = selectedInterval ?? automaticInterval
-  const resolvedInterval = requestedInterval === 'hour' && rangeDays(query.dateRange.from, query.dateRange.to) > maxHourlyRangeDays
-    ? automaticInterval
-    : requestedInterval
+  const resolvedInterval = resolveInterval(query.dateRange.from, query.dateRange.to, onIntervalChange ? interval : localInterval)
+  const chooseInterval = (next: ChartInterval) => {
+    if (onIntervalChange) onIntervalChange(next)
+    else setLocalInterval(next)
+  }
   const currentQuery: StatsQuery = {
     ...query,
     metrics: [chartMetric],
@@ -309,17 +321,18 @@ export function MainChart({
     : previousYearResult.data?.rows ?? [])
   const points: ChartPoint[] = chronological(current.data?.rows ?? []).map((row, index) => ({
     time: timeValue(row),
-    value: numeric(row, chartMetric),
+    value: nullableNumeric(row, chartMetric),
     ...(compare === 'off'
       ? {}
       : { comparison: numeric(comparisonRows[index] ?? {}, chartMetric) }),
   }))
   const label = `${metricLabel(chartMetric)} over time`
   const timezone = query.timezone ?? 'UTC'
-  const peak = points.reduce<ChartPoint | undefined>((best, point) => !best || point.value > best.value ? point : best, undefined)
-  const low = points.reduce<ChartPoint | undefined>((best, point) => !best || point.value < best.value ? point : best, undefined)
+  const measured = points.filter((point): point is ChartPoint & { value: number } => point.value !== null)
+  const peak = measured.reduce<(ChartPoint & { value: number }) | undefined>((best, point) => !best || point.value > best.value ? point : best, undefined)
+  const low = measured.reduce<(ChartPoint & { value: number }) | undefined>((best, point) => !best || point.value < best.value ? point : best, undefined)
   const total = numeric(current.data?.totals ?? {}, chartMetric)
-  const pointSummary = (point: ChartPoint | undefined) => point
+  const pointSummary = (point: (ChartPoint & { value: number }) | undefined) => point
     ? en.a11y2.peakOn.replace('{value}', metricValue(chartMetric, point.value)).replace('{time}', timeBucketLabel(point.time, resolvedInterval, timezone))
     : '0'
   const summary = en.a11y2.dataSummary
@@ -339,16 +352,17 @@ export function MainChart({
       aria-busy={current.isLoading || previousYearResult.isLoading}
       aria-label={label}
       data-interval={resolvedInterval}
-      className="rounded-xl border bg-card p-5 text-card-foreground shadow-xs"
+      className="rounded-xl border bg-card p-4 text-card-foreground shadow-xs"
     >
-      <div className="mb-3 flex justify-end">
-        <Select value={resolvedInterval} onValueChange={(value) => setSelectedInterval(value as ChartInterval)}>
+      <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+        {headerActions}
+        <Select value={resolvedInterval} onValueChange={(value) => chooseInterval(value as ChartInterval)}>
           <SelectTrigger aria-label="Chart interval" size="sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem disabled={rangeDays(query.dateRange.from, query.dateRange.to) > maxHourlyRangeDays} value="hour">Hour</SelectItem>
+              <SelectItem disabled={!intervalAllowed('hour', query.dateRange.from, query.dateRange.to)} value="hour">Hour</SelectItem>
               <SelectItem value="day">Day</SelectItem>
               <SelectItem value="week">Week</SelectItem>
               <SelectItem value="month">Month</SelectItem>
@@ -426,7 +440,7 @@ export function MainChart({
           {points.map((point) => (
             <tr key={point.time}>
               <th scope="row">{timeBucketLabel(point.time, resolvedInterval, timezone)}</th>
-              <td>{metricValue(chartMetric, point.value)}</td>
+              <td>{point.value === null ? '–' : metricValue(chartMetric, point.value)}</td>
               {compare === 'off' ? null : (
                 <td>{metricValue(chartMetric, point.comparison ?? 0)}</td>
               )}

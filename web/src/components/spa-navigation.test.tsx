@@ -232,8 +232,9 @@ describe('SPA navigation', () => {
     ])
     fireEvent.pointerDown(screen.getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
     const menu = await screen.findByRole('menu')
+    // The site switcher keeps the current page (Realtime) for the chosen site.
     expect(within(menu).getAllByRole('menuitem').map((item) => item.getAttribute('href'))).toEqual([
-      `${site}?${base}`,
+      `${site}/realtime`,
       '/app/acme/sites/new',
       `${site}?${base}`,
       '/app/account/organizations/new',

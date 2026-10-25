@@ -133,7 +133,7 @@ function TrackingSettingsForm({ orgId, siteId }: { orgId: number; siteId: number
   return (
     <section
       aria-labelledby="tracking-settings-heading"
-      className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-card-foreground"
+      className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5 text-card-foreground"
     >
       <header className="flex flex-col gap-1">
         <h2 id="tracking-settings-heading" className="text-lg font-semibold">

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react'
 
 import { DashboardChart } from '../components/DashboardChart'
+import { rememberInterval, rememberedInterval } from '@/lib/chart'
 import { DeferredContent } from '../components/DeferredContent'
 import { DatePicker } from '../components/DatePicker'
 import { DashboardExportMenu } from '../components/DashboardExportMenu'
@@ -261,7 +262,7 @@ function WebDashboardStateRoute() {
         }
       />
       {edit ? null : (
-        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-11 z-10 bg-background py-2" role="group">
+        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-11 z-10 -mt-1 bg-background py-1" role="group">
           <ResponsiveFilters className="justify-start">
             <DatePicker
               search={search}
@@ -370,6 +371,11 @@ function WebDashboardStateRoute() {
                 metric={search.metric}
                 query={query}
                 siteId={site.id}
+                interval={search.granularity ?? rememberedInterval(site.id)}
+                onIntervalChange={(granularity) => {
+                  rememberInterval(site.id, granularity)
+                  updateSearch({ ...search, granularity })
+                }}
               />
               <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
                 <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>

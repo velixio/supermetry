@@ -13,6 +13,8 @@ import {
 import type { Annotation, AnnotationInput } from './types'
 
 type AnnotationActions = {
+  /** The "Add annotation" button, for the chart card's header; null without edit rights. */
+  addButton: ReactNode
   annotations: Annotation[]
   onEdit: (annotation: Annotation) => void
   onDelete: (annotation: Annotation) => void
@@ -60,15 +62,17 @@ export function AnnotationManager({
     remove.mutate(annotation.id)
   }
 
+  const addButton = canEdit ? (
+    <Button size="sm" variant="outline" onClick={startAdd}>
+      <PlusIcon data-icon="inline-start" />
+      Add annotation
+    </Button>
+  ) : null
+
   return (
-    <div className="flex flex-col gap-2">
-      {canEdit ? (
-        <Button className="self-end" size="sm" variant="outline" onClick={startAdd}>
-          <PlusIcon data-icon="inline-start" />
-          Add annotation
-        </Button>
-      ) : null}
+    <>
       {children({
+        addButton,
         annotations: annotations.data ?? [],
         onEdit: startEdit,
         onDelete: deleteAnnotation,
@@ -84,6 +88,6 @@ export function AnnotationManager({
           onSave={save}
         />
       ) : null}
-    </div>
+    </>
   )
 }

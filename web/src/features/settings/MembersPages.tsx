@@ -79,7 +79,7 @@ function Page({ title, description, children }: { title: string; description: st
 }
 
 function Surface({ children, label }: { children: ReactNode; label?: string }) {
-  return <section aria-label={label} className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-card-foreground">{children}</section>
+  return <section aria-label={label} className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5 text-card-foreground">{children}</section>
 }
 
 function ErrorLine({ error }: { error: unknown }) {

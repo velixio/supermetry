@@ -26,7 +26,7 @@ import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
 import type { Me, Membership } from '@/lib/me'
 
-import { matchesSite, SupermetrySidebar } from './Sidebar'
+import { matchesSite, SupermetrySidebar, useCurrentRoute } from './Sidebar'
 import { DemoBanner } from '@/features/demo/DemoBanner'
 import { getSite } from '@/features/sites/api'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
@@ -61,6 +61,8 @@ export function AppShell({
   const paletteTrigger = useRef<HTMLButtonElement>(null)
   const router = useRouter()
   const [sidebarOpen] = useState(() => sidebarStartsOpen(document.cookie, window.innerWidth))
+  // The palette's switch commands keep the current page, like the sidebar switchers.
+  const currentRoute = useCurrentRoute()
   const { pathname, requestedSite, renderedPathnames } = useRouterState({
     select: (state) => {
       const params = state.matches.at(-1)?.params
@@ -77,7 +79,7 @@ export function AppShell({
   // (an empty list would flash "no matching commands"), and dropped when the scope changes.
   const paletteScope = `${membership?.org.id ?? ''}/${requestedSite ?? ''}`
   const lastCommands = useRef<{ scope: string; list: PaletteCommand[] }>({ scope: '', list: [] })
-  if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({ me, membership, requestedSite, theme }) }
+  if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({ me, membership, requestedSite, theme, current: currentRoute }) }
   const commands = lastCommands.current.scope === paletteScope ? lastCommands.current.list : []
   const scopedSite = membership?.sites.find((item) => matchesSite(item, requestedSite))
   const siteDetails = useQuery({
@@ -150,7 +152,7 @@ export function AppShell({
             onOpenPalette={openPalette}
             paletteTriggerRef={paletteTrigger}
           />
-          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 p-4 md:p-6" id="main-content" tabIndex={-1}>
+          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-4 py-3 md:px-6 md:py-4" id="main-content" tabIndex={-1}>
             {membership ? (
               scopedSite?.is_demo ? (
                 <DemoBanner org={membership.org} site={scopedSite} />
