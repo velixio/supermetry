@@ -46,7 +46,9 @@ Serve the script and events from your own domain so ad blockers and CSP rules tr
 // lib/supermetry.ts
 import { createSupermetryProxy } from "@supermetry/nextjs/proxy";
 
-export const proxy = createSupermetryProxy(); // forwards to Supermetry Cloud; pass { host } when self-hosting
+export const proxy = createSupermetryProxy({
+  proxyKey: process.env.SUPERMETRY_PROXY_KEY, // Cloud: keeps real visitor addresses; omit when self-hosting
+}); // forwards to Supermetry Cloud; pass { host } when self-hosting
 ```
 
 ```ts
@@ -79,7 +81,7 @@ export const { POST, PUT } = proxy;
 <Supermetry site="your-site-id" />
 ```
 
-The proxy forwards the visitor's `User-Agent`, `Origin`, `Referer`, `DNT` and `Sec-GPC`, sends the client IP (first `X-Forwarded-For` hop, or `X-Real-IP`) as `X-Forwarded-For`, and answers events with `Cache-Control: no-store`. Add your Next.js server's address to `SUPERMETRY_TRUSTED_PROXIES` so Supermetry trusts the forwarded IP. If your platform exposes the client IP differently, pass `getClientIp: (request) => …`.
+The proxy forwards the visitor's `User-Agent`, `Origin`, `Referer`, `DNT` and `Sec-GPC`, sends the client IP (first `X-Forwarded-For` hop, or `X-Real-IP`) as `X-Forwarded-For`, and answers events with `Cache-Control: no-store`. On Supermetry Cloud, the `proxyKey` above makes Cloud trust the forwarded IP; when self-hosting, add your Next.js server's address to `SUPERMETRY_TRUSTED_PROXIES` instead. If your platform exposes the client IP differently, pass `getClientIp: (request) => …`.
 
 ## Server-side events
 

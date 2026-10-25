@@ -134,6 +134,24 @@ describe("createProxyHandler", () => {
     expect(sent).toHaveLength(1);
   });
 
+  test("sends the proxy key and visitor address on tracking requests when configured", async () => {
+    const { sent, fetch } = upstream(() => new Response(null, { status: 202 }));
+    const handler = createProxyHandler({ fetch, proxyKey: "smpk_test", getClientIp: () => "203.0.113.9" });
+
+    await handler(new Request("https://shop.example.com/sm/api/public/v1/events", { method: "POST", body: "{}", headers: { "x-supermetry-client-ip": "198.51.100.66" } }));
+    await handler(new Request("https://shop.example.com/sm/api/replay/start", { method: "POST", body: "{}" }));
+    await handler(new Request("https://shop.example.com/sm/js/script.js"));
+
+    const header = (i: number, name: string) => (sent[i]!.init.headers as Headers).get(name);
+    expect([header(0, "x-supermetry-proxy-key"), header(0, "x-supermetry-client-ip")]).toEqual(["smpk_test", "203.0.113.9"]);
+    expect([header(1, "x-supermetry-proxy-key"), header(1, "x-supermetry-client-ip")]).toEqual(["smpk_test", "203.0.113.9"]);
+    // The script needs no key, and the key never goes out without a visitor address.
+    expect(header(2, "x-supermetry-proxy-key")).toBeNull();
+    const noIp = createProxyHandler({ fetch, proxyKey: "smpk_test", getClientIp: () => undefined });
+    await noIp(new Request("https://shop.example.com/api/public/v1/events", { method: "POST", body: "{}" }));
+    expect([header(3, "x-supermetry-proxy-key"), header(3, "x-supermetry-client-ip")]).toEqual([null, null]);
+  });
+
   test("rejects other paths and methods", async () => {
     const { sent, fetch } = upstream(() => new Response(null));
     const handler = createProxyHandler({ host: "https://analytics.example.com", fetch });

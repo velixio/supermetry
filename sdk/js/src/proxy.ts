@@ -4,6 +4,12 @@ export interface ProxyOptions {
   /** Supermetry origin to forward to. Defaults to Supermetry Cloud. */
   host?: string;
   getClientIp?: (request: Request) => string | null | undefined;
+  /**
+   * Supermetry Cloud first-party proxy key for this site (`smpk_…`). With it,
+   * tracking requests carry the visitor's address so Cloud counts real
+   * visitors instead of your server. Keep it server-side; never expose it.
+   */
+  proxyKey?: string;
   fetch?: typeof fetch;
 }
 
@@ -101,6 +107,10 @@ export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
     const headers = copyHeaders(request.headers, forwardedRequestHeaders);
     const ip = getClientIp(request);
     if (ip) headers.set("x-forwarded-for", ip);
+    if (options.proxyKey && ip && upload) {
+      headers.set("x-supermetry-proxy-key", options.proxyKey);
+      headers.set("x-supermetry-client-ip", ip);
+    }
 
     try {
       const upstream = await send(target, {
