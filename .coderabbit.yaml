@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit reviews pull requests by commenting only: it never commits, opens
+# pull requests or edits a pull request's title or description.
+language: en-GB
+tone_instructions: "Be concise and specific. Prioritise correctness, security, privacy and data loss over style. Cite file:line and suggest the fix."
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  # The summary stays in the walkthrough comment, never in the PR description.
+  high_level_summary: false
+  high_level_summary_in_walkthrough: true
+  poem: false
+  in_progress_fortune: false
+  review_status: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  suggested_labels: false
+  auto_apply_labels: false
+  suggested_reviewers: false
+  estimate_code_review_effort: false
+  auto_review:
+    enabled: true
+    drafts: false
+  finishing_touches:
+    docstrings: { enabled: false }
+    unit_tests: { enabled: false }
+    simplify: { enabled: false }
+    autofix: { enabled: false }
+    fix_ci: { enabled: false }
+    resolve_merge_conflict: { enabled: false }
+  path_filters:
+    - "!**/*.gen.go"
+    - "!**/*.gen.ts"
+    - "!web/packages/api-client/src/schema.ts"
+    - "!**/bun.lock"
+    - "!go.sum"
+    - "!**/testdata/**"
+    - "!docs/superpowers/**"
+  path_instructions:
+    - path: "**/*.go"
+      instructions: >-
+        Go + PostgreSQL only; Redis optional behind an interface; no ClickHouse,
+        Kafka, separate workers or Node in production. Use net/http, pgx and slog.
+        Flag code that looks copied from AGPL, EUPL or proprietary projects
+        (Plausible, OpenPanel, GoatCounter, Vince); only MIT/Apache sources
+        (Umami, Fathom Lite, Medama) may be adapted, with their notices.
+    - path: "internal/ingest/**"
+      instructions: >-
+        Ingest hot path: no database reads, bounded channels with explicit
+        backpressure (503 or drop, counted), flush on size, interval and shutdown.
+        Never persist raw IP addresses or full user agents.
+    - path: "internal/db/migrations/**"
+      instructions: >-
+        Forward-only, transactional migrations. Monthly partitions for raw tables
+        with BRIN on timestamps; only btree indexes that queries need; retention by
+        DROP PARTITION, never bulk DELETE; time-ordered keys.
+    - path: "internal/platform/**"
+      instructions: >-
+        Check authorization on every route, audit writes in the same transaction
+        as the change, CSRF on mutating private routes, and the impersonation
+        guard for anything that creates lasting access.
+    - path: "web/**"
+      instructions: >-
+        Client-only SPA (Vite, React, TanStack Router/Query, shadcn/ui, Tailwind);
+        Bun, never npm; no full-stack frameworks. Check WCAG 2.2 AA: labels, focus,
+        keyboard use, contrast, live regions, and that every locale file has the
+        same keys.
+
+chat:
+  auto_reply: true
+  art: false
