@@ -58,6 +58,7 @@ import { useCreateDemo } from '@/features/demo/useDemo'
 import { ui } from '@/messages/ui'
 import { AccountMenu } from './HeaderMenus'
 import { defaultSearch, stringifySearch } from '@/lib/search'
+import { orgSwitchTarget, siteSwitchTarget, type CurrentRoute } from '@/lib/switchTarget'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
 
@@ -297,32 +298,31 @@ export function SidebarBrandLink({ onClick }: { onClick: () => void }) {
   )
 }
 
+/** The matched leaf route, so a switcher can keep the user on the same page. */
+export function useCurrentRoute(): CurrentRoute {
+  const routeId = useRouterState({ select: (state) => state.matches[state.matches.length - 1]?.routeId ?? '' })
+  const search = useRouterState({ select: (state) => state.location.search as Record<string, unknown> })
+  return { routeId, search }
+}
+
 /** The organisations part of the switcher: every membership, then "Add organization". */
 export function OrganizationMenuGroup({ me, onSelect }: { me: Me; onSelect: () => void }) {
+  const current = useCurrentRoute()
   return (
     <>
       <DropdownMenuLabel>{en.navigation.organizations}</DropdownMenuLabel>
       <DropdownMenuGroup>
         {me.memberships.map((item) => (
           <DropdownMenuItem key={item.org.id} asChild>
-            {item.sites[0] ? (
-              <Link
-                to="/app/$org/$site"
-                params={{ org: item.org.slug, site: siteSlug(item.sites[0]) }}
-                search={dashboardSearch()}
-                onClick={onSelect}
-              >
-                {item.org.name}
-              </Link>
-            ) : (
-              <Link
-                to="/app/$org/settings"
-                params={{ org: item.org.slug }}
-                onClick={onSelect}
-              >
-                {item.org.name}
-              </Link>
-            )}
+            {(() => {
+              // Stay on the same organization-level page when the new organization has it.
+              const target = orgSwitchTarget(current, item)
+              return (
+                <Link to={target.pathname as never} search={target.search as never} onClick={onSelect}>
+                  {item.org.name}
+                </Link>
+              )
+            })()}
           </DropdownMenuItem>
         ))}
         <DropdownMenuItem asChild>
@@ -406,6 +406,8 @@ export function SupermetrySidebar({
   const navigationSite = resolvedSite ?? site
   const currentSite = site ? siteSlug(site) : ''
   const pathname = useRouterState({ select: (state) => state.location.pathname })
+  // The site list keeps the current page (and its portable search) for the chosen site.
+  const current = useCurrentRoute()
   const { setOpenMobile } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
   const hasDemo = membership.sites.some((item) => item.is_demo)
@@ -433,9 +435,8 @@ export function SupermetrySidebar({
               {membership.sites.map((item) => (
                 <DropdownMenuItem key={item.id} asChild>
                   <Link
-                    to="/app/$org/$site"
-                    params={{ org: membership.org.slug, site: siteSlug(item) }}
-                    search={dashboardSearch()}
+                    to={siteSwitchTarget(current, membership, item).pathname as never}
+                    search={siteSwitchTarget(current, membership, item).search as never}
                     onClick={closeMobile}
                   >
                     <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} />
