@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -143,6 +144,26 @@ func SetEventPath(p string) {
 	eventPath.Store(p)
 }
 
+var scriptDir atomic.Value // string
+
+// SetScriptDir sets the directory per-site scripts are served from (the
+// directory of SUPERMETRY_TRACKER_PATH, "/js" by default). Generated scripts
+// strip "<dir>/<file>" from their own URL to find the events endpoint, so a
+// first-party proxy's path prefix is kept.
+func SetScriptDir(dir string) {
+	if dir == "" || dir == "." {
+		dir = "/js"
+	}
+	scriptDir.Store(strings.TrimSuffix(dir, "/"))
+}
+
+func currentScriptDir() string {
+	if d, ok := scriptDir.Load().(string); ok {
+		return d
+	}
+	return "/js"
+}
+
 func currentEventPath() string {
 	if p, ok := eventPath.Load().(string); ok && p != "" {
 		return p
@@ -157,10 +178,13 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 	builder.WriteString(`";`)
 	// The snippet is a bare <script src>: send events to the origin the script
 	// came from (the Supermetry host, or the site's own proxy), never to a path on
-	// the page's origin. An explicit data-api still wins.
-	builder.WriteString(`d.api??=new URL(document.currentScript.src).origin+`)
+	// the page's origin. A first-party proxy under a prefix (/sm/js/<site>.js)
+	// keeps that prefix (/sm/api/public/v1/events). An explicit data-api still wins.
+	builder.WriteString(`d.api??=document.currentScript.src.replace(/`)
+	builder.WriteString(strings.ReplaceAll(regexp.QuoteMeta(currentScriptDir()), "/", `\/`))
+	builder.WriteString(`\/[^/?#]*([?#].*)?$/,`)
 	builder.WriteString(strconv.Quote(currentEventPath()))
-	builder.WriteString(`;`)
+	builder.WriteString(`);`)
 	off := func(attribute string, enabled bool) {
 		if !enabled {
 			builder.WriteString(`d`)

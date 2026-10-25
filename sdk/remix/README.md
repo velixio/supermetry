@@ -62,7 +62,13 @@ Pass `host=""` and add two resource routes (four with session replay); the scrip
 // app/supermetry.server.ts
 import { createSupermetryProxy } from "@supermetry/remix/proxy";
 
-export const proxy = createSupermetryProxy(); // forwards to Supermetry Cloud; pass { host } when self-hosting
+export const proxy = createSupermetryProxy({
+  // Supermetry Cloud only: keeps real visitor addresses. Omit both when self-hosting.
+  proxyKey: process.env.SUPERMETRY_PROXY_KEY,
+  // Required with proxyKey: the visitor address from a header your platform sets
+  // and browsers cannot (x-real-ip on Vercel; adjust for your host).
+  getClientIp: (request) => request.headers.get("x-real-ip"),
+}); // forwards to Supermetry Cloud; pass { host } when self-hosting
 ```
 
 ```ts
@@ -91,6 +97,6 @@ import { proxy } from "~/supermetry.server";
 export const action = proxy.action;
 ```
 
-The proxy forwards the visitor's `User-Agent`, `Origin`, `Referer`, `DNT` and `Sec-GPC`, sends the client IP (first `X-Forwarded-For` hop, or `X-Real-IP`) as `X-Forwarded-For`, and answers events with `Cache-Control: no-store`. Add your server's address to `SUPERMETRY_TRUSTED_PROXIES`. Pass `getClientIp: (request) => …` if your adapter exposes the IP elsewhere.
+The proxy forwards the visitor's `User-Agent`, `Origin`, `Referer`, `DNT` and `Sec-GPC`, sends the client IP (first `X-Forwarded-For` hop, or `X-Real-IP`) as `X-Forwarded-For`, and answers events with `Cache-Control: no-store`. On Supermetry Cloud, the `proxyKey` above makes Cloud trust the forwarded IP; when self-hosting, add your server's address to `SUPERMETRY_TRUSTED_PROXIES` instead. Pass `getClientIp: (request) => …` if your adapter exposes the IP elsewhere.
 
 For server-side events use [`@supermetry/node`](https://www.npmjs.com/package/@supermetry/node).

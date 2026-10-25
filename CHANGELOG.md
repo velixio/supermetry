@@ -8,11 +8,13 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Fixed
 
+- Per-site tracking scripts served through a first-party proxy under a path prefix (for example `/sm/js/<site>.js`) now send events under the same prefix (`/sm/api/public/v1/events`) without needing `data-api`.
 - Session replay behind a first-party proxy under a path prefix: the tracker now loads `replay.js` and uploads recordings next to `data-api` (for example `/sm/replay.js`), not at the site's root, where they returned 404. The SDK proxy handlers (`@supermetry/tracker/proxy`, Next.js, Remix) now forward `/replay.js` and the replay uploads too.
 - Password reset emails now link to the dashboard's `/reset/{token}` page; the old `/password-reset?token=` link pointed at a missing page and now redirects there.
 
 ### Added
 
+- `proxyKey` option for the SDK proxy handlers (`@supermetry/tracker/proxy`, Next.js, Remix): on Supermetry Cloud, tracking requests carry the site's proxy key and the visitor's address so visitors keep their real location and identity.
 - `SUPERMETRY_DEFAULT_RETENTION_DAYS` (7, 30, 90, 365 or 0; default 30) sets the retention a new site gets when none is chosen, and `SUPERMETRY_RETENTION_FOREVER` (default `true`) can turn off "keep forever": the API then rejects `retention_days: 0` with 400 and the dashboard hides the option. `SUPERMETRY_SUPPORT_URL` adds an optional "Contact support" link to the sign-in and error pages. All three are reported by `GET /api/private/auth/config`.
 - Account recovery and onboarding: a "Forgot password?" page, clearer reset and invitation pages (an invitation names the organization and inviter, a signed-in invitee joins with one button, a new account is signed in after accepting), a two-field first-site form (domain and time zone, with retention and revenue currency under Advanced options), a live installation status with troubleshooting, and a no-data banner that follows the site's install status.
 - Members: remove a member, leave an organization (`DELETE /api/private/orgs/{org}/membership`; the last owner gets 409), confirmations before reducing access, and invitation status, expiry, resend and confirmed revoke. `GET /api/private/invitations/{token}` previews an invitation without using it.
