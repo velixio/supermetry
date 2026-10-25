@@ -53,7 +53,8 @@ describe('PageHeader', () => {
   it('lets a very long title wrap without hiding the actions', () => {
     const title = 'A'.repeat(120)
     render(<PageHeader title={title} actions={<button type="button">Act</button>} />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('break-words')
+    // overflow-wrap:anywhere lets the flex item shrink below a long unbroken word on narrow screens.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('wrap-anywhere', 'min-w-0')
     expect(screen.getByRole('button', { name: 'Act' })).toBeInTheDocument()
   })
 })
