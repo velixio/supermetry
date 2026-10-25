@@ -4431,7 +4431,7 @@ type StatsTimeseriesParams struct {
 	// IncludeImported Include imported analytics rows when available.
 	IncludeImported *bool `form:"include_imported,omitempty" json:"include_imported,omitempty"`
 
-	// Interval Hourly buckets support ranges of up to 30 days.
+	// Interval Hourly buckets support ranges of up to 30 days. Buckets that start after now (in the requested or site time zone) are returned with null metrics; the current bucket and closed buckets without data are numbers.
 	Interval *string `form:"interval,omitempty" json:"interval,omitempty"`
 }
 

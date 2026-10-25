@@ -1402,7 +1402,7 @@ paths:
             default: true
         - name: interval
           in: query
-          description: Hourly buckets support ranges of up to 30 days.
+          description: Hourly buckets support ranges of up to 30 days. Buckets that start after now (in the requested or site time zone) are returned with null metrics; the current bucket and closed buckets without data are numbers.
           schema:
             type: string
             pattern: '^(hour|day|week|month)$'

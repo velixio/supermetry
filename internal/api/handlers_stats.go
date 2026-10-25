@@ -128,6 +128,20 @@ func (h *handlers) runStats(w http.ResponseWriter, r *http.Request, endpoint str
 	} else if interval != "" {
 		response = normalizeTimeseries(response, request.Metrics, dateRange, interval)
 	}
+	if interval != "" {
+		now := time.Now
+		if h.now != nil {
+			now = h.now
+		}
+		// Only the current series reaches into the future; the comparison range is in the past.
+		location := siteLocation(r, request.SiteId)
+		if request.Timezone != nil {
+			if requested, err := time.LoadLocation(*request.Timezone); err == nil {
+				location = requested
+			}
+		}
+		blankFutureBuckets(response.Rows, request.Metrics, interval, now(), location)
+	}
 	writeQueryResponse(w, r, response, filename)
 }
 
@@ -910,4 +924,28 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+// blankFutureBuckets sets the metrics of buckets that start after now, in the
+// site's time zone, to null: their data has not arrived yet, so a chart line
+// stops at the current, still-filling bucket instead of dropping to 0. Closed
+// buckets without data keep their 0.
+func blankFutureBuckets(rows []map[string]any, metrics []Metric, interval string, now time.Time, loc *time.Location) {
+	if loc == nil {
+		loc = time.UTC
+	}
+	local := now.In(loc)
+	current := local.Format("2006-01-02")
+	if interval == "hour" {
+		current = local.Format("2006-01-02T15:00:00")
+	}
+	for _, row := range rows {
+		key, _ := row["time"].(string)
+		if key == "" || key <= current {
+			continue
+		}
+		for _, metric := range metrics {
+			row[string(metric)] = nil
+		}
+	}
 }
