@@ -7,8 +7,10 @@ import { expect, test } from './fixtures'
 const directory = process.env.SUPERMETRY_SCREENSHOT_DIR ?? ''
 const label = process.env.SUPERMETRY_SCREENSHOT_LABEL ?? 'current'
 
+// Skip at file scope so the owner fixture (which signs in) is never set up for an opt-out run.
+test.skip(!directory, 'set SUPERMETRY_SCREENSHOT_DIR to capture screenshots')
+
 test('captures the dashboard, site settings and admin users at desktop and phone widths', async ({ page, owner }) => {
-  test.skip(!directory, 'set SUPERMETRY_SCREENSHOT_DIR to capture screenshots')
   mkdirSync(directory, { recursive: true })
   const pages = [
     ['dashboard', `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-28&to=2026-09-30`, 'Dashboard'],
