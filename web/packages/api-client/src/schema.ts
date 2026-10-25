@@ -6989,7 +6989,7 @@ export interface operations {
                 format?: components["parameters"]["Format"];
                 /** @description Include imported analytics rows when available. */
                 include_imported?: boolean;
-                /** @description Hourly buckets support ranges of up to 30 days. Buckets that start after now (in the requested or site time zone) are returned with null metrics; the current bucket and closed buckets without data are numbers. */
+                /** @description Hourly buckets support ranges of up to 30 days. Buckets that start after now (in the requested or site time zone) and hold no data are returned with null metrics. A future bucket that already holds data (for example after clock skew or imported rows dated ahead) keeps its numbers, so clients must accept both null and numbers there. The current bucket and closed buckets without data are numbers. */
                 interval?: string;
             };
             header?: never;
