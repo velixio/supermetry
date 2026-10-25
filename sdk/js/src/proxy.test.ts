@@ -114,6 +114,26 @@ describe("createProxyHandler", () => {
     expect((sent[1]!.init.headers as Headers).get("x-forwarded-for")).toBe("203.0.113.9");
   });
 
+  test("refuses oversized uploads with 413 without forwarding them, even without Content-Length", async () => {
+    const { sent, fetch } = upstream(() => new Response(null, { status: 202 }));
+    const handler = createProxyHandler({ host: "https://analytics.example.com", fetch });
+    const streamed = (bytes: number) =>
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (let left = bytes; left > 0; left -= 65536) controller.enqueue(new Uint8Array(Math.min(65536, left)));
+          controller.close();
+        },
+      });
+
+    const chunk = await handler(new Request("https://shop.example.com/api/replay/chunk?s=abc", { method: "POST", body: streamed(2 * 1024 * 1024 + 1), duplex: "half" } as RequestInit));
+    const event = await handler(new Request("https://shop.example.com/api/public/v1/events", { method: "POST", body: streamed(64 * 1024 + 1), duplex: "half" } as RequestInit));
+    const ok = await handler(new Request("https://shop.example.com/api/replay/chunk?s=abc", { method: "POST", body: streamed(256 * 1024), duplex: "half" } as RequestInit));
+
+    expect([chunk.status, event.status, ok.status]).toEqual([413, 413, 202]);
+    expect(chunk.headers.get("cache-control")).toBe("no-store");
+    expect(sent).toHaveLength(1);
+  });
+
   test("rejects other paths and methods", async () => {
     const { sent, fetch } = upstream(() => new Response(null));
     const handler = createProxyHandler({ host: "https://analytics.example.com", fetch });

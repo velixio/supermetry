@@ -18,6 +18,41 @@ export function clientIp(request: Request): string | undefined {
   return forwarded || request.headers.get("x-real-ip")?.trim() || undefined;
 }
 
+// Upload caps, comfortably above core's own (events 8 KiB, replay start 4 KiB,
+// chunk 256 KiB, stylesheet 1 MiB) so the proxy never refuses what core accepts.
+const maxEventBytes = 64 * 1024;
+const maxReplayBytes = 2 * 1024 * 1024;
+
+class TooLarge extends Error {}
+
+// Reads at most max bytes from the body, counting while streaming so a missing
+// or false Content-Length cannot make the proxy buffer more.
+async function readLimited(request: Request, max: number): Promise<Uint8Array> {
+  const declared = Number(request.headers.get("content-length"));
+  if (declared > max) throw new TooLarge();
+  if (!request.body) return new Uint8Array(0);
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  const reader = request.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      throw new TooLarge();
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.byteLength;
+  }
+  return out;
+}
+
 function copyHeaders(from: Headers, names: string[]): Headers {
   const headers = new Headers();
   for (const name of names) {
@@ -52,6 +87,17 @@ export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
           ? `${host}/replay.js${search}`
           : `${host}/api/replay/${replay![1]}${search}`;
     const upload = isEvent || isReplay;
+    let body: string | ArrayBuffer | undefined;
+    if (upload) {
+      const max = isEvent || replay![1] === "start" ? maxEventBytes : maxReplayBytes;
+      try {
+        const bytes = await readLimited(request, max);
+        body = isEvent ? new TextDecoder().decode(bytes) : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+      } catch (err) {
+        if (!(err instanceof TooLarge)) throw err;
+        return new Response("Payload Too Large", { status: 413, headers: { "cache-control": "no-store" } });
+      }
+    }
     const headers = copyHeaders(request.headers, forwardedRequestHeaders);
     const ip = getClientIp(request);
     if (ip) headers.set("x-forwarded-for", ip);
@@ -60,7 +106,7 @@ export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
       const upstream = await send(target, {
         method: request.method,
         headers,
-        body: isEvent ? await request.text() : isReplay ? await request.arrayBuffer() : undefined,
+        body,
         cache: upload ? "no-store" : undefined,
         redirect: "manual",
       });
