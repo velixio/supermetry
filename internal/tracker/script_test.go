@@ -23,7 +23,7 @@ func TestBuildScriptDefaultsToEnabledModules(t *testing.T) {
 
 	const publicID = "abc123def456"
 	got := BuildScript(publicID, (sites.TrackerSettingsInput{}).Resolve(true), noReplay())
-	wantPrelude := `(d=>{d.site??="abc123def456";d.api??=document.currentScript.src.replace(/\/js\/[^/]*$/,"/api/public/v1/events");d.heatmap??="true";d.replay="";})(document.currentScript.dataset);` + "\n"
+	wantPrelude := `(d=>{d.site??="abc123def456";d.api??=document.currentScript.src.replace(/\/js\/[^/?#]*([?#].*)?$/,"/api/public/v1/events");d.heatmap??="true";d.replay="";})(document.currentScript.dataset);` + "\n"
 	if !bytes.HasPrefix(got.Body, []byte(wantPrelude)) {
 		t.Fatalf("body prefix = %q, want %q", got.Body[:min(len(got.Body), len(wantPrelude))], wantPrelude)
 	}
@@ -418,7 +418,7 @@ func TestSitePath(t *testing.T) {
 func TestBuildScriptSendsEventsToTheScriptOrigin(t *testing.T) {
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
 	prelude, _, _ := strings.Cut(body, "\n")
-	want := `d.api??=document.currentScript.src.replace(/\/js\/[^/]*$/,"/api/public/v1/events");`
+	want := `d.api??=document.currentScript.src.replace(/\/js\/[^/?#]*([?#].*)?$/,"/api/public/v1/events");`
 	if !strings.Contains(prelude, want) {
 		t.Fatalf("prelude %q does not set the absolute event endpoint", prelude)
 	}
@@ -428,7 +428,7 @@ func TestBuildScriptUsesConfiguredEventPath(t *testing.T) {
 	SetEventPath("/x/collect")
 	t.Cleanup(func() { SetEventPath("") })
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
-	if !strings.Contains(body, `[^/]*$/,"/x/collect");`) {
+	if !strings.Contains(body, `([?#].*)?$/,"/x/collect");`) {
 		t.Fatalf("script does not use the configured event path:\n%s", body[:200])
 	}
 }
@@ -474,6 +474,7 @@ func TestBuildScriptKeepsTheProxyPrefixForEvents(t *testing.T) {
 		"https://shop.example.com/sm/js/abc123def456.js":    "https://shop.example.com/sm/api/public/v1/events",
 		"https://shop.example.com/a/b/js/abc123def456.js":   "https://shop.example.com/a/b/api/public/v1/events",
 		"https://app.supermetry.com/js/abc123def456.js?v=2": "https://app.supermetry.com/api/public/v1/events",
+		"https://shop.example.com/sm/js/abc123def456.js?source=/campaign/x#a/b": "https://shop.example.com/sm/api/public/v1/events",
 	} {
 		script := `const vm=require("node:vm");const d={};vm.runInNewContext(process.argv[1],{document:{currentScript:{src:process.argv[2],dataset:d}},URL});process.stdout.write(d.api)`
 		out, err := exec.Command("node", "-e", script, prelude, src).CombinedOutput()

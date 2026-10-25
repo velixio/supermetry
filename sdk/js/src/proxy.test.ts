@@ -152,6 +152,12 @@ describe("createProxyHandler", () => {
     expect([header(3, "x-supermetry-proxy-key"), header(3, "x-supermetry-client-ip")]).toEqual([null, null]);
   });
 
+  test("refuses proxyKey without an explicit getClientIp", () => {
+    // The default reads the first X-Forwarded-For hop, which a visitor can set
+    // unless the platform overwrites it; with a key, Cloud would trust it.
+    expect(() => createProxyHandler({ proxyKey: "smpk_test" })).toThrow(/getClientIp/);
+  });
+
   test("rejects other paths and methods", async () => {
     const { sent, fetch } = upstream(() => new Response(null));
     const handler = createProxyHandler({ host: "https://analytics.example.com", fetch });

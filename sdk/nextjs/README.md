@@ -47,7 +47,11 @@ Serve the script and events from your own domain so ad blockers and CSP rules tr
 import { createSupermetryProxy } from "@supermetry/nextjs/proxy";
 
 export const proxy = createSupermetryProxy({
-  proxyKey: process.env.SUPERMETRY_PROXY_KEY, // Cloud: keeps real visitor addresses; omit when self-hosting
+  // Supermetry Cloud only: keeps real visitor addresses. Omit both when self-hosting.
+  proxyKey: process.env.SUPERMETRY_PROXY_KEY,
+  // Required with proxyKey: the visitor address from a header your platform sets
+  // and browsers cannot (x-real-ip on Vercel; adjust for your host).
+  getClientIp: (request) => request.headers.get("x-real-ip"),
 }); // forwards to Supermetry Cloud; pass { host } when self-hosting
 ```
 

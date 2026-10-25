@@ -8,6 +8,9 @@ export interface ProxyOptions {
    * Supermetry Cloud first-party proxy key for this site (`smpk_…`). With it,
    * tracking requests carry the visitor's address so Cloud counts real
    * visitors instead of your server. Keep it server-side; never expose it.
+   * Requires `getClientIp`: return the visitor's address from a source your
+   * platform controls (for example `x-real-ip` on Vercel, or the last
+   * `X-Forwarded-For` hop your own nginx adds), never a header a browser can set.
    */
   proxyKey?: string;
   fetch?: typeof fetch;
@@ -71,6 +74,9 @@ function copyHeaders(from: Headers, names: string[]): Headers {
 export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
   const host = (options.host || DEFAULT_HOST).replace(/\/+$/, "");
   const send = options.fetch ?? fetch;
+  if (options.proxyKey && !options.getClientIp) {
+    throw new Error("createProxyHandler: proxyKey requires getClientIp, returning the visitor address from a trusted source");
+  }
   const getClientIp = options.getClientIp ?? clientIp;
 
   return async (request) => {

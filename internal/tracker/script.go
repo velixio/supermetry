@@ -182,7 +182,7 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 	// keeps that prefix (/sm/api/public/v1/events). An explicit data-api still wins.
 	builder.WriteString(`d.api??=document.currentScript.src.replace(/`)
 	builder.WriteString(strings.ReplaceAll(regexp.QuoteMeta(currentScriptDir()), "/", `\/`))
-	builder.WriteString(`\/[^/]*$/,`)
+	builder.WriteString(`\/[^/?#]*([?#].*)?$/,`)
 	builder.WriteString(strconv.Quote(currentEventPath()))
 	builder.WriteString(`);`)
 	off := func(attribute string, enabled bool) {
