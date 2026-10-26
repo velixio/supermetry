@@ -11,7 +11,7 @@ import (
 
 func TestLoadFileAndAllows(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "sites.json")
-	if err := os.WriteFile(p, []byte(`[{"id":1,"public_id":"abc123","timezone":"Asia/Kathmandu","retention_days":30,"allowed_hosts":["example.com","*.example.org"],"profiles_enabled":true}]`), 0o600); err != nil {
+	if err := os.WriteFile(p, []byte(`[{"id":1,"public_id":"abc123","timezone":"Asia/Kathmandu","retention_days":30,"allowed_hosts":["supermetry.com","*.example.com"],"profiles_enabled":true}]`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	r, err := sites.LoadFile(p)
@@ -23,11 +23,11 @@ func TestLoadFileAndAllows(t *testing.T) {
 		t.Fatalf("%+v %v", s, ok)
 	}
 	for host, want := range map[string]bool{
-		"example.com":      true,
-		"EXAMPLE.com":      true,
-		"a.example.org":    true,
-		"example.org":      false,
-		"evil-example.com": false,
+		"supermetry.com":      true,
+		"SUPERMETRY.com":      true,
+		"a.example.com":       true,
+		"example.com":         false,
+		"evil-supermetry.com": false,
 	} {
 		if s.Allows(host) != want {
 			t.Errorf("%s: %v", host, !want)

@@ -4,7 +4,7 @@
 
 export type RecipeInput = {
   publicId: string
-  /** Absolute tracker URL, e.g. https://stats.example.com/js/script.js */
+  /** Absolute tracker URL, e.g. https://stats.supermetry.com/js/script.js */
   scriptUrl: string
 }
 
@@ -189,7 +189,7 @@ export default function App() {
 const supermetry = new Supermetry({ ${options} })
 
 supermetry.track('Signup', {
-  url: 'https://example.com/signup',
+  url: 'https://supermetry.com/signup',
   props: { plan: 'pro' },
   userAgent: req.headers['user-agent'],
   ip: req.ip,
@@ -216,7 +216,7 @@ app.post('/api/signup', (req, res) => {
   -H "Content-Type: application/json" \\
   -H "User-Agent: $ORIGINAL_USER_AGENT" \\
   -H "X-Forwarded-For: $ORIGINAL_CLIENT_IP" \\
-  -d '{"site":"${publicId}","name":"Signup","url":"https://example.com/signup","props":{"plan":"pro"}}'`,
+  -d '{"site":"${publicId}","name":"Signup","url":"https://supermetry.com/signup","props":{"plan":"pro"}}'`,
     },
     {
       id: 'python', label: 'Python', group: 'server', where: 'Server code (requests)', language: 'python',
@@ -263,7 +263,7 @@ import { SupermetryProvider, createSupermetry, trackNavigation } from '@supermet
 
 const supermetry = createSupermetry({
   ${options},
-  appUrl: 'https://app.example.com',
+  appUrl: 'https://app.supermetry.com',
   storage: AsyncStorage,
 })
 

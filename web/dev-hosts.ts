@@ -34,7 +34,7 @@ export function devAllowedHosts(env: Record<string, string | undefined>): string
     add(host)
   }
   if (refused) {
-    console.warn('SUPERMETRY_DEV_ALLOWED_HOSTS: ignoring "true"/"*"; list host names instead (use .example.com for subdomains).')
+    console.warn('SUPERMETRY_DEV_ALLOWED_HOSTS: ignoring "true"/"*"; list host names instead (use .supermetry.com for subdomains).')
   }
   return hosts
 }

@@ -93,7 +93,7 @@ describe('LinksPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Create link/ }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: '  Launch  ' } })
-    fireEvent.change(within(dialog).getByLabelText('Destination URL'), { target: { value: ' https://example.com/launch ' } })
+    fireEvent.change(within(dialog).getByLabelText('Destination URL'), { target: { value: ' https://supermetry.com/launch ' } })
     fireEvent.change(within(dialog).getByLabelText('Short URL ending'), { target: { value: 'launch' } })
     fireEvent.change(within(dialog).getByLabelText('Campaign'), { target: { value: 'oct' } })
     fireEvent.change(within(dialog).getByLabelText('Click limit'), { target: { value: '50' } })
@@ -104,7 +104,7 @@ describe('LinksPage', () => {
     expect(path).toBe('/api/private/sites/{site}/links')
     expect(options.params).toEqual({ path: { site: 7 } })
     expect(options.body).toMatchObject({
-      name: 'Launch', destination: 'https://example.com/launch', slug: 'launch', utm_campaign: 'oct', enabled: true, click_limit: 50,
+      name: 'Launch', destination: 'https://supermetry.com/launch', slug: 'launch', utm_campaign: 'oct', enabled: true, click_limit: 50,
     })
     expect(options.body.expires_at).toBe(new Date('2030-01-02T03:04').toISOString())
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

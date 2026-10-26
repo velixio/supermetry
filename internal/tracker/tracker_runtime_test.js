@@ -47,7 +47,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
       return true;
     },
   });
-  const location = {hostname: "example.com", href: "https://example.com/start"};
+  const location = {hostname: "supermetry.com", href: "https://supermetry.com/start"};
   const loadedScripts = [];
   const scriptAttributes = Object.entries({...dataset}).map(([name, value]) => ({
     name: `data-${name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`,
@@ -212,7 +212,7 @@ function testIdentifyAndSubsequentEvents() {
   tracker.supermetry.track("Signup", {source: "hero"});
   tracker.events.get("window:scroll")();
   tracker.events.get("window:pagehide")();
-  tracker.context.location.href = "https://example.com/next";
+  tracker.context.location.href = "https://supermetry.com/next";
   tracker.context.history.pushState({}, "", "/next");
 
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
@@ -349,9 +349,9 @@ function testManualPageviews() {
   tracker.context.history.pushState({}, "", "/automatic");
   assert.deepEqual(tracker.payloads, [], "manual mode must suppress pushState pageviews");
 
-  tracker.supermetry.pageview({url: "https://example.com/a", props: {k: "v"}});
+  tracker.supermetry.pageview({url: "https://supermetry.com/a", props: {k: "v"}});
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
-  assert.equal(tracker.payloads[0].url, "https://example.com/a");
+  assert.equal(tracker.payloads[0].url, "https://supermetry.com/a");
   assert.deepEqual(tracker.payloads[0].props, {k: "v"});
 }
 
@@ -375,7 +375,7 @@ function testManualPageviewResolvesRelativeURLAndIgnoresInvalidURL() {
   const relative = loadTracker({full: true, dataset: {manual: "true"}});
   relative.supermetry.pageview({url: "/virtual"});
   assert.deepEqual(relative.payloads.map((payload) => payload.name), ["pageview"]);
-  assert.equal(relative.payloads[0].url, "https://example.com/virtual");
+  assert.equal(relative.payloads[0].url, "https://supermetry.com/virtual");
 
   const invalid = loadTracker({full: true, dataset: {manual: "true"}});
   assert.doesNotThrow(() => invalid.supermetry.pageview({url: "http://"}));
@@ -384,15 +384,15 @@ function testManualPageviewResolvesRelativeURLAndIgnoresInvalidURL() {
 
 function testHashRouting() {
   const enabled = loadTracker({full: true, dataset: {hash: "true"}});
-  enabled.context.location.href = "https://example.com/start#b";
+  enabled.context.location.href = "https://supermetry.com/start#b";
   enabled.events.get("window:hashchange")();
   assert.deepEqual(enabled.payloads.map((payload) => payload.name), [
     "pageview", "engagement", "pageview",
   ]);
-  assert.equal(enabled.payloads.at(-1).url, "https://example.com/start#b");
+  assert.equal(enabled.payloads.at(-1).url, "https://supermetry.com/start#b");
 
   const disabled = loadTracker({full: true});
-  disabled.context.location.href = "https://example.com/start#b";
+  disabled.context.location.href = "https://supermetry.com/start#b";
   assert.equal(disabled.events.has("window:hashchange"), false);
   assert.deepEqual(disabled.payloads.map((payload) => payload.name), ["pageview"]);
 }
@@ -406,12 +406,12 @@ function testReplaceStateRouting() {
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
     "pageview", "engagement", "pageview",
   ]);
-  assert.equal(tracker.payloads.at(-1).url, "https://example.com/next?tab=one");
+  assert.equal(tracker.payloads.at(-1).url, "https://supermetry.com/next?tab=one");
 }
 
 function testDuplicateNavigationIsDropped() {
   const tracker = loadTracker({full: true, dataset: {hash: "true"}});
-  tracker.context.location.href = "https://example.com/next#details";
+  tracker.context.location.href = "https://supermetry.com/next#details";
   tracker.events.get("window:hashchange")();
   tracker.events.get("window:popstate")();
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
@@ -433,7 +433,7 @@ function testSameLocationDedupeIgnoresVirtualPageviewURL() {
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
     "pageview", "engagement", "pageview", "engagement", "pageview",
   ]);
-  assert.equal(tracker.payloads.at(-1).url, "https://example.com/real");
+  assert.equal(tracker.payloads.at(-1).url, "https://supermetry.com/real");
 }
 
 function testBeforeSend() {
@@ -530,12 +530,12 @@ function testConsentGrantIsIdempotent() {
 
 function testConsentQueuesManualPageview() {
   const tracker = loadTracker({full: true, dataset: {consent: "required", manual: "true"}});
-  tracker.supermetry.pageview({url: "https://example.com/consented"});
+  tracker.supermetry.pageview({url: "https://supermetry.com/consented"});
   assert.deepEqual(tracker.payloads, []);
 
   tracker.supermetry.consent(true);
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), ["pageview"]);
-  assert.equal(tracker.payloads.at(-1).url, "https://example.com/consented");
+  assert.equal(tracker.payloads.at(-1).url, "https://supermetry.com/consented");
 }
 
 function testConsentWithdrawalWithoutGate() {
@@ -660,7 +660,7 @@ function testCoreBuildKeepsCompactRoutingAndExcludesAdvancedControls() {
   assert.deepEqual(tracker.payloads.map((payload) => payload.name), [
     "pageview", "engagement", "pageview",
   ]);
-  tracker.context.location.href = "https://example.com/next#section";
+  tracker.context.location.href = "https://supermetry.com/next#section";
   tracker.events.get("window:popstate")();
   assert.equal(tracker.payloads.length, 3, "core must ignore hash-only popstate changes");
 }

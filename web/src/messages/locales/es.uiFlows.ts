@@ -75,7 +75,7 @@ const messages: MessageTree = {
   },
   site: {
     domain: 'Dominio',
-    domainHint: 'El nombre de host de tu sitio, sin https:// ni ruta; por ejemplo, example.com. Puedes añadir más nombres de host después en Ajustes del sitio.',
+    domainHint: 'El nombre de host de tu sitio, sin https:// ni ruta; por ejemplo, supermetry.com. Puedes añadir más nombres de host después en Ajustes del sitio.',
     timezone: 'Zona horaria',
     timezoneHint: 'Los informes empiezan y terminan cada día a medianoche en esta zona horaria.',
     timezoneSearch: 'Buscar zonas horarias…',

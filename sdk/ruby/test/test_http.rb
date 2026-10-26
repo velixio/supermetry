@@ -19,17 +19,17 @@ class TestHTTP < Minitest::Test
   end
 
   def client(srv, **opts)
-    Supermetry::Client.new(site: "site_1", host: srv.base_url, url: "https://example.com/",
+    Supermetry::Client.new(site: "site_1", host: srv.base_url, url: "https://supermetry.com/",
                            retry_delay: 0.01, **opts)
   end
 
   def test_sync_track_sends_headers_and_json
     srv = server
     ok = client(srv, async: false).track(
-      "Signup", url: "https://example.com/signup?x=1", props: { plan: "pro", seats: 3 },
+      "Signup", url: "https://supermetry.com/signup?x=1", props: { plan: "pro", seats: 3 },
                 revenue: { amount: "49.90", currency: "USD" }, profile_id: "user_1",
                 user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)", ip: "203.0.113.7",
-                referrer: "https://news.example.org/"
+                referrer: "https://news.example.com/"
     )
     assert ok
     assert_equal 1, srv.recorded.size
@@ -39,13 +39,13 @@ class TestHTTP < Minitest::Test
     assert_equal "application/json", req.headers["content-type"]
     assert_equal "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)", req.headers["user-agent"]
     assert_equal "203.0.113.7", req.headers["x-forwarded-for"]
-    assert_equal "https://example.com", req.headers["origin"]
+    assert_equal "https://supermetry.com", req.headers["origin"]
     body = req.body
     assert_equal 1, body["v"]
     assert_equal "site_1", body["site"]
     assert_equal "Signup", body["name"]
-    assert_equal "https://example.com/signup?x=1", body["url"]
-    assert_equal "https://news.example.org/", body["referrer"]
+    assert_equal "https://supermetry.com/signup?x=1", body["url"]
+    assert_equal "https://news.example.com/", body["referrer"]
     assert_equal({ "plan" => "pro", "seats" => 3 }, body["props"])
     assert_equal({ "amount" => "49.90", "currency" => "USD" }, body["revenue"])
     assert_equal "user_1", body["profile_id"]
@@ -62,7 +62,7 @@ class TestHTTP < Minitest::Test
     reqs = srv.recorded
     assert_equal %w[pageview identify], reqs.map { |r| r.body["name"] }
     assert_equal "Supermetry-Ruby/0.1.0", reqs[0].headers["user-agent"]
-    assert_equal "https://example.com/", reqs[0].body["url"]
+    assert_equal "https://supermetry.com/", reqs[0].body["url"]
     assert_equal({ "plan" => "pro" }, reqs[1].body["traits"])
     assert_equal "user_9", reqs[1].body["profile_id"]
     assert_equal "198.51.100.4", reqs[1].headers["x-forwarded-for"]
@@ -99,7 +99,7 @@ class TestHTTP < Minitest::Test
   def test_network_error_never_raises_in_async_mode
     port = TCPServer.new("127.0.0.1", 0).then { |s| s.addr[1].tap { s.close } }
     errors = Queue.new
-    c = Supermetry::Client.new(site: "s", host: "http://127.0.0.1:#{port}", url: "https://example.com/",
+    c = Supermetry::Client.new(site: "s", host: "http://127.0.0.1:#{port}", url: "https://supermetry.com/",
                                retry_delay: 0.01, on_error: ->(e, _) { errors << e })
     assert c.track("x")
     assert c.flush(5)
@@ -128,7 +128,7 @@ class TestHTTP < Minitest::Test
     srv = server
     refute Supermetry.track("before configure")
     Supermetry.configure(site: "site_1", host: srv.base_url) do |config|
-      config.url = "https://example.com/"
+      config.url = "https://supermetry.com/"
       config.retry_delay = 0.01
     end
     assert Supermetry.track("Signup", props: { plan: "pro" })

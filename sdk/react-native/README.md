@@ -19,7 +19,7 @@ import { SupermetryProvider, createSupermetry, trackNavigation, useSupermetry } 
 
 const supermetry = createSupermetry({
   site: "your-site-id",
-  appUrl: "https://app.example.com", // must be an allowed host of the site
+  appUrl: "https://app.supermetry.com", // must be an allowed host of the site
   storage: AsyncStorage,
 });
 

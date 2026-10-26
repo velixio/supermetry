@@ -682,7 +682,7 @@ export function SharesPage({
 			  {embedding ? (
 				<div className="mt-3 flex flex-col gap-3">
 				  <FieldLabel htmlFor="share-origins">Allowed origins</FieldLabel>
-				  <Textarea id="share-origins" placeholder="https://status.example.com" value={allowedOrigins} onChange={(event) => setAllowedOrigins(event.target.value)} />
+				  <Textarea id="share-origins" placeholder="https://status.supermetry.com" value={allowedOrigins} onChange={(event) => setAllowedOrigins(event.target.value)} />
 				  <label className="flex items-start gap-2 text-sm"><Checkbox checked={confirmWildcard} onCheckedChange={(checked) => setConfirmWildcard(checked === true)} />Allow embedding on any origin</label>
 				  {origins.length === 0 && confirmWildcard ? <Alert><AlertTitle>Public embedding</AlertTitle><AlertDescription>{en.shares.wildcardWarning}</AlertDescription></Alert> : null}
 				</div>

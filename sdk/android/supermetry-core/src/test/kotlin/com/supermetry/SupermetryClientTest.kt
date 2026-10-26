@@ -59,7 +59,7 @@ class SupermetryClientTest {
             SupermetryConfig(
                 site = "site_123",
                 host = "$host/",
-                appUrl = "https://app.example.com",
+                appUrl = "https://app.supermetry.com",
                 screenWidth = 412,
                 retryBaseDelayMs = 60_000, // tests drive retries through flush()
                 onError = { errors.add(it) },
@@ -91,7 +91,7 @@ class SupermetryClientTest {
         assertTrue(Math.abs(System.currentTimeMillis() - ts) < 10_000)
         assertEquals("\"site_123\"", field(r.body, "site"))
         assertEquals("\"pageview\"", field(r.body, "name"))
-        assertEquals("\"https://app.example.com/Checkout\"", field(r.body, "url"))
+        assertEquals("\"https://app.supermetry.com/Checkout\"", field(r.body, "url"))
         assertEquals("412", field(r.body, "screen_width"))
         assertNull(field(r.body, "profile_id"))
         assertNull(field(r.body, "traits"))
@@ -105,7 +105,7 @@ class SupermetryClientTest {
 
         assertEquals(2, requests.size)
         val body = requests[1].body
-        assertEquals("\"https://app.example.com/Cart/Order%20Details\"", field(body, "url"))
+        assertEquals("\"https://app.supermetry.com/Cart/Order%20Details\"", field(body, "url"))
         assertTrue(body, body.contains("\"props\":{\"annual\":true,\"plan\":\"pro\",\"ratio\":0.5,\"seats\":3}"))
         assertTrue(body, body.contains("\"revenue\":{\"amount\":\"49.9\",\"currency\":\"USD\"}"))
     }
@@ -116,7 +116,7 @@ class SupermetryClientTest {
         assertEquals("1.123457", Validation.cleanRevenue(Revenue("1.1234567"))!!["amount"])
         assertEquals("10", Validation.cleanRevenue(Revenue(10.0))!!["amount"])
         val c = client()
-        assertFalse(c.buildBody("pageview", "https://app.example.com/", emptyMap(), Revenue(1.0), null)!!.contains("revenue"))
+        assertFalse(c.buildBody("pageview", "https://app.supermetry.com/", emptyMap(), Revenue(1.0), null)!!.contains("revenue"))
     }
 
     @Test fun identifyPersistsProfileAndSendsTraitsOnlyOnIdentify() {
@@ -264,11 +264,11 @@ class SupermetryClientTest {
     }
 
     @Test fun urlValidationAndScreenUrls() {
-        assertTrue(Validation.validUrl("https://app.example.com/x?y=1"))
-        assertFalse(Validation.validUrl("ftp://app.example.com/"))
-        assertFalse(Validation.validUrl("https://user:pass@app.example.com/"))
+        assertTrue(Validation.validUrl("https://app.supermetry.com/x?y=1"))
+        assertFalse(Validation.validUrl("ftp://app.supermetry.com/"))
+        assertFalse(Validation.validUrl("https://user:pass@example.com/"))
         assertFalse(Validation.validUrl("/relative"))
-        assertEquals("https://app.example.com/Settings/Profile", Validation.screenUrl("https://app.example.com/", "/Settings/Profile"))
+        assertEquals("https://app.supermetry.com/Settings/Profile", Validation.screenUrl("https://app.supermetry.com/", "/Settings/Profile"))
         assertNotNull(Validation.newEventId())
     }
 }

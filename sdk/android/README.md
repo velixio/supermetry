@@ -44,14 +44,14 @@ class App : Application() {
             this,
             SupermetryConfig(
                 site = "your-public-site-id",
-                host = "https://analytics.example.com",
-                appUrl = "https://app.example.com", // must be an allowed host of the site
+                host = "https://analytics.supermetry.com",
+                appUrl = "https://app.supermetry.com", // must be an allowed host of the site
             ),
         )
     }
 }
 
-Supermetry.screen("Checkout")                                    // pageview of https://app.example.com/Checkout
+Supermetry.screen("Checkout")                                    // pageview of https://app.supermetry.com/Checkout
 Supermetry.track("Signup", mapOf("plan" to "pro", "seats" to 3))
 Supermetry.track("Purchase", revenue = Revenue(49.90, "USD"))
 Supermetry.identify("user-42", mapOf("plan" to "pro"))          // later events carry profile_id

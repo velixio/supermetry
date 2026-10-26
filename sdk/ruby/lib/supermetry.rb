@@ -4,8 +4,8 @@ require_relative "supermetry/version"
 
 # Server-side SDK for Supermetry, self-hosted web analytics.
 #
-#   Supermetry.configure(site: "your-site-id", host: "https://analytics.example.com")
-#   Supermetry.track("Signup", url: "https://example.com/signup",
+#   Supermetry.configure(site: "your-site-id", host: "https://analytics.supermetry.com")
+#   Supermetry.track("Signup", url: "https://supermetry.com/signup",
 #                    user_agent: request.user_agent, ip: request.remote_ip)
 module Supermetry
   # Base class for Supermetry errors. Tracking methods never raise these into
@@ -45,7 +45,7 @@ module Supermetry
     #
     #   Supermetry.configure do |c|
     #     c.site = "your-site-id"
-    #     c.host = "https://analytics.example.com"
+    #     c.host = "https://analytics.supermetry.com"
     #   end
     #
     # @return [Supermetry::Client]

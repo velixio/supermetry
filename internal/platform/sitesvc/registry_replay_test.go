@@ -7,7 +7,7 @@ import (
 
 func TestRegistryLoadsAndClonesReplaySettings(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
-	site, err := service.Create(context.Background(), principal, CreateInput{Name: "Replay", Hosts: []string{"replay.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(context.Background(), principal, CreateInput{Name: "Replay", Hosts: []string{"replay.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}

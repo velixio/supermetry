@@ -34,7 +34,7 @@ func TestParsePayloadCollectionContractV1(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload, err := ingest.ParsePayload([]byte(`{"site":"abc123","name":"pageview","url":"https://example.com/"` + tt.fields + `}`))
+			payload, err := ingest.ParsePayload([]byte(`{"site":"abc123","name":"pageview","url":"https://supermetry.com/"` + tt.fields + `}`))
 			if (err == nil) != tt.valid {
 				t.Fatalf("ParsePayload error = %v, want valid=%v", err, tt.valid)
 			}
@@ -103,7 +103,7 @@ func TestParsePayloadNormalizesWebVitalsProps(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			payload, err := ingest.ParsePayload([]byte(fmt.Sprintf(
-				`{"site":"abc123","name":%q,"url":"https://example.com/","props":%s}`,
+				`{"site":"abc123","name":%q,"url":"https://supermetry.com/","props":%s}`,
 				tt.eventName, tt.props,
 			)))
 			if err != nil {
@@ -118,7 +118,7 @@ func TestParsePayloadNormalizesWebVitalsProps(t *testing.T) {
 
 func TestParsePayloadNormalizesScalarProps(t *testing.T) {
 	payload, err := ingest.ParsePayload([]byte(
-		`{"site":"abc123","name":"signup","url":"https://example.com/","props":{"plan":"pro","seats":3,"ratio":1.25,"ok":true,"disabled":false}}`,
+		`{"site":"abc123","name":"signup","url":"https://supermetry.com/","props":{"plan":"pro","seats":3,"ratio":1.25,"ok":true,"disabled":false}}`,
 	))
 	if err != nil {
 		t.Fatalf("scalar props rejected whole event: %v", err)
@@ -137,7 +137,7 @@ func TestParsePayloadKeepsFirstThirtyPropsSortedByKey(t *testing.T) {
 		parts = append(parts, fmt.Sprintf(`"key-%02d":%d`, i, i))
 	}
 	payload, err := ingest.ParsePayload([]byte(
-		`{"site":"abc123","name":"signup","url":"https://example.com/","props":{` + strings.Join(parts, ",") + `}}`,
+		`{"site":"abc123","name":"signup","url":"https://supermetry.com/","props":{` + strings.Join(parts, ",") + `}}`,
 	))
 	if err != nil {
 		t.Fatalf("over-cap props rejected whole event: %v", err)
@@ -159,7 +159,7 @@ func TestParsePayloadKeepsFirstThirtyPropsSortedByKey(t *testing.T) {
 func TestParsePayloadRejectsNonScalarProps(t *testing.T) {
 	for _, props := range []string{`{"nested":{}}`, `{"items":[]}`, `{"missing":null}`} {
 		if _, err := ingest.ParsePayload([]byte(
-			`{"site":"abc123","name":"signup","url":"https://example.com/","props":` + props + `}`,
+			`{"site":"abc123","name":"signup","url":"https://supermetry.com/","props":` + props + `}`,
 		)); err == nil {
 			t.Fatalf("non-scalar props %s accepted", props)
 		}
@@ -168,7 +168,7 @@ func TestParsePayloadRejectsNonScalarProps(t *testing.T) {
 
 func TestParsePayloadRejectsOverlongUnrelatedWebVitalsProp(t *testing.T) {
 	_, err := ingest.ParsePayload([]byte(fmt.Sprintf(
-		`{"site":"abc123","name":"Web Vitals","url":"https://example.com/","props":{"page":%q}}`,
+		`{"site":"abc123","name":"Web Vitals","url":"https://supermetry.com/","props":{"page":%q}}`,
 		strings.Repeat("x", 2001),
 	)))
 	if err == nil {
@@ -191,7 +191,7 @@ func TestParsePayloadRevenue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			payload, err := ingest.ParsePayload([]byte(fmt.Sprintf(
-				`{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":%s,"currency":%q}}`,
+				`{"site":"abc123","name":"purchase","url":"https://supermetry.com/","revenue":{"amount":%s,"currency":%q}}`,
 				tt.amount, tt.currency,
 			)))
 			if err != nil {
@@ -222,7 +222,7 @@ func TestParsePayloadDropsInvalidRevenue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			payload, err := ingest.ParsePayload([]byte(fmt.Sprintf(
-				`{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":%s,"currency":%q}}`,
+				`{"site":"abc123","name":"purchase","url":"https://supermetry.com/","revenue":{"amount":%s,"currency":%q}}`,
 				tt.amount, tt.currency,
 			)))
 			if err != nil {
@@ -246,7 +246,7 @@ func TestParsePayloadDropsMalformedRevenueShape(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			payload, err := ingest.ParsePayload([]byte(fmt.Sprintf(
-				`{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":%s}`, tt.revenue,
+				`{"site":"abc123","name":"purchase","url":"https://supermetry.com/","revenue":%s}`, tt.revenue,
 			)))
 			if err != nil {
 				t.Fatalf("malformed revenue rejected whole event: %v", err)
@@ -262,7 +262,7 @@ func TestParsePayloadIgnoresRevenueForNonCustomEvents(t *testing.T) {
 	for _, name := range []string{"pageview", "engagement"} {
 		t.Run(name, func(t *testing.T) {
 			payload, err := ingest.ParsePayload([]byte(fmt.Sprintf(
-				`{"site":"abc123","name":%q,"url":"https://example.com/","revenue":{"amount":"invalid","currency":"usd"}}`, name,
+				`{"site":"abc123","name":%q,"url":"https://supermetry.com/","revenue":{"amount":"invalid","currency":"usd"}}`, name,
 			)))
 			if err != nil {
 				t.Fatal(err)
@@ -276,7 +276,7 @@ func TestParsePayloadIgnoresRevenueForNonCustomEvents(t *testing.T) {
 
 func TestParsePayloadIgnoresMalformedRevenueShapeOnPageview(t *testing.T) {
 	payload, err := ingest.ParsePayload([]byte(
-		`{"site":"abc123","name":"pageview","url":"https://example.com/","revenue":"bad"}`,
+		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/","revenue":"bad"}`,
 	))
 	if err != nil {
 		t.Fatalf("pageview revenue rejected whole event: %v", err)
@@ -315,7 +315,7 @@ func TestParsePayloadDefersProfileIdentityValidation(t *testing.T) {
 			if tt.traits != "" {
 				eventName = "identify"
 			}
-			body := fmt.Sprintf(`{"site":"abc123","name":%q,"url":"https://example.com/"%s}`, eventName, identity)
+			body := fmt.Sprintf(`{"site":"abc123","name":%q,"url":"https://supermetry.com/"%s}`, eventName, identity)
 			payload, err := ingest.ParsePayload([]byte(body))
 			if err != nil {
 				t.Fatalf("structural payload rejected before site policy: %v", err)
@@ -336,14 +336,14 @@ func TestParsePayloadHeatmap(t *testing.T) {
 		body string
 		ok   bool
 	}{
-		{name: "valid boundaries", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/pricing","clicks":[[0,0],[1000,100000]],"doc_h":100000,"vw":10000}`, ok: true},
-		{name: "negative x", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[-1,0]],"doc_h":1,"vw":390}`},
-		{name: "x above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1001,0]],"doc_h":1,"vw":390}`},
-		{name: "negative y", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,-1]],"doc_h":1,"vw":390}`},
-		{name: "y above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,100001]],"doc_h":1,"vw":390}`},
-		{name: "document above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,1]],"doc_h":100001,"vw":390}`},
-		{name: "viewport above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[1,1]],"doc_h":1,"vw":10001}`},
-		{name: "empty clicks", body: `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[],"doc_h":1,"vw":390}`},
+		{name: "valid boundaries", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/pricing","clicks":[[0,0],[1000,100000]],"doc_h":100000,"vw":10000}`, ok: true},
+		{name: "negative x", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[-1,0]],"doc_h":1,"vw":390}`},
+		{name: "x above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[1001,0]],"doc_h":1,"vw":390}`},
+		{name: "negative y", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[1,-1]],"doc_h":1,"vw":390}`},
+		{name: "y above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[1,100001]],"doc_h":1,"vw":390}`},
+		{name: "document above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[1,1]],"doc_h":100001,"vw":390}`},
+		{name: "viewport above maximum", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[1,1]],"doc_h":1,"vw":10001}`},
+		{name: "empty clicks", body: `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[],"doc_h":1,"vw":390}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -360,7 +360,7 @@ func TestParsePayloadHeatmap(t *testing.T) {
 
 func TestParsePayloadAcceptsBoundedProfileIdentity(t *testing.T) {
 	body := fmt.Sprintf(
-		`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":%q,"traits":{%q:%q}}`,
+		`{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":%q,"traits":{%q:%q}}`,
 		strings.Repeat("p", 128), strings.Repeat("k", 64), strings.Repeat("v", 256),
 	)
 	payload, err := ingest.ParsePayload([]byte(body))
@@ -386,7 +386,7 @@ func traitObject(count int) string {
 // event from a page that identified a user with a non-ASCII identifier.
 func TestParsePayloadCountsProfileCharactersNotBytes(t *testing.T) {
 	body := fmt.Sprintf(
-		`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":%q,"traits":{%q:%q}}`,
+		`{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":%q,"traits":{%q:%q}}`,
 		strings.Repeat("é", 128), strings.Repeat("ключ", 16), strings.Repeat("ü", 256),
 	)
 	payload, err := ingest.ParsePayload([]byte(body))
@@ -396,7 +396,7 @@ func TestParsePayloadCountsProfileCharactersNotBytes(t *testing.T) {
 	if _, _, _, err := payload.Identity(true); err != nil {
 		t.Fatalf("multibyte identity within character caps rejected: %v", err)
 	}
-	long := fmt.Sprintf(`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":%q}`, strings.Repeat("é", 129))
+	long := fmt.Sprintf(`{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":%q}`, strings.Repeat("é", 129))
 	payload, err = ingest.ParsePayload([]byte(long))
 	if err != nil {
 		t.Fatalf("payload rejected: %v", err)
@@ -409,7 +409,7 @@ func TestParsePayloadCountsProfileCharactersNotBytes(t *testing.T) {
 func TestParsePayloadHeatmapRejectsMoreThanTwoHundredClicks(t *testing.T) {
 	clicks := strings.Repeat(`[1,1],`, 200) + `[1,1]`
 	_, err := ingest.ParsePayload([]byte(fmt.Sprintf(
-		`{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[%s],"doc_h":1,"vw":390}`,
+		`{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[%s],"doc_h":1,"vw":390}`,
 		clicks,
 	)))
 	if err == nil {

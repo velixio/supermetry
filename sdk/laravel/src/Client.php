@@ -21,7 +21,7 @@ use Throwable;
  *
  * Config keys:
  *  - `site` (string, required): public site ID.
- *  - `host` (string): Supermetry base URL, e.g. `https://analytics.example.com`.
+ *  - `host` (string): Supermetry base URL, e.g. `https://analytics.supermetry.com`.
  *  - `endpoint` (string): full events endpoint, overrides `host`.
  *  - `enabled` (bool, default true): when false every call is a no-op.
  *  - `url` (string): default page URL for events that do not pass one.

@@ -29,7 +29,7 @@ func TestChannel(t *testing.T) {
 		{name: "search medium", source: "Foo", medium: "search", want: ChannelOrganicSearch},
 		{name: "Facebook social", source: "Facebook", medium: "social", want: ChannelOrganicSocial},
 		{name: "Reddit default", source: "Reddit", want: ChannelOrganicSocial},
-		{name: "external referral", source: "example.com", medium: "referral", want: ChannelReferral},
+		{name: "external referral", source: "supermetry.com", medium: "referral", want: ChannelReferral},
 		{name: "GitHub referral", source: "GitHub", medium: "referral", want: ChannelReferral},
 		{name: "Hacker News referral", source: "Hacker News", medium: "referral", want: ChannelReferral},
 		{name: "both empty", want: ChannelDirect},

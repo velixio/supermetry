@@ -88,7 +88,7 @@ final class SupermetryTests: XCTestCase {
     }
 
     private func makeClient(configure: (inout SupermetryConfig) -> Void = { _ in }) -> Supermetry {
-        var config = SupermetryConfig(site: "site_123", host: "https://analytics.example.com/", appUrl: "https://app.example.com")
+        var config = SupermetryConfig(site: "site_123", host: "https://analytics.supermetry.com/", appUrl: "https://app.supermetry.com")
         let sessionConfig = URLSessionConfiguration.ephemeral
         sessionConfig.protocolClasses = [StubURLProtocol.self]
         config.urlSession = URLSession(configuration: sessionConfig)
@@ -123,7 +123,7 @@ final class SupermetryTests: XCTestCase {
 
         XCTAssertEqual(StubURLProtocol.requests.count, 1)
         let request = StubURLProtocol.requests[0].request
-        XCTAssertEqual(request.url?.absoluteString, "https://analytics.example.com/api/public/v1/events")
+        XCTAssertEqual(request.url?.absoluteString, "https://analytics.supermetry.com/api/public/v1/events")
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
         let ua = try XCTUnwrap(request.value(forHTTPHeaderField: "User-Agent"))
@@ -134,7 +134,7 @@ final class SupermetryTests: XCTestCase {
         XCTAssertEqual(body["v"] as? Int, 1)
         XCTAssertEqual(body["site"] as? String, "site_123")
         XCTAssertEqual(body["name"] as? String, "pageview")
-        XCTAssertEqual(body["url"] as? String, "https://app.example.com/Checkout")
+        XCTAssertEqual(body["url"] as? String, "https://app.supermetry.com/Checkout")
         XCTAssertEqual(body["screen_width"] as? Int, 390)
         let id = try XCTUnwrap(body["id"] as? String)
         XCTAssertNotNil(id.range(of: "^[0-9a-f]{32}$", options: .regularExpression))
@@ -155,7 +155,7 @@ final class SupermetryTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.requests.count, 2)
         let body = try json(1)
         XCTAssertEqual(body["name"] as? String, "Purchase")
-        XCTAssertEqual(body["url"] as? String, "https://app.example.com/Cart/Summary")
+        XCTAssertEqual(body["url"] as? String, "https://app.supermetry.com/Cart/Summary")
         let props = try XCTUnwrap(body["props"] as? [String: Any])
         XCTAssertEqual(props["plan"] as? String, "pro")
         XCTAssertEqual(props["seats"] as? Int, 3)
@@ -283,10 +283,10 @@ final class SupermetryTests: XCTestCase {
     }
 
     func testScreenURLBuilding() {
-        XCTAssertEqual(Validation.screenURL(appURL: "https://app.example.com/", screen: "/Settings/Profile"),
-                       "https://app.example.com/Settings/Profile")
-        XCTAssertEqual(Validation.screenURL(appURL: "https://app.example.com", screen: "Order Details"),
-                       "https://app.example.com/Order%20Details")
+        XCTAssertEqual(Validation.screenURL(appURL: "https://app.supermetry.com/", screen: "/Settings/Profile"),
+                       "https://app.supermetry.com/Settings/Profile")
+        XCTAssertEqual(Validation.screenURL(appURL: "https://app.supermetry.com", screen: "Order Details"),
+                       "https://app.supermetry.com/Order%20Details")
     }
 
     func testInvalidConfigurationDisablesClient() {
@@ -301,12 +301,12 @@ final class SupermetryTests: XCTestCase {
 
     func testCustomEndpointAndUserAgent() {
         let client = makeClient {
-            $0.endpoint = "https://collector.example.com/e"
+            $0.endpoint = "https://collector.supermetry.com/e"
             $0.userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Supermetry-iOS/0.1.0"
         }
         client.track("x")
         flush(client)
-        XCTAssertEqual(StubURLProtocol.requests.first?.request.url?.absoluteString, "https://collector.example.com/e")
+        XCTAssertEqual(StubURLProtocol.requests.first?.request.url?.absoluteString, "https://collector.supermetry.com/e")
         XCTAssertEqual(StubURLProtocol.requests.first?.request.value(forHTTPHeaderField: "User-Agent"),
                        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Supermetry-iOS/0.1.0")
     }

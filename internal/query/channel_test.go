@@ -63,7 +63,7 @@ func setupChannels(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	_, err := pool.Exec(ctx, `
 insert into dict(kind, id, value) values (0,1,'/'),
   (2,10,'Google'),(2,11,'Facebook'),(2,12,'ChatGPT'),(2,13,'Claude'),(2,14,'Gemini'),(2,15,'Copilot'),(2,16,'Perplexity'),
-  (2,17,'newsletter'),(2,18,'example.com'),(2,19,'GitHub'),(2,20,'Foo'),(2,21,'Direct'),
+  (2,17,'newsletter'),(2,18,'supermetry.com'),(2,19,'GitHub'),(2,20,'Foo'),(2,21,'Direct'),
   (3,30,'organic'),(3,31,'social'),(3,32,'paid'),(3,33,'email'),(3,34,'referral'),(3,35,'banner');
 insert into sessions (site_id, retention_class, session_id, visitor_id, start, last, local_day, entry_path, exit_path,
   source_id, medium_id, country, region_id, city_id, browser_id, os_id, device, pageviews, events, engagement_ms, bounce)

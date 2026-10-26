@@ -19,7 +19,7 @@ describe("@supermetry/react", () => {
   test("renders children on the server without touching the DOM", async () => {
     const { SupermetryProvider } = await import("./index");
     const html = renderToString(
-      <SupermetryProvider site="site-id" host="https://analytics.example.com">
+      <SupermetryProvider site="site-id" host="https://analytics.supermetry.com">
         <p>hello</p>
       </SupermetryProvider>,
     );
@@ -48,7 +48,7 @@ describe("@supermetry/react", () => {
     root = createRoot(container);
     await act(async () => {
       root.render(
-        <SupermetryProvider site="site-id" host="https://analytics.example.com" manual>
+        <SupermetryProvider site="site-id" host="https://analytics.supermetry.com" manual>
           <Child />
         </SupermetryProvider>,
       );
@@ -57,7 +57,7 @@ describe("@supermetry/react", () => {
     const scripts = document.head.querySelectorAll("script");
     expect(scripts).toHaveLength(1);
     const script = scripts[0]!;
-    expect(script.getAttribute("src")).toBe("https://analytics.example.com/js/script.full.js");
+    expect(script.getAttribute("src")).toBe("https://analytics.supermetry.com/js/script.full.js");
     expect(script.dataset.site).toBe("site-id");
     expect(script.dataset.manual).toBe("true");
     container.querySelector("button")!.click();

@@ -16,7 +16,7 @@ Invalid values stop startup with an error naming the variable (`internal/config/
 |---|---|---|---|
 | `SUPERMETRY_DATABASE_URL` | PostgreSQL connection URL. Must parse as a URL with a scheme and host. | none (required) | `postgres://supermetry:CHANGE_ME@127.0.0.1:5432/supermetry` |
 | `SUPERMETRY_SECRET_KEY` | Base64 (standard encoding) of at least 32 random bytes. Encrypts stored TOTP secrets and alert secrets. | none (required) | output of `openssl rand -base64 32` |
-| `SUPERMETRY_BASE_URL` | Public URL of the install, `http` or `https`. Used to build the tracking snippet (absolute script and event URLs). | none (required) | `https://analytics.example.com` |
+| `SUPERMETRY_BASE_URL` | Public URL of the install, `http` or `https`. Used to build the tracking snippet (absolute script and event URLs). | none (required) | `https://analytics.supermetry.com` |
 | `SUPERMETRY_HOMEPAGE_URL` | Public brand link used by “Powered by Supermetry”. It never changes auth, API, tracker, email-link, or cookie origins. | `https://supermetry.com` | `https://company.example/analytics` |
 | `SUPERMETRY_BADGE_BRANDING` | Show the small Supermetry mark on pixel and open-counter SVG badges, and "powered by Supermetry" on the stats badge. | `true` | `false` |
 | `SUPERMETRY_OPEN_COUNTERS` | Enable account-free GitHub-shaped counters under `/c/github.com/…`. Direct browser requests do not count. | `false` | `true` |
@@ -40,7 +40,7 @@ Gotchas:
 | `SUPERMETRY_MAX_SITES_PER_ORG` | Most sites one organization may have. Instance admins are exempt, and the demo project does not count. Must be a positive integer. | `10` | `25` |
 | `SUPERMETRY_DEFAULT_RETENTION_DAYS` | Raw-event retention, in days, that a new site gets when its creator does not choose one; the dashboard's site form preselects it. One of `7`, `30`, `90`, `365`, or `0` for keep forever. Applies only to new sites. | `30` | `90` |
 | `SUPERMETRY_RETENTION_FOREVER` | Boolean. Whether "keep forever" (`retention_days: 0`) is offered. When `false`, creating or updating a site with `retention_days: 0`, including through the admin API, is rejected with 400, and the option is hidden in the dashboard; existing forever sites keep their setting until changed. Requires `SUPERMETRY_DEFAULT_RETENTION_DAYS` other than `0`. | `true` | `false` |
-| `SUPERMETRY_SUPPORT_URL` | Optional help link shown on the sign-in, error and not-found pages as "Contact support". `https`, `http` or `mailto:` only. Empty hides the link. | empty | `https://help.example.com/contact` |
+| `SUPERMETRY_SUPPORT_URL` | Optional help link shown on the sign-in, error and not-found pages as "Contact support". `https`, `http` or `mailto:` only. Empty hides the link. | empty | `https://help.supermetry.com/contact` |
 | `SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS` | Boolean (Go `ParseBool`: `1`, `t`, `true`, `0`, `f`, `false`, ...). Passed to the alert webhook client as "allow private". Exact effect: see source, `internal/alerts` and `cmd/supermetry/serve.go`. | `false` | `false` |
 
 Notification destinations, including Telegram, are configured in the application rather than through environment variables. See [Notification channels](notifications.md) for routing, secret handling, testing, and Telegram setup.
@@ -132,7 +132,7 @@ Leave `SUPERMETRY_SMTP_HOST` empty to configure no mail server. How Supermetry b
 
 | Variable | Meaning | Default | Example |
 |---|---|---|---|
-| `SUPERMETRY_SMTP_HOST` | SMTP server host. | empty | `smtp.example.com` |
+| `SUPERMETRY_SMTP_HOST` | SMTP server host. | empty | `smtp.supermetry.com` |
 | `SUPERMETRY_SMTP_PORT` | Port, 1 to 65535. | `587` | `587` |
 | `SUPERMETRY_SMTP_USER` | SMTP username. | empty | `supermetry@example.com` |
 | `SUPERMETRY_SMTP_PASS` | SMTP password. Treat as a secret. | empty | `CHANGE_ME` |
@@ -168,7 +168,7 @@ Placeholders only. Replace every value.
 ```sh
 SUPERMETRY_DATABASE_URL=postgres://supermetry:CHANGE_ME@127.0.0.1:5432/supermetry
 SUPERMETRY_SECRET_KEY=PASTE_OUTPUT_OF_openssl_rand_-base64_32
-SUPERMETRY_BASE_URL=https://analytics.example.com
+SUPERMETRY_BASE_URL=https://analytics.supermetry.com
 
 SUPERMETRY_LISTEN=127.0.0.1:8787
 SUPERMETRY_TRUSTED_PROXIES=127.0.0.1/32

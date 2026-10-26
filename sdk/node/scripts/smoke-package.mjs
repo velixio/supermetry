@@ -62,7 +62,7 @@ try {
   ].join("\n"));
   await writeFile(path.join(fixtureRoot, "index.ts"), [
     'import { Supermetry, type SendResult } from "@supermetry/node";',
-    'const client = new Supermetry({ site: "site", host: "https://analytics.example.com", url: "https://example.com" });',
+    'const client = new Supermetry({ site: "site", host: "https://analytics.supermetry.com", url: "https://supermetry.com" });',
     'const result: Promise<SendResult> = client.track("Signup");',
     'void result;',
     "",

@@ -138,7 +138,7 @@ describe("buildCodeSamples", () => {
     const operation = buildReference(document).groups[0]!.operations[0]!;
     const samples = buildCodeSamples(
       operation,
-      "https://analytics.example.com",
+      "https://analytics.supermetry.com",
       7,
     );
 
@@ -164,7 +164,7 @@ describe("buildCodeSamples", () => {
     };
     const samples = buildCodeSamples(
       operation,
-      "https://analytics.example.com",
+      "https://analytics.supermetry.com",
       7,
     );
 

@@ -71,9 +71,9 @@ func TestHostLabel(t *testing.T) {
 		host string
 		want string
 	}{
-		{name: "port and case", host: "WWW.Example.COM:8443", want: "www.example.com"},
-		{name: "trailing dot", host: "docs.example.com.", want: "docs.example.com"},
-		{name: "plain", host: "example.com", want: "example.com"},
+		{name: "port and case", host: "WWW.supermetry.com:8443", want: "www.supermetry.com"},
+		{name: "trailing dot", host: "docs.supermetry.com.", want: "docs.supermetry.com"},
+		{name: "plain", host: "supermetry.com", want: "supermetry.com"},
 		{name: "empty", host: "", want: ""},
 	}
 	for _, tt := range tests {

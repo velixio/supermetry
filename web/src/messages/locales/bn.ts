@@ -365,7 +365,7 @@ const messages: MessageTree = {
     statusError: 'সিঙ্ক সমস্যা', property: 'প্রপার্টি', lastSync: 'সর্বশেষ সিঙ্ক', syncedThrough: 'এ পর্যন্ত সিঙ্ক', never: 'এখনও নয়',
     reauthBody: 'Google প্রবেশাধিকার বাতিল করেছে বা এর মেয়াদ শেষ হয়েছে। আমদানি আবার চালু করতে পুনরায় সংযোগ করুন।',
     errorBody: (detail: string) => `সর্বশেষ সিঙ্ক ব্যর্থ হয়েছে এবং আবার চেষ্টা করা হবে: ${detail}`, connectHeading: 'Google Search Console যুক্ত করুন',
-    propertyLabel: 'Search Console প্রপার্টি', propertyHint: 'sc-domain:example.com-এর মতো ডোমেইন প্রপার্টি বা https://example.com/-এর মতো URL প্রিফিক্স ব্যবহার করুন।',
+    propertyLabel: 'Search Console প্রপার্টি', propertyHint: 'sc-domain:supermetry.com-এর মতো ডোমেইন প্রপার্টি বা https://supermetry.com/-এর মতো URL প্রিফিক্স ব্যবহার করুন।',
     backfillLabel: 'ইতিহাস আমদানি করুন', backfillOption: (days: number) => `গত ${days} দিন`, connect: 'Google দিয়ে যুক্ত করুন', reconnect: 'Google দিয়ে আবার যুক্ত করুন',
     connecting: 'Google-এ পাঠানো হচ্ছে…', propertyRequired: 'আমদানির জন্য Search Console প্রপার্টি লিখুন।', readOnly: 'শুধু মালিক ও অ্যাডমিনরা ইন্টিগ্রেশন যুক্ত বা বিচ্ছিন্ন করতে পারেন।',
     disconnect: 'বিচ্ছিন্ন করুন', disconnecting: 'বিচ্ছিন্ন করা হচ্ছে…', disconnectTitle: 'Google Search Console বিচ্ছিন্ন করবেন?',

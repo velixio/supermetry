@@ -1161,15 +1161,15 @@ paths:
         - lang: Shell
           label: curl
           source: |-
-            curl --request POST https://analytics.example.com/api/public/v1/events \
+            curl --request POST https://analytics.supermetry.com/api/public/v1/events \
               --header 'Content-Type: application/json' \
               --header 'User-Agent: Mozilla/5.0' \
               --header 'X-Forwarded-For: 203.0.113.10' \
-              --data '{"site":"my-site","name":"pageview","url":"https://www.example.com/pricing"}'
+              --data '{"site":"my-site","name":"pageview","url":"https://www.supermetry.com/pricing"}'
         - lang: JavaScript
           label: fetch
           source: |-
-            await fetch('https://analytics.example.com/api/public/v1/events', {
+            await fetch('https://analytics.supermetry.com/api/public/v1/events', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1180,7 +1180,7 @@ paths:
               body: JSON.stringify({
                 site: 'my-site',
                 name: 'pageview',
-                url: 'https://www.example.com/pricing',
+                url: 'https://www.supermetry.com/pricing',
               }),
             });
   /api/public/v1/mcp:
@@ -4472,7 +4472,7 @@ components:
           type: string
           format: uri
           description: Full page URL. Required by the event intake handler.
-          example: https://www.example.com/pricing
+          example: https://www.supermetry.com/pricing
         referrer:
           type: string
           example: https://search.example/

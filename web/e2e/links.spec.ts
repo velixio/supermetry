@@ -21,8 +21,8 @@ test('short links: create, redirect safely, count clicks, show statistics and pi
   // Other links so the list shows several states.
   const seedIDs: number[] = []
   for (const data of [
-    { slug: 'launch-qr', name: 'Launch poster QR', destination: 'https://example.com/launch', enabled: false },
-    { slug: 'vip-offer', name: 'VIP offer (first 1 click)', destination: 'https://example.com/vip', click_limit: 1, utm_medium: 'email' },
+    { slug: 'launch-qr', name: 'Launch poster QR', destination: 'https://supermetry.com/launch', enabled: false },
+    { slug: 'vip-offer', name: 'VIP offer (first 1 click)', destination: 'https://supermetry.com/vip', click_limit: 1, utm_medium: 'email' },
   ]) {
     const created = await page.request.post(`/api/private/sites/${owner.siteId}/links`, { headers: owner.apiHeaders, data })
     expect(created.status(), await created.text()).toBe(201)
@@ -40,7 +40,7 @@ test('short links: create, redirect safely, count clicks, show statistics and pi
   await page.getByRole('button', { name: 'Create link' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create short link' })
   await dialog.getByLabel('Name').fill('Autumn newsletter')
-  await dialog.getByLabel('Destination URL').fill('https://example.com/autumn?ref=news')
+  await dialog.getByLabel('Destination URL').fill('https://supermetry.com/autumn?ref=news')
   await dialog.getByLabel('Short URL ending').fill('autumn')
   await dialog.getByLabel('Source').fill('newsletter')
   await dialog.getByLabel('Campaign').fill('autumn')
@@ -63,7 +63,7 @@ test('short links: create, redirect safely, count clicks, show statistics and pi
     page.request.get('/l/autumn?next=https://evil.example&url=//evil.example', { maxRedirects: 0, headers })
   const first = await hit({ 'User-Agent': desktopUA, Referer: 'https://www.news.example/story?token=secret' })
   expect(first.status()).toBe(302)
-  expect(first.headers()['location']).toBe('https://example.com/autumn?ref=news&utm_source=newsletter&utm_campaign=autumn')
+  expect(first.headers()['location']).toBe('https://supermetry.com/autumn?ref=news&utm_source=newsletter&utm_campaign=autumn')
   expect(first.headers()['cache-control']).toBe('no-store')
   for (let index = 0; index < 3; index += 1) await hit({ 'User-Agent': desktopUA, Referer: 'https://news.example/other' })
   await hit({ 'User-Agent': phoneUA })

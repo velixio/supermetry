@@ -53,7 +53,7 @@ How to read the tables:
 |---|---|
 | Body capped at 8 KiB and must be valid UTF-8; props, URL and name lengths are capped | `internal/ingest/handler.go:87`, `internal/ingest/payload.go:17-30,75` |
 | Site resolved from the body's `site` field through an in-memory registry (no DB read) | `internal/ingest/handler.go:106` |
-| Page URL host must match the site's `allowed_hosts` (exact, or `*.example.com` suffix). An empty list rejects everything | `internal/ingest/handler.go:145-149`, `internal/sites/registry.go:40-57` |
+| Page URL host must match the site's `allowed_hosts` (exact, or `*.supermetry.com` suffix). An empty list rejects everything | `internal/ingest/handler.go:145-149`, `internal/sites/registry.go:40-57` |
 | Token-bucket rate limits: 1,000/s per IP (burst 2,000), 5,000/s per site (burst 10,000), 10,000/s per process. IPv6 is keyed by /64. Over the limit returns 429 | `cmd/supermetry/serve.go:318`, `internal/ingest/ratelimit.go:139-147`, `internal/ingest/handler.go:230-235,575-582` |
 | Bounded write queue: when full, 503 and `ingest_dropped_total` | `internal/ingest/handler.go:629-633`, `SUPERMETRY_QUEUE_SIZE` |
 | Dedup on `site + id` | `internal/ingest/handler.go:154-161`, `SUPERMETRY_DEDUP_ENTRIES` |

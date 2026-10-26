@@ -45,12 +45,12 @@ raw samples, totals, minute series, countries, and browsers for analysis.
 Run this once Supermetry and Plausible trackers receive the same real traffic:
 
 ```sh
-export SUPERMETRY_URL=https://supermetry.example.com
+export SUPERMETRY_URL=https://supermetry.com
 export SUPERMETRY_KEY=supermetry_stats_key
 export SUPERMETRY_SITE_ID=1
-export PLAUSIBLE_URL=https://plausible.example.com
+export PLAUSIBLE_URL=https://plausible.supermetry.com
 export PLAUSIBLE_KEY=plausible_stats_key
-export PLAUSIBLE_SITE=example.com
+export PLAUSIBLE_SITE=supermetry.com
 python3 tools/bench/accuracy/compare-live.py --from 2026-10-01 --to 2026-10-07
 ```
 

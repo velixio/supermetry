@@ -213,8 +213,8 @@ func TestNormalizeConfigDefaultsAndRejectsUnsafeEmbedding(t *testing.T) {
 	}{
 		{name: "unknown section", config: Config{Sections: []Section{"secrets"}}},
 		{name: "too many filters", config: Config{Filters: make([]api.Filter, 11)}},
-		{name: "insecure origin", config: Config{Embed: EmbedConfig{Enabled: true, AllowedOrigins: []string{"http://example.com"}}}},
-		{name: "origin has path", config: Config{Embed: EmbedConfig{Enabled: true, AllowedOrigins: []string{"https://example.com/path"}}}},
+		{name: "insecure origin", config: Config{Embed: EmbedConfig{Enabled: true, AllowedOrigins: []string{"http://supermetry.com"}}}},
+		{name: "origin has path", config: Config{Embed: EmbedConfig{Enabled: true, AllowedOrigins: []string{"https://supermetry.com/path"}}}},
 		{name: "wildcard not confirmed", config: Config{Embed: EmbedConfig{Enabled: true}}},
 		{name: "fixed range backwards", config: Config{Date: DateConfig{Mode: DateFixed, From: "2026-10-10", To: "2026-10-01"}}},
 		{name: "rolling range over maximum", config: Config{Date: DateConfig{Mode: DateRolling, Days: 31, MaxDays: 30}}},

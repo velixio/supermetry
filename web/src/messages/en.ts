@@ -857,7 +857,7 @@ export const en = {
     errorBody: (detail: string) => `The last sync failed and will be retried: ${detail}`,
     connectHeading: 'Connect Google Search Console',
     propertyLabel: 'Search Console property',
-    propertyHint: 'Use a domain property such as sc-domain:example.com, or a URL prefix such as https://example.com/.',
+    propertyHint: 'Use a domain property such as sc-domain:supermetry.com, or a URL prefix such as https://supermetry.com/.',
     backfillLabel: 'Import history',
     backfillOption: (days: number) => `Last ${days} days`,
     connect: 'Connect with Google',

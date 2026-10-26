@@ -34,7 +34,7 @@ func TestParseDeploymentDescriptorRejectsMutableOrUnsafeFacts(t *testing.T) {
 		{name: "unknown field", old: `"socket_group":"supermetry-updater"`, new: `"socket_group":"supermetry-updater","command":"sh"`},
 		{name: "service", old: `"service_name":"supermetry.service"`, new: `"service_name":"other.service"`},
 		{name: "versions dir", old: `"versions_dir":"/opt/supermetry/versions"`, new: `"versions_dir":"/tmp/versions"`},
-		{name: "readiness host", old: `http://127.0.0.1:8080/readyz`, new: `http://example.com/readyz`},
+		{name: "readiness host", old: `http://127.0.0.1:8080/readyz`, new: `http://supermetry.com/readyz`},
 		{name: "readiness path", old: `/readyz`, new: `/admin`},
 		{name: "socket group", old: `"socket_group":"supermetry-updater"`, new: `"socket_group":"root"`},
 	}

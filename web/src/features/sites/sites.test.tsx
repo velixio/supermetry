@@ -28,7 +28,7 @@ describe('SiteForm', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<SiteForm submitLabel="Add site" onSubmit={onSubmit} retention={{ defaultDays: 90, forever: false }} />)
 
-    fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'https://www.shop.example.com/' } })
+    fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'https://www.shop.supermetry.com/' } })
     fireEvent.click(screen.getByRole('combobox', { name: 'Time zone' }))
     fireEvent.change(await screen.findByLabelText('Search time zones…'), { target: { value: 'tokyo' } })
     fireEvent.click(await screen.findByRole('option', { name: 'Asia/Tokyo' }))
@@ -36,8 +36,8 @@ describe('SiteForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
-      name: 'shop.example.com',
-      hosts: ['www.shop.example.com'],
+      name: 'shop.supermetry.com',
+      hosts: ['www.shop.supermetry.com'],
       timezone: 'Asia/Tokyo',
     }))
     // The server applies the instance default retention when the user did not choose one.
@@ -50,12 +50,12 @@ describe('SiteForm', () => {
     const retention = screen.getByLabelText('Raw data retention')
     expect(retention).toHaveValue('90')
     expect([...(retention as HTMLSelectElement).options].map((option) => option.value)).toEqual(['7', '30', '90', '365'])
-    fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'shop.example.com, checkout.example.com' } })
+    fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'shop.supermetry.com, checkout.supermetry.com' } })
     fireEvent.change(retention, { target: { value: '365' } })
     fireEvent.change(screen.getByLabelText('Revenue currency (optional)'), { target: { value: 'eur' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      hosts: ['shop.example.com', 'checkout.example.com'],
+      hosts: ['shop.supermetry.com', 'checkout.supermetry.com'],
       retention_days: 365,
       revenue_currency: 'EUR',
     })))
@@ -78,7 +78,7 @@ describe('SiteForm', () => {
   it('shows a server error next to the field it concerns and focuses it', async () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('revenue currency must be three uppercase letters'))
     render(<SiteForm submitLabel="Add site" onSubmit={onSubmit} />)
-    fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'shop.example.com' } })
+    fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'shop.supermetry.com' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }))
     const currency = screen.getByLabelText('Revenue currency (optional)')
     await waitFor(() => expect(currency).toHaveAttribute('aria-invalid', 'true'))

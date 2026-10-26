@@ -138,7 +138,7 @@ func TestLocalBaseURLPortMismatch(t *testing.T) {
 		{"http://localhost:8787", ":8787", false},
 		{"http://127.0.0.1:8787", ":8080", true},
 		{"https://[::1]:443", ":8787", true},
-		{"https://example.com", ":8080", false},
+		{"https://supermetry.com", ":8080", false},
 	} {
 		if got := LocalBaseURLPortMismatch(tc.base, tc.listen); got != tc.want {
 			t.Errorf("LocalBaseURLPortMismatch(%q,%q)=%v want %v", tc.base, tc.listen, got, tc.want)
@@ -408,7 +408,7 @@ func TestConfigRequiresSecretKey(t *testing.T) {
 func TestLoadSMTP(t *testing.T) {
 	values := baseEnv()
 	values["SUPERMETRY_SIGNUP"] = "open"
-	values["SUPERMETRY_SMTP_HOST"] = "smtp.example.com"
+	values["SUPERMETRY_SMTP_HOST"] = "smtp.supermetry.com"
 	values["SUPERMETRY_SMTP_PORT"] = "2525"
 	values["SUPERMETRY_SMTP_USER"] = "mailer"
 	values["SUPERMETRY_SMTP_PASS"] = "secret"
@@ -418,7 +418,7 @@ func TestLoadSMTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Signup != "open" || c.SMTP.Host != "smtp.example.com" || c.SMTP.Port != 2525 || c.SMTP.User != "mailer" || c.SMTP.Pass != "secret" || c.SMTP.From != "Supermetry <supermetry@example.com>" || !c.SMTP.StartTLS {
+	if c.Signup != "open" || c.SMTP.Host != "smtp.supermetry.com" || c.SMTP.Port != 2525 || c.SMTP.User != "mailer" || c.SMTP.Pass != "secret" || c.SMTP.From != "Supermetry <supermetry@example.com>" || !c.SMTP.StartTLS {
 		t.Fatalf("bad platform config: %+v", c)
 	}
 }

@@ -27,8 +27,8 @@ describe("<Supermetry />", () => {
     const Supermetry = await component();
     const container = await AstroContainer.create();
 
-    const plain = await container.renderToString(Supermetry, { props: { site: "site-id", host: "https://analytics.example.com" } });
-    expect(plain).toContain('src="https://analytics.example.com/js/script.js"');
+    const plain = await container.renderToString(Supermetry, { props: { site: "site-id", host: "https://analytics.supermetry.com" } });
+    expect(plain).toContain('src="https://analytics.supermetry.com/js/script.js"');
     expect(plain).toContain('data-site="site-id"');
     expect(plain).not.toContain("astro:page-load");
 

@@ -18,8 +18,8 @@ use supermetry::{Context, Event, Supermetry};
 
 #[tokio::main]
 async fn main() -> Result<(), supermetry::Error> {
-    let client = Supermetry::builder("your-site-id", "https://analytics.example.com")
-        .url("https://example.com") // default page URL for events without one
+    let client = Supermetry::builder("your-site-id", "https://analytics.supermetry.com")
+        .url("https://supermetry.com") // default page URL for events without one
         .build()?;
 
     // Take these from the incoming request.
@@ -27,13 +27,13 @@ async fn main() -> Result<(), supermetry::Error> {
     let ip = "203.0.113.7";
 
     client
-        .pageview(Context::new().url("https://example.com/pricing").user_agent(ua).ip(ip))
+        .pageview(Context::new().url("https://supermetry.com/pricing").user_agent(ua).ip(ip))
         .await?;
 
     client
         .track(
             Event::new("Purchase")
-                .url("https://example.com/checkout")
+                .url("https://supermetry.com/checkout")
                 .prop("plan", "pro")
                 .prop("seats", 5)
                 .prop("annual", true)
@@ -58,8 +58,8 @@ use supermetry::{Config, Supermetry};
 
 let client = Supermetry::new(Config {
     site: "your-site-id".into(),
-    host: "https://analytics.example.com".into(),
-    url: Some("https://example.com".into()),
+    host: "https://analytics.supermetry.com".into(),
+    url: Some("https://supermetry.com".into()),
     ..Default::default()
 })?;
 ```

@@ -76,8 +76,8 @@ func TestPlatformFlow(t *testing.T) {
 	env := start(t)
 	setup := env.setupURL(t)
 	owner := env.completeSetup(t, setup, "o@example.test", "Acme")
-	site := owner.createSite(t, "Blog", "blog.example.com", "Europe/Berlin")
-	env.track(t, site.PublicID, "https://blog.example.com/", 20)
+	site := owner.createSite(t, "Blog", "blog.supermetry.com", "Europe/Berlin")
+	env.track(t, site.PublicID, "https://blog.supermetry.com/", 20)
 	key := owner.createKey(t, "stats:read")
 	if value := env.publicSummary(t, key, site.ID).Pageviews; value != 20 {
 		t.Fatalf("pageviews via public API = %d", value)
@@ -143,8 +143,8 @@ func TestSitesFileCompatibilityEndsAfterSetup(t *testing.T) {
 	env.processEnv = append(env.processEnv, "SUPERMETRY_SITES_FILE="+sitesPath)
 	startPrepared(t, env)
 	owner := env.completeSetup(t, env.setupURL(t), "o@example.test", "Acme")
-	created := owner.createSite(t, "Blog", "blog.example.com", "UTC")
-	env.track(t, created.PublicID, "https://blog.example.com/", 1)
+	created := owner.createSite(t, "Blog", "blog.supermetry.com", "UTC")
+	env.track(t, created.PublicID, "https://blog.supermetry.com/", 1)
 	headers := http.Header{"Authorization": []string{"Bearer legacy-key"}}
 	env.request(t, http.MethodGet, "/api/public/v1/stats/summary?site_id=1&period=today", nil, headers, http.StatusUnauthorized, nil)
 }
@@ -155,8 +155,8 @@ func TestSiteErasureCatchesShutdownFlush(t *testing.T) {
 	env.setProcessEnv("SUPERMETRY_SESSION_FLUSH", "1h")
 	startPrepared(t, env)
 	owner := env.completeSetup(t, env.setupURL(t), "o@example.test", "Acme")
-	created := owner.createSite(t, "Blog", "blog.example.com", "UTC")
-	env.track(t, created.PublicID, "https://blog.example.com/", 1)
+	created := owner.createSite(t, "Blog", "blog.supermetry.com", "UTC")
+	env.track(t, created.PublicID, "https://blog.supermetry.com/", 1)
 	owner.request(t, http.MethodDelete, fmt.Sprintf("/api/private/sites/%d", created.ID), nil, http.StatusOK, nil)
 	// Make the tombstone due while the event remains buffered, so shutdown must
 	// flush the writer before running the grace-aware erasure pass.

@@ -17,7 +17,7 @@ composer require supermetry/laravel
 
 ```dotenv
 SUPERMETRY_SITE=your-public-site-id
-SUPERMETRY_HOST=https://analytics.example.com
+SUPERMETRY_HOST=https://analytics.supermetry.com
 # optional
 SUPERMETRY_ENABLED=true
 SUPERMETRY_QUEUE=false
@@ -42,7 +42,7 @@ Supermetry::track('Purchase', ['sku' => 'A-1'], [
 ]);
 
 Supermetry::pageview();                               // current request URL
-Supermetry::pageview('https://example.com/pricing');  // explicit URL
+Supermetry::pageview('https://supermetry.com/pricing');  // explicit URL
 
 Supermetry::identify((string) $user->id, ['plan' => 'pro']); // later events carry profile_id
 Supermetry::reset();
@@ -95,13 +95,13 @@ Use it **instead of** the browser script, not with it, or pageviews are counted 
 ```php
 $supermetry = new Supermetry\Client([
     'site' => 'your-public-site-id',
-    'host' => 'https://analytics.example.com',
-    'url'  => 'https://example.com/',          // default page URL (optional)
+    'host' => 'https://analytics.supermetry.com',
+    'url'  => 'https://supermetry.com/',          // default page URL (optional)
     'on_error' => fn (Supermetry\SupermetryException $e) => error_log($e->getMessage()),
 ]);
 
 $supermetry->track('Signup', ['plan' => 'pro'], [
-    'url' => 'https://example.com/signup',
+    'url' => 'https://supermetry.com/signup',
     'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
     'ip' => $_SERVER['REMOTE_ADDR'] ?? null,
 ]);

@@ -18,8 +18,8 @@ import java.io.File
  *         super.onCreate()
  *         Supermetry.init(this, SupermetryConfig(
  *             site = "your-public-site-id",
- *             host = "https://analytics.example.com",
- *             appUrl = "https://app.example.com",
+ *             host = "https://analytics.supermetry.com",
+ *             appUrl = "https://app.supermetry.com",
  *         ))
  *     }
  * }

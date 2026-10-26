@@ -41,7 +41,7 @@ func TestRunDryRunBinaryReportsPlanWithoutSideEffects(t *testing.T) {
 		Check:    func(context.Context, string) (int, error) { checks++; return 180000, nil },
 		LookPath: func(file string) (string, error) { return "/usr/bin/" + file, nil },
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{Host: "database.internal", Port: "5432", User: "example", Password: "sentinel-secret", Name: "supermetry"}, Listen: "127.0.0.1:8787", Proxy: "nginx", DryRun: true}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{Host: "database.internal", Port: "5432", User: "example", Password: "sentinel-secret", Name: "supermetry"}, Listen: "127.0.0.1:8787", Proxy: "nginx", DryRun: true}
 	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &output), sys); err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestRunDryRunRejectsPrivilegedApply(t *testing.T) {
 }
 
 func TestRunDryRunRejectsInvalidDockerImageSource(t *testing.T) {
-	err := Run(context.Background(), Options{DryRun: true, Mode: "docker", BaseURL: "https://analytics.example.com", Image: "invalid"}, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), System{GOOS: "linux"})
+	err := Run(context.Background(), Options{DryRun: true, Mode: "docker", BaseURL: "https://analytics.supermetry.com", Image: "invalid"}, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), System{GOOS: "linux"})
 	if err == nil || !strings.Contains(err.Error(), "--image must be download or build") {
 		t.Fatalf("error = %v", err)
 	}
@@ -89,7 +89,7 @@ func TestRunDryRunDockerReportsImageSources(t *testing.T) {
 			var output bytes.Buffer
 			runner := &fakeRunner{}
 			sys := System{Runner: runner, WriteFile: func(string, []byte, os.FileMode) error { t.Fatal("dry run wrote a file"); return nil }, GOOS: "linux", IsRoot: true}
-			opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: tt.image, Dir: "/srv/supermetry", Version: "v1.2.3", DryRun: true}
+			opts := Options{Mode: "docker", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: tt.image, Dir: "/srv/supermetry", Version: "v1.2.3", DryRun: true}
 			if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &output), sys); err != nil {
 				t.Fatal(err)
 			}
@@ -113,17 +113,17 @@ func TestRunExistingAdminPrintsSignInGuidance(t *testing.T) {
 		Check:       func(context.Context, string) (int, error) { return 180000, nil },
 		AdminExists: func(context.Context, string) (bool, error) { return true, nil },
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
 	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &output), sys); err != nil {
 		t.Fatal(err)
 	}
-	if got := output.String(); !strings.Contains(got, "Open https://analytics.example.com/app and sign in") || strings.Contains(got, "create your admin account") {
+	if got := output.String(); !strings.Contains(got, "Open https://analytics.supermetry.com/app and sign in") || strings.Contains(got, "create your admin account") {
 		t.Fatalf("completion guidance = %q", got)
 	}
 }
 
 func TestRunRejectsUnsupportedPostgresAndWarnsBelowBaseline(t *testing.T) {
-	base := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
+	base := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
 	for _, tt := range []struct {
 		name    string
 		version int
@@ -169,7 +169,7 @@ func TestRunDockerUsesRequestedImageSource(t *testing.T) {
 				Ready:         func(context.Context, string, time.Duration) error { return nil },
 				PrepareSource: func(context.Context, Options) error { prepared++; return nil },
 			}
-			opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: tt.image, Dir: "/srv/supermetry", Version: "v1.2.3", Yes: true}
+			opts := Options{Mode: "docker", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: tt.image, Dir: "/srv/supermetry", Version: "v1.2.3", Yes: true}
 			if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys); err != nil {
 				t.Fatal(err)
 			}
@@ -197,7 +197,7 @@ func TestRunManagedDockerInstallsNarrowUpdaterAccess(t *testing.T) {
 		Ready:         func(context.Context, string, time.Duration) error { return nil },
 		SetupRequired: func(context.Context, string) (bool, error) { return true, nil },
 	}
-	opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "download", Dir: "/opt/supermetry", Version: "v1.2.3", Yes: true}
+	opts := Options{Mode: "docker", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "download", Dir: "/opt/supermetry", Version: "v1.2.3", Yes: true}
 	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys); err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func TestRunLocalBuildDockerDoesNotInstallUpdater(t *testing.T) {
 		SetupRequired: func(context.Context, string) (bool, error) { return true, nil },
 		PrepareSource: func(context.Context, Options) error { return nil },
 	}
-	opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "build", Dir: "/opt/supermetry", Version: "v1.2.3", Yes: true}
+	opts := Options{Mode: "docker", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "build", Dir: "/opt/supermetry", Version: "v1.2.3", Yes: true}
 	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys); err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ func TestRunDockerExistingAdminPrintsSignInGuidance(t *testing.T) {
 		Ready:         func(context.Context, string, time.Duration) error { return nil },
 		SetupRequired: func(context.Context, string) (bool, error) { return false, nil },
 	}
-	opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "download", Dir: "/srv/supermetry", Version: "v1.2.3", Yes: true}
+	opts := Options{Mode: "docker", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "download", Dir: "/srv/supermetry", Version: "v1.2.3", Yes: true}
 	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &output), sys); err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +284,7 @@ func TestRunDockerWaitsForReadinessBeforeProxyChange(t *testing.T) {
 			return "/usr/bin/" + file, nil
 		},
 	}
-	opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "nginx", Image: "download", Dir: "/srv/supermetry", Yes: true}
+	opts := Options{Mode: "docker", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "nginx", Image: "download", Dir: "/srv/supermetry", Yes: true}
 	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys); err != nil {
 		t.Fatal(err)
 	}
@@ -298,37 +298,37 @@ func TestRunDockerWaitsForReadinessBeforeProxyChange(t *testing.T) {
 
 func TestPlannedProxyAppendsCaddySiteBlock(t *testing.T) {
 	sys := System{ReadFile: func(string) ([]byte, error) { return []byte("existing.example {\n  respond ok\n}\n"), nil }}
-	file, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787"}, sys)
+	file, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787"}, sys)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := string(file.Data)
-	if !strings.HasPrefix(got, "existing.example") || !strings.Contains(got, "analytics.example.com") {
+	if !strings.HasPrefix(got, "existing.example") || !strings.Contains(got, "analytics.supermetry.com") {
 		t.Fatalf("Caddyfile was not appended:\n%s", got)
 	}
 }
 
 func TestPlannedProxyDoesNotDuplicateCaddySiteBlock(t *testing.T) {
-	block := RenderCaddy("analytics.example.com", "127.0.0.1:8787")
+	block := RenderCaddy("analytics.supermetry.com", "127.0.0.1:8787")
 	sys := System{ReadFile: func(string) ([]byte, error) { return block, nil }}
-	file, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787"}, sys)
+	file, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787"}, sys)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Count(string(file.Data), "analytics.example.com"); got != 1 {
+	if got := strings.Count(string(file.Data), "analytics.supermetry.com"); got != 1 {
 		t.Fatalf("domain occurrences = %d, want 1:\n%s", got, file.Data)
 	}
 }
 
 func TestPlannedProxyUpdatesCaddySiteBlock(t *testing.T) {
-	existing := []byte("analytics.example.com {\n    reverse_proxy 127.0.0.1:8000\n}\n")
+	existing := []byte("analytics.supermetry.com {\n    reverse_proxy 127.0.0.1:8000\n}\n")
 	sys := System{ReadFile: func(string) ([]byte, error) { return existing, nil }}
-	file, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787"}, sys)
+	file, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787"}, sys)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := string(file.Data)
-	if strings.Count(got, "analytics.example.com") != 1 || strings.Contains(got, "127.0.0.1:8000") || !strings.Contains(got, "127.0.0.1:8787") {
+	if strings.Count(got, "analytics.supermetry.com") != 1 || strings.Contains(got, "127.0.0.1:8000") || !strings.Contains(got, "127.0.0.1:8787") {
 		t.Fatalf("Caddy site block was not updated safely:\n%s", got)
 	}
 }
@@ -336,7 +336,7 @@ func TestPlannedProxyUpdatesCaddySiteBlock(t *testing.T) {
 func TestPlannedProxyPreservesCaddyfileOnReadError(t *testing.T) {
 	wantErr := errors.New("permission denied")
 	sys := System{ReadFile: func(string) ([]byte, error) { return nil, wantErr }}
-	_, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787"}, sys)
+	_, err := plannedProxy(Options{Proxy: "caddy", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787"}, sys)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("error = %v, want read error", err)
 	}
@@ -350,7 +350,7 @@ func TestRunDockerReportsPortInUseBeforeWriting(t *testing.T) {
 		CheckPort: func(string) error { return errors.New("bind: address already in use") },
 		Stat:      func(string) (os.FileInfo, error) { return nil, os.ErrNotExist },
 	}
-	opts := Options{Mode: "docker", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "download", Dir: "/srv/supermetry", Yes: true}
+	opts := Options{Mode: "docker", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none", Image: "download", Dir: "/srv/supermetry", Yes: true}
 	err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys)
 	if err == nil || !strings.Contains(err.Error(), "port 8787 is already in use") {
 		t.Fatalf("error = %v", err)
@@ -369,7 +369,7 @@ func TestRunReportsPortInUseBeforeWriting(t *testing.T) {
 		CheckPort: func(string) error { return errors.New("bind: address already in use") },
 		Stat:      func(string) (os.FileInfo, error) { return nil, os.ErrNotExist },
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
 	err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys)
 	if err == nil || !strings.Contains(err.Error(), "port 8787 is already in use") {
 		t.Fatalf("error = %v", err)
@@ -392,7 +392,7 @@ func TestRunReportsMissingSystemdBeforeWriting(t *testing.T) {
 			return "/usr/bin/" + file, nil
 		},
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
 	err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys)
 	if err == nil || !strings.Contains(err.Error(), "systemd is required") {
 		t.Fatalf("error = %v", err)
@@ -444,7 +444,7 @@ func TestRunRetriesDBWithDefaults(t *testing.T) {
 		},
 		Stat: func(string) (os.FileInfo, error) { return nil, os.ErrNotExist },
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none"}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none"}
 	if err := Run(context.Background(), opts, p, sys); err != nil {
 		t.Fatal(err)
 	}
@@ -478,7 +478,7 @@ func TestRunYesMissingValueErrors(t *testing.T) {
 	}{
 		{name: "mode", opts: Options{Yes: true}, want: "--mode"},
 		{name: "base URL", opts: Options{Yes: true, Mode: "binary"}, want: "--base-url"},
-		{name: "database", opts: Options{Yes: true, Mode: "binary", BaseURL: "https://analytics.example.com", Listen: "127.0.0.1:8787", Proxy: "none"}, want: "--database-url"},
+		{name: "database", opts: Options{Yes: true, Mode: "binary", BaseURL: "https://analytics.supermetry.com", Listen: "127.0.0.1:8787", Proxy: "none"}, want: "--database-url"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -500,7 +500,7 @@ func TestRunYesFailedDBExits(t *testing.T) {
 		IsRoot:    true,
 		Check:     func(context.Context, string) (int, error) { return 0, wantErr },
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none", Yes: true}
 	err := Run(context.Background(), opts, NewPrompter(strings.NewReader(""), &bytes.Buffer{}), sys)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Run() error = %v, want database check error", err)
@@ -523,7 +523,7 @@ func TestRunNoWritesBeforeConfirm(t *testing.T) {
 		LookPath:  func(string) (string, error) { return "/usr/bin/sudo", nil },
 		Check:     func(context.Context, string) (int, error) { return 180000, nil },
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none"}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none"}
 	err := Run(context.Background(), opts, NewPrompter(strings.NewReader("n\n"), &output), sys)
 	if err != nil {
 		t.Fatal(err)
@@ -549,14 +549,14 @@ func TestRunExistingEnvDeclinedStopsInstallation(t *testing.T) {
 		GOOS:      "darwin",
 		Check:     func(context.Context, string) (int, error) { return 180000, nil },
 	}
-	opts := Options{Mode: "binary", BaseURL: "https://analytics.example.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none"}
+	opts := Options{Mode: "binary", BaseURL: "https://analytics.supermetry.com", DB: DBConfig{URL: "postgres://example/db"}, Listen: "127.0.0.1:8787", Proxy: "none"}
 	if err := Run(context.Background(), opts, NewPrompter(strings.NewReader("n\n"), &output), sys); err != nil {
 		t.Fatal(err)
 	}
 	if writes != 0 {
 		t.Fatalf("writes = %d, want zero", writes)
 	}
-	if strings.Contains(output.String(), "Open https://analytics.example.com/app") {
+	if strings.Contains(output.String(), "Open https://analytics.supermetry.com/app") {
 		t.Fatalf("installer reported completion after replacement was declined:\n%s", output.String())
 	}
 }

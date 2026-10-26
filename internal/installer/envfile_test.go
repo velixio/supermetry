@@ -13,7 +13,7 @@ func TestEnvRoundTripSpecialChars(t *testing.T) {
 	const password = "p@ss:w/rd#% x"
 	values := EnvValues{
 		DatabaseURL:      (DBConfig{Host: "localhost", Port: "5432", User: "supermetry", Password: password, Name: "supermetry"}).ConnString(),
-		BaseURL:          "https://analytics.example.com",
+		BaseURL:          "https://analytics.supermetry.com",
 		Listen:           "127.0.0.1:8787",
 		TrustedProxies:   "127.0.0.1",
 		SecretKey:        "secret+key/with=padding",

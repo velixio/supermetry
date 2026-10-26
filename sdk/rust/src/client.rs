@@ -35,8 +35,8 @@ const MAX_RETRY_AFTER: Duration = Duration::from_secs(5);
 ///
 /// let config = Config {
 ///     site: "your-site-id".into(),
-///     host: "https://analytics.example.com".into(),
-///     url: Some("https://example.com".into()),
+///     host: "https://analytics.supermetry.com".into(),
+///     url: Some("https://supermetry.com".into()),
 ///     ..Default::default()
 /// };
 /// # let _ = config;
@@ -45,7 +45,7 @@ const MAX_RETRY_AFTER: Duration = Duration::from_secs(5);
 pub struct Config {
     /// Public site ID.
     pub site: String,
-    /// Base URL of the Supermetry server, e.g. `https://analytics.example.com`.
+    /// Base URL of the Supermetry server, e.g. `https://analytics.supermetry.com`.
     pub host: String,
     /// Full endpoint URL override. Defaults to `host + "/api/public/v1/events"`.
     pub endpoint: Option<String>,
@@ -577,7 +577,7 @@ mod tests {
     use crate::Event;
 
     fn client() -> Supermetry {
-        Supermetry::builder("site_1", "https://analytics.example.com/")
+        Supermetry::builder("site_1", "https://analytics.supermetry.com/")
             .build()
             .unwrap()
     }
@@ -590,7 +590,7 @@ mod tests {
     fn endpoint_from_host() {
         assert_eq!(
             client().endpoint(),
-            "https://analytics.example.com/api/public/v1/events"
+            "https://analytics.supermetry.com/api/public/v1/events"
         );
     }
 
@@ -613,7 +613,7 @@ mod tests {
     #[test]
     fn payload_shape() {
         let event = Event::new("Signup")
-            .url("https://example.com/signup")
+            .url("https://supermetry.com/signup")
             .referrer("https://google.com/")
             .prop("plan", "pro")
             .prop("seats", 5)
@@ -627,7 +627,7 @@ mod tests {
         assert_eq!(body["v"], 1);
         assert_eq!(body["site"], "site_1");
         assert_eq!(body["name"], "Signup");
-        assert_eq!(body["url"], "https://example.com/signup");
+        assert_eq!(body["url"], "https://supermetry.com/signup");
         assert_eq!(body["referrer"], "https://google.com/");
         assert_eq!(body["screen_width"], 1280);
         assert_eq!(body["props"]["plan"], "pro");
@@ -644,13 +644,13 @@ mod tests {
         let ts = body["ts"].as_i64().unwrap();
         assert!((ts - now_ms()).abs() < 10_000);
         assert_eq!(prepared.user_agent, DEFAULT_USER_AGENT);
-        assert_eq!(prepared.origin.unwrap(), "https://example.com");
+        assert_eq!(prepared.origin.unwrap(), "https://supermetry.com");
         assert!(prepared.ip.is_none());
     }
 
     #[test]
     fn forwards_visitor_ua_and_ip() {
-        let event = Event::pageview("https://example.com/")
+        let event = Event::pageview("https://supermetry.com/")
             .user_agent("Mozilla/5.0 (X11; Linux x86_64)")
             .ip("203.0.113.7");
         let prepared = client().prepare(&event, None).unwrap();
@@ -661,11 +661,11 @@ mod tests {
     #[test]
     fn default_url_and_missing_url() {
         let c = Supermetry::builder("s", "https://a.example")
-            .url("https://example.com/")
+            .url("https://supermetry.com/")
             .build()
             .unwrap();
         let body = json(&c.prepare(&Event::new("x"), None).unwrap());
-        assert_eq!(body["url"], "https://example.com/");
+        assert_eq!(body["url"], "https://supermetry.com/");
         assert!(matches!(
             client().prepare(&Event::new("x"), None),
             Err(Error::Invalid(_))
@@ -676,20 +676,20 @@ mod tests {
     fn rejects_bad_urls() {
         for url in [
             "/relative",
-            "ftp://example.com/",
+            "ftp://supermetry.com/",
             "https://user:pw@example.com/",
             "mailto:a@example.com",
         ] {
             let res = client().prepare(&Event::new("x").url(url), None);
             assert!(matches!(res, Err(Error::Invalid(_))), "{url}");
         }
-        let long = format!("https://example.com/{}", "a".repeat(2000));
+        let long = format!("https://supermetry.com/{}", "a".repeat(2000));
         assert!(client().prepare(&Event::new("x").url(long), None).is_err());
     }
 
     #[test]
     fn rejects_bad_name_and_profile() {
-        let url = "https://example.com/";
+        let url = "https://supermetry.com/";
         assert!(client().prepare(&Event::new("").url(url), None).is_err());
         assert!(client()
             .prepare(&Event::new("x".repeat(301)).url(url), None)
@@ -710,7 +710,7 @@ mod tests {
 
     #[test]
     fn traits_only_on_identify() {
-        let url = "https://example.com/";
+        let url = "https://supermetry.com/";
         let res = client().prepare(
             &Event::new("Signup").url(url).profile_id("u"),
             Some(Traits::new().insert("a", "b")),
@@ -730,7 +730,7 @@ mod tests {
             traits = traits.insert(format!("t{i:02}"), "ok");
         }
         let event = Event::new("identify")
-            .url("https://example.com/")
+            .url("https://supermetry.com/")
             .profile_id("u");
         let body = json(&client().prepare(&event, Some(traits)).unwrap());
         let traits = body["traits"].as_object().unwrap();
@@ -741,7 +741,7 @@ mod tests {
     #[test]
     fn props_truncated_and_invalid_dropped() {
         let mut event = Event::new("x")
-            .url("https://example.com/")
+            .url("https://supermetry.com/")
             .prop("", "empty")
             .prop("k".repeat(301), "long key")
             .prop("big", "v".repeat(2001))
@@ -758,7 +758,7 @@ mod tests {
 
     #[test]
     fn revenue_validation() {
-        let url = "https://example.com/";
+        let url = "https://supermetry.com/";
         let ok = |amount: crate::Amount, cur: &str| {
             client()
                 .prepare(&Event::new("buy").url(url).revenue(amount, cur), None)
@@ -783,7 +783,7 @@ mod tests {
 
     #[test]
     fn body_limit() {
-        let mut event = Event::new("x").url("https://example.com/");
+        let mut event = Event::new("x").url("https://supermetry.com/");
         for i in 0..10 {
             event = event.prop(format!("p{i}"), "v".repeat(1000));
         }
@@ -796,7 +796,7 @@ mod tests {
     #[test]
     fn custom_id_and_ts_kept() {
         let event = Event::new("x")
-            .url("https://example.com/")
+            .url("https://supermetry.com/")
             .id("abc_123")
             .timestamp_ms(1_700_000_000_000);
         let body = json(&client().prepare(&event, None).unwrap());

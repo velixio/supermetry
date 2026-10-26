@@ -36,7 +36,7 @@ module Supermetry
     attr_reader :site, :endpoint
 
     # @param site [String] public site ID (required)
-    # @param host [String] Supermetry base URL, e.g. "https://analytics.example.com" (required)
+    # @param host [String] Supermetry base URL, e.g. "https://analytics.supermetry.com" (required)
     # @param url [String, nil] default absolute page URL for events without one
     # @param user_agent [String, nil] UA sent when the visitor's is not forwarded
     # @param async [Boolean] send from a background thread (default) or inline

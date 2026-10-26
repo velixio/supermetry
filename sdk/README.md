@@ -50,7 +50,7 @@ curl -X POST https://app.supermetry.com/api/public/v1/events \
   -H "Content-Type: application/json" \
   -H "User-Agent: $VISITOR_USER_AGENT" \
   -H "X-Forwarded-For: $VISITOR_IP" \
-  -d '{"site":"YOUR_SITE_ID","name":"Signup","url":"https://example.com/signup","props":{"plan":"pro"}}'
+  -d '{"site":"YOUR_SITE_ID","name":"Signup","url":"https://supermetry.com/signup","props":{"plan":"pro"}}'
 ```
 
 No API key is needed. The server answers `202 Accepted`. `url` must be on one of the site's

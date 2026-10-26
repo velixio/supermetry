@@ -148,7 +148,7 @@ class TruthTest(unittest.TestCase):
                     Step("spa", path="/spa/a"),
                     Step("hash", path="/spa/a#details"),
                     Step("event", name="Signup"),
-                    Step("outbound", href="https://example.com/out"),
+                    Step("outbound", href="https://supermetry.com/out"),
                     Step("download", href="/files/report.pdf"),
                 )
             )

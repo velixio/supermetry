@@ -31,7 +31,7 @@ func TestCopyEventsUpsertsOneProfileAndLinksBatch(t *testing.T) {
 	var siteID int32
 	if err := pool.QueryRow(ctx, `
 		insert into sites(org_id, public_id, name, allowed_hosts, timezone, retention_class, settings)
-		values ($1, 'writerprof01', 'Writer profiles', '{example.com}', 'UTC', 30, '{"profiles_enabled":true}')
+		values ($1, 'writerprof01', 'Writer profiles', '{supermetry.com}', 'UTC', 30, '{"profiles_enabled":true}')
 		returning id`, orgID).Scan(&siteID); err != nil {
 		t.Fatal(err)
 	}

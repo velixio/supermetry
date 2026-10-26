@@ -119,7 +119,7 @@ function LinkForm({ link, error, pending, onClose, onSave }: Omit<Props, 'link'>
             <Field>
               <FieldLabel htmlFor="link-destination">{t.fields.destination}</FieldLabel>
               <Input
-                id="link-destination" className="min-h-11" inputMode="url" maxLength={2048} placeholder="https://example.com/landing"
+                id="link-destination" className="min-h-11" inputMode="url" maxLength={2048} placeholder="https://supermetry.com/landing"
                 required type="url" value={form.destination} onChange={set('destination')}
               />
               <FieldDescription>{t.fields.destinationHint}</FieldDescription>

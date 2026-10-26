@@ -23,13 +23,13 @@ func inTempDir(t *testing.T, env string) {
 }
 
 func TestAdoptDotEnvUsesAndMasks(t *testing.T) {
-	inTempDir(t, "SUPERMETRY_DATABASE_URL=postgres://u:hunter2@db:5432/s\nSUPERMETRY_BASE_URL=https://a.example.com\nSUPERMETRY_LISTEN=0.0.0.0:8787\nSUPERMETRY_SECRET_KEY=topsecret\n")
+	inTempDir(t, "SUPERMETRY_DATABASE_URL=postgres://u:hunter2@db:5432/s\nSUPERMETRY_BASE_URL=https://a.supermetry.com\nSUPERMETRY_LISTEN=0.0.0.0:8787\nSUPERMETRY_SECRET_KEY=topsecret\n")
 	var out bytes.Buffer
 	got, err := adoptDotEnv(Options{DotEnv: ".env"}, NewPrompter(strings.NewReader("y\n"), &out))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.DB.URL == "" || got.BaseURL != "https://a.example.com" || got.Listen != "0.0.0.0:8787" {
+	if got.DB.URL == "" || got.BaseURL != "https://a.supermetry.com" || got.Listen != "0.0.0.0:8787" {
 		t.Fatalf("not adopted: %+v", got)
 	}
 	for _, secret := range []string{"hunter2", "topsecret"} {

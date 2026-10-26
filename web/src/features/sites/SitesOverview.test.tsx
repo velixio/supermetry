@@ -16,7 +16,7 @@ const site: OverviewSite = {
   org_id: 3,
   public_id: 'docs-public',
   name: 'Docs',
-  domain: 'docs.example.com',
+  domain: 'docs.supermetry.com',
   timezone: 'Asia/Kathmandu',
   organization: { id: 3, name: 'Acme', slug: 'acme' },
   role: 'owner',

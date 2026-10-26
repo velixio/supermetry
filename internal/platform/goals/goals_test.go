@@ -23,7 +23,7 @@ func TestGoalsAndFunnelReadCachedDefinitions(t *testing.T) {
 	var siteID int32
 	if err := pool.QueryRow(ctx, `
 		insert into sites(org_id, public_id, name, allowed_hosts, timezone, retention_class)
-		values ($1, 'abcdefghijkl', 'Blog', array['example.com'], 'UTC', 30)
+		values ($1, 'abcdefghijkl', 'Blog', array['supermetry.com'], 'UTC', 30)
 		returning id`, orgID).Scan(&siteID); err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestInvalidateReloadsGoalCacheAndHidesDeletedSites(t *testing.T) {
 	var siteID int32
 	if err := pool.QueryRow(ctx, `
 		insert into sites(org_id, public_id, name, allowed_hosts, timezone, retention_class)
-		values ($1, 'abcdefghijkl', 'Blog', array['example.com'], 'UTC', 30)
+		values ($1, 'abcdefghijkl', 'Blog', array['supermetry.com'], 'UTC', 30)
 		returning id`, orgID).Scan(&siteID); err != nil {
 		t.Fatal(err)
 	}

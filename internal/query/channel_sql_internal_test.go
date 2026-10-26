@@ -18,7 +18,7 @@ func TestChannelSQLMatchesEnrichChannel(t *testing.T) {
 		t.Fatal(err)
 	}
 	sources := []string{"Google", "google", "GOOGLE", "Bing", "Facebook", "Reddit", "ChatGPT", "chatgpt", "Claude",
-		"Gemini", "Copilot", "Perplexity", "GitHub", "newsletter", "example.com", "Direct", "Foo", "O'Reilly"}
+		"Gemini", "Copilot", "Perplexity", "GitHub", "newsletter", "supermetry.com", "Direct", "Foo", "O'Reilly"}
 	mediums := []string{"organic", "search", "social", "paid", "cpc", "paid-search", "paid_search", "paid_social",
 		"email", "Email", "referral", "banner"}
 	if _, err := pool.Exec(ctx, `insert into dict(kind, value) select 2, unnest($1::text[])

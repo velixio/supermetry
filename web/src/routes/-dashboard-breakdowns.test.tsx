@@ -21,7 +21,7 @@ const me = {
       org: { id: 1, name: 'Acme', slug: 'acme' },
       role: 'owner',
       effective_capabilities: ['profiles.read', 'replay.read', 'data.export', 'billing.manage'],
-      sites: [{ id: 7, name: 'Example', slug: 'example', allowed_hosts: ['example.com'], tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }],
+      sites: [{ id: 7, name: 'Example', slug: 'example', allowed_hosts: ['supermetry.com'], tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }],
     },
   ],
 }
@@ -285,8 +285,8 @@ describe('dashboard breakdown route', () => {
   })
 
   it.each([
-    ['multiple hosts', ['example.com', 'docs.example.com']],
-    ['a wildcard host', ['*.example.com']],
+    ['multiple hosts', ['supermetry.com', 'docs.supermetry.com']],
+    ['a wildcard host', ['*.supermetry.com']],
   ])('shows Hostname for a site with %s', async (_case, allowedHosts) => {
     get.mockResolvedValue({
       data: {
