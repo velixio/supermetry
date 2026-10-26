@@ -66,7 +66,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List organizations, including restorable deletions, with member, site and quota counts */
+        /** List organizations, including restorable deletions, with member, site, quota and storage totals */
         get: operations["adminListOrganizations"];
         put?: never;
         post?: never;
@@ -84,7 +84,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get an organization with its members, sites and quota
+         * Get an organization with its members, sites, quota and storage total
          * @description Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404.
          */
         get: operations["adminGetOrganization"];
@@ -127,7 +127,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List sites with usage, last event and retention */
+        /** List sites with traffic, storage, last event and retention */
         get: operations["adminListSites"];
         put?: never;
         post?: never;
@@ -2800,6 +2800,8 @@ export interface components {
             deleted_by_user_id?: number;
             /** @description Current display name of the user that initiated deletion. */
             deleted_by_name?: string;
+            /** @description Published total for the measured non-erased sites, including restorable sites. When some sites have no snapshot yet (for example a site created after the run started) the total covers the measured ones and unmeasured_sites says how many are missing. Null only while no included site has a snapshot. */
+            storage: components["schemas"]["AdminStorageUsage"] | null;
         };
         AdminOrganizationsResponse: {
             data: components["schemas"]["AdminOrganization"][];
@@ -2818,6 +2820,8 @@ export interface components {
             pageviews: number;
             /** Format: date-time */
             last_event_at?: string;
+            /** @description Complete published site estimate. Null until the first reconciliation publishes a snapshot. */
+            storage: components["schemas"]["AdminSiteStorageUsage"] | null;
         };
         AdminSitesResponse: {
             data: components["schemas"]["AdminSite"][];
@@ -2825,6 +2829,43 @@ export interface components {
         AdminOrganizationDetail: components["schemas"]["AdminOrganization"] & {
             members: components["schemas"]["AdminUser"][];
             sites: components["schemas"]["AdminSite"][];
+        };
+        AdminStorageUsage: {
+            /** Format: int64 */
+            estimated_storage_bytes: number;
+            /** Format: int64 */
+            database_bytes: number;
+            /** Format: int64 */
+            replay_bytes: number;
+            /** Format: date-time */
+            measured_at: string;
+            measurement_version: number;
+            /**
+             * Format: int64
+             * @description Number of included sites without a snapshot yet. Present only when positive, meaning the total is at least this value.
+             */
+            unmeasured_sites?: number;
+        };
+        AdminSiteStorageUsage: {
+            /** Format: int64 */
+            estimated_storage_bytes: number;
+            /** Format: int64 */
+            database_bytes: number;
+            /** Format: int64 */
+            replay_bytes: number;
+            /** Format: date-time */
+            measured_at: string;
+            measurement_version: number;
+            /** Format: int64 */
+            hot_bytes: number;
+            /** Format: int64 */
+            retained_bytes: number;
+            /** Format: int64 */
+            auxiliary_bytes: number;
+            /** Format: int64 */
+            replay_recording_bytes: number;
+            /** Format: int64 */
+            replay_css_bytes: number;
         };
         AdminSettings: {
             /** @enum {string} */

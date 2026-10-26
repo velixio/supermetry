@@ -2,11 +2,13 @@ package platformhttp_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"supermetry/internal/db"
 	"supermetry/internal/platform/admin"
@@ -142,5 +144,61 @@ func TestAdminRoutesRateLimitAndValidateInputs(t *testing.T) {
 		if attempt == 120 && response.Code != http.StatusTooManyRequests {
 			t.Fatalf("attempt %d status=%d body=%s, want 429", attempt, response.Code, response.Body.String())
 		}
+	}
+}
+
+func TestAdminStorageResponses(t *testing.T) {
+	env := newAdminOrgDeleteEnv(t)
+	env.addSite(t)
+	ctx := context.Background()
+	var siteID int32
+	if err := env.pool.QueryRow(ctx, `select id from sites where org_id=$1`, env.orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	measuredAt := time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
+	if _, err := env.pool.Exec(ctx, `
+		insert into site_storage_usage(site_id,hot_bytes,retained_bytes,auxiliary_bytes,replay_recording_bytes,replay_css_bytes,measured_at,measurement_version)
+		values ($1,10,20,30,40,50,$2,1)`, siteID, measuredAt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.pool.Exec(ctx, `update orgs set deleted_at=$2 where id=$1`, env.orgID, measuredAt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.pool.Exec(ctx, `update sites set deleted_at=$2,deleted_with_org=true where id=$1`, siteID, measuredAt); err != nil {
+		t.Fatal(err)
+	}
+
+	organizationResponse := serveCSRF(env.handler, http.MethodGet, env.path(), "admin")
+	if organizationResponse.Code != http.StatusOK {
+		t.Fatalf("organization status=%d body=%s", organizationResponse.Code, organizationResponse.Body.String())
+	}
+	var organization struct {
+		Storage *struct {
+			Estimated int64 `json:"estimated_storage_bytes"`
+			Database  int64 `json:"database_bytes"`
+			Replay    int64 `json:"replay_bytes"`
+		} `json:"storage"`
+		Sites []struct {
+			Storage *struct {
+				Hot       int64 `json:"hot_bytes"`
+				Retained  int64 `json:"retained_bytes"`
+				Auxiliary int64 `json:"auxiliary_bytes"`
+				Recording int64 `json:"replay_recording_bytes"`
+				CSS       int64 `json:"replay_css_bytes"`
+			} `json:"storage"`
+		} `json:"sites"`
+	}
+	if err := json.Unmarshal(organizationResponse.Body.Bytes(), &organization); err != nil {
+		t.Fatal(err)
+	}
+	if organization.Storage == nil || organization.Storage.Estimated != 150 || organization.Storage.Database != 60 || organization.Storage.Replay != 90 {
+		t.Fatalf("organization storage = %+v", organization.Storage)
+	}
+	if len(organization.Sites) != 1 || organization.Sites[0].Storage == nil {
+		t.Fatalf("organization sites = %+v", organization.Sites)
+	}
+	breakdown := organization.Sites[0].Storage
+	if breakdown.Hot != 10 || breakdown.Retained != 20 || breakdown.Auxiliary != 30 || breakdown.Recording != 40 || breakdown.CSS != 50 {
+		t.Fatalf("site storage breakdown = %+v", breakdown)
 	}
 }

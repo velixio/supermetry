@@ -75,6 +75,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/storageusage"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
 )
@@ -557,6 +558,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, cfg.OpenCounters, settings.clock, engine.InvalidateSite)
+	storageStore := storageusage.NewStore(pool)
+	storageScanners := []storageusage.Scanner{storageusage.NewPostgresScanner(pool, cfg.QueryTimeout)}
+	if replayStore != nil {
+		storageScanners = append(storageScanners, storageusage.NewReplayScanner(pool, replayStore))
+	}
+	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
+	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
@@ -1214,6 +1222,9 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore repl
 			}
 		}
 		if err := retention.Erase(ctx, pool, siteID, 10_000, 10*time.Millisecond); err != nil {
+			return err
+		}
+		if err := storageusage.NewStore(pool).EraseSite(ctx, siteID); err != nil {
 			return err
 		}
 		if err := store.MarkSiteErased(ctx, pool, siteID, now); err != nil {

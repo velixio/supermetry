@@ -1869,6 +1869,9 @@ type AdminOrganization struct {
 	SiteCount       int64      `json:"site_count"`
 	SiteLimit       int        `json:"site_limit"`
 	Slug            string     `json:"slug"`
+
+	// Storage Published total for the measured non-erased sites, including restorable sites. When some sites have no snapshot yet (for example a site created after the run started) the total covers the measured ones and unmeasured_sites says how many are missing. Null only while no included site has a snapshot.
+	Storage *AdminStorageUsage `json:"storage"`
 }
 
 // AdminOrganizationDeletedByKind Actor class for the current deletion lifecycle.
@@ -1898,6 +1901,9 @@ type AdminOrganizationDetail struct {
 	SiteLimit       int         `json:"site_limit"`
 	Sites           []AdminSite `json:"sites"`
 	Slug            string      `json:"slug"`
+
+	// Storage Published total for the measured non-erased sites, including restorable sites. When some sites have no snapshot yet (for example a site created after the run started) the total covers the measured ones and unmeasured_sites says how many are missing. Null only while no included site has a snapshot.
+	Storage *AdminStorageUsage `json:"storage"`
 }
 
 // AdminOrganizationDetailDeletedByKind Actor class for the current deletion lifecycle.
@@ -1936,14 +1942,43 @@ type AdminSite struct {
 	Pageviews     int64                  `json:"pageviews"`
 	PublicId      string                 `json:"public_id"`
 	RetentionDays AdminSiteRetentionDays `json:"retention_days"`
+
+	// Storage Complete published site estimate. Null until the first reconciliation publishes a snapshot.
+	Storage *AdminSiteStorageUsage `json:"storage"`
 }
 
 // AdminSiteRetentionDays defines model for AdminSite.RetentionDays.
 type AdminSiteRetentionDays int
 
+// AdminSiteStorageUsage defines model for AdminSiteStorageUsage.
+type AdminSiteStorageUsage struct {
+	AuxiliaryBytes        int64     `json:"auxiliary_bytes"`
+	DatabaseBytes         int64     `json:"database_bytes"`
+	EstimatedStorageBytes int64     `json:"estimated_storage_bytes"`
+	HotBytes              int64     `json:"hot_bytes"`
+	MeasuredAt            time.Time `json:"measured_at"`
+	MeasurementVersion    int       `json:"measurement_version"`
+	ReplayBytes           int64     `json:"replay_bytes"`
+	ReplayCssBytes        int64     `json:"replay_css_bytes"`
+	ReplayRecordingBytes  int64     `json:"replay_recording_bytes"`
+	RetainedBytes         int64     `json:"retained_bytes"`
+}
+
 // AdminSitesResponse defines model for AdminSitesResponse.
 type AdminSitesResponse struct {
 	Data []AdminSite `json:"data"`
+}
+
+// AdminStorageUsage defines model for AdminStorageUsage.
+type AdminStorageUsage struct {
+	DatabaseBytes         int64     `json:"database_bytes"`
+	EstimatedStorageBytes int64     `json:"estimated_storage_bytes"`
+	MeasuredAt            time.Time `json:"measured_at"`
+	MeasurementVersion    int       `json:"measurement_version"`
+	ReplayBytes           int64     `json:"replay_bytes"`
+
+	// UnmeasuredSites Number of included sites without a snapshot yet. Present only when positive, meaning the total is at least this value.
+	UnmeasuredSites *int64 `json:"unmeasured_sites,omitempty"`
 }
 
 // AdminTwoFactorExemption defines model for AdminTwoFactorExemption.
@@ -5200,13 +5235,13 @@ type ServerInterface interface {
 	// AdminEraseGitHubStarsUser Erase every recorded star event of a GitHub user
 	// (DELETE /api/private/admin/github-stars/users/{login})
 	AdminEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request, login string, params AdminEraseGitHubStarsUserParams)
-	// AdminListOrganizations List organizations, including restorable deletions, with member, site and quota counts
+	// AdminListOrganizations List organizations, including restorable deletions, with member, site, quota and storage totals
 	// (GET /api/private/admin/organizations)
 	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
 	// AdminDeleteOrganization Delete an organization with the restorable deletion grace period
 	// (DELETE /api/private/admin/organizations/{org})
 	AdminDeleteOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
-	// AdminGetOrganization Get an organization with its members, sites and quota
+	// AdminGetOrganization Get an organization with its members, sites, quota and storage total
 	// (GET /api/private/admin/organizations/{org})
 	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminRestoreOrganization Restore a deleted organization within the deletion grace period
@@ -5230,7 +5265,7 @@ type ServerInterface interface {
 	// AdminUpdateSettings Change signup mode or replay-switch visibility
 	// (PATCH /api/private/admin/settings)
 	AdminUpdateSettings(w http.ResponseWriter, r *http.Request)
-	// AdminListSites List sites with usage, last event and retention
+	// AdminListSites List sites with traffic, storage, last event and retention
 	// (GET /api/private/admin/sites)
 	AdminListSites(w http.ResponseWriter, r *http.Request, params AdminListSitesParams)
 	// AdminSetSiteRetention Set a site's retention class

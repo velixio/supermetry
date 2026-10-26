@@ -96,7 +96,7 @@ paths:
     get:
       operationId: adminListOrganizations
       security: [{ cookieAuth: [] }]
-      summary: List organizations, including restorable deletions, with member, site and quota counts
+      summary: List organizations, including restorable deletions, with member, site, quota and storage totals
       parameters:
         - { name: search, in: query, schema: { type: string, maxLength: 200 } }
         - { $ref: '#/components/parameters/AdminLimit' }
@@ -109,7 +109,7 @@ paths:
     get:
       operationId: adminGetOrganization
       security: [{ cookieAuth: [] }]
-      summary: Get an organization with its members, sites and quota
+      summary: Get an organization with its members, sites, quota and storage total
       description: Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404.
       parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
       responses:
@@ -148,7 +148,7 @@ paths:
     get:
       operationId: adminListSites
       security: [{ cookieAuth: [] }]
-      summary: List sites with usage, last event and retention
+      summary: List sites with traffic, storage, last event and retention
       parameters:
         - { name: search, in: query, schema: { type: string, maxLength: 200 } }
         - { $ref: '#/components/parameters/AdminLimit' }
@@ -3780,7 +3780,7 @@ components:
     AdminOrganization:
       type: object
       additionalProperties: false
-      required: [id, name, slug, member_count, site_count, site_limit]
+      required: [id, name, slug, member_count, site_count, site_limit, storage]
       properties:
         id: { type: integer, format: int64 }
         name: { type: string }
@@ -3793,6 +3793,9 @@ components:
         deleted_by_kind: { type: string, enum: [owner, instance_admin], description: Actor class for the current deletion lifecycle. }
         deleted_by_user_id: { type: integer, format: int64, description: User that initiated the current deletion lifecycle. }
         deleted_by_name: { type: string, description: Current display name of the user that initiated deletion. }
+        storage:
+          description: Published total for the measured non-erased sites, including restorable sites. When some sites have no snapshot yet (for example a site created after the run started) the total covers the measured ones and unmeasured_sites says how many are missing. Null only while no included site has a snapshot.
+          anyOf: [{ $ref: '#/components/schemas/AdminStorageUsage' }, { type: 'null' }]
     AdminOrganizationsResponse:
       type: object
       additionalProperties: false
@@ -3801,7 +3804,7 @@ components:
     AdminSite:
       type: object
       additionalProperties: false
-      required: [id, org_id, organization, public_id, name, retention_days, pageviews]
+      required: [id, org_id, organization, public_id, name, retention_days, pageviews, storage]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -3811,6 +3814,9 @@ components:
         retention_days: { type: integer, enum: [0, 7, 30, 90, 365] }
         pageviews: { type: integer, format: int64, minimum: 0 }
         last_event_at: { type: string, format: date-time }
+        storage:
+          description: Complete published site estimate. Null until the first reconciliation publishes a snapshot.
+          anyOf: [{ $ref: '#/components/schemas/AdminSiteStorageUsage' }, { type: 'null' }]
     AdminSitesResponse:
       type: object
       additionalProperties: false
@@ -3824,6 +3830,36 @@ components:
           properties:
             members: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
             sites: { type: array, items: { $ref: '#/components/schemas/AdminSite' } }
+    AdminStorageUsage:
+      type: object
+      additionalProperties: false
+      required: [estimated_storage_bytes, database_bytes, replay_bytes, measured_at, measurement_version]
+      properties:
+        estimated_storage_bytes: { type: integer, format: int64, minimum: 0 }
+        database_bytes: { type: integer, format: int64, minimum: 0 }
+        replay_bytes: { type: integer, format: int64, minimum: 0 }
+        measured_at: { type: string, format: date-time }
+        measurement_version: { type: integer, minimum: 1 }
+        unmeasured_sites:
+          description: Number of included sites without a snapshot yet. Present only when positive, meaning the total is at least this value.
+          type: integer
+          format: int64
+          minimum: 1
+    AdminSiteStorageUsage:
+      type: object
+      additionalProperties: false
+      required: [estimated_storage_bytes, database_bytes, replay_bytes, measured_at, measurement_version, hot_bytes, retained_bytes, auxiliary_bytes, replay_recording_bytes, replay_css_bytes]
+      properties:
+        estimated_storage_bytes: { type: integer, format: int64, minimum: 0 }
+        database_bytes: { type: integer, format: int64, minimum: 0 }
+        replay_bytes: { type: integer, format: int64, minimum: 0 }
+        measured_at: { type: string, format: date-time }
+        measurement_version: { type: integer, minimum: 1 }
+        hot_bytes: { type: integer, format: int64, minimum: 0 }
+        retained_bytes: { type: integer, format: int64, minimum: 0 }
+        auxiliary_bytes: { type: integer, format: int64, minimum: 0 }
+        replay_recording_bytes: { type: integer, format: int64, minimum: 0 }
+        replay_css_bytes: { type: integer, format: int64, minimum: 0 }
     AdminSettings:
       type: object
       additionalProperties: false

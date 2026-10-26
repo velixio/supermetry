@@ -68,11 +68,13 @@ The source registry explicitly lists every site-owned table, its category and wh
 
 The reconciler processes one bounded source at a time:
 
-- A partitioned table is scanned one leaf partition at a time and grouped by `site_id`.
+- A partitioned table is scanned one leaf partition at a time and grouped by `site_id`. A leaf larger than 65,536 heap blocks (512 MiB at the default 8 KiB block size) is split at discovery into consecutive heap block ranges of that size, each scanned with a TID range predicate (`ctid >= '(from,0)' and ctid < '(to,0)'`, a `Tid Range Scan` that reads only the unit's blocks). Site-id ranges cannot bound the work because `events` has no index leading with `site_id`, so every range would still read the whole heap. The last range is open-ended so rows appended after discovery are counted. Unit keys carry the zero-padded block range, so cursor order stays deterministic; the block budget is part of the work fingerprint, so changing it starts a clean generation. Each unit therefore fits the 30 s statement timeout regardless of partition size.
 - A small unpartitioned table is scanned as one source; a large one uses key-range batches.
 - Estimator version 1 is exactly `sum(pg_column_size(row_alias))` over base-table rows. This measures PostgreSQL's composite row datum, including the representation returned for TOASTed attributes, but it does not separately add indexes, relation/page overhead, free space or TOAST relation overhead. A future formula requires a new measurement version and a clean generation.
 - Each source has a statement timeout. A retry overwrites the same staging key.
-- Dropped partitions disappear during source discovery, so a new generation naturally stops charging their rows.
+- Dropped partitions disappear during source discovery, so a new generation naturally stops charging their rows. A leaf dropped after discovery contributes an empty measurement: only SQLSTATE 42P01 on a confirmed-missing leaf is treated this way (other "does not exist" errors, such as a missing column, fail the unit), and a manifest leaf that is no longer in the catalog is accepted only if its name matches the exact partition naming pattern of its own parent table.
+- A unit that exceeds the job budget or its statement timeout is counted as a failure, logged with its key and surfaced in health (`storage_usage_failures_total`, `storage_usage_unit_timeouts_total`, and `storage_usage_stuck_attempts`, the consecutive failed attempts of the same unit). A budget that merely ends after earlier units made progress is not a failure.
+- Pending work is counted with `COLLATE "C"` so it matches the reconciler's byte-order cursor under any database collation.
 
 No `pg_total_relation_size` value is presented as tenant usage. No admin request scans analytics tables.
 
@@ -89,7 +91,7 @@ Each generation measures the site set captured at its start. Its source scans ar
 1. aggregates staging rows by site;
 2. upserts snapshots for the captured, still-unerased site set with a shared publication `measured_at` and measurement version;
 3. writes zero snapshots for captured sites with no staged data;
-4. removes snapshots/staging data for sites erased during the run while leaving newly created sites unknown;
+4. removes snapshots/staging data for every site that is erased or has its erasure claimed, while leaving newly created sites unknown. Publication share-locks the captured site rows and skips claimed sites, so it cannot re-insert a snapshot concurrently with erasure; any orphan left by an earlier interleaving is removed here;
 5. marks the run complete.
 
 The job uses the existing scheduler advisory-lock model. It runs frequently enough to resume bounded work, starts a new generation only when the last complete generation is 24 hours old, and never performs external blob I/O inside a database transaction.
@@ -108,7 +110,7 @@ Extend existing admin organization and site responses instead of adding live-cal
 }
 ```
 
-The `AdminSite` storage object carries the internal category breakdown, including in the existing organization-detail site list, so an administrator can diagnose growth without a new site-detail endpoint. Organization list/detail values are aggregated directly from all non-erased site snapshots, including restorable sites. If any included site has no snapshot, the organization storage object is null rather than a misleading partial total.
+The `AdminSite` storage object carries the internal category breakdown, including in the existing organization-detail site list, so an administrator can diagnose growth without a new site-detail endpoint. Organization list/detail values are aggregated directly from all non-erased site snapshots, including restorable sites. If some included sites have no snapshot yet (for example a site created after the run captured its sites), the total covers the measured sites and carries `unmeasured_sites` (the number still missing); the UI shows it as a lower bound ("At least X") with the count in the details. The object is null, shown as **Calculating…**, only while no included site has a snapshot. The organization-detail site list omits sites deleted on their own (matching `site_count`) and keeps the sites deleted together with their organization during its restore grace period.
 
 The OpenAPI document is the source of truth; generated Go and TypeScript clients are regenerated, not hand-edited.
 
@@ -122,7 +124,7 @@ The OpenAPI document is the source of truth; generated Go and TypeScript clients
 
 ## Observability and failure handling
 
-Expose only process-level metrics: last successful run, current run duration/status, pending sources and failure count. Never use `site_id` as a metric label. Health/readiness endpoints do not calculate usage.
+Expose only process-level metrics: last successful run, current run duration/status, pending sources, failure count, unit timeouts and the stuck-attempts gauge. Never use `site_id` as a metric label. Health/readiness endpoints do not calculate usage.
 
 Errors retain the last good snapshot. A run can resume from its persisted source cursor. A changed source registry or estimator version starts a clean generation. Operators can identify stale values from `measured_at` and logs.
 
@@ -132,7 +134,7 @@ Errors retain the last good snapshot. A run can resume from its persisted source
 - Unknown storage is never rendered as zero; a failed partial run never publishes partial totals.
 - Re-running any source or resuming a run produces the same result.
 - Soft-deleted data counts until erasure; erased data does not.
-- Admin queries read only indexed site/snapshot tables and do not scan analytics or blob storage.
+- Reading the new storage fields uses only indexed site/snapshot tables and never initiates an analytics or blob-storage scan. The pre-existing Admin Sites lifetime-pageview aggregate is unchanged.
 - The source-registry contract catches newly added tenant-owned tables.
 - The reconciler handles partition removal, TOAST-heavy fixtures, duplicate CSS, replay index drift, and values beyond 32-bit range.
 - Targeted tests, the full Go suite, `go vet`, web tests/typecheck/build and migration/OpenAPI drift gates pass.

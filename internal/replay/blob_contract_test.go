@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -100,6 +101,33 @@ func testBlobStoreContract(t *testing.T, store BlobStore) {
 	}
 	if len(wantSizes) != 0 {
 		t.Fatalf("List() omitted blobs: %v", wantSizes)
+	}
+	walker, ok := store.(BlobWalker)
+	if !ok {
+		t.Fatalf("%T does not implement BlobWalker", store)
+	}
+	walkSizes := make(map[string]int64)
+	if err := walker.Walk(ctx, "replay/42", func(blob BlobInfo) error {
+		walkSizes[blob.Key] = blob.Size
+		return nil
+	}); err != nil {
+		t.Fatalf("Walk(): %v", err)
+	}
+	if walkSizes[key] != int64(len("onetwothree")) || walkSizes[cssKey] != int64(len("css")) || len(walkSizes) != 2 {
+		t.Fatalf("Walk() blobs = %v", walkSizes)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	visits := 0
+	err = walker.Walk(cancelCtx, "replay/42", func(BlobInfo) error {
+		visits++
+		cancel()
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled Walk() error = %v, want context.Canceled", err)
+	}
+	if visits != 1 {
+		t.Fatalf("cancelled Walk() visits = %d, want 1", visits)
 	}
 	deleteKey := "replay/42/delete.gz"
 	if _, err := store.Append(ctx, deleteKey, bytes.NewBufferString("delete")); err != nil {

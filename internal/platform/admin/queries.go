@@ -35,17 +35,18 @@ type User struct {
 }
 
 type Organization struct {
-	ID              int64      `json:"id"`
-	Name            string     `json:"name"`
-	Slug            string     `json:"slug"`
-	MemberCount     int64      `json:"member_count"`
-	SiteCount       int64      `json:"site_count"`
-	SiteLimit       int        `json:"site_limit"`
-	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
-	RestorableUntil *time.Time `json:"restorable_until,omitempty"`
-	DeletedByKind   string     `json:"deleted_by_kind,omitempty"`
-	DeletedByUserID *int64     `json:"deleted_by_user_id,omitempty"`
-	DeletedByName   string     `json:"deleted_by_name,omitempty"`
+	ID              int64         `json:"id"`
+	Name            string        `json:"name"`
+	Slug            string        `json:"slug"`
+	MemberCount     int64         `json:"member_count"`
+	SiteCount       int64         `json:"site_count"`
+	SiteLimit       int           `json:"site_limit"`
+	DeletedAt       *time.Time    `json:"deleted_at,omitempty"`
+	RestorableUntil *time.Time    `json:"restorable_until,omitempty"`
+	DeletedByKind   string        `json:"deleted_by_kind,omitempty"`
+	DeletedByUserID *int64        `json:"deleted_by_user_id,omitempty"`
+	DeletedByName   string        `json:"deleted_by_name,omitempty"`
+	Storage         *StorageUsage `json:"storage"`
 }
 
 type OrganizationDetail struct {
@@ -55,14 +56,33 @@ type OrganizationDetail struct {
 }
 
 type Site struct {
-	ID            int32      `json:"id"`
-	OrgID         int64      `json:"org_id"`
-	Organization  string     `json:"organization"`
-	PublicID      string     `json:"public_id"`
-	Name          string     `json:"name"`
-	RetentionDays int        `json:"retention_days"`
-	Pageviews     int64      `json:"pageviews"`
-	LastEventAt   *time.Time `json:"last_event_at,omitempty"`
+	ID            int32         `json:"id"`
+	OrgID         int64         `json:"org_id"`
+	Organization  string        `json:"organization"`
+	PublicID      string        `json:"public_id"`
+	Name          string        `json:"name"`
+	RetentionDays int           `json:"retention_days"`
+	Pageviews     int64         `json:"pageviews"`
+	LastEventAt   *time.Time    `json:"last_event_at,omitempty"`
+	Storage       *StorageUsage `json:"storage"`
+}
+
+// StorageUsage is the last completely published storage estimate. Category
+// fields are populated for sites and omitted from organization totals.
+type StorageUsage struct {
+	EstimatedStorageBytes int64     `json:"estimated_storage_bytes"`
+	DatabaseBytes         int64     `json:"database_bytes"`
+	ReplayBytes           int64     `json:"replay_bytes"`
+	MeasuredAt            time.Time `json:"measured_at"`
+	MeasurementVersion    int       `json:"measurement_version"`
+	HotBytes              *int64    `json:"hot_bytes,omitempty"`
+	RetainedBytes         *int64    `json:"retained_bytes,omitempty"`
+	AuxiliaryBytes        *int64    `json:"auxiliary_bytes,omitempty"`
+	ReplayRecordingBytes  *int64    `json:"replay_recording_bytes,omitempty"`
+	ReplayCSSBytes        *int64    `json:"replay_css_bytes,omitempty"`
+	// UnmeasuredSites is set on organization totals that cover only the
+	// measured sites; zero means the total is complete.
+	UnmeasuredSites int64 `json:"unmeasured_sites,omitempty"`
 }
 
 type Settings struct {
@@ -144,15 +164,7 @@ func (s *Service) ListOrganizations(ctx context.Context, search string, limit, s
 	if len(search) > 200 {
 		return nil, ErrInvalid
 	}
-	rows, err := s.store.Pool.Query(ctx, `
-		select o.id,o.name,o.slug,count(distinct m.user_id),count(distinct s.id),
-		       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,'')
-		from orgs o
-		left join memberships m on m.org_id=o.id
-		left join sites s on s.org_id=o.id and (s.deleted_at is null or (s.deleted_with_org and s.erased_at is null))
-		left join users deleted_by on deleted_by.id=o.deleted_by_user_id
-		where o.erased_at is null and ($1='' or lower(o.name) like '%'||lower($1)||'%' or lower(o.slug) like '%'||lower($1)||'%')
-		group by o.id,deleted_by.name order by o.id limit $2`, search, normalizeLimit(limit))
+	rows, err := s.store.Pool.Query(ctx, listOrganizationsSQL, search, normalizeLimit(limit))
 	if err != nil {
 		return nil, err
 	}
@@ -160,9 +172,11 @@ func (s *Service) ListOrganizations(ctx context.Context, search string, limit, s
 	items := make([]Organization, 0)
 	for rows.Next() {
 		var item Organization
-		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount, &item.DeletedAt, &item.DeletedByKind, &item.DeletedByUserID, &item.DeletedByName); err != nil {
+		storage, targets := storageScanTargets(false)
+		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount, &item.DeletedAt, &item.DeletedByKind, &item.DeletedByUserID, &item.DeletedByName, targets[0], targets[1], targets[2], targets[3], targets[4], targets[5]); err != nil {
 			return nil, err
 		}
+		item.Storage = storage.value()
 		item.SiteLimit = siteLimit
 		if item.DeletedAt != nil {
 			until := lifecycle.PurgeAt(*item.DeletedAt)
@@ -175,15 +189,11 @@ func (s *Service) ListOrganizations(ctx context.Context, search string, limit, s
 
 func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) (OrganizationDetail, error) {
 	var detail OrganizationDetail
-	err := s.store.Pool.QueryRow(ctx, `
-		select o.id,o.name,o.slug,
-		       (select count(*) from memberships m where m.org_id=o.id),
-		       (select count(*) from sites s where s.org_id=o.id and (s.deleted_at is null or (s.deleted_with_org and s.erased_at is null))),
-		       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,'')
-		from orgs o left join users deleted_by on deleted_by.id=o.deleted_by_user_id
-		where o.id=$1 and o.erased_at is null`, id).Scan(
+	storage, targets := storageScanTargets(false)
+	err := s.store.Pool.QueryRow(ctx, getOrganizationSQL, id).Scan(
 		&detail.ID, &detail.Name, &detail.Slug, &detail.MemberCount, &detail.SiteCount,
 		&detail.DeletedAt, &detail.DeletedByKind, &detail.DeletedByUserID, &detail.DeletedByName,
+		targets[0], targets[1], targets[2], targets[3], targets[4], targets[5],
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return OrganizationDetail{}, ErrNotFound
@@ -191,6 +201,7 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 	if err != nil {
 		return OrganizationDetail{}, err
 	}
+	detail.Storage = storage.value()
 	detail.SiteLimit = siteLimit
 	if detail.DeletedAt != nil {
 		until := lifecycle.PurgeAt(*detail.DeletedAt)
@@ -209,15 +220,15 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 			}
 		}
 	}
-	sites, err := s.ListSites(ctx, "", MaxListLimit)
+	rows, err := s.store.Pool.Query(ctx, getOrganizationSitesSQL, id, MaxListLimit)
 	if err != nil {
 		return OrganizationDetail{}, err
 	}
-	for _, site := range sites {
-		if site.OrgID == id {
-			detail.Sites = append(detail.Sites, site)
-		}
+	sites, err := scanSites(rows)
+	if err != nil {
+		return OrganizationDetail{}, err
 	}
+	detail.Sites = sites
 	return detail, nil
 }
 
@@ -226,27 +237,164 @@ func (s *Service) ListSites(ctx context.Context, search string, limit int) ([]Si
 	if len(search) > 200 {
 		return nil, ErrInvalid
 	}
-	rows, err := s.store.Pool.Query(ctx, `
-		select s.id,s.org_id,o.name,s.public_id,s.name,s.retention_class,
-		       coalesce((select sum(r.pageviews) from rollup_day r where r.site_id=s.id),0),
-		       e.last_event_at
-		from sites s join orgs o on o.id=s.org_id left join site_last_event e on e.site_id=s.id
-		where s.deleted_at is null and o.deleted_at is null
-		  and ($1='' or lower(s.name) like '%'||lower($1)||'%' or lower(s.public_id) like '%'||lower($1)||'%' or lower(o.name) like '%'||lower($1)||'%')
-		order by s.id limit $2`, search, normalizeLimit(limit))
+	rows, err := s.store.Pool.Query(ctx, listSitesSQL, search, normalizeLimit(limit))
 	if err != nil {
 		return nil, err
 	}
+	return scanSites(rows)
+}
+
+func scanSites(rows pgx.Rows) ([]Site, error) {
 	defer rows.Close()
 	items := make([]Site, 0)
 	for rows.Next() {
 		var item Site
-		if err := rows.Scan(&item.ID, &item.OrgID, &item.Organization, &item.PublicID, &item.Name, &item.RetentionDays, &item.Pageviews, &item.LastEventAt); err != nil {
+		storage, targets := storageScanTargets(true)
+		if err := rows.Scan(&item.ID, &item.OrgID, &item.Organization, &item.PublicID, &item.Name, &item.RetentionDays, &item.Pageviews, &item.LastEventAt,
+			targets[0], targets[1], targets[2], targets[3], targets[4], targets[5], targets[6], targets[7], targets[8], targets[9]); err != nil {
 			return nil, err
 		}
+		item.Storage = storage.value()
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+// organizationStorageLateralSQL totals the measured sites of an organization.
+// A site without a snapshot (for example one created after the run captured its
+// sites) does not hide the others: the total covers the measured sites and
+// unmeasured_sites says how many are still missing. The total is null only when
+// no included site has a snapshot yet, or when snapshots disagree on their
+// generation, which publication never produces.
+const organizationStorageLateralSQL = `
+	left join lateral (
+		select
+			case
+				when count(owned_site.id)=0 and max(generation.completed_at) is not null then 0
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.estimated_storage_bytes)
+			end estimated_storage_bytes,
+			case
+				when count(owned_site.id)=0 and max(generation.completed_at) is not null then 0
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.database_bytes)
+			end database_bytes,
+			case
+				when count(owned_site.id)=0 and max(generation.completed_at) is not null then 0
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.replay_bytes)
+			end replay_bytes,
+			case
+				when count(owned_site.id)=0 then max(generation.completed_at)
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then min(u.measured_at)
+			end measured_at,
+			case
+				when count(owned_site.id)=0 then max(generation.measurement_version)
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then min(u.measurement_version)
+			end measurement_version,
+			(count(owned_site.id)-count(u.site_id))::bigint unmeasured_sites
+		from (values (true)) singleton(present)
+		left join lateral (
+			select completed_at,measurement_version
+			from storage_usage_runs
+			where status='complete'
+			order by completed_at desc,id desc
+			limit 1
+		) generation on true
+		left join sites owned_site on owned_site.org_id=o.id and owned_site.erased_at is null
+		left join site_storage_usage u on u.site_id=owned_site.id
+	) storage on true`
+
+const listOrganizationsSQL = `
+	select o.id,o.name,o.slug,
+	       (select count(*) from memberships m where m.org_id=o.id),
+	       (select count(*) from sites counted_site where counted_site.org_id=o.id and (counted_site.deleted_at is null or (counted_site.deleted_with_org and counted_site.erased_at is null))),
+	       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,''),
+	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version,storage.unmeasured_sites
+	from orgs o
+	left join users deleted_by on deleted_by.id=o.deleted_by_user_id
+` + organizationStorageLateralSQL + `
+	where o.erased_at is null and ($1='' or lower(o.name) like '%'||lower($1)||'%' or lower(o.slug) like '%'||lower($1)||'%')
+	order by o.id limit $2`
+
+const getOrganizationSQL = `
+	select o.id,o.name,o.slug,
+	       (select count(*) from memberships m where m.org_id=o.id),
+	       (select count(*) from sites counted_site where counted_site.org_id=o.id and (counted_site.deleted_at is null or (counted_site.deleted_with_org and counted_site.erased_at is null))),
+	       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,''),
+	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version,storage.unmeasured_sites
+	from orgs o
+	left join users deleted_by on deleted_by.id=o.deleted_by_user_id
+` + organizationStorageLateralSQL + `
+	where o.id=$1 and o.erased_at is null`
+
+const listSitesSQL = `
+	select s.id,s.org_id,o.name,s.public_id,s.name,s.retention_class,
+	       coalesce((select sum(r.pageviews) from rollup_day r where r.site_id=s.id),0),
+	       e.last_event_at,
+	       u.estimated_storage_bytes,u.database_bytes,u.replay_bytes,u.measured_at,u.measurement_version,
+	       u.hot_bytes,u.retained_bytes,u.auxiliary_bytes,u.replay_recording_bytes,u.replay_css_bytes
+	from sites s
+	join orgs o on o.id=s.org_id
+	left join site_last_event e on e.site_id=s.id
+	left join site_storage_usage u on u.site_id=s.id
+	where s.deleted_at is null and o.deleted_at is null
+	  and ($1='' or lower(s.name) like '%'||lower($1)||'%' or lower(s.public_id) like '%'||lower($1)||'%' or lower(o.name) like '%'||lower($1)||'%')
+	order by s.id limit $2`
+
+const getOrganizationSitesSQL = `
+	select s.id,s.org_id,o.name,s.public_id,s.name,s.retention_class,
+	       coalesce((select sum(r.pageviews) from rollup_day r where r.site_id=s.id),0),
+	       e.last_event_at,
+	       u.estimated_storage_bytes,u.database_bytes,u.replay_bytes,u.measured_at,u.measurement_version,
+	       u.hot_bytes,u.retained_bytes,u.auxiliary_bytes,u.replay_recording_bytes,u.replay_css_bytes
+	from sites s
+	join orgs o on o.id=s.org_id
+	left join site_last_event e on e.site_id=s.id
+	left join site_storage_usage u on u.site_id=s.id
+	where s.org_id=$1 and s.erased_at is null and (s.deleted_at is null or s.deleted_with_org)
+	order by s.id limit $2`
+
+type nullableStorageUsage struct {
+	estimatedStorageBytes *int64
+	databaseBytes         *int64
+	replayBytes           *int64
+	measuredAt            *time.Time
+	measurementVersion    *int
+	hotBytes              *int64
+	retainedBytes         *int64
+	auxiliaryBytes        *int64
+	replayRecordingBytes  *int64
+	replayCSSBytes        *int64
+	unmeasuredSites       int64
+}
+
+func storageScanTargets(site bool) (*nullableStorageUsage, []any) {
+	storage := &nullableStorageUsage{}
+	targets := []any{&storage.estimatedStorageBytes, &storage.databaseBytes, &storage.replayBytes, &storage.measuredAt, &storage.measurementVersion}
+	if !site {
+		targets = append(targets, &storage.unmeasuredSites)
+	}
+	if site {
+		targets = append(targets, &storage.hotBytes, &storage.retainedBytes, &storage.auxiliaryBytes, &storage.replayRecordingBytes, &storage.replayCSSBytes)
+	}
+	return storage, targets
+}
+
+func (s *nullableStorageUsage) value() *StorageUsage {
+	if s.estimatedStorageBytes == nil || s.databaseBytes == nil || s.replayBytes == nil || s.measuredAt == nil || s.measurementVersion == nil {
+		return nil
+	}
+	return &StorageUsage{
+		EstimatedStorageBytes: *s.estimatedStorageBytes,
+		DatabaseBytes:         *s.databaseBytes,
+		ReplayBytes:           *s.replayBytes,
+		MeasuredAt:            *s.measuredAt,
+		MeasurementVersion:    *s.measurementVersion,
+		HotBytes:              s.hotBytes,
+		RetainedBytes:         s.retainedBytes,
+		AuxiliaryBytes:        s.auxiliaryBytes,
+		ReplayRecordingBytes:  s.replayRecordingBytes,
+		ReplayCSSBytes:        s.replayCSSBytes,
+		UnmeasuredSites:       s.unmeasuredSites,
+	}
 }
 
 func (s *Service) EffectiveSettings(ctx context.Context, defaultSignup string, defaultReplay bool) (Settings, error) {

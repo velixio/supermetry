@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -68,6 +70,41 @@ func TestS3DeletePrefixDoesNotDeleteSiblingPrefix(t *testing.T) {
 	}
 }
 
+func TestS3StoreWalkConsumesPaginatedListing(t *testing.T) {
+	t.Parallel()
+	server := newFakeS3(t)
+	server.setPageSize(1)
+	store, err := NewS3Store(S3Settings{
+		Endpoint: server.URL(), Bucket: "replays", Region: "us-east-1",
+		AccessKey: "test-access", SecretKey: "test-secret", Prefix: "supermetry",
+	}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close(context.Background()) })
+
+	for _, key := range []string{"replay/42/a.gz", "replay/42/b.gz", "replay/42/css/c.gz"} {
+		if stored, err := store.PutIfAbsent(context.Background(), key, bytes.NewBufferString(key)); err != nil || !stored {
+			t.Fatalf("PutIfAbsent(%q) = (%v, %v)", key, stored, err)
+		}
+	}
+	var keys []string
+	if err := store.Walk(context.Background(), "replay/42", func(blob BlobInfo) error {
+		keys = append(keys, blob.Key)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(keys)
+	want := []string{"replay/42/a.gz", "replay/42/b.gz", "replay/42/css/c.gz"}
+	if strings.Join(keys, ",") != strings.Join(want, ",") {
+		t.Fatalf("Walk() keys = %v, want %v", keys, want)
+	}
+	if calls := server.listCallCount(); calls != 3 {
+		t.Fatalf("S3 list calls = %d, want 3 pages", calls)
+	}
+}
+
 func TestS3StoreMinIO(t *testing.T) {
 	endpoint := os.Getenv("SUPERMETRY_TEST_S3")
 	if endpoint == "" {
@@ -96,10 +133,12 @@ func envOr(name, fallback string) string {
 }
 
 type fakeS3 struct {
-	t       *testing.T
-	server  *httptest.Server
-	mu      sync.Mutex
-	objects map[string][]byte
+	t         *testing.T
+	server    *httptest.Server
+	mu        sync.Mutex
+	objects   map[string][]byte
+	pageSize  int
+	listCalls int
 }
 
 func newFakeS3(t *testing.T) *fakeS3 {
@@ -118,6 +157,18 @@ func (f *fakeS3) object(key string) []byte {
 	return bytes.Clone(f.objects[key])
 }
 
+func (f *fakeS3) setPageSize(size int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pageSize = size
+}
+
+func (f *fakeS3) listCallCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.listCalls
+}
+
 func (f *fakeS3) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.Header.Get("Authorization"), "AWS4-HMAC-SHA256 ") {
 		http.Error(w, "missing signature", http.StatusForbidden)
@@ -130,16 +181,30 @@ func (f *fakeS3) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet && r.URL.Query().Get("list-type") == "2" {
 		prefix := r.URL.Query().Get("prefix")
+		f.listCalls++
+		var keys []string
+		for objectKey := range f.objects {
+			if strings.HasPrefix(objectKey, prefix) {
+				keys = append(keys, objectKey)
+			}
+		}
+		sort.Strings(keys)
+		start, _ := strconv.Atoi(r.URL.Query().Get("continuation-token"))
+		end := len(keys)
+		if f.pageSize > 0 && start+f.pageSize < end {
+			end = start + f.pageSize
+		}
 		w.Header().Set("Content-Type", "application/xml")
 		_, _ = io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult>`)
-		for objectKey, body := range f.objects {
-			if strings.HasPrefix(objectKey, prefix) {
-				_ = xml.NewEncoder(w).Encode(struct {
-					XMLName xml.Name `xml:"Contents"`
-					Key     string   `xml:"Key"`
-					Size    int      `xml:"Size"`
-				}{Key: objectKey, Size: len(body)})
-			}
+		if end < len(keys) {
+			_, _ = fmt.Fprintf(w, "<IsTruncated>true</IsTruncated><NextContinuationToken>%d</NextContinuationToken>", end)
+		}
+		for _, objectKey := range keys[start:end] {
+			_ = xml.NewEncoder(w).Encode(struct {
+				XMLName xml.Name `xml:"Contents"`
+				Key     string   `xml:"Key"`
+				Size    int      `xml:"Size"`
+			}{Key: objectKey, Size: len(f.objects[objectKey])})
 		}
 		_, _ = io.WriteString(w, `</ListBucketResult>`)
 		return

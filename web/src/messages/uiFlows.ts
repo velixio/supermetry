@@ -4,6 +4,7 @@ import { registerCatalogue } from '@/lib/i18n'
 // instance-admin flows. Read them when rendering, never at module scope.
 export const uiFlows = {
   common: {
+    byteUnit: { b: 'B', kib: 'KiB', mib: 'MiB', gib: 'GiB', tib: 'TiB', pib: 'PiB' },
     cancel: 'Cancel',
     close: 'Close',
     copy: 'Copy',
@@ -216,6 +217,15 @@ export const uiFlows = {
     retentionSaved: (site: string) => `Retention updated for ${site}.`,
     saveRetention: 'Save',
     noEventsYet: 'No events yet',
+    storage: 'Storage',
+    storageCalculating: 'Calculating…',
+    storageDatabase: 'Database',
+    storageReplay: 'Replay',
+    storageDetails: (name: string, total: string) => `${name}, ${total}. Show storage details`,
+    storageAtLeast: (total: string) => `At least ${total}`,
+    storageUnmeasured: (count: number) => count === 1 ? '1 site is still being measured; the total grows once it is.' : `${count} sites are still being measured; the total grows once they are.`,
+    storageUpdated: (date: string) => `Updated ${date}`,
+    storageEstimateNote: 'Estimate of site-owned database rows and replay files. Shared database overhead is excluded.',
     disableTitle: (email: string) => `Disable ${email}?`,
     demoteTitle: (email: string) => `Remove instance admin from ${email}?`,
     confirm: 'Confirm',

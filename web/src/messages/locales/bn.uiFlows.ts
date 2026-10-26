@@ -4,6 +4,7 @@ import type { MessageTree } from '@/lib/i18n/catalogue'
 // Keys, placeholders and function arguments must match English exactly; the catalogue test enforces it.
 const messages: MessageTree = {
   common: {
+    byteUnit: { b: 'বাইট', kib: 'কিবিবাইট', mib: 'মেবিবাইট', gib: 'গিবিবাইট', tib: 'টেবিবাইট', pib: 'পেবিবাইট' },
     cancel: 'বাতিল',
     close: 'বন্ধ করুন',
     copy: 'কপি করুন',
@@ -216,6 +217,15 @@ const messages: MessageTree = {
     retentionSaved: (site: string) => `${site} এর সংরক্ষণের সময় হালনাগাদ হয়েছে।`,
     saveRetention: 'সংরক্ষণ করুন',
     noEventsYet: 'এখনও কোনো ইভেন্ট নেই',
+    storage: 'স্টোরেজ',
+    storageCalculating: 'হিসাব করা হচ্ছে…',
+    storageDatabase: 'ডেটাবেস',
+    storageReplay: 'রিপ্লে',
+    storageDetails: (name: string, total: string) => `${name}, ${total}। স্টোরেজের বিবরণ দেখুন`,
+    storageAtLeast: (total: string) => `কমপক্ষে ${total}`,
+    storageUnmeasured: (count: number) => `আরও ${count}টি সাইটের মাপ এখনও চলছে; মাপ শেষ হলে মোট বাড়বে।`,
+    storageUpdated: (date: string) => `হালনাগাদ ${date}`,
+    storageEstimateNote: 'সাইটের নিজস্ব ডেটাবেস সারি ও রিপ্লে ফাইলের আনুমানিক মাপ। শেয়ার করা ডেটাবেস ওভারহেড এতে নেই।',
     disableTitle: (email: string) => `${email} নিষ্ক্রিয় করবেন?`,
     demoteTitle: (email: string) => `${email} এর ইনস্ট্যান্স অ্যাডমিন অধিকার সরাবেন?`,
     confirm: 'নিশ্চিত করুন',

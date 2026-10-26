@@ -16,6 +16,13 @@ type BlobStore interface {
 	List(ctx context.Context, prefix string) ([]BlobInfo, error)
 }
 
+// BlobWalker is an optional streaming extension to BlobStore. Implementations
+// visit each logical key at most once and stop promptly when ctx is cancelled
+// or visit returns an error.
+type BlobWalker interface {
+	Walk(ctx context.Context, prefix string, visit func(BlobInfo) error) error
+}
+
 type BlobInfo struct {
 	Key      string
 	Size     int64

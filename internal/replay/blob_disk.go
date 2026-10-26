@@ -191,40 +191,79 @@ func (s *DiskStore) Delete(ctx context.Context, key string) (int64, error) {
 }
 
 func (s *DiskStore) List(ctx context.Context, prefix string) ([]BlobInfo, error) {
+	var blobs []BlobInfo
+	if err := s.Walk(ctx, prefix, func(blob BlobInfo) error {
+		blobs = append(blobs, blob)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return blobs, nil
+}
+
+func (s *DiskStore) Walk(ctx context.Context, prefix string, visit func(BlobInfo) error) error {
 	name, err := validateBlobPath(prefix)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	root, err := s.openRoot()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer root.Close()
-	var blobs []BlobInfo
-	err = fs.WalkDir(root.FS(), filepath.ToSlash(name), func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
+	var walkDir func(string) error
+	walkDir = func(dirName string) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if !entry.Type().IsRegular() {
-			return nil
-		}
-		info, err := entry.Info()
+		dir, err := root.Open(dirName)
 		if err != nil {
 			return err
 		}
-		blobs = append(blobs, BlobInfo{Key: filepath.ToSlash(path), Size: info.Size(), Modified: info.ModTime()})
-		return nil
-	})
+		defer dir.Close()
+		for {
+			entries, readErr := dir.ReadDir(64)
+			if readErr != nil && !errors.Is(readErr, io.EOF) {
+				return readErr
+			}
+			for _, entry := range entries {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				path := filepath.Join(dirName, entry.Name())
+				if entry.IsDir() {
+					if err := walkDir(path); err != nil {
+						return err
+					}
+					continue
+				}
+				if !entry.Type().IsRegular() {
+					continue
+				}
+				info, err := entry.Info()
+				if err != nil {
+					return err
+				}
+				if err := visit(BlobInfo{Key: filepath.ToSlash(path), Size: info.Size(), Modified: info.ModTime()}); err != nil {
+					return err
+				}
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+			}
+			if errors.Is(readErr, io.EOF) {
+				return nil
+			}
+		}
+	}
+	err = walkDir(name)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+		return nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("list replay blobs: %w", err)
+		return fmt.Errorf("walk replay blobs: %w", err)
 	}
-	return blobs, nil
+	return nil
 }
 
 func (s *DiskStore) openRoot() (*os.Root, error) {

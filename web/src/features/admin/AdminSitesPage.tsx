@@ -12,6 +12,7 @@ import { en } from '@/messages/en'
 import { uiFlows } from '@/messages/uiFlows'
 import { useAdminSites, useSetAdminSiteRetention, type AdminSite } from './adminApi'
 import { AdminPage, ErrorLine, SearchForm, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
+import { StorageUsage } from './StorageUsage'
 
 function RetentionCell({ site, policy, onSaved }: { site: AdminSite; policy: RetentionPolicy; onSaved: (name: string) => void }) {
   const [value, setValue] = useState<number>(site.retention_days)
@@ -74,7 +75,7 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
             <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
                 <th scope="col" className={cellClass}>Site</th><th scope="col" className={cellClass}>Organization</th>
-                <th scope="col" className={cellClass}>{en.admin.usage}</th><th scope="col" className={cellClass}>{en.admin.lastEvent}</th><th scope="col" className={cellClass}>{en.admin.retention}</th>
+                <th scope="col" className={cellClass}>{en.admin.usage}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}>{en.admin.lastEvent}</th><th scope="col" className={cellClass}>{en.admin.retention}</th>
               </tr>
             </thead>
             <tbody>
@@ -83,6 +84,7 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
                   <td className={cellClass}><div className="font-medium">{site.name}</div><div className="text-muted-foreground">{site.public_id}</div></td>
                   <td className={cellClass}>{site.organization}</td>
                   <td className={cellClass}>{site.pageviews.toLocaleString()}</td>
+                  <td className={cellClass}><StorageUsage name={site.name} storage={site.storage} /></td>
                   <td className={cellClass}>{formatDate(site.last_event_at, uiFlows.admin.noEventsYet)}</td>
                   <td className={cellClass}><RetentionCell key={`${site.id}:${site.retention_days}`} site={site} policy={policy} onSaved={(name) => setNotice(uiFlows.admin.retentionSaved(name))} /></td>
                 </tr>

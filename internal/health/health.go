@@ -81,13 +81,23 @@ var (
 	// ExclusionsFiltered is indexed by ExclusionReason. Index zero is unused.
 	ExclusionsFiltered [4]Counter
 
-	WriterQueueDepth           Gauge
-	CopySeconds                Gauge
-	CloseLagSeconds            Gauge
-	CloseDurationSeconds       Gauge
-	GeoIPUpdateLastSuccessUnix Gauge
-	GeoIPUpdateFailures        Counter
-	AlertDeliveryFailures      Counter
+	WriterQueueDepth               Gauge
+	CopySeconds                    Gauge
+	CloseLagSeconds                Gauge
+	CloseDurationSeconds           Gauge
+	GeoIPUpdateLastSuccessUnix     Gauge
+	GeoIPUpdateFailures            Counter
+	AlertDeliveryFailures          Counter
+	StorageUsageLastSuccessUnix    Gauge
+	StorageUsageFailures           Counter
+	StorageUsagePendingSources     Gauge
+	StorageUsageRunDurationSeconds Gauge
+	StorageUsageRunActive          Gauge
+	// StorageUsageUnitTimeouts counts work units that alone exhausted the job
+	// budget. StorageUsageStuckAttempts is how many consecutive attempts the
+	// same unit has failed; zero while the run makes progress.
+	StorageUsageUnitTimeouts  Counter
+	StorageUsageStuckAttempts Gauge
 
 	QuerySeconds = newRouteHistogram()
 
@@ -221,6 +231,13 @@ func Snapshot() map[string]float64 {
 		"geoip_update_last_success_unix":             GeoIPUpdateLastSuccessUnix.Load(),
 		"geoip_update_failures_total":                float64(GeoIPUpdateFailures.Load()),
 		"alert_delivery_failures_total":              float64(AlertDeliveryFailures.Load()),
+		"storage_usage_last_success_unix":            StorageUsageLastSuccessUnix.Load(),
+		"storage_usage_failures_total":               float64(StorageUsageFailures.Load()),
+		"storage_usage_pending_sources":              StorageUsagePendingSources.Load(),
+		"storage_usage_run_duration_seconds":         StorageUsageRunDurationSeconds.Load(),
+		"storage_usage_run_active":                   StorageUsageRunActive.Load(),
+		"storage_usage_unit_timeouts_total":          float64(StorageUsageUnitTimeouts.Load()),
+		"storage_usage_stuck_attempts":               StorageUsageStuckAttempts.Load(),
 		"query_cache_hit_ratio":                      cacheHitRatio(),
 	}
 	snapshot[`geoip_source{source="dbip"}`] = 0
@@ -284,6 +301,13 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "geoip_update_last_success_unix", "gauge")
 	writeFamily(w, snapshot, "geoip_update_failures_total", "counter")
 	writeFamily(w, snapshot, "alert_delivery_failures_total", "counter")
+	writeFamily(w, snapshot, "storage_usage_last_success_unix", "gauge")
+	writeFamily(w, snapshot, "storage_usage_failures_total", "counter")
+	writeFamily(w, snapshot, "storage_usage_pending_sources", "gauge")
+	writeFamily(w, snapshot, "storage_usage_run_duration_seconds", "gauge")
+	writeFamily(w, snapshot, "storage_usage_run_active", "gauge")
+	writeFamily(w, snapshot, "storage_usage_unit_timeouts_total", "counter")
+	writeFamily(w, snapshot, "storage_usage_stuck_attempts", "gauge")
 	writeFamily(w, snapshot, "geoip_source", "gauge")
 	writeFamily(w, snapshot, "query_seconds", "gauge")
 	writeFamily(w, snapshot, "query_cache_hit_ratio", "gauge")

@@ -11,6 +11,7 @@ import { en } from '@/messages/en'
 import { uiFlows } from '@/messages/uiFlows'
 import { useAdminOrganization, useAdminOrganizations, useDeleteAdminOrganization, useRestoreAdminOrganization, type AdminOrganization, type AdminOrganizationDetail } from './adminApi'
 import { AdminPage, ErrorLine, SearchForm, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
+import { StorageUsage } from './StorageUsage'
 
 function DeleteOrganization({ organization, onDeleted }: { organization: AdminOrganizationDetail; onDeleted: (name: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -78,7 +79,12 @@ function OrganizationDetail({ id, onClose, onDeleted, onRestored }: { id: number
             </div>
             <div>
               <h3 className="mb-1 text-sm font-medium">{en.admin.sites} ({detail.data.sites.length})</h3>
-              <ul className="flex flex-col gap-1 text-sm">{detail.data.sites.map((site) => <li key={site.id}>{site.name} <span className="text-muted-foreground">{formatDate(site.last_event_at, uiFlows.admin.noEventsYet)}</span></li>)}</ul>
+              <ul className="flex flex-col gap-1 text-sm">{detail.data.sites.map((site) => (
+                <li key={site.id} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3">
+                  <span className="min-w-0">{site.name} <span className="text-muted-foreground">{formatDate(site.last_event_at, uiFlows.admin.noEventsYet)}</span></span>
+                  <StorageUsage name={site.name} storage={site.storage} />
+                </li>
+              ))}</ul>
             </div>
           </div>
           {detail.data.deleted_at ? (
@@ -118,7 +124,7 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.organizations}</caption>
             <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
-              <tr><th scope="col" className={cellClass}>Organization</th><th scope="col" className={cellClass}>{en.admin.members}</th><th scope="col" className={cellClass}>{en.admin.quota}</th><th scope="col" className={cellClass}><span className="sr-only">{en.admin.details}</span></th></tr>
+              <tr><th scope="col" className={cellClass}>Organization</th><th scope="col" className={cellClass}>{en.admin.members}</th><th scope="col" className={cellClass}>{en.admin.quota}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}><span className="sr-only">{en.admin.details}</span></th></tr>
             </thead>
             <tbody>
               {organizations.data.data.map((org) => (
@@ -126,6 +132,7 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
                   <td className={cellClass}><div className="font-medium">{org.name}</div><div className="text-muted-foreground">{org.slug}</div>{deletionAttribution(org) ? <div className="text-muted-foreground">{deletionAttribution(org)}</div> : null}</td>
                   <td className={cellClass}>{org.member_count}</td>
                   <td className={cellClass}>{org.site_count} / {org.site_limit}</td>
+                  <td className={cellClass}><StorageUsage name={org.name} storage={org.storage} /></td>
                   <td className={cellClass}>
                     <Button
                       ref={(element) => { if (element) detailsButtons.current.set(org.id, element); else detailsButtons.current.delete(org.id) }}
