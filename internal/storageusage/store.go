@@ -276,7 +276,7 @@ func (s *Store) Status(ctx context.Context) (Status, error) {
 		return Status{}, err
 	}
 	status.ActiveStartedAt = &startedAt
-	if err := s.pool.QueryRow(ctx, `select count(*) from storage_usage_run_work w join storage_usage_runs r on r.id=w.run_id where w.run_id=$1 and w.source_key>r.cursor`, runID).Scan(&status.Pending); err != nil {
+	if err := s.pool.QueryRow(ctx, `select count(*) from storage_usage_run_work w join storage_usage_runs r on r.id=w.run_id where w.run_id=$1 and w.source_key collate "C" > r.cursor collate "C"`, runID).Scan(&status.Pending); err != nil {
 		return Status{}, err
 	}
 	return status, nil

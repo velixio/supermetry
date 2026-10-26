@@ -337,3 +337,37 @@ func isCheckViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23514"
 }
+
+func TestStoreStatusPendingUsesByteOrderLikeTheReconciler(t *testing.T) {
+	store, pool, _ := newStoreFixture(t, 0)
+	ctx := context.Background()
+	// Under a linguistic collation punctuation sorts before digits, so
+	// "a:1" precedes "a1"; byte order (what the reconciler uses) puts ':'
+	// after digits. Give the columns such a collation, as a non-C database would.
+	for _, stmt := range []string{
+		`alter table storage_usage_run_work alter column source_key type text collate "en-US-x-icu"`,
+		`alter table storage_usage_runs alter column cursor type text collate "en-US-x-icu"`,
+	} {
+		if _, err := pool.Exec(ctx, stmt); err != nil {
+			t.Skipf("ICU collation unavailable: %v", err)
+		}
+	}
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	units := []WorkUnit{{Key: "postgres:a1"}, {Key: "postgres:a:1"}, {Key: "postgres:b"}}
+	if err := store.SaveManifest(ctx, run.ID, units); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AdvanceCursor(ctx, run.ID, "postgres:a1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Pending != 2 {
+		t.Fatalf("pending = %d, want 2 (postgres:a:1 and postgres:b follow the cursor in byte order)", status.Pending)
+	}
+}
