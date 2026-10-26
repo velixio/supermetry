@@ -132,7 +132,7 @@ Errors retain the last good snapshot. A run can resume from its persisted source
 - Unknown storage is never rendered as zero; a failed partial run never publishes partial totals.
 - Re-running any source or resuming a run produces the same result.
 - Soft-deleted data counts until erasure; erased data does not.
-- Admin queries read only indexed site/snapshot tables and do not scan analytics or blob storage.
+- Reading the new storage fields uses only indexed site/snapshot tables and never initiates an analytics or blob-storage scan. The pre-existing Admin Sites lifetime-pageview aggregate is unchanged.
 - The source-registry contract catches newly added tenant-owned tables.
 - The reconciler handles partition removal, TOAST-heavy fixtures, duplicate CSS, replay index drift, and values beyond 32-bit range.
 - Targeted tests, the full Go suite, `go vet`, web tests/typecheck/build and migration/OpenAPI drift gates pass.

@@ -123,7 +123,7 @@
 2. Add one nullable `StorageUsage` model to admin site/organization responses. Carry the category breakdown on each `AdminSite` response, including sites embedded in organization detail; do not add a site-detail route.
 3. Join `site_storage_usage` once in `ListSites`; aggregate snapshots directly in organization list/detail queries. Do not derive totals from the detail's capped site slice.
 4. Update OpenAPI and regenerate both clients. Add/update authorization and OpenAPI drift tests.
-5. Add an `EXPLAIN` assertion or stable query-shape test showing admin usage queries touch only `sites`, `orgs`, and the snapshot index—not analytics partitions.
+5. Add a stable query-shape/behavior test showing the new storage fields come only from `site_storage_usage` and never invoke a live size/blob calculation. Preserve the pre-existing lifetime-pageview aggregate.
 6. Run `go test ./internal/platform/admin ./internal/platform/http ./internal/api -run 'Test.*(Storage|ListOrganizations|ListSites|OpenAPI|Authorization)' -count=1`.
 7. Commit: `feat(admin): expose organization storage usage`.
 
@@ -185,5 +185,5 @@
 - Replay recording and CSS values agree with disk and S3 fixture listings even when the replay index is wrong.
 - A newly introduced `site_id` table fails the source-registry contract until classified.
 - Soft-deleted storage remains visible until the erasure worker finishes; then it becomes zero/absent.
-- Query plans confirm admin requests never scan analytics partitions.
+- Query/tests confirm reading storage never launches an analytics-size or blob scan; the existing lifetime-pageview aggregate remains unchanged.
 - All commands above pass, and the final plan/spec commit contains no private email or secret.
