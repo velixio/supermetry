@@ -68,11 +68,13 @@ The source registry explicitly lists every site-owned table, its category and wh
 
 The reconciler processes one bounded source at a time:
 
-- A partitioned table is scanned one leaf partition at a time and grouped by `site_id`.
+- A partitioned table is scanned one leaf partition at a time and grouped by `site_id`. A leaf larger than 65,536 heap blocks (512 MiB at the default 8 KiB block size) is split at discovery into consecutive heap block ranges of that size, each scanned with a TID range predicate (`ctid >= '(from,0)' and ctid < '(to,0)'`, a `Tid Range Scan` that reads only the unit's blocks). Site-id ranges cannot bound the work because `events` has no index leading with `site_id`, so every range would still read the whole heap. The last range is open-ended so rows appended after discovery are counted. Unit keys carry the zero-padded block range, so cursor order stays deterministic; the block budget is part of the work fingerprint, so changing it starts a clean generation. Each unit therefore fits the 30 s statement timeout regardless of partition size.
 - A small unpartitioned table is scanned as one source; a large one uses key-range batches.
 - Estimator version 1 is exactly `sum(pg_column_size(row_alias))` over base-table rows. This measures PostgreSQL's composite row datum, including the representation returned for TOASTed attributes, but it does not separately add indexes, relation/page overhead, free space or TOAST relation overhead. A future formula requires a new measurement version and a clean generation.
 - Each source has a statement timeout. A retry overwrites the same staging key.
-- Dropped partitions disappear during source discovery, so a new generation naturally stops charging their rows.
+- Dropped partitions disappear during source discovery, so a new generation naturally stops charging their rows. A leaf dropped after discovery contributes an empty measurement: only SQLSTATE 42P01 on a confirmed-missing leaf is treated this way (other "does not exist" errors, such as a missing column, fail the unit), and a manifest leaf that is no longer in the catalog is accepted only if its name matches the exact partition naming pattern of its own parent table.
+- A unit that exceeds the job budget or its statement timeout is counted as a failure, logged with its key and surfaced in health; see the failure metrics below.
+- Pending work is counted with `COLLATE "C"` so it matches the reconciler's byte-order cursor under any database collation.
 
 No `pg_total_relation_size` value is presented as tenant usage. No admin request scans analytics tables.
 
@@ -89,7 +91,7 @@ Each generation measures the site set captured at its start. Its source scans ar
 1. aggregates staging rows by site;
 2. upserts snapshots for the captured, still-unerased site set with a shared publication `measured_at` and measurement version;
 3. writes zero snapshots for captured sites with no staged data;
-4. removes snapshots/staging data for sites erased during the run while leaving newly created sites unknown;
+4. removes snapshots/staging data for every site that is erased or has its erasure claimed, while leaving newly created sites unknown. Publication share-locks the captured site rows and skips claimed sites, so it cannot re-insert a snapshot concurrently with erasure; any orphan left by an earlier interleaving is removed here;
 5. marks the run complete.
 
 The job uses the existing scheduler advisory-lock model. It runs frequently enough to resume bounded work, starts a new generation only when the last complete generation is 24 hours old, and never performs external blob I/O inside a database transaction.

@@ -24,13 +24,30 @@ type WorkUnit struct {
 	SiteID     int32    `json:"site_id,omitempty"`
 	FromSiteID int64    `json:"from_site_id,omitempty"`
 	ToSiteID   int64    `json:"to_site_id,omitempty"`
+	// FromBlock/ToBlock bound a heap block range [from,to) of a large leaf
+	// partition so one unit always fits the statement timeout.
+	FromBlock int64 `json:"from_block,omitempty"`
+	ToBlock   int64 `json:"to_block,omitempty"`
 }
 
+func (u WorkUnit) blockRanged() bool { return u.ToBlock > u.FromBlock }
+
 const postgresSiteBatchSize int64 = 100
+
+// defaultBlocksPerUnit bounds one scan of a partition leaf to 512 MiB of heap
+// (65536 blocks of 8 KiB), which a sequential TID range scan reads well inside
+// the 30 s statement timeout. Leaves above it are split into consecutive block
+// ranges; the last range is open-ended so rows appended after discovery are
+// still counted.
+const defaultBlocksPerUnit int64 = 65536
+
+// maxBlock is the largest heap block number, used as the open upper bound.
+const maxBlock int64 = 4294967295
 
 type PostgresScanner struct {
 	pool             *pgxpool.Pool
 	statementTimeout time.Duration
+	blocksPerUnit    int64
 
 	// afterExistenceCheck is a test hook that runs between the partition
 	// existence check and the scan transaction.
@@ -41,12 +58,20 @@ func NewPostgresScanner(pool *pgxpool.Pool, statementTimeout time.Duration) *Pos
 	if statementTimeout <= 0 {
 		statementTimeout = 30 * time.Second
 	}
-	return &PostgresScanner{pool: pool, statementTimeout: statementTimeout}
+	return &PostgresScanner{pool: pool, statementTimeout: statementTimeout, blocksPerUnit: defaultBlocksPerUnit}
+}
+
+// WithBlocksPerUnit overrides the heap block budget of one partition scan unit.
+func (s *PostgresScanner) WithBlocksPerUnit(blocks int64) *PostgresScanner {
+	if blocks > 0 {
+		s.blocksPerUnit = blocks
+	}
+	return s
 }
 
 func (s *PostgresScanner) Fingerprint() string {
 	var definition strings.Builder
-	fmt.Fprintf(&definition, "estimator=v1;site_batch=%d\n", postgresSiteBatchSize)
+	fmt.Fprintf(&definition, "estimator=v2;site_batch=%d;blocks_per_unit=%d\n", postgresSiteBatchSize, s.blocksPerUnit)
 	for _, source := range sourceRegistry {
 		fmt.Fprintf(&definition, "%s|%s|%t|%s|%s|%s\n",
 			source.Table, source.Category, source.Partitioned,
@@ -93,7 +118,8 @@ func (s *PostgresScanner) WorkUnits(ctx context.Context, runID int64) ([]WorkUni
 			continue
 		}
 		rows, err := s.pool.Query(ctx, `
-			select c.relname
+			select c.relname,
+			       ceil(pg_relation_size(c.oid)::numeric/current_setting('block_size')::numeric)::bigint
 			from pg_partition_tree(to_regclass($1)) p
 			join pg_class c on c.oid=p.relid
 			where p.isleaf
@@ -103,11 +129,22 @@ func (s *PostgresScanner) WorkUnits(ctx context.Context, runID int64) ([]WorkUni
 		}
 		for rows.Next() {
 			var relation string
-			if err := rows.Scan(&relation); err != nil {
+			var blocks int64
+			if err := rows.Scan(&relation, &blocks); err != nil {
 				rows.Close()
 				return nil, fmt.Errorf("scan %s leaf relation: %w", source.Table, err)
 			}
-			units = append(units, workUnit(source, relation))
+			if blocks <= s.blocksPerUnit {
+				units = append(units, workUnit(source, relation))
+				continue
+			}
+			for from := int64(0); from < blocks; from += s.blocksPerUnit {
+				to := from + s.blocksPerUnit
+				if to >= blocks {
+					to = maxBlock
+				}
+				units = append(units, blockWorkUnit(source, relation, from, to))
+			}
 		}
 		if err := rows.Err(); err != nil {
 			rows.Close()
@@ -126,6 +163,13 @@ func workUnit(source Source, relation string) WorkUnit {
 		Relation: relation,
 		Category: source.Category,
 	}
+}
+
+func blockWorkUnit(source Source, relation string, from, to int64) WorkUnit {
+	unit := workUnit(source, relation)
+	unit.FromBlock, unit.ToBlock = from, to
+	unit.Key = fmt.Sprintf("postgres:%s:%s:blk%010d-%010d", source.Table, relation, from, to)
+	return unit
 }
 
 func rangedWorkUnit(source Source, relation string, from, to int64) WorkUnit {
@@ -170,6 +214,8 @@ func (s *PostgresScanner) Scan(ctx context.Context, runID int64, unit WorkUnit) 
 		args := []any{runID}
 		if unit.ToSiteID > unit.FromSiteID {
 			args = append(args, unit.FromSiteID, unit.ToSiteID)
+		} else if unit.blockRanged() {
+			args = append(args, fmt.Sprintf("(%d,0)", unit.FromBlock), fmt.Sprintf("(%d,0)", unit.ToBlock))
 		}
 		rows, err := tx.Query(ctx, s.scanSQL(unit), args...)
 		if err != nil {
@@ -224,6 +270,11 @@ func rangePredicate(column string, unit WorkUnit) string {
 	if unit.ToSiteID > unit.FromSiteID {
 		return " where " + column + ">=$2 and " + column + "<$3"
 	}
+	if unit.blockRanged() {
+		// A TID range scan reads only the unit's heap blocks, whatever indexes
+		// the relation has (events has none that leads with site_id).
+		return " where row_alias.ctid>=$2::text::tid and row_alias.ctid<$3::text::tid"
+	}
 	return ""
 }
 
@@ -235,7 +286,12 @@ func (s *PostgresScanner) validWorkUnit(ctx context.Context, unit WorkUnit) (boo
 	if !source.Partitioned {
 		return unit.Relation == source.Table && unit.ToSiteID > unit.FromSiteID && unit.Key == rangedWorkUnit(*source, unit.Relation, unit.FromSiteID, unit.ToSiteID).Key, nil
 	}
-	if unit.Key != workUnit(*source, unit.Relation).Key {
+	if unit.blockRanged() {
+		if unit.FromBlock < 0 || unit.ToBlock > maxBlock || unit.FromSiteID != 0 || unit.ToSiteID != 0 ||
+			unit.Key != blockWorkUnit(*source, unit.Relation, unit.FromBlock, unit.ToBlock).Key {
+			return false, nil
+		}
+	} else if unit.Key != workUnit(*source, unit.Relation).Key {
 		return false, nil
 	}
 	var valid bool

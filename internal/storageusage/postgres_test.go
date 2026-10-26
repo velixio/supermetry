@@ -483,3 +483,126 @@ func TestPostgresDroppedLeafNamesMustMatchPartitionPattern(t *testing.T) {
 		}
 	}
 }
+
+func TestPostgresLargeLeafSplitsIntoBoundedBlockRangesThatCompleteARun(t *testing.T) {
+	store, pool, sites := newStoreFixture(t, 2)
+	ctx := context.Background()
+	from := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, from, from.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into events(site_id,retention_class,local_day,ts,visitor_id,session_id,kind,props)
+		select $1,7,'2026-10-01',$2::timestamptz+g*interval '1 second',g,g,0,jsonb_build_object('pad',repeat('x',300))
+		from generate_series(1,4000) g`, sites[0], from); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into events(site_id,retention_class,local_day,ts,visitor_id,session_id,kind,props)
+		select $1,7,'2026-10-01',$2::timestamptz+g*interval '1 second',g,g,0,'{}'
+		from generate_series(1,500) g`, sites[1], from); err != nil {
+		t.Fatal(err)
+	}
+	var pages int64
+	if err := pool.QueryRow(ctx, `select pg_relation_size('events_r7_20261001')/current_setting('block_size')::bigint`).Scan(&pages); err != nil || pages < 8 {
+		t.Fatalf("fixture pages = %d, %v", pages, err)
+	}
+
+	const blocksPerUnit = 4
+	scanner := NewPostgresScanner(pool, 5*time.Second).WithBlocksPerUnit(blocksPerUnit)
+	reconciler := NewReconciler(store, MeasurementVersion, scanner)
+	for range 5000 {
+		result, err := reconciler.Step(ctx, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.Published {
+			break
+		}
+	}
+
+	var want0, want1 int64
+	run, err := store.ActiveRun(ctx)
+	if err != nil || run != nil {
+		t.Fatalf("run still active after publish: %+v, %v", run, err)
+	}
+	for i, dst := range []*int64{&want0, &want1} {
+		if err := pool.QueryRow(ctx, `select coalesce(sum(pg_column_size(e)),0)::bigint from events e where site_id=$1`, sites[i]).Scan(dst); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var hot0, hot1 int64
+	if err := pool.QueryRow(ctx, `select coalesce(max(hot_bytes) filter(where site_id=$1),0),coalesce(max(hot_bytes) filter(where site_id=$2),0) from site_storage_usage`, sites[0], sites[1]).Scan(&hot0, &hot1); err != nil {
+		t.Fatal(err)
+	}
+	if hot0 != want0 || hot1 != want1 || want0 <= 0 {
+		t.Fatalf("published hot bytes = %d/%d, want %d/%d", hot0, hot1, want0, want1)
+	}
+}
+
+func TestPostgresWorkUnitsChunkLargeLeafWithDeterministicBlockRanges(t *testing.T) {
+	store, pool, sites := newStoreFixture(t, 1)
+	ctx := context.Background()
+	from := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, from, from.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into events(site_id,retention_class,local_day,ts,visitor_id,session_id,kind,props)
+		select $1,7,'2026-10-01',$2::timestamptz+g*interval '1 second',g,g,0,jsonb_build_object('pad',repeat('x',300))
+		from generate_series(1,4000) g`, sites[0], from); err != nil {
+		t.Fatal(err)
+	}
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, from)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pages int64
+	if err := pool.QueryRow(ctx, `select pg_relation_size('events_r7_20261001')/current_setting('block_size')::bigint`).Scan(&pages); err != nil {
+		t.Fatal(err)
+	}
+	scanner := NewPostgresScanner(pool, 5*time.Second).WithBlocksPerUnit(4)
+	units, err := scanner.WorkUnits(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var chunks []WorkUnit
+	for _, unit := range units {
+		if unit.Table == "events" && unit.Relation == "events_r7_20261001" {
+			chunks = append(chunks, unit)
+		}
+	}
+	if int64(len(chunks)) != (pages+3)/4 {
+		t.Fatalf("chunks = %d for %d pages, want %d", len(chunks), pages, (pages+3)/4)
+	}
+	var next int64
+	for i, unit := range chunks {
+		if unit.FromBlock != next || unit.ToBlock <= unit.FromBlock {
+			t.Fatalf("chunk %d = %d-%d, want to start at %d", i, unit.FromBlock, unit.ToBlock, next)
+		}
+		if i < len(chunks)-1 && unit.ToBlock-unit.FromBlock != 4 {
+			t.Errorf("chunk %d spans %d blocks, want 4", i, unit.ToBlock-unit.FromBlock)
+		}
+		if i > 0 && chunks[i-1].Key >= unit.Key {
+			t.Errorf("chunk keys not strictly increasing: %q then %q", chunks[i-1].Key, unit.Key)
+		}
+		next = unit.ToBlock
+	}
+	if last := chunks[len(chunks)-1]; last.ToBlock < pages+1_000_000 {
+		t.Errorf("last chunk ends at block %d; must stay open-ended for rows appended after discovery", last.ToBlock)
+	}
+	again, err := scanner.WorkUnits(ctx, run.ID)
+	if err != nil || len(again) != len(units) {
+		t.Fatalf("rediscovery = %d units, %v; want %d", len(again), err, len(units))
+	}
+	for i := range units {
+		if units[i] != again[i] {
+			t.Fatalf("unit %d differs between discoveries: %+v vs %+v", i, units[i], again[i])
+		}
+	}
+	forged := chunks[0]
+	forged.ToBlock++
+	if _, err := scanner.Scan(ctx, run.ID, forged); err == nil {
+		t.Fatal("chunk with forged block range was accepted")
+	}
+}
