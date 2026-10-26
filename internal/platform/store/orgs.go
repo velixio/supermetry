@@ -110,6 +110,7 @@ func DeletedOrgsForOwner(ctx context.Context, q orgRowsQuerier, userID int64, no
 		where m.user_id=$1 and m.role='owner'
 		  and o.deleted_at is not null and o.deleted_at > $2
 		  and o.erased_at is null
+		  and coalesce(o.deleted_by_kind, 'owner') <> 'instance_admin'
 		  and coalesce(
 			(select (a.metadata->>'scheduled')::boolean from audit_log a
 			 where a.org_id=o.id and a.action='organization.deleted' and a.target_id=o.id

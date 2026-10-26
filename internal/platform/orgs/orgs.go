@@ -282,7 +282,8 @@ func (o *Orgs) restore(ctx context.Context, userID int64, orgID int64, now time.
 		}
 		var deletedAt *time.Time
 		var erasedAt *time.Time
-		if err := tx.QueryRow(ctx, `select deleted_at,erased_at from orgs where id=$1 for update`, orgID).Scan(&deletedAt, &erasedAt); err != nil {
+		var deletedByKind *string
+		if err := tx.QueryRow(ctx, `select deleted_at,erased_at,deleted_by_kind from orgs where id=$1 for update`, orgID).Scan(&deletedAt, &erasedAt, &deletedByKind); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				if asAdmin {
 					return store.ErrNotFound
@@ -296,6 +297,9 @@ func (o *Orgs) restore(ctx context.Context, userID int64, orgID int64, now time.
 				return store.ErrNotFound
 			}
 		} else {
+			if deletedByKind != nil && *deletedByKind == "instance_admin" {
+				return ErrNotRestorable
+			}
 			var role Role
 			if err := tx.QueryRow(ctx, `select role from memberships where org_id=$1 and user_id=$2 for update`, orgID, userID).Scan(&role); err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
@@ -353,7 +357,9 @@ func (o *Orgs) restore(ctx context.Context, userID int64, orgID int64, now time.
 			}
 		}
 		if _, err := tx.Exec(ctx, `
-			update orgs set deleted_at=null,deletion_notified_at=null,deletion_reminded_at=null
+			update orgs
+			set deleted_at=null,deleted_by_kind=null,deleted_by_user_id=null,
+			    deletion_notified_at=null,deletion_reminded_at=null
 			where id=$1`, orgID); err != nil {
 			return fmt.Errorf("restore organization: %w", err)
 		}

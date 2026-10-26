@@ -100,7 +100,7 @@ func (e adminOrgDeleteEnv) auditRows(t *testing.T) int {
 	return n
 }
 
-func TestAdminDeleteOrgRestorable(t *testing.T) {
+func TestAdminDeleteOrgRestorableByAdmin(t *testing.T) {
 	env := newAdminOrgDeleteEnv(t)
 	env.addSite(t)
 	if got := serveCSRF(env.handler, http.MethodDelete, env.path(), "admin"); got.Code != http.StatusNoContent {
@@ -118,11 +118,17 @@ func TestAdminDeleteOrgRestorable(t *testing.T) {
 	if err := env.pool.QueryRow(ctx, `select coalesce(actor_user_id,0) from audit_log where action='instance.organization.deleted' and target_id=$1`, env.orgID).Scan(&actor); err != nil || actor == 0 {
 		t.Fatalf("instance audit actor=%d err=%v", actor, err)
 	}
-	if got := serveCSRF(env.handler, http.MethodPost, env.ownerRestorePath(), "owner"); got.Code != http.StatusNoContent {
+	var deletedByKind string
+	var deletedByUserID int64
+	if err := env.pool.QueryRow(ctx, `select deleted_by_kind,deleted_by_user_id from orgs where id=$1`, env.orgID).Scan(&deletedByKind, &deletedByUserID); err != nil || deletedByKind != "instance_admin" || deletedByUserID != actor {
+		t.Fatalf("deletion provenance kind=%q user=%d err=%v", deletedByKind, deletedByUserID, err)
+	}
+	if got := serveCSRF(env.handler, http.MethodPost, env.restorePath(), "admin"); got.Code != http.StatusNoContent {
 		t.Fatalf("restore status=%d body=%s, want 204", got.Code, got.Body.String())
 	}
-	if err := env.pool.QueryRow(ctx, `select deleted_at is not null from orgs where id=$1`, env.orgID).Scan(&deleted); err != nil || deleted {
-		t.Fatalf("org still deleted after restore: deleted=%v err=%v", deleted, err)
+	var provenanceCleared bool
+	if err := env.pool.QueryRow(ctx, `select deleted_at is null and deleted_by_kind is null and deleted_by_user_id is null from orgs where id=$1`, env.orgID).Scan(&provenanceCleared); err != nil || !provenanceCleared {
+		t.Fatalf("org deletion state cleared=%v err=%v", provenanceCleared, err)
 	}
 }
 
@@ -236,17 +242,17 @@ func TestOwnerDeleteOwnerRestore(t *testing.T) {
 	}
 }
 
-func TestAdminDeletedOrgOwnerCanRestore(t *testing.T) {
+func TestAdminDeletedOrgOwnerCannotRestore(t *testing.T) {
 	env := newAdminOrgDeleteEnv(t)
 	env.addSite(t)
 	if got := serveCSRF(env.handler, http.MethodDelete, env.path(), "admin"); got.Code != http.StatusNoContent {
 		t.Fatalf("delete status=%d", got.Code)
 	}
-	if n := env.ownerListsDeleted(t); n != 1 {
-		t.Fatalf("owner deleted list=%d, want 1", n)
+	if n := env.ownerListsDeleted(t); n != 0 {
+		t.Fatalf("owner deleted list=%d, want 0", n)
 	}
-	if got := serveCSRF(env.handler, http.MethodPost, env.ownerRestorePath(), "owner"); got.Code != http.StatusNoContent {
-		t.Fatalf("owner restore status=%d body=%s, want 204", got.Code, got.Body.String())
+	if got := serveCSRF(env.handler, http.MethodPost, env.ownerRestorePath(), "owner"); got.Code != http.StatusConflict || !strings.Contains(got.Body.String(), "not_restorable") {
+		t.Fatalf("owner restore status=%d body=%s, want 409 not_restorable", got.Code, got.Body.String())
 	}
 }
 
@@ -343,12 +349,22 @@ func TestAdminGetDeletedOrganization(t *testing.T) {
 		Slug            string     `json:"slug"`
 		DeletedAt       *time.Time `json:"deleted_at"`
 		RestorableUntil *time.Time `json:"restorable_until"`
+		DeletedByKind   string     `json:"deleted_by_kind"`
+		DeletedByUserID *int64     `json:"deleted_by_user_id"`
+		DeletedByName   string     `json:"deleted_by_name"`
 	}
 	if err := json.Unmarshal(got.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body.Name != "Doomed" || body.Slug != "doomed" || body.DeletedAt == nil || body.RestorableUntil == nil || !body.RestorableUntil.After(*body.DeletedAt) {
+	if body.Name != "Doomed" || body.Slug != "doomed" || body.DeletedAt == nil || body.RestorableUntil == nil || !body.RestorableUntil.After(*body.DeletedAt) || body.DeletedByKind != "instance_admin" || body.DeletedByUserID == nil || body.DeletedByName != "U" {
 		t.Fatalf("body=%s", got.Body.String())
+	}
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/private/admin/organizations?limit=100", nil)
+	listRequest.Header.Set("X-Test-Actor", "admin")
+	listResponse := httptest.NewRecorder()
+	env.handler.ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK || !strings.Contains(listResponse.Body.String(), `"deleted_by_kind":"instance_admin"`) || !strings.Contains(listResponse.Body.String(), `"deleted_by_name":"U"`) {
+		t.Fatalf("deleted organization list status=%d body=%s", listResponse.Code, listResponse.Body.String())
 	}
 	if _, err := env.pool.Exec(context.Background(), `update orgs set erased_at=now() where id=$1`, env.orgID); err != nil {
 		t.Fatal(err)

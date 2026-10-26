@@ -500,7 +500,7 @@ func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id i
 		if !authz.Can(current, authz.ActionOrgDelete, 0) {
 			return orgs.ErrForbidden
 		}
-		deleted, scheduled, err := deleteOrgTx(ctx, tx, id, time.Now())
+		deleted, scheduled, err := deleteOrgTx(ctx, tx, id, time.Now(), "owner", principal.UserID)
 		if err != nil {
 			return err
 		}
@@ -818,7 +818,7 @@ func lockLiveOrg(ctx context.Context, tx pgx.Tx, orgID int64) error {
 // restorable grace period. Callers write their own audit row. scheduled is
 // false for demo-only or empty organizations, which the lifecycle sweep
 // erases at once. It returns sitesvc.ErrNotFound for a missing or deleted org.
-func deleteOrgTx(ctx context.Context, tx pgx.Tx, orgID int64, now time.Time) (deletedSites []int32, scheduled bool, err error) {
+func deleteOrgTx(ctx context.Context, tx pgx.Tx, orgID int64, now time.Time, deletedByKind string, deletedByUserID int64) (deletedSites []int32, scheduled bool, err error) {
 	if err := lockLiveOrg(ctx, tx, orgID); err != nil {
 		return nil, false, err
 	}
@@ -837,7 +837,10 @@ func deleteOrgTx(ctx context.Context, tx pgx.Tx, orgID int64, now time.Time) (de
 	if err != nil {
 		return nil, false, err
 	}
-	org, err := tx.Exec(ctx, `update orgs set deleted_at=$2 where id=$1 and deleted_at is null`, orgID, now)
+	org, err := tx.Exec(ctx, `
+		update orgs
+		set deleted_at=$2,deleted_by_kind=$3,deleted_by_user_id=$4
+		where id=$1 and deleted_at is null`, orgID, now, deletedByKind, deletedByUserID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -870,7 +873,7 @@ func (s Services) AdminDeleteOrg(ctx context.Context, actorUserID int64, orgID i
 		} else if !allowed {
 			return sitesvc.ErrForbidden
 		}
-		deleted, scheduled, err := deleteOrgTx(ctx, tx, orgID, time.Now())
+		deleted, scheduled, err := deleteOrgTx(ctx, tx, orgID, time.Now(), "instance_admin", actorUserID)
 		if errors.Is(err, sitesvc.ErrNotFound) {
 			return store.ErrNotFound
 		}

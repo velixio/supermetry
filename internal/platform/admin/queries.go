@@ -35,22 +35,23 @@ type User struct {
 }
 
 type Organization struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	MemberCount int64  `json:"member_count"`
-	SiteCount   int64  `json:"site_count"`
-	SiteLimit   int    `json:"site_limit"`
+	ID              int64      `json:"id"`
+	Name            string     `json:"name"`
+	Slug            string     `json:"slug"`
+	MemberCount     int64      `json:"member_count"`
+	SiteCount       int64      `json:"site_count"`
+	SiteLimit       int        `json:"site_limit"`
+	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
+	RestorableUntil *time.Time `json:"restorable_until,omitempty"`
+	DeletedByKind   string     `json:"deleted_by_kind,omitempty"`
+	DeletedByUserID *int64     `json:"deleted_by_user_id,omitempty"`
+	DeletedByName   string     `json:"deleted_by_name,omitempty"`
 }
 
 type OrganizationDetail struct {
 	Organization
 	Members []User `json:"members"`
 	Sites   []Site `json:"sites"`
-	// DeletedAt and RestorableUntil describe an organization in its restore
-	// grace period; both are absent for a live organization.
-	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
-	RestorableUntil *time.Time `json:"restorable_until,omitempty"`
 }
 
 type Site struct {
@@ -144,10 +145,14 @@ func (s *Service) ListOrganizations(ctx context.Context, search string, limit, s
 		return nil, ErrInvalid
 	}
 	rows, err := s.store.Pool.Query(ctx, `
-		select o.id,o.name,o.slug,count(distinct m.user_id),count(distinct s.id)
-		from orgs o left join memberships m on m.org_id=o.id left join sites s on s.org_id=o.id and s.deleted_at is null
-		where o.deleted_at is null and ($1='' or lower(o.name) like '%'||lower($1)||'%' or lower(o.slug) like '%'||lower($1)||'%')
-		group by o.id order by o.id limit $2`, search, normalizeLimit(limit))
+		select o.id,o.name,o.slug,count(distinct m.user_id),count(distinct s.id),
+		       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,'')
+		from orgs o
+		left join memberships m on m.org_id=o.id
+		left join sites s on s.org_id=o.id and (s.deleted_at is null or (s.deleted_with_org and s.erased_at is null))
+		left join users deleted_by on deleted_by.id=o.deleted_by_user_id
+		where o.erased_at is null and ($1='' or lower(o.name) like '%'||lower($1)||'%' or lower(o.slug) like '%'||lower($1)||'%')
+		group by o.id,deleted_by.name order by o.id limit $2`, search, normalizeLimit(limit))
 	if err != nil {
 		return nil, err
 	}
@@ -155,10 +160,14 @@ func (s *Service) ListOrganizations(ctx context.Context, search string, limit, s
 	items := make([]Organization, 0)
 	for rows.Next() {
 		var item Organization
-		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount, &item.DeletedAt, &item.DeletedByKind, &item.DeletedByUserID, &item.DeletedByName); err != nil {
 			return nil, err
 		}
 		item.SiteLimit = siteLimit
+		if item.DeletedAt != nil {
+			until := lifecycle.PurgeAt(*item.DeletedAt)
+			item.RestorableUntil = &until
+		}
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -170,10 +179,11 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 		select o.id,o.name,o.slug,
 		       (select count(*) from memberships m where m.org_id=o.id),
 		       (select count(*) from sites s where s.org_id=o.id and (s.deleted_at is null or (s.deleted_with_org and s.erased_at is null))),
-		       o.deleted_at
-		from orgs o where o.id=$1 and o.erased_at is null`, id).Scan(
+		       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,'')
+		from orgs o left join users deleted_by on deleted_by.id=o.deleted_by_user_id
+		where o.id=$1 and o.erased_at is null`, id).Scan(
 		&detail.ID, &detail.Name, &detail.Slug, &detail.MemberCount, &detail.SiteCount,
-		&detail.DeletedAt,
+		&detail.DeletedAt, &detail.DeletedByKind, &detail.DeletedByUserID, &detail.DeletedByName,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return OrganizationDetail{}, ErrNotFound
