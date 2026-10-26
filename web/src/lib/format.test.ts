@@ -3,6 +3,18 @@ import { describe, expect, it } from 'vitest'
 import { fmt } from './format'
 
 describe('format', () => {
+  it.each([
+    [0, '0 B'],
+    [1_023, '1,023 B'],
+    [1_024, '1 KiB'],
+    [1_536, '1.5 KiB'],
+    [1_048_576, '1 MiB'],
+    [1_073_741_824, '1 GiB'],
+    [5_497_558_138_880, '5 TiB'],
+  ])('formats %d bytes with IEC units', (value, expected) => {
+    expect(fmt.bytes(value)).toBe(expected)
+  })
+
   it('compacts large numbers and formats durations', () => {
     expect(fmt.number(12_345_678)).toBe('12.3M')
     expect(fmt.number(9_999)).toBe('9,999')

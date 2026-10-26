@@ -2,7 +2,7 @@ import { activeLocale } from '@/lib/i18n/intl'
 
 // Formatters are cached per language so a locale change never reuses another one's.
 const cache = new Map<string, Intl.NumberFormat>()
-function numberFormat(kind: 'regular' | 'compact' | 'percent'): Intl.NumberFormat {
+function numberFormat(kind: 'regular' | 'compact' | 'percent' | 'bytes-precise' | 'bytes-rounded'): Intl.NumberFormat {
   const key = `${activeLocale()}:${kind}`
   let format = cache.get(key)
   if (!format) {
@@ -11,7 +11,9 @@ function numberFormat(kind: 'regular' | 'compact' | 'percent'): Intl.NumberForma
       ? new Intl.NumberFormat(locale, { maximumFractionDigits: 2 })
       : kind === 'compact'
         ? new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 })
-        : new Intl.NumberFormat(locale, { style: 'unit', unit: 'percent', unitDisplay: 'narrow', maximumFractionDigits: 1 })
+        : kind === 'percent'
+          ? new Intl.NumberFormat(locale, { style: 'unit', unit: 'percent', unitDisplay: 'narrow', maximumFractionDigits: 1 })
+          : new Intl.NumberFormat(locale, { maximumFractionDigits: kind === 'bytes-precise' ? 1 : 0 })
     cache.set(key, format)
   }
   return format
@@ -30,6 +32,18 @@ function full(value: number): string {
 
 function percent(value: number): string {
   return numberFormat('percent').format(value)
+}
+
+function bytes(value: number): string {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+  let scaled = Math.max(0, value)
+  let unit = 0
+  while (scaled >= 1_024 && unit < units.length - 1) {
+    scaled /= 1_024
+    unit += 1
+  }
+  const kind = unit > 0 && scaled < 10 ? 'bytes-precise' : 'bytes-rounded'
+  return `${numberFormat(kind).format(scaled)} ${units[unit]}`
 }
 
 function duration(value: number): string {
@@ -72,4 +86,4 @@ function date(value: string, timeZone: string): string {
   }
 }
 
-export const fmt = { number, full, percent, duration, date }
+export const fmt = { number, full, percent, bytes, duration, date }
