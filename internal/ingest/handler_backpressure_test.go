@@ -31,7 +31,7 @@ func (s *preflightSessionSpy) Touch(hit session.Hit) session.Result {
 }
 
 func TestFullEventQueuePreservesIntakeOrdering(t *testing.T) {
-	const heatmap = `{"site":"abc123","name":"heatmap","url":"https://example.com/","doc_h":2000,"vw":1000,"clicks":[[100,100]]}`
+	const heatmap = `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","doc_h":2000,"vw":1000,"clicks":[[100,100]]}`
 	for _, tt := range []struct {
 		name, body, ua, header, remote string
 		setup                          func(*testing.T, *handlerFixture)
@@ -41,14 +41,14 @@ func TestFullEventQueuePreservesIntakeOrdering(t *testing.T) {
 	}{
 		{name: "ordinary valid event", body: okBody, want: 503, dropped: 1},
 		{name: "bot overload precedes bot suppression", body: okBody, ua: "Googlebot/2.1", want: 503, dropped: 1},
-		{name: "stale ping overload precedes stale suppression", body: `{"site":"abc123","name":"engagement","url":"https://example.com/","engagement_ms":9000}`, want: 503, dropped: 1},
+		{name: "stale ping overload precedes stale suppression", body: `{"site":"abc123","name":"engagement","url":"https://supermetry.com/","engagement_ms":9000}`, want: 503, dropped: 1},
 		{name: "stopped empty writer", body: okBody, want: 503, dropped: 1, setup: func(t *testing.T, f *handlerFixture) { f.h.Writer = f.writer; f.stop(t) }},
 		{name: "invalid JSON", body: `{`, want: 400},
 		{name: "invalid host", body: `{"site":"abc123","name":"pageview","url":"https://other.test/"}`, want: 400},
 		{name: "invalid remote address", body: okBody, remote: "invalid", want: 400},
 		{name: "DNT", body: okBody, header: "DNT", want: 202},
 		{name: "GPC", body: okBody, header: "Sec-GPC", want: 202},
-		{name: "suppressed identity", body: `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"synthetic-person"}`, want: 202},
+		{name: "suppressed identity", body: `{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":"synthetic-person"}`, want: 202},
 		{name: "excluded IP", body: okBody, want: 202, setup: func(t *testing.T, f *handlerFixture) { setExclusions(t, f, []string{"198.51.100.7"}, nil) }},
 		{name: "excluded path", body: okBody, want: 202, setup: func(t *testing.T, f *handlerFixture) { setExclusions(t, f, nil, []string{"/"}) }},
 		{name: "excluded country", body: okBody, remote: "192.0.2.42:5555", want: 202, setup: func(t *testing.T, f *handlerFixture) {
@@ -184,7 +184,7 @@ func primeIndependentHeatmap(t *testing.T, f *handlerFixture) {
 	setHeatmapsEnabled(t, f, true)
 	// Heatmaps legitimately intern their sanitized path independently of event
 	// capacity. Only these fixtures are warmed; rejected event paths stay cold.
-	path := f.h.PathPolicy.SanitizePath("https://example.com/").Path
+	path := f.h.PathPolicy.SanitizePath("https://supermetry.com/").Path
 	if _, err := f.h.Dict.IDs(context.Background(), dict.Path, []string{path}); err != nil {
 		t.Fatal(err)
 	}

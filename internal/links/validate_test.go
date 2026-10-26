@@ -8,29 +8,29 @@ import (
 
 func TestNormalizeDestination(t *testing.T) {
 	t.Parallel()
-	long := "https://example.com/" + strings.Repeat("a", MaxDestinationLength)
+	long := "https://supermetry.com/" + strings.Repeat("a", MaxDestinationLength)
 	tests := []struct {
 		name, in, self, want string
 		ok                   bool
 	}{
-		{"https", "https://example.com/a?b=1", "", "https://example.com/a?b=1", true},
-		{"upper scheme lowercased", "HTTP://Example.com", "", "http://Example.com", true},
-		{"trims", "  https://example.com  ", "", "https://example.com", true},
+		{"https", "https://supermetry.com/a?b=1", "", "https://supermetry.com/a?b=1", true},
+		{"upper scheme lowercased", "HTTP://supermetry.com", "", "http://supermetry.com", true},
+		{"trims", "  https://supermetry.com  ", "", "https://supermetry.com", true},
 		{"javascript", "javascript:alert(1)", "", "", false},
 		{"JaVaScRiPt mixed", "JaVaScRiPt:alert(1)", "", "", false},
 		{"data", "data:text/html,<script>alert(1)</script>", "", "", false},
 		{"file", "file:///etc/passwd", "", "", false},
-		{"ftp", "ftp://example.com/x", "", "", false},
+		{"ftp", "ftp://supermetry.com/x", "", "", false},
 		{"protocol relative", "//evil.example/x", "", "", false},
 		{"relative", "/admin", "", "", false},
 		{"no host", "https:///path", "", "", false},
-		{"opaque", "https:example.com", "", "", false},
+		{"opaque", "https:supermetry.com", "", "", false},
 		{"credentials", "https://user:pass@example.com", "", "", false},
 		{"user only", "https://user@example.com", "", "", false},
-		{"space inside", "https://example.com/a b", "", "", false},
-		{"newline injection", "https://example.com/\r\nSet-Cookie: x=1", "", "", false},
+		{"space inside", "https://supermetry.com/a b", "", "", false},
+		{"newline injection", "https://supermetry.com/\r\nSet-Cookie: x=1", "", "", false},
 		{"tab", "https://exa\tmple.com", "", "", false},
-		{"backslash host", `https://example.com\@evil.example`, "", "", false},
+		{"backslash host", `https://supermetry.com\@evil.example`, "", "", false},
 		{"too long", long, "", "", false},
 		{"empty", "  ", "", "", false},
 		{"self loop", "https://sm.example.test/l/abc", "sm.example.test", "", false},
@@ -86,17 +86,17 @@ func TestUTMApply(t *testing.T) {
 	t.Parallel()
 	utm := UTM{Source: "news letter", Medium: "email", Campaign: "spring&sale"}
 	tests := []struct{ in, want string }{
-		{"https://example.com", "https://example.com?utm_source=news+letter&utm_medium=email&utm_campaign=spring%26sale"},
-		{"https://example.com/p?x=1", "https://example.com/p?x=1&utm_source=news+letter&utm_medium=email&utm_campaign=spring%26sale"},
-		{"https://example.com/p?utm_source=keep", "https://example.com/p?utm_source=keep&utm_medium=email&utm_campaign=spring%26sale"},
-		{"https://example.com/p#frag", "https://example.com/p?utm_source=news+letter&utm_medium=email&utm_campaign=spring%26sale#frag"},
+		{"https://supermetry.com", "https://supermetry.com?utm_source=news+letter&utm_medium=email&utm_campaign=spring%26sale"},
+		{"https://supermetry.com/p?x=1", "https://supermetry.com/p?x=1&utm_source=news+letter&utm_medium=email&utm_campaign=spring%26sale"},
+		{"https://supermetry.com/p?utm_source=keep", "https://supermetry.com/p?utm_source=keep&utm_medium=email&utm_campaign=spring%26sale"},
+		{"https://supermetry.com/p#frag", "https://supermetry.com/p?utm_source=news+letter&utm_medium=email&utm_campaign=spring%26sale#frag"},
 	}
 	for _, test := range tests {
 		if got := utm.Apply(test.in); got != test.want {
 			t.Errorf("Apply(%q) = %q, want %q", test.in, got, test.want)
 		}
 	}
-	if got := (UTM{}).Apply("https://example.com/a?b=1"); got != "https://example.com/a?b=1" {
+	if got := (UTM{}).Apply("https://supermetry.com/a?b=1"); got != "https://supermetry.com/a?b=1" {
 		t.Errorf("empty UTM changed destination: %q", got)
 	}
 }

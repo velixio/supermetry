@@ -3,10 +3,10 @@
 require_relative "test_helper"
 
 class TestPayload < Minitest::Test
-  URL = "https://example.com/signup"
+  URL = "https://supermetry.com/signup"
 
   def client(**opts)
-    Supermetry::Client.new(site: "site_1", host: "https://analytics.example.com/", **opts)
+    Supermetry::Client.new(site: "site_1", host: "https://analytics.supermetry.com/", **opts)
   end
 
   def build(name = "Signup", **fields)
@@ -14,7 +14,7 @@ class TestPayload < Minitest::Test
   end
 
   def test_endpoint_from_host
-    assert_equal "https://analytics.example.com/api/public/v1/events", client.endpoint
+    assert_equal "https://analytics.supermetry.com/api/public/v1/events", client.endpoint
     assert_equal "https://x.example/custom",
                  client(endpoint: "https://x.example/custom").endpoint
   end
@@ -43,7 +43,7 @@ class TestPayload < Minitest::Test
     assert_equal "user_1", body["profile_id"]
     refute body.key?("traits")
     assert_equal "Supermetry-Ruby/0.1.0", req.headers["User-Agent"]
-    assert_equal "https://example.com", req.headers["Origin"]
+    assert_equal "https://supermetry.com", req.headers["Origin"]
     refute req.headers.key?("X-Forwarded-For")
   end
 
@@ -55,14 +55,14 @@ class TestPayload < Minitest::Test
   end
 
   def test_default_url_and_missing_url
-    c = client(url: "https://example.com/")
-    assert_equal "https://example.com/", JSON.parse(c.build_request("x").body)["url"]
+    c = client(url: "https://supermetry.com/")
+    assert_equal "https://supermetry.com/", JSON.parse(c.build_request("x").body)["url"]
     assert_raises(Supermetry::InvalidEventError) { client.build_request("x") }
   end
 
   def test_rejects_bad_urls
-    ["/relative", "ftp://example.com/", "https://user:pw@example.com/", "mailto:a@example.com",
-     "https://example.com/#{"a" * 2000}"].each do |url|
+    ["/relative", "ftp://supermetry.com/", "https://user:pw@example.com/", "mailto:a@example.com",
+     "https://supermetry.com/#{"a" * 2000}"].each do |url|
       assert_raises(Supermetry::InvalidEventError, url) { client.build_request("x", url: url) }
     end
   end

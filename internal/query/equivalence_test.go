@@ -80,7 +80,7 @@ func TestNewDimensionsMatchAcrossTiers(t *testing.T) {
 		"os_version":      {"Windows 10/11": {2, 2, 2}, "": {2, 3, 6}},
 		"screen_size":     {"laptop": {1, 2, 4}, "mobile": {1, 1, 1}, "tablet": {1, 1, 1}, "": {1, 1, 2}},
 		"language":        {"en": {1, 2, 4}, "hi": {2, 2, 2}, "": {1, 1, 2}},
-		"hostname":        {"docs.example.com": {3, 3, 4}, "example.com": {1, 1, 2}, "": {1, 1, 2}},
+		"hostname":        {"docs.supermetry.com": {3, 3, 4}, "supermetry.com": {1, 1, 2}, "": {1, 1, 2}},
 	}
 	for dimension, expectedRows := range want {
 		t.Run(dimension, func(t *testing.T) {
@@ -1102,7 +1102,7 @@ func setupTinyDims(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 const tinyDimsSQL = `
 insert into dict(kind, id, value) values
   (13, 70, 'Chrome 126'), (13, 71, 'Firefox 131'), (14, 80, 'Windows 10/11'),
-  (15, 90, 'en'), (15, 91, 'hi'), (16, 95, 'example.com'), (16, 96, 'docs.example.com');
+  (15, 90, 'en'), (15, 91, 'hi'), (16, 95, 'supermetry.com'), (16, 96, 'docs.supermetry.com');
 update sessions s set browser_ver_id = v.bv, os_ver_id = v.ov, screen_bucket = v.sb, language_id = v.lang, hostname_id = v.host
 from (values (101,70,0,3,90,95), (102,71,80,1,91,96), (103,70,0,3,90,96),
              (202,71,80,2,91,96), (301,70,0,4,90,95), (302,71,80,5,0,0)

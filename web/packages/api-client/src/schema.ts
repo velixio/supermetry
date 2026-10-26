@@ -3316,7 +3316,7 @@ export interface components {
             /**
              * Format: uri
              * @description Full page URL. Required by the event intake handler.
-             * @example https://www.example.com/pricing
+             * @example https://www.supermetry.com/pricing
              */
             url?: string;
             /** @example https://search.example/ */

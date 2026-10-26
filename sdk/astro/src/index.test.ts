@@ -28,7 +28,7 @@ describe("scriptAttributes", () => {
     expect(
       scriptAttributes({
         site: "site-id",
-        host: "https://analytics.example.com/",
+        host: "https://analytics.supermetry.com/",
         hash: true,
         consent: true,
         outbound: false,
@@ -39,9 +39,9 @@ describe("scriptAttributes", () => {
     ).toEqual({
       async: true,
       defer: true,
-      src: "https://analytics.example.com/js/script.full.js",
+      src: "https://analytics.supermetry.com/js/script.full.js",
       "data-site": "site-id",
-      "data-api": "https://analytics.example.com/api/public/v1/events",
+      "data-api": "https://analytics.supermetry.com/api/public/v1/events",
       "data-hash": "true",
       "data-outbound": "false",
       "data-profiles": "false",
@@ -63,7 +63,7 @@ describe("pageLoadScript", () => {
   test("sends a pageview on every astro:page-load, waiting for the tracker", async () => {
     const listeners: (() => void)[] = [];
     const fakeWindow: Record<string, unknown> = {};
-    const location = { href: "https://site.example.com/" };
+    const location = { href: "https://site.supermetry.com/" };
     const run = new Function("window", "document", "location", pageLoadScript);
     const fakeDocument = { addEventListener: (name: string, listener: () => void) => name === "astro:page-load" && listeners.push(listener) };
 
@@ -73,11 +73,11 @@ describe("pageLoadScript", () => {
 
     const pageviews: unknown[] = [];
     listeners[0]!();
-    location.href = "https://site.example.com/blog";
+    location.href = "https://site.supermetry.com/blog";
     fakeWindow.supermetry = { pageview: (options: unknown) => pageviews.push(options) };
     await Bun.sleep(70);
     listeners[0]!();
 
-    expect(pageviews).toEqual([{ url: "https://site.example.com/" }, { url: "https://site.example.com/blog" }]);
+    expect(pageviews).toEqual([{ url: "https://site.supermetry.com/" }, { url: "https://site.supermetry.com/blog" }]);
   });
 });

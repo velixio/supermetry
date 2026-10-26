@@ -136,7 +136,7 @@ Docker serves the dashboard on `http://localhost:8787/app`; see [Docker Compose]
 Open `<your URL>/app` and create your admin account. Then add the tracking script to your site. Copy the exact snippet from **Settings, Installation** in the dashboard. It looks like this:
 
 ```html
-<script defer src="https://analytics.example.com/js/YOUR_SITE_ID.js"></script>
+<script defer src="https://analytics.supermetry.com/js/YOUR_SITE_ID.js"></script>
 ```
 
 **Just want to look around?** After you sign up, choose **Explore with demo data**. Supermetry creates a project with 90 days of realistic sample traffic and keeps it moving while you explore. It deletes itself after 24 hours, and you can remove it earlier.

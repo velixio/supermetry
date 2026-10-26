@@ -470,11 +470,11 @@ func TestBuildScriptKeepsTheProxyPrefixForEvents(t *testing.T) {
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
 	prelude, _, _ := strings.Cut(body, "\n")
 	for src, want := range map[string]string{
-		"https://app.supermetry.com/js/abc123def456.js":                         "https://app.supermetry.com/api/public/v1/events",
-		"https://shop.example.com/sm/js/abc123def456.js":                        "https://shop.example.com/sm/api/public/v1/events",
-		"https://shop.example.com/a/b/js/abc123def456.js":                       "https://shop.example.com/a/b/api/public/v1/events",
-		"https://app.supermetry.com/js/abc123def456.js?v=2":                     "https://app.supermetry.com/api/public/v1/events",
-		"https://shop.example.com/sm/js/abc123def456.js?source=/campaign/x#a/b": "https://shop.example.com/sm/api/public/v1/events",
+		"https://app.supermetry.com/js/abc123def456.js":                            "https://app.supermetry.com/api/public/v1/events",
+		"https://shop.supermetry.com/sm/js/abc123def456.js":                        "https://shop.supermetry.com/sm/api/public/v1/events",
+		"https://shop.supermetry.com/a/b/js/abc123def456.js":                       "https://shop.supermetry.com/a/b/api/public/v1/events",
+		"https://app.supermetry.com/js/abc123def456.js?v=2":                        "https://app.supermetry.com/api/public/v1/events",
+		"https://shop.supermetry.com/sm/js/abc123def456.js?source=/campaign/x#a/b": "https://shop.supermetry.com/sm/api/public/v1/events",
 	} {
 		script := `const vm=require("node:vm");const d={};vm.runInNewContext(process.argv[1],{document:{currentScript:{src:process.argv[2],dataset:d}},URL});process.stdout.write(d.api)`
 		out, err := exec.Command("node", "-e", script, prelude, src).CombinedOutput()
@@ -494,8 +494,8 @@ func TestBuildScriptUsesConfiguredScriptDir(t *testing.T) {
 	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
 	prelude, _, _ := strings.Cut(body, "\n")
 	script := `const vm=require("node:vm");const d={};vm.runInNewContext(process.argv[1],{document:{currentScript:{src:process.argv[2],dataset:d}},URL});process.stdout.write(d.api)`
-	out, err := exec.Command("node", "-e", script, prelude, "https://shop.example.com/sm/insights/abc123def456.js").CombinedOutput()
-	if want := "https://shop.example.com/sm/insights/collect"; err != nil || string(out) != want {
+	out, err := exec.Command("node", "-e", script, prelude, "https://shop.supermetry.com/sm/insights/abc123def456.js").CombinedOutput()
+	if want := "https://shop.supermetry.com/sm/insights/collect"; err != nil || string(out) != want {
 		t.Fatalf("api = %q (%v), want %q", out, err, want)
 	}
 }

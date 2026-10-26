@@ -15,10 +15,10 @@ func TestDemoSiteReplayRejectedLikeUnknownSite(t *testing.T) {
 	site.Demo = true
 	h.deps.Sites = replayTestRegistry{site: site}
 
-	unknownStartRequest := httptest.NewRequest(http.MethodPost, "/api/replay/start", bytes.NewBufferString(`{"s":"unknown","u":"https://example.com/page"}`))
+	unknownStartRequest := httptest.NewRequest(http.MethodPost, "/api/replay/start", bytes.NewBufferString(`{"s":"unknown","u":"https://supermetry.com/page"}`))
 	unknownStart := httptest.NewRecorder()
 	h.Start(unknownStart, unknownStartRequest)
-	demoStart := requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")
+	demoStart := requestStart(t, h, "https://supermetry.com/page", "192.0.2.1:1234", "test-agent")
 	assertSameReplayRejection(t, demoStart, unknownStart)
 
 	body := gzipBody(t, []byte("{}\n"))

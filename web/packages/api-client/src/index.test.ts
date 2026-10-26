@@ -12,7 +12,7 @@ describe("createSupermetryClient", () => {
     );
     const client = createSupermetryClient({
       apiKey: "supermetry_secret",
-      baseUrl: "https://analytics.example.com",
+      baseUrl: "https://analytics.supermetry.com",
       fetch: fetchMock,
     });
 
@@ -20,7 +20,7 @@ describe("createSupermetryClient", () => {
 
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     expect(request.url).toBe(
-      "https://analytics.example.com/api/public/v1/sites",
+      "https://analytics.supermetry.com/api/public/v1/sites",
     );
     expect(request.headers.get("Authorization")).toBe("Bearer supermetry_secret");
   });

@@ -58,7 +58,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 
 const tick = (ms = 5) => new Promise((r) => setTimeout(r, ms));
 
-const base = { site: "app_site", host: "https://a.example.com", appUrl: "https://app.example.com/", retryDelay: 1 };
+const base = { site: "app_site", host: "https://a.supermetry.com", appUrl: "https://app.supermetry.com/", retryDelay: 1 };
 
 beforeEach(() => {
   appStateListeners.clear();
@@ -107,14 +107,14 @@ describe("client", () => {
     await sm.flush();
     expect(calls).toHaveLength(1);
     const { url, headers, body } = calls[0]!;
-    expect(url).toBe("https://a.example.com/api/public/v1/events");
+    expect(url).toBe("https://a.supermetry.com/api/public/v1/events");
     expect(headers["Content-Type"]).toBe("application/json");
     expect(headers["User-Agent"]).toBe("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Supermetry-ReactNative/0.2.0");
     expect(body).toMatchObject({
       v: 1,
       site: "app_site",
       name: "pageview",
-      url: "https://app.example.com/product-details",
+      url: "https://app.supermetry.com/product-details",
       screen_width: 390,
       props: { sku: "A1" },
     });
@@ -131,9 +131,9 @@ describe("client", () => {
     sm.track("Purchase", { items: 2 }, { revenue: { amount: "9.99", currency: "USD" } });
     await sm.flush();
     expect(calls.map((c) => c.body.url)).toEqual([
-      "https://app.example.com/",
-      "https://app.example.com/cart",
-      "https://app.example.com/cart",
+      "https://app.supermetry.com/",
+      "https://app.supermetry.com/cart",
+      "https://app.supermetry.com/cart",
     ]);
     expect(calls[2]!.body).toMatchObject({ name: "Purchase", revenue: { amount: "9.99", currency: "USD" } });
     expect(calls.every((c) => c.body.traits === undefined)).toBe(true);
@@ -186,7 +186,7 @@ describe("client", () => {
     sm2.screen("A");
     sm2.screen("B");
     await sm2.flush();
-    expect(rejected.calls.map((c) => c.body.url)).toEqual(["https://app.example.com/a", "https://app.example.com/b"]);
+    expect(rejected.calls.map((c) => c.body.url)).toEqual(["https://app.supermetry.com/a", "https://app.supermetry.com/b"]);
     expect(errors).toHaveLength(1);
     sm.destroy();
     sm2.destroy();
@@ -262,7 +262,7 @@ describe("client", () => {
     await sm.flush();
     expect(calls).toHaveLength(0);
     expect(errors).toHaveLength(3);
-    expect(() => createSupermetry({ ...base, appUrl: "app.example.com" })).toThrow();
+    expect(() => createSupermetry({ ...base, appUrl: "app.supermetry.com" })).toThrow();
     sm.destroy();
   });
 });
@@ -292,7 +292,7 @@ describe("react", () => {
     route = { key: "product-1", name: "ProductDetails" };
     trackNavigation(sm, ref).onStateChange(); // fresh handlers share last-route state
     await sm.flush();
-    expect(calls.map((c) => c.body.url)).toEqual(["https://app.example.com/home", "https://app.example.com/product-details"]);
+    expect(calls.map((c) => c.body.url)).toEqual(["https://app.supermetry.com/home", "https://app.supermetry.com/product-details"]);
     sm.destroy();
   });
 });
@@ -321,7 +321,7 @@ describe("live HTTP", () => {
 
   test("real fetch sends the mobile UA and contract body; 429 is retried with the same id", async () => {
     Object.assign(platform, { OS: "android", Version: 34, constants: { Release: "14", Model: "Pixel 8" } });
-    const sm = createSupermetry({ site: "live", host, appUrl: "https://app.example.com", retryDelay: 1 });
+    const sm = createSupermetry({ site: "live", host, appUrl: "https://app.supermetry.com", retryDelay: 1 });
     sm.identify("user_live", { tier: "gold" });
     await sm.flush();
     await tick(50);
@@ -339,7 +339,7 @@ describe("live HTTP", () => {
       v: 1,
       site: "live",
       name: "identify",
-      url: "https://app.example.com/",
+      url: "https://app.supermetry.com/",
       profile_id: "user_live",
       traits: { tier: "gold" },
       screen_width: 390,

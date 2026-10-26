@@ -844,7 +844,7 @@ const messages: MessageTree = {
     errorBody: (detail: string) => `Die letzte Synchronisierung ist fehlgeschlagen und wird wiederholt: ${detail}`,
     connectHeading: 'Google Search Console verbinden',
     propertyLabel: 'Search-Console-Property',
-    propertyHint: 'Verwenden Sie eine Domain-Property wie sc-domain:example.com oder ein URL-Präfix wie https://example.com/.',
+    propertyHint: 'Verwenden Sie eine Domain-Property wie sc-domain:supermetry.com oder ein URL-Präfix wie https://supermetry.com/.',
     backfillLabel: 'Verlauf importieren',
     backfillOption: (days: number) => `Letzte ${days} Tage`,
     connect: 'Mit Google verbinden',

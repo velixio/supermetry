@@ -89,7 +89,7 @@ function ConnectForm({
           className="min-h-11"
           id={`property-${entry.provider}`}
           onChange={(event) => setProperty(event.target.value)}
-          placeholder="sc-domain:example.com"
+          placeholder="sc-domain:supermetry.com"
           spellCheck={false}
           value={property}
         />

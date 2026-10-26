@@ -6,8 +6,8 @@ import java.math.BigDecimal
  * Configuration for Supermetry.
  *
  * @property site public site ID.
- * @property host Supermetry base URL, e.g. `https://analytics.example.com`.
- * @property appUrl base URL for screen views, e.g. `https://app.example.com`; its host must be an
+ * @property host Supermetry base URL, e.g. `https://analytics.supermetry.com`.
+ * @property appUrl base URL for screen views, e.g. `https://app.supermetry.com`; its host must be an
  *   allowed host of the site.
  */
 data class SupermetryConfig @JvmOverloads constructor(

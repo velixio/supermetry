@@ -88,9 +88,9 @@ func createUser(t *testing.T, env authEnv, email, password string) int64 {
 
 func TestLoginRateLimitIsPerNormalizedEmail(t *testing.T) {
 	env := newAuth(t)
-	createUser(t, env, "Ana@Example.com", "pw-123456789")
+	createUser(t, env, "Ana@example.com", "pw-123456789")
 	for i := 0; i < 5; i++ {
-		email := []string{"ana@example.com", "ANA@EXAMPLE.COM", "Ana@Example.com"}[i%3]
+		email := []string{"ana@example.com", "ANA@example.com", "Ana@example.com"}[i%3]
 		if _, err := env.a.Login(ctx, email, "wrong", "", "x"); !errors.Is(err, auth.ErrInvalid) {
 			t.Fatalf("attempt %d: %v", i+1, err)
 		}

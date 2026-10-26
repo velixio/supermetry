@@ -18,7 +18,7 @@ final class SupermetryLaravelTest extends TestCase
     {
         self::assertInstanceOf(Tracker::class, $this->app->make('supermetry'));
         self::assertInstanceOf(Client::class, $this->app->make(Client::class));
-        self::assertSame('https://analytics.example.com/api/public/v1/events', $this->app->make(Client::class)->endpoint());
+        self::assertSame('https://analytics.supermetry.com/api/public/v1/events', $this->app->make(Client::class)->endpoint());
         self::assertFalse((bool) config('supermetry.queue'));
     }
 
@@ -32,7 +32,7 @@ final class SupermetryLaravelTest extends TestCase
 
         $this->withHeaders([
             'User-Agent' => 'Mozilla/5.0 (Macintosh) Visitor',
-            'Referer' => 'https://ref.example.org/',
+            'Referer' => 'https://ref.example.com/',
             'DNT' => '1',
         ])->withServerVariables(['REMOTE_ADDR' => '198.51.100.7'])->get('/checkout?coupon=x')->assertOk();
 
@@ -40,7 +40,7 @@ final class SupermetryLaravelTest extends TestCase
         $body = $this->sentBody();
         self::assertSame('Checkout', $body['name']);
         self::assertSame('http://localhost/checkout?coupon=x', $body['url']);
-        self::assertSame('https://ref.example.org/', $body['referrer']);
+        self::assertSame('https://ref.example.com/', $body['referrer']);
         self::assertSame(['step' => 2], $body['props']);
         self::assertSame(['amount' => '19.99', 'currency' => 'USD'], $body['revenue']);
         self::assertSame('Mozilla/5.0 (Macintosh) Visitor', $this->sentHeader(0, 'User-Agent'));
@@ -70,11 +70,11 @@ final class SupermetryLaravelTest extends TestCase
     {
         $this->fakeHttp();
         Route::get('/x', function () {
-            Supermetry::pageview('https://shop.example.com/p/1', [], ['user_agent' => 'Custom/1.0', 'ip' => '192.0.2.1']);
+            Supermetry::pageview('https://shop.supermetry.com/p/1', [], ['user_agent' => 'Custom/1.0', 'ip' => '192.0.2.1']);
             return 'ok';
         });
         $this->get('/x')->assertOk();
-        self::assertSame('https://shop.example.com/p/1', $this->sentBody()['url']);
+        self::assertSame('https://shop.supermetry.com/p/1', $this->sentBody()['url']);
         self::assertSame('Custom/1.0', $this->sentHeader(0, 'User-Agent'));
         self::assertSame('192.0.2.1', $this->sentHeader(0, 'X-Forwarded-For'));
     }
@@ -104,7 +104,7 @@ final class SupermetryLaravelTest extends TestCase
     public function testJobHandleSendsSynchronouslyKeepingIdAndTs(): void
     {
         $this->fakeHttp();
-        $payload = ['v' => 1, 'id' => 'abc', 'ts' => 1_700_000_000_000, 'site' => 'site_123', 'name' => 'Job', 'url' => 'https://app.example.com/'];
+        $payload = ['v' => 1, 'id' => 'abc', 'ts' => 1_700_000_000_000, 'site' => 'site_123', 'name' => 'Job', 'url' => 'https://app.supermetry.com/'];
         $job = new SendEvent($payload, ['user_agent' => 'Mozilla/5.0 J']);
         $job->handle($this->app->make(Client::class));
         self::assertCount(1, $this->history);
@@ -115,11 +115,11 @@ final class SupermetryLaravelTest extends TestCase
     public function testBladeDirectiveRendersScriptTag(): void
     {
         self::assertSame(
-            '<script defer data-site="site_123" src="https://analytics.example.com/js/script.js"></script>',
+            '<script defer data-site="site_123" src="https://analytics.supermetry.com/js/script.js"></script>',
             trim(Blade::render('@supermetry')),
         );
         self::assertSame(
-            '<script defer data-site="site_123" nonce="n0" data-hash data-consent="required" src="https://analytics.example.com/js/script.full.js"></script>',
+            '<script defer data-site="site_123" nonce="n0" data-hash data-consent="required" src="https://analytics.supermetry.com/js/script.full.js"></script>',
             trim(Blade::render("@supermetry(['full' => true, 'nonce' => 'n0', 'hash' => true, 'consent' => 'required', 'manual' => false])")),
         );
     }

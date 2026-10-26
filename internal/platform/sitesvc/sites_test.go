@@ -64,7 +64,7 @@ func TestRegistryReflectsWritesAndHidesDeleted(t *testing.T) {
 	service, registry, principal, _ := newSites(t)
 	ctx := context.Background()
 
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "Asia/Kolkata", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "Asia/Kolkata", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +330,7 @@ func TestStaleRegistryCannotSelectContradictoryCurrency(t *testing.T) {
 func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Profiles", Hosts: []string{"profiles.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Profiles", Hosts: []string{"profiles.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +355,7 @@ func TestRegistryLoadsProfilesEnabledFromSettings(t *testing.T) {
 func TestRegistryDefaultsPrivacySignalsOnAndLoadsOverride(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Privacy", Hosts: []string{"privacy.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Privacy", Hosts: []string{"privacy.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,21 +377,21 @@ func TestRegistryDefaultsPrivacySignalsOnAndLoadsOverride(t *testing.T) {
 func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Icons", Hosts: []string{"first.example.com", "second.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Icons", Hosts: []string{"first.supermetry.com", "second.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var discoveredHost string
 	service.discoverIcon = func(_ context.Context, host string) string {
 		discoveredHost = host
-		return "https://first.example.com/icon.svg"
+		return "https://first.supermetry.com/icon.svg"
 	}
 
 	updated, err := service.RefreshIcon(ctx, principal, site.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if discoveredHost != "first.example.com" || updated.IconURL != "https://first.example.com/icon.svg" {
+	if discoveredHost != "first.supermetry.com" || updated.IconURL != "https://first.supermetry.com/icon.svg" {
 		t.Fatalf("host=%q updated icon=%q", discoveredHost, updated.IconURL)
 	}
 	loaded, ok := registry.Site(site.ID)
@@ -413,12 +413,12 @@ func TestRefreshIconDiscoversFirstHostAndPersistsSettings(t *testing.T) {
 func TestRefreshIconKeepsStoredIconWhenDiscoveryFindsNothing(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Icons", Hosts: []string{"example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Icons", Hosts: []string{"supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	const (
-		storedIcon = "https://example.com/icon.svg"
+		storedIcon = "https://supermetry.com/icon.svg"
 		oldChecked = "2000-01-01T00:00:00Z"
 	)
 	if _, err := pool.Exec(ctx, `
@@ -457,7 +457,7 @@ func TestRefreshIconKeepsStoredIconWhenDiscoveryFindsNothing(t *testing.T) {
 func TestUpdateProfilesEnabledPersistsRefreshesAndAudits(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Profiles", Hosts: []string{"profiles.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Profiles", Hosts: []string{"profiles.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -522,11 +522,11 @@ func TestCreateValidates(t *testing.T) {
 		timezone  string
 		retention int
 	}{
-		{name: "bad timezone", hosts: []string{"example.com"}, timezone: "Mars/Base", retention: 30},
-		{name: "unsupported retention", hosts: []string{"example.com"}, timezone: "UTC", retention: 45},
+		{name: "bad timezone", hosts: []string{"supermetry.com"}, timezone: "Mars/Base", retention: 30},
+		{name: "unsupported retention", hosts: []string{"supermetry.com"}, timezone: "UTC", retention: 45},
 		{name: "empty hosts", timezone: "UTC", retention: 30},
-		{name: "host with port", hosts: []string{"example.com:443"}, timezone: "UTC", retention: 30},
-		{name: "host with scheme", hosts: []string{"https://example.com"}, timezone: "UTC", retention: 30},
+		{name: "host with port", hosts: []string{"supermetry.com:443"}, timezone: "UTC", retention: 30},
+		{name: "host with scheme", hosts: []string{"https://supermetry.com"}, timezone: "UTC", retention: 30},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -548,21 +548,21 @@ func TestCreateRevalidatesAPIKeyAndOrganization(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := authz.Principal{KeyID: keyID, OrgID: owner.OrgID, Role: authz.RoleKey, Scopes: []string{"sites:write"}}
-	if _, err := service.Create(ctx, key, CreateInput{Name: "Key site", Hosts: []string{"key-create.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"}); err != nil {
+	if _, err := service.Create(ctx, key, CreateInput{Name: "Key site", Hosts: []string{"key-create.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"}); err != nil {
 		t.Fatalf("active unrestricted key Create error = %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `update api_keys set revoked_at=now() where id=$1`, keyID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.Create(ctx, key, CreateInput{Name: "Revoked", Hosts: []string{"revoked-create.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"}); !errors.Is(err, ErrForbidden) {
+	if _, err := service.Create(ctx, key, CreateInput{Name: "Revoked", Hosts: []string{"revoked-create.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("revoked key Create error = %v, want ErrForbidden", err)
 	}
 
 	if _, err := pool.Exec(ctx, `update orgs set deleted_at=now() where id=$1`, owner.OrgID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.Create(ctx, owner, CreateInput{Name: "Deleted org", Hosts: []string{"deleted-org.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"}); !errors.Is(err, ErrForbidden) {
+	if _, err := service.Create(ctx, owner, CreateInput{Name: "Deleted org", Hosts: []string{"deleted-org.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("deleted organization Create error = %v, want ErrForbidden", err)
 	}
 }
@@ -570,7 +570,7 @@ func TestCreateRevalidatesAPIKeyAndOrganization(t *testing.T) {
 func TestRegistryExcludesSitesOwnedByDeletedOrganizations(t *testing.T) {
 	service, registry, owner, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, owner, CreateInput{Name: "Deleted org site", Hosts: []string{"deleted-org.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, owner, CreateInput{Name: "Deleted org site", Hosts: []string{"deleted-org.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,13 +591,13 @@ func TestRegistryExcludesSitesOwnedByDeletedOrganizations(t *testing.T) {
 func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	name := "Docs"
 	timezone := "Asia/Kathmandu"
-	hosts := []string{"docs.example.com", "*.docs.example.com"}
+	hosts := []string{"docs.supermetry.com", "*.docs.supermetry.com"}
 	retention := 90
 	updated, err := service.Update(ctx, principal, site.ID, SitePatch{
 		Name: &name, Hosts: &hosts, TZ: &timezone, RetentionDays: &retention,
@@ -605,7 +605,7 @@ func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Retention != db.Ret90 || updated.TZ.String() != timezone || !updated.Allows("www.docs.example.com") {
+	if updated.Retention != db.Ret90 || updated.TZ.String() != timezone || !updated.Allows("www.docs.supermetry.com") {
 		t.Fatalf("updated site = %+v", updated)
 	}
 	if got, ok := registry.Site(site.ID); !ok || got.TZ.String() != timezone {
@@ -623,7 +623,7 @@ func TestUpdateRefreshesRegistryAndWritesAudit(t *testing.T) {
 func TestUpdateExclusionsPersistsAndRefreshesRegistry(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -663,7 +663,7 @@ func TestUpdateExclusionsPersistsAndRefreshesRegistry(t *testing.T) {
 func TestUpdateTrackerAndCountryExclusionsRoundTripsAndOmittedPatchPreserves(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -721,7 +721,7 @@ func TestUpdateTrackerAndCountryExclusionsRoundTripsAndOmittedPatchPreserves(t *
 func TestRegistryMalformedTrackerUsesDefaults(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -740,7 +740,7 @@ func TestRegistryMalformedTrackerUsesDefaults(t *testing.T) {
 func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -775,7 +775,7 @@ func TestUpdateHeatmapsPersistsRefreshesRegistryAndAudits(t *testing.T) {
 func TestUpdatePrivacySignalsPersistsAndRefreshesRegistry(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Privacy", Hosts: []string{"privacy.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Privacy", Hosts: []string{"privacy.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -800,7 +800,7 @@ func TestUpdatePrivacySignalsPersistsAndRefreshesRegistry(t *testing.T) {
 func TestUpdateProtectionSettingsPersistsAndRefreshesRegistry(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Protected", Hosts: []string{"protected.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Protected", Hosts: []string{"protected.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -834,7 +834,7 @@ func TestUpdateProtectionSettingsPersistsAndRefreshesRegistry(t *testing.T) {
 
 func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
 	service, _, principal, _ := newSites(t)
-	site, err := service.Create(context.Background(), principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(context.Background(), principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -848,7 +848,7 @@ func TestUpdateHeatmapsRejectsEditor(t *testing.T) {
 
 func TestUpdateTrackerAndCountryExclusionsRejectsEditor(t *testing.T) {
 	service, _, principal, _ := newSites(t)
-	site, err := service.Create(context.Background(), principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(context.Background(), principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -876,7 +876,7 @@ func TestUpdateTrackerAndCountryExclusionsRejectsEditor(t *testing.T) {
 func TestUpdateExclusionsNamesInvalidEntry(t *testing.T) {
 	service, _, principal, _ := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -891,7 +891,7 @@ func TestUpdateExclusionsNamesInvalidEntry(t *testing.T) {
 func TestCrossOrgAndForbiddenWritesAreHiddenOrDenied(t *testing.T) {
 	service, _, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -910,7 +910,7 @@ func TestCrossOrgAndForbiddenWritesAreHiddenOrDenied(t *testing.T) {
 func TestDeleteRevalidatesCurrentMembership(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Lifecycle", Hosts: []string{"lifecycle.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Lifecycle", Hosts: []string{"lifecycle.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -943,7 +943,7 @@ func TestDeleteRevalidatesCurrentMembership(t *testing.T) {
 func TestDeleteKeepsCrossTenantSiteHidden(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Tenant A", Hosts: []string{"tenant-a.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Tenant A", Hosts: []string{"tenant-a.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -964,7 +964,7 @@ func TestDeleteRevalidatesAPIKey(t *testing.T) {
 	service, registry, owner, pool := newSites(t)
 	ctx := context.Background()
 	trackedSites := make([]sites.Site, 4)
-	for index, host := range []string{"key-active.example.com", "key-revoked.example.com", "key-expired.example.com", "key-restricted.example.com"} {
+	for index, host := range []string{"key-active.supermetry.com", "key-revoked.supermetry.com", "key-expired.supermetry.com", "key-restricted.supermetry.com"} {
 		created, err := service.Create(ctx, owner, CreateInput{Name: host, Hosts: []string{host}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 		if err != nil {
 			t.Fatal(err)
@@ -1030,7 +1030,7 @@ func TestDeleteRevalidatesAPIKey(t *testing.T) {
 func TestDeleteAuditFailureRollsBackSoftDelete(t *testing.T) {
 	service, registry, principal, pool := newSites(t)
 	ctx := context.Background()
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Audited", Hosts: []string{"audited.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Audited", Hosts: []string{"audited.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1065,7 +1065,7 @@ func TestRestoreAuthorizesAuditsAndRefreshesRegistry(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, time.October, 11, 12, 0, 0, 0, time.UTC)
 	service.SetClock(func() time.Time { return now })
-	site, err := service.Create(ctx, owner, CreateInput{Name: "Restore", Hosts: []string{"restore.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, owner, CreateInput{Name: "Restore", Hosts: []string{"restore.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1112,7 +1112,7 @@ func TestRestoreRevalidatesCurrentMembership(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 	service.SetClock(func() time.Time { return now })
-	site, err := service.Create(ctx, principal, CreateInput{Name: "Restore lock", Hosts: []string{"restore-lock.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	site, err := service.Create(ctx, principal, CreateInput{Name: "Restore lock", Hosts: []string{"restore-lock.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1128,9 +1128,9 @@ func TestRestoreRevalidatesCurrentMembership(t *testing.T) {
 }
 
 func TestSnippet(t *testing.T) {
-	want := `<script defer src="https://stats.example.com/js/abc123def456.js"></script>`
+	want := `<script defer src="https://stats.supermetry.com/js/abc123def456.js"></script>`
 	for _, full := range []bool{false, true} {
-		if got := Snippet("https://stats.example.com/", "/js/p.js", "/api/public/v1/events", "abc123def456", full); got != want {
+		if got := Snippet("https://stats.supermetry.com/", "/js/p.js", "/api/public/v1/events", "abc123def456", full); got != want {
 			t.Fatalf("Snippet(full=%t) = %q, want %q", full, got, want)
 		}
 	}
@@ -1205,11 +1205,11 @@ func TestSiteSlugIsDerivedFromTheHostAndEditable(t *testing.T) {
 	service, registry, principal, _ := newSites(t)
 	ctx := context.Background()
 
-	first, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"www.blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	first, err := service.Create(ctx, principal, CreateInput{Name: "Blog", Hosts: []string{"www.blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := service.Create(ctx, principal, CreateInput{Name: "Blog copy", Hosts: []string{"blog.example.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
+	second, err := service.Create(ctx, principal, CreateInput{Name: "Blog copy", Hosts: []string{"blog.supermetry.com"}, Timezone: "UTC", RetentionDays: 30, RevenueCurrency: "USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1239,7 +1239,7 @@ func TestSiteSlugIsDerivedFromTheHostAndEditable(t *testing.T) {
 		t.Fatalf("taken slug error = %v, want ErrSlugTaken", err)
 	}
 	// Renaming the site or changing its host leaves the slug, and so every saved link, alone.
-	name, hosts := "Renamed", []string{"other.example.org"}
+	name, hosts := "Renamed", []string{"other.example.com"}
 	renamed, err := service.Update(ctx, principal, first.ID, SitePatch{Name: &name, Hosts: &hosts})
 	if err != nil || renamed.Slug != "my-blog" {
 		t.Fatalf("rename kept slug = %q, %v", renamed.Slug, err)

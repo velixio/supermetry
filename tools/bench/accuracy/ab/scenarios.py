@@ -271,5 +271,5 @@ def _steps(rng: random.Random, category: str) -> tuple[Step, ...]:
             ),
         )
     if rng.choice((True, False)):
-        return (Step("goto", path="/"), Step("outbound", href="https://example.com/out"))
+        return (Step("goto", path="/"), Step("outbound", href="https://supermetry.com/out"))
     return (Step("goto", path="/"), Step("download", href="/files/report.pdf"))

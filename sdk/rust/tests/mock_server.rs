@@ -92,7 +92,7 @@ async fn mock(statuses: &[u16]) -> Mock {
 
 fn client(base: &str) -> Supermetry {
     Supermetry::builder("site_1", base)
-        .url("https://example.com/")
+        .url("https://supermetry.com/")
         .retry_delay(Duration::from_millis(10))
         .build()
         .unwrap()
@@ -104,14 +104,14 @@ async fn track_sends_contract_payload_and_headers() {
     client(&server.base)
         .track(
             Event::new("Signup")
-                .url("https://example.com/signup?x=1")
+                .url("https://supermetry.com/signup?x=1")
                 .prop("plan", "pro")
                 .prop("seats", 3)
                 .revenue("49.90", "USD")
                 .profile_id("user_1")
                 .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)")
                 .ip("203.0.113.7")
-                .referrer("https://news.example.org/"),
+                .referrer("https://news.example.com/"),
         )
         .await
         .unwrap();
@@ -127,13 +127,13 @@ async fn track_sends_contract_payload_and_headers() {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)"
     );
     assert_eq!(req.headers["x-forwarded-for"], "203.0.113.7");
-    assert_eq!(req.headers["origin"], "https://example.com");
+    assert_eq!(req.headers["origin"], "https://supermetry.com");
     let body = &req.body;
     assert_eq!(body["v"], 1);
     assert_eq!(body["site"], "site_1");
     assert_eq!(body["name"], "Signup");
-    assert_eq!(body["url"], "https://example.com/signup?x=1");
-    assert_eq!(body["referrer"], "https://news.example.org/");
+    assert_eq!(body["url"], "https://supermetry.com/signup?x=1");
+    assert_eq!(body["referrer"], "https://news.example.com/");
     assert_eq!(
         body["props"],
         serde_json::json!({"plan": "pro", "seats": 3})
@@ -155,7 +155,7 @@ async fn pageview_uses_default_url_and_own_user_agent() {
     assert_eq!(req.headers["user-agent"], "supermetry-rust/0.1.0");
     assert!(!req.headers.contains_key("x-forwarded-for"));
     assert_eq!(req.body["name"], "pageview");
-    assert_eq!(req.body["url"], "https://example.com/");
+    assert_eq!(req.body["url"], "https://supermetry.com/");
 }
 
 #[tokio::test]

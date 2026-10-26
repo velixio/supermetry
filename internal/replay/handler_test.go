@@ -87,7 +87,7 @@ func TestStartHonorsStoredSiteSwitch(t *testing.T) {
 	input := replayInput(100)
 	input.Enabled = false
 	h, _, _, _, _ := newReplayTestHandler(t, input)
-	response := requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")
+	response := requestStart(t, h, "https://supermetry.com/page", "192.0.2.1:1234", "test-agent")
 	if response.Code != http.StatusOK || decodeStart(t, response).Mode != "off" {
 		t.Fatalf("status/body = %d/%s, want 200 with off", response.Code, response.Body.String())
 	}
@@ -96,7 +96,7 @@ func TestStartHonorsStoredSiteSwitch(t *testing.T) {
 
 func TestStartOffWhenDiskGuardTripped(t *testing.T) {
 	h, _, _, _, _ := newReplayTestHandler(t, replayInput(100), WithDiskGuard(func() bool { return true }))
-	response := requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")
+	response := requestStart(t, h, "https://supermetry.com/page", "192.0.2.1:1234", "test-agent")
 	if response.Code != http.StatusOK || decodeStart(t, response).Mode != "off" {
 		t.Fatalf("status/body = %d/%s, want 200 with off", response.Code, response.Body.String())
 	}
@@ -104,7 +104,7 @@ func TestStartOffWhenDiskGuardTripped(t *testing.T) {
 
 func TestStartRejectsOriginOutsideSite(t *testing.T) {
 	h, _, _, _, _ := newReplayTestHandler(t, replayInput(100))
-	response := requestStartWithOrigin(t, h, "https://example.com/page", "https://attacker.example", "192.0.2.1:1234", "test-agent")
+	response := requestStartWithOrigin(t, h, "https://supermetry.com/page", "https://attacker.example", "192.0.2.1:1234", "test-agent")
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", response.Code)
 	}
@@ -128,7 +128,7 @@ func TestSamplingStableAcrossMidnightWindow(t *testing.T) {
 		t.Fatal("failed to find deterministic previous-day sample fixture")
 	}
 	h, _, _, _, _ := newReplayTestHandlerAt(t, replayInput(15), now, currentSalt, previousSalt)
-	response := requestStart(t, h, "https://example.com/page", ip+":1234", "midnight-agent")
+	response := requestStart(t, h, "https://supermetry.com/page", ip+":1234", "midnight-agent")
 	if got := decodeStart(t, response).Mode; got != "full" {
 		t.Fatalf("mode = %q, want full when previous visitor ID is sampled", got)
 	}
@@ -231,7 +231,7 @@ func TestChunkStrictOriginAcceptsAllowedReferer(t *testing.T) {
 	h.deps.Sites = registry
 	touchReplaySession(t, sessions, visitorID)
 	request := newChunkRequest(t, h, gzipBody(t, []byte("chunk")))
-	request.Header.Set("Referer", "https://example.com/page")
+	request.Header.Set("Referer", "https://supermetry.com/page")
 	response := httptest.NewRecorder()
 
 	h.Chunk(response, request)
@@ -249,7 +249,7 @@ func TestChunkStrictOriginPrefersOriginOverReferer(t *testing.T) {
 	touchReplaySession(t, sessions, visitorID)
 	request := newChunkRequest(t, h, gzipBody(t, []byte("chunk")))
 	request.Header.Set("Origin", "https://attacker.example")
-	request.Header.Set("Referer", "https://example.com/page")
+	request.Header.Set("Referer", "https://supermetry.com/page")
 	response := httptest.NewRecorder()
 
 	h.Chunk(response, request)
@@ -261,7 +261,7 @@ func TestChunkStrictOriginPrefersOriginOverReferer(t *testing.T) {
 
 func TestCSSStrictOriginUsesOriginThenReferer(t *testing.T) {
 	input := replayInput(100)
-	site := sites.Site{ID: 7, PublicID: "site-public", AllowedHosts: []string{"example.com"}, StrictOrigin: true, Replay: input}
+	site := sites.Site{ID: 7, PublicID: "site-public", AllowedHosts: []string{"supermetry.com"}, StrictOrigin: true, Replay: input}
 	registry := replayTestRegistry{site: site}
 	var calls int
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { calls++; w.WriteHeader(http.StatusNoContent) })
@@ -280,7 +280,7 @@ func TestCSSStrictOriginUsesOriginThenReferer(t *testing.T) {
 	}
 
 	allowedRequest := httptest.NewRequest(http.MethodPut, target, nil)
-	allowedRequest.Header.Set("Referer", "https://example.com/page")
+	allowedRequest.Header.Set("Referer", "https://supermetry.com/page")
 	allowed := httptest.NewRecorder()
 	handler.ServeHTTP(allowed, allowedRequest)
 	if allowed.Code != http.StatusNoContent || calls != 1 {
@@ -471,7 +471,7 @@ func BenchmarkChunk64KB(b *testing.B) {
 	salt := bytes.Repeat([]byte{1}, 32)
 	site := sites.Site{
 		ID: 7, PublicID: "site-public", TZ: time.UTC, Retention: 30,
-		AllowedHosts: []string{"example.com"}, Replay: replayInput(100),
+		AllowedHosts: []string{"supermetry.com"}, Replay: replayInput(100),
 	}
 	sessions := session.NewMemory(1, clock)
 	h := NewHandler(HandlerDeps{
@@ -575,7 +575,7 @@ func newReplayTestHandlerAt(t testing.TB, input sites.ReplaySiteInput, now time.
 	index := &replayTestIndex{}
 	site := sites.Site{
 		ID: 7, PublicID: "site-public", TZ: time.UTC, Retention: 30,
-		AllowedHosts: []string{"example.com"}, Replay: input,
+		AllowedHosts: []string{"supermetry.com"}, Replay: input,
 	}
 	day := salts.LocalDay(now, site.TZ)
 	saltStore := replayTestSalts{day: currentSalt, day.AddDate(0, 0, -1): previousSalt}
@@ -741,7 +741,7 @@ func TestReplayPrivacySignalsAndConsent(t *testing.T) {
 			}
 			h, sessions, blob, _, visitor := newReplayTestHandler(t, input)
 			touchReplaySession(t, sessions, visitor)
-			start := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://example.com/page"}`))
+			start := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://supermetry.com/page"}`))
 			start.RemoteAddr = "192.0.2.1:1234"
 			start.Header.Set("User-Agent", "test-agent")
 			if tc.header != "" {
@@ -771,7 +771,7 @@ func TestReplayPrivacySignalsAndConsent(t *testing.T) {
 			}
 			// The same current policy and session accept collection after only
 			// removing the privacy signal or supplying the missing assertion.
-			allowedStart := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://example.com/page","c":true}`))
+			allowedStart := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://supermetry.com/page","c":true}`))
 			allowedStart.RemoteAddr = "192.0.2.1:1234"
 			allowedStart.Header.Set("User-Agent", "test-agent")
 			response = httptest.NewRecorder()
@@ -798,7 +798,7 @@ func TestReplayPrivacySignalsAndConsent(t *testing.T) {
 func TestChunkRechecksProjectPermission(t *testing.T) {
 	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(100))
 	touchReplaySession(t, sessions, visitor)
-	start := requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")
+	start := requestStart(t, h, "https://supermetry.com/page", "192.0.2.1:1234", "test-agent")
 	if decodeStart(t, start).Mode != "full" {
 		t.Fatal("start not admitted")
 	}
@@ -814,7 +814,7 @@ func TestChunkRechecksProjectPermission(t *testing.T) {
 func TestTriggerCannotBypassZeroSampleCap(t *testing.T) {
 	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(0))
 	touchReplaySession(t, sessions, visitor)
-	if got := decodeStart(t, requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent")).Mode; got != "off" {
+	if got := decodeStart(t, requestStart(t, h, "https://supermetry.com/page", "192.0.2.1:1234", "test-agent")).Mode; got != "off" {
 		t.Fatalf("mode=%s", got)
 	}
 	response := requestChunk(h, 0, true, "error", gzipBody(t, []byte("{}\n")), "192.0.2.1:1234", "test-agent")
@@ -826,7 +826,7 @@ func TestTriggerCannotBypassZeroSampleCap(t *testing.T) {
 func TestChunkRejectsStalePrivacyConfiguration(t *testing.T) {
 	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(100))
 	touchReplaySession(t, sessions, visitor)
-	old := decodeStart(t, requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent"))
+	old := decodeStart(t, requestStart(t, h, "https://supermetry.com/page", "192.0.2.1:1234", "test-agent"))
 	reg := h.deps.Sites.(replayTestRegistry)
 	reg.site.Replay.Mask = ptr(true)
 	h.deps.Sites = reg
@@ -845,7 +845,7 @@ func TestReplayRequiredConsentAllowsExplicitAssertion(t *testing.T) {
 	input.Consent = ptr("always")
 	h, sessions, blob, _, visitor := newReplayTestHandler(t, input)
 	touchReplaySession(t, sessions, visitor)
-	start := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://example.com/page","c":true}`))
+	start := httptest.NewRequest(http.MethodPost, "/api/replay/start", strings.NewReader(`{"s":"site-public","u":"https://supermetry.com/page","c":true}`))
 	start.RemoteAddr = "192.0.2.1:1234"
 	start.Header.Set("User-Agent", "test-agent")
 	response := httptest.NewRecorder()
@@ -882,7 +882,7 @@ func TestCollectionGuardChecksAuxiliaryUploadPolicy(t *testing.T) {
 			input := replayInput(100)
 			input.Enabled = tc.enabled
 			input.Consent = ptr("always")
-			site := sites.Site{PublicID: "site-public", Replay: input, AllowedHosts: []string{"example.com"}, Demo: tc.demo}
+			site := sites.Site{PublicID: "site-public", Replay: input, AllowedHosts: []string{"supermetry.com"}, Demo: tc.demo}
 			env := config.ReplayEnv{Enabled: true}
 			target := "/api/replay/css/unused?s=site-public"
 			if tc.consent {
@@ -928,7 +928,7 @@ func (r *replayReadHook) Read(p []byte) (int, error) {
 func TestChunkRechecksPolicyAfterBodyWait(t *testing.T) {
 	h, sessions, blob, _, visitor := newReplayTestHandler(t, replayInput(100))
 	touchReplaySession(t, sessions, visitor)
-	old := decodeStart(t, requestStart(t, h, "https://example.com/page", "192.0.2.1:1234", "test-agent"))
+	old := decodeStart(t, requestStart(t, h, "https://supermetry.com/page", "192.0.2.1:1234", "test-agent"))
 	body := gzipBody(t, []byte("{}\n"))
 	request := httptest.NewRequest(http.MethodPost, "/api/replay/chunk?s=site-public&q=0&p=1&v="+old.Version, &replayReadHook{Reader: bytes.NewReader(body), before: func() {
 		reg := h.deps.Sites.(replayTestRegistry)

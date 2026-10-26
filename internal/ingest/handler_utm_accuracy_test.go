@@ -25,11 +25,11 @@ func TestLiveIngestUTMBreakdownsExcludeUntaggedTrafficAcrossStorageTiers(t *test
 		remote string
 	}{
 		{
-			body:   `{"site":"abc123","name":"pageview","url":"https://example.com/?utm_source=newsletter&utm_medium=email&utm_campaign=autumn&utm_content=hero&utm_term=analytics"}`,
+			body:   `{"site":"abc123","name":"pageview","url":"https://supermetry.com/?utm_source=newsletter&utm_medium=email&utm_campaign=autumn&utm_content=hero&utm_term=analytics"}`,
 			remote: "198.51.100.7:5555",
 		},
 		{
-			body:   `{"site":"abc123","name":"pageview","url":"https://example.com/"}`,
+			body:   `{"site":"abc123","name":"pageview","url":"https://supermetry.com/"}`,
 			remote: "198.51.100.8:5555",
 		},
 	}

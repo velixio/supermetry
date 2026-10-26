@@ -15,13 +15,13 @@ import { Supermetry } from "@supermetry/node";
 
 const supermetry = new Supermetry({
   site: "your-site-id",
-  url: "https://shop.example.com/", // optional default page URL
+  url: "https://shop.supermetry.com/", // optional default page URL
   onError: (error) => console.error(error),
 });
 
 // Fire-and-forget: never throws, never rejects.
 supermetry.track("Signup", {
-  url: "https://shop.example.com/signup",
+  url: "https://shop.supermetry.com/signup",
   props: { plan: "pro", seats: 3 },
   revenue: { amount: "49.90", currency: "USD" },
   profileId: "user_42",

@@ -4,7 +4,7 @@ return [
     // Public site ID from the Supermetry dashboard.
     'site' => env('SUPERMETRY_SITE'),
 
-    // Base URL of your Supermetry instance, e.g. https://analytics.example.com
+    // Base URL of your Supermetry instance, e.g. https://analytics.supermetry.com
     'host' => env('SUPERMETRY_HOST'),
 
     // Full events endpoint; defaults to {host}/api/public/v1/events.

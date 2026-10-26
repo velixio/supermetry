@@ -15,16 +15,16 @@ func TestPathPolicyExactPublicPaths(t *testing.T) {
 		{"https://person:secret@example.com/public?email=secret#secret", "/public"},
 		{"https://person:sec%72et@example.com/public?q=%20", "/public"},
 		{"/public?identity=secret#private", "/public"},
-		{"https://example.com", "/"},
-		{"https://example.com/docs/", "/docs/"},
-		{"https://example.com/日本語", "/日本語"},
-		{"https://example.com/%E6%97%A5%E6%9C%AC%E8%AA%9E", RedactedPath},
+		{"https://supermetry.com", "/"},
+		{"https://supermetry.com/docs/", "/docs/"},
+		{"https://supermetry.com/日本語", "/日本語"},
+		{"https://supermetry.com/%E6%97%A5%E6%9C%AC%E8%AA%9E", RedactedPath},
 		{"/docs", RedactedPath}, {"/public/customer", RedactedPath},
 		{"/PUBLIC", RedactedPath}, {"/private/secret", RedactedPath},
-		{"https://example.com/%70ublic", RedactedPath},
-		{"/x/../public", RedactedPath}, {"//example.com//public", RedactedPath},
+		{"https://supermetry.com/%70ublic", RedactedPath},
+		{"/x/../public", RedactedPath}, {"//supermetry.com//public", RedactedPath},
 		{"mailto:person@example.com", RedactedPath}, {"public", RedactedPath},
-		{"https:/public", RedactedPath}, {"https://example.com/%zz", RedactedPath},
+		{"https:/public", RedactedPath}, {"https://supermetry.com/%zz", RedactedPath},
 		{"", RedactedPath},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
@@ -37,7 +37,7 @@ func TestPathPolicyExactPublicPaths(t *testing.T) {
 }
 
 func TestPathPolicyConfigurationValidation(t *testing.T) {
-	for _, input := range []string{"", "relative", "https://example.com/public", "//host/path", "/x?query", "/x#fragment", "/%70ublic", "/users/*", "/x/../public", "/./public", "/a//b", "/back\\slash", "/space here", "/line\nfeed", "/\u202eprivate", "/" + strings.Repeat("a", 512), "/\xff"} {
+	for _, input := range []string{"", "relative", "https://supermetry.com/public", "//host/path", "/x?query", "/x#fragment", "/%70ublic", "/users/*", "/x/../public", "/./public", "/a//b", "/back\\slash", "/space here", "/line\nfeed", "/\u202eprivate", "/" + strings.Repeat("a", 512), "/\xff"} {
 		t.Run(input, func(t *testing.T) {
 			if _, err := NewPathPolicy([]string{input}); err == nil {
 				t.Fatalf("accepted %q", input)
@@ -67,7 +67,7 @@ func TestPathPolicyZeroAndDeterministicFingerprint(t *testing.T) {
 	if len(zero.Fingerprint()) != 64 || zero.Fingerprint() != empty.Fingerprint() {
 		t.Fatal("invalid zero policy fingerprint")
 	}
-	if got := zero.SanitizePath("https://example.com/public"); got.Path != RedactedPath || got.Version != 1 || got.Policy != empty.Fingerprint() {
+	if got := zero.SanitizePath("https://supermetry.com/public"); got.Path != RedactedPath || got.Version != 1 || got.Policy != empty.Fingerprint() {
 		t.Fatalf("zero policy: %+v", got)
 	}
 	a, _ := NewPathPolicy([]string{"/a", "/b"})

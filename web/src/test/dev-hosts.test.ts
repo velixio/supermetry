@@ -31,16 +31,16 @@ describe('devAllowedHosts', () => {
   })
 
   it('parses SUPERMETRY_DEV_ALLOWED_HOSTS: trims, drops empties, dedupes, keeps wildcards', () => {
-    expect(devAllowedHosts({ SUPERMETRY_DEV_ALLOWED_HOSTS: ' a.example.com , ,.example.org,a.example.com,' })).toEqual([
-      'a.example.com',
-      '.example.org',
+    expect(devAllowedHosts({ SUPERMETRY_DEV_ALLOWED_HOSTS: ' a.supermetry.com , ,.example.com,a.supermetry.com,' })).toEqual([
+      'a.supermetry.com',
+      '.example.com',
     ])
   })
 
   it('refuses values that would disable the host check and warns once', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     expect(devAllowedHosts({ SUPERMETRY_DEV_ALLOWED_HOSTS: 'true' })).toEqual([])
-    expect(devAllowedHosts({ SUPERMETRY_DEV_ALLOWED_HOSTS: '*, a.example.com ,TRUE' })).toEqual(['a.example.com'])
+    expect(devAllowedHosts({ SUPERMETRY_DEV_ALLOWED_HOSTS: '*, a.supermetry.com ,TRUE' })).toEqual(['a.supermetry.com'])
     expect(warn).toHaveBeenCalledTimes(2)
     expect(String(warn.mock.calls[0][0])).toContain('SUPERMETRY_DEV_ALLOWED_HOSTS')
   })
@@ -49,8 +49,8 @@ describe('devAllowedHosts', () => {
     expect(
       devAllowedHosts({
         SUPERMETRY_BASE_URL: 'https://ana.voicestudio.sh',
-        SUPERMETRY_DEV_ALLOWED_HOSTS: 'ana.voicestudio.sh,.example.org',
+        SUPERMETRY_DEV_ALLOWED_HOSTS: 'ana.voicestudio.sh,.example.com',
       }),
-    ).toEqual(['ana.voicestudio.sh', '.example.org'])
+    ).toEqual(['ana.voicestudio.sh', '.example.com'])
   })
 })

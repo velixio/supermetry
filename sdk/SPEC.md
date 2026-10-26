@@ -65,7 +65,7 @@ used. Visitors are derived server-side from IP + User-Agent + a daily salt.
   a required `url` per event (or a configured default `url`), fire-and-forget by default with
   an awaitable / `flush()` path. Never throw from tracking into the host app unless the caller
   opts in.
-- Mobile SDKs: `appUrl` config (e.g. `https://app.example.com`, must be an allowed host);
+- Mobile SDKs: `appUrl` config (e.g. `https://app.supermetry.com`, must be an allowed host);
   `screen("Checkout")` sends `pageview` with `url = appUrl + "/" + screen path`. Persist
   `profile_id` across launches; queue events in memory (and on disk where cheap), retry with
   the same `id`/`ts` on network failure or 429/5xx, drop on 400. Flush when the app

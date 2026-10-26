@@ -146,7 +146,7 @@ curl -X POST https://supermetry.com/api/public/v1/events \
   -H "Content-Type: application/json" \
   -H "User-Agent: $ORIGINAL_USER_AGENT" \
   -H "X-Forwarded-For: $ORIGINAL_CLIENT_IP" \
-  -d '{"site":"<public-site-id>","name":"Purchase","url":"https://example.com/checkout","props":{"plan":"pro"},"revenue":{"amount":"49.90","currency":"USD"}}'
+  -d '{"site":"<public-site-id>","name":"Purchase","url":"https://supermetry.com/checkout","props":{"plan":"pro"},"revenue":{"amount":"49.90","currency":"USD"}}'
 ```
 
 - Forward the visitor's user agent and IP so the event joins the right session and location. Supermetry parses them and never stores them. `X-Forwarded-For` is trusted only from addresses in `SUPERMETRY_TRUSTED_PROXIES` (loopback and private networks by default).
@@ -249,7 +249,7 @@ Connect a site to Google Search Console and read the imported queries and pages.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/private/sites/{site}/integrations` | Catalog of configured providers with each connection (owner, admin, editor). Never returns tokens |
-| POST | `/api/private/sites/{site}/integrations/{provider}/connect` | Body `property` (for example `sc-domain:example.com`) and optional `backfill_days` (1 to 485, default 28). Returns `authorization_url` (owner or admin; audited; 10 per 10 minutes per user) |
+| POST | `/api/private/sites/{site}/integrations/{provider}/connect` | Body `property` (for example `sc-domain:supermetry.com`) and optional `backfill_days` (1 to 485, default 28). Returns `authorization_url` (owner or admin; audited; 10 per 10 minutes per user) |
 | GET | `/api/private/integrations/{provider}/callback` | OAuth redirect target; consumes the one-time `state` and answers `303` to `/sites/{site}/settings/integrations?integration=...&status=connected\|denied\|error` |
 | POST | `/api/private/sites/{site}/integrations/{provider}/backfill` | Body `days` (1 to 485); re-imports in bounded windows (owner or admin; audited; 5 per 10 minutes) |
 | DELETE | `/api/private/sites/{site}/integrations/{provider}` | Disconnect: deletes the stored tokens and every imported row, revokes the grant (owner or admin; audited) |

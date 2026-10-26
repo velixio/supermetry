@@ -844,7 +844,7 @@ const messages: MessageTree = {
     errorBody: (detail: string) => `La última sincronización falló y se reintentará: ${detail}`,
     connectHeading: 'Conectar Google Search Console',
     propertyLabel: 'Propiedad de Search Console',
-    propertyHint: 'Usa una propiedad de dominio como sc-domain:example.com o un prefijo de URL como https://example.com/.',
+    propertyHint: 'Usa una propiedad de dominio como sc-domain:supermetry.com o un prefijo de URL como https://supermetry.com/.',
     backfillLabel: 'Importar historial',
     backfillOption: (days: number) => `Últimos ${days} días`,
     connect: 'Conectar con Google',

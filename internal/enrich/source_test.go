@@ -106,7 +106,7 @@ func TestSourceClassifierFallbacks(t *testing.T) {
 		want     string
 		medium   string
 	}{
-		{name: "unknown host", referrer: "https://WWW.Example.COM./path", pageURL: "https://site.test/", want: "example.com", medium: "referral"},
+		{name: "unknown host", referrer: "https://WWW.supermetry.com./path", pageURL: "https://site.test/", want: "supermetry.com", medium: "referral"},
 		{name: "unknown UTM stays original", pageURL: "https://site.test/", utm: UTM{Source: "MyNewsletter", Medium: "Email"}, want: "MyNewsletter", medium: "email"},
 		{name: "paid medium", pageURL: "https://site.test/", utm: UTM{Source: "GOOGLE", Medium: "CPC"}, want: "Google", medium: "paid"},
 		{name: "explicit social medium", pageURL: "https://site.test/", utm: UTM{Source: "newsletter", Medium: "SOCIAL"}, want: "newsletter", medium: "social"},

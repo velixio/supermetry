@@ -25,7 +25,7 @@ function fakeFetch(statuses: Array<number | Error> = [202]) {
 }
 
 function client(fetchImpl: typeof fetch, extra: Partial<ConstructorParameters<typeof Supermetry>[0]> = {}) {
-  return new Supermetry({ site: "site_1", host: "https://a.example.com/", fetch: fetchImpl, ...extra });
+  return new Supermetry({ site: "site_1", host: "https://a.supermetry.com/", fetch: fetchImpl, ...extra });
 }
 
 describe("payload", () => {
@@ -34,7 +34,7 @@ describe("payload", () => {
     const sm = client(fn);
     const before = Date.now();
     const result = await sm.track("Signup", {
-      url: "https://shop.example.com/pricing",
+      url: "https://shop.supermetry.com/pricing",
       props: { plan: "pro", seats: 3, trial: true },
       revenue: { amount: 49.9, currency: "USD" },
       profileId: "user_42",
@@ -43,7 +43,7 @@ describe("payload", () => {
     expect(result).toEqual({ ok: true, status: 202 });
     expect(calls).toHaveLength(1);
     const { url, body, init, headers } = calls[0]!;
-    expect(url).toBe("https://a.example.com/api/public/v1/events");
+    expect(url).toBe("https://a.supermetry.com/api/public/v1/events");
     expect(init.method).toBe("POST");
     expect(headers["Content-Type"]).toBe("application/json");
     expect(headers["User-Agent"]).toBe(DEFAULT_USER_AGENT);
@@ -53,7 +53,7 @@ describe("payload", () => {
     expect(body).toMatchObject({
       site: "site_1",
       name: "Signup",
-      url: "https://shop.example.com/pricing",
+      url: "https://shop.supermetry.com/pricing",
       referrer: "https://google.com/",
       props: { plan: "pro", seats: 3, trial: true },
       revenue: { amount: 49.9, currency: "USD" },
@@ -64,21 +64,21 @@ describe("payload", () => {
 
   test("pageview uses default url, resolves relative urls and drops revenue", async () => {
     const { fn, calls } = fakeFetch();
-    const sm = client(fn, { url: "https://shop.example.com/" });
+    const sm = client(fn, { url: "https://shop.supermetry.com/" });
     await sm.pageview();
     await sm.pageview({ url: "/docs?a=1" });
     await sm.track("pageview", { url: "/x", revenue: { amount: 1 } });
     expect(calls.map((c) => c.body.url)).toEqual([
-      "https://shop.example.com/",
-      "https://shop.example.com/docs?a=1",
-      "https://shop.example.com/x",
+      "https://shop.supermetry.com/",
+      "https://shop.supermetry.com/docs?a=1",
+      "https://shop.supermetry.com/x",
     ]);
     expect(calls.every((c) => c.body.name === "pageview" && c.body.revenue === undefined)).toBe(true);
   });
 
   test("identify sends profile_id and only valid traits", async () => {
     const { fn, calls } = fakeFetch();
-    const sm = client(fn, { url: "https://shop.example.com/" });
+    const sm = client(fn, { url: "https://shop.supermetry.com/" });
     await sm.identify("user_42", { email: "a@b.co", plan: 2, bad: { x: 1 } as never, ["k".repeat(65)]: "x" });
     expect(calls[0]!.body).toMatchObject({ name: "identify", profile_id: "user_42", traits: { email: "a@b.co", plan: "2" } });
     expect(Object.keys(calls[0]!.body.traits!)).toEqual(["email", "plan"]);
@@ -86,7 +86,7 @@ describe("payload", () => {
 
   test("identify does not store the profile ID on the shared client", async () => {
     const { fn, calls } = fakeFetch();
-    const sm = client(fn, { url: "https://shop.example.com/" });
+    const sm = client(fn, { url: "https://shop.supermetry.com/" });
     await sm.identify("user_42");
     await sm.track("Other visitor");
     expect(calls[1]!.body.profile_id).toBeUndefined();
@@ -94,7 +94,7 @@ describe("payload", () => {
 
   test("traits never leak onto non-identify events", async () => {
     const { fn, calls } = fakeFetch();
-    const sm = client(fn, { url: "https://shop.example.com/" });
+    const sm = client(fn, { url: "https://shop.supermetry.com/" });
     await sm.track("Click", { props: { a: "1" }, traits: { x: "y" } } as never);
     expect(calls[0]!.body.traits).toBeUndefined();
   });
@@ -102,15 +102,15 @@ describe("payload", () => {
   test("forwards visitor UA and IP, optional Origin", async () => {
     const { fn, calls } = fakeFetch();
     const sm = client(fn, { sendOrigin: true });
-    await sm.pageview({ url: "https://shop.example.com/a", userAgent: "Mozilla/5.0 Visitor", ip: "203.0.113.9" });
+    await sm.pageview({ url: "https://shop.supermetry.com/a", userAgent: "Mozilla/5.0 Visitor", ip: "203.0.113.9" });
     expect(calls[0]!.headers["User-Agent"]).toBe("Mozilla/5.0 Visitor");
     expect(calls[0]!.headers["X-Forwarded-For"]).toBe("203.0.113.9");
-    expect(calls[0]!.headers["Origin"]).toBe("https://shop.example.com");
+    expect(calls[0]!.headers["Origin"]).toBe("https://shop.supermetry.com");
   });
 
   test("custom userAgent replaces the default", async () => {
     const { fn, calls } = fakeFetch();
-    await client(fn, { userAgent: "my-app/1.0" }).pageview({ url: "https://x.example.com/" });
+    await client(fn, { userAgent: "my-app/1.0" }).pageview({ url: "https://x.supermetry.com/" });
     expect(calls[0]!.headers["User-Agent"]).toBe("my-app/1.0");
   });
 });
@@ -121,11 +121,11 @@ describe("validation and errors", () => {
     const errors: SupermetryError[] = [];
     const sm = client(fn, { onError: (e) => errors.push(e) });
     expect((await sm.pageview()).ok).toBe(false);
-    expect((await sm.track("x", { url: "ftp://x.example.com" })).ok).toBe(false);
-    expect((await sm.track("x", { url: "https://u:p@x.example.com" })).ok).toBe(false);
-    expect((await sm.track("", { url: "https://x.example.com" })).ok).toBe(false);
-    expect((await sm.identify("", {}, { url: "https://x.example.com" })).ok).toBe(false);
-    expect((await sm.track("identify", { url: "https://x.example.com" })).ok).toBe(false);
+    expect((await sm.track("x", { url: "ftp://x.supermetry.com" })).ok).toBe(false);
+    expect((await sm.track("x", { url: "https://u:p@example.com" })).ok).toBe(false);
+    expect((await sm.track("", { url: "https://x.supermetry.com" })).ok).toBe(false);
+    expect((await sm.identify("", {}, { url: "https://x.supermetry.com" })).ok).toBe(false);
+    expect((await sm.track("identify", { url: "https://x.supermetry.com" })).ok).toBe(false);
     expect(calls).toHaveLength(0);
     expect(errors).toHaveLength(6);
   });
@@ -134,7 +134,7 @@ describe("validation and errors", () => {
     const { fn, calls } = fakeFetch();
     const errors: unknown[] = [];
     const props = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`k${i}`, "x".repeat(1500)]));
-    await client(fn, { onError: (e) => errors.push(e) }).track("Big", { url: "https://x.example.com", props });
+    await client(fn, { onError: (e) => errors.push(e) }).track("Big", { url: "https://x.supermetry.com", props });
     expect(calls).toHaveLength(0);
     expect(errors).toHaveLength(1);
   });
@@ -142,12 +142,12 @@ describe("validation and errors", () => {
   test("throwing onError is swallowed", async () => {
     const { fn } = fakeFetch([400]);
     const sm = client(fn, { onError: () => { throw new Error("boom"); } });
-    expect((await sm.pageview({ url: "https://x.example.com" })).status).toBe(400);
+    expect((await sm.pageview({ url: "https://x.supermetry.com" })).status).toBe(400);
   });
 
   test("disabled sends nothing", async () => {
     const { fn, calls } = fakeFetch();
-    await client(fn, { disabled: true }).pageview({ url: "https://x.example.com" });
+    await client(fn, { disabled: true }).pageview({ url: "https://x.supermetry.com" });
     expect(calls).toHaveLength(0);
   });
 
@@ -165,7 +165,7 @@ describe("retries", () => {
   for (const failure of [503, 429, new TypeError("fetch failed")]) {
     test(`retries once with the same id after ${failure instanceof Error ? "network error" : failure}`, async () => {
       const { fn, calls } = fakeFetch([failure, 202]);
-      const result = await client(fn).pageview({ url: "https://x.example.com" });
+      const result = await client(fn).pageview({ url: "https://x.supermetry.com" });
       expect(result.ok).toBe(true);
       expect(calls).toHaveLength(2);
       expect(calls[1]!.body.id).toBe(calls[0]!.body.id);
@@ -176,7 +176,7 @@ describe("retries", () => {
   test("gives up after the retry and reports", async () => {
     const { fn, calls } = fakeFetch([500]);
     const errors: SupermetryError[] = [];
-    const result = await client(fn, { onError: (e) => errors.push(e) }).pageview({ url: "https://x.example.com" });
+    const result = await client(fn, { onError: (e) => errors.push(e) }).pageview({ url: "https://x.supermetry.com" });
     expect(result).toMatchObject({ ok: false, status: 500 });
     expect(calls).toHaveLength(2);
     expect(errors[0]!.status).toBe(500);
@@ -184,13 +184,13 @@ describe("retries", () => {
 
   test("does not retry 400", async () => {
     const { fn, calls } = fakeFetch([400]);
-    await client(fn).pageview({ url: "https://x.example.com" });
+    await client(fn).pageview({ url: "https://x.supermetry.com" });
     expect(calls).toHaveLength(1);
   });
 
   test("retry: false sends once", async () => {
     const { fn, calls } = fakeFetch([503]);
-    await client(fn, { retry: false }).pageview({ url: "https://x.example.com" });
+    await client(fn, { retry: false }).pageview({ url: "https://x.supermetry.com" });
     expect(calls).toHaveLength(1);
   });
 });
@@ -205,7 +205,7 @@ describe("flush and close", () => {
       sent++;
       return new Response(null, { status: 202 });
     }) as unknown as typeof fetch;
-    const sm = client(fn, { url: "https://x.example.com/" });
+    const sm = client(fn, { url: "https://x.supermetry.com/" });
     sm.pageview();
     sm.track("A");
     const flushed = sm.flush();
@@ -269,7 +269,7 @@ describe("live HTTP", () => {
   test("real fetch sends the contract headers and body, retrying 503", async () => {
     const sm = new Supermetry({ site: "site_live", host: base });
     sm.track("Purchase", {
-      url: "https://shop.example.com/checkout",
+      url: "https://shop.supermetry.com/checkout",
       props: { sku: "A1", qty: 2 },
       revenue: { amount: "19.99", currency: "USD" },
       profileId: "user_1",
@@ -296,7 +296,7 @@ describe("live HTTP", () => {
       v: 1,
       site: "site_live",
       name: "Purchase",
-      url: "https://shop.example.com/checkout",
+      url: "https://shop.supermetry.com/checkout",
       props: { sku: "A1", qty: 2 },
       revenue: { amount: "19.99", currency: "USD" },
       profile_id: "user_1",
@@ -304,7 +304,7 @@ describe("live HTTP", () => {
     expect(first.id).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
 
     received.length = 0;
-    await sm.pageview({ url: "https://shop.example.com/" });
+    await sm.pageview({ url: "https://shop.supermetry.com/" });
     expect(received[0]!.headers["user-agent"]).toBe(DEFAULT_USER_AGENT);
     expect(received[0]!.headers["x-forwarded-for"]).toBeUndefined();
   });

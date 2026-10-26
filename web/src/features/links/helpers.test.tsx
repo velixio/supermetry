@@ -44,7 +44,7 @@ describe('LinkQr', () => {
   })
 
   it('explains when the URL is too long to encode locally', () => {
-    render(<LinkQr name="x" url={`https://example.com/${'a'.repeat(200)}`} />)
+    render(<LinkQr name="x" url={`https://supermetry.com/${'a'.repeat(200)}`} />)
     expect(screen.getByRole('status')).toHaveTextContent('too long')
   })
 })

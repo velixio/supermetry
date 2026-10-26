@@ -41,8 +41,8 @@ struct MyApp: App {
     init() {
         Supermetry.configure(
             site: "your-public-site-id",
-            host: "https://analytics.example.com",
-            appUrl: "https://app.example.com" // must be an allowed host of the site
+            host: "https://analytics.supermetry.com",
+            appUrl: "https://app.supermetry.com" // must be an allowed host of the site
         )
     }
 
@@ -54,7 +54,7 @@ struct MyApp: App {
 }
 
 let analytics = Supermetry.shared
-analytics.screen("Checkout")                               // pageview of https://app.example.com/Checkout
+analytics.screen("Checkout")                               // pageview of https://app.supermetry.com/Checkout
 analytics.track("Signup", props: ["plan": "pro", "seats": 3])
 analytics.track("Purchase", revenue: SupermetryRevenue(49.90, currency: "USD"))
 analytics.identify("user-42", traits: ["plan": "pro"])     // later events carry profile_id
@@ -68,11 +68,11 @@ UIKit: call `Supermetry.shared.screen("Name")` from `viewDidAppear`.
 ### Options
 
 ```swift
-var config = SupermetryConfig(site: "…", host: "https://analytics.example.com", appUrl: "https://app.example.com")
+var config = SupermetryConfig(site: "…", host: "https://analytics.supermetry.com", appUrl: "https://app.supermetry.com")
 config.disabled = isDebugBuild
 config.onError = { error in print(error) }   // dropped events / retryable failures
 config.maxQueueSize = 500
-config.endpoint = "https://analytics.example.com/api/public/v1/events"
+config.endpoint = "https://analytics.supermetry.com/api/public/v1/events"
 Supermetry.configure(config)
 ```
 

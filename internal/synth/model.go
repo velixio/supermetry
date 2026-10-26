@@ -209,7 +209,7 @@ var channels = func() []channelDef {
 	}
 	// A long tail of small referring blogs: 400 per 10,000 over 40 hosts.
 	for i := 1; i <= 40; i++ {
-		c = append(c, channelDef{ref: sprintf("https://blog%d.example.net/", i), weight: 10})
+		c = append(c, channelDef{ref: sprintf("https://blog%d.example.com/", i), weight: 10})
 	}
 	return c
 }()

@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	okBody = `{"site":"abc123","name":"pageview","url":"https://example.com/"}`
+	okBody = `{"site":"abc123","name":"pageview","url":"https://supermetry.com/"}`
 	testUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0 Safari/537.36"
 )
 
@@ -85,7 +85,7 @@ func TestHostilePayloads(t *testing.T) {
 		props[fmt.Sprint("k", i)] = "v"
 	}
 	propsJSON, err := json.Marshal(map[string]any{
-		"site": "abc123", "name": "x", "url": "https://example.com/", "props": props,
+		"site": "abc123", "name": "x", "url": "https://supermetry.com/", "props": props,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -95,14 +95,14 @@ func TestHostilePayloads(t *testing.T) {
 		body string
 		want int
 	}{
-		{name: "too big", body: `{"site":"abc123","name":"pageview","url":"https://example.com/` + big + `"}`, want: http.StatusBadRequest},
+		{name: "too big", body: `{"site":"abc123","name":"pageview","url":"https://supermetry.com/` + big + `"}`, want: http.StatusBadRequest},
 		{name: "31 props truncated", body: string(propsJSON), want: http.StatusAccepted},
-		{name: "bad utf8", body: "{\"site\":\"abc123\",\"name\":\"\xff\",\"url\":\"https://example.com/\"}", want: http.StatusBadRequest},
-		{name: "long url", body: `{"site":"abc123","name":"pageview","url":"https://example.com/` + strings.Repeat("p", 8000) + `"}`, want: http.StatusBadRequest},
+		{name: "bad utf8", body: "{\"site\":\"abc123\",\"name\":\"\xff\",\"url\":\"https://supermetry.com/\"}", want: http.StatusBadRequest},
+		{name: "long url", body: `{"site":"abc123","name":"pageview","url":"https://supermetry.com/` + strings.Repeat("p", 8000) + `"}`, want: http.StatusBadRequest},
 		{name: "host not allowed", body: `{"site":"abc123","name":"pageview","url":"https://evil.test/"}`, want: http.StatusBadRequest},
-		{name: "unknown site", body: `{"site":"nope","name":"pageview","url":"https://example.com/"}`, want: http.StatusBadRequest},
-		{name: "unknown contract version", body: `{"site":"abc123","name":"pageview","url":"https://example.com/","v":2}`, want: http.StatusBadRequest},
-		{name: "ok and client ids ignored", body: `{"site":"abc123","name":"pageview","url":"https://example.com/","visitor_id":"123","session_id":"456"}`, want: http.StatusAccepted},
+		{name: "unknown site", body: `{"site":"nope","name":"pageview","url":"https://supermetry.com/"}`, want: http.StatusBadRequest},
+		{name: "unknown contract version", body: `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","v":2}`, want: http.StatusBadRequest},
+		{name: "ok and client ids ignored", body: `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","visitor_id":"123","session_id":"456"}`, want: http.StatusAccepted},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -242,7 +242,7 @@ func TestClientEventTimestampWindow(t *testing.T) {
 			skewBefore := health.IngestClockSkew.Load()
 			body := okBody
 			if tt.offset != nil {
-				body = fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://example.com/","ts":%d}`, fakeNow().Add(*tt.offset).UnixMilli())
+				body = fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://supermetry.com/","ts":%d}`, fakeNow().Add(*tt.offset).UnixMilli())
 			}
 			if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 				t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
@@ -282,7 +282,7 @@ func TestMissingSaltForLateDayDropsInsteadOfReturning503(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.clock.now = fakeNow()
-	body := fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://example.com/","ts":%d}`, fakeNow().Add(-23*time.Hour).UnixMilli())
+	body := fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://supermetry.com/","ts":%d}`, fakeNow().Add(-23*time.Hour).UnixMilli())
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 	}
@@ -294,7 +294,7 @@ func TestMissingSaltForLateDayDropsInsteadOfReturning503(t *testing.T) {
 func TestDuplicateEventDoesNotTouchSessionOrWriter(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := health.IngestDuplicates.Load()
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","id":"event_1"}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","id":"event_1"}`
 	for range 2 {
 		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
@@ -323,7 +323,7 @@ func TestEventRejectedWith503CanRetrySameID(t *testing.T) {
 	if !ok {
 		t.Fatal("could not occupy writer capacity")
 	}
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","id":"retry_1"}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","id":"retry_1"}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusServiceUnavailable {
 		t.Fatalf("first status=%d, want 503", rr.Code)
 	}
@@ -347,7 +347,7 @@ func TestUTMSourcePersistsRawValueSeparatelyFromBlendedSource(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/?utm_source=google"}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/?utm_source=google"}`
 	if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
@@ -376,10 +376,10 @@ func TestVisitorDimensionsPersistDerivedLabelsAndMultiHostOnly(t *testing.T) {
 		if !ok {
 			t.Fatal("fixture site missing")
 		}
-		site.AllowedHosts = []string{"example.com", "docs.example.com"}
+		site.AllowedHosts = []string{"supermetry.com", "docs.supermetry.com"}
 		f.h.Sites = siteRegistry{site: site}
 
-		body := `{"site":"abc123","name":"pageview","url":"https://Docs.Example.com:443/","screen_width":1280}`
+		body := `{"site":"abc123","name":"pageview","url":"https://Docs.supermetry.com:443/","screen_width":1280}`
 		req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(body))
 		req.Header.Set("User-Agent", chrome126)
 		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -406,14 +406,14 @@ func TestVisitorDimensionsPersistDerivedLabelsAndMultiHostOnly(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if browserVersion != "Chrome 126" || osVersion != "Windows 10/11" || language != "en" || hostname != "docs.example.com" || screenBucket != 3 {
+		if browserVersion != "Chrome 126" || osVersion != "Windows 10/11" || language != "en" || hostname != "docs.supermetry.com" || screenBucket != 3 {
 			t.Fatalf("dimensions=%q/%q/%q/%q bucket=%d", browserVersion, osVersion, language, hostname, screenBucket)
 		}
 	})
 
 	t.Run("single-host site", func(t *testing.T) {
 		f := newHandlerFixture(t, 32, nil)
-		req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(`{"site":"abc123","name":"pageview","url":"https://example.com/"}`))
+		req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(`{"site":"abc123","name":"pageview","url":"https://supermetry.com/"}`))
 		req.Header.Set("User-Agent", chrome126)
 		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 		req.RemoteAddr = "198.51.100.7:5555"
@@ -438,8 +438,8 @@ func TestRealtimeRecordsQueuedPageviewsAndCustomEventsOnly(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	for _, body := range []string{
 		okBody,
-		`{"site":"abc123","name":"engagement","url":"https://example.com/","engagement_ms":1000}`,
-		`{"site":"abc123","name":"Signup","url":"https://example.com/"}`,
+		`{"site":"abc123","name":"engagement","url":"https://supermetry.com/","engagement_ms":1000}`,
+		`{"site":"abc123","name":"Signup","url":"https://supermetry.com/"}`,
 	} {
 		if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
 			t.Fatalf("body=%s status=%d", body, response.Code)
@@ -454,7 +454,7 @@ func TestRealtimeRecordsQueuedPageviewsAndCustomEventsOnly(t *testing.T) {
 func TestHeatmapDisabledIsDroppedWithoutRawEvent(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := health.HeatmapDropped.Load()
-	body := `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[500,120]],"doc_h":2000,"vw":390}`
+	body := `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[500,120]],"doc_h":2000,"vw":390}`
 	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
 	if rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
@@ -472,7 +472,7 @@ func TestHeatmapDisabledIsDroppedWithoutRawEvent(t *testing.T) {
 func TestHeatmapEnabledAggregatesWithoutRawEvent(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setHeatmapsEnabled(t, f, true)
-	body := `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[500,120],[509,139]],"doc_h":2000,"vw":390}`
+	body := `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[500,120],[509,139]],"doc_h":2000,"vw":390}`
 	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
 	if rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
@@ -550,11 +550,11 @@ func TestStrictOriginProtection(t *testing.T) {
 		{name: "off by default", wantStored: 1},
 		{name: "missing origin", strict: true, wantReject: 1},
 		{name: "mismatched origin", strict: true, origin: "https://attacker.example", wantReject: 1},
-		{name: "matching origin", strict: true, origin: "https://example.com", wantStored: 1},
-		{name: "matching origin ignores port", strict: true, origin: "https://example.com:8443", wantStored: 1},
-		{name: "referer fallback", strict: true, referer: "https://example.com/from", wantStored: 1},
-		{name: "origin takes precedence", strict: true, origin: "https://attacker.example", referer: "https://example.com/from", wantReject: 1},
-		{name: "wildcard subdomain", strict: true, origin: "https://www.example.com", hosts: []string{"*.example.com"}, body: `{"site":"abc123","name":"pageview","url":"https://www.example.com/"}`, wantStored: 1},
+		{name: "matching origin", strict: true, origin: "https://supermetry.com", wantStored: 1},
+		{name: "matching origin ignores port", strict: true, origin: "https://supermetry.com:8443", wantStored: 1},
+		{name: "referer fallback", strict: true, referer: "https://supermetry.com/from", wantStored: 1},
+		{name: "origin takes precedence", strict: true, origin: "https://attacker.example", referer: "https://supermetry.com/from", wantReject: 1},
+		{name: "wildcard subdomain", strict: true, origin: "https://www.supermetry.com", hosts: []string{"*.supermetry.com"}, body: `{"site":"abc123","name":"pageview","url":"https://www.supermetry.com/"}`, wantStored: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -608,7 +608,7 @@ func TestCustomBlockedReferrerDropsOnLabelBoundary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
 			setProtectionSettings(t, f, false, []string{"evil.example"}, nil)
-			body := `{"site":"abc123","name":"pageview","url":"https://example.com/","referrer":"` + tt.referrer + `"}`
+			body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","referrer":"` + tt.referrer + `"}`
 			if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
 				t.Fatalf("status = %d, want 202", response.Code)
 			}
@@ -628,7 +628,7 @@ func TestHeatmapFromBotIsNotAggregated(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setHeatmapsEnabled(t, f, true)
 	before := ingest.Bots[enrich.BotUserAgent].Load()
-	body := `{"site":"abc123","name":"heatmap","url":"https://example.com/","clicks":[[500,120]],"doc_h":2000,"vw":390}`
+	body := `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","clicks":[[500,120]],"doc_h":2000,"vw":390}`
 	rr := post(t, f.h, body, "Googlebot/2.1", "66.249.66.1:5555")
 	if rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
@@ -706,7 +706,7 @@ func TestExcludedPathCountedNotStored(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setExclusions(t, f, nil, []string{"/admin/*"})
 	before := health.ExclusionsFiltered[health.ExclusionPath].Load()
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/admin/users?source=test"}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/admin/users?source=test"}`
 
 	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
 	if rr.Code != http.StatusAccepted {
@@ -754,7 +754,7 @@ func TestExcludedCountryCountedAndUnresolvedCountryAccepted(t *testing.T) {
 func TestExclusionNonMatchPasses(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setExclusions(t, f, []string{"203.0.113.0/24"}, []string{"/admin/*"})
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/admin/users/7"}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/admin/users/7"}`
 
 	rr := post(t, f.h, body, testUA, "198.51.100.7:5555")
 	if rr.Code != http.StatusAccepted {
@@ -898,10 +898,10 @@ func TestParsePayloadFieldLimits(t *testing.T) {
 		body string
 	}{
 		{name: "trailing JSON", body: okBody + `{}`},
-		{name: "long prop key", body: `{"site":"abc123","name":"x","url":"https://example.com/","props":{"` + strings.Repeat("k", 301) + `":"v"}}`},
-		{name: "long prop value", body: `{"site":"abc123","name":"x","url":"https://example.com/","props":{"k":"` + strings.Repeat("v", 2001) + `"}}`},
-		{name: "negative engagement", body: `{"site":"abc123","name":"engagement","url":"https://example.com/","engagement_ms":-1}`},
-		{name: "scroll over 100", body: `{"site":"abc123","name":"engagement","url":"https://example.com/","scroll_pct":101}`},
+		{name: "long prop key", body: `{"site":"abc123","name":"x","url":"https://supermetry.com/","props":{"` + strings.Repeat("k", 301) + `":"v"}}`},
+		{name: "long prop value", body: `{"site":"abc123","name":"x","url":"https://supermetry.com/","props":{"k":"` + strings.Repeat("v", 2001) + `"}}`},
+		{name: "negative engagement", body: `{"site":"abc123","name":"engagement","url":"https://supermetry.com/","engagement_ms":-1}`},
+		{name: "scroll over 100", body: `{"site":"abc123","name":"engagement","url":"https://supermetry.com/","scroll_pct":101}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -915,8 +915,8 @@ func TestParsePayloadFieldLimits(t *testing.T) {
 func TestCustomEventRevenuePersistsExactMicros(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	for _, body := range []string{
-		`{"site":"abc123","name":"purchase-string","url":"https://example.com/","revenue":{"amount":"12.345678","currency":"USD"}}`,
-		`{"site":"abc123","name":"purchase-number","url":"https://example.com/","revenue":{"amount":1000000000000,"currency":"USD"}}`,
+		`{"site":"abc123","name":"purchase-string","url":"https://supermetry.com/","revenue":{"amount":"12.345678","currency":"USD"}}`,
+		`{"site":"abc123","name":"purchase-number","url":"https://supermetry.com/","revenue":{"amount":1000000000000,"currency":"USD"}}`,
 	} {
 		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 			t.Fatalf("code=%d, want 202", rr.Code)
@@ -955,10 +955,10 @@ select revenue_micros, revenue_currency from events order by revenue_micros`)
 func TestCustomEventRevenueInheritsProjectCurrencyAndStripsMismatch(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := health.IngestRevenueInvalid.Load()
-	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99"}}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://supermetry.com/","revenue":{"amount":"4.99"}}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("inherited currency status=%d body=%s", rr.Code, rr.Body.String())
 	}
-	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99","currency":"EUR"}}`, testUA, "198.51.100.8:5555"); rr.Code != http.StatusAccepted {
+	if rr := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://supermetry.com/","revenue":{"amount":"4.99","currency":"EUR"}}`, testUA, "198.51.100.8:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("mismatch status=%d body=%s, want 202", rr.Code, rr.Body.String())
 	}
 	f.stop(t)
@@ -980,7 +980,7 @@ func TestCustomEventRevenueIsStrippedWhenProjectCurrencyUnavailable(t *testing.T
 			f := newHandlerFixture(t, 32, nil)
 			setRevenueCurrency(t, f, "", state)
 			before := health.IngestRevenueInvalid.Load()
-			response := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"4.99","currency":"USD"}}`, testUA, "198.51.100.7:5555")
+			response := post(t, f.h, `{"site":"abc123","name":"purchase","url":"https://supermetry.com/","revenue":{"amount":"4.99","currency":"USD"}}`, testUA, "198.51.100.7:5555")
 			if response.Code != http.StatusAccepted {
 				t.Fatalf("status=%d body=%s, want 202", response.Code, response.Body.String())
 			}
@@ -1009,7 +1009,7 @@ func TestIdentifiedPageviewPropsPersistAndPropTruncationIsCounted(t *testing.T) 
 		parts = append(parts, fmt.Sprintf(`"key-%02d":%d`, i, i))
 	}
 	before := health.Snapshot()["ingest_props_truncated_total"]
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","props":{` + strings.Join(parts, ",") + `}}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","props":{` + strings.Join(parts, ",") + `}}`
 	if response := post(t, f.h, body, testUA, "198.51.100.7:5555"); response.Code != http.StatusAccepted {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
@@ -1029,7 +1029,7 @@ func TestIdentifiedPageviewPropsPersistAndPropTruncationIsCounted(t *testing.T) 
 func TestInvalidCustomEventRevenueIsDroppedAndCounted(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := health.IngestRevenueInvalid.Load()
-	body := `{"site":"abc123","name":"purchase","url":"https://example.com/","revenue":{"amount":"1.0000001","currency":"usd"}}`
+	body := `{"site":"abc123","name":"purchase","url":"https://supermetry.com/","revenue":{"amount":"1.0000001","currency":"usd"}}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
 	}
@@ -1051,7 +1051,7 @@ func TestInvalidCustomEventRevenueIsDroppedAndCounted(t *testing.T) {
 func TestPageviewRevenueIsIgnoredWithoutHealthError(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := health.IngestRevenueInvalid.Load()
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","revenue":{"amount":"9.99","currency":"USD"}}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","revenue":{"amount":"9.99","currency":"USD"}}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
 	}
@@ -1074,8 +1074,8 @@ func TestDisabledProfilesAreSuppressedAndCounted(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := health.IngestProfilesSuppressed.Load()
 	for _, body := range []string{
-		`{"site":"abc123","name":"pageview","url":"https://example.com/profile","profile_id":123}`,
-		`{"site":"abc123","name":"pageview","url":"https://example.com/traits","traits":{"nested":{"plan":"pro"}}}`,
+		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/profile","profile_id":123}`,
+		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/traits","traits":{"nested":{"plan":"pro"}}}`,
 	} {
 		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 			t.Fatalf("code=%d, want 202", rr.Code)
@@ -1101,7 +1101,7 @@ func TestEnabledProfilesRejectTraitsOutsideIdentify(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
-	body := `{"site":"abc123","name":"pageview","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	body := `{"site":"abc123","name":"pageview","url":"https://supermetry.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusBadRequest {
 		t.Fatalf("code=%d, want 400", rr.Code)
 	}
@@ -1112,7 +1112,7 @@ func TestEnabledIdentifyWithoutTraitsUpsertsAndLinks(t *testing.T) {
 	seedProfileSite(t, f.pool)
 	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
-	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1"}`
+	body := `{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":"customer-1"}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
 	}
@@ -1134,7 +1134,7 @@ func TestTombstonedProfileIsRemovedBeforeQueueing(t *testing.T) {
 	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
 	f.h.ProfileTombstones = allProfilesTombstoned{}
-	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	body := `{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
 	}
@@ -1155,7 +1155,7 @@ func TestSessionProfileLinkRaceKeepsEventAnonymous(t *testing.T) {
 	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
 	f.h.Sessions.(*session.Memory).TombstoneProfile(1, sha256.Sum256([]byte("customer-1")))
-	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1"}`
+	body := `{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":"customer-1"}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
 	}
@@ -1175,8 +1175,8 @@ func TestEnabledProfilesUpsertTraitsAndLinkEvents(t *testing.T) {
 	seedProfileSite(t, f.pool)
 	f.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, f, true)
-	first := `{"site":"abc123","name":"identify","url":"https://example.com/first","profile_id":"customer-1","traits":{"plan":"free","region":"apac"}}`
-	second := `{"site":"abc123","name":"identify","url":"https://example.com/second","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	first := `{"site":"abc123","name":"identify","url":"https://supermetry.com/first","profile_id":"customer-1","traits":{"plan":"free","region":"apac"}}`
+	second := `{"site":"abc123","name":"identify","url":"https://supermetry.com/second","profile_id":"customer-1","traits":{"plan":"pro"}}`
 	if rr := post(t, f.h, first, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("first code=%d, want 202", rr.Code)
 	}
@@ -1220,7 +1220,7 @@ func seedProfileSite(t *testing.T, pool *pgxpool.Pool) {
 	if _, err := pool.Exec(ctx, `
 		insert into sites(id, org_id, public_id, name, allowed_hosts, timezone, retention_class)
 		overriding system value
-		values (1, $1, 'profiles0001', 'Profiles', '{example.com}', 'UTC', 30)`, orgID); err != nil {
+		values (1, $1, 'profiles0001', 'Profiles', '{supermetry.com}', 'UTC', 30)`, orgID); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1238,7 +1238,7 @@ func newHandlerFixture(t *testing.T, queueSize int, trusted []netip.Prefix) *han
 	}
 
 	path := filepath.Join(t.TempDir(), "sites.json")
-	if err := os.WriteFile(path, []byte(`[{"id":1,"public_id":"abc123","timezone":"UTC","retention_days":30,"allowed_hosts":["example.com"],"revenue_currency":"USD","revenue_currency_state":"configured"}]`), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(`[{"id":1,"public_id":"abc123","timezone":"UTC","retention_days":30,"allowed_hosts":["supermetry.com"],"revenue_currency":"USD","revenue_currency_state":"configured"}]`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	registry, err := sites.LoadFile(path)
@@ -1447,7 +1447,7 @@ func writeCityMMDB(t *testing.T) string {
 func TestDisabledProfilesDropIdentifyEvents(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	before := health.IngestProfilesSuppressed.Load()
-	body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
+	body := `{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":"customer-1","traits":{"plan":"pro"}}`
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("code=%d, want 202", rr.Code)
 	}
@@ -1486,7 +1486,7 @@ func TestEnabledProfilesCapMergedTraits(t *testing.T) {
 		for i := range traits {
 			traits[i] = fmt.Sprintf(`"%s%d":"v"`, prefix, i)
 		}
-		body := `{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"customer-1","traits":{` + strings.Join(traits, ",") + `}}`
+		body := `{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":"customer-1","traits":{` + strings.Join(traits, ",") + `}}`
 		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 			t.Fatalf("code=%d, want 202", rr.Code)
 		}
@@ -1511,8 +1511,8 @@ func TestBackgroundPingsAfterIdleDoNotStartSessions(t *testing.T) {
 	}
 	f.clock.now = f.clock.now.Add(session.IdleTimeout + time.Minute)
 	for _, body := range []string{
-		`{"site":"abc123","name":"engagement","url":"https://example.com/","engagement_ms":9000}`,
-		`{"site":"abc123","name":"Web Vitals","url":"https://example.com/","props":{"lcp":"1200"}}`,
+		`{"site":"abc123","name":"engagement","url":"https://supermetry.com/","engagement_ms":9000}`,
+		`{"site":"abc123","name":"Web Vitals","url":"https://supermetry.com/","props":{"lcp":"1200"}}`,
 	} {
 		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 			t.Fatalf("body=%s code=%d", body, rr.Code)
@@ -1523,7 +1523,7 @@ func TestBackgroundPingsAfterIdleDoNotStartSessions(t *testing.T) {
 		t.Fatalf("stale pings made the visitor active: %+v", snapshot)
 	}
 	// A real custom event (for example from the server-side API) still counts.
-	if rr := post(t, f.h, `{"site":"abc123","name":"Signup","url":"https://example.com/"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+	if rr := post(t, f.h, `{"site":"abc123","name":"Signup","url":"https://supermetry.com/"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("signup code=%d", rr.Code)
 	}
 	f.stop(t)

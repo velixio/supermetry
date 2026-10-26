@@ -47,16 +47,16 @@ afterEach(() => {
 describe("Supermetry plugin", () => {
   test("is a no-op during server rendering", () => {
     const app = createApp({ render: () => null });
-    expect(() => app.use(Supermetry, { site: "site-id", host: "https://analytics.example.com" })).not.toThrow();
+    expect(() => app.use(Supermetry, { site: "site-id", host: "https://analytics.supermetry.com" })).not.toThrow();
     expect(app.config.globalProperties.$supermetry).toBe(getTracker());
     expect(() => getTracker().track("Ignored")).not.toThrow();
   });
 
   test("provides the tracker to useSupermetry", () => {
-    installBrowser(() => "https://shop.example.com/");
+    installBrowser(() => "https://shop.supermetry.com/");
     let injected: unknown;
     const app = createApp({ render: () => null });
-    app.use(Supermetry, { site: "site-id", host: "https://analytics.example.com", outbound: true });
+    app.use(Supermetry, { site: "site-id", host: "https://analytics.supermetry.com", outbound: true });
     app.runWithContext(() => {
       injected = useSupermetry();
     });
@@ -67,7 +67,7 @@ describe("Supermetry plugin", () => {
 
   test("tracks router navigations in manual mode", async () => {
     let path = "/";
-    const script = installBrowser(() => `https://shop.example.com${path}`);
+    const script = installBrowser(() => `https://shop.supermetry.com${path}`);
     const view = { render: () => null };
     const router = createRouter({
       history: createMemoryHistory(),
@@ -82,9 +82,9 @@ describe("Supermetry plugin", () => {
     });
 
     const app = createApp({ render: () => null });
-    app.use(Supermetry, { site: "site-id", host: "https://analytics.example.com", router });
+    app.use(Supermetry, { site: "site-id", host: "https://analytics.supermetry.com", router });
 
-    expect(script.src).toBe("https://analytics.example.com/js/script.full.js");
+    expect(script.src).toBe("https://analytics.supermetry.com/js/script.full.js");
     expect(script.attributes.get("data-manual")).toBe("true");
 
     const pageviews: unknown[] = [];
@@ -98,6 +98,6 @@ describe("Supermetry plugin", () => {
     await router.push("/pricing");
     await router.push("/blocked");
 
-    expect(pageviews).toEqual([{ url: "https://shop.example.com/" }, { url: "https://shop.example.com/pricing" }]);
+    expect(pageviews).toEqual([{ url: "https://shop.supermetry.com/" }, { url: "https://shop.supermetry.com/pricing" }]);
   });
 });

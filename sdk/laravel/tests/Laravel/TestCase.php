@@ -32,7 +32,7 @@ abstract class TestCase extends Orchestra
     protected function defineEnvironment($app): void
     {
         $app['config']->set('supermetry.site', 'site_123');
-        $app['config']->set('supermetry.host', 'https://analytics.example.com');
+        $app['config']->set('supermetry.host', 'https://analytics.supermetry.com');
         $app['config']->set('supermetry.log_errors', false);
     }
 

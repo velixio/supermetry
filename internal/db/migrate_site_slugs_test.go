@@ -44,10 +44,10 @@ func TestSiteSlugMigrationBackfillsAndKeepsSlugsUniquePerOrganization(t *testing
 		want   string
 		delete bool
 	}{
-		{1, "legacy000001", "Main", "array['www.Example.com']", "example-com", false},
-		{1, "legacy000002", "Copy", "array['example.com']", "example-com-2", false},
-		{2, "legacy000003", "Other org", "array['example.com']", "example-com", false},
-		{1, "legacy000004", "Wildcard", "array['*.shop.example.com']", "shop-example-com", false},
+		{1, "legacy000001", "Main", "array['www.supermetry.com']", "example-com", false},
+		{1, "legacy000002", "Copy", "array['supermetry.com']", "example-com-2", false},
+		{2, "legacy000003", "Other org", "array['supermetry.com']", "example-com", false},
+		{1, "legacy000004", "Wildcard", "array['*.shop.supermetry.com']", "shop-example-com", false},
 		{1, "legacy000005", "Twelve", "array['abcdefghijkl']", "abcdefghijkl-site", false},
 		{1, "legacy000006", "Docs", "'{}'::text[]", "docs", false},
 		{1, "legacy000007", "Reserved", "array['settings']", "settings-site", false},
@@ -79,10 +79,10 @@ func TestSiteSlugMigrationBackfillsAndKeepsSlugsUniquePerOrganization(t *testing
 
 	// New sites get a slug without the insert naming one.
 	var created, second string
-	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00001','New',array['blog.example.org'],'UTC',30) returning slug`).Scan(&created); err != nil {
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00001','New',array['blog.example.com'],'UTC',30) returning slug`).Scan(&created); err != nil {
 		t.Fatal(err)
 	}
-	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00002','New 2',array['blog.example.org'],'UTC',30) returning slug`).Scan(&second); err != nil {
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00002','New 2',array['blog.example.com'],'UTC',30) returning slug`).Scan(&second); err != nil {
 		t.Fatal(err)
 	}
 	if created != "blog-example-org" || second != "blog-example-org-2" {
@@ -104,7 +104,7 @@ func TestSiteSlugMigrationBackfillsAndKeepsSlugsUniquePerOrganization(t *testing
 		t.Fatal(err)
 	}
 	var reused string
-	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00003','Again',array['blog.example.org'],'UTC',30) returning slug`).Scan(&reused); err != nil {
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00003','Again',array['blog.example.com'],'UTC',30) returning slug`).Scan(&reused); err != nil {
 		t.Fatal(err)
 	}
 	if reused != "blog-example-org" {

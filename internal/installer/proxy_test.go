@@ -11,7 +11,7 @@ func TestRenderNginx(t *testing.T) {
 
 	want := `server {
     listen 80;
-    server_name analytics.example.com;
+    server_name analytics.supermetry.com;
 
     client_max_body_size 10m;
 
@@ -25,7 +25,7 @@ func TestRenderNginx(t *testing.T) {
     }
 }
 `
-	if got := string(RenderNginx("analytics.example.com", "127.0.0.1:8787")); got != want {
+	if got := string(RenderNginx("analytics.supermetry.com", "127.0.0.1:8787")); got != want {
 		t.Fatalf("RenderNginx() mismatch\n--- got ---\n%s--- want ---\n%s", got, want)
 	}
 }
@@ -54,12 +54,12 @@ func TestRenderCaddy(t *testing.T) {
 	t.Parallel()
 
 	want := `# BEGIN SUPERMETRY
-analytics.example.com {
+analytics.supermetry.com {
     reverse_proxy 127.0.0.1:8787
 }
 # END SUPERMETRY
 `
-	if got := string(RenderCaddy("analytics.example.com", "127.0.0.1:8787")); got != want {
+	if got := string(RenderCaddy("analytics.supermetry.com", "127.0.0.1:8787")); got != want {
 		t.Fatalf("RenderCaddy() mismatch\n--- got ---\n%s--- want ---\n%s", got, want)
 	}
 }

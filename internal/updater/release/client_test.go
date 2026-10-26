@@ -114,7 +114,7 @@ func TestClientFetchManifestRejectsRedirectStatusAndOversizedBodies(t *testing.T
 				result := response(tt.status, tt.body)
 				result.Request = request
 				if tt.status >= 300 && tt.status < 400 {
-					result.Header.Set("Location", "https://example.com/untrusted")
+					result.Header.Set("Location", "https://supermetry.com/untrusted")
 				}
 				return result, nil
 			})})

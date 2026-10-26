@@ -35,7 +35,7 @@ final class ClientTest extends TestCase
         $errors = [];
         $config += [
             'site' => 'site_123',
-            'host' => 'https://analytics.example.com/',
+            'host' => 'https://analytics.supermetry.com/',
             'on_error' => function (SupermetryException $e) use (&$errors): void {
                 $errors[] = $e;
             },
@@ -53,7 +53,7 @@ final class ClientTest extends TestCase
     {
         $client = $this->client();
         $client->track('Signup', ['plan' => 'pro', 'seats' => 3, 'trial' => true], [
-            'url' => 'https://app.example.com:8443/signup?x=1',
+            'url' => 'https://app.supermetry.com:8443/signup?x=1',
             'referrer' => 'https://google.com/',
             'user_agent' => 'Mozilla/5.0 Visitor',
             'ip' => '203.0.113.9',
@@ -66,11 +66,11 @@ final class ClientTest extends TestCase
         self::assertCount(1, $this->history);
         $request = $this->history[0]['request'];
         self::assertSame('POST', $request->getMethod());
-        self::assertSame('https://analytics.example.com/api/public/v1/events', (string) $request->getUri());
+        self::assertSame('https://analytics.supermetry.com/api/public/v1/events', (string) $request->getUri());
         self::assertSame('application/json', $request->getHeaderLine('Content-Type'));
         self::assertSame('Mozilla/5.0 Visitor', $request->getHeaderLine('User-Agent'));
         self::assertSame('203.0.113.9', $request->getHeaderLine('X-Forwarded-For'));
-        self::assertSame('https://app.example.com:8443', $request->getHeaderLine('Origin'));
+        self::assertSame('https://app.supermetry.com:8443', $request->getHeaderLine('Origin'));
 
         $body = $this->body();
         self::assertSame(1, $body['v']);
@@ -78,7 +78,7 @@ final class ClientTest extends TestCase
         self::assertEqualsWithDelta(microtime(true) * 1000, $body['ts'], 5000);
         self::assertSame('site_123', $body['site']);
         self::assertSame('Signup', $body['name']);
-        self::assertSame('https://app.example.com:8443/signup?x=1', $body['url']);
+        self::assertSame('https://app.supermetry.com:8443/signup?x=1', $body['url']);
         self::assertSame('https://google.com/', $body['referrer']);
         self::assertSame(['plan' => 'pro', 'seats' => 3, 'trial' => true], $body['props']);
         self::assertSame(['amount' => '49.9', 'currency' => 'USD'], $body['revenue']);
@@ -88,7 +88,7 @@ final class ClientTest extends TestCase
 
     public function testDefaultUserAgentIsNotAGenericHttpClient(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/']);
+        $client = $this->client(['url' => 'https://app.supermetry.com/']);
         $client->track('x');
         $client->flush();
         $ua = $this->history[0]['request']->getHeaderLine('User-Agent');
@@ -98,19 +98,19 @@ final class ClientTest extends TestCase
 
     public function testPageviewUsesDefaultUrlAndDropsRevenue(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/home']);
+        $client = $this->client(['url' => 'https://app.supermetry.com/home']);
         $client->pageview(null, [], ['revenue' => ['amount' => '1.00']]);
-        $client->pageview('https://app.example.com/about');
+        $client->pageview('https://app.supermetry.com/about');
         $client->flush();
         self::assertSame('pageview', $this->body(0)['name']);
-        self::assertSame('https://app.example.com/home', $this->body(0)['url']);
+        self::assertSame('https://app.supermetry.com/home', $this->body(0)['url']);
         self::assertArrayNotHasKey('revenue', $this->body(0));
-        self::assertSame('https://app.example.com/about', $this->body(1)['url']);
+        self::assertSame('https://app.supermetry.com/about', $this->body(1)['url']);
     }
 
     public function testIdentifyStoresProfileAndOnlySendsTraitsOnIdentify(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/']);
+        $client = $this->client(['url' => 'https://app.supermetry.com/']);
         $client->identify('user-42', ['plan' => 'pro', 'age' => 30, 'bad' => ['nested'], str_repeat('k', 65) => 'x', 'long' => str_repeat('v', 257)]);
         $client->track('Clicked');
         $client->reset();
@@ -131,7 +131,7 @@ final class ClientTest extends TestCase
 
     public function testIdentifyNullClearsProfileWithoutSending(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/']);
+        $client = $this->client(['url' => 'https://app.supermetry.com/']);
         $client->setProfileId('u1');
         $client->identify(null);
         $client->flush();
@@ -171,7 +171,7 @@ final class ClientTest extends TestCase
     {
         $client = $this->client([], [], $errors);
         $client->track('x');
-        $client->track('x', [], ['url' => 'ftp://example.com/']);
+        $client->track('x', [], ['url' => 'ftp://supermetry.com/']);
         $client->track('x', [], ['url' => 'https://user:pass@example.com/']);
         $client->track('x', [], ['url' => '/relative']);
         $client->flush();
@@ -181,7 +181,7 @@ final class ClientTest extends TestCase
 
     public function testInvalidNameIsReported(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/'], [], $errors);
+        $client = $this->client(['url' => 'https://app.supermetry.com/'], [], $errors);
         $client->track('');
         $client->track(str_repeat('n', 301));
         self::assertCount(2, $errors);
@@ -189,7 +189,7 @@ final class ClientTest extends TestCase
 
     public function testOversizedBodyIsRejectedLocally(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/'], [], $errors);
+        $client = $this->client(['url' => 'https://app.supermetry.com/'], [], $errors);
         $props = [];
         for ($i = 0; $i < 10; $i++) {
             $props["k{$i}"] = str_repeat('x', 1000);
@@ -202,7 +202,7 @@ final class ClientTest extends TestCase
 
     public function testHttpErrorsAreReportedNotThrown(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/'], [new Response(400), new Response(429, ['Retry-After' => '1'])], $errors);
+        $client = $this->client(['url' => 'https://app.supermetry.com/'], [new Response(400), new Response(429, ['Retry-After' => '1'])], $errors);
         $client->track('a');
         $client->track('b');
         $client->flush();
@@ -216,8 +216,8 @@ final class ClientTest extends TestCase
 
     public function testNetworkErrorIsReportedAndRetryable(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/', 'async' => false], [
-            new ConnectException('refused', new Request('POST', 'https://analytics.example.com')),
+        $client = $this->client(['url' => 'https://app.supermetry.com/', 'async' => false], [
+            new ConnectException('refused', new Request('POST', 'https://analytics.supermetry.com')),
         ], $errors);
         $client->track('a');
         self::assertCount(1, $errors);
@@ -228,14 +228,14 @@ final class ClientTest extends TestCase
 
     public function testThrowModeThrows(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/', 'async' => false, 'throw' => true], [new Response(400)]);
+        $client = $this->client(['url' => 'https://app.supermetry.com/', 'async' => false, 'throw' => true], [new Response(400)]);
         $this->expectException(SupermetryException::class);
         $client->track('a');
     }
 
     public function testSendNowRetryKeepsIdAndTimestamp(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/'], [new Response(503), new Response(202)]);
+        $client = $this->client(['url' => 'https://app.supermetry.com/'], [new Response(503), new Response(202)]);
         $payload = $client->buildEvent('Purchase', [], ['id' => 'fixed_id-1', 'ts' => 1_700_000_000_000]);
         self::assertNotNull($payload);
         self::assertFalse($client->sendNow($payload));
@@ -247,11 +247,11 @@ final class ClientTest extends TestCase
 
     public function testPrivacySignalsAndCustomEndpoint(): void
     {
-        $client = $this->client(['endpoint' => 'https://collector.example.com/e', 'url' => 'https://app.example.com/', 'send_origin' => false]);
+        $client = $this->client(['endpoint' => 'https://collector.supermetry.com/e', 'url' => 'https://app.supermetry.com/', 'send_origin' => false]);
         $client->track('a', [], ['dnt' => true, 'gpc' => true]);
         $client->flush();
         $request = $this->history[0]['request'];
-        self::assertSame('https://collector.example.com/e', (string) $request->getUri());
+        self::assertSame('https://collector.supermetry.com/e', (string) $request->getUri());
         self::assertSame('1', $request->getHeaderLine('DNT'));
         self::assertSame('1', $request->getHeaderLine('Sec-GPC'));
         self::assertFalse($request->hasHeader('Origin'));
@@ -260,7 +260,7 @@ final class ClientTest extends TestCase
     public function testDisabledClientIsNoop(): void
     {
         foreach ([['enabled' => false], ['enabled' => 'false'], ['site' => ''], ['host' => null]] as $config) {
-            $client = $this->client($config + ['url' => 'https://app.example.com/']);
+            $client = $this->client($config + ['url' => 'https://app.supermetry.com/']);
             $client->track('a');
             $client->identify('u');
             $client->flush();
@@ -271,7 +271,7 @@ final class ClientTest extends TestCase
 
     public function testDestructorFlushes(): void
     {
-        $client = $this->client(['url' => 'https://app.example.com/']);
+        $client = $this->client(['url' => 'https://app.supermetry.com/']);
         $client->track('a');
         unset($client);
         self::assertCount(1, $this->history);

@@ -129,7 +129,7 @@ describe('filters', () => {
     ['os_version:is:Windows%2010%2F11', 'os_version', 'Windows 10/11'],
     ['screen_size:is:mobile', 'screen_size', 'mobile'],
     ['language:is:en', 'language', 'en'],
-    ['hostname:is:docs.example.com', 'hostname', 'docs.example.com'],
+    ['hostname:is:docs.supermetry.com', 'hostname', 'docs.supermetry.com'],
   ])('keeps the new dimension filter %s', (raw, dimension, value) => {
     expect(parseFilters([raw])).toEqual({
       filters: [{ dimension, operator: 'is', values: [value] }],

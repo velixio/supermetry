@@ -13,9 +13,9 @@ import AppKit
 public struct SupermetryConfig {
     /// Public site ID.
     public var site: String
-    /// Supermetry base URL, e.g. `https://analytics.example.com`.
+    /// Supermetry base URL, e.g. `https://analytics.supermetry.com`.
     public var host: String
-    /// Base URL for screen views, e.g. `https://app.example.com`. Its host must be an allowed
+    /// Base URL for screen views, e.g. `https://app.supermetry.com`. Its host must be an allowed
     /// host of the site.
     public var appUrl: String
     /// Full events endpoint; defaults to `host + "/api/public/v1/events"`.
@@ -53,7 +53,7 @@ public struct SupermetryConfig {
 /// Supermetry analytics client for Apple platforms.
 ///
 /// ```swift
-/// Supermetry.configure(site: "site_123", host: "https://analytics.example.com", appUrl: "https://app.example.com")
+/// Supermetry.configure(site: "site_123", host: "https://analytics.supermetry.com", appUrl: "https://app.supermetry.com")
 /// Supermetry.shared.screen("Checkout")
 /// Supermetry.shared.track("Purchase", props: ["plan": "pro"], revenue: .init(49.9, currency: "USD"))
 /// ```

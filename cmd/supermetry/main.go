@@ -160,9 +160,9 @@ Flags:
   --apply PATH                apply a prepared privileged plan (internal)
 
 Examples:
-  supermetry install --mode binary --base-url https://analytics.example.com
-  supermetry install --mode docker --base-url https://analytics.example.com --dir /opt/supermetry --yes
-  supermetry install --dry-run --mode docker --base-url https://analytics.example.com`)
+  supermetry install --mode binary --base-url https://analytics.supermetry.com
+  supermetry install --mode docker --base-url https://analytics.supermetry.com --dir /opt/supermetry --yes
+  supermetry install --dry-run --mode docker --base-url https://analytics.supermetry.com`)
 	}
 	var opts installer.Options
 	opts.DotEnv = envFileName()

@@ -74,9 +74,9 @@ func TestMultiHostIncludesWildcardSites(t *testing.T) {
 		hosts []string
 		want  bool
 	}{
-		{name: "one exact host", hosts: []string{"example.com"}, want: false},
-		{name: "two exact hosts", hosts: []string{"example.com", "docs.example.com"}, want: true},
-		{name: "one wildcard host", hosts: []string{"*.example.com"}, want: true},
+		{name: "one exact host", hosts: []string{"supermetry.com"}, want: false},
+		{name: "two exact hosts", hosts: []string{"supermetry.com", "docs.supermetry.com"}, want: true},
+		{name: "one wildcard host", hosts: []string{"*.supermetry.com"}, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

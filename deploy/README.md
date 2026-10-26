@@ -200,7 +200,7 @@ sudoedit /etc/caddy/Caddyfile
 ```
 
 ```caddyfile
-analytics.example.com {
+analytics.supermetry.com {
     reverse_proxy 127.0.0.1:8787
 }
 ```

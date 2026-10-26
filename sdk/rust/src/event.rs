@@ -278,7 +278,7 @@ impl Context {
 /// use supermetry::Event;
 ///
 /// let event = Event::new("Signup")
-///     .url("https://example.com/signup")
+///     .url("https://supermetry.com/signup")
 ///     .prop("plan", "pro")
 ///     .prop("seats", 5)
 ///     .prop("trial", true)

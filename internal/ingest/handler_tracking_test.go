@@ -33,8 +33,8 @@ func TestAnonymousRejectsForgedIdentityAndProperties(t *testing.T) {
 	// Exercise intake independently of final persistence defense.
 	f.writer.SetTrackingPolicy(privacy.Identified, f.h.Sites)
 	for _, body := range []string{
-		`{"site":"abc123","name":"identify","url":"https://example.com/","profile_id":"forged","traits":{"name":"person"}}`,
-		`{"site":"abc123","name":"purchase","url":"https://example.com/?utm_source=person-secret&utm_campaign=person-secret#person-secret","referrer":"https://ref.example/?person-secret=yes#person-secret","profile_id":"forged","props":{"email":"person-secret"}}`,
+		`{"site":"abc123","name":"identify","url":"https://supermetry.com/","profile_id":"forged","traits":{"name":"person"}}`,
+		`{"site":"abc123","name":"purchase","url":"https://supermetry.com/?utm_source=person-secret&utm_campaign=person-secret#person-secret","referrer":"https://ref.example/?person-secret=yes#person-secret","profile_id":"forged","props":{"email":"person-secret"}}`,
 	} {
 		if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 			t.Fatalf("status=%d", rr.Code)
@@ -56,7 +56,7 @@ func TestPrivacySignalsCannotBeBypassedByHeatmap(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
 			setHeatmapsEnabled(t, f, true)
 			setRespectPrivacySignals(t, f, true)
-			req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(`{"site":"abc123","name":"heatmap","url":"https://example.com/","doc_h":2000,"vw":1000,"clicks":[[100,100]]}`))
+			req := httptest.NewRequest(http.MethodPost, "/api/event", strings.NewReader(`{"site":"abc123","name":"heatmap","url":"https://supermetry.com/","doc_h":2000,"vw":1000,"clicks":[[100,100]]}`))
 			req.Header.Set("User-Agent", testUA)
 			req.Header.Set(header, "1")
 			req.RemoteAddr = "198.51.100.7:5555"
@@ -79,10 +79,10 @@ func TestPrivacySignalsCannotBeBypassedByHeatmap(t *testing.T) {
 
 func TestAnonymousPathProvenanceIsEstablishedBeforeDictionaryAndSession(t *testing.T) {
 	for _, tc := range []struct{ name, url, want string }{
-		{"allowlisted", "https://example.com/pricing?customer=secret#secret", "/pricing"},
-		{"unknown", "https://example.com/customer-secret?customer=secret#secret", "/[redacted]"},
-		{"literal unicode", "https://example.com/über", "/über"},
-		{"encoded unicode", "https://example.com/%C3%BCber", "/[redacted]"},
+		{"allowlisted", "https://supermetry.com/pricing?customer=secret#secret", "/pricing"},
+		{"unknown", "https://supermetry.com/customer-secret?customer=secret#secret", "/[redacted]"},
+		{"literal unicode", "https://supermetry.com/über", "/über"},
+		{"encoded unicode", "https://supermetry.com/%C3%BCber", "/[redacted]"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
@@ -125,7 +125,7 @@ func TestAnonymousPathProvenanceIsEstablishedBeforeDictionaryAndSession(t *testi
 func TestAnonymousPathExclusionsRunBeforeRedaction(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setExclusions(t, f, nil, []string{"/private/*"})
-	if rr := post(t, f.h, `{"site":"abc123","name":"pageview","url":"https://example.com/private/customer-secret"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+	if rr := post(t, f.h, `{"site":"abc123","name":"pageview","url":"https://supermetry.com/private/customer-secret"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("status=%d", rr.Code)
 	}
 	f.stop(t)
@@ -148,7 +148,7 @@ func TestIdentifiedRequestCannotForgeVerifiedPathMarker(t *testing.T) {
 	}
 	f.h.PathPolicy = policy
 	f.writer.SetPathPolicy(policy, f.h.Dict)
-	body := fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://example.com/pricing","path_sanitizer_version":1,"path_policy_id":%q}`, policy.SanitizePath("/pricing").Policy)
+	body := fmt.Sprintf(`{"site":"abc123","name":"pageview","url":"https://supermetry.com/pricing","path_sanitizer_version":1,"path_policy_id":%q}`, policy.SanitizePath("/pricing").Policy)
 	if rr := post(t, f.h, body, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("status=%d", rr.Code)
 	}
@@ -166,7 +166,7 @@ func TestIdentifiedRequestCannotForgeVerifiedPathMarker(t *testing.T) {
 func TestAnonymousHeatmapPathRedactedBeforeDictionary(t *testing.T) {
 	f := newHandlerFixture(t, 32, nil)
 	setHeatmapsEnabled(t, f, true)
-	if rr := post(t, f.h, `{"site":"abc123","name":"heatmap","url":"https://example.com/customer-secret","doc_h":2000,"vw":1000,"clicks":[[100,100]]}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+	if rr := post(t, f.h, `{"site":"abc123","name":"heatmap","url":"https://supermetry.com/customer-secret","doc_h":2000,"vw":1000,"clicks":[[100,100]]}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 		t.Fatalf("status=%d", rr.Code)
 	}
 	f.stop(t)
@@ -189,9 +189,9 @@ func TestVerifiedPageRequestsSurviveFlushAndCloseWithoutLegacyLookalikes(t *test
 	f.h.PathPolicy = policy
 	f.writer.SetPathPolicy(policy, f.h.Dict)
 	for _, request := range []struct{ url, remote string }{
-		{"https://example.com/public?person=secret", "198.51.100.7:5555"},
-		{"https://example.com/public", "198.51.100.7:5555"},
-		{"https://example.com/customer-secret", "198.51.100.8:5555"},
+		{"https://supermetry.com/public?person=secret", "198.51.100.7:5555"},
+		{"https://supermetry.com/public", "198.51.100.7:5555"},
+		{"https://supermetry.com/customer-secret", "198.51.100.8:5555"},
 	} {
 		body := fmt.Sprintf(`{"site":"abc123","name":"pageview","url":%q}`, request.url)
 		if rr := post(t, f.h, body, testUA, request.remote); rr.Code != http.StatusAccepted {
@@ -273,7 +273,7 @@ func TestIdentifiedRestartPreservesNewPaths(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newHandlerFixture(t, 32, nil)
 			ctx := context.Background()
-			if rr := post(t, f.h, `{"site":"abc123","name":"pageview","url":"https://example.com/historic-private"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+			if rr := post(t, f.h, `{"site":"abc123","name":"pageview","url":"https://supermetry.com/historic-private"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 				t.Fatalf("anonymous status=%d", rr.Code)
 			}
 			f.stop(t)
@@ -317,7 +317,7 @@ func TestIdentifiedRestartPreservesNewPaths(t *testing.T) {
 			go func() { stopped <- w.Run(runCtx) }()
 			restarted := &handlerFixture{h: handler, pool: f.pool, writer: w, clock: clock, cancel: cancel, stopped: stopped}
 			t.Cleanup(func() { restarted.stop(t) })
-			if rr := post(t, handler, `{"site":"profiles0001","name":"pageview","url":"https://example.com/new-private"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
+			if rr := post(t, handler, `{"site":"profiles0001","name":"pageview","url":"https://supermetry.com/new-private"}`, testUA, "198.51.100.7:5555"); rr.Code != http.StatusAccepted {
 				t.Fatalf("identified status=%d", rr.Code)
 			}
 			restarted.stop(t)

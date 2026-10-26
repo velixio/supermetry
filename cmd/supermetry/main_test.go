@@ -85,7 +85,7 @@ func TestUserCommandReadsEnvFile(t *testing.T) {
 	}
 	dir := t.TempDir()
 	settings := "SUPERMETRY_DATABASE_URL=postgres://u:p@127.0.0.1:1/none?sslmode=disable&connect_timeout=2\n" +
-		"SUPERMETRY_BASE_URL=https://analytics.example.com\n" +
+		"SUPERMETRY_BASE_URL=https://analytics.supermetry.com\n" +
 		"SUPERMETRY_SECRET_KEY=" + strings.Repeat("ab", 32) + "\n"
 	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(settings), 0o600); err != nil {
 		t.Fatal(err)

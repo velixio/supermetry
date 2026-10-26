@@ -75,8 +75,8 @@ describe("req.supermetry", () => {
           headers: {
             "User-Agent": "Mozilla/5.0 (Macintosh) Safari/605.1.15",
             "X-Forwarded-For": "203.0.113.5",
-            Host: "shop.example.com",
-            Referer: "https://shop.example.com/pricing",
+            Host: "shop.supermetry.com",
+            Referer: "https://shop.supermetry.com/pricing",
           },
         });
         expect(res.status).toBe(200);
@@ -90,8 +90,8 @@ describe("req.supermetry", () => {
       v: 1,
       site: "site_x",
       name: "Signup",
-      url: "http://shop.example.com/api/signup?ref=x",
-      referrer: "https://shop.example.com/pricing",
+      url: "http://shop.supermetry.com/api/signup?ref=x",
+      referrer: "https://shop.supermetry.com/pricing",
       props: { plan: "pro" },
       profile_id: "u1",
     });
@@ -101,7 +101,7 @@ describe("req.supermetry", () => {
     await withApp(
       (app) =>
         app.get("/login", (req, res) => {
-          req.supermetry.identify("u9", { email: "a@b.co" }, { url: "https://app.example.com/welcome" });
+          req.supermetry.identify("u9", { email: "a@b.co" }, { url: "https://app.supermetry.com/welcome" });
           res.end("ok");
         }),
       async (base) => {
@@ -110,7 +110,7 @@ describe("req.supermetry", () => {
     );
     expect(received[0]!.body).toMatchObject({
       name: "identify",
-      url: "https://app.example.com/welcome",
+      url: "https://app.supermetry.com/welcome",
       profile_id: "u9",
       traits: { email: "a@b.co" },
     });
@@ -148,9 +148,9 @@ describe("req.supermetry", () => {
       async (base) => {
         await fetch(`${base}/x`);
       },
-      { getUrl: (req) => `https://public.example.com${req.originalUrl}`, getProfileId: () => "user_7" },
+      { getUrl: (req) => `https://public.supermetry.com${req.originalUrl}`, getProfileId: () => "user_7" },
     );
-    expect(received[0]!.body).toMatchObject({ url: "https://public.example.com/x", profile_id: "user_7" });
+    expect(received[0]!.body).toMatchObject({ url: "https://public.supermetry.com/x", profile_id: "user_7" });
   });
 });
 

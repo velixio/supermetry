@@ -19,8 +19,8 @@ require "supermetry"
 
 client = Supermetry::Client.new(
   site: "your-site-id",
-  host: "https://analytics.example.com",
-  url: "https://example.com" # default page URL for events without one
+  host: "https://analytics.supermetry.com",
+  url: "https://supermetry.com" # default page URL for events without one
 )
 
 # In a Rails/Rack handler, forward the visitor's UA and IP:
@@ -28,7 +28,7 @@ client.pageview(url: request.url, user_agent: request.user_agent, ip: request.re
                 referrer: request.referrer)
 
 client.track("Purchase",
-             url: "https://example.com/checkout",
+             url: "https://supermetry.com/checkout",
              props: { plan: "pro", seats: 5, annual: true },
              revenue: { amount: "490.00", currency: "USD" },
              profile_id: current_user.id,
@@ -46,8 +46,8 @@ client.shutdown # flush and stop the background thread (also runs at exit)
 
 ```ruby
 # config/initializers/supermetry.rb
-Supermetry.configure(site: "your-site-id", host: "https://analytics.example.com") do |c|
-  c.url = "https://example.com"
+Supermetry.configure(site: "your-site-id", host: "https://analytics.supermetry.com") do |c|
+  c.url = "https://supermetry.com"
   c.logger = Rails.logger
 end
 

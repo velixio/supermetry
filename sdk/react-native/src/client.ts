@@ -47,7 +47,7 @@ export interface SupermetryReactNativeOptions {
   site: string;
   /** Supermetry origin. Defaults to Supermetry Cloud (`https://app.supermetry.com`); set it when self-hosting. */
   host?: string;
-  /** Base URL for screens, e.g. `https://app.example.com`. Its host must be an allowed host of the site. */
+  /** Base URL for screens, e.g. `https://app.supermetry.com`. Its host must be an allowed host of the site. */
   appUrl: string;
   /** Full events endpoint; defaults to `host + "/api/public/v1/events"`. */
   endpoint?: string;

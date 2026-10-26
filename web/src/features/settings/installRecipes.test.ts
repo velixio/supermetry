@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { aiInstallPrompt, buildRecipes, eventsUrl, parseSnippet, trackerHost, type Recipe } from './installRecipes'
 
-const input = { publicId: 'abc123def456', scriptUrl: 'https://stats.example.com/js/script.js' }
+const input = { publicId: 'abc123def456', scriptUrl: 'https://stats.supermetry.com/js/script.js' }
 const recipes = buildRecipes(input)
 const byId = (id: string): Recipe => {
   const found = recipes.find((recipe) => recipe.id === id)
@@ -31,7 +31,7 @@ describe('install recipes', () => {
   it('embeds the real script URL and site id in every recipe', () => {
     for (const recipe of recipes) {
       expect(recipe.code, recipe.id).toContain('abc123def456')
-      expect(recipe.code, recipe.id).toMatch(/stats\.example\.com/)
+      expect(recipe.code, recipe.id).toMatch(/stats\.supermetry\.com/)
     }
   })
 
@@ -40,7 +40,7 @@ describe('install recipes', () => {
       if (recipe.install) {
         expect(recipe.install, recipe.id).toMatch(/^npm install @supermetry\//)
         expect(recipe.code, recipe.id).toContain('@supermetry/')
-        expect(recipe.code, recipe.id).toContain('https://stats.example.com')
+        expect(recipe.code, recipe.id).toContain('https://stats.supermetry.com')
         expect(recipe.code, recipe.id).not.toContain('/js/script.js')
       } else if (recipe.group === 'browser') {
         expect(recipe.code, recipe.id).toContain('/js/script.js')
@@ -91,8 +91,8 @@ describe('install recipes', () => {
   it('writes an AI assistant prompt with the real site id, host and packages', () => {
     const prompt = aiInstallPrompt(input)
     expect(prompt).toContain('abc123def456')
-    expect(prompt).toContain('https://stats.example.com')
-    expect(prompt).toContain('https://stats.example.com/js/script.js')
+    expect(prompt).toContain('https://stats.supermetry.com')
+    expect(prompt).toContain('https://stats.supermetry.com/js/script.js')
     for (const pkg of ['@supermetry/tracker', '@supermetry/react', '@supermetry/nextjs', '@supermetry/node']) expect(prompt).toContain(pkg)
   })
 

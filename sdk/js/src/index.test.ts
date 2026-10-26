@@ -117,7 +117,7 @@ describe("init", () => {
     });
     expect((window as unknown as { supermetry: { beforeSend: unknown } }).supermetry.beforeSend).toBe(beforeSend);
 
-    tracker.pageview({ url: "https://example.com/pricing", props: { plan: "pro" } });
+    tracker.pageview({ url: "https://supermetry.com/pricing", props: { plan: "pro" } });
     tracker.track("Signup", { plan: "pro", seats: 3, trial: true });
     tracker.track("Purchase", undefined, { revenue: { amount: 49.9, currency: "USD" } });
     tracker.identify("user-1", { plan: "pro" });
@@ -139,7 +139,7 @@ describe("init", () => {
     script.dispatch("load");
 
     expect(calls).toEqual([
-      ["pageview", { url: "https://example.com/pricing", props: { plan: "pro" } }],
+      ["pageview", { url: "https://supermetry.com/pricing", props: { plan: "pro" } }],
       ["track", "Signup", { plan: "pro", seats: 3, trial: true }, undefined],
       ["track", "Purchase", undefined, { revenue: { amount: 49.9, currency: "USD" } }],
       ["identify", "user-1", { plan: "pro" }],
@@ -204,10 +204,10 @@ describe("init", () => {
   test("derives script and endpoint from host", () => {
     const { script } = installBrowser();
 
-    init({ site: "site-id", host: "https://analytics.example.com/", manual: true });
+    init({ site: "site-id", host: "https://analytics.supermetry.com/", manual: true });
 
-    expect(script.src).toBe("https://analytics.example.com/js/script.full.js");
-    expect(script.attributes.get("data-api")).toBe("https://analytics.example.com/api/public/v1/events");
+    expect(script.src).toBe("https://analytics.supermetry.com/js/script.full.js");
+    expect(script.attributes.get("data-api")).toBe("https://analytics.supermetry.com/api/public/v1/events");
   });
 
   test("uses first-party paths for an empty host", () => {

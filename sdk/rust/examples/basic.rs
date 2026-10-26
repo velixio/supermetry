@@ -1,7 +1,7 @@
 //! Run with:
 //!
 //! ```sh
-//! SUPERMETRY_SITE=your-site-id SUPERMETRY_HOST=https://analytics.example.com \
+//! SUPERMETRY_SITE=your-site-id SUPERMETRY_HOST=https://analytics.supermetry.com \
 //!     cargo run --example basic
 //! ```
 
@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let host = std::env::var("SUPERMETRY_HOST").unwrap_or_else(|_| "http://localhost:8080".into());
 
     let client = Supermetry::builder(site, host)
-        .url("https://example.com")
+        .url("https://supermetry.com")
         .build()?;
 
     // In a web handler, take these from the incoming request.
@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client
         .pageview(
             Context::new()
-                .url("https://example.com/pricing")
+                .url("https://supermetry.com/pricing")
                 .user_agent(visitor_ua)
                 .ip(visitor_ip),
         )
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client
         .track(
             Event::new("Purchase")
-                .url("https://example.com/checkout")
+                .url("https://supermetry.com/checkout")
                 .prop("plan", "pro")
                 .prop("seats", 5)
                 .prop("annual", true)
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let background = client.clone();
     tokio::spawn(async move {
         let _ = background
-            .track(Event::new("Background job").url("https://example.com/jobs"))
+            .track(Event::new("Background job").url("https://supermetry.com/jobs"))
             .await;
     })
     .await?;

@@ -11,14 +11,14 @@
 //! use supermetry::{Context, Event, Supermetry};
 //!
 //! # async fn run() -> Result<(), supermetry::Error> {
-//! let client = Supermetry::builder("your-site-id", "https://analytics.example.com")
-//!     .url("https://example.com")
+//! let client = Supermetry::builder("your-site-id", "https://analytics.supermetry.com")
+//!     .url("https://supermetry.com")
 //!     .build()?;
 //!
 //! client
 //!     .track(
 //!         Event::new("Signup")
-//!             .url("https://example.com/signup")
+//!             .url("https://supermetry.com/signup")
 //!             .prop("plan", "pro")
 //!             .revenue("49.90", "USD")
 //!             .user_agent("Mozilla/5.0 ...")

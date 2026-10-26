@@ -43,7 +43,7 @@ describe('HeatmapsPage', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     useHeatmapSite.mockReturnValue({
-      data: { allowed_hosts: ['shop.example.com'], heatmaps_enabled: true },
+      data: { allowed_hosts: ['shop.supermetry.com'], heatmaps_enabled: true },
       isPending: false,
       isError: false,
     })
@@ -82,7 +82,7 @@ describe('HeatmapsPage', () => {
     expect(screen.queryByRole('main')).not.toBeInTheDocument()
     const frame = screen.getByTitle('Live preview of /pricing')
     expect(frame).toHaveAttribute('sandbox', 'allow-same-origin allow-scripts')
-    expect(frame).toHaveAttribute('src', 'https://shop.example.com/pricing')
+    expect(frame).toHaveAttribute('src', 'https://shop.supermetry.com/pricing')
     expect(frame).toHaveStyle({ width: '390px' })
 
     fireEvent.change(screen.getByLabelText('Page'), { target: { value: '/docs' } })
@@ -95,7 +95,7 @@ describe('HeatmapsPage', () => {
     expect(screen.getByLabelText('Page')).toHaveValue('/campaign')
     expect(screen.getByTitle('Live preview of /campaign')).toHaveAttribute(
       'src',
-      'https://shop.example.com/campaign',
+      'https://shop.supermetry.com/campaign',
     )
   })
 
@@ -164,7 +164,7 @@ describe('HeatmapsPage', () => {
 
   it('explains the required setup when heatmaps are disabled', () => {
     useHeatmapSite.mockReturnValue({
-      data: { allowed_hosts: ['shop.example.com'], heatmaps_enabled: false },
+      data: { allowed_hosts: ['shop.supermetry.com'], heatmaps_enabled: false },
       isPending: false,
       isError: false,
     })

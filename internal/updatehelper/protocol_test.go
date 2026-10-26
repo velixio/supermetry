@@ -59,7 +59,7 @@ func TestReadRequestRejectsInvalidInput(t *testing.T) {
 		name string
 		json string
 	}{
-		{name: "unknown field", json: `{"version":1,"operation":"start","job_id":"42","target_version":"v1.2.3","nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","url":"https://example.com"}`},
+		{name: "unknown field", json: `{"version":1,"operation":"start","job_id":"42","target_version":"v1.2.3","nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","url":"https://supermetry.com"}`},
 		{name: "duplicate field", json: `{"version":1,"operation":"start","job_id":"42","job_id":"43","target_version":"v1.2.3","nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}`},
 		{name: "wrong field case", json: `{"Version":1,"job_id":"42","target_version":"v1.2.3","nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}`},
 		{name: "wrong protocol", json: `{"version":2,"operation":"start","job_id":"42","target_version":"v1.2.3","nonce":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}`},

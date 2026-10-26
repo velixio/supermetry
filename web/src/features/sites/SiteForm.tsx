@@ -33,7 +33,7 @@ export function siteErrorField(message: string): FieldName {
   return 'domain'
 }
 
-/** The site name a hostname suggests: example.com for www.example.com. */
+/** The site name a hostname suggests: supermetry.com for www.supermetry.com. */
 export function nameFromDomain(host: string): string {
   return host.replace(/^www\./i, '')
 }
@@ -113,7 +113,7 @@ export function SiteForm({
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder="example.com…"
+            placeholder="supermetry.com…"
             aria-invalid={Boolean(domainError) || undefined}
             aria-describedby={domainError ? 'site-domains-hint site-domains-error' : 'site-domains-hint'}
             required

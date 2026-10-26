@@ -39,7 +39,7 @@ describe('onboarding', () => {
       name: 'Docs',
       timezone: 'Asia/Kolkata',
       retention_days: 30,
-      allowed_hosts: ['docs.example.com'],
+      allowed_hosts: ['docs.supermetry.com'],
       revenue_currency: 'USD',
       revenue_currency_state: 'configured',
     })
@@ -62,7 +62,7 @@ describe('onboarding', () => {
     ))
 
     fireEvent.change(screen.getByLabelText('Domain'), {
-      target: { value: 'docs.example.com' },
+      target: { value: 'docs.supermetry.com' },
     })
     fireEvent.change(screen.getByLabelText('Raw data retention'), {
       target: { value: '90' },
@@ -74,8 +74,8 @@ describe('onboarding', () => {
 
     await waitFor(() =>
       expect(createSite).toHaveBeenCalledWith({
-        name: 'docs.example.com',
-        hosts: ['docs.example.com'],
+        name: 'docs.supermetry.com',
+        hosts: ['docs.supermetry.com'],
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         retention_days: 90,
         revenue_currency: 'USD',

@@ -7,7 +7,7 @@ const routerDom = Bun.resolveSync("react-router-dom", remixReact);
 
 beforeAll(() => {
   GlobalRegistrator.register({
-    url: "https://shop.example.com/",
+    url: "https://shop.supermetry.com/",
     settings: { disableJavaScriptFileLoading: true, handleDisabledFileLoadingAsSuccess: true },
   });
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -40,14 +40,14 @@ describe("<Supermetry />", () => {
     await act(async () =>
       root.render(
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Supermetry site="site-id" host="https://analytics.example.com" />
+          <Supermetry site="site-id" host="https://analytics.supermetry.com" />
           <Navigator />
         </BrowserRouter>,
       ),
     );
 
     const script = document.head.querySelector("script")!;
-    expect(script.getAttribute("src")).toBe("https://analytics.example.com/js/script.full.js");
+    expect(script.getAttribute("src")).toBe("https://analytics.supermetry.com/js/script.full.js");
     expect(script.dataset.manual).toBe("true");
 
     await act(async () => navigate("/pricing?plan=pro"));
@@ -55,9 +55,9 @@ describe("<Supermetry />", () => {
     await act(async () => navigate("/about"));
 
     expect(pageviews).toEqual([
-      { url: "https://shop.example.com/" },
-      { url: "https://shop.example.com/pricing?plan=pro" },
-      { url: "https://shop.example.com/about" },
+      { url: "https://shop.supermetry.com/" },
+      { url: "https://shop.supermetry.com/pricing?plan=pro" },
+      { url: "https://shop.supermetry.com/about" },
     ]);
     act(() => root.unmount());
   });

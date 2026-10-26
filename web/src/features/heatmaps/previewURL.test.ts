@@ -4,14 +4,14 @@ import { previewURL } from './previewURL'
 
 describe('heatmap preview URL', () => {
   it('joins the configured host and the path', () => {
-    expect(previewURL('example.com', '/pricing?plan=pro')).toBe('https://example.com/pricing?plan=pro')
-    expect(previewURL('*.example.com', 'docs')).toBe('https://example.com/docs')
+    expect(previewURL('supermetry.com', '/pricing?plan=pro')).toBe('https://supermetry.com/pricing?plan=pro')
+    expect(previewURL('*.supermetry.com', 'docs')).toBe('https://supermetry.com/docs')
   })
 
   it('never leaves the configured host', () => {
     for (const path of ['//evil.test/x', '\\\\evil.test/x', '/\\evil.test/x', '\\/evil.test', 'https://evil.test/', '/%5C%5Cevil.test']) {
-      const url = previewURL('example.com', path)
-      expect(url === '' || new URL(url).host === 'example.com').toBe(true)
+      const url = previewURL('supermetry.com', path)
+      expect(url === '' || new URL(url).host === 'supermetry.com').toBe(true)
     }
   })
 

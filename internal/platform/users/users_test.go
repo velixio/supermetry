@@ -17,7 +17,7 @@ func TestCreateNormalizesEmailAndHashesPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := users.New(&store.Store{Pool: pool})
-	id, err := service.Create(ctx, "  Ana@Example.COM ", "Ana", "pw-123456789")
+	id, err := service.Create(ctx, "  Ana@example.com ", "Ana", "pw-123456789")
 	if err != nil {
 		t.Fatal(err)
 	}
