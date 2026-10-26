@@ -371,3 +371,89 @@ func TestStoreStatusPendingUsesByteOrderLikeTheReconciler(t *testing.T) {
 		t.Fatalf("pending = %d, want 2 (postgres:a:1 and postgres:b follow the cursor in byte order)", status.Pending)
 	}
 }
+
+const insertSnapshotSQL = `insert into site_storage_usage(site_id,hot_bytes,retained_bytes,auxiliary_bytes,replay_recording_bytes,replay_css_bytes,measured_at,measurement_version) values($1,1,0,0,0,0,now(),1)`
+
+func snapshotCount(t *testing.T, pool *pgxpool.Pool, siteID int32) int {
+	t.Helper()
+	var n int
+	if err := pool.QueryRow(context.Background(), `select count(*) from site_storage_usage where site_id=$1`, siteID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestPublishSkipsSitesClaimedForErasure(t *testing.T) {
+	store, pool, sites := newStoreFixture(t, 2)
+	ctx := context.Background()
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `update sites set deleted_at=now(),erasure_started_at=now() where id=$1`, sites[1]); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Publish(ctx, run.ID, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if snapshotCount(t, pool, sites[0]) != 1 || snapshotCount(t, pool, sites[1]) != 0 {
+		t.Fatalf("snapshots live/claimed = %d/%d, want 1/0", snapshotCount(t, pool, sites[0]), snapshotCount(t, pool, sites[1]))
+	}
+}
+
+func TestPublishRemovesOrphanedSnapshotsOfErasedSites(t *testing.T) {
+	store, pool, sites := newStoreFixture(t, 2)
+	ctx := context.Background()
+	// The erased site was never captured by this run, as when it was erased
+	// between runs while a late publish re-inserted its snapshot.
+	if _, err := pool.Exec(ctx, `update sites set deleted_at=now(),erasure_started_at=now(),erased_at=now() where id=$1`, sites[1]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, insertSnapshotSQL, sites[1]); err != nil {
+		t.Fatal(err)
+	}
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Publish(ctx, run.ID, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if got := snapshotCount(t, pool, sites[1]); got != 0 {
+		t.Fatalf("orphaned snapshot rows = %d, want 0", got)
+	}
+}
+
+func TestPublishWaitsForErasureClaimInFlight(t *testing.T) {
+	store, pool, sites := newStoreFixture(t, 1)
+	ctx := context.Background()
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The erasure claim is open but uncommitted when Publish starts.
+	claim, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer claim.Rollback(ctx)
+	if _, err := claim.Exec(ctx, `update sites set deleted_at=now(),erasure_started_at=now() where id=$1`, sites[0]); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- store.Publish(ctx, run.ID, time.Now()) }()
+	select {
+	case err := <-done:
+		t.Fatalf("Publish finished (%v) before the erasure claim committed", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if err := claim.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if got := snapshotCount(t, pool, sites[0]); got != 0 {
+		t.Fatalf("snapshot rows for site claimed concurrently = %d, want 0", got)
+	}
+}

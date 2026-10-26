@@ -327,6 +327,17 @@ func (s *Store) Publish(ctx context.Context, runID int64, measuredAt time.Time) 
 		if status != RunActive {
 			return ErrRunNotActive
 		}
+		// Serialise with erasure claims: a claim updates the sites row, which
+		// conflicts with this share lock, so either the claim is visible to the
+		// insert below or it commits after this transaction and its snapshot
+		// cleanup removes the row.
+		if _, err := tx.Exec(ctx, `
+			select s.id from sites s
+			join storage_usage_run_sites rs on rs.site_id=s.id and rs.run_id=$1
+			order by s.id
+			for share of s`, runID); err != nil {
+			return fmt.Errorf("lock captured sites: %w", err)
+		}
 		if _, err := tx.Exec(ctx, `
 			insert into site_storage_usage(
 				site_id,hot_bytes,retained_bytes,auxiliary_bytes,
@@ -339,7 +350,7 @@ func (s *Store) Publish(ctx context.Context, runID int64, measuredAt time.Time) 
 				coalesce(sum(st.bytes) filter(where st.category='replay_css'),0)::bigint,
 				$2,$3
 			from storage_usage_run_sites rs
-			join sites s on s.id=rs.site_id and s.erased_at is null
+			join sites s on s.id=rs.site_id and s.erased_at is null and s.erasure_started_at is null
 			left join storage_usage_stage st on st.run_id=rs.run_id and st.site_id=rs.site_id
 			where rs.run_id=$1
 			group by rs.site_id
@@ -355,8 +366,8 @@ func (s *Store) Publish(ctx context.Context, runID int64, measuredAt time.Time) 
 		}
 		if _, err := tx.Exec(ctx, `
 			delete from site_storage_usage u
-			using storage_usage_run_sites rs,sites s
-			where rs.run_id=$1 and rs.site_id=s.id and s.erased_at is not null and u.site_id=rs.site_id`, runID); err != nil {
+			using sites s
+			where s.id=u.site_id and (s.erased_at is not null or s.erasure_started_at is not null)`); err != nil {
 			return fmt.Errorf("remove erased site snapshots: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `delete from storage_usage_stage where run_id=$1`, runID); err != nil {
