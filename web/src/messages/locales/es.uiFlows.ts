@@ -4,6 +4,7 @@ import type { MessageTree } from '@/lib/i18n/catalogue'
 // Keys, placeholders and function arguments must match English exactly; the catalogue test enforces it.
 const messages: MessageTree = {
   common: {
+    byteUnit: { b: 'B', kib: 'KiB', mib: 'MiB', gib: 'GiB', tib: 'TiB', pib: 'PiB' },
     cancel: 'Cancelar',
     close: 'Cerrar',
     copy: 'Copiar',
@@ -221,6 +222,8 @@ const messages: MessageTree = {
     storageDatabase: 'Base de datos',
     storageReplay: 'Repeticiones',
     storageDetails: (name: string, total: string) => `${name}, ${total}. Mostrar detalles de almacenamiento`,
+    storageAtLeast: (total: string) => `Al menos ${total}`,
+    storageUnmeasured: (count: number) => count === 1 ? 'Aún se está midiendo 1 sitio; el total crecerá cuando termine.' : `Aún se están midiendo ${count} sitios; el total crecerá cuando terminen.`,
     storageUpdated: (date: string) => `Actualizado ${date}`,
     storageEstimateNote: 'Estimación de las filas de base de datos y los archivos de repetición del sitio. Se excluye la sobrecarga compartida de la base de datos.',
     disableTitle: (email: string) => `¿Desactivar a ${email}?`,

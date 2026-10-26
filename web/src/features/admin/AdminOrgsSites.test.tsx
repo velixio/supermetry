@@ -109,6 +109,15 @@ describe('admin organizations', () => {
     expect(siteStorage).toHaveTextContent('3 MiB')
   })
 
+  it('shows a partial organization total as a lower bound with the unmeasured site count', async () => {
+    privateRequest.mockResolvedValue({ data: [{ ...organization, storage: { ...storage, unmeasured_sites: 2 } }] })
+    renderPage(<AdminOrganizationsPage />)
+    const trigger = await screen.findByRole('button', { name: 'Doomed Co, At least 3 MiB. Show storage details' })
+    expect(screen.queryByText('Calculating…')).not.toBeInTheDocument()
+    fireEvent.click(trigger)
+    expect(await screen.findByText(/2 sites are still being measured/)).toBeVisible()
+  })
+
   it('does not render missing organization storage as zero', async () => {
     privateRequest.mockResolvedValue({ data: [{ ...organization, storage: null }] })
     renderPage(<AdminOrganizationsPage />)

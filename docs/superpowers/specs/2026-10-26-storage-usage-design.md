@@ -110,7 +110,7 @@ Extend existing admin organization and site responses instead of adding live-cal
 }
 ```
 
-The `AdminSite` storage object carries the internal category breakdown, including in the existing organization-detail site list, so an administrator can diagnose growth without a new site-detail endpoint. Organization list/detail values are aggregated directly from all non-erased site snapshots, including restorable sites. If any included site has no snapshot, the organization storage object is null rather than a misleading partial total.
+The `AdminSite` storage object carries the internal category breakdown, including in the existing organization-detail site list, so an administrator can diagnose growth without a new site-detail endpoint. Organization list/detail values are aggregated directly from all non-erased site snapshots, including restorable sites. If some included sites have no snapshot yet (for example a site created after the run captured its sites), the total covers the measured sites and carries `unmeasured_sites` (the number still missing); the UI shows it as a lower bound ("At least X") with the count in the details. The object is null, shown as **Calculating…**, only while no included site has a snapshot. The organization-detail site list omits sites deleted on their own (matching `site_count`) and keeps the sites deleted together with their organization during its restore grace period.
 
 The OpenAPI document is the source of truth; generated Go and TypeScript clients are regenerated, not hand-edited.
 

@@ -10,11 +10,14 @@ export interface StorageUsageValue {
   replay_bytes: number
   measured_at: string
   measurement_version: number
+  unmeasured_sites?: number
 }
 
 export function StorageUsage({ name, storage }: { name: string; storage?: StorageUsageValue | null }) {
   if (!storage) return <span className="text-muted-foreground">{uiFlows.admin.storageCalculating}</span>
-  const total = fmt.bytes(storage.estimated_storage_bytes)
+  const partial = (storage.unmeasured_sites ?? 0) > 0
+  const measured = fmt.bytes(storage.estimated_storage_bytes)
+  const total = partial ? uiFlows.admin.storageAtLeast(measured) : measured
 
   return (
     <Popover>
@@ -31,6 +34,7 @@ export function StorageUsage({ name, storage }: { name: string; storage?: Storag
           <dt className="text-muted-foreground">{uiFlows.admin.storageReplay}</dt>
           <dd className="tabular-nums">{fmt.bytes(storage.replay_bytes)}</dd>
         </dl>
+        {partial && <p className="mt-3 text-xs text-muted-foreground">{uiFlows.admin.storageUnmeasured(storage.unmeasured_sites ?? 0)}</p>}
         <p className="mt-3 text-xs text-muted-foreground">{uiFlows.admin.storageUpdated(formatDate(storage.measured_at))}</p>
         <p className="mt-1 text-xs text-muted-foreground">{uiFlows.admin.storageEstimateNote}</p>
       </PopoverContent>
