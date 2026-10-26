@@ -256,25 +256,56 @@ func (o *Orgs) MembershipsFor(ctx context.Context, userID int64) ([]Membership, 
 	return memberships, nil
 }
 
+// Restore lets an owner bring back an organization they (or another owner)
+// deleted within the grace period.
 func (o *Orgs) Restore(ctx context.Context, userID int64, orgID int64, now time.Time) error {
+	return o.restore(ctx, userID, orgID, now, false)
+}
+
+// AdminRestore restores any deleted, not yet erased organization that is still
+// inside the grace period, whoever deleted it. It returns store.ErrNotFound for
+// an unknown or erased organization, ErrNotRestorable outside the grace period
+// or for a live organization, and ErrForbidden when the actor is not an active
+// instance admin.
+func (o *Orgs) AdminRestore(ctx context.Context, actorUserID int64, orgID int64, now time.Time) error {
+	return o.restore(ctx, actorUserID, orgID, now, true)
+}
+
+func (o *Orgs) restore(ctx context.Context, userID int64, orgID int64, now time.Time, asAdmin bool) error {
 	err := o.store.Tx(ctx, func(tx pgx.Tx) error {
+		if asAdmin {
+			if allowed, err := store.InstanceAdminActive(ctx, tx, userID); err != nil {
+				return err
+			} else if !allowed {
+				return ErrForbidden
+			}
+		}
 		var deletedAt *time.Time
 		var erasedAt *time.Time
 		if err := tx.QueryRow(ctx, `select deleted_at,erased_at from orgs where id=$1 for update`, orgID).Scan(&deletedAt, &erasedAt); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
+				if asAdmin {
+					return store.ErrNotFound
+				}
 				return ErrNotRestorable
 			}
 			return fmt.Errorf("lock organization for restore: %w", err)
 		}
-		var role Role
-		if err := tx.QueryRow(ctx, `select role from memberships where org_id=$1 and user_id=$2 for update`, orgID, userID).Scan(&role); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+		if asAdmin {
+			if erasedAt != nil {
+				return store.ErrNotFound
+			}
+		} else {
+			var role Role
+			if err := tx.QueryRow(ctx, `select role from memberships where org_id=$1 and user_id=$2 for update`, orgID, userID).Scan(&role); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return ErrForbidden
+				}
+				return fmt.Errorf("lock restoring owner membership: %w", err)
+			}
+			if role != RoleOwner {
 				return ErrForbidden
 			}
-			return fmt.Errorf("lock restoring owner membership: %w", err)
-		}
-		if role != RoleOwner {
-			return ErrForbidden
 		}
 		var scheduled bool
 		if err := tx.QueryRow(ctx, `
@@ -332,6 +363,11 @@ func (o *Orgs) Restore(ctx context.Context, userID int64, orgID int64, now time.
 			    deleted_with_org=false,deletion_notified_at=null,deletion_reminded_at=null
 			where org_id=$1 and deleted_with_org`, orgID); err != nil {
 			return fmt.Errorf("restore organization sites: %w", err)
+		}
+		if asAdmin {
+			return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
+				ActorUserID: userID, Action: "instance.organization.restored", TargetType: "organization", TargetID: orgID,
+			})
 		}
 		return audit.Write(ctx, tx, authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}, "organization.restored", "organization", orgID, nil)
 	})
