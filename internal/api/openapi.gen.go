@@ -1870,7 +1870,7 @@ type AdminOrganization struct {
 	SiteLimit       int        `json:"site_limit"`
 	Slug            string     `json:"slug"`
 
-	// Storage Complete published total for all non-erased sites, including restorable sites. Null while any included site has no snapshot.
+	// Storage Published total for the measured non-erased sites, including restorable sites. When some sites have no snapshot yet (for example a site created after the run started) the total covers the measured ones and unmeasured_sites says how many are missing. Null only while no included site has a snapshot.
 	Storage *AdminStorageUsage `json:"storage"`
 }
 
@@ -1902,7 +1902,7 @@ type AdminOrganizationDetail struct {
 	Sites           []AdminSite `json:"sites"`
 	Slug            string      `json:"slug"`
 
-	// Storage Complete published total for all non-erased sites, including restorable sites. Null while any included site has no snapshot.
+	// Storage Published total for the measured non-erased sites, including restorable sites. When some sites have no snapshot yet (for example a site created after the run started) the total covers the measured ones and unmeasured_sites says how many are missing. Null only while no included site has a snapshot.
 	Storage *AdminStorageUsage `json:"storage"`
 }
 
@@ -1976,6 +1976,9 @@ type AdminStorageUsage struct {
 	MeasuredAt            time.Time `json:"measured_at"`
 	MeasurementVersion    int       `json:"measurement_version"`
 	ReplayBytes           int64     `json:"replay_bytes"`
+
+	// UnmeasuredSites Number of included sites without a snapshot yet. Present only when positive, meaning the total is at least this value.
+	UnmeasuredSites *int64 `json:"unmeasured_sites,omitempty"`
 }
 
 // AdminTwoFactorExemption defines model for AdminTwoFactorExemption.

@@ -80,6 +80,9 @@ type StorageUsage struct {
 	AuxiliaryBytes        *int64    `json:"auxiliary_bytes,omitempty"`
 	ReplayRecordingBytes  *int64    `json:"replay_recording_bytes,omitempty"`
 	ReplayCSSBytes        *int64    `json:"replay_css_bytes,omitempty"`
+	// UnmeasuredSites is set on organization totals that cover only the
+	// measured sites; zero means the total is complete.
+	UnmeasuredSites int64 `json:"unmeasured_sites,omitempty"`
 }
 
 type Settings struct {
@@ -170,7 +173,7 @@ func (s *Service) ListOrganizations(ctx context.Context, search string, limit, s
 	for rows.Next() {
 		var item Organization
 		storage, targets := storageScanTargets(false)
-		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount, &item.DeletedAt, &item.DeletedByKind, &item.DeletedByUserID, &item.DeletedByName, targets[0], targets[1], targets[2], targets[3], targets[4]); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount, &item.DeletedAt, &item.DeletedByKind, &item.DeletedByUserID, &item.DeletedByName, targets[0], targets[1], targets[2], targets[3], targets[4], targets[5]); err != nil {
 			return nil, err
 		}
 		item.Storage = storage.value()
@@ -190,7 +193,7 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 	err := s.store.Pool.QueryRow(ctx, getOrganizationSQL, id).Scan(
 		&detail.ID, &detail.Name, &detail.Slug, &detail.MemberCount, &detail.SiteCount,
 		&detail.DeletedAt, &detail.DeletedByKind, &detail.DeletedByUserID, &detail.DeletedByName,
-		targets[0], targets[1], targets[2], targets[3], targets[4],
+		targets[0], targets[1], targets[2], targets[3], targets[4], targets[5],
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return OrganizationDetail{}, ErrNotFound
@@ -257,29 +260,36 @@ func scanSites(rows pgx.Rows) ([]Site, error) {
 	return items, rows.Err()
 }
 
+// organizationStorageLateralSQL totals the measured sites of an organization.
+// A site without a snapshot (for example one created after the run captured its
+// sites) does not hide the others: the total covers the measured sites and
+// unmeasured_sites says how many are still missing. The total is null only when
+// no included site has a snapshot yet, or when snapshots disagree on their
+// generation, which publication never produces.
 const organizationStorageLateralSQL = `
 	left join lateral (
 		select
 			case
 				when count(owned_site.id)=0 and max(generation.completed_at) is not null then 0
-				when count(owned_site.id)>0 and count(u.site_id)=count(owned_site.id) and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.estimated_storage_bytes)
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.estimated_storage_bytes)
 			end estimated_storage_bytes,
 			case
 				when count(owned_site.id)=0 and max(generation.completed_at) is not null then 0
-				when count(owned_site.id)>0 and count(u.site_id)=count(owned_site.id) and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.database_bytes)
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.database_bytes)
 			end database_bytes,
 			case
 				when count(owned_site.id)=0 and max(generation.completed_at) is not null then 0
-				when count(owned_site.id)>0 and count(u.site_id)=count(owned_site.id) and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.replay_bytes)
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then sum(u.replay_bytes)
 			end replay_bytes,
 			case
 				when count(owned_site.id)=0 then max(generation.completed_at)
-				when count(u.site_id)=count(owned_site.id) and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then min(u.measured_at)
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then min(u.measured_at)
 			end measured_at,
 			case
 				when count(owned_site.id)=0 then max(generation.measurement_version)
-				when count(u.site_id)=count(owned_site.id) and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then min(u.measurement_version)
-			end measurement_version
+				when count(u.site_id)>0 and count(distinct u.measured_at)=1 and count(distinct u.measurement_version)=1 then min(u.measurement_version)
+			end measurement_version,
+			(count(owned_site.id)-count(u.site_id))::bigint unmeasured_sites
 		from (values (true)) singleton(present)
 		left join lateral (
 			select completed_at,measurement_version
@@ -297,7 +307,7 @@ const listOrganizationsSQL = `
 	       (select count(*) from memberships m where m.org_id=o.id),
 	       (select count(*) from sites counted_site where counted_site.org_id=o.id and (counted_site.deleted_at is null or (counted_site.deleted_with_org and counted_site.erased_at is null))),
 	       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,''),
-	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version
+	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version,storage.unmeasured_sites
 	from orgs o
 	left join users deleted_by on deleted_by.id=o.deleted_by_user_id
 ` + organizationStorageLateralSQL + `
@@ -309,7 +319,7 @@ const getOrganizationSQL = `
 	       (select count(*) from memberships m where m.org_id=o.id),
 	       (select count(*) from sites counted_site where counted_site.org_id=o.id and (counted_site.deleted_at is null or (counted_site.deleted_with_org and counted_site.erased_at is null))),
 	       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,''),
-	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version
+	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version,storage.unmeasured_sites
 	from orgs o
 	left join users deleted_by on deleted_by.id=o.deleted_by_user_id
 ` + organizationStorageLateralSQL + `
@@ -339,7 +349,7 @@ const getOrganizationSitesSQL = `
 	join orgs o on o.id=s.org_id
 	left join site_last_event e on e.site_id=s.id
 	left join site_storage_usage u on u.site_id=s.id
-	where s.org_id=$1 and s.erased_at is null
+	where s.org_id=$1 and s.erased_at is null and (s.deleted_at is null or s.deleted_with_org)
 	order by s.id limit $2`
 
 type nullableStorageUsage struct {
@@ -353,11 +363,15 @@ type nullableStorageUsage struct {
 	auxiliaryBytes        *int64
 	replayRecordingBytes  *int64
 	replayCSSBytes        *int64
+	unmeasuredSites       int64
 }
 
 func storageScanTargets(site bool) (*nullableStorageUsage, []any) {
 	storage := &nullableStorageUsage{}
 	targets := []any{&storage.estimatedStorageBytes, &storage.databaseBytes, &storage.replayBytes, &storage.measuredAt, &storage.measurementVersion}
+	if !site {
+		targets = append(targets, &storage.unmeasuredSites)
+	}
 	if site {
 		targets = append(targets, &storage.hotBytes, &storage.retainedBytes, &storage.auxiliaryBytes, &storage.replayRecordingBytes, &storage.replayCSSBytes)
 	}
@@ -379,6 +393,7 @@ func (s *nullableStorageUsage) value() *StorageUsage {
 		AuxiliaryBytes:        s.auxiliaryBytes,
 		ReplayRecordingBytes:  s.replayRecordingBytes,
 		ReplayCSSBytes:        s.replayCSSBytes,
+		UnmeasuredSites:       s.unmeasuredSites,
 	}
 }
 

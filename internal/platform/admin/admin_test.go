@@ -164,6 +164,9 @@ func TestOrganizationStorageAggregatesAllNonErasedSites(t *testing.T) {
 	insertAdminTestSite(t, data, unknownOrg, "storage00006", "Missing")
 	insertAdminTestStorage(t, data, known, [5]int64{7, 8, 9, 10, 11}, measuredAt, 1)
 
+	nothingOrg := insertAdminTestOrg(t, data, "Nothing", "storage-nothing")
+	insertAdminTestSite(t, data, nothingOrg, "storage00008", "Nothing yet")
+
 	foreignOrg := insertAdminTestOrg(t, data, "Foreign", "storage-foreign")
 	foreign := insertAdminTestSite(t, data, foreignOrg, "storage00007", "Foreign")
 	insertAdminTestStorage(t, data, foreign, [5]int64{100, 200, 300, 400, 500}, measuredAt, 1)
@@ -183,8 +186,17 @@ func TestOrganizationStorageAggregatesAllNonErasedSites(t *testing.T) {
 	if complete.EstimatedStorageBytes != 165 || complete.DatabaseBytes != 66 || complete.ReplayBytes != 99 || !complete.MeasuredAt.Equal(measuredAt) {
 		t.Fatalf("complete organization storage = %+v", complete)
 	}
-	if byID[unknownOrg].Storage != nil {
-		t.Fatalf("organization with a missing site snapshot storage = %+v, want nil", byID[unknownOrg].Storage)
+	// A site created after the run's site capture has no snapshot yet; the
+	// measured sites are still totalled and the total is flagged as partial.
+	partial := byID[unknownOrg].Storage
+	if partial == nil || partial.EstimatedStorageBytes != 45 || partial.UnmeasuredSites != 1 || !partial.MeasuredAt.Equal(measuredAt) {
+		t.Fatalf("partially measured organization storage = %+v, want 45 bytes with 1 unmeasured site", partial)
+	}
+	if complete.UnmeasuredSites != 0 {
+		t.Fatalf("complete organization unmeasured sites = %d, want 0", complete.UnmeasuredSites)
+	}
+	if byID[nothingOrg].Storage != nil {
+		t.Fatalf("organization with no snapshot at all storage = %+v, want nil (Calculating)", byID[nothingOrg].Storage)
 	}
 	if got := byID[foreignOrg].Storage; got == nil || got.EstimatedStorageBytes != 1500 {
 		t.Fatalf("foreign organization storage = %+v, want isolated total 1500", got)
@@ -196,6 +208,13 @@ func TestOrganizationStorageAggregatesAllNonErasedSites(t *testing.T) {
 	}
 	if detail.Storage == nil || detail.Storage.EstimatedStorageBytes != 165 {
 		t.Fatalf("organization detail storage = %+v, want 165", detail.Storage)
+	}
+	partialDetail, err := service.GetOrganization(ctx, unknownOrg, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if partialDetail.Storage == nil || partialDetail.Storage.EstimatedStorageBytes != 45 || partialDetail.Storage.UnmeasuredSites != 1 {
+		t.Fatalf("partial organization detail storage = %+v, want 45 with 1 unmeasured", partialDetail.Storage)
 	}
 }
 
@@ -358,4 +377,26 @@ func newFixture(t *testing.T) (*Service, *store.Store, int64, int64) {
 		t.Fatal(err)
 	}
 	return New(data), data, actorID, memberID
+}
+
+func TestGetOrganizationOmitsIndividuallyDeletedSites(t *testing.T) {
+	service, data, _, _ := newFixture(t)
+	ctx := context.Background()
+	orgID := insertAdminTestOrg(t, data, "Live org", "detail-live")
+	live := insertAdminTestSite(t, data, orgID, "livesite0001", "Live")
+	removed := insertAdminTestSite(t, data, orgID, "gonesite0001", "Deleted on its own")
+	if _, err := data.Pool.Exec(ctx, `update sites set deleted_at=now() where id=$1`, removed); err != nil {
+		t.Fatal(err)
+	}
+
+	detail, err := service.GetOrganization(ctx, orgID, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Sites) != 1 || detail.Sites[0].ID != live {
+		t.Fatalf("detail sites = %+v, want only live site %d (site_count=%d)", detail.Sites, live, detail.SiteCount)
+	}
+	if int64(len(detail.Sites)) != detail.SiteCount {
+		t.Fatalf("listed sites %d != site_count %d", len(detail.Sites), detail.SiteCount)
+	}
 }

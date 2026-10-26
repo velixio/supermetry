@@ -2800,7 +2800,7 @@ export interface components {
             deleted_by_user_id?: number;
             /** @description Current display name of the user that initiated deletion. */
             deleted_by_name?: string;
-            /** @description Complete published total for all non-erased sites, including restorable sites. Null while any included site has no snapshot. */
+            /** @description Published total for the measured non-erased sites, including restorable sites. When some sites have no snapshot yet (for example a site created after the run started) the total covers the measured ones and unmeasured_sites says how many are missing. Null only while no included site has a snapshot. */
             storage: components["schemas"]["AdminStorageUsage"] | null;
         };
         AdminOrganizationsResponse: {
@@ -2840,6 +2840,11 @@ export interface components {
             /** Format: date-time */
             measured_at: string;
             measurement_version: number;
+            /**
+             * Format: int64
+             * @description Number of included sites without a snapshot yet. Present only when positive, meaning the total is at least this value.
+             */
+            unmeasured_sites?: number;
         };
         AdminSiteStorageUsage: {
             /** Format: int64 */
