@@ -284,18 +284,38 @@ func (h *handler) finishPasswordReset(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Token    string `json:"token"`
 		Password string `json:"password"`
+		// SignIn asks to be signed in with the new password. Without it, or
+		// when the user must use a second factor, the answer stays 204.
+		SignIn bool `json:"sign_in,omitempty"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	if err := h.deps.Auth.FinishReset(r.Context(), request.Token, request.Password); err != nil {
+	var session string
+	var err error
+	if request.SignIn {
+		session, err = h.deps.Auth.FinishResetSignIn(r.Context(), request.Token, request.Password, "")
+	} else {
+		err = h.deps.Auth.FinishReset(r.Context(), request.Token, request.Password)
+	}
+	if err != nil {
 		if writePasswordPolicyProblem(w, err) {
 			return
 		}
 		writeProblem(w, http.StatusBadRequest, "Bad request", "the reset token is invalid or expired")
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	if session == "" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	csrfToken, err := randomCookieToken()
+	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal server error", "the request could not be completed")
+		return
+	}
+	h.setAuthCookies(w, r, session, csrfToken)
+	writeJSON(w, http.StatusOK, map[string]bool{"authenticated": true})
 }
 
 func (h *handler) setup(w http.ResponseWriter, r *http.Request) {

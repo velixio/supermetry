@@ -49,12 +49,29 @@ func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
 	return "", nil
 }
 
+// FinishReset sets a new password from a reset token and ends every session
+// of the user.
 func (a *Auth) FinishReset(ctx context.Context, token, newPassword string) error {
+	_, err := a.finishReset(ctx, token, newPassword, false, "")
+	return err
+}
+
+// FinishResetSignIn is FinishReset that also signs the user in: the one-time
+// link proves the mailbox, so the new password need not be typed again. It
+// returns the new session token. It returns "" with a nil error, after the
+// password has been set, when the user must sign in the normal way: a second
+// factor is enrolled, the account is disabled, or the instance's two-factor
+// policy applies.
+func (a *Auth) FinishResetSignIn(ctx context.Context, token, newPassword, deviceLabel string) (string, error) {
+	return a.finishReset(ctx, token, newPassword, true, deviceLabel)
+}
+
+func (a *Auth) finishReset(ctx context.Context, token, newPassword string, signIn bool, deviceLabel string) (string, error) {
 	if newPassword == "" {
-		return ErrInvalid
+		return "", ErrInvalid
 	}
 	if err := platformcrypto.ValidateNewPassword(newPassword); err != nil {
-		return err
+		return "", err
 	}
 	tokenHash := platformcrypto.HashToken(token)
 	now := a.clock.Now()
@@ -63,16 +80,17 @@ func (a *Auth) FinishReset(ctx context.Context, token, newPassword string) error
 		select user_id from password_resets
 		where token_hash=$1 and used_at is null and expires_at>$2`, tokenHash, now).Scan(&candidateUserID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrInvalid
+		return "", ErrInvalid
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	passwordHash, err := platformcrypto.HashPassword(newPassword)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return a.store.Tx(ctx, func(tx pgx.Tx) error {
+	var session string
+	err = a.store.Tx(ctx, func(tx pgx.Tx) error {
 		var userID int64
 		err := tx.QueryRow(ctx, `
 			update password_resets
@@ -91,7 +109,33 @@ func (a *Auth) FinishReset(ctx context.Context, token, newPassword string) error
 		if _, err := tx.Exec(ctx, `update users set password_hash=$2,password_reset_required=false where id=$1`, userID, passwordHash); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `delete from user_sessions where user_id=$1`, userID)
-		return err
+		if _, err := tx.Exec(ctx, `delete from user_sessions where user_id=$1`, userID); err != nil {
+			return err
+		}
+		if !signIn {
+			return nil
+		}
+		var totpEnabled bool
+		var disabledAt *time.Time
+		if err := tx.QueryRow(ctx, `select totp_enabled,disabled_at from users where id=$1`, userID).Scan(&totpEnabled, &disabledAt); err != nil {
+			return err
+		}
+		if totpEnabled || disabledAt != nil {
+			return nil
+		}
+		if a.policy != nil {
+			if _, _, err := a.policy.RequiresTwoFactorSetup(ctx, userID, now); err != nil {
+				return nil
+			}
+		}
+		session, err = createSession(ctx, tx, userID, deviceLabel, now)
+		if err != nil {
+			return err
+		}
+		return writeUserAudits(ctx, tx, userID, "auth.login")
 	})
+	if err != nil {
+		return "", err
+	}
+	return session, nil
 }

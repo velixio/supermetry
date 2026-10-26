@@ -641,3 +641,72 @@ func codeFor(t *testing.T, rawURL string, now time.Time) string {
 	}
 	return code
 }
+
+func TestFinishResetSignInIssuesSessionAndEndsOldOnes(t *testing.T) {
+	env := newAuth(t)
+	uid := createUser(t, env, "u@example.test", "old-password-1")
+	oldSession, err := env.a.Login(ctx, "u@example.test", "old-password-1", "", "old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	link, err := env.a.StartReset(ctx, "u@example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := tokenFrom(t, link)
+	session, err := env.a.FinishResetSignIn(ctx, token, "new-password-1", "browser")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session == "" {
+		t.Fatal("no session issued for a user without a second factor")
+	}
+	if s, ok := env.a.Session(ctx, session); !ok || s.UserID != uid {
+		t.Fatalf("new session = %+v, ok %v", s, ok)
+	}
+	if _, ok := env.a.Session(ctx, oldSession); ok {
+		t.Fatal("a session from before the reset survived")
+	}
+	if _, err := env.a.Login(ctx, "u@example.test", "new-password-1", "", "x"); err != nil {
+		t.Fatalf("new password rejected: %v", err)
+	}
+	if _, err := env.a.FinishResetSignIn(ctx, token, "again-password", "browser"); !errors.Is(err, auth.ErrInvalid) {
+		t.Fatalf("reset token reused: %v", err)
+	}
+}
+
+func TestFinishResetSignInSkipsUsersWithASecondFactor(t *testing.T) {
+	env := newAccountEnv(t)
+	uid, _, _ := enrollTestTOTP(t, env, "totp@example.test")
+	if _, err := env.a.StartReset(ctx, "totp@example.test"); err != nil {
+		t.Fatal(err)
+	}
+	text := env.mailer.Sent[len(env.mailer.Sent)-1].Text
+	token := tokenFrom(t, text[strings.LastIndex(text, "\n")+1:])
+	session, err := env.a.FinishResetSignIn(ctx, token, "new-password-1", "browser")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session != "" {
+		t.Fatal("a session was issued without the second factor")
+	}
+	sessions, err := env.a.Sessions(ctx, uid)
+	if err != nil || len(sessions) != 0 {
+		t.Fatalf("sessions after reset = %v, %v", sessions, err)
+	}
+	if _, err := env.a.Login(ctx, "totp@example.test", "new-password-1", "", "x"); !errors.Is(err, auth.ErrTOTPRequired) {
+		t.Fatalf("password changed but login did not ask for the code: %v", err)
+	}
+}
+
+func TestFinishResetSignInRejectsWeakPassword(t *testing.T) {
+	env := newAuth(t)
+	createUser(t, env, "u@example.test", "old-password-1")
+	link, err := env.a.StartReset(ctx, "u@example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.a.FinishResetSignIn(ctx, tokenFrom(t, link), "short", "browser"); !errors.Is(err, platformcrypto.ErrPasswordTooShort) {
+		t.Fatalf("error = %v, want ErrPasswordTooShort", err)
+	}
+}
