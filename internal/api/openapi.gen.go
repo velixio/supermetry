@@ -648,16 +648,16 @@ func (e IntegrationConnectionStatus) Valid() bool {
 
 // Defines values for LifecycleErrorError.
 const (
-	InvalidName   LifecycleErrorError = "invalid_name"
-	NotRestorable LifecycleErrorError = "not_restorable"
+	LifecycleErrorErrorInvalidName   LifecycleErrorError = "invalid_name"
+	LifecycleErrorErrorNotRestorable LifecycleErrorError = "not_restorable"
 )
 
 // Valid indicates whether the value is a known member of the LifecycleErrorError enum.
 func (e LifecycleErrorError) Valid() bool {
 	switch e {
-	case InvalidName:
+	case LifecycleErrorErrorInvalidName:
 		return true
-	case NotRestorable:
+	case LifecycleErrorErrorNotRestorable:
 		return true
 	default:
 		return false
@@ -1555,6 +1555,24 @@ func (e VitalsDimension) Valid() bool {
 	}
 }
 
+// Defines values for AdminRestoreOrganization409JSONResponseBodyError.
+const (
+	AdminRestoreOrganization409JSONResponseBodyErrorNotRestorable AdminRestoreOrganization409JSONResponseBodyError = "not_restorable"
+	AdminRestoreOrganization409JSONResponseBodyErrorSiteLimit     AdminRestoreOrganization409JSONResponseBodyError = "site_limit"
+)
+
+// Valid indicates whether the value is a known member of the AdminRestoreOrganization409JSONResponseBodyError enum.
+func (e AdminRestoreOrganization409JSONResponseBodyError) Valid() bool {
+	switch e {
+	case AdminRestoreOrganization409JSONResponseBodyErrorNotRestorable:
+		return true
+	case AdminRestoreOrganization409JSONResponseBodyErrorSiteLimit:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminSetSiteRetentionJSONBodyRetentionDays.
 const (
 	AdminSetSiteRetentionJSONBodyRetentionDaysN0   AdminSetSiteRetentionJSONBodyRetentionDays = 0
@@ -1805,14 +1823,19 @@ type AdminOrganization struct {
 
 // AdminOrganizationDetail defines model for AdminOrganizationDetail.
 type AdminOrganizationDetail struct {
+	// DeletedAt Set while the organization is deleted.
+	DeletedAt   *time.Time  `json:"deleted_at,omitempty"`
 	Id          int64       `json:"id"`
 	MemberCount int64       `json:"member_count"`
 	Members     []AdminUser `json:"members"`
 	Name        string      `json:"name"`
-	SiteCount   int64       `json:"site_count"`
-	SiteLimit   int         `json:"site_limit"`
-	Sites       []AdminSite `json:"sites"`
-	Slug        string      `json:"slug"`
+
+	// RestorableUntil End of the restore grace period
+	RestorableUntil *time.Time  `json:"restorable_until,omitempty"`
+	SiteCount       int64       `json:"site_count"`
+	SiteLimit       int         `json:"site_limit"`
+	Sites           []AdminSite `json:"sites"`
+	Slug            string      `json:"slug"`
 }
 
 // AdminOrganizationsResponse defines model for AdminOrganizationsResponse.
@@ -4077,6 +4100,9 @@ type AdminListOrganizationsParams struct {
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// AdminRestoreOrganization409JSONResponseBodyError defines parameters for AdminRestoreOrganization.
+type AdminRestoreOrganization409JSONResponseBodyError string
+
 // AdminListSitesParams defines parameters for AdminListSites.
 type AdminListSitesParams struct {
 	Search *string     `form:"search,omitempty" json:"search,omitempty"`
@@ -5118,6 +5144,9 @@ type ServerInterface interface {
 	// AdminGetOrganization Get an organization with its members, sites and quota
 	// (GET /api/private/admin/organizations/{org})
 	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminRestoreOrganization Restore a deleted organization within the deletion grace period
+	// (POST /api/private/admin/organizations/{org}/restore)
+	AdminRestoreOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminDeleteTwoFactorExemption Remove a user's two-factor exemption
 	// (DELETE /api/private/admin/security/2fa-exemptions/{user})
 	AdminDeleteTwoFactorExemption(w http.ResponseWriter, r *http.Request, user AdminUserID)
@@ -6154,6 +6183,32 @@ func (siw *ServerInterfaceWrapper) AdminGetOrganization(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminGetOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminRestoreOrganization operation middleware
+func (siw *ServerInterfaceWrapper) AdminRestoreOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminRestoreOrganization(w, r, org)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11525,6 +11580,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminDeleteOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminGetOrganization)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/organizations/{org}/restore", wrapper.AdminRestoreOrganization)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/sites", wrapper.AdminListSites)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/sites/{site_id}", wrapper.AdminSetSiteRetention)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminGetSettings)

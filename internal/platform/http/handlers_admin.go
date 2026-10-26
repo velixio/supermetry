@@ -11,6 +11,7 @@ import (
 	"supermetry/internal/platform/admin"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
+	"supermetry/internal/platform/orgs"
 	"supermetry/internal/platform/store"
 )
 
@@ -253,6 +254,38 @@ func (h *handler) adminDeleteOrganization(w http.ResponseWriter, r *http.Request
 			return
 		}
 		serviceError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) adminRestoreOrganization(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.adminPrincipal(w, r)
+	if !ok {
+		return
+	}
+	orgID, ok := adminID(r, "org")
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "organization is invalid")
+		return
+	}
+	if h.deps.Orgs == nil {
+		unavailable(w, "organization")
+		return
+	}
+	if err := h.deps.Orgs.AdminRestore(r.Context(), principal.UserID, orgID, h.deps.Now()); err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			writeProblem(w, http.StatusNotFound, "Not found", "resource not found")
+		case errors.Is(err, orgs.ErrForbidden):
+			writeProblem(w, http.StatusForbidden, "Forbidden", "instance administration is required")
+		case errors.Is(err, orgs.ErrNotRestorable):
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "not_restorable"})
+		case errors.Is(err, orgs.ErrSiteLimit):
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "site_limit"})
+		default:
+			serviceError(w, err)
+		}
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

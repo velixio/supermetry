@@ -83,7 +83,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get an organization with its members, sites and quota */
+        /**
+         * Get an organization with its members, sites and quota
+         * @description Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404.
+         */
         get: operations["adminGetOrganization"];
         put?: never;
         post?: never;
@@ -92,6 +95,26 @@ export interface paths {
          * @description Tombstones the organization and its sites; the owner can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
          */
         delete: operations["adminDeleteOrganization"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/organizations/{org}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a deleted organization within the deletion grace period
+         * @description Restores an organization that is deleted, not erased and still inside the 7-day grace period, whoever deleted it, with its sites. Audited as instance.organization.restored. Returns 404 for an unknown or erased organization, and 409 not_restorable outside the grace period or when the organization is not deleted, or site_limit when restoring would exceed the site limit.
+         */
+        post: operations["adminRestoreOrganization"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2780,6 +2803,16 @@ export interface components {
         AdminOrganizationDetail: components["schemas"]["AdminOrganization"] & {
             members: components["schemas"]["AdminUser"][];
             sites: components["schemas"]["AdminSite"][];
+            /**
+             * Format: date-time
+             * @description Set while the organization is deleted.
+             */
+            deleted_at?: string;
+            /**
+             * Format: date-time
+             * @description End of the restore grace period
+             */
+            restorable_until?: string;
         };
         AdminSettings: {
             /** @enum {string} */
@@ -4973,6 +5006,42 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminRestoreOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization restored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict: error is not_restorable or site_limit. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        error: "not_restorable" | "site_limit";
+                    };
+                };
+            };
             429: components["responses"]["RateLimited"];
         };
     };

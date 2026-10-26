@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"supermetry/internal/platform/lifecycle"
 	"supermetry/internal/platform/store"
 )
 
@@ -46,6 +47,10 @@ type OrganizationDetail struct {
 	Organization
 	Members []User `json:"members"`
 	Sites   []Site `json:"sites"`
+	// DeletedAt and RestorableUntil describe an organization in its restore
+	// grace period; both are absent for a live organization.
+	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
+	RestorableUntil *time.Time `json:"restorable_until,omitempty"`
 }
 
 type Site struct {
@@ -164,9 +169,11 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 	err := s.store.Pool.QueryRow(ctx, `
 		select o.id,o.name,o.slug,
 		       (select count(*) from memberships m where m.org_id=o.id),
-		       (select count(*) from sites s where s.org_id=o.id and s.deleted_at is null)
-		from orgs o where o.id=$1 and o.deleted_at is null`, id).Scan(
+		       (select count(*) from sites s where s.org_id=o.id and (s.deleted_at is null or (s.deleted_with_org and s.erased_at is null))),
+		       o.deleted_at
+		from orgs o where o.id=$1 and o.erased_at is null`, id).Scan(
 		&detail.ID, &detail.Name, &detail.Slug, &detail.MemberCount, &detail.SiteCount,
+		&detail.DeletedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return OrganizationDetail{}, ErrNotFound
@@ -175,6 +182,10 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 		return OrganizationDetail{}, err
 	}
 	detail.SiteLimit = siteLimit
+	if detail.DeletedAt != nil {
+		until := lifecycle.PurgeAt(*detail.DeletedAt)
+		detail.RestorableUntil = &until
+	}
 	users, err := s.ListUsers(ctx, "", MaxListLimit)
 	if err != nil {
 		return OrganizationDetail{}, err

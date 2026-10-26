@@ -19,6 +19,10 @@ The key authenticates `/api/private/admin/*` only. It acts as a hidden system us
 
 `DELETE /api/private/admin/organizations/{org}` deletes an organization the same way an owner delete does: it can be restored for 7 days and the notice emails are sent. Organizations that hold only demo data, or nothing, are erased at once.
 
+The owner can restore it, and an instance admin can too: `POST /api/private/admin/organizations/{org}/restore` restores any deleted, not yet erased organization inside the 7-day grace period, whoever deleted it, and returns `204`. It answers `404` for an unknown or erased organization, `409 {"error":"not_restorable"}` outside the grace period or when the organization is not deleted, and `409 {"error":"site_limit"}` when the restored sites would exceed the site limit. It is audited as `instance.organization.restored`.
+
+`GET /api/private/admin/organizations/{org}` also returns an organization in its grace period, with `deleted_at` and `restorable_until` set; erased organizations are `404`.
+
 ## Set site retention
 
 `PATCH /api/private/admin/sites/{site_id}` with `{"retention_days": 30}` sets how long raw data is kept. Allowed values are `0`, `7`, `30`, `90` and `365`.

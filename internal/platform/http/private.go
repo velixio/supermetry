@@ -259,6 +259,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/admin/organizations", h.adminListOrganizations)
 	mux.HandleFunc("GET /api/private/admin/organizations/{org}", h.adminGetOrganization)
 	mux.HandleFunc("DELETE /api/private/admin/organizations/{org}", h.adminDeleteOrganization)
+	mux.HandleFunc("POST /api/private/admin/organizations/{org}/restore", h.adminRestoreOrganization)
 	mux.HandleFunc("GET /api/private/admin/sites", h.adminListSites)
 	mux.HandleFunc("PATCH /api/private/admin/sites/{site_id}", h.adminSetSiteRetention)
 	mux.HandleFunc("GET /api/private/admin/settings", h.adminGetSettings)
