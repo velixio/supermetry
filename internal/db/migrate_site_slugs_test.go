@@ -44,10 +44,10 @@ func TestSiteSlugMigrationBackfillsAndKeepsSlugsUniquePerOrganization(t *testing
 		want   string
 		delete bool
 	}{
-		{1, "legacy000001", "Main", "array['www.supermetry.com']", "example-com", false},
-		{1, "legacy000002", "Copy", "array['supermetry.com']", "example-com-2", false},
-		{2, "legacy000003", "Other org", "array['supermetry.com']", "example-com", false},
-		{1, "legacy000004", "Wildcard", "array['*.shop.supermetry.com']", "shop-example-com", false},
+		{1, "legacy000001", "Main", "array['www.supermetry.com']", "supermetry-com", false},
+		{1, "legacy000002", "Copy", "array['supermetry.com']", "supermetry-com-2", false},
+		{2, "legacy000003", "Other org", "array['supermetry.com']", "supermetry-com", false},
+		{1, "legacy000004", "Wildcard", "array['*.shop.supermetry.com']", "shop-supermetry-com", false},
 		{1, "legacy000005", "Twelve", "array['abcdefghijkl']", "abcdefghijkl-site", false},
 		{1, "legacy000006", "Docs", "'{}'::text[]", "docs", false},
 		{1, "legacy000007", "Reserved", "array['settings']", "settings-site", false},
@@ -85,7 +85,7 @@ func TestSiteSlugMigrationBackfillsAndKeepsSlugsUniquePerOrganization(t *testing
 	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00002','New 2',array['blog.example.com'],'UTC',30) returning slug`).Scan(&second); err != nil {
 		t.Fatal(err)
 	}
-	if created != "blog-example-org" || second != "blog-example-org-2" {
+	if created != "blog-example-com" || second != "blog-example-com-2" {
 		t.Fatalf("new slugs=%q,%q", created, second)
 	}
 
@@ -95,7 +95,7 @@ func TestSiteSlugMigrationBackfillsAndKeepsSlugsUniquePerOrganization(t *testing
 			t.Errorf("slug %q was accepted", bad)
 		}
 	}
-	if _, err := pool.Exec(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class,slug) values(2,'dupslug00001','Dup','{}','UTC',30,'blog-example-org')`); err == nil {
+	if _, err := pool.Exec(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class,slug) values(2,'dupslug00001','Dup','{}','UTC',30,'blog-example-com')`); err == nil {
 		t.Error("a duplicate slug in one organization was accepted")
 	}
 
@@ -107,14 +107,14 @@ func TestSiteSlugMigrationBackfillsAndKeepsSlugsUniquePerOrganization(t *testing
 	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class) values(2,'created00003','Again',array['blog.example.com'],'UTC',30) returning slug`).Scan(&reused); err != nil {
 		t.Fatal(err)
 	}
-	if reused != "blog-example-org" {
+	if reused != "blog-example-com" {
 		t.Fatalf("slug of a deleted site was not freed: got %q", reused)
 	}
 	var restored string
 	if err := pool.QueryRow(ctx, `update sites set deleted_at=null where public_id='created00001' returning slug`).Scan(&restored); err != nil {
 		t.Fatal(err)
 	}
-	if restored == "blog-example-org" || restored == "" {
+	if restored == "blog-example-com" || restored == "" {
 		t.Fatalf("restored site kept a slug a live site holds: %q", restored)
 	}
 }
