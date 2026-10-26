@@ -71,7 +71,17 @@ describe('reset password', () => {
     expect(await screen.findByRole('button', { name: 'Saving password…' })).toBeDisabled()
     await act(async () => resolve({ ok: true }))
     expect(onDone).toHaveBeenCalledTimes(1)
+    expect(onDone).toHaveBeenCalledWith(false)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('tells the route when the reset also signed the user in', async () => {
+    const submit = vi.fn().mockResolvedValue({ ok: true, signedIn: true })
+    const onDone = vi.fn()
+    renderWithRouter(<ResetPasswordForm submit={submit} onDone={onDone} />)
+    fireEvent.change(await screen.findByLabelText('New password'), { target: { value: 'new-password-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reset password' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(true))
   })
 
   it('offers a new link when the token is spent', async () => {

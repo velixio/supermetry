@@ -7,7 +7,7 @@ export type LoginCredentials = {
   totp?: string
 }
 
-export type LoginResult = { ok: boolean; problem?: ApiProblem; type?: string }
+export type LoginResult = { ok: boolean; problem?: ApiProblem; type?: string; signedIn?: boolean }
 export type SignupMode = 'open' | 'invite'
 export type AuthConfig = {
   signup: SignupMode
@@ -31,11 +31,23 @@ async function request(path: string, init: RequestInit, fetcher = globalThis.fet
 }
 
 export function createAuthApi(fetcher = globalThis.fetch) {
-  return async (path: string, body: Record<string, string>): Promise<LoginResult> => {
+  return async (path: string, body: Record<string, string | boolean>): Promise<LoginResult> => {
     const response = await request(path, { method: 'POST', body: JSON.stringify(body) }, fetcher)
-    if (response.ok) return { ok: true }
+    if (response.ok) return { ok: true, signedIn: await responseSignedIn(response) }
     const problem = await readApiProblem(response)
     return { ok: false, problem, type: problem.type }
+  }
+}
+
+// A 200 with {"authenticated":true} means the server also opened a session
+// (password reset with sign_in); a 204 or any other body means it did not.
+async function responseSignedIn(response: Response): Promise<boolean> {
+  if (response.status !== 200) return false
+  try {
+    const body = (await response.json()) as { authenticated?: boolean }
+    return body.authenticated === true
+  } catch {
+    return false
   }
 }
 
@@ -47,7 +59,7 @@ export function createAuthConfigApi(fetcher = globalThis.fetch) {
   }
 }
 
-export async function postPrivate(path: string, body: Record<string, string>) {
+export async function postPrivate(path: string, body: Record<string, string | boolean>) {
   return createAuthApi()(path, body)
 }
 

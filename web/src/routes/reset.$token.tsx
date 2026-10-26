@@ -20,13 +20,15 @@ function ResetRoute() {
   const navigate = Route.useNavigate()
   return (
     <ResetPasswordForm
-      submit={(password) => postPrivate('/api/private/auth/password-reset/confirm', { token, password })}
-      onDone={() => void navigate({ to: '/login', search: { notice: 'reset' }, replace: true })}
+      submit={(password) => postPrivate('/api/private/auth/password-reset/confirm', { token, password, sign_in: true })}
+      onDone={(signedIn) => void (signedIn
+        ? navigate({ to: '/app', replace: true })
+        : navigate({ to: '/login', search: { notice: 'reset' }, replace: true }))}
     />
   )
 }
 
-export function ResetPasswordForm({ submit, onDone }: { submit: (password: string) => Promise<LoginResult>; onDone: () => void }) {
+export function ResetPasswordForm({ submit, onDone }: { submit: (password: string) => Promise<LoginResult>; onDone: (signedIn: boolean) => void }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [invalidLink, setInvalidLink] = useState(false)
@@ -40,7 +42,7 @@ export function ResetPasswordForm({ submit, onDone }: { submit: (password: strin
     try {
       const result = await submit(password)
       if (result.ok) {
-        onDone()
+        onDone(result.signedIn === true)
         return
       }
       const message = result.type?.endsWith('password-policy') ? en.auth.passwordPolicy : authProblemMessage(result.problem)
