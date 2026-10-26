@@ -50,13 +50,19 @@ func TestEraseDeletedSitesRetriesStorageFailureAndLaterWrites(t *testing.T) {
 	if _, err := pool.Exec(ctx, `insert into dirty_day(site_id,day,reason) values ($1,$2,'late_event')`, siteID, day); err != nil {
 		t.Fatal(err)
 	}
+	now := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+	if _, err := pool.Exec(ctx, `
+		insert into site_storage_usage(
+			site_id,hot_bytes,retained_bytes,auxiliary_bytes,replay_recording_bytes,replay_css_bytes,measured_at,measurement_version
+		) values ($1,1,2,3,4,5,$2,1)`, siteID, now); err != nil {
+		t.Fatal(err)
+	}
 	disk, err := replay.NewDiskStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantErr := errors.New("storage unavailable")
 	store := &failOnceDeletePrefix{BlobStore: disk, err: wantErr}
-	now := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
 
 	if err := eraseDeletedSites(ctx, pool, store, now); !errors.Is(err, wantErr) {
 		t.Fatalf("first erasure error=%v, want storage failure", err)
@@ -67,6 +73,13 @@ func TestEraseDeletedSitesRetriesStorageFailureAndLaterWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertErasureState(t, pool, siteID, true, 0)
+	var snapshots int
+	if err := pool.QueryRow(ctx, `select count(*) from site_storage_usage where site_id=$1`, siteID).Scan(&snapshots); err != nil {
+		t.Fatal(err)
+	}
+	if snapshots != 0 {
+		t.Fatalf("storage snapshots after erasure = %d, want 0", snapshots)
+	}
 	if store.calls != 2 {
 		t.Fatalf("replay erase calls = %d, want 2", store.calls)
 	}

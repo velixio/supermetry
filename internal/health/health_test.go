@@ -186,6 +186,43 @@ func TestDeliveryFailuresAreExported(t *testing.T) {
 	}
 }
 
+func TestStorageUsageMetricsAreExported(t *testing.T) {
+	beforeFailures := health.StorageUsageFailures.Load()
+	health.StorageUsageLastSuccessUnix.Store(1_793_010_600)
+	health.StorageUsageFailures.Add(2)
+	health.StorageUsagePendingSources.Store(7)
+	health.StorageUsageRunDurationSeconds.Store(1.25)
+	health.StorageUsageRunActive.Store(1)
+
+	snapshot := health.Snapshot()
+	wants := map[string]float64{
+		"storage_usage_last_success_unix":    1_793_010_600,
+		"storage_usage_failures_total":       float64(beforeFailures + 2),
+		"storage_usage_pending_sources":      7,
+		"storage_usage_run_duration_seconds": 1.25,
+		"storage_usage_run_active":           1,
+	}
+	for key, want := range wants {
+		if got := snapshot[key]; got != want {
+			t.Errorf("Snapshot()[%q] = %v, want %v", key, got, want)
+		}
+	}
+
+	var output strings.Builder
+	health.WritePrometheus(&output)
+	for _, name := range []string{
+		"supermetry_storage_usage_last_success_unix",
+		"supermetry_storage_usage_failures_total",
+		"supermetry_storage_usage_pending_sources",
+		"supermetry_storage_usage_run_duration_seconds",
+		"supermetry_storage_usage_run_active",
+	} {
+		if !strings.Contains(output.String(), name) {
+			t.Errorf("Prometheus output missing %q", name)
+		}
+	}
+}
+
 func TestProfilesSuppressedIsExported(t *testing.T) {
 	snapshot := health.Snapshot()
 	if _, ok := snapshot["ingest_profiles_suppressed_total"]; !ok {
