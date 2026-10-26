@@ -73,7 +73,7 @@ The reconciler processes one bounded source at a time:
 - Estimator version 1 is exactly `sum(pg_column_size(row_alias))` over base-table rows. This measures PostgreSQL's composite row datum, including the representation returned for TOASTed attributes, but it does not separately add indexes, relation/page overhead, free space or TOAST relation overhead. A future formula requires a new measurement version and a clean generation.
 - Each source has a statement timeout. A retry overwrites the same staging key.
 - Dropped partitions disappear during source discovery, so a new generation naturally stops charging their rows. A leaf dropped after discovery contributes an empty measurement: only SQLSTATE 42P01 on a confirmed-missing leaf is treated this way (other "does not exist" errors, such as a missing column, fail the unit), and a manifest leaf that is no longer in the catalog is accepted only if its name matches the exact partition naming pattern of its own parent table.
-- A unit that exceeds the job budget or its statement timeout is counted as a failure, logged with its key and surfaced in health; see the failure metrics below.
+- A unit that exceeds the job budget or its statement timeout is counted as a failure, logged with its key and surfaced in health (`storage_usage_failures_total`, `storage_usage_unit_timeouts_total`, and `storage_usage_stuck_attempts`, the consecutive failed attempts of the same unit). A budget that merely ends after earlier units made progress is not a failure.
 - Pending work is counted with `COLLATE "C"` so it matches the reconciler's byte-order cursor under any database collation.
 
 No `pg_total_relation_size` value is presented as tenant usage. No admin request scans analytics tables.
@@ -124,7 +124,7 @@ The OpenAPI document is the source of truth; generated Go and TypeScript clients
 
 ## Observability and failure handling
 
-Expose only process-level metrics: last successful run, current run duration/status, pending sources and failure count. Never use `site_id` as a metric label. Health/readiness endpoints do not calculate usage.
+Expose only process-level metrics: last successful run, current run duration/status, pending sources, failure count, unit timeouts and the stuck-attempts gauge. Never use `site_id` as a metric label. Health/readiness endpoints do not calculate usage.
 
 Errors retain the last good snapshot. A run can resume from its persisted source cursor. A changed source registry or estimator version starts a clean generation. Operators can identify stale values from `measured_at` and logs.
 

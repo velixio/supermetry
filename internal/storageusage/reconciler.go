@@ -21,9 +21,11 @@ type StepResult struct {
 	RunID        int64
 	Started      bool
 	ProcessedKey string
-	Published    bool
-	Idle         bool
-	Pending      int
+	// FailedKey names the unit whose scan failed, so callers can report it.
+	FailedKey string
+	Published bool
+	Idle      bool
+	Pending   int
 }
 
 type Reconciler struct {
@@ -116,7 +118,7 @@ func (r *Reconciler) Step(ctx context.Context, now time.Time) (StepResult, error
 		measurements, err := scanner.Scan(ctx, run.ID, unit)
 		if err != nil {
 			_ = r.store.RecordError(context.WithoutCancel(ctx), run.ID, err.Error(), now)
-			return StepResult{RunID: run.ID, Started: started, Pending: len(units) - next}, fmt.Errorf("scan storage work %s: %w", unit.Key, err)
+			return StepResult{RunID: run.ID, Started: started, FailedKey: unit.Key, Pending: len(units) - next}, fmt.Errorf("scan storage work %s: %w", unit.Key, err)
 		}
 		if err := r.store.ReplaceMeasurements(ctx, run.ID, unit.Key, measurements); err != nil {
 			return StepResult{RunID: run.ID, Started: started}, err

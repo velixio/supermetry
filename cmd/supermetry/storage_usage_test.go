@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,17 +15,19 @@ import (
 )
 
 type storageUsageStepperStub struct {
-	results []storageusage.StepResult
-	err     error
-	now     time.Time
-	calls   int
-	status  storageusage.Status
+	results   []storageusage.StepResult
+	err       error
+	errResult storageusage.StepResult
+	now       time.Time
+	calls     int
+	status    storageusage.Status
 }
 
 func (s *storageUsageStepperStub) Step(_ context.Context, now time.Time) (storageusage.StepResult, error) {
 	s.now = now
 	if s.err != nil {
-		return storageusage.StepResult{}, s.err
+		s.calls++
+		return s.errResult, s.err
 	}
 	result := s.results[min(s.calls, len(s.results)-1)]
 	s.calls++
@@ -100,4 +106,65 @@ func TestStorageUsageJobRecordsFailure(t *testing.T) {
 	if got := health.StorageUsageFailures.Load(); got != before+1 {
 		t.Fatalf("failures = %d, want %d", got, before+1)
 	}
+}
+
+func TestStorageUsageJobCountsAndReportsUnitThatExceedsTheBudget(t *testing.T) {
+	failuresBefore := health.StorageUsageFailures.Load()
+	timeoutsBefore := health.StorageUsageUnitTimeouts.Load()
+	stepper := &storageUsageStepperStub{
+		err:       fmt.Errorf("scan storage work postgres:events:big: %w", context.DeadlineExceeded),
+		errResult: storageusage.StepResult{FailedKey: "postgres:events:big"},
+	}
+	var logs bytes.Buffer
+	job := storageUsageJobWithLogger(stepper, partitionClock{now: time.Now()}, slog.New(slog.NewTextHandler(&logs, nil)))
+	for attempt := 1; attempt <= 3; attempt++ {
+		if err := job.Run(context.Background()); err != nil {
+			t.Fatalf("attempt %d: Run() = %v; a budget overrun is reported through metrics, not as a crash", attempt, err)
+		}
+		if got := health.StorageUsageStuckAttempts.Load(); got != float64(attempt) {
+			t.Fatalf("attempt %d: stuck attempts = %v, want %d", attempt, got, attempt)
+		}
+	}
+	if got := health.StorageUsageFailures.Load(); got != failuresBefore+3 {
+		t.Errorf("failures = %d, want %d", got, failuresBefore+3)
+	}
+	if got := health.StorageUsageUnitTimeouts.Load(); got != timeoutsBefore+3 {
+		t.Errorf("unit timeouts = %d, want %d", got, timeoutsBefore+3)
+	}
+	if !strings.Contains(logs.String(), "postgres:events:big") {
+		t.Errorf("log does not name the unit: %s", logs.String())
+	}
+
+	// Progress on another unit clears the stuck counter.
+	stepper.err, stepper.calls = nil, 0
+	stepper.results = []storageusage.StepResult{{ProcessedKey: "other", Pending: 1}, {Idle: true}}
+	if err := job.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := health.StorageUsageStuckAttempts.Load(); got != 0 {
+		t.Errorf("stuck attempts after progress = %v, want 0", got)
+	}
+}
+
+func TestStorageUsageJobTreatsBudgetEndAfterProgressAsNormal(t *testing.T) {
+	failuresBefore := health.StorageUsageFailures.Load()
+	stepper := &budgetThenDeadlineStepper{}
+	if err := storageUsageJob(stepper, partitionClock{now: time.Now()}).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := health.StorageUsageFailures.Load(); got != failuresBefore {
+		t.Errorf("failures = %d, want unchanged %d: the budget simply ran out after progress", got, failuresBefore)
+	}
+}
+
+type budgetThenDeadlineStepper struct {
+	storageUsageStepperStub
+}
+
+func (s *budgetThenDeadlineStepper) Step(context.Context, time.Time) (storageusage.StepResult, error) {
+	s.calls++
+	if s.calls == 1 {
+		return storageusage.StepResult{ProcessedKey: "done", Pending: 5}, nil
+	}
+	return storageusage.StepResult{FailedKey: "next"}, fmt.Errorf("scan: %w", context.DeadlineExceeded)
 }

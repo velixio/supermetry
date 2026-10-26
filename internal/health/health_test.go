@@ -193,6 +193,9 @@ func TestStorageUsageMetricsAreExported(t *testing.T) {
 	health.StorageUsagePendingSources.Store(7)
 	health.StorageUsageRunDurationSeconds.Store(1.25)
 	health.StorageUsageRunActive.Store(1)
+	beforeTimeouts := health.StorageUsageUnitTimeouts.Load()
+	health.StorageUsageUnitTimeouts.Add(1)
+	health.StorageUsageStuckAttempts.Store(4)
 
 	snapshot := health.Snapshot()
 	wants := map[string]float64{
@@ -201,6 +204,8 @@ func TestStorageUsageMetricsAreExported(t *testing.T) {
 		"storage_usage_pending_sources":      7,
 		"storage_usage_run_duration_seconds": 1.25,
 		"storage_usage_run_active":           1,
+		"storage_usage_unit_timeouts_total":  float64(beforeTimeouts + 1),
+		"storage_usage_stuck_attempts":       4,
 	}
 	for key, want := range wants {
 		if got := snapshot[key]; got != want {
@@ -216,6 +221,8 @@ func TestStorageUsageMetricsAreExported(t *testing.T) {
 		"supermetry_storage_usage_pending_sources",
 		"supermetry_storage_usage_run_duration_seconds",
 		"supermetry_storage_usage_run_active",
+		"supermetry_storage_usage_unit_timeouts_total",
+		"supermetry_storage_usage_stuck_attempts",
 	} {
 		if !strings.Contains(output.String(), name) {
 			t.Errorf("Prometheus output missing %q", name)

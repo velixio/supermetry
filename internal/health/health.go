@@ -93,6 +93,11 @@ var (
 	StorageUsagePendingSources     Gauge
 	StorageUsageRunDurationSeconds Gauge
 	StorageUsageRunActive          Gauge
+	// StorageUsageUnitTimeouts counts work units that alone exhausted the job
+	// budget. StorageUsageStuckAttempts is how many consecutive attempts the
+	// same unit has failed; zero while the run makes progress.
+	StorageUsageUnitTimeouts  Counter
+	StorageUsageStuckAttempts Gauge
 
 	QuerySeconds = newRouteHistogram()
 
@@ -231,6 +236,8 @@ func Snapshot() map[string]float64 {
 		"storage_usage_pending_sources":              StorageUsagePendingSources.Load(),
 		"storage_usage_run_duration_seconds":         StorageUsageRunDurationSeconds.Load(),
 		"storage_usage_run_active":                   StorageUsageRunActive.Load(),
+		"storage_usage_unit_timeouts_total":          float64(StorageUsageUnitTimeouts.Load()),
+		"storage_usage_stuck_attempts":               StorageUsageStuckAttempts.Load(),
 		"query_cache_hit_ratio":                      cacheHitRatio(),
 	}
 	snapshot[`geoip_source{source="dbip"}`] = 0
@@ -299,6 +306,8 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "storage_usage_pending_sources", "gauge")
 	writeFamily(w, snapshot, "storage_usage_run_duration_seconds", "gauge")
 	writeFamily(w, snapshot, "storage_usage_run_active", "gauge")
+	writeFamily(w, snapshot, "storage_usage_unit_timeouts_total", "counter")
+	writeFamily(w, snapshot, "storage_usage_stuck_attempts", "gauge")
 	writeFamily(w, snapshot, "geoip_source", "gauge")
 	writeFamily(w, snapshot, "query_seconds", "gauge")
 	writeFamily(w, snapshot, "query_cache_hit_ratio", "gauge")
