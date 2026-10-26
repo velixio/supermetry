@@ -110,6 +110,7 @@ paths:
       operationId: adminGetOrganization
       security: [{ cookieAuth: [] }]
       summary: Get an organization with its members, sites and quota
+      description: Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404.
       parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
       responses:
         '200': { description: Organization details., content: { application/json: { schema: { $ref: '#/components/schemas/AdminOrganizationDetail' } } } }
@@ -128,6 +129,20 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/organizations/{org}/restore:
+    post:
+      operationId: adminRestoreOrganization
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Restore a deleted organization within the deletion grace period
+      description: Restores an organization that is deleted, not erased and still inside the 7-day grace period, whoever deleted it, with its sites. Audited as instance.organization.restored. Returns 404 for an unknown or erased organization, and 409 not_restorable outside the grace period or when the organization is not deleted, or site_limit when restoring would exceed the site limit.
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      responses:
+        '204': { description: Organization restored. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'Conflict: error is not_restorable or site_limit.', content: { application/json: { schema: { type: object, required: [error], properties: { error: { type: string, enum: [not_restorable, site_limit] } } } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/sites:
     get:
@@ -3804,6 +3819,8 @@ components:
           properties:
             members: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
             sites: { type: array, items: { $ref: '#/components/schemas/AdminSite' } }
+            deleted_at: { type: string, format: date-time, description: Set while the organization is deleted. }
+            restorable_until: { type: string, format: date-time, description: End of the restore grace period, set while the organization is deleted. }
     AdminSettings:
       type: object
       additionalProperties: false
