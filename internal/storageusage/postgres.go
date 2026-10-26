@@ -31,6 +31,10 @@ const postgresSiteBatchSize int64 = 100
 type PostgresScanner struct {
 	pool             *pgxpool.Pool
 	statementTimeout time.Duration
+
+	// afterExistenceCheck is a test hook that runs between the partition
+	// existence check and the scan transaction.
+	afterExistenceCheck func()
 }
 
 func NewPostgresScanner(pool *pgxpool.Pool, statementTimeout time.Duration) *PostgresScanner {
@@ -139,13 +143,18 @@ func (s *PostgresScanner) Scan(ctx context.Context, runID int64, unit WorkUnit) 
 	if !valid {
 		return nil, fmt.Errorf("unregistered PostgreSQL work unit %q", unit.Key)
 	}
+	partitioned := false
 	if source := sourceByTable(unit.Table); source != nil && source.Partitioned {
+		partitioned = true
 		var exists bool
 		if err := s.pool.QueryRow(ctx, `select to_regclass($1) is not null`, unit.Relation).Scan(&exists); err != nil {
 			return nil, err
 		}
 		if !exists {
 			return []Measurement{{Category: unit.Category}}, nil
+		}
+		if s.afterExistenceCheck != nil {
+			s.afterExistenceCheck()
 		}
 	}
 
@@ -164,9 +173,6 @@ func (s *PostgresScanner) Scan(ctx context.Context, runID int64, unit WorkUnit) 
 		}
 		rows, err := tx.Query(ctx, s.scanSQL(unit), args...)
 		if err != nil {
-			if IsUndefinedRelation(err) {
-				return nil
-			}
 			return fmt.Errorf("scan storage source %s: %w", unit.Key, err)
 		}
 		defer rows.Close()
@@ -183,6 +189,16 @@ func (s *PostgresScanner) Scan(ctx context.Context, runID int64, unit WorkUnit) 
 		return nil
 	})
 	if err != nil {
+		// Retention may drop a leaf after the existence check. The failed
+		// statement aborted the transaction, so the vanished leaf is handled
+		// here, outside it. Only a confirmed-missing leaf counts as empty; any
+		// other undefined relation is a schema bug and surfaces.
+		if partitioned && IsUndefinedRelation(err) {
+			var exists bool
+			if checkErr := s.pool.QueryRow(ctx, `select to_regclass($1) is not null`, unit.Relation).Scan(&exists); checkErr == nil && !exists {
+				return []Measurement{{Category: unit.Category}}, nil
+			}
+		}
 		return nil, err
 	}
 	return []Measurement{{Category: unit.Category, Values: values}}, nil
@@ -238,12 +254,23 @@ func (s *PostgresScanner) validWorkUnit(ctx context.Context, unit WorkUnit) (boo
 		return true, nil
 	}
 	// A leaf recorded in the immutable manifest may be dropped by retention
-	// before it is scanned. Quoting plus the fixed parent-name prefix keeps this
-	// safe; the scan then treats undefined_relation as an empty contribution.
-	return safeRelationName.MatchString(unit.Relation) && strings.HasPrefix(unit.Relation, source.Table+"_"), nil
+	// before it is scanned. Accept it only if the name is exactly what the
+	// partition creator would have produced for this parent; a prefix match
+	// would let sessions_closed_* pass as sessions_* and rollup_day_dim_* as
+	// rollup_day_*. The scan then treats a vanished leaf as empty.
+	return partitionNamePattern(source.Table).MatchString(unit.Relation), nil
 }
 
-var safeRelationName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+// partitionNamePattern mirrors internal/db/partitions.go naming: hot tables
+// are partitioned per retention class (<t>_r<days>_YYYYMMDD, <t>_rf_YYYYMM),
+// every other partitioned table by month (<t>_YYYYMM).
+func partitionNamePattern(table string) *regexp.Regexp {
+	quoted := regexp.QuoteMeta(table)
+	if table == "events" || table == "sessions" {
+		return regexp.MustCompile(`^` + quoted + `_(?:r[0-9]{1,4}_[0-9]{8}|rf_[0-9]{6})$`)
+	}
+	return regexp.MustCompile(`^` + quoted + `_[0-9]{6}$`)
+}
 
 func sourceByTable(table string) *Source {
 	for i := range sourceRegistry {

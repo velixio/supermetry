@@ -2,11 +2,14 @@ package storageusage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"supermetry/internal/db"
 )
@@ -362,4 +365,121 @@ func findWorkUnit(t *testing.T, units []WorkUnit, table string) WorkUnit {
 	}
 	t.Fatalf("work unit for %s not found", table)
 	return WorkUnit{}
+}
+
+func TestIsUndefinedRelationMatchesOnlySQLState42P01(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"undefined table", &pgconn.PgError{Code: "42P01", Message: "relation \"x\" does not exist"}, true},
+		{"wrapped undefined table", fmt.Errorf("scan: %w", &pgconn.PgError{Code: "42P01"}), true},
+		{"missing column", &pgconn.PgError{Code: "42703", Message: "column \"nope\" does not exist"}, false},
+		{"missing function", &pgconn.PgError{Code: "42883", Message: "function nope() does not exist"}, false},
+		{"plain error", errors.New("relation does not exist"), false},
+	}
+	for _, tc := range cases {
+		if got := IsUndefinedRelation(tc.err); got != tc.want {
+			t.Errorf("%s: IsUndefinedRelation() = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestPostgresPartitionDroppedBetweenCheckAndScanIsEmpty(t *testing.T) {
+	store, pool, _ := newStoreFixture(t, 1)
+	ctx := context.Background()
+	from := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	if err := db.EnsurePartitions(ctx, pool, from, from.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	scanner := NewPostgresScanner(pool, time.Second)
+	units, err := scanner.WorkUnits(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var leaf WorkUnit
+	for _, unit := range units {
+		if unit.Table == "events" && strings.Contains(unit.Relation, "20261001") {
+			leaf = unit
+			break
+		}
+	}
+	if leaf.Key == "" {
+		t.Fatal("events leaf not discovered")
+	}
+	// Retention drops the partition after the existence check passed.
+	scanner.afterExistenceCheck = func() {
+		if _, err := pool.Exec(ctx, "drop table "+pgx.Identifier{leaf.Relation}.Sanitize()); err != nil {
+			t.Error(err)
+		}
+	}
+	got, err := scanner.Scan(ctx, run.ID, leaf)
+	if err != nil {
+		t.Fatalf("Scan() after mid-flight drop = %v, want empty contribution", err)
+	}
+	if len(got) != 1 || got[0].Category != CategoryHot || len(got[0].Values) != 0 {
+		t.Fatalf("measurement = %+v", got)
+	}
+}
+
+func TestPostgresScanDoesNotSwallowSchemaErrors(t *testing.T) {
+	store, pool, _ := newStoreFixture(t, 1)
+	ctx := context.Background()
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A renamed column is a schema bug, not an empty source.
+	if _, err := pool.Exec(ctx, `alter table annotations rename column site_id to site_ref`); err != nil {
+		t.Fatal(err)
+	}
+	scanner := NewPostgresScanner(pool, time.Second)
+	units, err := scanner.WorkUnits(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := scanner.Scan(ctx, run.ID, findWorkUnit(t, units, "annotations")); err == nil {
+		t.Fatal("missing column produced a silent empty measurement")
+	}
+}
+
+func TestPostgresDroppedLeafNamesMustMatchPartitionPattern(t *testing.T) {
+	_, pool, _ := newStoreFixture(t, 0)
+	scanner := NewPostgresScanner(pool, time.Second)
+	cases := []struct {
+		table, relation string
+		want            bool
+	}{
+		{"events", "events_r30_20250101", true},
+		{"events", "events_rf_202501", true},
+		{"sessions", "sessions_r7_20250101", true},
+		{"sessions", "sessions_closed_202501", false},
+		{"sessions", "sessions_archive_20250101", false},
+		{"events", "events_r30_2025", false},
+		{"rollup_day", "rollup_day_202501", true},
+		{"rollup_day", "rollup_day_dim_202501", false},
+		{"rollup_day_dim", "rollup_day_dim_202501", true},
+		{"sessions_closed", "sessions_closed_202501", true},
+		{"sessions_closed", "sessions_closed_202501_extra", false},
+		{"cube_day", "cube_day_2025", false},
+	}
+	for _, tc := range cases {
+		source := sourceByTable(tc.table)
+		if source == nil {
+			t.Fatalf("no source %s", tc.table)
+		}
+		unit := workUnit(*source, tc.relation)
+		got, err := scanner.validWorkUnit(context.Background(), unit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != tc.want {
+			t.Errorf("validWorkUnit(%s, %s) = %v, want %v", tc.table, tc.relation, got, tc.want)
+		}
+	}
 }

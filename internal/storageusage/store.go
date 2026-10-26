@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -396,7 +395,9 @@ func (s *Store) LastCompletedAt(ctx context.Context) (*time.Time, error) {
 	return at, nil
 }
 
+// IsUndefinedRelation reports SQLSTATE 42P01 only. Other "does not exist"
+// errors (missing columns or functions) are schema bugs and must surface.
 func IsUndefinedRelation(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && (pgErr.Code == "42P01" || strings.Contains(pgErr.Message, "does not exist"))
+	return errors.As(err, &pgErr) && pgErr.Code == "42P01"
 }
