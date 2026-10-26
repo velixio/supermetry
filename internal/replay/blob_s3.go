@@ -3,6 +3,7 @@ package replay
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -148,34 +149,92 @@ func (s *S3Store) Delete(ctx context.Context, key string) (int64, error) {
 }
 
 func (s *S3Store) List(ctx context.Context, prefix string) ([]BlobInfo, error) {
+	var blobs []BlobInfo
+	if err := s.Walk(ctx, prefix, func(blob BlobInfo) error {
+		blobs = append(blobs, blob)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return blobs, nil
+}
+
+func (s *S3Store) Walk(ctx context.Context, prefix string, visit func(BlobInfo) error) error {
 	clean, err := validateBlobPath(prefix)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	prefix = strings.TrimSuffix(filepath.ToSlash(clean), "/") + "/"
-	blobs, err := s.spills.list(prefix)
-	if err != nil {
-		return nil, err
-	}
-	seen := make(map[string]struct{}, len(blobs))
-	for _, blob := range blobs {
-		seen[blob.Key] = struct{}{}
+	if err := s.walkSpills(ctx, prefix, visit); err != nil {
+		return err
 	}
 	objectPrefix := s.objectKey(prefix)
 	for object := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: objectPrefix, Recursive: true}) {
 		if object.Err != nil {
-			return nil, fmt.Errorf("list replay S3 objects: %w", object.Err)
+			return fmt.Errorf("walk replay S3 objects: %w", object.Err)
 		}
 		key := object.Key
 		if s.prefix != "" {
 			key = strings.TrimPrefix(key, s.prefix+"/")
 		}
-		if _, ok := seen[key]; ok {
+		if _, ok := s.spills.get(key); ok {
 			continue
 		}
-		blobs = append(blobs, BlobInfo{Key: key, Size: object.Size, Modified: object.LastModified})
+		if err := visit(BlobInfo{Key: key, Size: object.Size, Modified: object.LastModified}); err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 	}
-	return blobs, nil
+	return ctx.Err()
+}
+
+func (s *S3Store) walkSpills(ctx context.Context, prefix string, visit func(BlobInfo) error) error {
+	dir, err := os.Open(s.spills.dir)
+	if err != nil {
+		return fmt.Errorf("open replay spill directory: %w", err)
+	}
+	defer dir.Close()
+	for {
+		entries, err := dir.ReadDir(64)
+		if err != nil && !errors.Is(err, io.EOF) {
+			return fmt.Errorf("scan replay spill directory: %w", err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), spillSuffix) {
+				continue
+			}
+			encoded := strings.TrimSuffix(entry.Name(), spillSuffix)
+			decoded, decodeErr := base64.RawURLEncoding.DecodeString(encoded)
+			if decodeErr != nil || !strings.HasPrefix(string(decoded), prefix) {
+				continue
+			}
+			key := string(decoded)
+			spill, ok := s.spills.get(key)
+			if !ok {
+				continue
+			}
+			spill.mu.Lock()
+			info, statErr := os.Stat(spill.path)
+			spill.mu.Unlock()
+			if errors.Is(statErr, os.ErrNotExist) {
+				continue
+			}
+			if statErr != nil {
+				return fmt.Errorf("stat replay spill: %w", statErr)
+			}
+			if err := visit(BlobInfo{Key: key, Size: info.Size(), Modified: info.ModTime()}); err != nil {
+				return err
+			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+		}
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+	}
 }
 
 func (s *S3Store) CloseSession(ctx context.Context, key string) error {
