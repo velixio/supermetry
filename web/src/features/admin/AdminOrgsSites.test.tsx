@@ -15,6 +15,14 @@ import { AdminOrganizationsPage } from './AdminOrganizationsPage'
 import { AdminSitesPage } from './AdminSitesPage'
 
 const organization = { id: 4, name: 'Doomed Co', slug: 'doomed', member_count: 1, site_count: 1, site_limit: 10 }
+const deletedOrganization = {
+  ...organization,
+  deleted_at: '2026-10-26T10:00:00Z',
+  restorable_until: '2026-11-02T10:00:00Z',
+  deleted_by_kind: 'instance_admin' as const,
+  deleted_by_user_id: 12,
+  deleted_by_name: 'user12',
+}
 const site = { id: 11, org_id: 4, organization: 'Doomed Co', public_id: 'pub', name: 'Blog', retention_days: 365 as const, pageviews: 12 }
 
 function renderPage(node: ReactNode) {
@@ -51,6 +59,24 @@ describe('admin organizations', () => {
     fireEvent.click(confirm)
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('DELETE', '/api/private/admin/organizations/4'))
     expect(await screen.findByText(/Doomed Co was deleted/)).toBeVisible()
+  })
+
+  it('identifies an admin-deleted organization and lets only the admin restore it', async () => {
+    privateRequest.mockImplementation(async (method: string, path: string) => {
+      if (method === 'GET' && path.startsWith('/api/private/admin/organizations?')) return { data: [deletedOrganization] }
+      if (method === 'GET') return { ...deletedOrganization, members: [{ id: 1, email: 'o@example.test', name: 'O' }], sites: [site] }
+      return undefined
+    })
+    renderPage(<AdminOrganizationsPage />)
+
+    expect(await screen.findByText('Deleted by admin / user12')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Details: Doomed Co' }))
+    await waitFor(() => expect(screen.getAllByText('Deleted by admin / user12')).toHaveLength(2))
+    expect(screen.queryByRole('button', { name: 'Delete organization' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Restore organization' }))
+
+    await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('POST', '/api/private/admin/organizations/4/restore'))
+    expect(await screen.findByText('Doomed Co was restored.')).toBeVisible()
   })
 })
 
