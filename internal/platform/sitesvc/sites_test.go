@@ -1213,10 +1213,10 @@ func TestSiteSlugIsDerivedFromTheHostAndEditable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Slug != "blog-example-com" || second.Slug != "blog-example-com-2" {
+	if first.Slug != "blog-supermetry-com" || second.Slug != "blog-supermetry-com-2" {
 		t.Fatalf("slugs = %q, %q", first.Slug, second.Slug)
 	}
-	if got, ok := registry.ByPublicID(first.PublicID); !ok || got.Slug != "blog-example-com" {
+	if got, ok := registry.ByPublicID(first.PublicID); !ok || got.Slug != "blog-supermetry-com" {
 		t.Fatalf("registry slug = %q (found %t)", got.Slug, ok)
 	}
 
@@ -1234,7 +1234,7 @@ func TestSiteSlugIsDerivedFromTheHostAndEditable(t *testing.T) {
 			t.Errorf("slug %q error = %v, want invalid", bad, err)
 		}
 	}
-	taken := "blog-example-com-2"
+	taken := "blog-supermetry-com-2"
 	if _, err := service.Update(ctx, principal, first.ID, SitePatch{Slug: &taken}); !errors.Is(err, ErrSlugTaken) {
 		t.Fatalf("taken slug error = %v, want ErrSlugTaken", err)
 	}
