@@ -9,7 +9,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 import { uiFlows } from '@/messages/uiFlows'
-import { useAdminOrganization, useAdminOrganizations, useDeleteAdminOrganization, type AdminOrganizationDetail } from './adminApi'
+import { useAdminOrganization, useAdminOrganizations, useDeleteAdminOrganization, useRestoreAdminOrganization, type AdminOrganization, type AdminOrganizationDetail } from './adminApi'
 import { AdminPage, ErrorLine, SearchForm, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
 
 function DeleteOrganization({ organization, onDeleted }: { organization: AdminOrganizationDetail; onDeleted: (name: string) => void }) {
@@ -48,8 +48,16 @@ function DeleteOrganization({ organization, onDeleted }: { organization: AdminOr
   )
 }
 
-function OrganizationDetail({ id, onClose, onDeleted }: { id: number; onClose: () => void; onDeleted: (name: string) => void }) {
+function deletionAttribution(organization: AdminOrganization): string | null {
+  if (!organization.deleted_at) return null
+  const actor = organization.deleted_by_name || (organization.deleted_by_user_id ? `user${organization.deleted_by_user_id}` : 'unknown user')
+  const kind = organization.deleted_by_kind === 'instance_admin' ? 'admin' : 'user'
+  return `Deleted by ${kind} / ${actor}`
+}
+
+function OrganizationDetail({ id, onClose, onDeleted, onRestored }: { id: number; onClose: () => void; onDeleted: (name: string) => void; onRestored: (name: string) => void }) {
   const detail = useAdminOrganization(id)
+  const restore = useRestoreAdminOrganization()
   const heading = useRef<HTMLHeadingElement>(null)
   // Opening the panel moves focus to it, so keyboard and screen-reader users land on the details.
   useEffect(() => { heading.current?.focus() }, [id])
@@ -62,6 +70,7 @@ function OrganizationDetail({ id, onClose, onDeleted }: { id: number; onClose: (
       <ErrorLine error={detail.error} />
       {detail.data ? (
         <>
+          {deletionAttribution(detail.data) ? <p className="text-sm font-medium">{deletionAttribution(detail.data)}</p> : null}
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <h3 className="mb-1 text-sm font-medium">{en.admin.members} ({detail.data.members.length})</h3>
@@ -72,7 +81,14 @@ function OrganizationDetail({ id, onClose, onDeleted }: { id: number; onClose: (
               <ul className="flex flex-col gap-1 text-sm">{detail.data.sites.map((site) => <li key={site.id}>{site.name} <span className="text-muted-foreground">{formatDate(site.last_event_at, uiFlows.admin.noEventsYet)}</span></li>)}</ul>
             </div>
           </div>
-          <DeleteOrganization organization={detail.data} onDeleted={onDeleted} />
+          {detail.data.deleted_at ? (
+            <div className="flex flex-col items-start gap-2">
+              <ErrorLine error={restore.error} />
+              <Button type="button" variant="outline" disabled={restore.isPending} onClick={() => restore.mutate(detail.data.id, { onSuccess: () => onRestored(detail.data.name) })}>
+                {restore.isPending ? 'Restoring…' : 'Restore organization'}
+              </Button>
+            </div>
+          ) : <DeleteOrganization organization={detail.data} onDeleted={onDeleted} />}
         </>
       ) : null}
     </section>
@@ -107,7 +123,7 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
             <tbody>
               {organizations.data.data.map((org) => (
                 <tr key={org.id} className="border-b last:border-0">
-                  <td className={cellClass}><div className="font-medium">{org.name}</div><div className="text-muted-foreground">{org.slug}</div></td>
+                  <td className={cellClass}><div className="font-medium">{org.name}</div><div className="text-muted-foreground">{org.slug}</div>{deletionAttribution(org) ? <div className="text-muted-foreground">{deletionAttribution(org)}</div> : null}</td>
                   <td className={cellClass}>{org.member_count}</td>
                   <td className={cellClass}>{org.site_count} / {org.site_limit}</td>
                   <td className={cellClass}>
@@ -125,7 +141,7 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
           </table>
         </div>
       ) : null}
-      {selected !== null ? <OrganizationDetail id={selected} onClose={close} onDeleted={(name) => { setSelected(null); setNotice(uiFlows.admin.deleted(name)) }} /> : null}
+      {selected !== null ? <OrganizationDetail id={selected} onClose={close} onDeleted={(name) => { setSelected(null); setNotice(uiFlows.admin.deleted(name)) }} onRestored={(name) => { setSelected(null); setNotice(uiFlows.admin.restored(name)) }} /> : null}
     </AdminPage>
   )
 }

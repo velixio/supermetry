@@ -66,7 +66,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List organizations with member, site and quota counts */
+        /** List organizations, including restorable deletions, with member, site and quota counts */
         get: operations["adminListOrganizations"];
         put?: never;
         post?: never;
@@ -92,7 +92,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an organization with the restorable deletion grace period
-         * @description Tombstones the organization and its sites; the owner can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
+         * @description Tombstones the organization and its sites; only an instance admin can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
          */
         delete: operations["adminDeleteOrganization"];
         options?: never;
@@ -551,7 +551,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List restorable organizations owned by the signed-in user */
+        /** List owner-deleted, restorable organizations owned by the signed-in user */
         get: operations["listDeletedOrganizations"];
         put?: never;
         post?: never;
@@ -570,7 +570,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Restore an owned organization during its deletion grace period */
+        /** Restore an owner-deleted organization during its deletion grace period */
         post: operations["restoreOrganization"];
         delete?: never;
         options?: never;
@@ -2778,6 +2778,28 @@ export interface components {
             /** Format: int64 */
             site_count: number;
             site_limit: number;
+            /**
+             * Format: date-time
+             * @description Set while the organization is deleted.
+             */
+            deleted_at?: string;
+            /**
+             * Format: date-time
+             * @description End of the restore grace period
+             */
+            restorable_until?: string;
+            /**
+             * @description Actor class for the current deletion lifecycle.
+             * @enum {string}
+             */
+            deleted_by_kind?: "owner" | "instance_admin";
+            /**
+             * Format: int64
+             * @description User that initiated the current deletion lifecycle.
+             */
+            deleted_by_user_id?: number;
+            /** @description Current display name of the user that initiated deletion. */
+            deleted_by_name?: string;
         };
         AdminOrganizationsResponse: {
             data: components["schemas"]["AdminOrganization"][];
@@ -2803,16 +2825,6 @@ export interface components {
         AdminOrganizationDetail: components["schemas"]["AdminOrganization"] & {
             members: components["schemas"]["AdminUser"][];
             sites: components["schemas"]["AdminSite"][];
-            /**
-             * Format: date-time
-             * @description Set while the organization is deleted.
-             */
-            deleted_at?: string;
-            /**
-             * Format: date-time
-             * @description End of the restore grace period
-             */
-            restorable_until?: string;
         };
         AdminSettings: {
             /** @enum {string} */

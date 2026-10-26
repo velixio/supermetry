@@ -40,6 +40,42 @@ func (e AdminMembershipRole) Valid() bool {
 	}
 }
 
+// Defines values for AdminOrganizationDeletedByKind.
+const (
+	AdminOrganizationDeletedByKindInstanceAdmin AdminOrganizationDeletedByKind = "instance_admin"
+	AdminOrganizationDeletedByKindOwner         AdminOrganizationDeletedByKind = "owner"
+)
+
+// Valid indicates whether the value is a known member of the AdminOrganizationDeletedByKind enum.
+func (e AdminOrganizationDeletedByKind) Valid() bool {
+	switch e {
+	case AdminOrganizationDeletedByKindInstanceAdmin:
+		return true
+	case AdminOrganizationDeletedByKindOwner:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminOrganizationDetailDeletedByKind.
+const (
+	AdminOrganizationDetailDeletedByKindInstanceAdmin AdminOrganizationDetailDeletedByKind = "instance_admin"
+	AdminOrganizationDetailDeletedByKindOwner         AdminOrganizationDetailDeletedByKind = "owner"
+)
+
+// Valid indicates whether the value is a known member of the AdminOrganizationDetailDeletedByKind enum.
+func (e AdminOrganizationDetailDeletedByKind) Valid() bool {
+	switch e {
+	case AdminOrganizationDetailDeletedByKindInstanceAdmin:
+		return true
+	case AdminOrganizationDetailDeletedByKindOwner:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminSettingsSignupMode.
 const (
 	AdminSettingsSignupModeInvite AdminSettingsSignupMode = "invite"
@@ -1813,22 +1849,48 @@ type AdminMembershipRole string
 
 // AdminOrganization defines model for AdminOrganization.
 type AdminOrganization struct {
-	Id          int64  `json:"id"`
-	MemberCount int64  `json:"member_count"`
-	Name        string `json:"name"`
-	SiteCount   int64  `json:"site_count"`
-	SiteLimit   int    `json:"site_limit"`
-	Slug        string `json:"slug"`
+	// DeletedAt Set while the organization is deleted.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
+	// DeletedByKind Actor class for the current deletion lifecycle.
+	DeletedByKind *AdminOrganizationDeletedByKind `json:"deleted_by_kind,omitempty"`
+
+	// DeletedByName Current display name of the user that initiated deletion.
+	DeletedByName *string `json:"deleted_by_name,omitempty"`
+
+	// DeletedByUserId User that initiated the current deletion lifecycle.
+	DeletedByUserId *int64 `json:"deleted_by_user_id,omitempty"`
+	Id              int64  `json:"id"`
+	MemberCount     int64  `json:"member_count"`
+	Name            string `json:"name"`
+
+	// RestorableUntil End of the restore grace period
+	RestorableUntil *time.Time `json:"restorable_until,omitempty"`
+	SiteCount       int64      `json:"site_count"`
+	SiteLimit       int        `json:"site_limit"`
+	Slug            string     `json:"slug"`
 }
+
+// AdminOrganizationDeletedByKind Actor class for the current deletion lifecycle.
+type AdminOrganizationDeletedByKind string
 
 // AdminOrganizationDetail defines model for AdminOrganizationDetail.
 type AdminOrganizationDetail struct {
 	// DeletedAt Set while the organization is deleted.
-	DeletedAt   *time.Time  `json:"deleted_at,omitempty"`
-	Id          int64       `json:"id"`
-	MemberCount int64       `json:"member_count"`
-	Members     []AdminUser `json:"members"`
-	Name        string      `json:"name"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
+	// DeletedByKind Actor class for the current deletion lifecycle.
+	DeletedByKind *AdminOrganizationDetailDeletedByKind `json:"deleted_by_kind,omitempty"`
+
+	// DeletedByName Current display name of the user that initiated deletion.
+	DeletedByName *string `json:"deleted_by_name,omitempty"`
+
+	// DeletedByUserId User that initiated the current deletion lifecycle.
+	DeletedByUserId *int64      `json:"deleted_by_user_id,omitempty"`
+	Id              int64       `json:"id"`
+	MemberCount     int64       `json:"member_count"`
+	Members         []AdminUser `json:"members"`
+	Name            string      `json:"name"`
 
 	// RestorableUntil End of the restore grace period
 	RestorableUntil *time.Time  `json:"restorable_until,omitempty"`
@@ -1837,6 +1899,9 @@ type AdminOrganizationDetail struct {
 	Sites           []AdminSite `json:"sites"`
 	Slug            string      `json:"slug"`
 }
+
+// AdminOrganizationDetailDeletedByKind Actor class for the current deletion lifecycle.
+type AdminOrganizationDetailDeletedByKind string
 
 // AdminOrganizationsResponse defines model for AdminOrganizationsResponse.
 type AdminOrganizationsResponse struct {
@@ -5135,7 +5200,7 @@ type ServerInterface interface {
 	// AdminEraseGitHubStarsUser Erase every recorded star event of a GitHub user
 	// (DELETE /api/private/admin/github-stars/users/{login})
 	AdminEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request, login string, params AdminEraseGitHubStarsUserParams)
-	// AdminListOrganizations List organizations with member, site and quota counts
+	// AdminListOrganizations List organizations, including restorable deletions, with member, site and quota counts
 	// (GET /api/private/admin/organizations)
 	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
 	// AdminDeleteOrganization Delete an organization with the restorable deletion grace period
@@ -5237,10 +5302,10 @@ type ServerInterface interface {
 	// StartCurrentUserEmailChange Send an email-change confirmation
 	// (POST /api/private/me/email)
 	StartCurrentUserEmailChange(w http.ResponseWriter, r *http.Request)
-	// ListDeletedOrganizations List restorable organizations owned by the signed-in user
+	// ListDeletedOrganizations List owner-deleted, restorable organizations owned by the signed-in user
 	// (GET /api/private/me/orgs/deleted)
 	ListDeletedOrganizations(w http.ResponseWriter, r *http.Request)
-	// RestoreOrganization Restore an owned organization during its deletion grace period
+	// RestoreOrganization Restore an owner-deleted organization during its deletion grace period
 	// (POST /api/private/me/orgs/{org}/restore)
 	RestoreOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// ChangeCurrentUserPassword Change the signed-in user's password

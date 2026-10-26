@@ -96,7 +96,7 @@ paths:
     get:
       operationId: adminListOrganizations
       security: [{ cookieAuth: [] }]
-      summary: List organizations with member, site and quota counts
+      summary: List organizations, including restorable deletions, with member, site and quota counts
       parameters:
         - { name: search, in: query, schema: { type: string, maxLength: 200 } }
         - { $ref: '#/components/parameters/AdminLimit' }
@@ -122,7 +122,7 @@ paths:
       operationId: adminDeleteOrganization
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       summary: Delete an organization with the restorable deletion grace period
-      description: Tombstones the organization and its sites; the owner can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
+      description: Tombstones the organization and its sites; only an instance admin can restore it within the grace period. Organizations without real sites are erased at once. Audited as instance.organization.deleted.
       parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
       responses:
         '204': { description: Organization deleted. }
@@ -592,7 +592,7 @@ paths:
     get:
       operationId: listDeletedOrganizations
       security: [{ cookieAuth: [] }]
-      summary: List restorable organizations owned by the signed-in user
+      summary: List owner-deleted, restorable organizations owned by the signed-in user
       responses:
         '200':
           description: Organizations scheduled for deletion.
@@ -606,7 +606,7 @@ paths:
     post:
       operationId: restoreOrganization
       security: [{ cookieAuth: [] }]
-      summary: Restore an owned organization during its deletion grace period
+      summary: Restore an owner-deleted organization during its deletion grace period
       parameters:
         - $ref: '#/components/parameters/OrgPathID'
       responses:
@@ -3788,6 +3788,11 @@ components:
         member_count: { type: integer, format: int64, minimum: 0 }
         site_count: { type: integer, format: int64, minimum: 0 }
         site_limit: { type: integer, minimum: 0 }
+        deleted_at: { type: string, format: date-time, description: Set while the organization is deleted. }
+        restorable_until: { type: string, format: date-time, description: End of the restore grace period, set while the organization is deleted. }
+        deleted_by_kind: { type: string, enum: [owner, instance_admin], description: Actor class for the current deletion lifecycle. }
+        deleted_by_user_id: { type: integer, format: int64, description: User that initiated the current deletion lifecycle. }
+        deleted_by_name: { type: string, description: Current display name of the user that initiated deletion. }
     AdminOrganizationsResponse:
       type: object
       additionalProperties: false
@@ -3819,8 +3824,6 @@ components:
           properties:
             members: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
             sites: { type: array, items: { $ref: '#/components/schemas/AdminSite' } }
-            deleted_at: { type: string, format: date-time, description: Set while the organization is deleted. }
-            restorable_until: { type: string, format: date-time, description: End of the restore grace period, set while the organization is deleted. }
     AdminSettings:
       type: object
       additionalProperties: false

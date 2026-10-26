@@ -78,6 +78,14 @@ export function useDeleteAdminOrganization() {
   })
 }
 
+export function useRestoreAdminOrganization() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => privateRequest<void>('POST', `${base}/organizations/${id}/restore`),
+    onSuccess: () => client.invalidateQueries({ queryKey: adminKeys.all }),
+  })
+}
+
 export function useSetAdminSiteRetention() {
   const client = useQueryClient()
   return useMutation({
