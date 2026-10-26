@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"time"
 
@@ -89,7 +90,7 @@ func (a *Auth) finishReset(ctx context.Context, token, newPassword string, signI
 	if err != nil {
 		return "", err
 	}
-	var session string
+	var resetUserID int64
 	err = a.store.Tx(ctx, func(tx pgx.Tx) error {
 		var userID int64
 		err := tx.QueryRow(ctx, `
@@ -112,30 +113,51 @@ func (a *Auth) finishReset(ctx context.Context, token, newPassword string, signI
 		if _, err := tx.Exec(ctx, `delete from user_sessions where user_id=$1`, userID); err != nil {
 			return err
 		}
-		if !signIn {
-			return nil
-		}
-		var totpEnabled bool
-		var disabledAt *time.Time
-		if err := tx.QueryRow(ctx, `select totp_enabled,disabled_at from users where id=$1`, userID).Scan(&totpEnabled, &disabledAt); err != nil {
-			return err
-		}
-		if totpEnabled || disabledAt != nil {
-			return nil
-		}
-		if a.policy != nil {
-			if _, _, err := a.policy.RequiresTwoFactorSetup(ctx, userID, now); err != nil {
-				return nil
-			}
-		}
-		session, err = createSession(ctx, tx, userID, deviceLabel, now)
-		if err != nil {
-			return err
-		}
-		return writeUserAudits(ctx, tx, userID, "auth.login")
+		resetUserID = userID
+		return nil
 	})
 	if err != nil {
 		return "", err
 	}
-	return session, nil
+	if !signIn {
+		return "", nil
+	}
+	return a.signInAfterReset(ctx, resetUserID, deviceLabel, now), nil
+}
+
+// signInAfterReset opens a session for a user whose password was just reset
+// from an emailed link. It returns "" when the user must sign in the normal
+// way: a second factor is enrolled, the account is disabled, or the instance's
+// two-factor policy applies or cannot be read. The password is already set, so
+// a failure here is logged and costs the user only the login form.
+func (a *Auth) signInAfterReset(ctx context.Context, userID int64, deviceLabel string, now time.Time) string {
+	var totpEnabled bool
+	var disabledAt *time.Time
+	if err := a.store.Pool.QueryRow(ctx, `select totp_enabled,disabled_at from users where id=$1`, userID).Scan(&totpEnabled, &disabledAt); err != nil {
+		slog.WarnContext(ctx, "sign in after reset: read user", "error", err)
+		return ""
+	}
+	if totpEnabled || disabledAt != nil {
+		return ""
+	}
+	if a.policy != nil {
+		setupRequired, _, err := a.policy.RequiresTwoFactorSetup(ctx, userID, now)
+		if err != nil || setupRequired {
+			return ""
+		}
+	}
+	var session string
+	err := a.store.Tx(ctx, func(tx pgx.Tx) error {
+		var createErr error
+		session, createErr = createSession(ctx, tx, userID, deviceLabel, now)
+		if createErr != nil {
+			return createErr
+		}
+		return writeUserAudits(ctx, tx, userID, "auth.login")
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "sign in after reset: open session", "error", err)
+		return ""
+	}
+	return session
 }
