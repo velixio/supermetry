@@ -270,6 +270,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/private/admin/organizations/{org}/replay-retention-cap", h.adminSetReplayRetentionCap)
 	mux.HandleFunc("DELETE /api/private/admin/organizations/{org}/replay-retention-cap", h.adminResetReplayRetentionCap)
 	mux.HandleFunc("POST /api/private/admin/organizations/{org}/restore", h.adminRestoreOrganization)
+	mux.HandleFunc("POST /api/private/admin/organizations/{org}/erase", h.adminEraseOrganization)
 	mux.HandleFunc("GET /api/private/admin/sites", h.adminListSites)
 	mux.HandleFunc("PATCH /api/private/admin/sites/{site_id}", h.adminSetSiteRetention)
 	mux.HandleFunc("GET /api/private/admin/settings", h.adminGetSettings)

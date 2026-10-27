@@ -1244,7 +1244,8 @@ func eraseDeletedSites(ctx context.Context, pool *pgxpool.Pool, replayStore repl
 		where o.deleted_at is not null and o.erased_at is null
 		  and not exists(select 1 from sites s where s.org_id=o.id and s.erased_at is null)
 		  and (
-		    not coalesce(
+		    o.erase_requested_at is not null
+		    or not coalesce(
 		      (select (a.metadata->>'scheduled')::boolean from audit_log a
 		       where a.org_id=o.id and a.action='organization.deleted' and a.target_id=o.id
 		       order by a.id desc limit 1),

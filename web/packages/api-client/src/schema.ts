@@ -250,6 +250,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/organizations/{org}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erase an organization permanently, without the deletion grace period
+         * @description Irreversible. The body slug must equal the organization's slug (a safety check). A live organization is deleted first, then all its sites are queued for immediate erasure by the site-erasure job (events, sessions, replays and their blobs, imports, saved reports, profiles and so on), which runs within about a minute and may take longer for large sites. Users are kept. Answers 202 erasing while the work is pending, and 200 erased once it is finished, so repeating the call is safe. Restore answers 409 not_restorable afterwards. Refused with 409 for the only live organization of the instance. Audited as instance.organization.erase_now (counts only).
+         */
+        post: operations["adminEraseOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/admin/organizations/{org}/replay-retention-cap": {
         parameters: {
             query?: never;
@@ -3057,6 +3077,14 @@ export interface components {
              */
             source: "org" | "none";
         };
+        AdminEraseOrganizationInput: {
+            /** @description The organization's slug; must match. */
+            slug: string;
+        };
+        AdminEraseOrganizationResult: {
+            /** @enum {string} */
+            status: "erasing" | "erased";
+        };
         ReplayRetentionCapInput: {
             /** @description The cap in days */
             days: number | null;
@@ -5660,6 +5688,55 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminEraseOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminEraseOrganizationInput"];
+            };
+        };
+        responses: {
+            /** @description Already erased. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminEraseOrganizationResult"];
+                };
+            };
+            /** @description Erasure queued or in progress. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminEraseOrganizationResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The organization is the only live one of the instance. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             429: components["responses"]["RateLimited"];
         };
     };

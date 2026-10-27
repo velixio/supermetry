@@ -16,6 +16,24 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AdminEraseOrganizationResultStatus.
+const (
+	Erased  AdminEraseOrganizationResultStatus = "erased"
+	Erasing AdminEraseOrganizationResultStatus = "erasing"
+)
+
+// Valid indicates whether the value is a known member of the AdminEraseOrganizationResultStatus enum.
+func (e AdminEraseOrganizationResultStatus) Valid() bool {
+	switch e {
+	case Erased:
+		return true
+	case Erasing:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminMembershipRole.
 const (
 	AdminMembershipRoleAdmin  AdminMembershipRole = "admin"
@@ -1927,6 +1945,20 @@ type AdminAuditEntry struct {
 type AdminAuditResponse struct {
 	Data []AdminAuditEntry `json:"data"`
 }
+
+// AdminEraseOrganizationInput defines model for AdminEraseOrganizationInput.
+type AdminEraseOrganizationInput struct {
+	// Slug The organization's slug; must match.
+	Slug string `json:"slug"`
+}
+
+// AdminEraseOrganizationResult defines model for AdminEraseOrganizationResult.
+type AdminEraseOrganizationResult struct {
+	Status AdminEraseOrganizationResultStatus `json:"status"`
+}
+
+// AdminEraseOrganizationResultStatus defines model for AdminEraseOrganizationResult.Status.
+type AdminEraseOrganizationResultStatus string
 
 // AdminImpersonation defines model for AdminImpersonation.
 type AdminImpersonation struct {
@@ -4809,6 +4841,9 @@ type TrackingPixelParams struct {
 // TrackingPixelParamsStyle defines parameters for TrackingPixel.
 type TrackingPixelParamsStyle string
 
+// AdminEraseOrganizationJSONRequestBody defines body for AdminEraseOrganization for application/json ContentType.
+type AdminEraseOrganizationJSONRequestBody = AdminEraseOrganizationInput
+
 // AdminSetGitHubStarRepoLimitJSONRequestBody defines body for AdminSetGitHubStarRepoLimit for application/json ContentType.
 type AdminSetGitHubStarRepoLimitJSONRequestBody = GitHubStarRepoLimitInput
 
@@ -5452,6 +5487,9 @@ type ServerInterface interface {
 	// AdminGetOrganization Get an organization with its members, sites, quota and storage total
 	// (GET /api/private/admin/organizations/{org})
 	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminEraseOrganization Erase an organization permanently, without the deletion grace period
+	// (POST /api/private/admin/organizations/{org}/erase)
+	AdminEraseOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminResetGitHubStarRepoLimit Remove an organization's own limit so the instance default applies
 	// (DELETE /api/private/admin/organizations/{org}/github-star-repo-limit)
 	AdminResetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -6098,6 +6136,32 @@ func (siw *ServerInterfaceWrapper) AdminGetOrganization(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminGetOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminEraseOrganization operation middleware
+func (siw *ServerInterfaceWrapper) AdminEraseOrganization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminEraseOrganization(w, r, org)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12389,6 +12453,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminResetGitHubStarRepoLimit)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminGetGitHubStarRepoLimit)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminSetGitHubStarRepoLimit)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/organizations/{org}/erase", wrapper.AdminEraseOrganization)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminResetReplayRetentionCap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminGetReplayRetentionCap)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminSetReplayRetentionCap)
