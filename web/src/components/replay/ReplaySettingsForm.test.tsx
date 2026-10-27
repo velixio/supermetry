@@ -72,6 +72,20 @@ describe('ReplaySettingsForm', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ sample_rate: expect.objectContaining({ value: 5 }) }))
   })
 
+  it('shows the organization retention cap and limits the retention input to it', () => {
+    render(<ReplaySettingsForm settings={{ ...settings(true), configured_enabled: true, instance_enabled: true, restrictions: ['org_retention_capped'], retention_days: { value: 30, configured: 90, locked: false, maximum: 30, restriction: 'org_retention_capped' } }} saving={false} onSave={vi.fn()} />)
+    expect(screen.getByRole('spinbutton', { name: 'Retention (days)' })).toHaveAttribute('max', '30')
+    expect(screen.getByText('Configured: 90. Effective: 30.')).toBeVisible()
+    expect(screen.getByText(/Organization maximum: 30 days, set by your plan/)).toBeVisible()
+    expect(screen.queryByText(/Instance maximum/)).toBeNull()
+  })
+
+  it('keeps the instance wording when the instance cap is the limit', () => {
+    render(<ReplaySettingsForm settings={{ ...settings(true), configured_enabled: true, instance_enabled: true, retention_days: { value: 20, configured: 90, locked: true, maximum: 20, restriction: 'instance_retention_days_cap' } }} saving={false} onSave={vi.fn()} />)
+    expect(screen.getByText(/Instance maximum: 20/)).toBeVisible()
+    expect(screen.queryByText(/Organization maximum/)).toBeNull()
+  })
+
   it('allows withdrawing a stored project opt-in after instance replay is disabled', () => {
     const onSave = vi.fn()
     render(<ReplaySettingsForm settings={{ ...settings(false), configured_enabled: true, instance_enabled: false }} saving={false} onSave={onSave} />)

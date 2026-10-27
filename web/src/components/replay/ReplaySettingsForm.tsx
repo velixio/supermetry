@@ -26,7 +26,9 @@ function ReplayStatus({ settings }: { settings: SiteSettings }) {
 function ConstraintNote({ setting }: { setting: SiteSettings['sample_rate'] }) {
   return <>
     {setting.configured !== undefined ? <FieldDescription>Configured: {setting.configured}. Effective: {setting.value}.</FieldDescription> : null}
-    {setting.maximum !== undefined ? <FieldDescription>Instance maximum: {setting.maximum}. This project can choose a lower value.</FieldDescription> : null}
+    {setting.maximum !== undefined && setting.restriction === 'org_retention_capped'
+      ? <FieldDescription>Organization maximum: {setting.maximum} days, set by your plan. This project can choose a lower value.</FieldDescription>
+      : setting.maximum !== undefined ? <FieldDescription>Instance maximum: {setting.maximum}. This project can choose a lower value.</FieldDescription> : null}
   </>
 }
 
