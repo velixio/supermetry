@@ -3,7 +3,9 @@ package mail
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"mime"
@@ -75,6 +77,15 @@ func (s *smtpSender) Send(ctx context.Context, message Message) error {
 		return fmt.Errorf("create SMTP client: %w", err)
 	}
 	defer client.Close()
+	// Announce a real host name: the client's default, "localhost", makes some
+	// providers hold the message for a minute or more.
+	hello := s.config.Hello
+	if hello == "" {
+		hello = config.SMTPHelloName("", "", s.config.From)
+	}
+	if err := client.Hello(hello); err != nil {
+		return fmt.Errorf("SMTP greeting: %w", err)
+	}
 	if s.config.StartTLS {
 		if ok, _ := client.Extension("STARTTLS"); !ok {
 			return errors.New("SMTP server does not support STARTTLS")
@@ -98,7 +109,7 @@ func (s *smtpSender) Send(ctx context.Context, message Message) error {
 	if err != nil {
 		return fmt.Errorf("open SMTP message: %w", err)
 	}
-	data := renderMessage(s.config.From, message)
+	data := renderMessage(s.config.From, hello, message, time.Now())
 	if _, err := writer.Write(data); err != nil {
 		_ = writer.Close()
 		return fmt.Errorf("write SMTP message: %w", err)
@@ -112,10 +123,13 @@ func (s *smtpSender) Send(ctx context.Context, message Message) error {
 	return nil
 }
 
-func renderMessage(from string, message Message) []byte {
+func renderMessage(from, hello string, message Message, now time.Time) []byte {
 	var data bytes.Buffer
 	fmt.Fprintf(&data, "From: %s\r\n", from)
 	fmt.Fprintf(&data, "To: %s\r\n", message.To)
+	// Date and Message-ID are required or expected of every message; filters score a message without them as suspicious.
+	fmt.Fprintf(&data, "Date: %s\r\n", now.UTC().Format(time.RFC1123Z))
+	fmt.Fprintf(&data, "Message-ID: <%s@%s>\r\n", messageIDToken(), hello)
 	fmt.Fprintf(&data, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", sanitizeHeader(message.Subject)))
 	data.WriteString("MIME-Version: 1.0\r\n")
 	if message.HTML == "" {
@@ -130,6 +144,15 @@ func renderMessage(from string, message Message) []byte {
 	fmt.Fprintf(&data, "--%s\r\nContent-Type: text/html; charset=utf-8\r\n\r\n%s\r\n", boundary, message.HTML)
 	fmt.Fprintf(&data, "--%s--\r\n", boundary)
 	return data.Bytes()
+}
+
+// messageIDToken is 16 random bytes in hex: unique per message.
+func messageIDToken() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return hex.EncodeToString(b[:])
 }
 
 func sanitizeHeader(value string) string {

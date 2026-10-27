@@ -139,6 +139,7 @@ Leave `SUPERMETRY_SMTP_HOST` empty to configure no mail server. How Supermetry b
 | `SUPERMETRY_SMTP_PASS` | SMTP password. Treat as a secret. | empty | `CHANGE_ME` |
 | `SUPERMETRY_SMTP_FROM` | Sender address. Required whenever `SUPERMETRY_SMTP_HOST` is set. | empty | `supermetry@example.com` |
 | `SUPERMETRY_SMTP_STARTTLS` | Boolean; use STARTTLS. | `true` | `true` |
+| `SUPERMETRY_SMTP_HELO` | Host name announced in the SMTP greeting (EHLO). Use a real, resolvable name. Default: the host of `SUPERMETRY_BASE_URL`, else the domain of `SUPERMETRY_SMTP_FROM`, else `localhost`. Some mail providers hold mail from a client that says `localhost` for a minute or more. | derived | `app.example.com` |
 
 ## Development and benchmark only
 

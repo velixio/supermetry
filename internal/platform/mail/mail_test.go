@@ -1,6 +1,7 @@
 package mail_test
 
 import (
+	"bufio"
 	"context"
 	"net"
 	"strconv"
@@ -108,4 +109,88 @@ func TestSMTPCancellationStopsStalledExchange(t *testing.T) {
 		t.Fatal("Send did not stop after context cancellation")
 	}
 	_ = conn.Close()
+}
+
+// fakeSMTP is a minimal plain SMTP server: it records the EHLO name and the
+// message it receives.
+func fakeSMTP(t *testing.T) (host string, port int, result chan [2]string) {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	result = make(chan [2]string, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		r := bufio.NewReader(conn)
+		write := func(s string) { _, _ = conn.Write([]byte(s + "\r\n")) }
+		write("220 fake ESMTP")
+		var ehlo string
+		var data strings.Builder
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				return
+			}
+			line = strings.TrimRight(line, "\r\n")
+			switch cmd := strings.ToUpper(line); {
+			case strings.HasPrefix(cmd, "EHLO "), strings.HasPrefix(cmd, "HELO "):
+				ehlo = strings.TrimSpace(line[5:])
+				write("250 fake")
+			case strings.HasPrefix(cmd, "MAIL FROM"), strings.HasPrefix(cmd, "RCPT TO"):
+				write("250 ok")
+			case cmd == "DATA":
+				write("354 go on")
+				for {
+					l, err := r.ReadString('\n')
+					if err != nil || strings.TrimRight(l, "\r\n") == "." {
+						break
+					}
+					data.WriteString(l)
+				}
+				write("250 queued")
+			case cmd == "QUIT":
+				write("221 bye")
+				result <- [2]string{ehlo, data.String()}
+				return
+			default:
+				write("250 ok")
+			}
+		}
+	}()
+	h, p, _ := net.SplitHostPort(listener.Addr().String())
+	port, _ = strconv.Atoi(p)
+	return h, port, result
+}
+
+func TestSMTPAnnouncesARealHostNameAndAddsDateAndMessageID(t *testing.T) {
+	host, port, result := fakeSMTP(t)
+	cfg := config.SMTP{Host: host, Port: port, From: "Supermetry <noreply@example.net>", Hello: "app.example.net"}
+	if err := mail.NewSMTP(cfg).Send(context.Background(), mail.Message{To: "person@example.com", Subject: "Hi", Text: "body"}); err != nil {
+		t.Fatal(err)
+	}
+	got := <-result
+	if got[0] != "app.example.net" {
+		t.Fatalf("EHLO name = %q, want app.example.net", got[0])
+	}
+	for _, want := range []string{"\nDate: ", "\nMessage-ID: <", "@app.example.net>"} {
+		if !strings.Contains("\n"+got[1], want) {
+			t.Errorf("message lacks %q:\n%s", want, got[1])
+		}
+	}
+
+	// Without a configured name the sender domain is announced, never "localhost".
+	host, port, result = fakeSMTP(t)
+	cfg = config.SMTP{Host: host, Port: port, From: "Supermetry <noreply@example.net>"}
+	if err := mail.NewSMTP(cfg).Send(context.Background(), mail.Message{To: "person@example.com", Subject: "Hi", Text: "body"}); err != nil {
+		t.Fatal(err)
+	}
+	if got = <-result; got[0] != "example.net" {
+		t.Fatalf("default EHLO name = %q, want example.net", got[0])
+	}
 }

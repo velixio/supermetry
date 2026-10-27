@@ -679,3 +679,43 @@ func TestLoadSupportURL(t *testing.T) {
 		t.Fatalf("unsafe support URL error = %v", err)
 	}
 }
+
+func TestSMTPHelloName(t *testing.T) {
+	cases := []struct {
+		name, explicit, baseURL, from, want string
+	}{
+		{"explicit wins", "mail.example.org", "https://app.example.com", "Name <a@example.net>", "mail.example.org"},
+		{"base URL host", "", "https://App.Example.com/", "Name <a@example.net>", "app.example.com"},
+		{"localhost base URL falls back to the sender domain", "", "http://localhost:8787", "Name <a@example.net>", "example.net"},
+		{"IP base URL falls back to the sender domain", "", "http://203.0.113.9:8787", "a@example.net", "example.net"},
+		{"single label host is not used", "", "http://intranet", "a@example.net", "example.net"},
+		{"nothing usable", "", "http://localhost", "a@localhost", "localhost"},
+		{"no sender either", "", "", "", "localhost"},
+	}
+	for _, tc := range cases {
+		if got := SMTPHelloName(tc.explicit, tc.baseURL, tc.from); got != tc.want {
+			t.Errorf("%s: SMTPHelloName = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestLoadSMTPHello(t *testing.T) {
+	e := baseEnv()
+	e["SUPERMETRY_SMTP_HOST"] = "smtp.example.net"
+	e["SUPERMETRY_SMTP_FROM"] = "Supermetry <noreply@example.net>"
+	c, err := Load(env(e))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SMTP.Hello != "a.example" {
+		t.Fatalf("derived Hello = %q, want the base URL host a.example", c.SMTP.Hello)
+	}
+	e["SUPERMETRY_SMTP_HELO"] = "mail.example.org"
+	if c, err = Load(env(e)); err != nil || c.SMTP.Hello != "mail.example.org" {
+		t.Fatalf("explicit Hello = %q, %v", c.SMTP.Hello, err)
+	}
+	e["SUPERMETRY_SMTP_HELO"] = "bad name\r\nQUIT"
+	if _, err = Load(env(e)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_SMTP_HELO") {
+		t.Fatalf("invalid SUPERMETRY_SMTP_HELO error = %v", err)
+	}
+}
