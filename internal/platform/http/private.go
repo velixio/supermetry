@@ -134,7 +134,9 @@ type Deps struct {
 	Shares  *shares.Shares
 	Reports *reports.Reports
 	Alerts  AlertsService
-	Query   interface {
+	// OrgNotifications manages the org's Telegram notification channel. Nil answers 500 like Alerts.
+	OrgNotifications OrgNotificationsService
+	Query            interface {
 		Query(context.Context, api.QueryRequest) (api.QueryResponse, error)
 	}
 	Imports interface {
@@ -409,6 +411,10 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/reports", h.subscribeReport)
 	mux.HandleFunc("GET /api/private/sites/{site}/reports", h.listReports)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/reports/{report}", h.deleteReport)
+	mux.HandleFunc("GET /api/private/orgs/{org}/notifications", h.listOrgNotifications)
+	mux.HandleFunc("PUT /api/private/orgs/{org}/notifications/telegram", h.saveOrgTelegram)
+	mux.HandleFunc("DELETE /api/private/orgs/{org}/notifications/telegram", h.deleteOrgTelegram)
+	mux.HandleFunc("POST /api/private/orgs/{org}/notifications/telegram/test", h.testOrgTelegram)
 	mux.HandleFunc("GET /api/private/orgs/{org}/channels", h.listChannels)
 	mux.HandleFunc("POST /api/private/orgs/{org}/channels", h.createChannel)
 	mux.HandleFunc("PATCH /api/private/orgs/{org}/channels/{channel}", h.updateChannel)

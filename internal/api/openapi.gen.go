@@ -807,25 +807,25 @@ func (e Metric) Valid() bool {
 
 // Defines values for NotificationChannelKind.
 const (
-	Discord  NotificationChannelKind = "discord"
-	Email    NotificationChannelKind = "email"
-	Slack    NotificationChannelKind = "slack"
-	Telegram NotificationChannelKind = "telegram"
-	Webhook  NotificationChannelKind = "webhook"
+	NotificationChannelKindDiscord  NotificationChannelKind = "discord"
+	NotificationChannelKindEmail    NotificationChannelKind = "email"
+	NotificationChannelKindSlack    NotificationChannelKind = "slack"
+	NotificationChannelKindTelegram NotificationChannelKind = "telegram"
+	NotificationChannelKindWebhook  NotificationChannelKind = "webhook"
 )
 
 // Valid indicates whether the value is a known member of the NotificationChannelKind enum.
 func (e NotificationChannelKind) Valid() bool {
 	switch e {
-	case Discord:
+	case NotificationChannelKindDiscord:
 		return true
-	case Email:
+	case NotificationChannelKindEmail:
 		return true
-	case Slack:
+	case NotificationChannelKindSlack:
 		return true
-	case Telegram:
+	case NotificationChannelKindTelegram:
 		return true
-	case Webhook:
+	case NotificationChannelKindWebhook:
 		return true
 	default:
 		return false
@@ -844,6 +844,48 @@ func (e OrderByDirection) Valid() bool {
 	case Asc:
 		return true
 	case Desc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OrgNotificationChannelKind.
+const (
+	OrgNotificationChannelKindTelegram OrgNotificationChannelKind = "telegram"
+)
+
+// Valid indicates whether the value is a known member of the OrgNotificationChannelKind enum.
+func (e OrgNotificationChannelKind) Valid() bool {
+	switch e {
+	case OrgNotificationChannelKindTelegram:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OrgNotificationKind.
+const (
+	StarMilestone   OrgNotificationKind = "star_milestone"
+	StarSpike       OrgNotificationKind = "star_spike"
+	TrendingEntered OrgNotificationKind = "trending_entered"
+	TrendingLeft    OrgNotificationKind = "trending_left"
+	UnstarSurge     OrgNotificationKind = "unstar_surge"
+)
+
+// Valid indicates whether the value is a known member of the OrgNotificationKind enum.
+func (e OrgNotificationKind) Valid() bool {
+	switch e {
+	case StarMilestone:
+		return true
+	case StarSpike:
+		return true
+	case TrendingEntered:
+		return true
+	case TrendingLeft:
+		return true
+	case UnstarSurge:
 		return true
 	default:
 		return false
@@ -3129,6 +3171,56 @@ type OrderBy struct {
 // OrderByDirection defines model for OrderBy.Direction.
 type OrderByDirection string
 
+// OrgNotificationChannel defines model for OrgNotificationChannel.
+type OrgNotificationChannel struct {
+	ChatId              string                     `json:"chat_id"`
+	ConsecutiveFailures int                        `json:"consecutive_failures"`
+	CreatedAt           time.Time                  `json:"created_at"`
+	Enabled             bool                       `json:"enabled"`
+	Events              map[string]bool            `json:"events"`
+	Id                  int64                      `json:"id"`
+	Kind                OrgNotificationChannelKind `json:"kind"`
+	LastError           string                     `json:"last_error"`
+	LastOkAt            time.Time                  `json:"last_ok_at"`
+	TokenSet            bool                       `json:"token_set"`
+	UpdatedAt           time.Time                  `json:"updated_at"`
+}
+
+// OrgNotificationChannelKind defines model for OrgNotificationChannel.Kind.
+type OrgNotificationChannelKind string
+
+// OrgNotificationEventKind defines model for OrgNotificationEventKind.
+type OrgNotificationEventKind struct {
+	Description string              `json:"description"`
+	Kind        OrgNotificationKind `json:"kind"`
+	Label       string              `json:"label"`
+}
+
+// OrgNotificationKind defines model for OrgNotificationKind.
+type OrgNotificationKind string
+
+// OrgNotificationList defines model for OrgNotificationList.
+type OrgNotificationList struct {
+	Data       []OrgNotificationChannel   `json:"data"`
+	EventKinds []OrgNotificationEventKind `json:"event_kinds"`
+}
+
+// OrgNotificationTestResult defines model for OrgNotificationTestResult.
+type OrgNotificationTestResult struct {
+	Error *string `json:"error,omitempty"`
+	Ok    bool    `json:"ok"`
+}
+
+// OrgTelegramInput defines model for OrgTelegramInput.
+type OrgTelegramInput struct {
+	ChatId  string           `json:"chat_id"`
+	Enabled bool             `json:"enabled"`
+	Events  *map[string]bool `json:"events,omitempty"`
+
+	// Token Bot token; omit to keep the stored one.
+	Token *string `json:"token,omitempty"`
+}
+
 // Organization defines model for Organization.
 type Organization struct {
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
@@ -4695,6 +4787,9 @@ type SaveNotificationTemplateJSONRequestBody = NotificationTemplateInput
 // PreviewNotificationTemplateJSONRequestBody defines body for PreviewNotificationTemplate for application/json ContentType.
 type PreviewNotificationTemplateJSONRequestBody = NotificationTemplateInput
 
+// SaveOrgTelegramNotificationsJSONRequestBody defines body for SaveOrgTelegramNotifications for application/json ContentType.
+type SaveOrgTelegramNotificationsJSONRequestBody = OrgTelegramInput
+
 // OpenSharedLinkJSONRequestBody defines body for OpenSharedLink for application/json ContentType.
 type OpenSharedLinkJSONRequestBody = OpenShareRequest
 
@@ -5431,6 +5526,18 @@ type ServerInterface interface {
 	// PreviewNotificationTemplate Validate and preview a template with sample alert data
 	// (POST /api/private/orgs/{org}/notification-templates/{kind}/preview)
 	PreviewNotificationTemplate(w http.ResponseWriter, r *http.Request, org OrgPathID, kind NotificationChannelKind)
+	// ListOrgNotifications List the organization's notification channels (owners and admins)
+	// (GET /api/private/orgs/{org}/notifications)
+	ListOrgNotifications(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// DeleteOrgTelegramNotifications Delete the Telegram channel
+	// (DELETE /api/private/orgs/{org}/notifications/telegram)
+	DeleteOrgTelegramNotifications(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// SaveOrgTelegramNotifications Create or update the Telegram channel
+	// (PUT /api/private/orgs/{org}/notifications/telegram)
+	SaveOrgTelegramNotifications(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// TestOrgTelegramNotifications Send a test message (at most one every 30 seconds per organization)
+	// (POST /api/private/orgs/{org}/notifications/telegram/test)
+	TestOrgTelegramNotifications(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// ListDeletedSites List restorable sites in an organization
 	// (GET /api/private/orgs/{org}/sites/deleted)
 	ListDeletedSites(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -7537,6 +7644,110 @@ func (siw *ServerInterfaceWrapper) PreviewNotificationTemplate(w http.ResponseWr
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PreviewNotificationTemplate(w, r, org, kind)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOrgNotifications operation middleware
+func (siw *ServerInterfaceWrapper) ListOrgNotifications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOrgNotifications(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteOrgTelegramNotifications operation middleware
+func (siw *ServerInterfaceWrapper) DeleteOrgTelegramNotifications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteOrgTelegramNotifications(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveOrgTelegramNotifications operation middleware
+func (siw *ServerInterfaceWrapper) SaveOrgTelegramNotifications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveOrgTelegramNotifications(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestOrgTelegramNotifications operation middleware
+func (siw *ServerInterfaceWrapper) TestOrgTelegramNotifications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestOrgTelegramNotifications(w, r, org)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12092,6 +12303,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/power-users", wrapper.ListPowerUsers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notifications", wrapper.ListOrgNotifications)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/notifications/telegram", wrapper.DeleteOrgTelegramNotifications)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/orgs/{org}/notifications/telegram", wrapper.SaveOrgTelegramNotifications)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/notifications/telegram/test", wrapper.TestOrgTelegramNotifications)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates/{kind}", wrapper.ResetNotificationTemplate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates/{kind}", wrapper.SaveNotificationTemplate)
