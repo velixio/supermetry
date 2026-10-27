@@ -18,7 +18,7 @@ func TestUIServesNonAPIPathsOnly(t *testing.T) {
 		RateLimiter: ingest.NewTokenBuckets(0, 30),
 		UI:          ui,
 	})
-	for path, wantUI := range map[string]bool{"/": true, "/login": true, "/acme/blog?period=30d": true, "/healthz": false, "/api/public/openapi.json": false, "/api/private/me": false} {
+	for path, wantUI := range map[string]bool{"/": true, "/login": true, "/email-logo.png": true, "/acme/blog?period=30d": true, "/healthz": false, "/api/public/openapi.json": false, "/api/private/me": false} {
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
 		if (rr.Code == 299) != wantUI {

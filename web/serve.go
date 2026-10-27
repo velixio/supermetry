@@ -18,6 +18,7 @@ var rootIcons = map[string]bool{
 	"/favicon.ico":          true,
 	"/favicon-32x32.png":    true,
 	"/apple-touch-icon.png": true,
+	"/email-logo.png":       true, // linked from transactional emails; must be public
 }
 
 // Handler serves the embedded dashboard and its static assets.
