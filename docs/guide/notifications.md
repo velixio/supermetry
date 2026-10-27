@@ -25,3 +25,31 @@ See the official [Bot API request format and response model](https://core.telegr
 ## Delivery failures
 
 A failed test returns a safe message asking the manager to verify the credentials and destination. Automatic delivery attempts every enabled channel independently; one failing destination does not prevent the remaining destinations from being attempted. Failures increment the existing alert-delivery health counter and log only the alert ID, channel ID, channel kind, and a sanitized error.
+
+## Transactional email
+
+When SMTP is configured, Supermetry sends these emails. Each one is a multipart message (HTML and plain text) built from one shared layout with the Supermetry logo, a button, the link printed in full under it, and a footer saying why you received it.
+
+| Email | Subject | Sent when |
+|---|---|---|
+| Password reset | Reset your Supermetry password | Someone requests a reset. The link works once and expires in 1 hour. |
+| Invitation | You are invited to join {organization} on Supermetry | A member invites an address. Names the organization, who invited, the role, and the 7-day expiry. |
+| Welcome | Welcome to Supermetry | Once, after an account is created by signup or by accepting an invitation. Sent in the background; a slow or failing mail server never delays or fails the request. |
+| Confirm new email | Confirm your new Supermetry email | A user changes their address. Sent to the new address, valid for 1 hour. |
+| Email changed | Your Supermetry email was changed | After the change is confirmed. Sent to the old address. |
+| Deletion notices | {name} is scheduled for deletion on {date} | When a site or organization is deleted, and again 3 days before it is purged. |
+| Scheduled reports | {site} - {cadence} report | On each report subscription's schedule. |
+
+Alert emails stay plain text on purpose: you write their message templates, and Supermetry sends exactly your text.
+
+The logo is loaded from `{SUPERMETRY_BASE_URL}/email-logo.png`, a public file served by the dashboard (no sign-in needed). Without a usable `SUPERMETRY_BASE_URL` the emails show a text wordmark instead. Mail clients that block remote images show the "Supermetry" alt text.
+
+Without SMTP configured, nothing is sent: password reset and invitations show a copyable link instead, and the welcome email is skipped silently.
+
+### Previewing the emails
+
+```sh
+SUPERMETRY_EMAIL_PREVIEW_DIR=/tmp/emails go test ./internal/platform/mail -run Preview
+```
+
+This writes every email as `.html` and `.txt` files in that directory. Set `SUPERMETRY_EMAIL_PREVIEW_BASE` (for example `http://127.0.0.1:8099`, serving `web/public`) to load the logo from a local server. Open the `.html` files in a browser and narrow the window to about 375px to check the mobile layout.

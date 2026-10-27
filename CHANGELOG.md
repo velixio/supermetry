@@ -6,6 +6,17 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Added
+
+- Welcome email, sent once in the background after an account is created by signup or by accepting an invitation. It never delays the request and is skipped when SMTP is not configured.
+- `/email-logo.png`, the public logo image used by emails (`web/public/email-logo.png`).
+- Email preview: `SUPERMETRY_EMAIL_PREVIEW_DIR=/tmp/emails go test ./internal/platform/mail -run Preview` writes every email as HTML and text. See `docs/guide/notifications.md`.
+
+### Changed
+
+- Every email now uses one branded layout (logo, button, full link under it, footer, dark-mode friendly) in HTML and plain text: password reset, invitation, confirm new email, email changed, deletion notices and scheduled reports. Invitations now name the organization, who invited, the role and the expiry. Alert emails stay plain text.
+- SMTP message parts are sent quoted-printable, so long HTML lines never exceed the SMTP line limit.
+
 ## v0.1.17 (2026-10-27)
 
 ### Fixed
