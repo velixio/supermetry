@@ -41,13 +41,25 @@ func (h *handler) adminCheckUpdate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if h.refuseManagedUpdate(w) {
+		return
+	}
 	h.writeUpdateStatus(w, r, principal, h.deps.UpdateChecker.Refresh(r.Context()))
+}
+
+// refuseManagedUpdate answers 409 on a managed instance, where the operator owns updates.
+func (h *handler) refuseManagedUpdate(w http.ResponseWriter) bool {
+	if !h.deps.Managed {
+		return false
+	}
+	writeProblem(w, http.StatusConflict, "Update unavailable", "updates are managed by the operator of this instance")
+	return true
 }
 
 func (h *handler) writeUpdateStatus(w http.ResponseWriter, r *http.Request, principal authz.Principal, checked updatecheck.Status) {
 	response := adminUpdateStatusResponse{
 		Status:          checked,
-		UpdateSupported: h.deps.UpdateStarter != nil && (h.deps.UpdateMode == updatehelper.DeploymentBinary || h.deps.UpdateMode == updatehelper.DeploymentDocker),
+		UpdateSupported: !h.deps.Managed && h.deps.UpdateStarter != nil && (h.deps.UpdateMode == updatehelper.DeploymentBinary || h.deps.UpdateMode == updatehelper.DeploymentDocker),
 		DeploymentMode:  string(h.deps.UpdateMode),
 	}
 	if h.deps.Admin != nil {
@@ -91,6 +103,9 @@ func terminalUpdateStatus(status string) bool {
 func (h *handler) adminApplyUpdate(w http.ResponseWriter, r *http.Request) {
 	principal, ok := h.adminPrincipal(w, r)
 	if !ok {
+		return
+	}
+	if h.refuseManagedUpdate(w) {
 		return
 	}
 	if h.deps.UpdateStarter == nil || h.deps.UpdateMode != updatehelper.DeploymentBinary && h.deps.UpdateMode != updatehelper.DeploymentDocker {

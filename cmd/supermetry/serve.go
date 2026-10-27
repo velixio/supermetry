@@ -403,6 +403,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		MaxSitesPerOrg:     cfg.MaxSitesPerOrg,
 		BaseURL:            cfg.BaseURL, HomepageURL: cfg.HomepageURL, GeoIPSource: enricher.GeoIPSource, TrackerPath: cfg.TrackerPath,
 		SupportURL:      cfg.SupportURL,
+		Managed:         cfg.Managed,
 		RetentionPolicy: siteService.RetentionPolicy,
 		Snippet: func(publicID string, full bool) string {
 			return sitesvc.Snippet(cfg.BaseURL, cfg.TrackerPath, cfg.EventPath, publicID, full)

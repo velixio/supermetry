@@ -85,9 +85,11 @@ func (h *handler) authConfig(w http.ResponseWriter, r *http.Request) {
 		DefaultRetentionDays int    `json:"default_retention_days"`
 		RetentionForever     bool   `json:"retention_forever"`
 		SupportURL           string `json:"support_url,omitempty"`
+		Managed              bool   `json:"managed"`
 	}{
 		SetupRequired: setupRequired, Signup: mode, HomepageURL: homepageURL, GeoIPSource: geoIPSource,
 		DefaultRetentionDays: defaultRetention, RetentionForever: retentionForever, SupportURL: h.deps.SupportURL,
+		Managed: h.deps.Managed,
 	})
 }
 

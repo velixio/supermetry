@@ -659,6 +659,7 @@ paths:
         '200': { description: Fresh update availability., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUpdateStatus' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: The instance is managed by its operator (SUPERMETRY_MANAGED=true), which owns updates., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/update/apply:
     post:
@@ -676,7 +677,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { description: An update is already active or this deployment is not managed by the updater., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: An update is already active, this deployment is not managed by the updater, or the instance is managed by its operator (SUPERMETRY_MANAGED=true)., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/private/setup/status:
