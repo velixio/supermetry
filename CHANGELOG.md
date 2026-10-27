@@ -16,12 +16,14 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 - Per-organization replay retention cap for instances run by an operator: `GET`, `PUT` and `DELETE /api/private/admin/organizations/{org}/replay-retention-cap` (instance admin only). A site's effective replay retention is the smallest of the instance cap, the organization's cap and the site's own setting. Lowering a cap deletes older recordings at the next cleanup run. Without a cap, behavior is unchanged.
 - `DELETE /api/private/admin/users/{user}` (instance admin only): delete an account without the user's password, optionally erasing the organizations they solely own at once. The same address can sign up again afterwards.
+- `SUPERMETRY_MANAGED=true` (default `false`) marks an instance run by an operator: the dashboard hides the instance administration links and shows a calm "managed by its operator" page at `/app/admin/*`, and in-app update check and apply answer 409. Authorization and the rest of the admin API are unchanged. `GET /api/private/auth/config` reports it as `managed`.
+- `POST /api/private/admin/organizations/{org}/erase` (instance admin only): erase an organization and its data now instead of waiting for the retention period; the request body repeats the slug to confirm.
 - `SUPERMETRY_SMTP_HELO` (optional): the host name announced in the SMTP greeting.
 - GitHub and brand images for the repository page in `docs/brand/github/`.
 
 ### Upgrade notes
 
-- One new migration, `0250_org_replay_retention_cap.sql` (adds a nullable column to `orgs`; nothing changes until a cap is set).
+- Two new migrations, `0250_org_replay_retention_cap.sql` and `0251_org_erase_requested.sql`, each adding a nullable column to `orgs`; nothing changes until the features are used.
 
 ## v0.1.1 to v0.1.16 (accumulated)
 
@@ -36,7 +38,6 @@ The notes below were collected under "Unreleased" across these releases and were
 
 ### Added
 
-- `SUPERMETRY_MANAGED=true` (default `false`) marks an instance run by an operator: the dashboard hides the instance administration links and shows a calm "managed by its operator" page at `/app/admin/*`, and in-app update check and apply answer 409. Authorization and the rest of the admin API are unchanged. `GET /api/private/auth/config` reports it as `managed`.
 - `proxyKey` option for the SDK proxy handlers (`@supermetry/tracker/proxy`, Next.js, Remix): on Supermetry Cloud, tracking requests carry the site's proxy key and the visitor's address so visitors keep their real location and identity.
 - `SUPERMETRY_DEFAULT_RETENTION_DAYS` (7, 30, 90, 365 or 0; default 30) sets the retention a new site gets when none is chosen, and `SUPERMETRY_RETENTION_FOREVER` (default `true`) can turn off "keep forever": the API then rejects `retention_days: 0` with 400 and the dashboard hides the option. `SUPERMETRY_SUPPORT_URL` adds an optional "Contact support" link to the sign-in and error pages. All three are reported by `GET /api/private/auth/config`.
 - Account recovery and onboarding: a "Forgot password?" page, clearer reset and invitation pages (an invitation names the organization and inviter, a signed-in invitee joins with one button, a new account is signed in after accepting), a two-field first-site form (domain and time zone, with retention and revenue currency under Advanced options), a live installation status with troubleshooting, and a no-data banner that follows the site's install status.
