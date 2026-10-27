@@ -153,7 +153,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 31. ~~Install recipes, full report dialog and exports~~ ✅
 32. ~~Interface languages (Spanish and German first translations)~~ ✅
 33. ~~Pixel analytics projects and opt-in open GitHub counters~~ ✅
-34. ~~GitHub star tracking for our own repo: webhook, per-user event log, hourly and daily charts, daily reconcile; page at /app/github-stars, instance admins only; public star-count endpoint `GET /api/github/stars/{owner}/{name}` returning `{"stars":N}`~~ ✅
+34. ~~GitHub star tracking per organization: each organization tracks its own repositories (5 by default, adjustable per organization): webhook, per-user event log, hourly and daily charts, daily reconcile; page at /app/{org}/github-stars, readable by every member and managed by owners and admins; opt-in public star-count endpoint `GET /api/github/stars/{owner}/{name}` returning `{"stars":N}`~~ ✅
 35. ~~Admin storage estimates per site and organization, with logical PostgreSQL bytes plus replay recording/CSS blobs~~ ✅
 
 ### Later
