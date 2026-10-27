@@ -282,6 +282,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	engine.SetGoalLookup(definitionService)
 	reportService := reports.New(platformStore, engine, registry, sender)
 	reportService.SetTrackingMode(cfg.Tracking.Mode)
+	reportService.SetBaseURL(cfg.BaseURL)
 	alertBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/alerts/v1")
 	if err != nil {
 		return fmt.Errorf("initialize alert encryption: %w", err)

@@ -11,6 +11,7 @@ import (
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
 	platformcrypto "supermetry/internal/platform/crypto"
+	"supermetry/internal/platform/mail"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/platform/users"
 )
@@ -58,5 +59,6 @@ func (a *Auth) Signup(ctx context.Context, email, name, password, orgName, devic
 		}
 		return "", err
 	}
+	mail.SendWelcomeAsync(a.mail, a.baseURL, email, name)
 	return token, nil
 }

@@ -216,6 +216,7 @@ func TestEmailChangeConfirmRequiresSession(t *testing.T) {
 	}
 	text := fixture.mailer.Sent[0].Text
 	link := text[strings.Index(text, "/api/private/auth/email-change/confirm"):]
+	link = strings.Fields(link)[0]
 	anonymous := httptest.NewRequest(http.MethodGet, link, nil)
 	response := httptest.NewRecorder()
 	fixture.handler.ServeHTTP(response, anonymous)

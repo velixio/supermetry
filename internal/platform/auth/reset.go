@@ -39,11 +39,7 @@ func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
 	if !a.mail.Enabled() {
 		return link, nil
 	}
-	message := mail.Message{
-		To:      user.Email,
-		Subject: "Reset your Supermetry password",
-		Text:    "Reset your password using this one-time link:\n\n" + link,
-	}
+	message := mail.PasswordReset(a.baseURL, link, resetLifetime).Message(user.Email)
 	if err := a.mail.Send(ctx, message); err != nil {
 		return "", fmt.Errorf("send password reset: %w", err)
 	}

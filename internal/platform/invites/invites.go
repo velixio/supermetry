@@ -142,11 +142,14 @@ func (i *Invites) Create(ctx context.Context, principal authz.Principal, email s
 	if !i.mail.Enabled() {
 		return link, nil
 	}
-	message := mail.Message{
-		To:      email,
-		Subject: "You're invited to Supermetry",
-		Text:    "Accept your invitation using this one-time link:\n\n" + link,
-	}
+	info := mail.InvitationInfo{Role: string(role), Lifetime: invitationLifetime}
+	// Names are best effort: the invitation exists, so a failed lookup only
+	// makes the email less specific.
+	_ = i.store.Pool.QueryRow(ctx, `
+		select o.name, u.name, u.email
+		from orgs o, users u where o.id=$1 and u.id=$2`, principal.OrgID, principal.UserID).
+		Scan(&info.OrgName, &info.InviterName, &info.InviterEmail)
+	message := mail.Invitation(i.baseURL, link, info).Message(email)
 	if err := i.mail.Send(ctx, message); err != nil {
 		return "", fmt.Errorf("send invitation: %w", err)
 	}
@@ -159,6 +162,7 @@ func (i *Invites) Accept(ctx context.Context, token string, userID int64, name, 
 	}
 	tokenHash := platformcrypto.HashToken(token)
 	now := i.clock.Now()
+	var createdEmail, createdName string
 	err := i.store.Tx(ctx, func(tx pgx.Tx) error {
 		// Every invite/member mutation locks the organization first. Looking up its
 		// ID does not consume the token or expose invitation details to callers.
@@ -206,6 +210,7 @@ func (i *Invites) Accept(ctx context.Context, token string, userID int64, name, 
 			if err != nil {
 				return err
 			}
+			createdEmail, createdName = invitation.Email, name
 		} else {
 			var existingEmail string
 			existingEmail, err = store.InvitationUserEmail(ctx, tx, userID)
@@ -233,6 +238,9 @@ func (i *Invites) Accept(ctx context.Context, token string, userID int64, name, 
 	})
 	if err != nil {
 		return 0, err
+	}
+	if createdEmail != "" {
+		mail.SendWelcomeAsync(i.mail, i.baseURL, createdEmail, createdName)
 	}
 	return userID, nil
 }

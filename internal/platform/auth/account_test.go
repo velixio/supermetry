@@ -25,6 +25,17 @@ type accountEnv struct {
 	mailer *mail.Fake
 }
 
+// withoutWelcome drops the asynchronous welcome email so tests that count or
+// index sent messages stay deterministic.
+type withoutWelcome struct{ *mail.Fake }
+
+func (w withoutWelcome) Send(ctx context.Context, m mail.Message) error {
+	if m.Subject == "Welcome to Supermetry" {
+		return nil
+	}
+	return w.Fake.Send(ctx, m)
+}
+
 func newAccountEnv(t *testing.T) accountEnv {
 	t.Helper()
 	pool, _ := testpg.New(t)
@@ -39,7 +50,7 @@ func newAccountEnv(t *testing.T) accountEnv {
 	clock := newFakeClock()
 	sender := &mail.Fake{}
 	return accountEnv{
-		a:     auth.New(data, sender, box, "https://supermetry.example", auth.WithClock(clock)),
+		a:     auth.New(data, withoutWelcome{sender}, box, "https://supermetry.example", auth.WithClock(clock)),
 		store: data, users: users.New(data), clock: clock, mailer: sender,
 	}
 }
@@ -361,5 +372,32 @@ func TestAccountChangesAreAuditedAndKeysSurviveDeletion(t *testing.T) {
 	var revoked *time.Time
 	if err := env.store.Pool.QueryRow(ctx, `select revoked_at from api_keys where created_by=$1`, user.ID).Scan(&revoked); err != nil || revoked != nil {
 		t.Fatalf("org API key revoked_at=%v err=%v", revoked, err)
+	}
+}
+
+func TestSignupSendsWelcomeOnce(t *testing.T) {
+	env := newAccountEnv(t)
+	fake := &mail.Fake{}
+	a := auth.New(env.store, fake, nil, "https://supermetry.example", auth.WithClock(env.clock))
+	if _, err := a.Signup(ctx, "fresh@example.test", "Fresh <b>User</b>", "pw-123456789-x", "Fresh Org", "x"); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		fake.Mu().Lock()
+		n := len(fake.Sent)
+		fake.Mu().Unlock()
+		if n > 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	fake.Mu().Lock()
+	defer fake.Mu().Unlock()
+	if len(fake.Sent) != 1 || fake.Sent[0].To != "fresh@example.test" || fake.Sent[0].Subject != "Welcome to Supermetry" {
+		t.Fatalf("sent = %+v", fake.Sent)
+	}
+	if strings.Contains(fake.Sent[0].HTML, "<b>User</b>") {
+		t.Fatal("name was not escaped")
 	}
 }

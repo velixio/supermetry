@@ -79,10 +79,7 @@ func (a *Auth) StartEmailChange(ctx context.Context, userID int64, newEmail, pas
 		return err
 	}
 	link := a.baseURL + "/api/private/auth/email-change/confirm?token=" + url.QueryEscape(plain)
-	if err := a.mail.Send(ctx, mail.Message{
-		To: newEmail, Subject: "Confirm your new Supermetry email",
-		Text: "Confirm your new email address using this one-time link:\n\n" + link,
-	}); err != nil {
+	if err := a.mail.Send(ctx, mail.ConfirmNewEmail(a.baseURL, link, newEmail, emailChangeLifetime).Message(newEmail)); err != nil {
 		_, _ = a.store.Pool.Exec(ctx, `delete from email_changes where token_hash=$1`, hash)
 		return fmt.Errorf("send email change confirmation: %w", err)
 	}
@@ -136,10 +133,7 @@ func (a *Auth) ConfirmEmailChange(ctx context.Context, userID int64, token strin
 	}
 	if a.mail != nil && a.mail.Enabled() {
 		// The change is committed; a failed notice must not report failure.
-		_ = a.mail.Send(ctx, mail.Message{
-			To: oldEmail, Subject: "Your Supermetry email was changed",
-			Text: "Your Supermetry account email address was changed to " + newEmail + ". If you did not make this change, contact your administrator.",
-		})
+		_ = a.mail.Send(ctx, mail.EmailChanged(a.baseURL, newEmail).Message(oldEmail))
 	}
 	return nil
 }

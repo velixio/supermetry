@@ -304,6 +304,13 @@ func TestAuthHTTPPasswordLengthBoundary(t *testing.T) {
 
 func queryToken(t *testing.T, rawURL string) string {
 	t.Helper()
+	// Accept a whole email body: the link is the first http(s) field.
+	for _, field := range strings.Fields(rawURL) {
+		if strings.HasPrefix(field, "http://") || strings.HasPrefix(field, "https://") {
+			rawURL = field
+			break
+		}
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		t.Fatal(err)
