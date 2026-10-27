@@ -6,6 +6,7 @@ import type { AnchorHTMLAttributes } from 'react'
 import { AccountMenu } from './HeaderMenus'
 import { requestLogout } from '@/lib/session-lifecycle'
 import type { Me } from '@/lib/me'
+import { queryClient } from '@/lib/queryClient'
 
 vi.mock('@/lib/session-lifecycle', () => ({ requestLogout: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
@@ -34,6 +35,15 @@ it.each([true, false])('shows identity and explicit current-session logout with 
   expect(screen.queryByRole('menuitem', { name: 'Instance administration' })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('menuitem', { name: 'Log out' }))
   expect(requestLogout).toHaveBeenCalledTimes(1)
+})
+
+it('hides instance administration from the account menu on a managed instance', async () => {
+  queryClient.setQueryData(['auth-config'], { signup: 'open', setup_required: false, homepage_url: '', managed: true })
+  render(<AccountMenu me={{ ...me, user: { ...me.user, instance_admin: true } }} trigger={<button type="button">Account</button>} />)
+  openMenu('Account')
+  expect(await screen.findByRole('menuitem', { name: 'Account settings' })).toBeVisible()
+  expect(screen.queryByRole('menuitem', { name: 'Instance administration' })).not.toBeInTheDocument()
+  queryClient.clear()
 })
 
 it('shows the server build version in the account menu', async () => {

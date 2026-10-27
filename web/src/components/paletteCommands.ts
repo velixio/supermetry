@@ -38,6 +38,7 @@ export function paletteCommands({
   requestedSite,
   theme,
   current,
+  managed = false,
 }: {
   me: Me
   membership?: Membership
@@ -45,6 +46,8 @@ export function paletteCommands({
   theme: Theme
   /** The matched route; switching site or organization keeps this page, like the sidebar switchers. */
   current?: CurrentRoute
+  /** The instance is run by an operator, so the instance administration is not offered. */
+  managed?: boolean
 }): PaletteCommand[] {
   const commands: PaletteCommand[] = []
   const page = (id: string, label: string, href: string) =>
@@ -77,7 +80,7 @@ export function paletteCommands({
     }
   }
 
-  for (const destination of accountDestinations(me)) {
+  for (const destination of accountDestinations(me, managed)) {
     if (destination === 'admin') page('admin', en.admin.link, '/app/admin/users')
     else page('account', ui.menus.accountSettings, '/app/account/profile')
   }

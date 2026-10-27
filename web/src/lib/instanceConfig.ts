@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { queryClient } from '@/lib/queryClient'
 import { createAuthConfigApi, type AuthConfig } from '@/features/auth/api'
 
 export const retentionChoices = [7, 30, 90, 365, 0] as const
@@ -8,6 +9,18 @@ export type RetentionChoice = (typeof retentionChoices)[number]
 /** The public instance settings (sign-up mode, retention policy, support link). Shared and cached. */
 export function useInstanceConfig() {
   return useQuery({ queryKey: ['auth-config'], queryFn: createAuthConfigApi(), staleTime: 300_000, retry: 1 })
+}
+
+/** True once the instance reports that an operator manages it. False while the settings load, so nothing flickers away on normal instances. */
+export function useManaged(): boolean {
+  return useManagedState().managed
+}
+
+/** `known` is false until the settings have loaded; callers that would fire admin requests wait for it. */
+export function useManagedState(): { managed: boolean; known: boolean } {
+  // Read through the app's shared client so the shell and menus need no provider of their own.
+  const config = useQuery({ queryKey: ['auth-config'], queryFn: createAuthConfigApi(), staleTime: 300_000, retry: 1 }, queryClient)
+  return { managed: config.data?.managed === true, known: config.isSuccess }
 }
 
 export type RetentionPolicy = { defaultDays: number; forever: boolean }

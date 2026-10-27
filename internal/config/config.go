@@ -74,7 +74,10 @@ type Config struct {
 	// DefaultRetentionDays preselects raw-event retention for new sites (7, 30, 90, 365, or 0 for forever).
 	DefaultRetentionDays int
 	// RetentionForever offers the "keep forever" retention. When false the API rejects retention_days 0.
-	RetentionForever     bool
+	RetentionForever bool
+	// Managed marks an instance run by an operator: the in-app instance administration is hidden
+	// and in-app updates are refused.
+	Managed              bool
 	BadgeBranding        bool
 	OpenCounters         bool
 	OpenCounterBlocklist string
@@ -290,6 +293,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
+	parseOptionalBool(getenv("SUPERMETRY_MANAGED"), "SUPERMETRY_MANAGED", &c.Managed, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_RETENTION_FOREVER"), "SUPERMETRY_RETENTION_FOREVER", &c.RetentionForever, &errs)
 	if raw := strings.TrimSpace(getenv("SUPERMETRY_DEFAULT_RETENTION_DAYS")); raw != "" {
 		value, err := strconv.Atoi(raw)

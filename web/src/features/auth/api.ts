@@ -20,6 +20,8 @@ export type AuthConfig = {
   retention_forever?: boolean
   /** Optional help link (https or mailto); absent when not configured. */
   support_url?: string
+  /** True when an operator runs the instance: the in-app instance administration is hidden. */
+  managed?: boolean
 }
 
 async function request(path: string, init: RequestInit, fetcher = globalThis.fetch): Promise<Response> {

@@ -12,6 +12,7 @@ import {
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { queryClient } from '@/lib/queryClient'
 
 const { loadPalette, useLiveSummary, useUpdateStatus, useReplayAvailability, privateRequest, shortcuts, toggleTheme, requestLogout } = vi.hoisted(() => ({
   loadPalette: vi.fn(),
@@ -417,6 +418,7 @@ describe('AppShell live visitor badge', () => {
   })
 
   it('keeps the skip link first and focus order intact outside an organization', async () => {
+    queryClient.setQueryData(['auth-config'], { signup: 'open', setup_required: false, homepage_url: '', managed: false })
     const { container } = renderAppShell('/app/admin/users', { ...me, user: { ...me.user, instance_admin: true } })
     const skip = await screen.findByRole('link', { name: 'Skip to main content' })
     expect(container.querySelector('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])')).toBe(skip)
@@ -426,6 +428,7 @@ describe('AppShell live visitor badge', () => {
     expect(follows(sidebar, screen.getByRole('banner', { name: 'Application header' }))).toBe(true)
     expect(within(sidebar).getByRole('link', { name: 'Instance administration' })).toHaveAttribute('aria-current', 'page')
     expect(useUpdateStatus).toHaveBeenCalledWith(true)
+    queryClient.clear()
   })
 
   it('opens the command palette from the header trigger and returns focus to it on Escape', async () => {

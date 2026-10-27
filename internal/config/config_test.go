@@ -659,6 +659,23 @@ func TestLoadSiteRetentionPolicy(t *testing.T) {
 	}
 }
 
+func TestLoadManaged(t *testing.T) {
+	got, err := Load(env(baseEnv()))
+	if err != nil || got.Managed {
+		t.Fatalf("default Managed = %v, %v", got.Managed, err)
+	}
+	values := baseEnv()
+	values["SUPERMETRY_MANAGED"] = "true"
+	got, err = Load(env(values))
+	if err != nil || !got.Managed {
+		t.Fatalf("Managed = %v, %v", got.Managed, err)
+	}
+	values["SUPERMETRY_MANAGED"] = "yes please"
+	if _, err := Load(env(values)); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_MANAGED") {
+		t.Fatalf("invalid SUPERMETRY_MANAGED error = %v", err)
+	}
+}
+
 func TestLoadSupportURL(t *testing.T) {
 	got, err := Load(env(baseEnv()))
 	if err != nil || got.SupportURL != "" {

@@ -96,6 +96,8 @@ type Deps struct {
 	HomepageURL    string
 	// SupportURL is an optional help link for error pages; empty hides it.
 	SupportURL string
+	// Managed marks an operator-run instance: the auth config reports it and in-app updates are refused.
+	Managed bool
 	// RetentionPolicy reports the default retention for new sites and whether
 	// "keep forever" is offered. Nil means 30 days and forever allowed.
 	RetentionPolicy func() (defaultDays int, allowForever bool)

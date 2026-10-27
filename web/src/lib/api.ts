@@ -27,6 +27,7 @@ type PrivatePaths = {
               default_retention_days?: number
               retention_forever?: boolean
               support_url?: string
+              managed?: boolean
             }
           }
         }
