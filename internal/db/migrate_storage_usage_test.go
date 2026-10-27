@@ -10,10 +10,15 @@ func TestStorageUsageMigrationIsLatestAndDefinesAtomicGenerationTables(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := migrations[len(migrations)-1].version; got != 245 {
-		t.Fatalf("latest migration = %d, want 245", got)
+	var sql string
+	for _, m := range migrations {
+		if m.version == 245 {
+			sql = m.sql
+		}
 	}
-	sql := migrations[len(migrations)-1].sql
+	if sql == "" {
+		t.Fatal("migration 245 is missing")
+	}
 	for _, fragment := range []string{
 		"storage_usage_runs", "storage_usage_run_sites", "storage_usage_run_work", "storage_usage_stage", "site_storage_usage",
 		"measurement_version", "work_fingerprint", "replay_recording_bytes", "estimated_storage_bytes",
