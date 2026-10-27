@@ -27,6 +27,16 @@ The owner can restore it, and an instance admin can too: `POST /api/private/admi
 
 `PATCH /api/private/admin/sites/{site_id}` with `{"retention_days": 30}` sets how long raw data is kept. Allowed values are `0`, `7`, `30`, `90` and `365`.
 
+## Cap an organization's replay retention
+
+`GET`, `PUT` and `DELETE /api/private/admin/organizations/{org}/replay-retention-cap` read, set and remove an organization's cap on session replay retention, so each plan of a hosted deployment can have its own retention (for example 30 days on a free plan, 45 on a paid one). Instance admins only (a session or the admin key); organization owners get `403`.
+
+- `PUT` takes `{"days": N}` with N from 1 to 365, or `{"days": null}` for no cap. `DELETE` is the same as `null`. A missing, out-of-range, fractional or non-numeric `days` is `400`; an unknown organization is `404`.
+- Every call answers `{"days": N | null, "source": "org" | "none"}`; `source` is `none` when there is no cap.
+- A site's effective replay retention is the smallest of `SUPERMETRY_REPLAY_RETENTION_DAYS` (when set), this cap (when set) and the site's own setting. A site cannot save a retention above the cap (`409`), and its replay settings report `org_retention_capped`.
+- Lowering a cap deletes recordings older than the new retention at the next hourly replay cleanup; raising it later does not restore them. The cleanup logs one count-only line per site per run.
+- Audited as `replay.retention_cap_changed` with metadata `{"days": N | null}`.
+
 ## Create a user
 
 `POST /api/private/admin/users` with `email`, and optionally `name`, `org_name` and `send_reset`. The user gets an unusable password; with `org_name` they own a new organization. It returns `201`, or `409` if the email exists. With `send_reset` the user is emailed a password-set link; when mail is not configured the response carries a one-time `reset_url` instead.

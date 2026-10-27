@@ -98,6 +98,20 @@ recordings and cannot prove a forged payload was masked. Required masking and
 fingerprint checks are not server-side content anonymization. Quota/retention are
 resolved configuration ceilings consumed by the existing asynchronous cleanup;
 active recordings and concurrent writes can exceed instantaneous storage targets.
+
+**Replay retention caps:** a site's effective replay retention is the smallest of
+`SUPERMETRY_REPLAY_RETENTION_DAYS` (when set), its organization's cap (when set)
+and the site's own `retention_days`. An instance admin sets the organization cap,
+1 to 365 days, with `PUT /api/private/admin/organizations/{org}/replay-retention-cap`
+(see the instance admin API guide), so a hosted deployment can give each plan its
+own retention; no cap is the default and changes nothing. The settings API reports
+`org_retention_capped` when the organization cap is what lowers the value, and the
+site's replay settings page shows the organization maximum. The hourly cleanup
+enforces the effective value, so **lowering a cap deletes recordings older than the
+new retention at the next run**; raising the cap later does not bring them back.
+The cleanup logs one line per site per run (`replay retention`) with counts only:
+site id, effective days, the organization cap, sessions deleted for age and sessions
+kept.
 A strict byte admission quota and durable deletion protocol remain separate work.
 
 ## Historical reads
