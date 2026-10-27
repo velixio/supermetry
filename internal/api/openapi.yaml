@@ -3196,6 +3196,56 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/notifications:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+    get:
+      operationId: listOrgNotifications
+      summary: List the organization's notification channels (owners and admins)
+      description: The bot token is never returned; token_set only says whether one is stored.
+      responses:
+        '200':
+          description: Channels and the event kinds an owner can opt into
+          content: { application/json: { schema: { $ref: '#/components/schemas/OrgNotificationList' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/notifications/telegram:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+    put:
+      operationId: saveOrgTelegramNotifications
+      summary: Create or update the Telegram channel
+      description: token may be omitted on update to keep the stored one. Every event kind is off until set to true.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OrgTelegramInput' } } }
+      responses:
+        '200': { description: Saved channel, content: { application/json: { schema: { $ref: '#/components/schemas/OrgNotificationChannel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteOrgTelegramNotifications
+      summary: Delete the Telegram channel
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/notifications/telegram/test:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+    post:
+      operationId: testOrgTelegramNotifications
+      summary: Send a test message (at most one every 30 seconds per organization)
+      responses:
+        '200': { description: Delivery result, content: { application/json: { schema: { $ref: '#/components/schemas/OrgNotificationTestResult' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/orgs/{org}/notification-templates:
     parameters:
       - { $ref: '#/components/parameters/OrgPathID' }
@@ -3756,6 +3806,56 @@ components:
       required: [history_retention_days]
       properties:
         history_retention_days: { type: integer, minimum: 1, maximum: 3650, default: 30 }
+    OrgNotificationKind:
+      type: string
+      enum: [star_milestone, star_spike, unstar_surge, trending_entered, trending_left]
+    OrgNotificationChannel:
+      type: object
+      additionalProperties: false
+      required: [id, kind, enabled, chat_id, token_set, events, created_at, updated_at, last_ok_at, last_error, consecutive_failures]
+      properties:
+        id: { type: integer, format: int64 }
+        kind: { type: string, enum: [telegram] }
+        enabled: { type: boolean }
+        chat_id: { type: string }
+        token_set: { type: boolean }
+        events: { type: object, additionalProperties: { type: boolean } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        last_ok_at: { type: string, format: date-time, nullable: true }
+        last_error: { type: string }
+        consecutive_failures: { type: integer }
+    OrgNotificationEventKind:
+      type: object
+      additionalProperties: false
+      required: [kind, label, description]
+      properties:
+        kind: { $ref: '#/components/schemas/OrgNotificationKind' }
+        label: { type: string }
+        description: { type: string }
+    OrgNotificationList:
+      type: object
+      additionalProperties: false
+      required: [data, event_kinds]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/OrgNotificationChannel' } }
+        event_kinds: { type: array, items: { $ref: '#/components/schemas/OrgNotificationEventKind' } }
+    OrgTelegramInput:
+      type: object
+      additionalProperties: false
+      required: [chat_id, enabled]
+      properties:
+        token: { type: string, writeOnly: true, description: Bot token; omit to keep the stored one. }
+        chat_id: { type: string }
+        enabled: { type: boolean }
+        events: { type: object, additionalProperties: { type: boolean } }
+    OrgNotificationTestResult:
+      type: object
+      additionalProperties: false
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        error: { type: string }
     NotificationTemplateList:
       type: object
       additionalProperties: false
