@@ -598,6 +598,42 @@ func (e GitHubStarRepoLimitSource) Valid() bool {
 	}
 }
 
+// Defines values for GitHubTrendingListSince.
+const (
+	GitHubTrendingListSinceDaily  GitHubTrendingListSince = "daily"
+	GitHubTrendingListSinceWeekly GitHubTrendingListSince = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the GitHubTrendingListSince enum.
+func (e GitHubTrendingListSince) Valid() bool {
+	switch e {
+	case GitHubTrendingListSinceDaily:
+		return true
+	case GitHubTrendingListSinceWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GitHubTrendingSightingSince.
+const (
+	GitHubTrendingSightingSinceDaily  GitHubTrendingSightingSince = "daily"
+	GitHubTrendingSightingSinceWeekly GitHubTrendingSightingSince = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the GitHubTrendingSightingSince enum.
+func (e GitHubTrendingSightingSince) Valid() bool {
+	switch e {
+	case GitHubTrendingSightingSinceDaily:
+		return true
+	case GitHubTrendingSightingSinceWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GoalKind.
 const (
 	GoalEvent  GoalKind = "event"
@@ -2769,6 +2805,9 @@ type GitHubStarsRepoPatch struct {
 
 	// Token Replaces the stored token when not empty.
 	Token *string `json:"token,omitempty"`
+
+	// TrendingEnabled Opts the repository in or out of the trending watcher; turning it off closes open episodes silently.
+	TrendingEnabled *bool `json:"trending_enabled,omitempty"`
 }
 
 // GitHubStarsRepoSecret defines model for GitHubStarsRepoSecret.
@@ -2803,6 +2842,66 @@ type GitHubStarsSummary struct {
 	Stars     int        `json:"stars"`
 	UpdatedAt *time.Time `json:"updated_at"`
 	Watchers  int        `json:"watchers"`
+}
+
+// GitHubTrendingList defines model for GitHubTrendingList.
+type GitHubTrendingList struct {
+	Entries      int        `json:"entries"`
+	LastError    string     `json:"last_error"`
+	LastOkAt     *time.Time `json:"last_ok_at"`
+	ListLanguage string     `json:"list_language"`
+
+	// NoListUntil Set while GitHub has no list for this language.
+	NoListUntil *time.Time `json:"no_list_until"`
+
+	// ParseOk False while the page cannot be read.
+	ParseOk bool                    `json:"parse_ok"`
+	Since   GitHubTrendingListSince `json:"since"`
+}
+
+// GitHubTrendingListSince defines model for GitHubTrendingList.Since.
+type GitHubTrendingListSince string
+
+// GitHubTrendingSighting defines model for GitHubTrendingSighting.
+type GitHubTrendingSighting struct {
+	BestRank    int       `json:"best_rank"`
+	FirstRank   int       `json:"first_rank"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+
+	// Id Identifies the episode.
+	Id         int64     `json:"id"`
+	LastRank   int       `json:"last_rank"`
+	LastSeenAt time.Time `json:"last_seen_at"`
+
+	// LeftAt Null while the episode is open.
+	LeftAt *time.Time `json:"left_at"`
+
+	// ListLanguage Lowercase language of the list; empty for all languages.
+	ListLanguage string                      `json:"list_language"`
+	Since        GitHubTrendingSightingSince `json:"since"`
+}
+
+// GitHubTrendingSightingSince defines model for GitHubTrendingSighting.Since.
+type GitHubTrendingSightingSince string
+
+// GitHubTrendingStatus defines model for GitHubTrendingStatus.
+type GitHubTrendingStatus struct {
+	Current []GitHubTrendingSighting `json:"current"`
+
+	// DeferredLists Lists the last run postponed because of the per-run request cap.
+	DeferredLists int  `json:"deferred_lists"`
+	Enabled       bool `json:"enabled"`
+
+	// Episodes Latest 50 episodes, newest first; open ones have left_at null.
+	Episodes []GitHubTrendingSighting `json:"episodes"`
+
+	// Language Primary language last seen by the star tracker; empty when unknown.
+	Language      string               `json:"language"`
+	LastCheckedAt *time.Time           `json:"last_checked_at"`
+	Lists         []GitHubTrendingList `json:"lists"`
+
+	// Status One of off, waiting, watching or unreadable.
+	Status string `json:"status"`
 }
 
 // Goal defines model for Goal.
@@ -5407,6 +5506,9 @@ type ServerInterface interface {
 	// OrgSyncGitHubStarsRepo Reconcile and backfill a repository now
 	// (POST /api/private/orgs/{org}/github-stars/repos/{id}/sync)
 	OrgSyncGitHubStarsRepo(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
+	// OrgGetGitHubStarsTrending Trending watcher status, current episodes and recent history
+	// (GET /api/private/orgs/{org}/github-stars/repos/{id}/trending)
+	OrgGetGitHubStarsTrending(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
 	// OrgGetGitHubStarsSeries Gained, lost, net and cumulative stars per bucket
 	// (GET /api/private/orgs/{org}/github-stars/series)
 	OrgGetGitHubStarsSeries(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgGetGitHubStarsSeriesParams)
@@ -7206,6 +7308,41 @@ func (siw *ServerInterfaceWrapper) OrgSyncGitHubStarsRepo(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OrgSyncGitHubStarsRepo(w, r, org, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgGetGitHubStarsTrending operation middleware
+func (siw *ServerInterfaceWrapper) OrgGetGitHubStarsTrending(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgGetGitHubStarsTrending(w, r, org, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11961,6 +12098,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}", wrapper.OrgUpdateGitHubStarsRepo)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret", wrapper.OrgRotateGitHubStarsSecret)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/sync", wrapper.OrgSyncGitHubStarsRepo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/trending", wrapper.OrgGetGitHubStarsTrending)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/summary", wrapper.OrgGetGitHubStarsSummary)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/series", wrapper.OrgGetGitHubStarsSeries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/events", wrapper.OrgListGitHubStarsEvents)

@@ -132,6 +132,8 @@ func (h *handler) orgStarsUpdateRepo(w http.ResponseWriter, r *http.Request) {
 		Token         *string `json:"token"`
 		PublicCounter *bool   `json:"public_counter"`
 		ClearToken    bool    `json:"clear_token"`
+		// TrendingEnabled opts the repository in or out of the trending watcher.
+		TrendingEnabled *bool `json:"trending_enabled"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -139,6 +141,9 @@ func (h *handler) orgStarsUpdateRepo(w http.ResponseWriter, r *http.Request) {
 	repo, err := svc.Update(r.Context(), orgID, id, ghstars.UpdateInput{Enabled: request.Enabled, TimeZone: request.TimeZone, Token: request.Token, PublicCounter: request.PublicCounter, ClearToken: request.ClearToken}, actor)
 	if err != nil {
 		starsError(w, err)
+		return
+	}
+	if request.TrendingEnabled != nil && !h.setTrendingEnabled(w, r, orgID, id, *request.TrendingEnabled) {
 		return
 	}
 	writeJSON(w, http.StatusOK, repo)
