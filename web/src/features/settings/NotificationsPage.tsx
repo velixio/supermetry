@@ -14,7 +14,6 @@ import {
   useChannels, useDeleteChannel, useSaveChannel, useTestChannel,
 } from './notificationApi'
 import { NotificationTemplates } from './NotificationTemplates'
-import { OrgTelegramCard } from './OrgTelegramCard'
 
 const blank: ChannelInput = { kind: 'email', name: '', enabled: true, config: { recipients: [] } }
 
@@ -79,7 +78,6 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
           setEditing(undefined)
         }}
       />
-      {canManage ? <OrgTelegramCard orgId={orgId} /> : null}
       <NotificationTemplates orgId={orgId} canManage={canManage} />
     </PageContainer>
   )
