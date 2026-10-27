@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"supermetry/internal/db"
 	"supermetry/internal/ghstars"
 	"supermetry/internal/platform/admin"
@@ -30,6 +32,7 @@ type starsEnv struct {
 	// otherRepo belongs to otherOrg.
 	otherRepo ghstars.Repo
 	base      string
+	pool      *pgxpool.Pool
 }
 
 // newStarsEnv builds the handler with a service whose GitHub API is a fake
@@ -44,6 +47,7 @@ func newStarsEnv(t *testing.T, enabled bool) starsEnv {
 		t.Fatal(err)
 	}
 	var env starsEnv
+	env.pool = pool
 	for slug, target := range map[string]*int64{"one": &env.org, "two": &env.otherOrg} {
 		if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ($1,$1) returning id`, slug).Scan(target); err != nil {
 			t.Fatal(err)

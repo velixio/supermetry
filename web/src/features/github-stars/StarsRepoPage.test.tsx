@@ -19,6 +19,7 @@ const api = vi.hoisted(() => ({
 vi.mock('./githubStarsApi', async (importOriginal) => ({ ...(await importOriginal<typeof import('./githubStarsApi')>()), ...api }))
 
 vi.mock('./StarsTrending', () => ({ StarsTrending: () => null }))
+vi.mock('./StarsAlerts', () => ({ StarsAlerts: () => null }))
 
 import { StarsRepoPage } from './StarsRepoPage'
 import { markerBucket } from './StarsChart'
