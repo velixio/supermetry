@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-func TestStorageUsageMigrationIsLatestAndDefinesAtomicGenerationTables(t *testing.T) {
+func TestStorageUsageMigrationDefinesAtomicGenerationTables(t *testing.T) {
 	migrations, err := loadMigrations()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var sql string
+	sql := ""
 	for _, m := range migrations {
 		if m.version == 245 {
 			sql = m.sql
